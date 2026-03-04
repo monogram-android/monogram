@@ -3,6 +3,7 @@ package org.monogram.presentation.di
 import android.content.Context
 import coil3.ImageLoader
 import com.bettergram.core.DispatcherProvider
+import com.bettergram.core.Logger
 import kotlinx.coroutines.CoroutineScope
 import org.koin.core.Koin
 import org.monogram.domain.managers.*
@@ -49,6 +50,7 @@ class KoinUtilsContainer(private val koin: Koin) : UtilsContainer {
     override val imageLoader: ImageLoader by lazy { koin.get() }
     override val clipManager: ClipManager by lazy { koin.get() }
     override val dispatcherProvider: DispatcherProvider by lazy { koin.get() }
+    override val logger: Logger by lazy { koin.get() }
 
     override fun messageDisplayer(): MessageDisplayer = koin.get()
     override fun externalNavigator(): ExternalNavigator = koin.get()

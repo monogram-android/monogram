@@ -89,6 +89,7 @@ dependencies {
     implementation(project(":domain"))
     implementation(project(":presentation"))
     implementation(project(":data"))
+    implementation(project(":core"))
     implementation(libs.koin.android)
     implementation(libs.koin.compose)
     implementation(libs.androidx.activity.compose)

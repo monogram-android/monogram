@@ -9,6 +9,7 @@ import android.telephony.TelephonyManager
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
+import com.bettergram.core.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -111,6 +112,7 @@ val appModule = module {
     single { CacheController(androidContext(), get()) }
     single { VideoPlayerPool(androidContext(), get()) }
     single<ClipManager> { ClipManagerImpl(androidContext().getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager) }
+    single<Logger> { LoggerImpl() }
 
     // Factories
     factory<PhoneManager> { PhoneManagerImpl(androidContext().getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager) }

@@ -3,6 +3,7 @@ package org.monogram.presentation.di
 import android.content.Context
 import coil3.ImageLoader
 import com.bettergram.core.DispatcherProvider
+import com.bettergram.core.Logger
 import kotlinx.coroutines.CoroutineScope
 import org.monogram.domain.managers.*
 import org.monogram.domain.repository.*
@@ -48,6 +49,7 @@ interface UtilsContainer {
     val appCoroutineScope: CoroutineScope
     val clipManager: ClipManager
     val dispatcherProvider: DispatcherProvider
+    val logger: Logger
     fun messageDisplayer(): MessageDisplayer
     fun externalNavigator(): ExternalNavigator
     fun phoneManager(): PhoneManager

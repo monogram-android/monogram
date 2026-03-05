@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,13 +20,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.UpdateInfo
 import org.monogram.domain.models.UpdateState
+import org.monogram.presentation.R
 import org.monogram.presentation.settingsScreens.settings.components.ItemPosition
 import org.monogram.presentation.settingsScreens.settings.components.SettingsItem
 import org.monogram.presentation.util.buildRichText
@@ -71,17 +75,15 @@ fun AboutContent(component: AboutComponent) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Surface(
                     modifier = Modifier.size(120.dp),
-                    shape = CircleShape,
+                    shape = RoundedCornerShape(32.dp),
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.Info,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_app_logo),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.FillBounds
+                    )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(

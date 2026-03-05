@@ -211,9 +211,20 @@ class TdChatRemoteSource(
     }
 
     private fun ChatPermissionsModel.toTd() = TdApi.ChatPermissions(
-        canSendBasicMessages, canSendAudios, canSendDocuments, canSendPhotos,
-        canSendVideos, canSendVideoNotes, canSendVoiceNotes, canSendPolls,
-        canSendOtherMessages, canAddWebPagePreviews, canChangeInfo,
-        canInviteUsers, canPinMessages, canManageTopics
+        canSendBasicMessages,
+        canSendAudios,
+        canSendDocuments,
+        canSendPhotos,
+        canSendVideos,
+        canSendVideoNotes,
+        canSendVoiceNotes,
+        canSendPolls,
+        canSendOtherMessages,
+        canAddLinkPreviews,
+        canEditTag,
+        canChangeInfo,
+        canInviteUsers,
+        canPinMessages,
+        canCreateTopics
     )
 }

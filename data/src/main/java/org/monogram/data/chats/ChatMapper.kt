@@ -47,11 +47,12 @@ class ChatMapper {
             canSendVoiceNotes = p.canSendVoiceNotes,
             canSendPolls = p.canSendPolls,
             canSendOtherMessages = p.canSendOtherMessages,
-            canAddWebPagePreviews = true,
+            canAddLinkPreviews = true,
+            canEditTag = p.canEditTag,
             canChangeInfo = p.canChangeInfo,
             canInviteUsers = p.canInviteUsers,
             canPinMessages = p.canPinMessages,
-            canManageTopics = true,
+            canCreateTopics = true,
         )
 
         val isChannel = (chat.type as? TdApi.ChatTypeSupergroup)?.isChannel ?: false

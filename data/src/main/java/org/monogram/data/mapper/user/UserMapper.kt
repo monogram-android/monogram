@@ -162,6 +162,10 @@ fun TdApi.ChatMemberStatus.toDomain(): ChatMemberStatus {
 fun TdApi.Chat.toDomain(): ChatModel {
     val isChannel = type is TdApi.ChatTypeSupergroup &&
             (type as TdApi.ChatTypeSupergroup).isChannel
+
+
+    val emojiStatusId = this.getEmojiStatusId()
+
     return ChatModel(
         id = id,
         title = title,
@@ -172,7 +176,8 @@ fun TdApi.Chat.toDomain(): ChatModel {
         isGroup = type is TdApi.ChatTypeBasicGroup ||
                 (type is TdApi.ChatTypeSupergroup && !isChannel),
         type = type.toDomain(),
-        lastMessageText = (lastMessage?.content as? TdApi.MessageText)?.text?.text ?: ""
+        lastMessageText = (lastMessage?.content as? TdApi.MessageText)?.text?.text ?: "",
+       emojiStatusId = emojiStatusId
     )
 }
 
@@ -238,8 +243,19 @@ private fun TdApi.User.resolveAvatarPath(): String? {
 }
 
 private fun TdApi.User.getEmojiStatusId(): Long {
-    val type = emojiStatus?.type ?: return 0L
-    return (type as? TdApi.EmojiStatusTypeCustomEmoji)?.customEmojiId ?: 0L
+    return when (val type = emojiStatus?.type) {
+        is TdApi.EmojiStatusTypeCustomEmoji -> type.customEmojiId
+        is TdApi.EmojiStatusTypeUpgradedGift -> type.modelCustomEmojiId
+        else -> 0L
+    }
+}
+
+private fun TdApi.Chat.getEmojiStatusId(): Long {
+    return when (val type = emojiStatus?.type) {
+        is TdApi.EmojiStatusTypeCustomEmoji -> type.customEmojiId
+        is TdApi.EmojiStatusTypeUpgradedGift -> type.modelCustomEmojiId
+        else -> 0L
+    }
 }
 
 private fun TdApi.Usernames.toDomain(): UsernamesModel {

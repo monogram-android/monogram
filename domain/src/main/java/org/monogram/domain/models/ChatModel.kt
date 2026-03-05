@@ -78,5 +78,5 @@ data class ChatPermissionsModel(
     val canChangeInfo: Boolean = false,
     val canInviteUsers: Boolean = false,
     val canPinMessages: Boolean = false,
-    val canCreateTopics: Boolean = false    
+    val canCreateTopics: Boolean = false
 )

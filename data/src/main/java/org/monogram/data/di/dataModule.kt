@@ -82,14 +82,17 @@ val dataModule = module {
     single<ChatLocalDataSource> {
         InMemoryChatLocalDataSource()
     }
-    
+
     single<UserRepository> {
         UserRepositoryImpl(
             remote = get(),
             userLocal = get(),
             chatLocal = get(),
             updates = get(),
-            scopeProvider = get()
+            scopeProvider = get(),
+            gateway = get(),
+            dispatchers = get()
+
         )
     }
     

@@ -9,11 +9,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -22,14 +20,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.window.core.layout.WindowWidthSizeClass
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.predictiveBackAnimation
 import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import com.arkivanov.decompose.router.stack.ChildStack
-import com.google.android.gms.common.util.DeviceProperties.isTablet
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.presentation.auth.AuthContent
 import org.monogram.presentation.chatsScreen.chatList.ChatListContent
@@ -65,73 +60,27 @@ import org.monogram.presentation.settingsScreens.stickers.StickersContent
 import org.monogram.presentation.settingsScreens.storage.StorageUsageContent
 import org.monogram.presentation.stickers.core.toDomain
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalDecomposeApi::class)
 @Composable
 fun MainContent(
     root: RootComponent
 ) {
     val childStack by root.childStack.subscribeAsState()
     val isLocked by root.isLocked.collectAsState()
-    val adaptiveInfo = currentWindowAdaptiveInfo()
-    val isExpanded = adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED
-
-    val activeChild = childStack.active.instance
-    val isFullScreenOverlay = if (activeChild is RootComponent.Child.ChatDetailChild) {
-        val state by activeChild.component.state.collectAsState()
-        state.fullScreenImages != null ||
-                state.fullScreenVideoPath != null ||
-                state.fullScreenVideoMessageId != null ||
-                state.youtubeUrl != null ||
-                state.instantViewUrl != null ||
-                state.miniAppUrl != null
-    } else false
-
-    val overlayScale by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec = tween(durationMillis = 300),
-        label = "OverlayScale"
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        val contentScale by animateFloatAsState(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 300),
-            label = "ContentScale"
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = contentScale
-                    scaleY = contentScale
-                }
+        Children(
+            stack = root.childStack,
+            animation = predictiveBackAnimation(
+                backHandler = root.backHandler,
+                onBack = root::onBack,
+                fallbackAnimation = stackAnimation()
+            )
         ) {
-            if (isExpanded && activeChild !is RootComponent.Child.AuthChild && activeChild !is RootComponent.Child.StartupChild) {
-                TabletLayout(root, childStack)
-            } else {
-                MobileLayout(root)
-            }
-        }
-
-        if (isExpanded) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(100f)
-                    .graphicsLayer {
-                        scaleX = overlayScale
-                        scaleY = overlayScale
-                    }
-            ) {
-                RenderChild(root, activeChild, isOverlay = true)
-            }
-        } else {
-            RenderChild(root, activeChild, isOverlay = true)
+            RenderChild(root, it.instance)
         }
 
         val stickerPreviewState by root.stickerSetToPreview.collectAsState()
@@ -145,7 +94,6 @@ fun MainContent(
 
         ProxyConfirmSheet(root)
         ChatConfirmJoinSheet(root)
-
         AnimatedVisibility(
             visible = isLocked,
             enter = fadeIn(tween(400)) + scaleIn(tween(400, easing = EaseOutBack), initialScale = 0.9f),
@@ -221,9 +169,7 @@ private fun ProxyConfirmSheet(root: RootComponent) {
                 ) {
                     OutlinedButton(
                         onClick = root::dismissProxyConfirm,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
+                        modifier = Modifier.weight(1f).height(56.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -237,9 +183,7 @@ private fun ProxyConfirmSheet(root: RootComponent) {
                                 proxyConfirmState.type!!
                             )
                         },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
+                        modifier = Modifier.weight(1f).height(56.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Text("Connect", fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -268,16 +212,11 @@ private fun ChatConfirmJoinSheet(root: RootComponent) {
                     .padding(bottom = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val title =
-                    chatConfirmJoinState.chat?.title ?: chatConfirmJoinState.inviteTitle ?: ""
-                val avatarPath =
-                    chatConfirmJoinState.chat?.avatarPath ?: chatConfirmJoinState.inviteAvatarPath
-                val isChannel =
-                    chatConfirmJoinState.chat?.isChannel ?: chatConfirmJoinState.inviteIsChannel
-                val memberCount =
-                    chatConfirmJoinState.chat?.memberCount ?: chatConfirmJoinState.inviteMemberCount
-                val description = chatConfirmJoinState.fullInfo?.description
-                    ?: chatConfirmJoinState.inviteDescription
+                val title = chatConfirmJoinState.chat?.title ?: chatConfirmJoinState.inviteTitle ?: ""
+                val avatarPath = chatConfirmJoinState.chat?.avatarPath ?: chatConfirmJoinState.inviteAvatarPath
+                val isChannel = chatConfirmJoinState.chat?.isChannel ?: chatConfirmJoinState.inviteIsChannel
+                val memberCount = chatConfirmJoinState.chat?.memberCount ?: chatConfirmJoinState.inviteMemberCount
+                val description = chatConfirmJoinState.fullInfo?.description ?: chatConfirmJoinState.inviteDescription
 
                 AvatarTopAppBar(
                     path = avatarPath,
@@ -325,9 +264,7 @@ private fun ChatConfirmJoinSheet(root: RootComponent) {
                 ) {
                     OutlinedButton(
                         onClick = root::dismissChatConfirmJoin,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
+                        modifier = Modifier.weight(1f).height(56.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -343,9 +280,7 @@ private fun ChatConfirmJoinSheet(root: RootComponent) {
                                 root.confirmJoinInviteLink(inviteLink)
                             }
                         },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
+                        modifier = Modifier.weight(1f).height(56.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Text("Join", fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -359,9 +294,7 @@ private fun ChatConfirmJoinSheet(root: RootComponent) {
 @Composable
 private fun DetailRow(label: String, value: String) {
     Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -377,108 +310,6 @@ private fun DetailRow(label: String, value: String) {
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
-    }
-}
-
-private fun isSettingsSelected(stack: ChildStack<*, RootComponent.Child>): Boolean {
-    return when (stack.active.instance) {
-        is RootComponent.Child.SettingsChild,
-        is RootComponent.Child.EditProfileChild,
-        is RootComponent.Child.SessionsChild,
-        is RootComponent.Child.FoldersChild,
-        is RootComponent.Child.ChatSettingsChild,
-        is RootComponent.Child.DataStorageChild,
-        is RootComponent.Child.StorageUsageChild,
-        is RootComponent.Child.NetworkUsageChild,
-        is RootComponent.Child.PrivacyChild,
-        is RootComponent.Child.AdBlockChild,
-        is RootComponent.Child.PowerSavingChild,
-        is RootComponent.Child.NotificationsChild,
-        is RootComponent.Child.PremiumChild,
-        is RootComponent.Child.ProxyChild,
-        is RootComponent.Child.StickersChild,
-        is RootComponent.Child.AboutChild,
-        is RootComponent.Child.DebugChild -> true
-
-        else -> false
-    }
-}
-
-@OptIn(ExperimentalDecomposeApi::class)
-@Composable
-private fun MobileLayout(root: RootComponent) {
-    Children(
-        stack = root.childStack,
-        animation = predictiveBackAnimation(
-            backHandler = root.backHandler,
-            onBack = root::onBack,
-            fallbackAnimation = stackAnimation()
-        )
-    ) {
-        RenderChild(root, it.instance)
-    }
-}
-
-@Composable
-private fun TabletLayout(root: RootComponent, childStack: ChildStack<*, RootComponent.Child>) {
-    val activeChild = childStack.active.instance
-    val isSettings = isSettingsSelected(childStack)
-
-    val listChild = remember(childStack) {
-        val settingsChild = childStack.backStack.find { it.instance is RootComponent.Child.SettingsChild }?.instance
-            ?: (activeChild as? RootComponent.Child.SettingsChild)
-        val chatsChild = childStack.backStack.find { it.instance is RootComponent.Child.ChatsChild }?.instance
-            ?: (activeChild as? RootComponent.Child.ChatsChild)
-
-        if (isSettings && settingsChild != null) {
-            settingsChild
-        } else {
-            chatsChild
-        }
-    }
-
-    Row(Modifier.fillMaxSize()) {
-        // List Pane
-        Box(
-            modifier = Modifier
-                .width(350.dp)
-                .fillMaxHeight()
-        ) {
-            if (listChild != null) {
-                RenderChild(root, listChild)
-            }
-        }
-
-        HorizontalDivider(
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(1.dp),
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
-
-        // Detail Pane
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-        ) {
-            val isListOnly = activeChild == listChild
-
-            if (!isListOnly) {
-                RenderChild(root, activeChild)
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (isSettings) "Select a setting" else "Select a chat to start messaging",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
     }
 }
 

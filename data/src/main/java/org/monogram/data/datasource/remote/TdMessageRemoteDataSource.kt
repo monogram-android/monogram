@@ -198,20 +198,20 @@ class TdMessageRemoteDataSource(
     }
 
     override suspend fun getPinnedMessageCount(chatId: Long, threadId: Long?): Int {
-            val request = TdApi.SearchChatMessages().apply {
-                this.chatId = chatId
-                this.query = ""
-                this.senderId = null
-                this.fromMessageId = 0
-                this.offset = 0
-                this.limit = 1
-                this.filter = TdApi.SearchMessagesFilterPinned()
-                this.topicId = if (threadId != null) {
-                    TdApi.MessageTopicForum(threadId.toInt())
-                } else {
-                    null
-                }
+        val request = TdApi.SearchChatMessages().apply {
+            this.chatId = chatId
+            this.query = ""
+            this.senderId = null
+            this.fromMessageId = 0
+            this.offset = 0
+            this.limit = 1
+            this.filter = TdApi.SearchMessagesFilterPinned()
+            this.topicId = if (threadId != null) {
+                TdApi.MessageTopicForum(threadId.toInt())
+            } else {
+                null
             }
+        }
 
         val result = safeExecute(request)
         return if (result is TdApi.FoundChatMessages) {
@@ -264,20 +264,21 @@ class TdMessageRemoteDataSource(
         } else null
     }
 
-    override suspend fun getPollVoters(chatId: Long, messageId: Long, optionId: Int, offset: Int, limit: Int): TdApi.MessageSenders? =
+
+    override suspend fun getPollVoters(chatId: Long, messageId: Long, optionId: Int, offset: Int, limit: Int): TdApi.PollVoters? =
         safeExecute(TdApi.GetPollVoters(chatId, messageId, optionId, offset, limit))
 
     override suspend fun getPollVotersModels(chatId: Long, messageId: Long, optionId: Int, offset: Int, limit: Int): List<UserModel> {
         val result = getPollVoters(chatId, messageId, optionId, offset, limit) ?: return emptyList()
-        return result.senders.mapNotNull { voter ->
-            when (voter) {
-                is TdApi.MessageSenderUser -> userRepository.getUser(voter.userId)
+        return result.voters.mapNotNull { pollVoter ->
+            when (val sender = pollVoter.voterId) {
+                is TdApi.MessageSenderUser -> userRepository.getUser(sender.userId)
                 is TdApi.MessageSenderChat -> {
-                    val cachedChat = cache.getChat(voter.chatId)
+                    val cachedChat = cache.getChat(sender.chatId)
                     if (cachedChat != null) {
                         UserModel(id = cachedChat.id, firstName = cachedChat.title, lastName = "", username = null, avatarPath = cachedChat.photo?.small?.local?.path)
                     } else {
-                        val chat = chatsListRepository.getChatById(voter.chatId)
+                        val chat = chatsListRepository.getChatById(sender.chatId)
                         if (chat != null) UserModel(id = chat.id, firstName = chat.title, lastName = "", username = null, avatarPath = chat.avatarPath)
                         else null
                     }

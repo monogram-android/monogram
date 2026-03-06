@@ -67,7 +67,7 @@ fun AboutContent(component: AboutComponent) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(top = padding.calculateTopPadding()),
             contentPadding = PaddingValues(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -157,6 +157,7 @@ fun AboutContent(component: AboutComponent) {
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.outline
                 )
+                Spacer(modifier = Modifier.height(padding.calculateBottomPadding()))
             }
         }
     }

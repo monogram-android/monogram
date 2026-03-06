@@ -2,6 +2,7 @@ package org.monogram.data.chats
 
 import android.text.format.DateUtils
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.mapper.user.getEmojiStatusId
 import org.monogram.domain.models.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -47,11 +48,12 @@ class ChatMapper {
             canSendVoiceNotes = p.canSendVoiceNotes,
             canSendPolls = p.canSendPolls,
             canSendOtherMessages = p.canSendOtherMessages,
-            canAddWebPagePreviews = true,
+            canAddLinkPreviews = true,
+            canEditTag = p.canEditTag,
             canChangeInfo = p.canChangeInfo,
             canInviteUsers = p.canInviteUsers,
             canPinMessages = p.canPinMessages,
-            canManageTopics = true,
+            canCreateTopics = true,
         )
 
         val isChannel = (chat.type as? TdApi.ChatTypeSupergroup)?.isChannel ?: false
@@ -82,7 +84,7 @@ class ChatMapper {
             accentColorId = chat.accentColorId,
             profileAccentColorId = chat.profileAccentColorId,
             backgroundCustomEmojiId = chat.backgroundCustomEmojiId,
-            emojiStatusId = (chat.emojiStatus?.type as? TdApi.EmojiStatusTypeCustomEmoji)?.customEmojiId,
+            emojiStatusId = chat.getEmojiStatusId(),
             emojiStatusPath = emojiPath,
             isAdmin = isAdmin,
             isOnline = isOnline,

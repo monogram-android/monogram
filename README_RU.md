@@ -4,7 +4,7 @@
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-blue.svg?logo=kotlin)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-4285F4?logo=android)
-![TDLib](https://img.shields.io/badge/TDLib-1.8.61-blue)
+![TDLib](https://img.shields.io/badge/TDLib-1.8.62-blue)
 ![Status](https://img.shields.io/badge/Status-Active_Development-orange)
 
 **Современный, молниеносный и элегантный неофициальный клиент Telegram для Android.**

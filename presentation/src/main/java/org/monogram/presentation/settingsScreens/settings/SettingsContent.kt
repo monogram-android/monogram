@@ -338,7 +338,7 @@ fun SettingsContent(component: SettingsComponent) {
             },
             body = {
                 val navBarInsets = WindowInsets.navigationBars.asPaddingValues()
-                val bottomPadding = navBarInsets.calculateBottomPadding() + 80.dp
+                val bottomPadding = navBarInsets.calculateBottomPadding()
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -582,14 +582,5 @@ fun SettingsContent(component: SettingsComponent) {
         )
     }
 
-    @Composable
-    fun SectionHeader(text: String) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(start = 12.dp, bottom = 8.dp, top = 16.dp),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
-        )
-    }
+
 }

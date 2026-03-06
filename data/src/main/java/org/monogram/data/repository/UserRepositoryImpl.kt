@@ -6,10 +6,13 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.DispatcherProvider
 import org.monogram.core.ScopeProvider
+import org.monogram.data.chats.ChatFileManager
 import org.monogram.data.datasource.cache.ChatLocalDataSource
 import org.monogram.data.datasource.cache.UserLocalDataSource
 import org.monogram.data.datasource.remote.UserRemoteDataSource
+import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.mapper.user.*
 import org.monogram.domain.models.*
@@ -23,6 +26,8 @@ class UserRepositoryImpl(
     private val userLocal: UserLocalDataSource,
     private val chatLocal: ChatLocalDataSource,
     private val updates: UpdateDispatcher,
+    private val dispatchers: DispatcherProvider,
+    private val gateway: TelegramGateway,
     scopeProvider: ScopeProvider
 ) : UserRepository {
 
@@ -34,6 +39,12 @@ class UserRepositoryImpl(
     private val _currentUserFlow = MutableStateFlow<UserModel?>(null)
     override val currentUserFlow = _currentUserFlow.asStateFlow()
 
+    private val fileManager = ChatFileManager(
+        gateway = gateway,
+        dispatchers = dispatchers,
+        scopeProvider = scopeProvider,
+        onUpdate = { }
+    )
     private val _userUpdateFlow = MutableSharedFlow<Long>(
         extraBufferCapacity = 10,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
@@ -60,7 +71,6 @@ class UserRepositoryImpl(
             updates.file.collect { update ->
                 val file = update.file
                 if (file.local.isDownloadingCompleted) {
-                    // Check if this file is a user profile photo
                     userLocal.getAllUsers().forEach { user ->
                         val small = user.profilePhoto?.small
                         val big = user.profilePhoto?.big
@@ -69,7 +79,6 @@ class UserRepositoryImpl(
                             if (user.id == currentUserId) refreshCurrentUser()
                         }
                     }
-                    // Check if this file is a chat photo
                     chatLocal.getAllChats().forEach { chat ->
                         val small = chat.photo?.small
                         val big = chat.photo?.big
@@ -84,14 +93,16 @@ class UserRepositoryImpl(
 
     private fun refreshCurrentUser() {
         val user = userLocal.getUser(currentUserId) ?: return
-        _currentUserFlow.update { user.toDomain(userLocal.getUserFullInfo(currentUserId)) }
+        _currentUserFlow.update { user.toDomain(userLocal.getUserFullInfo(currentUserId)).withEmojiPath() }
     }
 
     override suspend fun getMe(): UserModel {
         val user = remote.getMe() ?: return UserModel(0, "Error")
         currentUserId = user.id
         userLocal.putUser(user)
-        val model = user.toDomain(userLocal.getUserFullInfo(user.id))
+
+        val model = user.toDomain(userLocal.getUserFullInfo(user.id)).withEmojiPath()
+
         _currentUserFlow.update { model }
         return model
     }
@@ -99,7 +110,7 @@ class UserRepositoryImpl(
     override suspend fun getUser(userId: Long): UserModel? {
         if (userId <= 0) return null
         userLocal.getUser(userId)?.let {
-            return it.toDomain(userLocal.getUserFullInfo(userId))
+            return it.toDomain(userLocal.getUserFullInfo(userId)).withEmojiPath()
         }
         val deferred = userRequests.getOrPut(userId) {
             scope.async {
@@ -107,7 +118,7 @@ class UserRepositoryImpl(
             }
         }
         return try {
-            deferred.await()?.toDomain(userLocal.getUserFullInfo(userId))
+            deferred.await()?.toDomain(userLocal.getUserFullInfo(userId))?.withEmojiPath()
         } finally {
             userRequests.remove(userId)
         }
@@ -118,7 +129,7 @@ class UserRepositoryImpl(
         val user = userLocal.getUser(userId) ?: remote.getUser(userId)?.also { userLocal.putUser(it) } ?: return null
 
         val cachedFullInfo = userLocal.getUserFullInfo(userId)
-        if (cachedFullInfo != null) return user.toDomain(cachedFullInfo)
+        if (cachedFullInfo != null) return user.toDomain(cachedFullInfo).withEmojiPath()
 
         val deferred = fullInfoRequests.getOrPut(userId) {
             scope.async {
@@ -127,7 +138,7 @@ class UserRepositoryImpl(
         }
         return try {
             val fullInfo = deferred.await()
-            user.toDomain(fullInfo)
+            user.toDomain(fullInfo).withEmojiPath()
         } finally {
             fullInfoRequests.remove(userId)
         }
@@ -175,7 +186,6 @@ class UserRepositoryImpl(
             return fullInfo?.mapUserFullInfoToChat()
         }
 
-        // It's a group or channel (chatId < 0)
         val chat = chatLocal.getChat(chatId) ?: try {
             remote.getChat(chatId)?.also { chatLocal.putChat(it) }
         } catch (e: Exception) {
@@ -376,4 +386,11 @@ class UserRepositoryImpl(
 
     override suspend fun reorderActiveUsernames(usernames: List<String>) =
         remote.reorderActiveUsernames(usernames.toTypedArray())
+
+    private fun UserModel.withEmojiPath(): UserModel {
+        if (this.statusEmojiId == 0L) return this
+        val emojiPath = fileManager.getEmojiPath(this.statusEmojiId)
+        if (emojiPath == null) fileManager.loadEmoji(this.statusEmojiId)
+        return this.copy(statusEmojiPath = emojiPath)
+    }
 }

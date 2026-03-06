@@ -454,7 +454,7 @@ class TdNotificationManager(
         }
 
         val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(org.monogram.data.R.drawable.message_outline)
+            .setSmallIcon(org.monogram.data.R.drawable.ic_notification)
             .setStyle(messagingStyle)
             .setPriority(priority)
             .setContentIntent(pendingIntent)
@@ -565,7 +565,7 @@ class TdNotificationManager(
         inboxStyle.setBigContentTitle(summaryTitle)
 
         val builder = NotificationCompat.Builder(context, CHANNEL_PRIVATE)
-            .setSmallIcon(org.monogram.data.R.drawable.message_outline)
+            .setSmallIcon(org.monogram.data.R.drawable.ic_notification)
             .setStyle(inboxStyle)
             .setGroup(GROUP_CHATS)
             .setGroupSummary(true)

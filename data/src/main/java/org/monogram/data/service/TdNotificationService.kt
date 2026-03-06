@@ -104,7 +104,7 @@ class TdNotificationService : Service() {
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setSmallIcon(org.monogram.data.R.drawable.message_outline)
+            .setSmallIcon(org.monogram.data.R.drawable.ic_notification)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stopPendingIntent)
 

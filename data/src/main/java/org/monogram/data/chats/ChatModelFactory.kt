@@ -5,6 +5,7 @@ import org.monogram.core.ScopeProvider
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TelegramGateway
+import org.monogram.data.mapper.user.getEmojiStatusId
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.UsernamesModel
 import org.monogram.domain.repository.AppPreferencesProvider
@@ -157,7 +158,7 @@ class ChatModelFactory(
 
         val finalPath = resolvePhotoPath(smallPhoto, chat.id)
 
-        val emojiStatusId = (chat.emojiStatus?.type as? TdApi.EmojiStatusTypeCustomEmoji)?.customEmojiId ?: 0L
+        val emojiStatusId = chat.getEmojiStatusId()
         var emojiPath: String? = null
         if (emojiStatusId != 0L) {
             emojiPath = fileManager.getEmojiPath(emojiStatusId)

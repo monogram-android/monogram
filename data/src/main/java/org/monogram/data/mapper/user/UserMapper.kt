@@ -242,7 +242,7 @@ private fun TdApi.User.resolveAvatarPath(): String? {
     return big ?: small
 }
 
-private fun TdApi.User.getEmojiStatusId(): Long {
+fun TdApi.User.getEmojiStatusId(): Long {
     return when (val type = emojiStatus?.type) {
         is TdApi.EmojiStatusTypeCustomEmoji -> type.customEmojiId
         is TdApi.EmojiStatusTypeUpgradedGift -> type.modelCustomEmojiId
@@ -250,7 +250,7 @@ private fun TdApi.User.getEmojiStatusId(): Long {
     }
 }
 
-private fun TdApi.Chat.getEmojiStatusId(): Long {
+fun TdApi.Chat.getEmojiStatusId(): Long {
     return when (val type = emojiStatus?.type) {
         is TdApi.EmojiStatusTypeCustomEmoji -> type.customEmojiId
         is TdApi.EmojiStatusTypeUpgradedGift -> type.modelCustomEmojiId

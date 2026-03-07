@@ -22,6 +22,7 @@ import org.monogram.presentation.features.profile.admin.ChatPermissionsComponent
 import org.monogram.presentation.features.profile.admin.MemberListComponent
 import org.monogram.presentation.features.profile.logs.ProfileLogsComponent
 import org.monogram.presentation.features.stickers.core.StickerSetUiModel
+import org.monogram.presentation.features.webview.WebViewComponent
 import org.monogram.presentation.settings.about.AboutComponent
 import org.monogram.presentation.settings.adblock.AdBlockComponent
 import org.monogram.presentation.settings.chatSettings.ChatSettingsComponent
@@ -96,6 +97,7 @@ interface RootComponent {
         class StickersChild(val component: StickersComponent) : Child()
         class AboutChild(val component: AboutComponent) : Child()
         class DebugChild(val component: DebugComponent) : Child()
+        class WebViewChild(val component: WebViewComponent) : Child()
     }
 
     @Serializable

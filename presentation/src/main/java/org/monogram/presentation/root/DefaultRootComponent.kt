@@ -31,6 +31,7 @@ import org.monogram.presentation.features.profile.DefaultProfileComponent
 import org.monogram.presentation.features.profile.admin.*
 import org.monogram.presentation.features.profile.logs.DefaultProfileLogsComponent
 import org.monogram.presentation.features.stickers.core.toUi
+import org.monogram.presentation.features.webview.DefaultWebViewComponent
 import org.monogram.presentation.settings.about.DefaultAboutComponent
 import org.monogram.presentation.settings.adblock.DefaultAdBlockComponent
 import org.monogram.presentation.settings.chatSettings.DefaultChatSettingsComponent
@@ -294,6 +295,7 @@ class DefaultRootComponent(
             }
 
             is LinkAction.OpenWebApp -> openBrowser(action.url)
+            is LinkAction.OpenExternalLink -> openBrowser(action.url)
             is LinkAction.OpenActiveSessions -> navigation.bringToFront(Config.SessionsConfig)
             is LinkAction.ShowToast -> messageDisplayer.show(action.message)
             is LinkAction.AddProxy -> {
@@ -389,11 +391,7 @@ class DefaultRootComponent(
 
     private fun openBrowser(url: String) {
         if (!url.startsWith("http")) return
-        try {
-            externalNavigator.openUrl(url)
-        } catch (e: Exception) {
-            messageDisplayer.show("No browser found")
-        }
+        navigation.push(Config.WebView(url))
     }
 
     private fun navigateToChat(chatId: Long, messageId: Long? = null) {
@@ -669,6 +667,14 @@ class DefaultRootComponent(
                     onBack = { navigation.pop() }
                 )
             )
+
+            is Config.WebView -> RootComponent.Child.WebViewChild(
+                DefaultWebViewComponent(
+                    context = context,
+                    url = config.url,
+                    onDismiss = { navigation.pop() }
+                )
+            )
         }
     }
 
@@ -707,5 +713,8 @@ class DefaultRootComponent(
         @Parcelize @Serializable object Stickers : Config()
         @Parcelize @Serializable object About : Config()
         @Parcelize @Serializable object Debug : Config()
+        @Parcelize
+        @Serializable
+        data class WebView(val url: String) : Config()
     }
 }

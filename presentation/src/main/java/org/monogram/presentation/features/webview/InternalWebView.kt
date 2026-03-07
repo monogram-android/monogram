@@ -1,56 +1,36 @@
 package org.monogram.presentation.features.webview
 
 import android.annotation.SuppressLint
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslCertificate
-import android.net.http.SslError
 import android.os.Build
 import android.view.ViewGroup
 import android.webkit.*
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.automirrored.rounded.OpenInNew
-import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
-import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
-import org.monogram.presentation.settings.sessions.SectionHeader
-import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.core.ui.SettingsSwitchTile
+import org.monogram.presentation.features.webview.components.CertificateSheet
+import org.monogram.presentation.features.webview.components.FindInPageBar
+import org.monogram.presentation.features.webview.components.OptionsSheet
+import org.monogram.presentation.features.webview.components.WebViewTopBar
 import java.io.ByteArrayInputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,7 +40,6 @@ fun InternalWebView(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
 
     var webView by remember { mutableStateOf<WebView?>(null) }
@@ -105,9 +84,14 @@ fun InternalWebView(
     val desktopUserAgent =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
 
-    LaunchedEffect(isDesktopMode) {
-        webView?.settings?.userAgentString = if (isDesktopMode) desktopUserAgent else defaultUserAgent
-        webView?.reload()
+    LaunchedEffect(isDesktopMode, webView) {
+        webView?.let {
+            val newAgent = if (isDesktopMode) desktopUserAgent else defaultUserAgent
+            if (it.settings.userAgentString != newAgent) {
+                it.settings.userAgentString = newAgent
+                it.reload()
+            }
+        }
     }
 
     LaunchedEffect(textZoom) {
@@ -181,88 +165,11 @@ fun InternalWebView(
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 48.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 24.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isSecure) Icons.Rounded.Lock else Icons.Rounded.Warning,
-                        contentDescription = null,
-                        tint = if (isSecure) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(
-                        text = if (isSecure) "Security Information" else "Insecure Connection",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    if (isSecure && sslCertificate != null) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    "The connection to this site is encrypted and secure.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        CertificateInfoItem("Issued to", sslCertificate?.issuedTo?.dName ?: "Unknown")
-                        CertificateInfoItem("Issued by", sslCertificate?.issuedBy?.dName ?: "Unknown")
-                        CertificateInfoItem("Valid until", sslCertificate?.validNotAfterDate?.toString() ?: "Unknown")
-                    } else {
-                        Surface(
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(modifier = Modifier.padding(16.dp)) {
-                                Icon(
-                                    Icons.Rounded.ErrorOutline,
-                                    null,
-                                    tint = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    "The connection to this site is not secure. You should not enter any sensitive information (such as passwords or credit cards) because it could be stolen by attackers.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Button(
-                    onClick = dismissCertificateSheet,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text("Close")
-                }
-            }
+            CertificateSheet(
+                isSecure = isSecure,
+                sslCertificate = sslCertificate,
+                onDismiss = dismissCertificateSheet
+            )
         }
     }
 
@@ -277,91 +184,25 @@ fun InternalWebView(
                 label = "TopBarAnimation"
             ) { isFinding ->
                 if (isFinding) {
-                    TopAppBar(
-                        title = {
-                            SettingsTextField(
-                                value = findQuery,
-                                onValueChange = { findQuery = it },
-                                placeholder = "Find in page...",
-                                icon = Icons.Rounded.Search,
-                                position = ItemPosition.STANDALONE,
-                                singleLine = true,
-                                trailingIcon = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        if (matchCount > 0) {
-                                            Text(
-                                                "${activeMatchIndex + 1}/$matchCount",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                modifier = Modifier.padding(end = 8.dp)
-                                            )
-                                        }
-                                        IconButton(onClick = { webView?.findNext(false) }) {
-                                            Icon(Icons.Rounded.KeyboardArrowUp, "Previous")
-                                        }
-                                        IconButton(onClick = { webView?.findNext(true) }) {
-                                            Icon(Icons.Rounded.KeyboardArrowDown, "Next")
-                                        }
-                                    }
-                                }
-                            )
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = {
-                                showFindInPage = false
-                                webView?.clearMatches()
-                            }) {
-                                Icon(Icons.Rounded.Close, "Close Find")
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
-                        )
+                    FindInPageBar(
+                        query = findQuery,
+                        onQueryChange = { findQuery = it },
+                        matchCount = matchCount,
+                        activeMatchIndex = activeMatchIndex,
+                        webView = webView,
+                        onClose = {
+                            showFindInPage = false
+                            webView?.clearMatches()
+                        }
                     )
                 } else {
-                    TopAppBar(
-                        title = {
-                            Column(
-                                verticalArrangement = Arrangement.Center,
-                                modifier = Modifier.clickable { showCertificateSheet = true }
-                            ) {
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = if (isSecure) Icons.Rounded.Lock else Icons.Rounded.Public,
-                                        contentDescription = if (isSecure) "Secure" else "Insecure",
-                                        modifier = Modifier.size(12.dp),
-                                        tint = if (isSecure) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = displayUrl,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = onDismiss) {
-                                Icon(Icons.Rounded.Close, contentDescription = "Close")
-                            }
-                        },
-                        actions = {
-                            IconButton(onClick = { showBottomSheet = true }) {
-                                Icon(Icons.Rounded.MoreVert, contentDescription = "More options")
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp),
-                            titleContentColor = MaterialTheme.colorScheme.onSurface
-                        )
+                    WebViewTopBar(
+                        title = title,
+                        displayUrl = displayUrl,
+                        isSecure = isSecure,
+                        onDismiss = onDismiss,
+                        onMoreOptions = { showBottomSheet = true },
+                        onCertificateClick = { showCertificateSheet = true }
                     )
                 }
             }
@@ -379,9 +220,22 @@ fun InternalWebView(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
+
+                        // Fix for input focus/keyboard issue
+                        isFocusable = true
+                        isFocusableInTouchMode = true
+                        @SuppressLint("ClickableViewAccessibility")
+                        setOnTouchListener { v, _ ->
+                            if (!v.hasFocus()) {
+                                v.requestFocus()
+                            }
+                            false
+                        }
+
                         @SuppressLint("SetJavaScriptEnabled")
                         settings.apply {
                             javaScriptEnabled = true
+                            userAgentString = if (isDesktopMode) desktopUserAgent else defaultUserAgent
                             domStorageEnabled = true
                             loadWithOverviewMode = true
                             useWideViewPort = true
@@ -394,38 +248,18 @@ fun InternalWebView(
                             setSupportZoom(true)
                         }
                         webViewClient = object : WebViewClient() {
-                            private var hasSslError = false
-
                             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                 isLoading = true
-                                hasSslError = false
                                 url?.let { currentUrl = it }
                             }
 
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 isLoading = false
-                                title = view?.title ?: "Web View"
                                 url?.let {
                                     currentUrl = it
-                                    isSecure = it.startsWith("https") && !hasSslError
+                                    isSecure = it.startsWith("https") && view?.certificate != null
                                     sslCertificate = view?.certificate
                                 }
-                            }
-
-                            override fun onReceivedSslError(
-                                view: WebView?,
-                                handler: SslErrorHandler?,
-                                error: SslError?
-                            ) {
-                                hasSslError = true
-                                isSecure = false
-                                super.onReceivedSslError(view, handler, error)
-                            }
-
-                            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
-                                super.doUpdateVisitedHistory(view, url, isReload)
-                                canGoBack = view?.canGoBack() == true
-                                canGoForward = view?.canGoForward() == true
                             }
 
                             override fun shouldOverrideUrlLoading(
@@ -544,7 +378,9 @@ fun InternalWebView(
                     }
                 },
                 onRelease = { view -> view.destroy() },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .focusable()
             )
 
             AnimatedVisibility(
@@ -571,239 +407,24 @@ fun InternalWebView(
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 48.dp)
-                ) {
-                    Text(
-                        text = "Options",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainer,
-                        shape = RoundedCornerShape(24.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            NavigationItem(
-                                icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                                label = "Back",
-                                enabled = canGoBack,
-                                onClick = { webView?.goBack() }
-                            )
-                            NavigationItem(
-                                icon = Icons.AutoMirrored.Rounded.ArrowForward,
-                                label = "Forward",
-                                enabled = canGoForward,
-                                onClick = { webView?.goForward() }
-                            )
-                            NavigationItem(
-                                icon = Icons.Rounded.Refresh,
-                                label = "Refresh",
-                                onClick = {
-                                    webView?.reload()
-                                    dismissBottomSheet()
-                                }
-                            )
-                        }
-                    }
-
-                    SectionHeader("Actions")
-
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainer,
-                        shape = RoundedCornerShape(24.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            ActionItem(Icons.Rounded.ContentCopy, "Copy") {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(ClipData.newPlainText("URL", currentUrl))
-                                Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()
-                                dismissBottomSheet()
-                            }
-                            ActionItem(Icons.Rounded.Share, "Share") {
-                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, currentUrl)
-                                }
-                                context.startActivity(Intent.createChooser(shareIntent, "Share link via"))
-                                dismissBottomSheet()
-                            }
-                            ActionItem(Icons.AutoMirrored.Rounded.OpenInNew, "Browser") {
-                                uriHandler.openUri(currentUrl)
-                                dismissBottomSheet()
-                            }
-                            ActionItem(Icons.Rounded.Search, "Find") {
-                                dismissBottomSheet()
-                                showFindInPage = true
-                            }
-                        }
-                    }
-
-                    SectionHeader("Settings")
-
-                    SettingsSwitchTile(
-                        icon = Icons.Rounded.DesktopWindows,
-                        title = "Desktop Site",
-                        checked = isDesktopMode,
-                        iconColor = MaterialTheme.colorScheme.primary,
-                        position = ItemPosition.TOP,
-                        onCheckedChange = { isDesktopMode = it }
-                    )
-
-                    SettingsSwitchTile(
-                        icon = Icons.Rounded.Block,
-                        title = "Block Ads",
-                        checked = isAdBlockEnabled,
-                        iconColor = MaterialTheme.colorScheme.primary,
-                        position = ItemPosition.MIDDLE,
-                        onCheckedChange = {
-                            isAdBlockEnabled = it
-                            webView?.reload()
-                        }
-                    )
-
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainer,
-                        shape = RoundedCornerShape(
-                            bottomStart = 24.dp,
-                            bottomEnd = 24.dp,
-                            topStart = 4.dp,
-                            topEnd = 4.dp
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(
-                                            color = MaterialTheme.colorScheme.primary.copy(0.15f),
-                                            shape = CircleShape
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Rounded.TextFormat, null, tint = MaterialTheme.colorScheme.primary)
-                                }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    "Text Size: $textZoom%",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontSize = 18.sp
-                                )
-                            }
-                            Slider(
-                                value = textZoom.toFloat(),
-                                onValueChange = { textZoom = it.toInt() },
-                                valueRange = 50f..200f,
-                                steps = 14,
-                                modifier = Modifier.padding(top = 8.dp)
-                            )
-                        }
-                    }
-                }
+                OptionsSheet(
+                    webView = webView,
+                    currentUrl = currentUrl,
+                    canGoBack = canGoBack,
+                    canGoForward = canGoForward,
+                    isDesktopMode = isDesktopMode,
+                    isAdBlockEnabled = isAdBlockEnabled,
+                    textZoom = textZoom,
+                    onDesktopModeChange = { isDesktopMode = it },
+                    onAdBlockChange = {
+                        isAdBlockEnabled = it
+                        webView?.reload()
+                    },
+                    onTextZoomChange = { textZoom = it },
+                    onFindInPage = { showFindInPage = true },
+                    onDismiss = dismissBottomSheet
+                )
             }
         }
-    }
-}
-
-@Composable
-fun CertificateInfoItem(label: String, value: String) {
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
-@Composable
-fun NavigationItem(
-    icon: ImageVector,
-    label: String,
-    enabled: Boolean = true,
-    onClick: () -> Unit
-) {
-    val alpha by animateFloatAsState(if (enabled) 1f else 0.4f, label = "NavAlpha")
-    val scale by animateFloatAsState(if (enabled) 1f else 0.9f, label = "NavScale")
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(8.dp)
-            .alpha(alpha)
-            .scale(scale)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            modifier = Modifier.size(28.dp),
-            tint = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall)
-    }
-}
-
-@Composable
-fun ActionItem(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .width(72.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }

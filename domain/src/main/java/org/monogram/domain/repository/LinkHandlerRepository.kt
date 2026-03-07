@@ -26,6 +26,7 @@ sealed class LinkAction {
         val isChannel: Boolean
     ) : LinkAction()
     data class OpenWebApp(val botUserId: Long, val url: String) : LinkAction()
+    data class OpenExternalLink(val url: String) : LinkAction()
     data object OpenActiveSessions : LinkAction()
     data class ShowToast(val message: String) : LinkAction()
     data class AddProxy(val server: String, val port: Int, val type: ProxyTypeModel) : LinkAction()

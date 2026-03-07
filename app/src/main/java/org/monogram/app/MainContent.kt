@@ -43,6 +43,7 @@ import org.monogram.presentation.features.profile.admin.ChatPermissionsContent
 import org.monogram.presentation.features.profile.admin.MemberListContent
 import org.monogram.presentation.features.profile.logs.ProfileLogsContent
 import org.monogram.presentation.features.stickers.core.toDomain
+import org.monogram.presentation.features.webview.InternalWebView
 import org.monogram.presentation.root.RootComponent
 import org.monogram.presentation.root.StartupContent
 import org.monogram.presentation.settings.about.AboutContent
@@ -489,5 +490,9 @@ private fun RenderChild(root: RootComponent, child: RootComponent.Child, isOverl
         is RootComponent.Child.StickersChild -> StickersContent(child.component)
         is RootComponent.Child.AboutChild -> AboutContent(child.component)
         is RootComponent.Child.DebugChild -> DebugContent(child.component)
+        is RootComponent.Child.WebViewChild -> InternalWebView(
+            url = child.component.url,
+            onDismiss = child.component::onDismiss
+        )
     }
 }

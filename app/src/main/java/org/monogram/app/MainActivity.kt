@@ -69,7 +69,7 @@ class MainActivity : FragmentActivity() {
 
     private fun handleIntent(intent: Intent) {
         val data = intent.dataString
-        if (data != null && (data.startsWith("https://t.me/") || data.startsWith("tg://"))) {
+        if (data != null) {
             root.handleLink(data)
         }
     }

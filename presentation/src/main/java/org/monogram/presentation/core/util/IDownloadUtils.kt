@@ -1,7 +1,9 @@
 package org.monogram.presentation.core.util
 
 import android.graphics.Bitmap
+import androidx.compose.runtime.Stable
 
+@Stable
 interface IDownloadUtils {
 
     fun saveFileToDownloads(filePath: String)

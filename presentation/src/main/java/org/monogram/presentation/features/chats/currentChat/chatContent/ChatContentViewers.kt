@@ -1,7 +1,10 @@
 package org.monogram.presentation.features.chats.currentChat.chatContent
 
+import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import org.monogram.domain.models.MessageContent
@@ -96,19 +99,20 @@ fun ChatContentViewers(
         enter = fadeIn() + scaleIn(initialScale = 0.9f),
         exit = fadeOut() + scaleOut(targetScale = 0.9f)
     ) {
-        if (state.fullScreenImages != null) {
-            val autoDownload = when {
-                component.downloadUtils.isWifiConnected() -> state.autoDownloadWifi
-                component.downloadUtils.isRoaming() -> state.autoDownloadRoaming
-                else -> state.autoDownloadMobile
+        state.fullScreenImages?.let { images ->
+            val autoDownload = remember(state.autoDownloadWifi, state.autoDownloadRoaming, state.autoDownloadMobile) {
+                when {
+                    component.downloadUtils.isWifiConnected() -> state.autoDownloadWifi
+                    component.downloadUtils.isRoaming() -> state.autoDownloadRoaming
+                    else -> state.autoDownloadMobile
+                }
             }
             ImageViewer(
-                images = state.fullScreenImages,
+                images = images,
                 startIndex = state.fullScreenStartIndex,
                 onDismiss = component::onDismissImages,
                 autoDownload = autoDownload,
                 onPageChanged = { index ->
-                    val images = state.fullScreenImages
                     val currentPath = images.getOrNull(index)
 
                     if (currentPath != null) {
@@ -223,20 +227,25 @@ fun ChatContentViewers(
         }
     }
 
+    val videoVisible =
+        (state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null) && state.fullScreenImages == null
+    
     AnimatedVisibility(
-        visible = state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null,
+        visible = videoVisible,
         enter = fadeIn() + scaleIn(initialScale = 0.9f),
         exit = fadeOut() + scaleOut(targetScale = 0.9f)
     ) {
-        val messageId = state.fullScreenVideoMessageId
-        val path = state.fullScreenVideoPath
+        if (videoVisible) {
+            val messageId = state.fullScreenVideoMessageId
+            val path = state.fullScreenVideoPath
 
-        if (messageId != null || path != null) {
-            val msg = state.messages.find { it.id == messageId } ?: state.messages.find {
-                when (val content = it.content) {
-                    is MessageContent.Video -> content.path == path
-                    is MessageContent.Gif -> content.path == path
-                    else -> false
+            val msg = remember(messageId, path, state.messages) {
+                state.messages.find { it.id == messageId } ?: state.messages.find {
+                    when (val content = it.content) {
+                        is MessageContent.Video -> content.path == path
+                        is MessageContent.Gif -> content.path == path
+                        else -> false
+                    }
                 }
             }
 
@@ -247,80 +256,87 @@ fun ChatContentViewers(
             val supportsStreaming = videoContent?.supportsStreaming ?: false
             val finalPath = path ?: videoContent?.path ?: gifContent?.path ?: ""
 
-            VideoViewer(
-                path = finalPath,
-                onDismiss = component::onDismissVideo,
-                isGesturesEnabled = state.isPlayerGesturesEnabled,
-                isDoubleTapSeekEnabled = state.isPlayerDoubleTapSeekEnabled,
-                seekDuration = state.playerSeekDuration,
-                isZoomEnabled = state.isPlayerZoomEnabled,
-                onForward = { videoPath ->
-                    val forwardMsg = state.messages.find {
-                        when (val content = it.content) {
-                            is MessageContent.Video -> content.path == videoPath
-                            is MessageContent.Gif -> content.path == videoPath
-                            else -> false
-                        }
-                    }
-                    forwardMsg?.let { component.onForwardMessage(it) }
-                },
-                onDelete = { videoPath ->
-                    val deleteMsg = state.messages.find {
-                        when (val content = it.content) {
-                            is MessageContent.Video -> content.path == videoPath
-                            is MessageContent.Gif -> content.path == videoPath
-                            else -> false
-                        }
-                    }
-                    if (deleteMsg?.isOutgoing == true) {
-                        component.onDeleteMessage(deleteMsg)
-                        component.onDismissVideo()
-                    }
-                },
-                onCopyLink = { videoPath ->
-                    val linkMsg = state.messages.find {
-                        when (val content = it.content) {
-                            is MessageContent.Video -> content.path == videoPath
-                            is MessageContent.Gif -> content.path == videoPath
-                            else -> false
-                        }
-                    }
-                    val link = if (linkMsg != null) {
-                        if (!state.isGroup && !state.isChannel) {
-                            "tg://openmessage?user_id=${state.chatId}&message_id=${linkMsg.id shr 20}"
-                        } else {
-                            "https://t.me/c/${state.chatId.toString().removePrefix("-100")}/${linkMsg.id shr 20}"
-                        }
-                    } else {
-                        videoPath
-                    }
-                    clipboardManager.setText(AnnotatedString(link))
-                },
-                onCopyText = { videoPath ->
-                    val textMsg = state.messages.find {
-                        when (val content = it.content) {
-                            is MessageContent.Video -> content.path == videoPath
-                            is MessageContent.Gif -> content.path == videoPath
-                            else -> false
-                        }
-                    }
-                    val textToCopy = when (val content = textMsg?.content) {
-                        is MessageContent.Video -> content.caption
-                        is MessageContent.Gif -> content.caption
-                        else -> ""
-                    }
-                    if (textToCopy.isNotEmpty()) {
-                        clipboardManager.setText(AnnotatedString(textToCopy))
-                    }
-                },
-                onSaveGif = if (state.messages.any { (it.content as? MessageContent.Gif)?.path == finalPath }) {
-                    { videoPath -> component.onAddToGifs(videoPath) }
-                } else null,
-                caption = state.fullScreenVideoCaption,
-                fileId = fileId,
-                supportsStreaming = supportsStreaming,
-                downloadUtils = component.downloadUtils
-            )
+            if (finalPath.isNotBlank() || (supportsStreaming && fileId != 0)) {
+                key(finalPath, fileId) {
+                    Log.d("ChatContentViewers", "Rendering VideoViewer for $finalPath")
+                    VideoViewer(
+                        path = finalPath,
+                        onDismiss = component::onDismissVideo,
+                        isGesturesEnabled = state.isPlayerGesturesEnabled,
+                        isDoubleTapSeekEnabled = state.isPlayerDoubleTapSeekEnabled,
+                        seekDuration = state.playerSeekDuration,
+                        isZoomEnabled = state.isPlayerZoomEnabled,
+                        onForward = { videoPath ->
+                            val forwardMsg = state.messages.find {
+                                when (val content = it.content) {
+                                    is MessageContent.Video -> content.path == videoPath
+                                    is MessageContent.Gif -> content.path == videoPath
+                                    else -> false
+                                }
+                            }
+                            forwardMsg?.let { component.onForwardMessage(it) }
+                        },
+                        onDelete = { videoPath ->
+                            val deleteMsg = state.messages.find {
+                                when (val content = it.content) {
+                                    is MessageContent.Video -> content.path == videoPath
+                                    is MessageContent.Gif -> content.path == videoPath
+                                    else -> false
+                                }
+                            }
+                            if (deleteMsg?.isOutgoing == true) {
+                                component.onDeleteMessage(deleteMsg)
+                                component.onDismissVideo()
+                            }
+                        },
+                        onCopyLink = { videoPath ->
+                            val linkMsg = state.messages.find {
+                                when (val content = it.content) {
+                                    is MessageContent.Video -> content.path == videoPath
+                                    is MessageContent.Gif -> content.path == videoPath
+                                    else -> false
+                                }
+                            }
+                            val link = if (linkMsg != null) {
+                                if (!state.isGroup && !state.isChannel) {
+                                    "tg://openmessage?user_id=${state.chatId}&message_id=${linkMsg.id shr 20}"
+                                } else {
+                                    "https://t.me/c/${
+                                        state.chatId.toString().removePrefix("-100")
+                                    }/${linkMsg.id shr 20}"
+                                }
+                            } else {
+                                videoPath
+                            }
+                            clipboardManager.setText(AnnotatedString(link))
+                        },
+                        onCopyText = { videoPath ->
+                            val textMsg = state.messages.find {
+                                when (val content = it.content) {
+                                    is MessageContent.Video -> content.path == videoPath
+                                    is MessageContent.Gif -> content.path == videoPath
+                                    else -> false
+                                }
+                            }
+                            val textToCopy = when (val content = textMsg?.content) {
+                                is MessageContent.Video -> content.caption
+                                is MessageContent.Gif -> content.caption
+                                else -> ""
+                            }
+                            if (textToCopy.isNotEmpty()) {
+                                clipboardManager.setText(AnnotatedString(textToCopy))
+                            }
+                        },
+                        onSaveGif = if (state.messages.any { (it.content as? MessageContent.Gif)?.path == finalPath }) {
+                            { videoPath -> component.onAddToGifs(videoPath) }
+                        } else null,
+                        caption = state.fullScreenVideoCaption,
+                        fileId = fileId,
+                        supportsStreaming = supportsStreaming,
+                        downloadUtils = component.downloadUtils
+                    )
+                }
+            }
         }
     }
 

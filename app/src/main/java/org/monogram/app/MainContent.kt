@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -23,14 +26,8 @@ import androidx.window.core.layout.WindowWidthSizeClass
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.predictiveBackAnimation
-import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.stack.ChildStack
-import com.arkivanov.essenty.backhandler.BackCallback
-import com.arkivanov.essenty.backhandler.BackEvent
-import com.arkivanov.essenty.backhandler.BackHandler
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.presentation.features.auth.AuthContent
 import org.monogram.presentation.features.chats.chatList.ChatListContent
@@ -77,53 +74,6 @@ fun MainContent(
     val isExpanded = adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED
 
     val activeChild = childStack.active.instance
-    val coroutineScope = rememberCoroutineScope()
-
-    val isPredictiveBackActive = remember { mutableStateOf(false) }
-    val wrappedBackHandler = remember(root.backHandler, coroutineScope) {
-        object : BackHandler {
-            private val callbacks = mutableMapOf<BackCallback, BackCallback>()
-
-            override fun register(callback: BackCallback) {
-                val wrapped = object : BackCallback(callback.isEnabled, callback.priority) {
-                    override fun onBack() {
-                        callback.onBack()
-                        coroutineScope.launch {
-                            delay(400)
-                            isPredictiveBackActive.value = false
-                        }
-                    }
-
-                    override fun onBackStarted(backEvent: BackEvent) {
-                        isPredictiveBackActive.value = true
-                        callback.onBackStarted(backEvent)
-                    }
-
-                    override fun onBackProgressed(backEvent: BackEvent) {
-                        callback.onBackProgressed(backEvent)
-                    }
-
-                    override fun onBackCancelled() {
-                        callback.onBackCancelled()
-                        coroutineScope.launch {
-                            delay(400)
-                            isPredictiveBackActive.value = false
-                        }
-                    }
-                }
-                callbacks[callback] = wrapped
-                root.backHandler.register(wrapped)
-            }
-
-            override fun unregister(callback: BackCallback) {
-                callbacks.remove(callback)?.let { root.backHandler.unregister(it) }
-            }
-
-            override fun isRegistered(callback: BackCallback): Boolean {
-                return callbacks.containsKey(callback)
-            }
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -147,12 +97,8 @@ fun MainContent(
             if (isExpanded && activeChild !is RootComponent.Child.AuthChild && activeChild !is RootComponent.Child.StartupChild) {
                 TabletLayout(root, childStack)
             } else {
-                MobileLayout(root, wrappedBackHandler)
+                MobileLayout(root)
             }
-        }
-
-        if (!isExpanded && !isPredictiveBackActive.value) {
-            RenderChild(root, activeChild, isOverlay = true)
         }
 
         val stickerPreviewState by root.stickerSetToPreview.collectAsState()
@@ -427,13 +373,13 @@ private fun isSettingsSelected(stack: ChildStack<*, RootComponent.Child>): Boole
 
 @OptIn(ExperimentalDecomposeApi::class)
 @Composable
-private fun MobileLayout(root: RootComponent, backHandler: BackHandler = root.backHandler) {
+private fun MobileLayout(root: RootComponent) {
     Children(
         stack = root.childStack,
         animation = predictiveBackAnimation(
-            backHandler = backHandler,
+            backHandler = root.backHandler,
             onBack = root::onBack,
-            fallbackAnimation = stackAnimation()
+            fallbackAnimation = null
         )
     ) {
         RenderChild(root, it.instance, isOverlay = true)

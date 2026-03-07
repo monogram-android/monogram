@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.chats.currentChat
 
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.platform.ClipboardManager
 import kotlinx.coroutines.flow.StateFlow
 import org.monogram.domain.models.*
@@ -11,6 +12,7 @@ import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import java.io.File
 
+@Stable
 interface ChatComponent {
     val appPreferences: AppPreferences
     val videoPlayerPool: VideoPlayerPool
@@ -140,6 +142,7 @@ interface ChatComponent {
     fun onLoadMoreInlineResults(offset: String)
     fun onSendInlineResult(resultId: String)
 
+    @Stable
     data class State(
         val chatId: Long = 0L,
         val chatTitle: String = "Chat",

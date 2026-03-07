@@ -1,6 +1,8 @@
 package org.monogram.presentation.features.viewers
 
+import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import org.monogram.presentation.core.util.IDownloadUtils
 
 @Composable
@@ -21,8 +23,19 @@ fun VideoViewer(
     seekDuration: Int = 10,
     isZoomEnabled: Boolean = true
 ) {
+    if (path.isBlank()) {
+        onDismiss()
+        return
+    }
+
+    Log.d("VideoViewer", "Composing VideoViewer for path=$path, fileId=$fileId")
+
+    val mediaItems = remember(path) { listOf(path) }
+    val captions = remember(caption) { listOf(caption) }
+    val fileIds = remember(fileId) { listOf(fileId) }
+
     MediaViewer(
-        mediaItems = listOf(path),
+        mediaItems = mediaItems,
         startIndex = 0,
         onDismiss = onDismiss,
         onForward = onForward,
@@ -30,8 +43,8 @@ fun VideoViewer(
         onCopyLink = onCopyLink,
         onCopyText = onCopyText,
         onSaveGif = onSaveGif,
-        captions = listOf(caption),
-        fileIds = listOf(fileId),
+        captions = captions,
+        fileIds = fileIds,
         supportsStreaming = supportsStreaming,
         downloadUtils = downloadUtils,
         isGesturesEnabled = isGesturesEnabled,

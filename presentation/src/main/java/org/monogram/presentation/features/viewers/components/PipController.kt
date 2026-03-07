@@ -17,7 +17,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.util.Consumer
 import org.monogram.presentation.R
-import org.monogram.presentation.features.viewers.findActivity
 
 private const val ACTION_MEDIA_CONTROL = "org.monogram.pip.MEDIA_CONTROL"
 private const val EXTRA_CONTROL_TYPE = "control_type"
@@ -67,7 +66,7 @@ fun PipController(
         return null
     }
 
-    fun getPipParams(autoEnter: Boolean = isPlaying): PictureInPictureParams? {
+    fun getPipParams(autoEnter: Boolean): PictureInPictureParams? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val constrainedRatio = videoAspectRatio.coerceIn(0.4184f, 2.39f)
             val ratio = if (constrainedRatio.isNaN() || constrainedRatio <= 0f) Rational(16, 9)
@@ -82,6 +81,14 @@ fun PipController(
             createRemoteAction(CONTROL_TYPE_REWIND, R.drawable.ic_replay_10, "Rewind")?.let {
                 actions.add(it)
             }
+
+            // Play/Pause
+            val playPauseAction = if (isPlaying) {
+                createRemoteAction(CONTROL_TYPE_PAUSE, R.drawable.ic_pause, "Pause")
+            } else {
+                createRemoteAction(CONTROL_TYPE_PLAY, R.drawable.ic_play, "Play")
+            }
+            playPauseAction?.let { actions.add(it) }
 
             // Forward
             createRemoteAction(CONTROL_TYPE_FORWARD, R.drawable.ic_forward_10, "Forward")?.let {
@@ -98,7 +105,7 @@ fun PipController(
         return null
     }
 
-    fun updatePipParams(autoEnter: Boolean = isPlaying) {
+    fun updatePipParams(autoEnter: Boolean) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val activity = context.findActivity() ?: return
             getPipParams(autoEnter)?.let {
@@ -153,13 +160,23 @@ fun PipController(
         activity?.addOnPictureInPictureModeChangedListener(pipConsumer)
         onDispose {
             activity?.removeOnPictureInPictureModeChangedListener(pipConsumer)
+            // Disable auto-PIP when leaving
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                try {
+                    activity?.setPictureInPictureParams(
+                        PictureInPictureParams.Builder()
+                            .setAutoEnterEnabled(false)
+                            .build()
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
         }
     }
 
     LaunchedEffect(isPlaying, videoAspectRatio, isActive) {
-        if (isActive) {
-            updatePipParams(isPlaying)
-        }
+        updatePipParams(isActive && isPlaying)
     }
 }
 
@@ -193,6 +210,14 @@ fun enterPipMode(context: Context, isPlaying: Boolean, videoAspectRatio: Float, 
 
         // Rewind
         actions.add(createAction(CONTROL_TYPE_REWIND, R.drawable.ic_replay_10, "Rewind"))
+
+        // Play/Pause
+        val playPauseAction = if (isPlaying) {
+            createAction(CONTROL_TYPE_PAUSE, R.drawable.ic_pause, "Pause")
+        } else {
+            createAction(CONTROL_TYPE_PLAY, R.drawable.ic_play, "Play")
+        }
+        actions.add(playPauseAction)
 
         // Forward
         actions.add(createAction(CONTROL_TYPE_FORWARD, R.drawable.ic_forward_10, "Forward"))

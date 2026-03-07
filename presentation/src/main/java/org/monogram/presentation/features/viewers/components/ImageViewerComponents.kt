@@ -1,15 +1,13 @@
 package org.monogram.presentation.features.viewers.components
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -28,18 +26,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerInputScope
-import androidx.compose.ui.input.pointer.positionChanged
-import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
@@ -49,12 +44,200 @@ import coil3.request.crossfade
 import coil3.size.Precision
 import coil3.size.Size
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
-import kotlin.math.abs
-import kotlin.math.absoluteValue
-import kotlin.math.sign
+
+@Composable
+fun ImagePage(
+    path: String,
+    zoomState: ZoomState,
+    rootState: DismissRootState,
+    screenHeightPx: Float,
+    dismissDistancePx: Float,
+    dismissVelocityThreshold: Float,
+    onDismiss: () -> Unit,
+    showControls: Boolean,
+    onToggleControls: () -> Unit,
+    pageIndex: Int,
+    pagerIndex: Int
+) {
+    val scope = rememberCoroutineScope()
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = { offset ->
+                        val currentScale = zoomState.scale.value
+                        val targetScale = if (currentScale > 1.1f) 1f else 3f
+                        zoomState.onDoubleTap(scope, offset, targetScale, size)
+                    },
+                    onTap = { onToggleControls() }
+                )
+            }
+            .pointerInput(pagerIndex) {
+                detectZoomAndDismissGestures(
+                    zoomState = zoomState,
+                    rootState = rootState,
+                    screenHeightPx = screenHeightPx,
+                    dismissThreshold = dismissDistancePx,
+                    dismissVelocityThreshold = dismissVelocityThreshold,
+                    onDismiss = onDismiss,
+                    scope = scope
+                )
+            }
+    ) {
+        ZoomableImage(
+            data = path,
+            zoomState = zoomState,
+            pageIndex = pageIndex,
+            pagerIndex = pagerIndex
+        )
+    }
+}
+
+@Composable
+fun ImageOverlay(
+    showControls: Boolean,
+    rootState: DismissRootState,
+    pagerState: PagerState,
+    mediaItems: List<String>,
+    captions: List<String?>,
+    showImageNumber: Boolean,
+    onDismiss: () -> Unit,
+    showSettingsMenu: Boolean,
+    onToggleSettings: () -> Unit,
+    downloadUtils: IDownloadUtils,
+    onForward: (String) -> Unit,
+    onDelete: ((String) -> Unit)?,
+    onCopyLink: ((String) -> Unit)?,
+    onCopyText: ((String) -> Unit)?
+) {
+    val scope = rememberCoroutineScope()
+
+    AnimatedVisibility(
+        visible = showControls && rootState.offsetY.value == 0f,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            ViewerTopBar(
+                onBack = onDismiss,
+                onActionClick = onToggleSettings,
+                isActionActive = showSettingsMenu,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.4f),
+                                Color.Black.copy(alpha = 0.8f)
+                            )
+                        )
+                    )
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .padding(bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val currentCaption = captions.getOrNull(pagerState.currentPage)
+                if (!currentCaption.isNullOrBlank()) {
+                    ViewerCaption(caption = currentCaption, showGradient = false)
+                }
+
+                if (mediaItems.size > 1) {
+                    ThumbnailStrip(
+                        images = mediaItems,
+                        pagerState = pagerState,
+                        scope = scope
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    if (showImageNumber) {
+                        PageIndicator(
+                            current = pagerState.currentPage + 1,
+                            total = mediaItems.size
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
+            }
+        }
+    }
+
+    AnimatedVisibility(
+        visible = showSettingsMenu && showControls,
+        enter = fadeIn(tween(150)) + scaleIn(
+            animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium),
+            initialScale = 0.8f,
+            transformOrigin = TransformOrigin(1f, 0f)
+        ),
+        exit = fadeOut(tween(150)) + scaleOut(
+            animationSpec = tween(150),
+            targetScale = 0.9f,
+            transformOrigin = TransformOrigin(1f, 0f)
+        ),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    onToggleSettings()
+                }
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(top = 56.dp, end = 16.dp),
+            contentAlignment = Alignment.TopEnd
+        ) {
+            val currentIndex = pagerState.currentPage
+            val currentItem = mediaItems.getOrNull(currentIndex)
+
+            if (currentItem != null) {
+                val currentCaption = captions.getOrNull(currentIndex)
+                ImageSettingsMenu(
+                    onDownload = {
+                        downloadUtils.saveFileToDownloads(currentItem)
+                        onToggleSettings()
+                    },
+                    onCopyImage = {
+                        downloadUtils.copyImageToClipboard(currentItem)
+                        onToggleSettings()
+                    },
+                    onCopyLink = {
+                        onCopyLink?.invoke(currentItem)
+                        onToggleSettings()
+                    },
+                    onCopyText = if (!currentCaption.isNullOrBlank()) {
+                        {
+                            onCopyText?.invoke(currentItem)
+                            onToggleSettings()
+                        }
+                    } else null,
+                    onForward = {
+                        onForward(currentItem)
+                        onToggleSettings()
+                    },
+                    onDelete = onDelete?.let {
+                        {
+                            it(currentItem)
+                            onToggleSettings()
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun ImageSettingsMenu(
@@ -295,231 +478,3 @@ fun ZoomableImage(
         }
     }
 }
-
-suspend fun PointerInputScope.detectZoomAndDismissGestures(
-    zoomState: ZoomState,
-    rootState: DismissRootState,
-    screenHeightPx: Float,
-    dismissThreshold: Float,
-    dismissVelocityThreshold: Float,
-    onDismiss: () -> Unit,
-    scope: CoroutineScope
-) {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
-        val tracker = VelocityTracker()
-        tracker.addPointerInputChange(down)
-
-        val touchSlop = viewConfiguration.touchSlop
-        var pan = Offset.Zero
-        var isZooming = false
-        var isVerticalDrag = false
-
-        while (true) {
-            val event = awaitPointerEvent()
-            val canceled = event.changes.any { it.isConsumed }
-            if (canceled) break
-
-            val pointerCount = event.changes.size
-            event.changes.forEach { tracker.addPointerInputChange(it) }
-
-            val zoomChange = event.calculateZoom()
-            val panChange = event.calculatePan()
-
-            if (pointerCount > 1) isZooming = true
-
-            if (!isZooming && !isVerticalDrag && zoomState.scale.value == 1f && pointerCount == 1) {
-                pan += panChange
-                val totalPan = pan.getDistance()
-                if (totalPan > touchSlop) {
-                    if (abs(pan.y) > abs(pan.x) * 2f) {
-                        isVerticalDrag = true
-                    } else if (abs(pan.x) > touchSlop) {
-                        return@awaitEachGesture
-                    }
-                }
-            }
-
-            if (isZooming || zoomState.scale.value > 1f) {
-                zoomState.onTransform(
-                    scope,
-                    panChange,
-                    zoomChange,
-                    IntSize(size.width, size.height),
-                    3f
-                )
-                event.changes.forEach { if (it.positionChanged()) it.consume() }
-            } else if (isVerticalDrag) {
-                val dragY = panChange.y
-                scope.launch { rootState.drag(dragY) }
-                event.changes.forEach { if (it.positionChanged()) it.consume() }
-            }
-
-            if (!event.changes.any { it.pressed }) break
-        }
-
-        val velocity = tracker.calculateVelocity()
-
-        if (zoomState.scale.value > 1f) {
-            zoomState.ensureBounds(size.width.toFloat(), size.height.toFloat(), scope)
-        } else if (isVerticalDrag) {
-            val offsetY = rootState.offsetY.value
-            val velocityY = velocity.y
-            val shouldDismiss = abs(offsetY) > dismissThreshold || abs(velocityY) > dismissVelocityThreshold
-
-            if (shouldDismiss) {
-                scope.launch {
-                    rootState.animateExit(screenHeightPx * sign(offsetY))
-                    onDismiss()
-                }
-            } else {
-                scope.launch { rootState.animateRestore() }
-            }
-        }
-    }
-}
-
-class ZoomState {
-    val scale = Animatable(1f)
-    val offsetX = Animatable(0f)
-    val offsetY = Animatable(0f)
-
-    fun resetInstant(scope: CoroutineScope) {
-        scope.launch {
-            scale.snapTo(1f)
-            offsetX.snapTo(0f)
-            offsetY.snapTo(0f)
-        }
-    }
-
-    fun onDoubleTap(scope: CoroutineScope, tap: Offset, targetScale: Float, size: IntSize) {
-        scope.launch {
-            if (targetScale == 1f) {
-                launch { scale.animateTo(1f, spring()) }
-                launch { offsetX.animateTo(0f, spring()) }
-                launch { offsetY.animateTo(0f, spring()) }
-                return@launch
-            }
-
-            val currentScale = scale.value
-
-            val centerX = size.width / 2f
-            val centerY = size.height / 2f
-
-            val zoomFactor = targetScale / currentScale
-
-            val tapXFromCenter = tap.x - centerX
-            val tapYFromCenter = tap.y - centerY
-
-            val targetOffsetX = (tapXFromCenter * (1 - zoomFactor)) + (offsetX.value * zoomFactor)
-            val targetOffsetY = (tapYFromCenter * (1 - zoomFactor)) + (offsetY.value * zoomFactor)
-
-            val maxOffsetX = (size.width * (targetScale - 1f)) / 2f
-            val maxOffsetY = (size.height * (targetScale - 1f)) / 2f
-
-            val clampedX = targetOffsetX.coerceIn(-maxOffsetX, maxOffsetX)
-            val clampedY = targetOffsetY.coerceIn(-maxOffsetY, maxOffsetY)
-
-            launch { scale.animateTo(targetScale, spring()) }
-            launch { offsetX.animateTo(clampedX, spring()) }
-            launch { offsetY.animateTo(clampedY, spring()) }
-        }
-    }
-
-    fun onTransform(scope: CoroutineScope, pan: Offset, zoomFactor: Float, size: IntSize, maxZoom: Float) {
-        scope.launch {
-            val newScale = (scale.value * zoomFactor).coerceIn(1f, maxZoom)
-            scale.snapTo(newScale)
-
-            if (scale.value > 1f) {
-                val newX = offsetX.value + pan.x
-                val newY = offsetY.value + pan.y
-
-                val maxX = (size.width * (scale.value - 1f)) / 2f
-                val maxY = (size.height * (scale.value - 1f)) / 2f
-
-                offsetX.snapTo(newX.coerceIn(-maxX, maxX))
-                offsetY.snapTo(newY.coerceIn(-maxY, maxY))
-            } else {
-                offsetX.snapTo(0f)
-                offsetY.snapTo(0f)
-            }
-        }
-    }
-
-    fun ensureBounds(screenW: Float, screenH: Float, scope: CoroutineScope) {
-        scope.launch {
-            val maxX = (screenW * (scale.value - 1f)) / 2f
-            val maxY = (screenH * (scale.value - 1f)) / 2f
-
-            launch { offsetX.animateTo(offsetX.value.coerceIn(-maxX, maxX), spring()) }
-            launch { offsetY.animateTo(offsetY.value.coerceIn(-maxY, maxY), spring()) }
-
-            if (scale.value < 1f) {
-                launch { scale.animateTo(1f, spring()) }
-            }
-        }
-    }
-}
-
-class DismissRootState {
-    val offsetY = Animatable(0f)
-    val scale = Animatable(0.8f)
-    val backgroundAlpha = Animatable(0f)
-
-    fun resetInstant(scope: CoroutineScope) {
-        scope.launch {
-            offsetY.snapTo(0f)
-            scale.snapTo(1f)
-            backgroundAlpha.snapTo(1f)
-        }
-    }
-
-    suspend fun animateExit(targetY: Float) = coroutineScope {
-        launch {
-            backgroundAlpha.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(durationMillis = 150, easing = LinearEasing)
-            )
-        }
-
-        launch {
-            offsetY.animateTo(
-                targetValue = targetY,
-                animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
-            )
-        }
-    }
-
-    suspend fun animateRestore() = coroutineScope {
-        launch {
-            offsetY.animateTo(0f, tween(150, easing = FastOutSlowInEasing))
-        }
-        launch {
-            scale.animateTo(1f, tween(150))
-        }
-        launch {
-            backgroundAlpha.animateTo(1f, tween(150))
-        }
-    }
-
-    suspend fun drag(delta: Float) {
-        val currentY = offsetY.value
-        val targetY = currentY + delta
-        offsetY.snapTo(targetY)
-
-        val progress = (targetY / 1000f).absoluteValue.coerceIn(0f, 1f)
-
-        val newScale = 1f - (progress * 0.15f)
-        scale.snapTo(newScale)
-
-        val newAlpha = 1f - (progress * 0.8f)
-        backgroundAlpha.snapTo(newAlpha)
-    }
-}
-
-@Composable
-fun rememberZoomState(): ZoomState = remember { ZoomState() }
-
-@Composable
-fun rememberDismissRootState(): DismissRootState = remember { DismissRootState() }

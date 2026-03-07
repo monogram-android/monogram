@@ -122,6 +122,7 @@ interface ChatComponent {
     fun onCommentsClick(messageId: Long)
 
     fun onReplyMarkupButtonClick(messageId: Long, button: InlineKeyboardButtonModel, botUserId: Long)
+    fun onReplyMarkupButtonClick(messageId: Long, button: KeyboardButtonModel, botUserId: Long)
 
     fun onLinkClick(url: String)
 

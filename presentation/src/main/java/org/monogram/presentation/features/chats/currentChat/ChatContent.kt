@@ -511,7 +511,13 @@ fun ChatContent(
                                         }
                                     },
                                     onShowBotCommands = { component.onShowBotCommands() },
-                                    onReplyMarkupButtonClick = { component.onSendMessage(it.text) },
+                                    onReplyMarkupButtonClick = {
+                                        component.onReplyMarkupButtonClick(
+                                            0,
+                                            it,
+                                            if (state.isBot) state.chatId else 0L
+                                        )
+                                    },
                                     onOpenMiniApp = { url, name ->
                                         component.onOpenMiniApp(
                                             url,

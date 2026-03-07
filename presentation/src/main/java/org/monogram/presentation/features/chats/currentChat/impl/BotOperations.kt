@@ -1,10 +1,11 @@
 package org.monogram.presentation.features.chats.currentChat.impl
 
+import android.util.Log
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.*
 import org.monogram.domain.repository.ChatMembersFilter
 import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
 
@@ -130,4 +131,60 @@ internal fun DefaultChatComponent.handleSendInlineResult(resultId: String) {
         currentInlineQuery = null,
         replyMessage = null
     ) }
+}
+
+internal fun DefaultChatComponent.handleReplyMarkupButtonClick(
+    messageId: Long,
+    button: InlineKeyboardButtonModel,
+    botUserId: Long
+) {
+    scope.launch {
+        when (val type = button.type) {
+            is InlineKeyboardButtonType.Callback -> {
+                repositoryMessage.onCallbackQuery(chatId, messageId, type.data)
+            }
+
+            is InlineKeyboardButtonType.Url -> {
+                onLinkClick(type.url)
+            }
+
+            is InlineKeyboardButtonType.WebApp -> {
+                onOpenMiniApp(type.url, button.text, botUserId)
+            }
+
+            is InlineKeyboardButtonType.Buy -> {
+                repositoryMessage.onCallbackQueryBuy(chatId, messageId)
+            }
+
+            is InlineKeyboardButtonType.User -> {
+                toProfile(type.userId)
+            }
+
+            else -> {
+                Log.e("DefaultChatComponent", "Unknown inline keyboard button type: $type")
+            }
+        }
+    }
+}
+
+internal fun DefaultChatComponent.handleKeyboardButtonClick(
+    messageId: Long,
+    button: KeyboardButtonModel,
+    botUserId: Long
+) {
+    scope.launch {
+        when (val type = button.type) {
+            is KeyboardButtonType.Text -> {
+                onSendMessage(button.text)
+            }
+
+            is KeyboardButtonType.WebApp -> {
+                onOpenMiniApp(type.url, button.text, botUserId)
+            }
+
+            else -> {
+                Log.e("DefaultChatComponent", "Unknown keyboard button type: $type")
+            }
+        }
+    }
 }

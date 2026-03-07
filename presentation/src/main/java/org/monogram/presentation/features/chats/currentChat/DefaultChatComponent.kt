@@ -456,6 +456,9 @@ class DefaultChatComponent(
     override fun onReplyMarkupButtonClick(messageId: Long, button: InlineKeyboardButtonModel, botUserId: Long) =
         store.accept(ChatStore.Intent.ReplyMarkupButtonClick(messageId, button, botUserId))
 
+    override fun onReplyMarkupButtonClick(messageId: Long, button: KeyboardButtonModel, botUserId: Long) =
+        store.accept(ChatStore.Intent.KeyboardButtonClick(messageId, button, botUserId))
+
     override fun onLinkClick(url: String) = store.accept(ChatStore.Intent.LinkClick(url))
 
     override fun onOpenInvoice(slug: String?, messageId: Long?) =

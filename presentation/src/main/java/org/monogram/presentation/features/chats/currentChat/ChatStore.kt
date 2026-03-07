@@ -107,6 +107,12 @@ interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Lab
             val botUserId: Long
         ) : Intent()
 
+        data class KeyboardButtonClick(
+            val messageId: Long,
+            val button: KeyboardButtonModel,
+            val botUserId: Long
+        ) : Intent()
+
         data class LinkClick(val url: String) : Intent()
         data class OpenInvoice(val slug: String? = null, val messageId: Long? = null) : Intent()
         data class DismissInvoice(val status: String) : Intent()

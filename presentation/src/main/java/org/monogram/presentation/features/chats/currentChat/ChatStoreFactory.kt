@@ -199,8 +199,17 @@ class ChatStoreFactory(
                 is Intent.CommentsClick -> { /* Handle comments click */
                 }
 
-                is Intent.ReplyMarkupButtonClick -> { /* Handle reply markup button click */
-                }
+                is Intent.ReplyMarkupButtonClick -> component.handleReplyMarkupButtonClick(
+                    intent.messageId,
+                    intent.button,
+                    intent.botUserId
+                )
+
+                is Intent.KeyboardButtonClick -> component.handleKeyboardButtonClick(
+                    intent.messageId,
+                    intent.button,
+                    intent.botUserId
+                )
 
                 is Intent.LinkClick -> publish(Label.Link(intent.url))
                 is Intent.OpenInvoice -> component.handleOpenInvoice(intent.slug, intent.messageId)

@@ -1,11 +1,15 @@
 package org.monogram.data.datasource.remote
 
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.domain.models.ChatPermissionsModel
 
 class TdChatRemoteSource(
-    private val gateway: TelegramGateway
+    private val gateway: TelegramGateway,
+    private val connectivityManager: ConnectivityManager
 ) : ChatRemoteSource {
 
     override suspend fun loadChats(chatList: TdApi.ChatList, limit: Int) {
@@ -192,7 +196,33 @@ class TdChatRemoteSource(
     }
 
     override suspend fun setNetworkType() {
-        runCatching { gateway.execute(TdApi.SetNetworkType(null)) }
+        val networkType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val activeNetwork = connectivityManager.activeNetwork
+            val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+            when {
+                capabilities == null -> TdApi.NetworkTypeNone()
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> TdApi.NetworkTypeWiFi()
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        // Check for roaming if possible, otherwise default to Mobile
+                        TdApi.NetworkTypeMobile()
+                    } else {
+                        TdApi.NetworkTypeMobile()
+                    }
+                }
+
+                else -> TdApi.NetworkTypeOther()
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            val activeNetworkInfo = connectivityManager.activeNetworkInfo
+            when (activeNetworkInfo?.type) {
+                ConnectivityManager.TYPE_WIFI -> TdApi.NetworkTypeWiFi()
+                ConnectivityManager.TYPE_MOBILE -> TdApi.NetworkTypeMobile()
+                else -> TdApi.NetworkTypeOther()
+            }
+        }
+        runCatching { gateway.execute(TdApi.SetNetworkType(networkType)) }
     }
 
     override suspend fun getForumTopics(

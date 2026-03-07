@@ -119,7 +119,8 @@ val dataModule = module {
 
     single<ChatRemoteSource> {
         TdChatRemoteSource(
-            gateway = get()
+            gateway = get(),
+            connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
         )
     }
 

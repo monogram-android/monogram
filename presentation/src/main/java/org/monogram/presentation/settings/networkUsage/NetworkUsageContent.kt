@@ -39,7 +39,8 @@ import java.util.*
 private enum class NetworkTab(val title: String, val icon: ImageVector) {
     Mobile("Mobile", Icons.Rounded.SignalCellularAlt),
     Wifi("Wi-Fi", Icons.Rounded.Wifi),
-    Roaming("Roaming", Icons.Rounded.Public)
+    Roaming("Roaming", Icons.Rounded.Public),
+    Other("Other", Icons.Rounded.DevicesOther)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,6 +51,7 @@ fun NetworkUsageContent(component: NetworkUsageComponent) {
     val blueColor = Color(0xFF4285F4)
     val greenColor = Color(0xFF34A853)
     val orangeColor = Color(0xFFF9AB00)
+    val purpleColor = Color(0xFF9C27B0)
 
     var selectedTab by remember { mutableStateOf(NetworkTab.Mobile) }
 
@@ -196,6 +198,7 @@ fun NetworkUsageContent(component: NetworkUsageComponent) {
                                 NetworkTab.Mobile -> usage.mobile
                                 NetworkTab.Wifi -> usage.wifi
                                 NetworkTab.Roaming -> usage.roaming
+                                NetworkTab.Other -> usage.other
                             }
 
                             NetworkTabBody(
@@ -204,6 +207,7 @@ fun NetworkUsageContent(component: NetworkUsageComponent) {
                                     NetworkTab.Mobile -> greenColor
                                     NetworkTab.Wifi -> blueColor
                                     NetworkTab.Roaming -> orangeColor
+                                    NetworkTab.Other -> purpleColor
                                 }
                             )
                         }

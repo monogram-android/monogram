@@ -3,7 +3,8 @@ package org.monogram.domain.models
 data class NetworkUsageModel(
     val mobile: NetworkTypeUsage,
     val wifi: NetworkTypeUsage,
-    val roaming: NetworkTypeUsage
+    val roaming: NetworkTypeUsage,
+    val other: NetworkTypeUsage
 )
 
 data class NetworkTypeUsage(

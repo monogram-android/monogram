@@ -109,7 +109,7 @@ class ChatStoreFactory(
                 is Intent.ClosePoll -> component.handleClosePoll(intent.messageId)
                 is Intent.TopicClick -> component.handleTopicClick(intent.topicId)
 
-                is Intent.OpenInstantView -> publish(Label.Link(intent.url))
+                is Intent.OpenInstantView -> component._state.update { it.copy(instantViewUrl = intent.url) }
                 is Intent.DismissInstantView -> component._state.update { it.copy(instantViewUrl = null) }
                 is Intent.OpenYouTube -> publish(Label.Link(intent.url))
                 is Intent.DismissYouTube -> component._state.update { it.copy(youtubeUrl = null) }

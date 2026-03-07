@@ -800,7 +800,7 @@ class TdMessageRemoteDataSource(
         theme: ThemeParams?
     ): WebAppInfoModel? {
         val parameters = TdApi.WebAppOpenParameters().apply {
-            this.applicationName = "monogram_android"
+            this.applicationName = "android"
             this.mode = TdApi.WebAppOpenModeFullSize()
             this.theme = theme?.toApi()
         }

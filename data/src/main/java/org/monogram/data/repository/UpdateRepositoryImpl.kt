@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.os.Build
+import android.util.Log
 import androidx.core.content.FileProvider
 import org.monogram.core.ScopeProvider
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,14 +68,21 @@ class UpdateRepositoryImpl(
         _updateState.value = UpdateState.Checking
 
         runCatching {
-            val info = remote.fetchLatestUpdate()
-                ?: return _updateState.value.let { _updateState.value = UpdateState.Error("No update found") }
+            val info = remote.fetchLatestUpdate() ?: return@runCatching _updateState.value.let {
+                _updateState.value = UpdateState.Error("No update found")
+            }
 
-            remote.fetchLatestUpdate()?.let {
-                if (info.versionCode <= it.versionCode) {
-                    _updateState.value = UpdateState.UpToDate
-                    return
-                }
+            val currentVersionCode = try {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionCode
+            } catch (e: Exception) {
+                0
+            }
+
+            Log.d("UpdateRepository", "Current version code: $currentVersionCode, Latest version code: ${info.versionCode}")
+
+            if (info.versionCode <= currentVersionCode) {
+                _updateState.value = UpdateState.UpToDate
+                return@runCatching
             }
 
             currentUpdateInfo = info

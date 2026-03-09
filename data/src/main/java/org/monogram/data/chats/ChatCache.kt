@@ -53,7 +53,15 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                 existing.photo = chat.photo
                 existing.permissions = chat.permissions
                 existing.lastMessage = chat.lastMessage
-                existing.positions = chat.positions
+
+                val newPositions = chat.positions.toMutableList()
+                existing.positions.forEach { oldPos ->
+                    if (newPositions.none { isSameChatList(it.list, oldPos.list) }) {
+                        newPositions.add(oldPos)
+                    }
+                }
+                existing.positions = newPositions.toTypedArray()
+                
                 existing.unreadCount = chat.unreadCount
                 existing.unreadMentionCount = chat.unreadMentionCount
                 existing.unreadReactionCount = chat.unreadReactionCount
@@ -85,6 +93,16 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
         } else {
             allChats[chat.id] = chat
         }
+    }
+
+    private fun isSameChatList(a: TdApi.ChatList?, b: TdApi.ChatList?): Boolean {
+        if (a === b) return true
+        if (a == null || b == null) return false
+        if (a.constructor != b.constructor) return false
+        if (a is TdApi.ChatListFolder && b is TdApi.ChatListFolder) {
+            return a.chatFolderId == b.chatFolderId
+        }
+        return true
     }
 
     override fun getUser(userId: Long): TdApi.User? = usersCache[userId]
@@ -245,5 +263,34 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
         pendingSecretChats.clear()
         pendingChatPermissions.clear()
         pendingMyChatMember.clear()
+    }
+
+    fun putChatFromEntity(entity: org.monogram.data.db.model.ChatEntity) {
+        val chat = TdApi.Chat().apply {
+            id = entity.id
+            title = entity.title
+            unreadCount = entity.unreadCount
+            photo = entity.avatarPath?.let { path ->
+                TdApi.ChatPhotoInfo().apply {
+                    small = TdApi.File().apply { local = TdApi.LocalFile().apply { this.path = path } }
+                }
+            }
+            lastMessage = TdApi.Message().apply {
+                content = TdApi.MessageText().apply { text = TdApi.FormattedText(entity.lastMessageText, emptyArray()) }
+                date = 0
+            }
+            positions = arrayOf(TdApi.ChatPosition(TdApi.ChatListMain(), entity.order, entity.isPinned, null))
+            notificationSettings = TdApi.ChatNotificationSettings().apply {
+                muteFor = if (entity.isMuted) Int.MAX_VALUE else 0
+            }
+            type = when (entity.type) {
+                "PRIVATE" -> TdApi.ChatTypePrivate()
+                "BASIC_GROUP" -> TdApi.ChatTypeBasicGroup()
+                "SUPERGROUP" -> TdApi.ChatTypeSupergroup(0, entity.isChannel)
+                "SECRET" -> TdApi.ChatTypeSecret()
+                else -> TdApi.ChatTypePrivate()
+            }
+        }
+        putChat(chat)
     }
 }

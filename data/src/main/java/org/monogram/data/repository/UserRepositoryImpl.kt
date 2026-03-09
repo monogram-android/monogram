@@ -106,7 +106,11 @@ class UserRepositoryImpl(
         }
 
         if (userLocal is RoomUserLocalDataSource) {
-            userLocal.loadUser(userId)
+            userLocal.loadUser(userId)?.let { entity ->
+                val user = entity.toTdApi()
+                userLocal.putUser(user)
+                return user.toDomain(userLocal.getUserFullInfo(userId))
+            }
         }
 
         val deferred = userRequests.getOrPut(userId) {
@@ -138,9 +142,19 @@ class UserRepositoryImpl(
         val cachedFullInfo = userLocal.getUserFullInfo(userId)
         if (cachedFullInfo != null) return user.toDomain(cachedFullInfo)
 
+        val dbFullInfo = userLocal.getFullInfoEntity(userId)
+        if (dbFullInfo != null) {
+            val fullInfo = dbFullInfo.toTdApi()
+            userLocal.putUserFullInfo(userId, fullInfo)
+            return user.toDomain(fullInfo)
+        }
+
         val deferred = fullInfoRequests.getOrPut(userId) {
             scope.async {
-                remote.getUserFullInfo(userId)?.also { userLocal.putUserFullInfo(userId, it) }
+                remote.getUserFullInfo(userId)?.also {
+                    userLocal.putUserFullInfo(userId, it)
+                    userLocal.saveFullInfoEntity(it.toEntity(userId))
+                }
             }
         }
         return try {
@@ -187,23 +201,41 @@ class UserRepositoryImpl(
 
     override suspend fun getChatFullInfo(chatId: Long): ChatFullInfoModel? {
         if (chatId > 0) {
-            val fullInfo = userLocal.getUserFullInfo(chatId) ?: remote.getUserFullInfo(chatId)?.also {
+            val fullInfo = userLocal.getUserFullInfo(chatId) ?: userLocal.getFullInfoEntity(chatId)?.let {
+                val info = it.toTdApi()
+                userLocal.putUserFullInfo(chatId, info)
+                info
+            } ?: remote.getUserFullInfo(chatId)?.also {
                 userLocal.putUserFullInfo(chatId, it)
+                userLocal.saveFullInfoEntity(it.toEntity(chatId))
             }
             return fullInfo?.mapUserFullInfoToChat()
         }
 
         // It's a group or channel (chatId < 0)
-        val chat = remote.getChat(chatId)?.also { chatLocal.insertChat(it.toEntity()) } ?: return null
+        val chat = remote.getChat(chatId)?.also { chatLocal.insertChat(it.toEntity()) }
+            ?: chatLocal.getChat(chatId)?.let { it.toTdApiChat() }
+            ?: return null
+
+        val dbFullInfo = chatLocal.getChatFullInfo(chatId)
+        if (dbFullInfo != null) {
+            return dbFullInfo.toDomain()
+        }
 
         return when (val type = chat.type) {
             is TdApi.ChatTypeSupergroup -> {
                 val fullInfo = remote.getSupergroupFullInfo(type.supergroupId)
                 val supergroup = remote.getSupergroup(type.supergroupId)
+                fullInfo?.let {
+                    chatLocal.insertChatFullInfo(it.toEntity(chatId))
+                }
                 fullInfo?.mapSupergroupFullInfoToChat(supergroup)
             }
             is TdApi.ChatTypeBasicGroup -> {
                 val fullInfo = remote.getBasicGroupFullInfo(type.basicGroupId)
+                fullInfo?.let {
+                    chatLocal.insertChatFullInfo(it.toEntity(chatId))
+                }
                 fullInfo?.mapBasicGroupFullInfoToChat()
             }
             else -> null
@@ -391,6 +423,7 @@ class UserRepositoryImpl(
         remote.reorderActiveUsernames(usernames.toTypedArray())
 
     private fun TdApi.Chat.toEntity(): org.monogram.data.db.model.ChatEntity {
+        val isChannel = (type as? TdApi.ChatTypeSupergroup)?.isChannel ?: false
         return org.monogram.data.db.model.ChatEntity(
             id = id,
             title = title,
@@ -400,6 +433,16 @@ class UserRepositoryImpl(
             lastMessageTime = (lastMessage?.date?.toLong() ?: 0L).toString(),
             order = 0L,
             isPinned = false,
+            isMuted = notificationSettings.muteFor > 0,
+            isChannel = isChannel,
+            isGroup = type is TdApi.ChatTypeBasicGroup || (type is TdApi.ChatTypeSupergroup && !isChannel),
+            type = when (type) {
+                is TdApi.ChatTypePrivate -> "PRIVATE"
+                is TdApi.ChatTypeBasicGroup -> "BASIC_GROUP"
+                is TdApi.ChatTypeSupergroup -> "SUPERGROUP"
+                is TdApi.ChatTypeSecret -> "SECRET"
+                else -> "PRIVATE"
+            },
             createdAt = System.currentTimeMillis()
         )
     }

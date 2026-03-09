@@ -88,13 +88,16 @@ val dataModule = module {
     single { get<MonogramDatabase>().chatDao() }
     single { get<MonogramDatabase>().messageDao() }
     single { get<MonogramDatabase>().userDao() }
+    single { get<MonogramDatabase>().chatFullInfoDao() }
+    single { get<MonogramDatabase>().topicDao() }
+    single { get<MonogramDatabase>().userFullInfoDao() }
 
     single<UserLocalDataSource> {
-        RoomUserLocalDataSource(get())
+        InMemoryUserLocalDataSource()
     }
 
     single<ChatLocalDataSource> {
-        RoomChatLocalDataSource(get(), get())
+        InMemoryChatLocalDataSource()
     }
 
     single<UserRepository> {

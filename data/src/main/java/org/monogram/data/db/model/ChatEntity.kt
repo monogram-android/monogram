@@ -13,5 +13,9 @@ data class ChatEntity(
     val lastMessageTime: String,
     val order: Long,
     val isPinned: Boolean,
+    val isMuted: Boolean,
+    val isChannel: Boolean,
+    val isGroup: Boolean,
+    val type: String,
     val createdAt: Long = System.currentTimeMillis()
 )

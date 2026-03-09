@@ -140,7 +140,11 @@ class ChatMapper {
             lastMessageText = entity.lastMessageText,
             lastMessageTime = entity.lastMessageTime,
             order = entity.order,
-            isPinned = entity.isPinned
+            isPinned = entity.isPinned,
+            isMuted = entity.isMuted,
+            isChannel = entity.isChannel,
+            isGroup = entity.isGroup,
+            type = ChatType.valueOf(entity.type)
         )
     }
 
@@ -153,7 +157,12 @@ class ChatMapper {
             lastMessageText = domain.lastMessageText,
             lastMessageTime = domain.lastMessageTime,
             order = domain.order,
-            isPinned = domain.isPinned
+            isPinned = domain.isPinned,
+            isMuted = domain.isMuted,
+            isChannel = domain.isChannel,
+            isGroup = domain.isGroup,
+            type = domain.type.name,
+            createdAt = System.currentTimeMillis()
         )
     }
 

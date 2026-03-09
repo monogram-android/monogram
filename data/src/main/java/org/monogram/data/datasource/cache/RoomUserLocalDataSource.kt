@@ -2,11 +2,14 @@ package org.monogram.data.datasource.cache
 
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.db.dao.UserDao
+import org.monogram.data.db.dao.UserFullInfoDao
 import org.monogram.data.db.model.UserEntity
+import org.monogram.data.db.model.UserFullInfoEntity
 import java.util.concurrent.ConcurrentHashMap
 
 class RoomUserLocalDataSource(
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val userFullInfoDao: UserFullInfoDao
 ) : UserLocalDataSource {
     private val fullInfos = ConcurrentHashMap<Long, TdApi.UserFullInfo>()
     private val users = ConcurrentHashMap<Long, TdApi.User>()
@@ -28,6 +31,15 @@ class RoomUserLocalDataSource(
     override suspend fun clearAll() {
         fullInfos.clear()
         users.clear()
+    }
+
+    override suspend fun getFullInfoEntity(userId: Long): UserFullInfoEntity? = userFullInfoDao.getUserFullInfo(userId)
+
+    override suspend fun saveFullInfoEntity(info: UserFullInfoEntity) = userFullInfoDao.insertUserFullInfo(info)
+
+    override suspend fun deleteExpired(timestamp: Long) {
+        userDao.deleteExpired(timestamp)
+        userFullInfoDao.deleteExpired(timestamp)
     }
 
     suspend fun saveUser(user: UserEntity) = userDao.insertUser(user)

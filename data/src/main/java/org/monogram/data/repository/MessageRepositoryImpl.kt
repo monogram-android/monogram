@@ -55,17 +55,12 @@ class MessageRepositoryImpl(
             try {
                 gateway.updates.collect { update ->
                     messageRemoteDataSource.handleUpdate(update)
+                    if (update is TdApi.UpdateNewMessage) {
+                        chatLocalDataSource.insertMessage(messageMapper.mapToEntity(update.message))
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("TdLibUpdates", "CRITICAL: Update loop died", e)
-            }
-        }
-
-        scope.launch {
-            newMessageFlow.collect { msg ->
-                messageRemoteDataSource.getMessage(msg.chatId, msg.id)?.let { tdMsg ->
-                    chatLocalDataSource.insertMessage(messageMapper.mapToEntity(tdMsg))
-                }
             }
         }
 
@@ -187,9 +182,12 @@ class MessageRepositoryImpl(
     ): List<MessageModel> =
         withContext(dispatcherProvider.io) {
             val remoteMessages = messageRemoteDataSource.getMessagesOlder(chatId, fromMessageId, limit, threadId)
-            remoteMessages.forEach { model ->
-                messageRemoteDataSource.getMessage(chatId, model.id)?.let {
-                    chatLocalDataSource.insertMessage(messageMapper.mapToEntity(it))
+
+            scope.launch(dispatcherProvider.io) {
+                remoteMessages.forEach { model ->
+                    messageRemoteDataSource.getMessage(chatId, model.id)?.let {
+                        chatLocalDataSource.insertMessage(messageMapper.mapToEntity(it))
+                    }
                 }
             }
             remoteMessages
@@ -203,11 +201,15 @@ class MessageRepositoryImpl(
     ): List<MessageModel> =
         withContext(dispatcherProvider.io) {
             val remoteMessages = messageRemoteDataSource.getMessagesNewer(chatId, fromMessageId, limit, threadId)
-            remoteMessages.forEach { model ->
-                messageRemoteDataSource.getMessage(chatId, model.id)?.let {
-                    chatLocalDataSource.insertMessage(messageMapper.mapToEntity(it))
+
+            scope.launch(dispatcherProvider.io) {
+                remoteMessages.forEach { model ->
+                    messageRemoteDataSource.getMessage(chatId, model.id)?.let {
+                        chatLocalDataSource.insertMessage(messageMapper.mapToEntity(it))
+                    }
                 }
             }
+
             remoteMessages
         }
 
@@ -218,7 +220,16 @@ class MessageRepositoryImpl(
         threadId: Long?
     ): List<MessageModel> =
         withContext(dispatcherProvider.io) {
-            messageRemoteDataSource.getMessagesAround(chatId, messageId, limit, threadId)
+            val remoteMessages = messageRemoteDataSource.getMessagesAround(chatId, messageId, limit, threadId)
+
+            scope.launch(dispatcherProvider.io) {
+                remoteMessages.forEach { model ->
+                    messageRemoteDataSource.getMessage(chatId, model.id)?.let {
+                        chatLocalDataSource.insertMessage(messageMapper.mapToEntity(it))
+                    }
+                }
+            }
+            remoteMessages
         }
 
     @Deprecated("Use getMessagesOlder instead")
@@ -922,9 +933,15 @@ class MessageRepositoryImpl(
 
     override fun clearMessages(chatId: Long) {
         cache.clearMessages(chatId)
+        scope.launch(dispatcherProvider.io) {
+            chatLocalDataSource.clearMessagesForChat(chatId)
+        }
     }
 
     override fun clearAllCache() {
         cache.clearAll()
+        scope.launch(dispatcherProvider.io) {
+            chatLocalDataSource.clearAllChats()
+        }
     }
 }

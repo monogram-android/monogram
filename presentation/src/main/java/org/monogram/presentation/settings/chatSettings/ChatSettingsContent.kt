@@ -704,7 +704,7 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                     title = "Clear Recent Stickers",
                     subtitle = "Remove all recently used stickers",
                     iconColor = purpleColor,
-                    position = ItemPosition.MIDDLE,
+                    position = ItemPosition.TOP,
                     onClick = component::onClearRecentStickers
                 )
                 SettingsTile(

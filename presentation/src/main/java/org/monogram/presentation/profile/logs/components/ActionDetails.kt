@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.StickyNote2
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -279,8 +280,10 @@ private fun PermissionsDiff(old: ChatPermissionsModel?, new: ChatPermissionsMode
                 new.canSendPhotos || new.canSendVideos,
                 Icons.Rounded.PermMedia
             )
-            PermissionChip("Stickers", old?.canSendOtherMessages, new.canSendOtherMessages, Icons.Rounded.StickyNote2)
-            PermissionChip("Links", old?.canAddWebPagePreviews, new.canAddWebPagePreviews, Icons.Rounded.Link)
+            PermissionChip("Stickers", old?.canSendOtherMessages, new.canSendOtherMessages,
+                Icons.AutoMirrored.Rounded.StickyNote2
+            )
+            PermissionChip("Links", old?.canAddLinkPreviews, new.canAddLinkPreviews, Icons.Rounded.Link)
             PermissionChip("Polls", old?.canSendPolls, new.canSendPolls, Icons.Rounded.Poll)
             PermissionChip("Invite", old?.canInviteUsers, new.canInviteUsers, Icons.Rounded.PersonAdd)
             PermissionChip("Pin", old?.canPinMessages, new.canPinMessages, Icons.Rounded.PushPin)

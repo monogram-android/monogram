@@ -112,7 +112,7 @@ fun ChatPermissionsContent(component: ChatPermissionsComponent) {
                 PermissionItem(
                     "Embed Links",
                     Icons.Rounded.Link,
-                    permissions.canAddWebPagePreviews,
+                    permissions.canAddLinkPreviews,
                     { component.onTogglePermission(ChatPermissionsComponent.Permission.EMBED_LINKS) },
                     ItemPosition.MIDDLE
                 )

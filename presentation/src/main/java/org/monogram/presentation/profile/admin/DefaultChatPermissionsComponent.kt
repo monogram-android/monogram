@@ -49,11 +49,11 @@ class DefaultChatPermissionsComponent(
             ChatPermissionsComponent.Permission.SEND_MEDIA -> current.copy(canSendPhotos = !current.canSendPhotos) // Simplified
             ChatPermissionsComponent.Permission.SEND_STICKERS -> current.copy(canSendOtherMessages = !current.canSendOtherMessages)
             ChatPermissionsComponent.Permission.SEND_POLLS -> current.copy(canSendPolls = !current.canSendPolls)
-            ChatPermissionsComponent.Permission.EMBED_LINKS -> current.copy(canAddWebPagePreviews = !current.canAddWebPagePreviews)
+            ChatPermissionsComponent.Permission.EMBED_LINKS -> current.copy(canAddLinkPreviews =  !current.canAddLinkPreviews)
             ChatPermissionsComponent.Permission.ADD_MEMBERS -> current.copy(canInviteUsers = !current.canInviteUsers)
             ChatPermissionsComponent.Permission.PIN_MESSAGES -> current.copy(canPinMessages = !current.canPinMessages)
             ChatPermissionsComponent.Permission.CHANGE_INFO -> current.copy(canChangeInfo = !current.canChangeInfo)
-            ChatPermissionsComponent.Permission.MANAGE_TOPICS -> current.copy(canManageTopics = !current.canManageTopics)
+            ChatPermissionsComponent.Permission.MANAGE_TOPICS -> current.copy(canCreateTopics = !current.canCreateTopics)
         }
         _state.value = _state.value.copy(permissions = updated)
     }

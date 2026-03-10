@@ -47,7 +47,7 @@ class TelegramStreamingDataSource(
         file = runBlocking { gateway.execute(TdApi.GetFile(fileId)) }
         val f = file ?: throw IOException("File not found for fileId: $fileId")
 
-        val totalSize = kotlin.math.max(f.size, f.expectedSize)
+        val totalSize = kotlin.math.max(f.size.toLong(), f.expectedSize.toLong())
         if (totalSize <= 0) {
             throw IOException("Failed to get file size for fileId: $fileId")
         }
@@ -65,7 +65,7 @@ class TelegramStreamingDataSource(
 
     override fun read(buffer: ByteArray, offset: Int, readLength: Int): Int {
         if (readLength == 0) return 0
-        if (bytesRemaining == 0L) return C.RESULT_END_OF_INPUT
+        if (bytesRemaining <= 0L) return C.RESULT_END_OF_INPUT
 
         if (internalBuffer == null || bufferOffset >= bufferLength) {
             val bytesToFetch = kotlin.math.min(PREFETCH_SIZE, bytesRemaining).toInt()
@@ -76,8 +76,8 @@ class TelegramStreamingDataSource(
                         TdApi.DownloadFile(
                             fileId,
                             32,
-                            position,
-                            bytesToFetch.toLong(),
+                            0,
+                            0,
                             true
                         )
                     )
@@ -95,7 +95,7 @@ class TelegramStreamingDataSource(
             }
         }
 
-        if (bufferLength == 0) return C.RESULT_END_OF_INPUT
+        if (bufferLength == 0 || internalBuffer == null) return C.RESULT_END_OF_INPUT
 
         val bytesToRead = kotlin.math.min(readLength, bufferLength - bufferOffset)
         System.arraycopy(internalBuffer!!, bufferOffset, buffer, offset, bytesToRead)

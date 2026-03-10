@@ -25,6 +25,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.db.dao.NotificationSettingDao
+import org.monogram.data.db.model.NotificationSettingEntity
 import org.monogram.data.service.NotificationDismissReceiver
 import org.monogram.data.service.NotificationReadReceiver
 import org.monogram.data.service.NotificationReplyReceiver
@@ -36,7 +38,8 @@ import kotlin.math.min
 class TdNotificationManager(
     private val context: Context,
     private val tdLibClient: TdLibClient,
-    private val appPreferences: AppPreferencesProvider
+    private val appPreferences: AppPreferencesProvider,
+    private val notificationSettingDao: NotificationSettingDao
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val notificationManager = NotificationManagerCompat.from(context)
@@ -51,6 +54,7 @@ class TdNotificationManager(
         }
     }
     private val activeDownloads = ConcurrentHashMap<Int, MutableList<(Bitmap?) -> Unit>>()
+    private val notificationSettingsCache = ConcurrentHashMap<Long, NotificationSettingEntity>()
 
     companion object {
         private const val TAG = "TdNotificationManager"
@@ -68,7 +72,17 @@ class TdNotificationManager(
 
     init {
         createNotificationChannels()
+        loadSettingsFromDb()
         observeUpdates()
+    }
+
+    private fun loadSettingsFromDb() {
+        scope.launch(Dispatchers.IO) {
+            val settings = notificationSettingDao.getAll()
+            settings.forEach {
+                notificationSettingsCache[it.chatId] = it
+            }
+        }
     }
 
     private fun observeUpdates() {
@@ -108,6 +122,7 @@ class TdNotificationManager(
                         }
                     }
                     is TdApi.UpdateChatNotificationSettings -> {
+                        updateChatNotificationSettings(update.chatId, update.notificationSettings)
                         chatCache[update.chatId]?.let { chat ->
                             chatCache[update.chatId] = chat.apply {
                                 notificationSettings = update.notificationSettings
@@ -132,6 +147,18 @@ class TdNotificationManager(
             appPreferences.pushProvider.collect {
                 updatePushRegistration()
             }
+        }
+    }
+
+    private fun updateChatNotificationSettings(chatId: Long, settings: TdApi.ChatNotificationSettings) {
+        val entity = NotificationSettingEntity(
+            chatId = chatId,
+            muteFor = settings.muteFor,
+            useDefault = settings.useDefaultMuteFor
+        )
+        notificationSettingsCache[chatId] = entity
+        scope.launch(Dispatchers.IO) {
+            notificationSettingDao.insert(entity)
         }
     }
 
@@ -181,7 +208,9 @@ class TdNotificationManager(
             tdLibClient.send(TdApi.GetChatNotificationSettingsExceptions(scope, true)) { result ->
                 if (result is TdApi.Chats) {
                     result.chatIds.forEach { chatId ->
-                        getChat(chatId) { _ -> }
+                        getChat(chatId) { chat ->
+                            updateChatNotificationSettings(chat.id, chat.notificationSettings)
+                        }
                     }
                 }
             }
@@ -189,7 +218,11 @@ class TdNotificationManager(
     }
 
     fun isChatMuted(chat: TdApi.Chat): Boolean {
-        return if (chat.notificationSettings.useDefaultMuteFor) {
+        val cached = notificationSettingsCache[chat.id]
+        val muteFor = cached?.muteFor ?: chat.notificationSettings.muteFor
+        val useDefault = cached?.useDefault ?: chat.notificationSettings.useDefaultMuteFor
+
+        return if (useDefault) {
             val globalEnabled = when (chat.type) {
                 is TdApi.ChatTypePrivate -> appPreferences.privateChatsNotifications.value
                 is TdApi.ChatTypeBasicGroup, is TdApi.ChatTypeSupergroup -> {
@@ -201,11 +234,11 @@ class TdNotificationManager(
                     }
                 }
 
-                else -> true
+                else -> false
             }
             !globalEnabled
         } else {
-            chat.notificationSettings.muteFor > 0
+            muteFor > 0
         }
     }
 
@@ -661,6 +694,7 @@ class TdNotificationManager(
     }
 
     private fun getUser(userId: Long, callback: (TdApi.User) -> Unit) {
+        if (userId == 0L) return
         userCache[userId]?.let {
             callback(it)
             return

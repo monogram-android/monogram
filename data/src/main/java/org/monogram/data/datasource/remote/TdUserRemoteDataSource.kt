@@ -7,14 +7,18 @@ class TdUserRemoteDataSource(
     private val gateway: TelegramGateway
 ) : UserRemoteDataSource {
 
-    override suspend fun getUser(userId: Long): TdApi.User? =
-        runCatching { gateway.execute(TdApi.GetUser(userId)) }.getOrNull()
+    override suspend fun getUser(userId: Long): TdApi.User? {
+        if (userId == 0L) return null
+        return runCatching { gateway.execute(TdApi.GetUser(userId)) }.getOrNull()
+    }
 
     override suspend fun getMe(): TdApi.User? =
         runCatching { gateway.execute(TdApi.GetMe()) }.getOrNull()
 
-    override suspend fun getUserFullInfo(userId: Long): TdApi.UserFullInfo? =
-        runCatching { gateway.execute(TdApi.GetUserFullInfo(userId)) }.getOrNull()
+    override suspend fun getUserFullInfo(userId: Long): TdApi.UserFullInfo? {
+        if (userId == 0L) return null
+        return runCatching { gateway.execute(TdApi.GetUserFullInfo(userId)) }.getOrNull()
+    }
 
     override suspend fun getSupergroupFullInfo(supergroupId: Long): TdApi.SupergroupFullInfo? =
         runCatching { gateway.execute(TdApi.GetSupergroupFullInfo(supergroupId)) }.getOrNull()
@@ -25,8 +29,10 @@ class TdUserRemoteDataSource(
     override suspend fun getSupergroup(supergroupId: Long): TdApi.Supergroup? =
         runCatching { gateway.execute(TdApi.GetSupergroup(supergroupId)) }.getOrNull()
 
-    override suspend fun getChat(chatId: Long): TdApi.Chat? =
-        runCatching { gateway.execute(TdApi.GetChat(chatId)) }.getOrNull()
+    override suspend fun getChat(chatId: Long): TdApi.Chat? {
+        if (chatId == 0L) return null
+        return runCatching { gateway.execute(TdApi.GetChat(chatId)) }.getOrNull()
+    }
 
     override suspend fun getMessage(chatId: Long, messageId: Long): TdApi.Message? =
         runCatching { gateway.execute(TdApi.GetMessage(chatId, messageId)) }.getOrNull()
@@ -49,8 +55,25 @@ class TdUserRemoteDataSource(
 
     override suspend fun getChatMember(chatId: Long, userId: Long): TdApi.ChatMember? =
         runCatching {
+            val chat = gateway.execute(TdApi.GetChat(chatId))
+            val type = chat.type
+            if (type is TdApi.ChatTypeSupergroup) {
+                val supergroup = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
+                if (supergroup.isChannel) {
+                    val me = gateway.execute(TdApi.GetMe())
+                    if (userId != me.id) {
+                        val status = supergroup.status
+                        val canGetOthers = status is TdApi.ChatMemberStatusAdministrator ||
+                                status is TdApi.ChatMemberStatusCreator
+                        if (!canGetOthers) return null
+                    }
+                }
+            }
             gateway.execute(TdApi.GetChatMember(chatId, TdApi.MessageSenderUser(userId)))
-        }.getOrNull()
+        }.getOrElse { e ->
+            // Handle 400 CHANNEL_PRIVATE and other errors gracefully
+            null
+        }
 
     override suspend fun getSupergroupMembers(
         supergroupId: Long,
@@ -74,8 +97,10 @@ class TdUserRemoteDataSource(
     override suspend fun getPremiumLimit(limitType: TdApi.PremiumLimitType): TdApi.PremiumLimit? =
         runCatching { gateway.execute(TdApi.GetPremiumLimit(limitType)) }.getOrNull()
 
-    override suspend fun getBotFullInfo(userId: Long): TdApi.UserFullInfo? =
-        runCatching { gateway.execute(TdApi.GetUserFullInfo(userId)) }.getOrNull()
+    override suspend fun getBotFullInfo(userId: Long): TdApi.UserFullInfo? {
+        if (userId == 0L) return null
+        return runCatching { gateway.execute(TdApi.GetUserFullInfo(userId)) }.getOrNull()
+    }
 
     override suspend fun getChatStatistics(chatId: Long, isDark: Boolean): TdApi.ChatStatistics? =
         runCatching { gateway.execute(TdApi.GetChatStatistics(chatId, isDark)) }.getOrNull()

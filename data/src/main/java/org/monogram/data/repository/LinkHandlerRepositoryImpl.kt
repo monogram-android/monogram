@@ -1,13 +1,13 @@
 package org.monogram.data.repository
 
 import androidx.core.net.toUri
+import org.drinkless.tdlib.TdApi
+import org.monogram.data.gateway.TelegramGateway
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.repository.ChatsListRepository
 import org.monogram.domain.repository.LinkAction
 import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.UserRepository
-import org.drinkless.tdlib.TdApi
-import org.monogram.data.gateway.TelegramGateway
 
 class LinkHandlerRepositoryImpl(
     private val gateway: TelegramGateway,
@@ -82,7 +82,9 @@ class LinkHandlerRepositoryImpl(
 
                 else -> handleExternalOrUnknownLink(normalized)
             }
-        }.getOrDefault(LinkAction.None)
+        }.getOrElse {
+            handleExternalOrUnknownLink(normalized)
+        }
     }
 
     override suspend fun joinChat(inviteLink: String): Long? =
@@ -111,19 +113,27 @@ class LinkHandlerRepositoryImpl(
     }
 
     private suspend fun handleExternalOrUnknownLink(link: String): LinkAction {
-        val username = link
-            .removePrefix("https://t.me/")
-            .removePrefix("tg://resolve?domain=")
-            .split("/")
-            .firstOrNull()
-            ?.takeIf { it.isNotBlank() && !it.contains("?") }
-            ?: return LinkAction.None
+        if (link.startsWith("https://t.me/") || link.startsWith("tg://resolve?domain=")) {
+            val username = link
+                .removePrefix("https://t.me/")
+                .removePrefix("tg://resolve?domain=")
+                .split("/")
+                .firstOrNull()
+                ?.takeIf { it.isNotBlank() && !it.contains("?") }
+                ?: return LinkAction.None
 
-        val chat = runCatching {
-            gateway.execute(TdApi.SearchPublicChat(username))
-        }.getOrNull() ?: return LinkAction.None
+            val chat = runCatching {
+                gateway.execute(TdApi.SearchPublicChat(username))
+            }.getOrNull() ?: return LinkAction.None
 
-        return resolveChatAction(chat)
+            return resolveChatAction(chat)
+        }
+
+        return if (link.startsWith("http://") || link.startsWith("https://")) {
+            LinkAction.OpenExternalLink(link)
+        } else {
+            LinkAction.None
+        }
     }
 
     private fun normalizeLink(link: String): String = when {

@@ -1,10 +1,11 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import java.util.Properties
+import java.util.*
 
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -44,7 +45,7 @@ android {
         }
     }
     defaultConfig {
-        minSdk = 23
+        minSdk = 25
         consumerProguardFiles("consumer-rules.pro")
     }
 
@@ -77,4 +78,8 @@ dependencies {
     implementation(libs.androidx.media3.datasource)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 }

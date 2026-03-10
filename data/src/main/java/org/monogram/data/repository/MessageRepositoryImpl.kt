@@ -2,15 +2,14 @@ package org.monogram.data.repository
 
 import android.content.Context
 import android.util.Log
-import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.DispatcherProvider
+import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.datasource.FileDataSource
+import org.monogram.data.datasource.cache.ChatLocalDataSource
 import org.monogram.data.datasource.remote.MessageRemoteDataSource
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.mapper.MessageMapper
@@ -35,16 +34,12 @@ class MessageRepositoryImpl(
     private val cache: ChatCache,
     private val fileQueue: FileDataSource,
     private val dispatcherProvider: DispatcherProvider,
-    scopeProvider: ScopeProvider
+    scopeProvider: ScopeProvider,
+    private val chatLocalDataSource: ChatLocalDataSource
 ) : MessageRepository {
     private val scope = scopeProvider.appScope
-    private val _newMessageFlow = MutableSharedFlow<MessageModel>(
-        replay = 0,
-        extraBufferCapacity = 100,
-        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.SUSPEND
-    )
-    override val newMessageFlow = _newMessageFlow.asSharedFlow()
 
+    override val newMessageFlow = messageRemoteDataSource.newMessageFlow
     override val messageEditedFlow = messageRemoteDataSource.messageEditedFlow
     override val messageUploadProgressFlow = messageRemoteDataSource.messageUploadProgressFlow
     override val messageDownloadProgressFlow = messageRemoteDataSource.messageDownloadProgressFlow
@@ -60,21 +55,45 @@ class MessageRepositoryImpl(
             try {
                 gateway.updates.collect { update ->
                     messageRemoteDataSource.handleUpdate(update)
+                    if (update is TdApi.UpdateNewMessage) {
+                        chatLocalDataSource.insertMessage(messageMapper.mapToEntity(update.message))
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("TdLibUpdates", "CRITICAL: Update loop died", e)
             }
         }
+
+        scope.launch(dispatcherProvider.io) {
+            val oneMonthAgo = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000)
+            chatLocalDataSource.deleteExpired(oneMonthAgo)
+        }
     }
 
     override suspend fun openChat(chatId: Long) {
         messageRemoteDataSource.setChatOpened(chatId)
-        gateway.execute(TdApi.OpenChat(chatId))
+        try {
+            gateway.execute(TdApi.OpenChat(chatId))
+        } catch (e: Exception) {
+            Log.e("MessageRepository", "Error opening chat $chatId", e)
+            if (chatId > 0) {
+                try {
+                    gateway.execute(TdApi.CreatePrivateChat(chatId, false))
+                    gateway.execute(TdApi.OpenChat(chatId))
+                } catch (e2: Exception) {
+                    Log.e("MessageRepository", "Failed to create and open private chat $chatId", e2)
+                }
+            }
+        }
     }
 
     override suspend fun closeChat(chatId: Long) {
         messageRemoteDataSource.setChatClosed(chatId)
-        gateway.execute(TdApi.CloseChat(chatId))
+        try {
+            gateway.execute(TdApi.CloseChat(chatId))
+        } catch (e: Exception) {
+            Log.e("MessageRepository", "Error closing chat $chatId", e)
+        }
     }
 
     override suspend fun sendMessage(
@@ -135,6 +154,7 @@ class MessageRepositoryImpl(
 
     override suspend fun deleteMessage(chatId: Long, messageIds: List<Long>, revoke: Boolean) {
         messageRemoteDataSource.deleteMessages(chatId, messageIds.toLongArray(), revoke)
+        messageIds.forEach { chatLocalDataSource.deleteMessage(it) }
     }
 
     override suspend fun editMessage(chatId: Long, messageId: Long, newText: String, entities: List<MessageEntity>) {
@@ -161,7 +181,16 @@ class MessageRepositoryImpl(
         threadId: Long?
     ): List<MessageModel> =
         withContext(dispatcherProvider.io) {
-            messageRemoteDataSource.getMessagesOlder(chatId, fromMessageId, limit, threadId)
+            val remoteMessages = messageRemoteDataSource.getMessagesOlder(chatId, fromMessageId, limit, threadId)
+
+            scope.launch(dispatcherProvider.io) {
+                remoteMessages.forEach { model ->
+                    messageRemoteDataSource.getMessage(chatId, model.id)?.let {
+                        chatLocalDataSource.insertMessage(messageMapper.mapToEntity(it))
+                    }
+                }
+            }
+            remoteMessages
         }
 
     override suspend fun getMessagesNewer(
@@ -171,7 +200,17 @@ class MessageRepositoryImpl(
         threadId: Long?
     ): List<MessageModel> =
         withContext(dispatcherProvider.io) {
-            messageRemoteDataSource.getMessagesNewer(chatId, fromMessageId, limit, threadId)
+            val remoteMessages = messageRemoteDataSource.getMessagesNewer(chatId, fromMessageId, limit, threadId)
+
+            scope.launch(dispatcherProvider.io) {
+                remoteMessages.forEach { model ->
+                    messageRemoteDataSource.getMessage(chatId, model.id)?.let {
+                        chatLocalDataSource.insertMessage(messageMapper.mapToEntity(it))
+                    }
+                }
+            }
+
+            remoteMessages
         }
 
     override suspend fun getMessagesAround(
@@ -181,7 +220,16 @@ class MessageRepositoryImpl(
         threadId: Long?
     ): List<MessageModel> =
         withContext(dispatcherProvider.io) {
-            messageRemoteDataSource.getMessagesAround(chatId, messageId, limit, threadId)
+            val remoteMessages = messageRemoteDataSource.getMessagesAround(chatId, messageId, limit, threadId)
+
+            scope.launch(dispatcherProvider.io) {
+                remoteMessages.forEach { model ->
+                    messageRemoteDataSource.getMessage(chatId, model.id)?.let {
+                        chatLocalDataSource.insertMessage(messageMapper.mapToEntity(it))
+                    }
+                }
+            }
+            remoteMessages
         }
 
     @Deprecated("Use getMessagesOlder instead")
@@ -488,11 +536,12 @@ class MessageRepositoryImpl(
             permissions.canSendVoiceNotes,
             permissions.canSendPolls,
             permissions.canSendOtherMessages,
-            permissions.canAddWebPagePreviews,
+            permissions.canAddLinkPreviews,
+            permissions.canEditTag,
             permissions.canChangeInfo,
             permissions.canInviteUsers,
             permissions.canPinMessages,
-            permissions.canManageTopics
+            permissions.canCreateTopics
         )
         gateway.execute(
             TdApi.SetChatMemberStatus(
@@ -688,6 +737,7 @@ class MessageRepositoryImpl(
                 filters.memberInvites,
                 filters.memberPromotions,
                 filters.memberRestrictions,
+                false,
                 filters.infoChanges,
                 filters.settingChanges,
                 filters.inviteLinkChanges,
@@ -779,11 +829,12 @@ class MessageRepositoryImpl(
                                             canSendVoiceNotes = p.canSendVoiceNotes,
                                             canSendPolls = p.canSendPolls,
                                             canSendOtherMessages = p.canSendOtherMessages,
-                                            canAddWebPagePreviews = p.canAddLinkPreviews,
+                                            canAddLinkPreviews = p.canAddLinkPreviews,
+                                            canEditTag = p.canEditTag,
                                             canChangeInfo = p.canChangeInfo,
                                             canInviteUsers = p.canInviteUsers,
                                             canPinMessages = p.canPinMessages,
-                                            canManageTopics = p.canCreateTopics
+                                            canCreateTopics = p.canCreateTopics
                                         )
                                     },
                                     newPermissions = (newStatus as? TdApi.ChatMemberStatusRestricted)?.permissions?.let { p ->
@@ -797,11 +848,12 @@ class MessageRepositoryImpl(
                                             canSendVoiceNotes = p.canSendVoiceNotes,
                                             canSendPolls = p.canSendPolls,
                                             canSendOtherMessages = p.canSendOtherMessages,
-                                            canAddWebPagePreviews = p.canAddLinkPreviews,
+                                            canAddLinkPreviews = p.canAddLinkPreviews,
+                                            canEditTag = p.canEditTag,
                                             canChangeInfo = p.canChangeInfo,
                                             canInviteUsers = p.canInviteUsers,
                                             canPinMessages = p.canPinMessages,
-                                            canManageTopics = p.canCreateTopics
+                                            canCreateTopics = p.canCreateTopics
                                         )
                                     }
                                 )
@@ -885,9 +937,15 @@ class MessageRepositoryImpl(
 
     override fun clearMessages(chatId: Long) {
         cache.clearMessages(chatId)
+        scope.launch(dispatcherProvider.io) {
+            chatLocalDataSource.clearMessagesForChat(chatId)
+        }
     }
 
     override fun clearAllCache() {
         cache.clearAll()
+        scope.launch(dispatcherProvider.io) {
+            chatLocalDataSource.clearAllChats()
+        }
     }
 }

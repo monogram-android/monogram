@@ -1,21 +1,11 @@
 package org.monogram.data.mapper.user
 
 import org.drinkless.tdlib.TdApi
-import org.monogram.domain.models.BirthdateModel
-import org.monogram.domain.models.BusinessInfoModel
-import org.monogram.domain.models.BusinessLocationModel
-import org.monogram.domain.models.BusinessOpeningHoursIntervalModel
-import org.monogram.domain.models.BusinessOpeningHoursModel
-import org.monogram.domain.models.BusinessStartPageModel
-import org.monogram.domain.models.ChatFullInfoModel
-import org.monogram.domain.models.ChatModel
-import org.monogram.domain.models.ChatPermissionsModel
-import org.monogram.domain.models.ChatType
-import org.monogram.domain.models.GroupMemberModel
-import org.monogram.domain.models.UserModel
-import org.monogram.domain.models.UserStatusType
-import org.monogram.domain.models.UserTypeEnum
-import org.monogram.domain.models.UsernamesModel
+import org.monogram.data.db.model.ChatEntity
+import org.monogram.data.db.model.ChatFullInfoEntity
+import org.monogram.data.db.model.UserEntity
+import org.monogram.data.db.model.UserFullInfoEntity
+import org.monogram.domain.models.*
 import org.monogram.domain.repository.ChatMemberStatus
 import org.monogram.domain.repository.ChatMembersFilter
 
@@ -57,9 +47,9 @@ fun TdApi.User.toDomain(fullInfo: TdApi.UserFullInfo? = null): UserModel {
 }
 
 fun TdApi.ChatMember.toDomain(user: UserModel): GroupMemberModel {
-    val rank = when (val status = this.status) {
-        is TdApi.ChatMemberStatusCreator -> status.customTitle.ifEmpty { "Owner" }
-        is TdApi.ChatMemberStatusAdministrator -> status.customTitle.ifEmpty { "Admin" }
+    val rank = when (this.status) {
+        is TdApi.ChatMemberStatusCreator -> "Owner"
+        is TdApi.ChatMemberStatusAdministrator -> "Admin"
         else -> null
     }
     return GroupMemberModel(
@@ -129,7 +119,7 @@ fun TdApi.ChatMemberStatus.toDomain(): ChatMemberStatus {
     return when (this) {
         is TdApi.ChatMemberStatusCreator -> ChatMemberStatus.Creator
         is TdApi.ChatMemberStatusAdministrator -> ChatMemberStatus.Administrator(
-            customTitle = customTitle,
+            customTitle = "",
             canBeEdited = canBeEdited,
             canManageChat = rights.canManageChat,
             canChangeInfo = rights.canChangeInfo,
@@ -191,7 +181,6 @@ fun ChatMemberStatus.toApi(): TdApi.ChatMemberStatus {
     return when (this) {
         is ChatMemberStatus.Member -> TdApi.ChatMemberStatusMember()
         is ChatMemberStatus.Administrator -> TdApi.ChatMemberStatusAdministrator(
-            customTitle,
             canBeEdited,
             TdApi.ChatAdministratorRights(
                 canManageChat,
@@ -209,6 +198,7 @@ fun ChatMemberStatus.toApi(): TdApi.ChatMemberStatus {
                 canEditStories,
                 canDeleteStories,
                 canManageDirectMessages,
+                false,
                 isAnonymous
             )
         )
@@ -219,7 +209,7 @@ fun ChatMemberStatus.toApi(): TdApi.ChatMemberStatus {
         )
         is ChatMemberStatus.Left -> TdApi.ChatMemberStatusLeft()
         is ChatMemberStatus.Banned -> TdApi.ChatMemberStatusBanned(bannedUntilDate)
-        is ChatMemberStatus.Creator -> TdApi.ChatMemberStatusCreator("", false, true)
+        is ChatMemberStatus.Creator -> TdApi.ChatMemberStatusCreator(false, true)
     }
 }
 
@@ -305,11 +295,12 @@ private fun TdApi.ChatPermissions.toDomain(): ChatPermissionsModel {
         canSendVoiceNotes = canSendVoiceNotes,
         canSendPolls = canSendPolls,
         canSendOtherMessages = canSendOtherMessages,
-        canAddWebPagePreviews = canAddLinkPreviews,
+        canAddLinkPreviews = canAddLinkPreviews,
+        canEditTag = canEditTag,
         canChangeInfo = canChangeInfo,
         canInviteUsers = canInviteUsers,
         canPinMessages = canPinMessages,
-        canManageTopics = canCreateTopics
+        canCreateTopics = canCreateTopics
     )
 }
 
@@ -324,10 +315,172 @@ private fun ChatPermissionsModel.toApi(): TdApi.ChatPermissions {
         canSendVoiceNotes,
         canSendPolls,
         canSendOtherMessages,
-        canAddWebPagePreviews,
+        canAddLinkPreviews,
+        canEditTag,
         canChangeInfo,
         canInviteUsers,
         canPinMessages,
-        canManageTopics
+        canCreateTopics
+    )
+}
+
+fun TdApi.UserFullInfo.toEntity(userId: Long): UserFullInfoEntity {
+    return UserFullInfoEntity(
+        userId = userId,
+        bio = bio?.text?.ifEmpty { null },
+        commonGroupsCount = groupInCommonCount,
+        isBlocked = blockList != null,
+        canBeCalled = canBeCalled,
+        supportsVideoCalls = supportsVideoCalls,
+        hasPrivateCalls = hasPrivateCalls,
+        hasPrivateForwards = hasPrivateForwards,
+        createdAt = System.currentTimeMillis()
+    )
+}
+
+fun TdApi.SupergroupFullInfo.toEntity(chatId: Long): ChatFullInfoEntity {
+    return ChatFullInfoEntity(
+        chatId = chatId,
+        description = description.ifEmpty { null },
+        inviteLink = inviteLink?.inviteLink,
+        memberCount = memberCount,
+        onlineCount = 0,
+        administratorCount = administratorCount,
+        restrictedCount = restrictedCount,
+        bannedCount = bannedCount,
+        commonGroupsCount = 0,
+        isBlocked = false,
+        botInfo = null,
+        slowModeDelay = slowModeDelay,
+        locationAddress = location?.address?.ifEmpty { null },
+        canSetStickerSet = canSetStickerSet,
+        canSetLocation = canSetLocation,
+        canGetMembers = canGetMembers,
+        canGetStatistics = canGetStatistics,
+        linkedChatId = linkedChatId,
+        note = null,
+        canBeCalled = false,
+        supportsVideoCalls = false,
+        hasPrivateCalls = false,
+        hasPrivateForwards = false,
+        createdAt = System.currentTimeMillis()
+    )
+}
+
+fun TdApi.BasicGroupFullInfo.toEntity(chatId: Long): ChatFullInfoEntity {
+    return ChatFullInfoEntity(
+        chatId = chatId,
+        description = description.ifEmpty { null },
+        inviteLink = inviteLink?.inviteLink,
+        memberCount = members.size,
+        onlineCount = 0,
+        administratorCount = 0,
+        restrictedCount = 0,
+        bannedCount = 0,
+        commonGroupsCount = 0,
+        isBlocked = false,
+        botInfo = null,
+        slowModeDelay = 0,
+        locationAddress = null,
+        canSetStickerSet = false,
+        canSetLocation = false,
+        canGetMembers = false,
+        canGetStatistics = false,
+        linkedChatId = 0,
+        note = null,
+        canBeCalled = false,
+        supportsVideoCalls = false,
+        hasPrivateCalls = false,
+        hasPrivateForwards = false,
+        createdAt = System.currentTimeMillis()
+    )
+}
+
+fun UserEntity.toTdApi(): TdApi.User {
+    return TdApi.User().apply {
+        id = this@toTdApi.id
+        firstName = this@toTdApi.firstName
+        lastName = this@toTdApi.lastName ?: ""
+        phoneNumber = this@toTdApi.phoneNumber ?: ""
+        isPremium = this@toTdApi.isPremium
+        verificationStatus = if (isVerified) TdApi.VerificationStatus(true, false, false, 0L) else null
+        usernames =
+            this@toTdApi.username?.let { TdApi.Usernames(arrayOf(it), emptyArray<String>(), it, emptyArray<String>()) }
+        status = TdApi.UserStatusOffline(lastSeen.toInt())
+        profilePhoto = avatarPath?.let { path ->
+            TdApi.ProfilePhoto().apply {
+                small = TdApi.File().apply { local = TdApi.LocalFile().apply { this.path = path } }
+            }
+        }
+    }
+}
+
+fun UserFullInfoEntity.toTdApi(): TdApi.UserFullInfo {
+    return TdApi.UserFullInfo().apply {
+        bio = this@toTdApi.bio?.let { TdApi.FormattedText(it, emptyArray()) }
+        groupInCommonCount = commonGroupsCount
+        blockList = if (isBlocked) TdApi.BlockListMain() else null
+        canBeCalled = this@toTdApi.canBeCalled
+        supportsVideoCalls = this@toTdApi.supportsVideoCalls
+        hasPrivateCalls = this@toTdApi.hasPrivateCalls
+        hasPrivateForwards = this@toTdApi.hasPrivateForwards
+    }
+}
+
+fun ChatEntity.toTdApiChat(): TdApi.Chat {
+    return TdApi.Chat().apply {
+        id = this@toTdApiChat.id
+        title = this@toTdApiChat.title
+        unreadCount = this@toTdApiChat.unreadCount
+        photo = avatarPath?.let { path ->
+            TdApi.ChatPhotoInfo().apply {
+                small = TdApi.File().apply { local = TdApi.LocalFile().apply { this.path = path } }
+            }
+        }
+        lastMessage = TdApi.Message().apply {
+            content = TdApi.MessageText().apply { text = TdApi.FormattedText(lastMessageText, emptyArray()) }
+            date = lastMessageTime.toIntOrNull() ?: 0
+        }
+        positions = arrayOf(TdApi.ChatPosition(TdApi.ChatListMain(), order, isPinned, null))
+        notificationSettings = TdApi.ChatNotificationSettings().apply {
+            muteFor = if (isMuted) Int.MAX_VALUE else 0
+        }
+        type = when (this@toTdApiChat.type) {
+            "PRIVATE" -> TdApi.ChatTypePrivate()
+            "BASIC_GROUP" -> TdApi.ChatTypeBasicGroup()
+            "SUPERGROUP" -> TdApi.ChatTypeSupergroup(0, isChannel)
+            "SECRET" -> TdApi.ChatTypeSecret()
+            else -> TdApi.ChatTypePrivate()
+        }
+    }
+}
+
+fun ChatFullInfoEntity.toDomain(): ChatFullInfoModel {
+    return ChatFullInfoModel(
+        description = description,
+        inviteLink = inviteLink,
+        memberCount = memberCount,
+        administratorCount = administratorCount,
+        restrictedCount = restrictedCount,
+        bannedCount = bannedCount,
+        commonGroupsCount = commonGroupsCount,
+        isBlocked = isBlocked,
+        botInfo = botInfo,
+        canGetRevenueStatistics = false,
+        linkedChatId = linkedChatId,
+        businessInfo = null,
+        canBeCalled = canBeCalled,
+        supportsVideoCalls = supportsVideoCalls,
+        hasPrivateCalls = hasPrivateCalls,
+        hasPrivateForwards = hasPrivateForwards,
+        hasRestrictedVoiceAndVideoNoteMessages = false,
+        hasPostedToProfileStories = false,
+        setChatBackground = false,
+        slowModeDelay = slowModeDelay,
+        locationAddress = locationAddress,
+        canSetStickerSet = canSetStickerSet,
+        canSetLocation = canSetLocation,
+        canGetMembers = canGetMembers,
+        canGetStatistics = canGetStatistics
     )
 }

@@ -1,11 +1,11 @@
 package org.monogram.data.infra
 
 import android.util.Log
-import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.DispatcherProvider
+import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.gateway.TelegramGateway
 import java.util.concurrent.ConcurrentHashMap
@@ -78,6 +78,7 @@ class FileDownloadQueue(
             // Download stopped but not completed (failed or cancelled)
             notifyDownloadCancelled(file.id)
             activeDownloads.remove(file.id)
+            manualDownloadIds.remove(file.id)
         }
 
         if (file.remote.isUploadingCompleted) {
@@ -99,6 +100,7 @@ class FileDownloadQueue(
         visibleMessageIds.remove(chatId)
         nearbyMessageIds.remove(chatId)
         if (activeChatId == chatId) activeChatId = 0L
+        registry.unregisterChat(chatId)
         cancelIrrelevantDownloads()
     }
 
@@ -126,9 +128,8 @@ class FileDownloadQueue(
         limit: Long = 0,
         synchronous: Boolean = false
     ) {
-        val prio = calculatePriority(fileId).coerceAtLeast(priority)
-        val isManual = prio >= 32
-        if (isManual) manualDownloadIds.add(fileId)
+        val isManualRequest = priority >= 32
+        if (isManualRequest) manualDownloadIds.add(fileId)
 
         if (registry.getMessages(fileId).isEmpty()) registry.standaloneFileIds.add(fileId)
         fileDownloadTypes[fileId] = type
@@ -136,14 +137,17 @@ class FileDownloadQueue(
         val cached = cache.fileCache[fileId]
         if (cached?.local?.isDownloadingCompleted == true) {
             notifyDownloadComplete(fileId)
+            manualDownloadIds.remove(fileId)
             return
         }
 
         val existing = activeDownloads[fileId] ?: queuedRequests[fileId]
         if (existing != null) {
-            if (updateExisting(existing, prio, offset, limit, isManual)) return
+            if (updateExisting(existing, priority, offset, limit, isManualRequest)) return
         }
 
+        val prio = calculatePriority(fileId).coerceAtLeast(priority)
+        val isManual = manualDownloadIds.contains(fileId)
         val req = DownloadRequest(fileId, prio, type, offset, limit, synchronous, isManual = isManual)
         queuedRequests[fileId] = req
         

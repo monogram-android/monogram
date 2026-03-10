@@ -34,7 +34,7 @@ interface MessageRemoteDataSource {
     suspend fun getChatHistory(chatId: Long, fromMessageId: Long, offset: Int, limit: Int): TdApi.Messages?
     suspend fun searchChatMessages(chatId: Long, query: String, fromMessageId: Long, limit: Int, filter: TdApi.SearchMessagesFilter, threadId: Long?): TdApi.FoundChatMessages?
     suspend fun getChatPinnedMessage(chatId: Long): TdApi.Message?
-    suspend fun getPollVoters(chatId: Long, messageId: Long, optionId: Int, offset: Int, limit: Int): TdApi.MessageSenders?
+    suspend fun getPollVoters(chatId: Long, messageId: Long, optionId: Int, offset: Int, limit: Int): TdApi.PollVoters?
     suspend fun sendMessage(chatId: Long, text: String, replyToMsgId: Long?, entities: List<MessageEntity>, threadId: Long?): TdApi.Message?
     suspend fun sendPhoto(chatId: Long, photoPath: String, caption: String, replyToMsgId: Long?, threadId: Long?): TdApi.Message?
     suspend fun sendVideo(chatId: Long, videoPath: String, caption: String, replyToMsgId: Long?, threadId: Long?): TdApi.Message?

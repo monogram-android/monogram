@@ -6,6 +6,7 @@ import org.monogram.domain.models.AttachMenuBotModel
 import org.monogram.domain.models.FolderModel
 import org.monogram.domain.models.GifModel
 import org.monogram.domain.models.RecentEmojiModel
+import org.monogram.domain.models.StickerSetModel
 
 interface CacheProvider {
     val recentEmojis: Flow<List<RecentEmojiModel>>
@@ -14,13 +15,17 @@ interface CacheProvider {
     val attachBots: StateFlow<List<AttachMenuBotModel>>
     val cachedSimCountryIso: StateFlow<String?>
     val savedGifs: StateFlow<List<GifModel>>
+    val installedStickerSets: StateFlow<List<StickerSetModel>>
+    val customEmojiStickerSets: StateFlow<List<StickerSetModel>>
 
     fun addRecentEmoji(recentEmoji: RecentEmojiModel)
     fun clearRecentEmojis()
+    fun setRecentEmojis(emojis: List<RecentEmojiModel>)
 
     fun addSearchChatId(chatId: Long)
     fun removeSearchChatId(chatId: Long)
     fun clearSearchHistory()
+    fun setSearchHistory(history: List<Long>)
 
     fun setChatFolders(folders: List<FolderModel>)
     fun setAttachBots(bots: List<AttachMenuBotModel>)
@@ -30,4 +35,9 @@ interface CacheProvider {
     fun getChatScrollPosition(chatId: Long): Long
 
     fun setSavedGifs(gifs: List<GifModel>)
+
+    fun setInstalledStickerSets(sets: List<StickerSetModel>)
+    fun setCustomEmojiStickerSets(sets: List<StickerSetModel>)
+
+    fun clearAll()
 }

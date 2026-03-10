@@ -1,45 +1,127 @@
 package org.monogram.data.datasource.cache
 
-import org.drinkless.tdlib.TdApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
+import org.monogram.data.db.model.ChatEntity
+import org.monogram.data.db.model.ChatFullInfoEntity
+import org.monogram.data.db.model.MessageEntity
+import org.monogram.data.db.model.TopicEntity
 import java.util.concurrent.ConcurrentHashMap
 
 class InMemoryChatLocalDataSource : ChatLocalDataSource {
+    private val chats = MutableStateFlow<Map<Long, ChatEntity>>(emptyMap())
+    private val messages = ConcurrentHashMap<Long, MutableStateFlow<Map<Long, MessageEntity>>>()
+    private val fullInfos = ConcurrentHashMap<Long, ChatFullInfoEntity>()
+    private val topics = ConcurrentHashMap<Long, MutableStateFlow<Map<Int, TopicEntity>>>()
 
-    private val chats = ConcurrentHashMap<Long, TdApi.Chat>()
-    private val supergroups = ConcurrentHashMap<Long, TdApi.Supergroup>()
-    private val supergroupFullInfos = ConcurrentHashMap<Long, TdApi.SupergroupFullInfo>()
-    private val basicGroupFullInfos = ConcurrentHashMap<Long, TdApi.BasicGroupFullInfo>()
+    override fun getAllChats(): Flow<List<ChatEntity>> =
+        chats.map { it.values.sortedByDescending { chat -> chat.order } }
 
-    override fun getChat(chatId: Long): TdApi.Chat? = chats[chatId]
+    override suspend fun getChat(chatId: Long): ChatEntity? = chats.value[chatId]
 
-    override fun putChat(chat: TdApi.Chat) {
-        chats[chat.id] = chat
+    override suspend fun insertChat(chat: ChatEntity) {
+        chats.update { it + (chat.id to chat) }
     }
 
-    override fun getSupergroup(supergroupId: Long): TdApi.Supergroup? = supergroups[supergroupId]
-
-    override fun putSupergroup(supergroup: TdApi.Supergroup) {
-        supergroups[supergroup.id] = supergroup
+    override suspend fun insertChats(chats: List<ChatEntity>) {
+        this.chats.update { it + chats.associateBy { chat -> chat.id } }
     }
 
-    override fun getSupergroupFullInfo(supergroupId: Long): TdApi.SupergroupFullInfo? =
-        supergroupFullInfos[supergroupId]
-
-    override fun putSupergroupFullInfo(supergroupId: Long, info: TdApi.SupergroupFullInfo) {
-        supergroupFullInfos[supergroupId] = info
+    override suspend fun deleteChat(chatId: Long) {
+        chats.update { it - chatId }
     }
 
-    override fun getBasicGroupFullInfo(basicGroupId: Long): TdApi.BasicGroupFullInfo? =
-        basicGroupFullInfos[basicGroupId]
-
-    override fun putBasicGroupFullInfo(basicGroupId: Long, info: TdApi.BasicGroupFullInfo) {
-        basicGroupFullInfos[basicGroupId] = info
+    override suspend fun clearAllChats() {
+        chats.value = emptyMap()
     }
 
-    override fun clearAll() {
-        chats.clear()
-        supergroups.clear()
-        supergroupFullInfos.clear()
-        basicGroupFullInfos.clear()
+    override suspend fun clearAll() {
+        chats.value = emptyMap()
+        messages.clear()
+        fullInfos.clear()
+        topics.clear()
+    }
+
+    override fun getMessagesForChat(chatId: Long): Flow<List<MessageEntity>> =
+        messages.getOrPut(chatId) { MutableStateFlow(emptyMap()) }
+            .map { it.values.sortedByDescending { msg -> msg.date } }
+
+    override suspend fun getMessagesOlder(chatId: Long, fromMessageId: Long, limit: Int): List<MessageEntity> {
+        val chatMessages = messages[chatId]?.value?.values ?: return emptyList()
+        return chatMessages.filter { it.id < fromMessageId }
+            .sortedByDescending { it.date }
+            .take(limit)
+    }
+
+    override suspend fun getMessagesNewer(chatId: Long, fromMessageId: Long, limit: Int): List<MessageEntity> {
+        val chatMessages = messages[chatId]?.value?.values ?: return emptyList()
+        return chatMessages.filter { it.id > fromMessageId }
+            .sortedBy { it.date }
+            .take(limit)
+    }
+
+    override suspend fun insertMessage(message: MessageEntity) {
+        messages.getOrPut(message.chatId) { MutableStateFlow(emptyMap()) }
+            .update { it + (message.id to message) }
+    }
+
+    override suspend fun insertMessages(messages: List<MessageEntity>) {
+        messages.forEach { insertMessage(it) }
+    }
+
+    override suspend fun deleteMessage(messageId: Long) {
+        messages.values.forEach { flow ->
+            if (flow.value.containsKey(messageId)) {
+                flow.update { it - messageId }
+            }
+        }
+    }
+
+    override suspend fun clearMessagesForChat(chatId: Long) {
+        messages[chatId]?.value = emptyMap()
+    }
+
+    override suspend fun getChatFullInfo(chatId: Long): ChatFullInfoEntity? = fullInfos[chatId]
+
+    override suspend fun insertChatFullInfo(info: ChatFullInfoEntity) {
+        fullInfos[info.chatId] = info
+    }
+
+    override suspend fun deleteChatFullInfo(chatId: Long) {
+        fullInfos.remove(chatId)
+    }
+
+    override fun getTopicsForChat(chatId: Long): Flow<List<TopicEntity>> =
+        topics.getOrPut(chatId) { MutableStateFlow(emptyMap()) }
+            .map { it.values.sortedByDescending { topic -> topic.order } }
+
+    override suspend fun insertTopic(topic: TopicEntity) {
+        topics.getOrPut(topic.chatId) { MutableStateFlow(emptyMap()) }
+            .update { it + (topic.id to topic) }
+    }
+
+    override suspend fun insertTopics(topics: List<TopicEntity>) {
+        topics.forEach { insertTopic(it) }
+    }
+
+    override suspend fun deleteTopic(chatId: Long, topicId: Int) {
+        topics[chatId]?.update { it - topicId }
+    }
+
+    override suspend fun clearTopicsForChat(chatId: Long) {
+        topics[chatId]?.value = emptyMap()
+    }
+
+    override suspend fun deleteExpired(timestamp: Long) {
+        chats.update { it.filterValues { chat -> chat.createdAt >= timestamp } }
+        messages.values.forEach { flow ->
+            flow.update { it.filterValues { msg -> msg.createdAt >= timestamp } }
+        }
+        fullInfos.values.removeIf { it.createdAt < timestamp }
+        topics.values.forEach { flow ->
+            flow.update { it.filterValues { topic -> topic.createdAt >= timestamp } }
+        }
     }
 }

@@ -25,6 +25,24 @@ class FileMessageRegistry {
         }
     }
 
+    fun unregisterChat(chatId: Long) {
+        val it = messageToFileMap.entries.iterator()
+        while (it.hasNext()) {
+            val entry = it.next()
+            if (entry.key.first == chatId) {
+                val key = entry.key
+                val fileIds = entry.value
+                fileIds.forEach { fileId ->
+                    fileIdToMessageMap[fileId]?.let { set ->
+                        set.remove(key)
+                        if (set.isEmpty()) fileIdToMessageMap.remove(fileId)
+                    }
+                }
+                it.remove()
+            }
+        }
+    }
+
     fun updateMessageId(chatId: Long, oldId: Long, newId: Long) {
         val oldKey = chatId to oldId
         val newKey = chatId to newId

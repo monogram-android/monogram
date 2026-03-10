@@ -9,8 +9,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.datasource.remote.StickerRemoteSource
+import org.monogram.data.db.dao.RecentEmojiDao
+import org.monogram.data.db.dao.StickerPathDao
+import org.monogram.data.db.dao.StickerSetDao
+import org.monogram.data.db.model.RecentEmojiEntity
+import org.monogram.data.db.model.StickerPathEntity
+import org.monogram.data.db.model.StickerSetEntity
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.EmojiLoader
 import org.monogram.data.infra.FileDownloadQueue
@@ -34,16 +42,16 @@ class StickerRepositoryImpl(
     private val cacheProvider: CacheProvider,
     private val dispatchers: DispatcherProvider,
     private val context: Context,
+    private val stickerSetDao: StickerSetDao,
+    private val recentEmojiDao: RecentEmojiDao,
+    private val stickerPathDao: StickerPathDao,
     scopeProvider: ScopeProvider
 ) : StickerRepository {
 
     private val scope = scopeProvider.appScope
 
-    private val _installedStickerSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
-    override val installedStickerSets = _installedStickerSets.asStateFlow()
-
-    private val _customEmojiStickerSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
-    override val customEmojiStickerSets = _customEmojiStickerSets.asStateFlow()
+    override val installedStickerSets: StateFlow<List<StickerSetModel>> = cacheProvider.installedStickerSets
+    override val customEmojiStickerSets: StateFlow<List<StickerSetModel>> = cacheProvider.customEmojiStickerSets
 
     private val _archivedStickerSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
     override val archivedStickerSets = _archivedStickerSets.asStateFlow()
@@ -77,22 +85,54 @@ class StickerRepositoryImpl(
                 }
             }
         }
+
+        scope.launch {
+            stickerSetDao.getInstalledStickerSetsByType("REGULAR").collect { entities ->
+                if (installedStickerSets.value.isEmpty()) {
+                    val sets = entities.mapNotNull { it.toModel() }
+                    if (sets.isNotEmpty()) cacheProvider.setInstalledStickerSets(sets)
+                }
+            }
+        }
+
+        scope.launch {
+            stickerSetDao.getInstalledStickerSetsByType("CUSTOM_EMOJI").collect { entities ->
+                if (customEmojiStickerSets.value.isEmpty()) {
+                    val sets = entities.mapNotNull { it.toModel() }
+                    if (sets.isNotEmpty()) cacheProvider.setCustomEmojiStickerSets(sets)
+                }
+            }
+        }
+
+        scope.launch {
+            recentEmojiDao.getRecentEmojis().collect { entities ->
+                val models = entities.mapNotNull {
+                    try {
+                        Json.decodeFromString<RecentEmojiModel>(it.data)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                cacheProvider.setRecentEmojis(models)
+            }
+        }
     }
 
     override suspend fun loadInstalledStickerSets() = loadInstalledStickerSets(force = false)
 
     private suspend fun loadInstalledStickerSets(force: Boolean) = regularMutex.withLock {
         val now = System.currentTimeMillis()
-        if (!force && _installedStickerSets.value.isNotEmpty()) return@withLock
-        if (force && _installedStickerSets.value.isNotEmpty() && now - lastRegularLoadTime < 1000) return@withLock
+        if (!force && installedStickerSets.value.isNotEmpty()) return@withLock
+        if (force && installedStickerSets.value.isNotEmpty() && now - lastRegularLoadTime < 1000) return@withLock
 
         val sets = remote.getInstalledStickerSets(StickerType.REGULAR)
-        if (force && _installedStickerSets.value.map { it.id } == sets.map { it.id }) {
+        if (force && installedStickerSets.value.map { it.id } == sets.map { it.id }) {
             lastRegularLoadTime = System.currentTimeMillis()
             return@withLock
         }
 
-        _installedStickerSets.value = sets
+        cacheProvider.setInstalledStickerSets(sets)
+        saveStickerSetsToDb(sets, "REGULAR", isInstalled = true, isArchived = false)
         lastRegularLoadTime = System.currentTimeMillis()
     }
 
@@ -100,30 +140,71 @@ class StickerRepositoryImpl(
 
     private suspend fun loadCustomEmojiStickerSets(force: Boolean) = customEmojiMutex.withLock {
         val now = System.currentTimeMillis()
-        if (!force && _customEmojiStickerSets.value.isNotEmpty()) return@withLock
-        if (force && _customEmojiStickerSets.value.isNotEmpty() && now - lastCustomEmojiLoadTime < 1000) return@withLock
+        if (!force && customEmojiStickerSets.value.isNotEmpty()) return@withLock
+        if (force && customEmojiStickerSets.value.isNotEmpty() && now - lastCustomEmojiLoadTime < 1000) return@withLock
 
         val sets = remote.getInstalledStickerSets(StickerType.CUSTOM_EMOJI)
-        if (force && _customEmojiStickerSets.value.map { it.id } == sets.map { it.id }) {
+        if (force && customEmojiStickerSets.value.map { it.id } == sets.map { it.id }) {
             lastCustomEmojiLoadTime = System.currentTimeMillis()
             return@withLock
         }
 
-        _customEmojiStickerSets.value = sets
+        cacheProvider.setCustomEmojiStickerSets(sets)
+        saveStickerSetsToDb(sets, "CUSTOM_EMOJI", isInstalled = true, isArchived = false)
         lastCustomEmojiLoadTime = System.currentTimeMillis()
     }
 
+    private suspend fun saveStickerSetsToDb(
+        sets: List<StickerSetModel>,
+        type: String,
+        isInstalled: Boolean,
+        isArchived: Boolean
+    ) {
+        withContext(dispatchers.io) {
+            stickerSetDao.deleteStickerSets(type, isInstalled, isArchived)
+            stickerSetDao.insertStickerSets(sets.map { it.toEntity(type) })
+        }
+    }
+
     override suspend fun loadArchivedStickerSets() = archivedMutex.withLock {
-        _archivedStickerSets.value = remote.getArchivedStickerSets(StickerType.REGULAR)
+        val cached = stickerSetDao.getArchivedStickerSetsByType("REGULAR").first().mapNotNull { it.toModel() }
+        if (cached.isNotEmpty()) _archivedStickerSets.value = cached
+
+        val remoteSets = remote.getArchivedStickerSets(StickerType.REGULAR)
+        _archivedStickerSets.value = remoteSets
+        saveStickerSetsToDb(remoteSets, "REGULAR", isInstalled = false, isArchived = true)
     }
 
     override suspend fun loadArchivedEmojiSets() = archivedEmojiMutex.withLock {
-        _archivedEmojiSets.value = remote.getArchivedStickerSets(StickerType.CUSTOM_EMOJI)
+        val cached = stickerSetDao.getArchivedStickerSetsByType("CUSTOM_EMOJI").first().mapNotNull { it.toModel() }
+        if (cached.isNotEmpty()) _archivedEmojiSets.value = cached
+
+        val remoteSets = remote.getArchivedStickerSets(StickerType.CUSTOM_EMOJI)
+        _archivedEmojiSets.value = remoteSets
+        saveStickerSetsToDb(remoteSets, "CUSTOM_EMOJI", isInstalled = false, isArchived = true)
     }
 
-    override suspend fun getStickerSet(setId: Long) = remote.getStickerSet(setId)
+    override suspend fun getStickerSet(setId: Long): StickerSetModel? {
+        val cached = stickerSetDao.getStickerSetById(setId)?.toModel()
+        if (cached != null) return cached
 
-    override suspend fun getStickerSetByName(name: String) = remote.getStickerSetByName(name)
+        val remoteSet = remote.getStickerSet(setId) ?: return null
+        withContext(dispatchers.io) {
+            stickerSetDao.insertStickerSet(remoteSet.toEntity(remoteSet.stickerType.name))
+        }
+        return remoteSet
+    }
+
+    override suspend fun getStickerSetByName(name: String): StickerSetModel? {
+        val cached = stickerSetDao.getStickerSetByName(name)?.toModel()
+        if (cached != null) return cached
+
+        val remoteSet = remote.getStickerSetByName(name) ?: return null
+        withContext(dispatchers.io) {
+            stickerSetDao.insertStickerSet(remoteSet.toEntity(remoteSet.stickerType.name))
+        }
+        return remoteSet
+    }
 
     override suspend fun toggleStickerSetInstalled(setId: Long, isInstalled: Boolean) {
         remote.toggleStickerSetInstalled(setId, isInstalled)
@@ -177,9 +258,24 @@ class StickerRepositoryImpl(
 
     override suspend fun addRecentEmoji(recentEmoji: RecentEmojiModel) {
         cacheProvider.addRecentEmoji(recentEmoji)
+        withContext(dispatchers.io) {
+            recentEmojiDao.deleteRecentEmoji(recentEmoji.emoji, recentEmoji.sticker?.id)
+            recentEmojiDao.insertRecentEmoji(
+                RecentEmojiEntity(
+                    emoji = recentEmoji.emoji,
+                    stickerId = recentEmoji.sticker?.id,
+                    data = Json.encodeToString(recentEmoji)
+                )
+            )
+        }
     }
 
-    override suspend fun clearRecentEmojis() = cacheProvider.clearRecentEmojis()
+    override suspend fun clearRecentEmojis() {
+        cacheProvider.clearRecentEmojis()
+        withContext(dispatchers.io) {
+            recentEmojiDao.clearAll()
+        }
+    }
 
     override suspend fun getSavedGifs(): List<GifModel> {
         val cached = cacheProvider.savedGifs.value
@@ -201,11 +297,19 @@ class StickerRepositoryImpl(
     override fun getStickerFile(fileId: Long): Flow<String?> = channelFlow {
         filePathsCache[fileId]?.let { send(it); return@channelFlow }
 
+        val dbPath = stickerPathDao.getPath(fileId)
+        if (dbPath != null) {
+            filePathsCache[fileId] = dbPath
+            send(dbPath)
+            return@channelFlow
+        }
+
         val job = launch {
             fileUpdateHandler.downloadCompleted
                 .filter { it.first == fileId }
                 .collect { (_, path) ->
                     filePathsCache[fileId] = path
+                    stickerPathDao.insertPath(StickerPathEntity(fileId, path))
                     send(path)
                 }
         }
@@ -217,6 +321,7 @@ class StickerRepositoryImpl(
 
         if (cachedPath != null) {
             filePathsCache[fileId] = cachedPath
+            stickerPathDao.insertPath(StickerPathEntity(fileId, cachedPath))
             send(cachedPath)
             job.cancel()
             return@channelFlow
@@ -251,17 +356,38 @@ class StickerRepositoryImpl(
         cachedEmojis = null
         fallbackEmojisCache = null
         invalidateStickerSetCaches()
+        scope.launch {
+            stickerPathDao.clearAll()
+        }
     }
 
     private fun invalidateStickerSetCaches() {
-        _installedStickerSets.value = emptyList()
-        _customEmojiStickerSets.value = emptyList()
+        cacheProvider.setInstalledStickerSets(emptyList())
+        cacheProvider.setCustomEmojiStickerSets(emptyList())
         lastRegularLoadTime = 0
         lastCustomEmojiLoadTime = 0
+        scope.launch {
+            stickerSetDao.clearAll()
+        }
     }
 
     private suspend fun getFallbackEmojis(): List<String> = withContext(dispatchers.default) {
         fallbackEmojisCache?.let { return@withContext it }
         EmojiLoader.getSupportedEmojis(context).also { fallbackEmojisCache = it }
+    }
+
+    private fun StickerSetModel.toEntity(type: String) = StickerSetEntity(
+        id = id,
+        name = name,
+        type = type,
+        isInstalled = isInstalled,
+        isArchived = isArchived,
+        data = Json.encodeToString(this)
+    )
+
+    private fun StickerSetEntity.toModel(): StickerSetModel? = try {
+        Json.decodeFromString<StickerSetModel>(data)
+    } catch (e: Exception) {
+        null
     }
 }

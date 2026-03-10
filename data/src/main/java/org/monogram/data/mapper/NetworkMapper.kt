@@ -1,48 +1,85 @@
 package org.monogram.data.mapper
 
+import android.util.Log
 import org.drinkless.tdlib.TdApi
+import org.monogram.domain.models.NetworkTypeUsage
 import org.monogram.domain.models.NetworkUsageCategory
 import org.monogram.domain.models.NetworkUsageModel
-import org.monogram.domain.models.NetworkTypeUsage
 
 fun TdApi.NetworkStatistics.toDomain(): NetworkUsageModel {
     val mobileDetails = mutableMapOf<String, Pair<Long, Long>>()
     val wifiDetails = mutableMapOf<String, Pair<Long, Long>>()
     val roamingDetails = mutableMapOf<String, Pair<Long, Long>>()
+    val otherDetails = mutableMapOf<String, Pair<Long, Long>>()
+    
     var mobileSent = 0L
     var mobileReceived = 0L
     var wifiSent = 0L
     var wifiReceived = 0L
     var roamingSent = 0L
     var roamingReceived = 0L
+    var otherSent = 0L
+    var otherReceived = 0L
 
-    this.entries.forEach { entry ->
+    this.entries.forEachIndexed { index, entry ->
         val categoryName = if (entry is TdApi.NetworkStatisticsEntryFile) entry.fileType.toDomain() else "Calls"
         val sent = if (entry is TdApi.NetworkStatisticsEntryFile) entry.sentBytes else if (entry is TdApi.NetworkStatisticsEntryCall) entry.sentBytes else 0L
         val received = if (entry is TdApi.NetworkStatisticsEntryFile) entry.receivedBytes else if (entry is TdApi.NetworkStatisticsEntryCall) entry.receivedBytes else 0L
-        when (val networkType = if (entry is TdApi.NetworkStatisticsEntryFile) entry.networkType else if (entry is TdApi.NetworkStatisticsEntryCall) entry.networkType else null) {
+
+        val networkType = when (entry) {
+            is TdApi.NetworkStatisticsEntryFile -> entry.networkType
+            is TdApi.NetworkStatisticsEntryCall -> entry.networkType
+            else -> null
+        }
+
+        Log.d(
+            "NetworkMapper",
+            "Processing entry $index: category=$categoryName, sent=$sent, received=$received, type=${networkType?.javaClass?.simpleName}"
+        )
+
+        when (networkType) {
             is TdApi.NetworkTypeMobile -> {
                 mobileSent += sent
                 mobileReceived += received
-                mobileDetails[categoryName] = (mobileDetails[categoryName]?.first ?: 0) + sent to (mobileDetails[categoryName]?.second ?: 0) + received
+                val current = mobileDetails[categoryName] ?: (0L to 0L)
+                mobileDetails[categoryName] = (current.first + sent) to (current.second + received)
+                Log.d("NetworkMapper", "-> Added to Mobile")
             }
             is TdApi.NetworkTypeWiFi -> {
                 wifiSent += sent
                 wifiReceived += received
-                wifiDetails[categoryName] = (wifiDetails[categoryName]?.first ?: 0) + sent to (wifiDetails[categoryName]?.second ?: 0) + received
+                val current = wifiDetails[categoryName] ?: (0L to 0L)
+                wifiDetails[categoryName] = (current.first + sent) to (current.second + received)
+                Log.d("NetworkMapper", "-> Added to WiFi")
             }
             is TdApi.NetworkTypeMobileRoaming -> {
                 roamingSent += sent
                 roamingReceived += received
-                roamingDetails[categoryName] = (roamingDetails[categoryName]?.first ?: 0) + sent to (roamingDetails[categoryName]?.second ?: 0) + received
+                val current = roamingDetails[categoryName] ?: (0L to 0L)
+                roamingDetails[categoryName] = (current.first + sent) to (current.second + received)
+                Log.d("NetworkMapper", "-> Added to Roaming")
             }
-            else -> {}
+
+            else -> {
+                otherSent += sent
+                otherReceived += received
+                val current = otherDetails[categoryName] ?: (0L to 0L)
+                otherDetails[categoryName] = (current.first + sent) to (current.second + received)
+                Log.d("NetworkMapper", "-> Added to Other (type was ${networkType?.javaClass?.simpleName})")
+            }
         }
     }
 
     return NetworkUsageModel(
         mobile = NetworkTypeUsage(mobileSent, mobileReceived, mobileDetails.map { (k, v) -> NetworkUsageCategory(k, v.first, v.second) }),
         wifi = NetworkTypeUsage(wifiSent, wifiReceived, wifiDetails.map { (k, v) -> NetworkUsageCategory(k, v.first, v.second) }),
-        roaming = NetworkTypeUsage(roamingSent, roamingReceived, roamingDetails.map { (k, v) -> NetworkUsageCategory(k, v.first, v.second) })
+        roaming = NetworkTypeUsage(
+            roamingSent,
+            roamingReceived,
+            roamingDetails.map { (k, v) -> NetworkUsageCategory(k, v.first, v.second) }),
+        other = NetworkTypeUsage(
+            otherSent,
+            otherReceived,
+            otherDetails.map { (k, v) -> NetworkUsageCategory(k, v.first, v.second) })
     )
 }

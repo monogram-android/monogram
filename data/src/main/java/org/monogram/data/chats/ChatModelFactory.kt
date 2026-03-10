@@ -1,10 +1,11 @@
 package org.monogram.data.chats
 
-import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.DispatcherProvider
+import org.monogram.core.ScopeProvider
 import org.monogram.data.gateway.TelegramGateway
+import org.monogram.data.mapper.ChatMapper
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.UsernamesModel
 import org.monogram.domain.repository.AppPreferencesProvider
@@ -18,7 +19,7 @@ class ChatModelFactory(
     private val fileManager: ChatFileManager,
     private val typingManager: ChatTypingManager,
     private val appPreferences: AppPreferencesProvider,
-    private val triggerUpdate: () -> Unit,
+    private val triggerUpdate: (Long?) -> Unit,
     private val fetchUser: (Long) -> Unit
 ) {
     private val scope = scopeProvider.appScope
@@ -44,6 +45,8 @@ class ChatModelFactory(
         var hasAutomaticTranslation = false
         var personalAvatarPath: String? = null
 
+        val isArchived = chat.positions.any { it.list is TdApi.ChatListArchive }
+
         when (val type = chat.type) {
             is TdApi.ChatTypeBasicGroup -> {
                 cache.basicGroups[type.basicGroupId]?.let {
@@ -54,7 +57,7 @@ class ChatModelFactory(
                 } ?: lazyLoad(cache.pendingBasicGroups, type.basicGroupId) {
                     val result = gateway.execute(TdApi.GetBasicGroup(type.basicGroupId))
                     cache.basicGroups[result.id] = result
-                    triggerUpdate()
+                    triggerUpdate(chat.id)
                 }
 
                 cache.basicGroupFullInfoCache[type.basicGroupId]?.let { fullInfo ->
@@ -64,7 +67,7 @@ class ChatModelFactory(
                 } ?: lazyLoad(cache.pendingBasicGroupFullInfo, type.basicGroupId) {
                     val result = gateway.execute(TdApi.GetBasicGroupFullInfo(type.basicGroupId))
                     cache.basicGroupFullInfoCache[type.basicGroupId] = result
-                    triggerUpdate()
+                    triggerUpdate(chat.id)
                 }
             }
 
@@ -84,7 +87,7 @@ class ChatModelFactory(
                 } ?: lazyLoad(cache.pendingSupergroups, type.supergroupId) {
                     val result = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
                     cache.supergroups[result.id] = result
-                    triggerUpdate()
+                    triggerUpdate(chat.id)
                 }
 
                 cache.supergroupFullInfoCache[type.supergroupId]?.let { fullInfo ->
@@ -94,7 +97,7 @@ class ChatModelFactory(
                 } ?: lazyLoad(cache.pendingSupergroupFullInfo, type.supergroupId) {
                     val result = gateway.execute(TdApi.GetSupergroupFullInfo(type.supergroupId))
                     cache.supergroupFullInfoCache[type.supergroupId] = result
-                    triggerUpdate()
+                    triggerUpdate(chat.id)
                 }
             }
 
@@ -117,9 +120,10 @@ class ChatModelFactory(
                     description = fullInfo.bio?.text
                     personalAvatarPath = resolvePhotoPath(fullInfo.photo?.sizes?.lastOrNull()?.photo, chat.id)
                 } ?: lazyLoad(cache.pendingUserFullInfo, type.userId) {
+                    if (type.userId == 0L) return@lazyLoad
                     val result = gateway.execute(TdApi.GetUserFullInfo(type.userId))
                     cache.userFullInfoCache[type.userId] = result
-                    triggerUpdate()
+                    triggerUpdate(chat.id)
                 }
             }
 
@@ -130,7 +134,7 @@ class ChatModelFactory(
             lazyLoad(cache.pendingChatPermissions, chat.id) {
                 val result = gateway.execute(TdApi.GetChat(chat.id))
                 cache.chatPermissionsCache[chat.id] = result.permissions
-                triggerUpdate()
+                triggerUpdate(chat.id)
             }
         }
 
@@ -150,7 +154,7 @@ class ChatModelFactory(
                         TdApi.GetChatMember(chat.id, TdApi.MessageSenderUser(me.id))
                     )
                     cache.myChatMemberCache[chat.id] = member
-                    triggerUpdate()
+                    triggerUpdate(chat.id)
                 }
             }
         }
@@ -179,12 +183,32 @@ class ChatModelFactory(
         }
 
         return chatMapper.mapChatToModel(
-            chat, order, isPinned, finalPath, photoId, isOnline, userStatus,
-            isVerified, isForum, isBot, memberCount, onlineCount, emojiPath,
-            typingManager.formatTypingAction(chat.id), txt, entities, time,
-            isMuted = isMuted, isAdmin = isAdmin, isMember = isMember,
-            username = username, usernames = usernames, description = description,
-            inviteLink = inviteLink, hasAutomaticTranslation = hasAutomaticTranslation,
+            chat = chat,
+            order = order,
+            isPinned = isPinned,
+            isArchived = isArchived,
+            smallPhotoPath = finalPath,
+            photoId = photoId,
+            isOnline = isOnline,
+            userStatus = userStatus,
+            isVerified = isVerified,
+            isForum = isForum,
+            isBot = isBot,
+            memberCount = memberCount,
+            onlineCount = onlineCount,
+            emojiPath = emojiPath,
+            typingAction = typingManager.formatTypingAction(chat.id),
+            lastMessageText = txt,
+            lastMessageEntities = entities,
+            lastMessageTime = time,
+            isMuted = isMuted,
+            isAdmin = isAdmin,
+            isMember = isMember,
+            username = username,
+            usernames = usernames,
+            description = description,
+            inviteLink = inviteLink,
+            hasAutomaticTranslation = hasAutomaticTranslation,
             personalAvatarPath = personalAvatarPath
         )
     }

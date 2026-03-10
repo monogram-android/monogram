@@ -1,5 +1,7 @@
 package org.monogram.domain.models
 
+import kotlinx.serialization.Serializable
+
 data class MessageModel(
     val id: Long,
     val date: Int,
@@ -536,12 +538,14 @@ sealed interface PollType {
     data class Quiz(val correctOptionId: Int, val explanation: String?) : PollType
 }
 
+@Serializable
 data class MessageEntity(
     val offset: Int,
     val length: Int,
     val type: MessageEntityType
 )
 
+@Serializable
 sealed interface MessageEntityType {
     object Bold : MessageEntityType
     object Italic : MessageEntityType

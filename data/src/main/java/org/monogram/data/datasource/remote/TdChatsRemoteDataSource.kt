@@ -17,8 +17,14 @@ class TdChatsRemoteDataSource(
         }
     }
 
-    override suspend fun getChat(chatId: Long): TdApi.Chat? =
-        safeExecute(TdApi.GetChat(chatId))
+    override suspend fun getChat(chatId: Long): TdApi.Chat? {
+        val chat = safeExecute(TdApi.GetChat(chatId))
+        if (chat == null && chatId > 0) {
+            // Try to create private chat if it's a user ID and not found
+            return safeExecute(TdApi.CreatePrivateChat(chatId, false))
+        }
+        return chat
+    }
 
     override suspend fun searchChats(query: String, limit: Int): TdApi.Chats? =
         safeExecute(TdApi.SearchChats(query, limit))

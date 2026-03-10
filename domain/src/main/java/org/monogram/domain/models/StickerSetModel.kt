@@ -2,6 +2,7 @@ package org.monogram.domain.models
 
 import kotlinx.serialization.Serializable
 
+@Serializable
 data class StickerSetModel(
     val id: Long,
     val title: String,
@@ -14,6 +15,7 @@ data class StickerSetModel(
     val stickerType: StickerType = StickerType.REGULAR
 )
 
+@Serializable
 enum class StickerType {
     REGULAR,
     MASK,

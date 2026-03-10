@@ -8,37 +8,38 @@ import kotlinx.serialization.Serializable
 import org.monogram.domain.models.ChatFullInfoModel
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ProxyTypeModel
-import org.monogram.presentation.auth.AuthComponent
-import org.monogram.presentation.chatsScreen.ChatListComponent
-import org.monogram.presentation.chatsScreen.NewChatComponent
-import org.monogram.presentation.chatsScreen.currentChat.ChatComponent
-import org.monogram.presentation.chatsScreen.currentChat.components.VideoPlayerPool
-import org.monogram.presentation.chatsScreen.folders.FoldersComponent
-import org.monogram.presentation.profile.ProfileComponent
-import org.monogram.presentation.profile.admin.AdminManageComponent
-import org.monogram.presentation.profile.admin.ChatEditComponent
-import org.monogram.presentation.profile.admin.ChatPermissionsComponent
-import org.monogram.presentation.profile.admin.MemberListComponent
-import org.monogram.presentation.profile.logs.ProfileLogsComponent
-import org.monogram.presentation.settingsScreens.about.AboutComponent
-import org.monogram.presentation.settingsScreens.adblock.AdBlockComponent
-import org.monogram.presentation.settingsScreens.chatSettings.ChatSettingsComponent
-import org.monogram.presentation.settingsScreens.dataStorage.DataStorageComponent
-import org.monogram.presentation.settingsScreens.debug.DebugComponent
-import org.monogram.presentation.settingsScreens.networkUsage.NetworkUsageComponent
-import org.monogram.presentation.settingsScreens.notifications.NotificationsComponent
-import org.monogram.presentation.settingsScreens.powersaving.PowerSavingComponent
-import org.monogram.presentation.settingsScreens.premium.PremiumComponent
-import org.monogram.presentation.settingsScreens.privacy.PasscodeComponent
-import org.monogram.presentation.settingsScreens.privacy.PrivacyComponent
-import org.monogram.presentation.settingsScreens.profile.EditProfileComponent
-import org.monogram.presentation.settingsScreens.proxy.ProxyComponent
-import org.monogram.presentation.settingsScreens.sessions.SessionsComponent
-import org.monogram.presentation.settingsScreens.settings.SettingsComponent
-import org.monogram.presentation.settingsScreens.stickers.StickersComponent
-import org.monogram.presentation.settingsScreens.storage.StorageUsageComponent
-import org.monogram.presentation.stickers.core.StickerSetUiModel
-import org.monogram.presentation.util.AppPreferences
+import org.monogram.presentation.core.util.AppPreferences
+import org.monogram.presentation.features.auth.AuthComponent
+import org.monogram.presentation.features.chats.ChatListComponent
+import org.monogram.presentation.features.chats.currentChat.ChatComponent
+import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
+import org.monogram.presentation.features.chats.newChat.NewChatComponent
+import org.monogram.presentation.features.folders.FoldersComponent
+import org.monogram.presentation.features.profile.ProfileComponent
+import org.monogram.presentation.features.profile.admin.AdminManageComponent
+import org.monogram.presentation.features.profile.admin.ChatEditComponent
+import org.monogram.presentation.features.profile.admin.ChatPermissionsComponent
+import org.monogram.presentation.features.profile.admin.MemberListComponent
+import org.monogram.presentation.features.profile.logs.ProfileLogsComponent
+import org.monogram.presentation.features.stickers.core.StickerSetUiModel
+import org.monogram.presentation.features.webview.WebViewComponent
+import org.monogram.presentation.settings.about.AboutComponent
+import org.monogram.presentation.settings.adblock.AdBlockComponent
+import org.monogram.presentation.settings.chatSettings.ChatSettingsComponent
+import org.monogram.presentation.settings.dataStorage.DataStorageComponent
+import org.monogram.presentation.settings.debug.DebugComponent
+import org.monogram.presentation.settings.networkUsage.NetworkUsageComponent
+import org.monogram.presentation.settings.notifications.NotificationsComponent
+import org.monogram.presentation.settings.powersaving.PowerSavingComponent
+import org.monogram.presentation.settings.premium.PremiumComponent
+import org.monogram.presentation.settings.privacy.PasscodeComponent
+import org.monogram.presentation.settings.privacy.PrivacyComponent
+import org.monogram.presentation.settings.profile.EditProfileComponent
+import org.monogram.presentation.settings.proxy.ProxyComponent
+import org.monogram.presentation.settings.sessions.SessionsComponent
+import org.monogram.presentation.settings.settings.SettingsComponent
+import org.monogram.presentation.settings.stickers.StickersComponent
+import org.monogram.presentation.settings.storage.StorageUsageComponent
 
 interface RootComponent {
     val backHandler: BackHandler
@@ -96,6 +97,7 @@ interface RootComponent {
         class StickersChild(val component: StickersComponent) : Child()
         class AboutChild(val component: AboutComponent) : Child()
         class DebugChild(val component: DebugComponent) : Child()
+        class WebViewChild(val component: WebViewComponent) : Child()
     }
 
     @Serializable

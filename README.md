@@ -1,54 +1,114 @@
 # Monogram
 
-🌍 **Read this in other languages:** [Русский](README_RU.md)
+**Read this in other languages:** [Русский](README_RU.md)
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-blue.svg?logo=kotlin)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-4285F4?logo=android)
-![TDLib](https://img.shields.io/badge/TDLib-1.8.61-blue)
+![TDLib](https://img.shields.io/badge/TDLib-1.8.62-blue)
 ![Status](https://img.shields.io/badge/Status-Active_Development-orange)
 
-**A modern, lightning-fast, and elegant unofficial Telegram client for Android.**
+**Monogram** is a modern, lightning-fast, and elegant unofficial Telegram client for Android. Built with **Jetpack
+Compose** and **Material Design 3**, it aims to provide a native and fluid experience while leveraging the power of the
+official **TDLib**.
 
-> **Note:** Monogram is in **active development**. Expect frequent updates, codebase changes, and bugs.
+> **Note:** Monogram is currently in **active development**. Expect frequent updates, architectural changes, and the
+> occasional bug.
 
-## Overview
+---
 
-Monogram is built to deliver a native and seamless Telegram experience. Powered by the official **TDLib**, it features a fluid **Material Design 3** interface and follows strict **Clean Architecture** and **MVI** principles.
+## Key Features
+
+* **Material Design 3**: A beautiful, adaptive UI that looks great on phones, tablets, and foldables.
+* **Clean Architecture**: Separation of concerns with Domain, Data, and Presentation layers.
+* **MVI Pattern**: Predictable state management using MVIKotlin.
+* **Secure**: Built-in biometric locking and encrypted local storage.
+* **Media Rich**: High-performance media playback with ExoPlayer and Coil 3.
+* **Fast & Efficient**: Powered by Kotlin Coroutines and optimized for performance.
+
+---
 
 ## Tech Stack
 
-* **Architecture & State:** MVI, [Decompose](https://github.com/arkivanov/Decompose) (navigation & lifecycle), Koin (DI).
-* **UI:** Jetpack Compose + Material 3 Adaptive (seamless phone-to-tablet scalability).
-* **Async:** Kotlin Coroutines & Flow.
-* **Media:** Media3/ExoPlayer (playback), Coil 3 (GIF/SVG/video frames), Lottie (animations).
-* **Camera & ML:** CameraX + ML Kit Vision (lightning-fast QR/barcode scanning).
-* **Maps:** OSMDroid (open-source native map rendering).
-* **Security:** Biometric Compose (app locking), Security Crypto (safe local data storage).
+Monogram leverages the latest Android development tools and libraries:
 
-##  Getting Started
+| Category                 | Libraries                                                                                                             |
+|:-------------------------|:----------------------------------------------------------------------------------------------------------------------|
+| **Language**             | [Kotlin](https://kotlinlang.org/)                                                                                     |
+| **UI Toolkit**           | [Jetpack Compose](https://developer.android.com/jetpack/compose) (Material 3)                                         |
+| **Architecture**         | [Decompose](https://github.com/arkivanov/Decompose) (Navigation), [MVIKotlin](https://github.com/arkivanov/MVIKotlin) |
+| **Dependency Injection** | [Koin](https://insert-koin.io/)                                                                                       |
+| **Async**                | Coroutines & Flow                                                                                                     |
+| **Telegram Core**        | [TDLib](https://core.telegram.org/tdlib) (Telegram Database Library)                                                  |
+| **Image Loading**        | [Coil 3](https://coil-kt.github.io/coil/)                                                                             |
+| **Media**                | Media3 (ExoPlayer)                                                                                                    |
+| **Maps**                 | [MapLibre](https://maplibre.org/)                                                                                     |
+| **Local DB**             | Room                                                                                                                  |
 
-**1. Clone the repository**
+---
+
+## Project Structure
+
+The project follows a multi-module structure to ensure separation of concerns and scalability:
+
+* **:app** - The main Android application module.
+* **:domain** - Pure Kotlin module containing business logic, use cases, and repository interfaces.
+* **:data** - Implementation of repositories, data sources, and TDLib integration.
+* **:presentation** - UI components, screens, and view models (MVI Stores).
+* **:core** - Common utility classes and extensions used across modules.
+* **:baselineprofile** - Baseline Profiles for optimizing app startup and performance.
+
+---
+
+## Getting Started
+
+Follow these steps to set up the project locally.
+
+### Prerequisites
+
+* **Android Studio**: Ladybug or newer (recommended).
+* **JDK**: Java 17 or newer.
+
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/monogram-android/monogram.git
-
+cd monogram
 ```
 
-**2. Set up API Keys**
-Create a `local.properties` file in the project root and add your Telegram API credentials (you can grab these from [my.telegram.org](https://my.telegram.org/)):
+### 2. Configure Telegram API Keys
+
+To connect to Telegram servers, you need your own API credentials.
+
+1. Log in to [my.telegram.org](https://my.telegram.org/).
+2. Go to **API development tools**.
+3. Create a new application to get your `App api_id` and `App api_hash`.
+4. Create a file named `local.properties` in the root directory of the project (if it doesn't exist).
+5. Add the following lines:
 
 ```properties
-API_ID=your_api_id
-API_HASH=your_api_hash
-
+API_ID=12345678
+API_HASH=your_api_hash_here
 ```
 
-**3. Build & Run**
-Open the project in **Android Studio**, let Gradle sync, and fire it up!
+### 3. Build and Run
 
-### Contribution Guidelines
+1. Open the project in **Android Studio**.
+2. Sync Gradle.
+3. Select the `app` run configuration.
+4. Connect a device or start an emulator.
+5. Click **Run**.
 
-*   **Respect Telegram's Terms of Service:** Monogram is an unofficial client. We strictly adhere to the [Telegram API Terms of Service](https://core.telegram.org/api/terms). Contributions that facilitate spam, unauthorized data scraping, or any other violations of Telegram's terms will be rejected.
-*   **Architecture & Patterns:** Maintain the project's **Clean Architecture** and **MVI** flow. Ensure that business logic resides in the `domain` module, data handling in `data`, and UI logic in `presentation`.
-*   **Modern Android Development:** Use Jetpack Compose and Material 3 components. Ensure UI changes are responsive and leverage Material 3 Adaptive for various form factors (phones, tablets, foldables).
-*   **Code Style:** Write clean, idiomatic Kotlin. Follow the existing codebase's formatting and naming conventions.
-*   **Testing:** Verify your changes on multiple device configurations. Ensure that new features do not break existing functionality or performance.
+---
+
+## Contributing
+
+We welcome contributions! Whether it's fixing bugs, improving documentation, or suggesting new features.
+
+1. **Check the Issues**: Look for open issues or create a new one to discuss your ideas.
+2. **Fork & Branch**: Fork the repo and create a feature branch.
+3. **Code Style**: Please follow the existing Kotlin coding style and Clean Architecture guidelines.
+4. **Submit a PR**: Open a Pull Request with a clear description of your changes.
+
+**Important**:
+
+* Respect the [Telegram API Terms of Service](https://core.telegram.org/api/terms).
+* Ensure your code passes all checks and tests.

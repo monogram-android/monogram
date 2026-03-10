@@ -1,8 +1,8 @@
 package org.monogram.domain.repository
 
-import org.monogram.domain.models.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import org.monogram.domain.models.*
 
 data class SearchMessagesResult(
     val messages: List<MessageModel>,
@@ -21,6 +21,7 @@ interface ChatsListRepository {
 
     fun loadNextChunk(limit: Int)
     fun selectFolder(folderId: Int)
+    fun refresh()
     suspend fun getChatById(chatId: Long): ChatModel?
 
     suspend fun searchChats(query: String): List<ChatModel>
@@ -72,6 +73,9 @@ interface ChatsListRepository {
     suspend fun setChatSlowModeDelay(chatId: Long, slowModeDelay: Int)
     suspend fun toggleChatIsForum(chatId: Long, isForum: Boolean)
     suspend fun toggleChatIsTranslatable(chatId: Long, isTranslatable: Boolean)
+
+    fun getDatabaseSize(): Long
+    fun clearDatabase()
 }
 
 sealed class ConnectionStatus {

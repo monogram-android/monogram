@@ -49,6 +49,9 @@ interface AppPreferencesProvider {
     val isBiometricEnabled: StateFlow<Boolean>
     val passcode: StateFlow<String?>
 
+    val isPermissionRequested: StateFlow<Boolean>
+    val isSupportViewed: StateFlow<Boolean>
+
     fun setAutoDownloadMobile(enabled: Boolean)
     fun setAutoDownloadWifi(enabled: Boolean)
     fun setAutoDownloadRoaming(enabled: Boolean)
@@ -90,4 +93,10 @@ interface AppPreferencesProvider {
 
     fun setBiometricEnabled(enabled: Boolean)
     fun setPasscode(passcode: String?)
+
+    fun setPermissionRequested(requested: Boolean)
+
+    fun clearPreferences()
+    fun clearSecurePreferences()
+    fun setSupportViewed(viewed: Boolean)
 }

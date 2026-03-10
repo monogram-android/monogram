@@ -26,44 +26,43 @@ import androidx.window.core.layout.WindowWidthSizeClass
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.predictiveBackAnimation
-import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.stack.ChildStack
-import com.google.android.gms.common.util.DeviceProperties.isTablet
 import org.monogram.domain.models.ProxyTypeModel
-import org.monogram.presentation.auth.AuthContent
-import org.monogram.presentation.chatsScreen.chatList.ChatListContent
-import org.monogram.presentation.chatsScreen.chatList.NewChatContent
-import org.monogram.presentation.chatsScreen.chatList.components.AvatarTopAppBar
-import org.monogram.presentation.chatsScreen.currentChat.ChatContent
-import org.monogram.presentation.chatsScreen.currentChat.components.StickerSetSheet
-import org.monogram.presentation.chatsScreen.folders.FoldersContent
-import org.monogram.presentation.profile.ProfileContent
-import org.monogram.presentation.profile.admin.AdminManageContent
-import org.monogram.presentation.profile.admin.ChatEditContent
-import org.monogram.presentation.profile.admin.ChatPermissionsContent
-import org.monogram.presentation.profile.admin.MemberListContent
-import org.monogram.presentation.profile.logs.ProfileLogsContent
+import org.monogram.presentation.features.auth.AuthContent
+import org.monogram.presentation.features.chats.chatList.ChatListContent
+import org.monogram.presentation.features.chats.chatList.NewChatContent
+import org.monogram.presentation.features.chats.chatList.components.AvatarTopAppBar
+import org.monogram.presentation.features.chats.currentChat.ChatContent
+import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
+import org.monogram.presentation.features.folders.FoldersContent
+import org.monogram.presentation.features.profile.ProfileContent
+import org.monogram.presentation.features.profile.admin.AdminManageContent
+import org.monogram.presentation.features.profile.admin.ChatEditContent
+import org.monogram.presentation.features.profile.admin.ChatPermissionsContent
+import org.monogram.presentation.features.profile.admin.MemberListContent
+import org.monogram.presentation.features.profile.logs.ProfileLogsContent
+import org.monogram.presentation.features.stickers.core.toDomain
+import org.monogram.presentation.features.webview.InternalWebView
 import org.monogram.presentation.root.RootComponent
 import org.monogram.presentation.root.StartupContent
-import org.monogram.presentation.settingsScreens.about.AboutContent
-import org.monogram.presentation.settingsScreens.adblock.AdBlockContent
-import org.monogram.presentation.settingsScreens.chatSettings.ChatSettingsContent
-import org.monogram.presentation.settingsScreens.dataStorage.DataStorageContent
-import org.monogram.presentation.settingsScreens.debug.DebugContent
-import org.monogram.presentation.settingsScreens.networkUsage.NetworkUsageContent
-import org.monogram.presentation.settingsScreens.notifications.NotificationsContent
-import org.monogram.presentation.settingsScreens.powersaving.PowerSavingContent
-import org.monogram.presentation.settingsScreens.premium.PremiumContent
-import org.monogram.presentation.settingsScreens.privacy.PasscodeContent
-import org.monogram.presentation.settingsScreens.privacy.PrivacyContent
-import org.monogram.presentation.settingsScreens.profile.EditProfileContent
-import org.monogram.presentation.settingsScreens.proxy.ProxyContent
-import org.monogram.presentation.settingsScreens.sessions.SessionsContent
-import org.monogram.presentation.settingsScreens.settings.SettingsContent
-import org.monogram.presentation.settingsScreens.stickers.StickersContent
-import org.monogram.presentation.settingsScreens.storage.StorageUsageContent
-import org.monogram.presentation.stickers.core.toDomain
+import org.monogram.presentation.settings.about.AboutContent
+import org.monogram.presentation.settings.adblock.AdBlockContent
+import org.monogram.presentation.settings.chatSettings.ChatSettingsContent
+import org.monogram.presentation.settings.dataStorage.DataStorageContent
+import org.monogram.presentation.settings.debug.DebugContent
+import org.monogram.presentation.settings.networkUsage.NetworkUsageContent
+import org.monogram.presentation.settings.notifications.NotificationsContent
+import org.monogram.presentation.settings.powersaving.PowerSavingContent
+import org.monogram.presentation.settings.premium.PremiumContent
+import org.monogram.presentation.settings.privacy.PasscodeContent
+import org.monogram.presentation.settings.privacy.PrivacyContent
+import org.monogram.presentation.settings.profile.EditProfileContent
+import org.monogram.presentation.settings.proxy.ProxyContent
+import org.monogram.presentation.settings.sessions.SessionsContent
+import org.monogram.presentation.settings.settings.SettingsContent
+import org.monogram.presentation.settings.stickers.StickersContent
+import org.monogram.presentation.settings.storage.StorageUsageContent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,21 +75,6 @@ fun MainContent(
     val isExpanded = adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED
 
     val activeChild = childStack.active.instance
-    val isFullScreenOverlay = if (activeChild is RootComponent.Child.ChatDetailChild) {
-        val state by activeChild.component.state.collectAsState()
-        state.fullScreenImages != null ||
-                state.fullScreenVideoPath != null ||
-                state.fullScreenVideoMessageId != null ||
-                state.youtubeUrl != null ||
-                state.instantViewUrl != null ||
-                state.miniAppUrl != null
-    } else false
-
-    val overlayScale by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec = tween(durationMillis = 300),
-        label = "OverlayScale"
-    )
 
     Box(
         modifier = Modifier
@@ -116,22 +100,6 @@ fun MainContent(
             } else {
                 MobileLayout(root)
             }
-        }
-
-        if (isExpanded) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(100f)
-                    .graphicsLayer {
-                        scaleX = overlayScale
-                        scaleY = overlayScale
-                    }
-            ) {
-                RenderChild(root, activeChild, isOverlay = true)
-            }
-        } else {
-            RenderChild(root, activeChild, isOverlay = true)
         }
 
         val stickerPreviewState by root.stickerSetToPreview.collectAsState()
@@ -412,10 +380,10 @@ private fun MobileLayout(root: RootComponent) {
         animation = predictiveBackAnimation(
             backHandler = root.backHandler,
             onBack = root::onBack,
-            fallbackAnimation = stackAnimation()
+            fallbackAnimation = null
         )
     ) {
-        RenderChild(root, it.instance)
+        RenderChild(root, it.instance, isOverlay = true)
     }
 }
 
@@ -522,5 +490,9 @@ private fun RenderChild(root: RootComponent, child: RootComponent.Child, isOverl
         is RootComponent.Child.StickersChild -> StickersContent(child.component)
         is RootComponent.Child.AboutChild -> AboutContent(child.component)
         is RootComponent.Child.DebugChild -> DebugContent(child.component)
+        is RootComponent.Child.WebViewChild -> InternalWebView(
+            url = child.component.url,
+            onDismiss = child.component::onDismiss
+        )
     }
 }

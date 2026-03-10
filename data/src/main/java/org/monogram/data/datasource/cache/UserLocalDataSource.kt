@@ -1,11 +1,17 @@
 package org.monogram.data.datasource.cache
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.db.model.UserFullInfoEntity
 
 interface UserLocalDataSource {
-    fun getUser(userId: Long): TdApi.User?
-    fun putUser(user: TdApi.User)
-    fun getUserFullInfo(userId: Long): TdApi.UserFullInfo?
-    fun putUserFullInfo(userId: Long, info: TdApi.UserFullInfo)
-    fun clearAll()
+    suspend fun getUser(userId: Long): TdApi.User?
+    suspend fun putUser(user: TdApi.User)
+    suspend fun getUserFullInfo(userId: Long): TdApi.UserFullInfo?
+    suspend fun putUserFullInfo(userId: Long, info: TdApi.UserFullInfo)
+    suspend fun getAllUsers(): Collection<TdApi.User>
+    suspend fun clearAll()
+
+    suspend fun getFullInfoEntity(userId: Long): UserFullInfoEntity?
+    suspend fun saveFullInfoEntity(info: UserFullInfoEntity)
+    suspend fun deleteExpired(timestamp: Long)
 }

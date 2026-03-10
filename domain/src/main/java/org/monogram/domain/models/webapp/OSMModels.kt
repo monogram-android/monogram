@@ -1,5 +1,8 @@
 package org.monogram.domain.models.webapp
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class OSMReverseResponse(
     val place_id: Long? = null,
     val licence: String? = null,
@@ -12,6 +15,7 @@ data class OSMReverseResponse(
     val boundingbox: List<String>? = null
 )
 
+@Serializable
 data class OSMAddress(
     val road: String? = null,
     val suburb: String? = null,

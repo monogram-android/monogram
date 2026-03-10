@@ -7,86 +7,92 @@ import com.arkivanov.decompose.router.stack.*
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
-import com.arkivanov.essenty.lifecycle.doOnDestroy
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 import org.monogram.domain.managers.PhoneManager
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.repository.*
-import org.monogram.presentation.auth.DefaultAuthComponent
-import org.monogram.presentation.chatsScreen.chatList.DefaultChatListComponent
-import org.monogram.presentation.chatsScreen.chatList.DefaultNewChatComponent
-import org.monogram.presentation.chatsScreen.currentChat.DefaultChatComponent
-import org.monogram.presentation.chatsScreen.currentChat.components.VideoPlayerPool
-import org.monogram.presentation.chatsScreen.folders.DefaultFoldersComponent
-import org.monogram.presentation.profile.DefaultProfileComponent
-import org.monogram.presentation.profile.admin.*
-import org.monogram.presentation.profile.logs.DefaultProfileLogsComponent
-import org.monogram.presentation.settingsScreens.about.DefaultAboutComponent
-import org.monogram.presentation.settingsScreens.adblock.DefaultAdBlockComponent
-import org.monogram.presentation.settingsScreens.chatSettings.DefaultChatSettingsComponent
-import org.monogram.presentation.settingsScreens.dataStorage.DefaultDataStorageComponent
-import org.monogram.presentation.settingsScreens.debug.DefaultDebugComponent
-import org.monogram.presentation.settingsScreens.networkUsage.DefaultNetworkUsageComponent
-import org.monogram.presentation.settingsScreens.notifications.DefaultNotificationsComponent
-import org.monogram.presentation.settingsScreens.powersaving.DefaultPowerSavingComponent
-import org.monogram.presentation.settingsScreens.premium.DefaultPremiumComponent
-import org.monogram.presentation.settingsScreens.privacy.DefaultPasscodeComponent
-import org.monogram.presentation.settingsScreens.privacy.DefaultPrivacyComponent
-import org.monogram.presentation.settingsScreens.profile.DefaultEditProfileComponent
-import org.monogram.presentation.settingsScreens.proxy.DefaultProxyComponent
-import org.monogram.presentation.settingsScreens.sessions.DefaultSessionsComponent
-import org.monogram.presentation.settingsScreens.settings.DefaultSettingsComponent
-import org.monogram.presentation.settingsScreens.stickers.DefaultStickersComponent
-import org.monogram.presentation.settingsScreens.storage.DefaultStorageUsageComponent
-import org.monogram.presentation.stickers.core.toUi
-import org.monogram.presentation.util.AppPreferences
-import org.monogram.presentation.util.IDownloadUtils
+import org.monogram.presentation.core.util.AppPreferences
+import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.core.util.componentScope
+import org.monogram.presentation.features.auth.DefaultAuthComponent
+import org.monogram.presentation.features.chats.chatList.DefaultChatListComponent
+import org.monogram.presentation.features.chats.chatList.DefaultNewChatComponent
+import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
+import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
+import org.monogram.presentation.features.folders.DefaultFoldersComponent
+import org.monogram.presentation.features.profile.DefaultProfileComponent
+import org.monogram.presentation.features.profile.admin.*
+import org.monogram.presentation.features.profile.logs.DefaultProfileLogsComponent
+import org.monogram.presentation.features.stickers.core.toUi
+import org.monogram.presentation.features.webview.DefaultWebViewComponent
+import org.monogram.presentation.settings.about.DefaultAboutComponent
+import org.monogram.presentation.settings.adblock.DefaultAdBlockComponent
+import org.monogram.presentation.settings.chatSettings.DefaultChatSettingsComponent
+import org.monogram.presentation.settings.dataStorage.DefaultDataStorageComponent
+import org.monogram.presentation.settings.debug.DefaultDebugComponent
+import org.monogram.presentation.settings.networkUsage.DefaultNetworkUsageComponent
+import org.monogram.presentation.settings.notifications.DefaultNotificationsComponent
+import org.monogram.presentation.settings.powersaving.DefaultPowerSavingComponent
+import org.monogram.presentation.settings.premium.DefaultPremiumComponent
+import org.monogram.presentation.settings.privacy.DefaultPasscodeComponent
+import org.monogram.presentation.settings.privacy.DefaultPrivacyComponent
+import org.monogram.presentation.settings.profile.DefaultEditProfileComponent
+import org.monogram.presentation.settings.proxy.DefaultProxyComponent
+import org.monogram.presentation.settings.sessions.DefaultSessionsComponent
+import org.monogram.presentation.settings.settings.DefaultSettingsComponent
+import org.monogram.presentation.settings.stickers.DefaultStickersComponent
+import org.monogram.presentation.settings.storage.DefaultStorageUsageComponent
 
 class DefaultRootComponent(
-    private val componentContext: AppComponentContext,
-    private val authRepository: AuthRepository = componentContext.container.repositories.authRepository,
-    private val messageRepository: MessageRepository = componentContext.container.repositories.messageRepository,
-    private val settingsRepository: SettingsRepository = componentContext.container.repositories.settingsRepository,
-    private val linkHandlerRepository: LinkHandlerRepository = componentContext.container.repositories.linkHandlerRepository,
-    private val externalProxyRepository: ExternalProxyRepository = componentContext.container.repositories.externalProxyRepository,
-    override val appPreferences: AppPreferences = componentContext.container.preferences.appPreferences,
-    private val stickerRepository: StickerRepository = componentContext.container.repositories.stickerRepository,
-    private val messageDisplayer: MessageDisplayer = componentContext.container.utils.messageDisplayer(),
-    private val privacyRepository: PrivacyRepository = componentContext.container.repositories.privacyRepository,
-    private val externalNavigator: ExternalNavigator = componentContext.container.utils.externalNavigator(),
-    private val downloadUtils: IDownloadUtils = componentContext.container.utils.downloadUtils(),
-    override val videoPlayerPool: VideoPlayerPool = componentContext.container.utils.videoPlayerPool,
-    private val phoneManager: PhoneManager = componentContext.container.utils.phoneManager(),
-    private val updateRepository: UpdateRepository = componentContext.container.repositories.updateRepository,
-    private val userRepository: UserRepository = componentContext.container.repositories.userRepository,
-    private val cacheProvider: CacheProvider = componentContext.container.cacheProvider
+    private val componentContext: AppComponentContext
 ) : RootComponent, AppComponentContext by componentContext {
+
+    private val authRepository: AuthRepository = container.repositories.authRepository
+    private val messageRepository: MessageRepository = container.repositories.messageRepository
+    private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
+    private val linkHandlerRepository: LinkHandlerRepository = container.repositories.linkHandlerRepository
+    private val externalProxyRepository: ExternalProxyRepository = container.repositories.externalProxyRepository
+    private val stickerRepository: StickerRepository = container.repositories.stickerRepository
+    private val messageDisplayer: MessageDisplayer = container.utils.messageDisplayer()
+    private val externalNavigator: ExternalNavigator = container.utils.externalNavigator()
+    private val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
+    private val phoneManager: PhoneManager = container.utils.phoneManager()
+    private val updateRepository: UpdateRepository = container.repositories.updateRepository
+    private val userRepository: UserRepository = container.repositories.userRepository
+    private val cacheProvider: CacheProvider = container.cacheProvider
+
+    override val appPreferences: AppPreferences = container.preferences.appPreferences
+    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
+
     private val navigation = StackNavigation<Config>()
-    private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+    private val scope = componentScope
 
     private val _stickerSetToPreview = MutableStateFlow(RootComponent.StickerPreviewState())
-    override val stickerSetToPreview = _stickerSetToPreview
+    override val stickerSetToPreview = _stickerSetToPreview.asStateFlow()
 
     private val _proxyToConfirm = MutableStateFlow(RootComponent.ProxyConfirmState())
-    override val proxyToConfirm = _proxyToConfirm
+    override val proxyToConfirm = _proxyToConfirm.asStateFlow()
 
     private val _chatToConfirmJoin = MutableStateFlow(RootComponent.ChatConfirmJoinState())
-    override val chatToConfirmJoin = _chatToConfirmJoin
+    override val chatToConfirmJoin = _chatToConfirmJoin.asStateFlow()
 
     private val _isLocked = MutableStateFlow(false)
-    override val isLocked = _isLocked
+    override val isLocked = _isLocked.asStateFlow()
 
     private val _isBiometricEnabled = MutableStateFlow(false)
-    override val isBiometricEnabled = _isBiometricEnabled
+    override val isBiometricEnabled = _isBiometricEnabled.asStateFlow()
 
     private val _activeChatId = MutableValue(0L)
     private val activeChatId: Value<Long> = _activeChatId
 
-    override val childStack = childStack(
+    override val childStack: Value<ChildStack<Config, RootComponent.Child>> = childStack(
         source = navigation,
         serializer = Config.serializer(),
         initialConfiguration = Config.Startup,
@@ -96,47 +102,98 @@ class DefaultRootComponent(
     )
 
     init {
-        lifecycle.doOnDestroy { scope.cancel() }
         childStack.subscribe { stack ->
             _activeChatId.update { (stack.active.configuration as? Config.ChatDetail)?.chatId ?: 0L }
         }
+
         observeAuthState()
         observeMaintenanceSettings()
+        observeBiometricSettings()
+        observeStickerLoading()
         checkLockState()
         updateSimCountryIso()
+        initExternalProxies()
+    }
 
-        scope.launch {
-            if (appPreferences.isTelegaProxyEnabled.first()) {
-                fetchExternalProxies()
-            }
-        }
+    private fun observeAuthState() {
+        authRepository.authState
+            .onEach { state ->
+                val activeConfig = childStack.value.active.configuration
+                when (state) {
+                    is AuthStep.Ready -> {
+                        if (activeConfig is Config.Auth || activeConfig is Config.Startup) {
+                            navigation.replaceAll(Config.Chats())
+                        }
+                    }
 
-        appPreferences.isBiometricEnabled.onEach { bool ->
-            _isBiometricEnabled.update { bool }
-        }.launchIn(scope)
+                    is AuthStep.InputPhone,
+                    is AuthStep.InputCode,
+                    is AuthStep.InputPassword -> {
+                        _isLocked.update { false }
+                        appPreferences.setPasscode(null)
+                        appPreferences.setBiometricEnabled(false)
+                        if (activeConfig !is Config.Auth) {
+                            navigation.replaceAll(Config.Auth)
+                        }
+                    }
 
-        scope.launch {
-            authRepository.authState.collectLatest { state ->
-                if (state is AuthStep.Ready) {
-                    stickerRepository.loadInstalledStickerSets()
-                    stickerRepository.loadCustomEmojiStickerSets()
+                    is AuthStep.Loading,
+                    is AuthStep.WaitParameters -> {
+                        if (activeConfig !is Config.Startup && activeConfig !is Config.Auth) {
+                            navigation.replaceAll(Config.Startup)
+                        }
+                    }
                 }
+            }
+            .launchIn(scope)
+    }
+
+    private fun observeMaintenanceSettings() {
+        combine(appPreferences.cacheLimitSize, appPreferences.autoClearCacheTime) { limit, time ->
+            limit to time
+        }.onEach { (limit, time) ->
+            val ttl = if (time > 0) time * 24 * 60 * 60 else -1
+            settingsRepository.setDatabaseMaintenanceSettings(limit, ttl)
+        }.launchIn(scope)
+    }
+
+    private fun observeBiometricSettings() {
+        appPreferences.isBiometricEnabled
+            .onEach { bool -> _isBiometricEnabled.update { bool } }
+            .launchIn(scope)
+    }
+
+    private fun observeStickerLoading() {
+        authRepository.authState
+            .filterIsInstance<AuthStep.Ready>()
+            .onEach {
+                stickerRepository.loadInstalledStickerSets()
+                stickerRepository.loadCustomEmojiStickerSets()
+            }
+            .launchIn(scope)
+    }
+
+    private fun checkLockState() {
+        scope.launch {
+            if (appPreferences.passcode.first() != null) {
+                _isLocked.update { true }
             }
         }
     }
 
     private fun updateSimCountryIso() {
-        val countryCode = phoneManager.getSimCountryIso() ?: ""
-        if (countryCode.isNotBlank()) {
-            cacheProvider.setCachedSimCountryIso(countryCode)
+        val countryCode = phoneManager.getSimCountryIso()
+        if (!countryCode.isNullOrBlank()) {
+            scope.launch {
+                settingsRepository.setCachedSimCountryIso(countryCode)
+            }
         }
     }
 
-    private fun checkLockState() {
+    private fun initExternalProxies() {
         scope.launch {
-            val passcode = appPreferences.passcode.first()
-            if (passcode != null) {
-                _isLocked.update { true }
+            if (appPreferences.isTelegaProxyEnabled.first()) {
+                fetchExternalProxies()
             }
         }
     }
@@ -154,46 +211,6 @@ class DefaultRootComponent(
             }
         }
         Log.d("RootComponent", "Finished pinging external proxies")
-    }
-
-    private fun observeAuthState() {
-        authRepository.authState.onEach { state ->
-            val activeConfig = childStack.value.active.configuration
-            when (state) {
-                is AuthStep.Ready -> {
-                    if (activeConfig is Config.Auth || activeConfig is Config.Startup) {
-                        navigation.replaceAll(Config.Chats())
-                    }
-                }
-
-                is AuthStep.InputPhone,
-                is AuthStep.InputCode,
-                is AuthStep.InputPassword -> {
-                    _isLocked.update { false }
-                    appPreferences.setPasscode(null)
-                    appPreferences.setBiometricEnabled(false)
-                    if (activeConfig !is Config.Auth) {
-                        navigation.replaceAll(Config.Auth)
-                    }
-                }
-
-                is AuthStep.Loading,
-                is AuthStep.WaitParameters -> {
-                    if (activeConfig !is Config.Startup && activeConfig !is Config.Auth) {
-                        navigation.replaceAll(Config.Startup)
-                    }
-                }
-            }
-        }.launchIn(scope)
-    }
-
-    private fun observeMaintenanceSettings() {
-        combine(appPreferences.cacheLimitSize, appPreferences.autoClearCacheTime) { limit, time ->
-            limit to time
-        }.onEach { (limit, time) ->
-            val ttl = if (time > 0) time * 24 * 60 * 60 else -1
-            settingsRepository.setDatabaseMaintenanceSettings(limit, ttl)
-        }.launchIn(scope)
     }
 
     override fun onBack() {
@@ -219,7 +236,7 @@ class DefaultRootComponent(
             }.onSuccess { action ->
                 processLinkAction(action, link)
             }.onFailure { e ->
-                e.printStackTrace()
+                Log.e("RootComponent", "Error handling link: $link", e)
                 messageDisplayer.show("Error handling link")
                 openBrowser(link)
             }
@@ -280,6 +297,7 @@ class DefaultRootComponent(
             }
 
             is LinkAction.OpenWebApp -> openBrowser(action.url)
+            is LinkAction.OpenExternalLink -> openBrowser(action.url)
             is LinkAction.OpenActiveSessions -> navigation.bringToFront(Config.SessionsConfig)
             is LinkAction.ShowToast -> messageDisplayer.show(action.message)
             is LinkAction.AddProxy -> {
@@ -375,11 +393,7 @@ class DefaultRootComponent(
 
     private fun openBrowser(url: String) {
         if (!url.startsWith("http")) return
-        try {
-            externalNavigator.openUrl(url)
-        } catch (e: Exception) {
-            messageDisplayer.show("No browser found")
-        }
+        navigation.push(Config.WebView(url))
     }
 
     private fun navigateToChat(chatId: Long, messageId: Long? = null) {
@@ -539,7 +553,6 @@ class DefaultRootComponent(
             is Config.Privacy -> RootComponent.Child.PrivacyChild(
                 DefaultPrivacyComponent(
                     context = context,
-                    privacyRepository = privacyRepository,
                     onBack = { navigation.pop() },
                     onSessionsClick = { navigation.bringToFront(Config.SessionsConfig) },
                     onProfileClick = { navigation.bringToFront(Config.Profile(it)) },
@@ -568,7 +581,10 @@ class DefaultRootComponent(
             )
             is Config.AdminManage -> RootComponent.Child.AdminManageChild(
                 DefaultAdminManageComponent(
-                    context = context, chatId = config.chatId, userId = config.userId, onBackClicked = { navigation.pop() }
+                    context = context,
+                    chatId = config.chatId,
+                    userId = config.userId,
+                    onBackClicked = { navigation.pop() }
                 )
             )
             is Config.ChatEdit -> RootComponent.Child.ChatEditChild(
@@ -653,114 +669,54 @@ class DefaultRootComponent(
                     onBack = { navigation.pop() }
                 )
             )
+
+            is Config.WebView -> RootComponent.Child.WebViewChild(
+                DefaultWebViewComponent(
+                    context = context,
+                    url = config.url,
+                    onDismiss = { navigation.pop() }
+                )
+            )
         }
     }
 
     @Serializable
     sealed class Config : Parcelable {
-        @Parcelize
-        @Serializable
-        object Startup : Config()
-
-        @Parcelize
-        @Serializable
-        object Auth : Config()
-        @Parcelize
-        @Serializable
-        data class Chats(
+        @Parcelize @Serializable object Startup : Config()
+        @Parcelize @Serializable object Auth : Config()
+        @Parcelize @Serializable data class Chats(
             val fromChatId: Long? = null,
             val forwardingMessageIds: List<Long>? = null,
             val activeChatId: Long? = null
         ) : Config()
-
+        @Parcelize @Serializable object NewChat : Config()
+        @Parcelize @Serializable object SessionsConfig : Config()
+        @Parcelize @Serializable data class ChatDetail(val chatId: Long, val messageId: Long? = null) : Config()
+        @Parcelize @Serializable object Settings : Config()
+        @Parcelize @Serializable object EditProfile : Config()
+        @Parcelize @Serializable object Folders : Config()
+        @Parcelize @Serializable object ChatSettings : Config()
+        @Parcelize @Serializable object DataStorage : Config()
+        @Parcelize @Serializable object StorageUsage : Config()
+        @Parcelize @Serializable object NetworkUsage : Config()
+        @Parcelize @Serializable data class Profile(val chatId: Long) : Config()
+        @Parcelize @Serializable object Premium : Config()
+        @Parcelize @Serializable object Privacy : Config()
+        @Parcelize @Serializable object AdBlock : Config()
+        @Parcelize @Serializable object PowerSaving : Config()
+        @Parcelize @Serializable object Notifications : Config()
+        @Parcelize @Serializable object Proxy : Config()
+        @Parcelize @Serializable data class ProfileLogs(val chatId: Long) : Config()
+        @Parcelize @Serializable data class AdminManage(val chatId: Long, val userId: Long) : Config()
+        @Parcelize @Serializable data class ChatEdit(val chatId: Long) : Config()
+        @Parcelize @Serializable data class MemberList(val chatId: Long, val type: MemberListComponent.MemberListType) : Config()
+        @Parcelize @Serializable data class ChatPermissions(val chatId: Long) : Config()
+        @Parcelize @Serializable object PasscodeConfig : Config()
+        @Parcelize @Serializable object Stickers : Config()
+        @Parcelize @Serializable object About : Config()
+        @Parcelize @Serializable object Debug : Config()
         @Parcelize
         @Serializable
-        object NewChat : Config()
-        @Parcelize
-        @Serializable
-        object SessionsConfig : Config()
-        @Parcelize
-        @Serializable
-        data class ChatDetail(val chatId: Long, val messageId: Long? = null) : Config()
-        @Parcelize
-        @Serializable
-        object Settings : Config()
-
-        @Parcelize
-        @Serializable
-        object EditProfile : Config()
-        @Parcelize
-        @Serializable
-        object Folders : Config()
-        @Parcelize
-        @Serializable
-        object ChatSettings : Config()
-        @Parcelize
-        @Serializable
-        object DataStorage : Config()
-        @Parcelize
-        @Serializable
-        object StorageUsage : Config()
-        @Parcelize
-        @Serializable
-        object NetworkUsage : Config()
-        @Parcelize
-        @Serializable
-        data class Profile(val chatId: Long) : Config()
-        @Parcelize
-        @Serializable
-        object Premium : Config()
-        @Parcelize
-        @Serializable
-        object Privacy : Config()
-        @Parcelize
-        @Serializable
-        object AdBlock : Config()
-        @Parcelize
-        @Serializable
-        object PowerSaving : Config()
-        @Parcelize
-        @Serializable
-        object Notifications : Config()
-
-        @Parcelize
-        @Serializable
-        object Proxy : Config()
-
-        @Parcelize
-        @Serializable
-        data class ProfileLogs(val chatId: Long) : Config()
-
-        @Parcelize
-        @Serializable
-        data class AdminManage(val chatId: Long, val userId: Long) : Config()
-
-        @Parcelize
-        @Serializable
-        data class ChatEdit(val chatId: Long) : Config()
-
-        @Parcelize
-        @Serializable
-        data class MemberList(val chatId: Long, val type: MemberListComponent.MemberListType) : Config()
-
-        @Parcelize
-        @Serializable
-        data class ChatPermissions(val chatId: Long) : Config()
-
-        @Parcelize
-        @Serializable
-        object PasscodeConfig : Config()
-
-        @Parcelize
-        @Serializable
-        object Stickers : Config()
-
-        @Parcelize
-        @Serializable
-        object About : Config()
-
-        @Parcelize
-        @Serializable
-        object Debug : Config()
+        data class WebView(val url: String) : Config()
     }
 }

@@ -8,10 +8,13 @@ class ChatListManager(
 ) {
     fun rebuildChatList(
         limit: Int = Int.MAX_VALUE,
+        excludedChatIds: List<Long> = emptyList(),
         mapChat: (TdApi.Chat, Long, Boolean) -> org.monogram.domain.models.ChatModel?
     ): List<org.monogram.domain.models.ChatModel> {
         return cache.activeListPositions.entries
-            .sortedWith(compareByDescending<MutableMap.MutableEntry<Long, TdApi.ChatPosition>> { it.value.order }.thenByDescending { it.key })
+            .filter { it.key !in excludedChatIds }
+            .sortedWith(compareByDescending<MutableMap.MutableEntry<Long, TdApi.ChatPosition>> { it.value.isPinned }
+                .thenByDescending { it.value.order })
             .take(limit)
             .mapNotNull { (chatId, position) ->
                 cache.allChats[chatId]?.let { chat ->

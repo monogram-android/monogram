@@ -16,7 +16,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 25
         consumerProguardFiles("consumer-rules.pro")
         externalNativeBuild {
             cmake {
@@ -25,6 +25,7 @@ android {
         }
         ndk {
             abiFilters.add("arm64-v8a")
+            abiFilters.add("armeabi-v7a")
             abiFilters.add("x86_64")
         }
     }
@@ -90,41 +91,24 @@ tasks.apply {
 dependencies {
     implementation(project(":core"))
     implementation(project(":domain"))
+    
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp)
-    implementation(libs.coil.video)
-    implementation(libs.coil.gif)
-    implementation(libs.coil.svg)
-    implementation(libs.androidx.compose.material3)
-    implementation(libs.decompose)
-    implementation(libs.decompose.compose)
+    implementation(libs.bundles.androidx.compose)
+    implementation(libs.bundles.androidx.camera)
+    implementation(libs.bundles.androidx.media3)
+    
+    implementation(libs.bundles.coil)
+    implementation(libs.bundles.decompose)
+    implementation(libs.bundles.mvikotlin)
+    implementation(libs.bundles.koin)
+    
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.material.icons.extended.android)
-    implementation(libs.androidx.compose.runtime)
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.koin.android)
-    implementation(libs.koin.compose)
     implementation(libs.lottie.compose)
-    implementation(libs.androidx.camera.core)
-    implementation(libs.androidx.camera.camera2)
-    implementation(libs.androidx.camera.lifecycle)
-    implementation(libs.androidx.camera.video)
-    implementation(libs.androidx.camera.view)
-    implementation(libs.androidx.media3.exoplayer)
-    implementation(libs.androidx.media3.ui)
-    implementation(libs.androidx.media3.common)
     implementation(libs.play.services.mlkit.barcode.scanning)
-    implementation(libs.androidx.camera.mlkit.vision)
-    implementation(libs.core)
-    implementation(libs.androidx.compose.foundation.layout)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.compose.material3.adaptive)
-    implementation(libs.androidx.material3)
+    implementation(libs.zxing.core)
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.security.crypto)
-    implementation(libs.osmdroid.android)
+    implementation(libs.maplibre.compose)
     implementation(libs.play.services.oss.licenses)
     implementation(libs.play.services.location)
 }

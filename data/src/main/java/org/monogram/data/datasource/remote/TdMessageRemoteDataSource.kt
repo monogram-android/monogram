@@ -2,12 +2,12 @@ package org.monogram.data.datasource.remote
 
 import android.os.Build
 import android.util.Log
-import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.DispatcherProvider
+import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
@@ -70,6 +70,7 @@ class TdMessageRemoteDataSource(
     val customEmojiPaths = ConcurrentHashMap<Long, String>()
     val fileIdToCustomEmojiId = ConcurrentHashMap<Int, Long>()
     private val messageUpdateJobs = ConcurrentHashMap<Pair<Long, Long>, Job>()
+    private val lastProgressMap = ConcurrentHashMap<Int, Int>()
 
     init {
         scope.launch {
@@ -264,20 +265,20 @@ class TdMessageRemoteDataSource(
         } else null
     }
 
-    override suspend fun getPollVoters(chatId: Long, messageId: Long, optionId: Int, offset: Int, limit: Int): TdApi.MessageSenders? =
+    override suspend fun getPollVoters(chatId: Long, messageId: Long, optionId: Int, offset: Int, limit: Int): TdApi.PollVoters? =
         safeExecute(TdApi.GetPollVoters(chatId, messageId, optionId, offset, limit))
 
     override suspend fun getPollVotersModels(chatId: Long, messageId: Long, optionId: Int, offset: Int, limit: Int): List<UserModel> {
         val result = getPollVoters(chatId, messageId, optionId, offset, limit) ?: return emptyList()
-        return result.senders.mapNotNull { voter ->
-            when (voter) {
-                is TdApi.MessageSenderUser -> userRepository.getUser(voter.userId)
+        return result.voters.mapNotNull { pollVoter ->
+            when (val sender = pollVoter.voterId) {
+                is TdApi.MessageSenderUser -> userRepository.getUser(sender.userId)
                 is TdApi.MessageSenderChat -> {
-                    val cachedChat = cache.getChat(voter.chatId)
+                    val cachedChat = cache.getChat(sender.chatId)
                     if (cachedChat != null) {
                         UserModel(id = cachedChat.id, firstName = cachedChat.title, lastName = "", username = null, avatarPath = cachedChat.photo?.small?.local?.path)
                     } else {
-                        val chat = chatsListRepository.getChatById(voter.chatId)
+                        val chat = chatsListRepository.getChatById(sender.chatId)
                         if (chat != null) UserModel(id = chat.id, firstName = chat.title, lastName = "", username = null, avatarPath = chat.avatarPath)
                         else null
                     }
@@ -799,7 +800,7 @@ class TdMessageRemoteDataSource(
         theme: ThemeParams?
     ): WebAppInfoModel? {
         val parameters = TdApi.WebAppOpenParameters().apply {
-            this.applicationName = "monogram_android"
+            this.applicationName = "android"
             this.mode = TdApi.WebAppOpenModeFullSize()
             this.theme = theme?.toApi()
         }
@@ -1153,44 +1154,76 @@ class TdMessageRemoteDataSource(
         val isUC = file.remote?.isUploadingCompleted == true
         val isU = file.remote?.isUploadingActive == true
 
-        if (isDC) fileDownloadQueue.notifyDownloadComplete(file.id)
-        if (isUC) fileDownloadQueue.notifyUploadComplete(file.id)
-
-        updateMessageWithFile(file.id)
-
-        val entries = fileIdToMessageMap[file.id]
-        if (!entries.isNullOrEmpty()) {
-            if (isDC) {
-                fileIdToCustomEmojiId[file.id]?.let { customEmojiPaths[it] = file.local?.path ?: "" }
-                emitToFlow(entries, messageDownloadCompletedFlow, file.local?.path ?: "")
-                emitToFlow(entries, messageDownloadProgressFlow, 1.0f)
-            } else if (isD) {
-                val p =
-                    if (file.size > 0 && file.local != null) file.local.downloadedSize.toFloat() / file.size.toFloat() else 0f
-                emitToFlow(entries, messageDownloadProgressFlow, p)
+        if (isDC) {
+            fileDownloadQueue.notifyDownloadComplete(file.id)
+            lastProgressMap.remove(file.id)
+            fileIdToCustomEmojiId[file.id]?.let { customEmojiId ->
+                customEmojiPaths[customEmojiId] = file.local?.path ?: ""
             }
-            if (isUC) emitToFlow(entries, messageUploadProgressFlow, 1.0f)
-            else if (isU) {
-                val p =
-                    if (file.size > 0 && file.remote != null) file.remote.uploadedSize.toFloat() / file.size.toFloat() else 0f
-                emitToFlow(entries, messageUploadProgressFlow, p)
-            }
-        } else if (fileDownloadQueue.registry.standaloneFileIds.contains(file.id)) {
-            if (isDC) {
+
+            val entries = fileIdToMessageMap[file.id]
+            if (!entries.isNullOrEmpty()) {
+                scope.launch {
+                    entries.forEach { (_, messageId) ->
+                        messageDownloadCompletedFlow.emit(messageId to (file.local?.path ?: ""))
+                        messageDownloadProgressFlow.emit(messageId to 1.0f)
+                    }
+                }
+            } else if (fileDownloadQueue.registry.standaloneFileIds.contains(file.id)) {
                 scope.launch {
                     messageDownloadCompletedFlow.emit(file.id.toLong() to (file.local?.path ?: ""))
                     messageDownloadProgressFlow.emit(file.id.toLong() to 1.0f)
                 }
                 fileDownloadQueue.registry.standaloneFileIds.remove(file.id)
-            } else if (isD) {
-                val p = if (file.size > 0 && file.local != null) file.local.downloadedSize.toFloat() / file.size.toFloat() else 0f
-                scope.launch { messageDownloadProgressFlow.emit(file.id.toLong() to p) }
+            }
+            updateMessageWithFile(file.id)
+        } else if (isD) {
+            val p =
+                if (file.size > 0 && file.local != null) file.local.downloadedSize.toFloat() / file.size.toFloat() else 0f
+            val pInt = (p * 100).toInt()
+            if (lastProgressMap[file.id] != pInt) {
+                lastProgressMap[file.id] = pInt
+                val entries = fileIdToMessageMap[file.id]
+                if (!entries.isNullOrEmpty()) {
+                    scope.launch {
+                        entries.forEach { (_, messageId) ->
+                            messageDownloadProgressFlow.emit(messageId to p)
+                        }
+                    }
+                } else if (fileDownloadQueue.registry.standaloneFileIds.contains(file.id)) {
+                    scope.launch { messageDownloadProgressFlow.emit(file.id.toLong() to p) }
+                }
             }
         }
-    }
 
-    private fun <T> emitToFlow(entries: Set<Pair<Long, Long>>, flow: MutableSharedFlow<Pair<Long, T>>, value: T) {
-        scope.launch { entries.forEach { (_, messageId) -> flow.emit(messageId to value) } }
+        if (isUC) {
+            fileDownloadQueue.notifyUploadComplete(file.id)
+            lastProgressMap.remove(file.id xor 0x55555555)
+            val entries = fileIdToMessageMap[file.id]
+            if (!entries.isNullOrEmpty()) {
+                scope.launch {
+                    entries.forEach { (_, messageId) ->
+                        messageUploadProgressFlow.emit(messageId to 1.0f)
+                    }
+                }
+            }
+            updateMessageWithFile(file.id)
+        } else if (isU) {
+            val p =
+                if (file.size > 0 && file.remote != null) file.remote.uploadedSize.toFloat() / file.size.toFloat() else 0f
+            val pInt = (p * 100).toInt()
+            if (lastProgressMap[file.id xor 0x55555555] != pInt) {
+                lastProgressMap[file.id xor 0x55555555] = pInt
+                val entries = fileIdToMessageMap[file.id]
+                if (!entries.isNullOrEmpty()) {
+                    scope.launch {
+                        entries.forEach { (_, messageId) ->
+                            messageUploadProgressFlow.emit(messageId to p)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     override fun registerFileForMessage(fileId: Int, chatId: Long, messageId: Long) {
@@ -1225,5 +1258,6 @@ class TdMessageRemoteDataSource(
     fun clear() {
         refreshJobs.values.forEach { it.cancel() }; refreshJobs.clear()
         messageUpdateJobs.values.forEach { it.cancel() }; messageUpdateJobs.clear()
+        lastProgressMap.clear()
     }
 }

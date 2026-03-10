@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.oss.licenses)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.androidx.baselineprofile)
 }
 
 android {
@@ -20,9 +21,9 @@ android {
     }
     defaultConfig {
         applicationId = "org.monogram"
-        minSdk = 24
+        minSdk = 25
         targetSdk = 36
-        versionCode = 1
+        versionCode = 2
         versionName = "1.0"
     }
 
@@ -30,7 +31,7 @@ android {
         abi {
             isEnable = true
             reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
             isUniversalApk = true
         }
     }
@@ -79,24 +80,26 @@ android {
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
-    implementation(libs.androidx.compose.material3.windowsizeclass)
-    implementation(libs.androidx.material.icons.extended.android)
-    implementation(libs.decompose)
-    implementation(libs.decompose.compose)
-    implementation(project(":domain"))
-    implementation(project(":presentation"))
-    implementation(project(":data"))
-    implementation(libs.koin.android)
-    implementation(libs.koin.compose)
-    implementation(libs.androidx.activity.compose)
+    implementation(libs.bundles.androidx.compose)
+    
+    implementation(libs.bundles.decompose)
+    implementation(libs.bundles.koin)
+    
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
+    
     implementation(libs.androidx.biometric)
     implementation(libs.play.services.oss.licenses)
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+
+    implementation(libs.maplibre.compose)
+
+    implementation(project(":domain"))
+    implementation(project(":presentation"))
+    implementation(project(":data"))
+    implementation(project(":core"))
+
+    baselineProfile(project(":baselineprofile"))
 }

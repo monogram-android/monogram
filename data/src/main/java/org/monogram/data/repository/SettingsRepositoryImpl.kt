@@ -8,10 +8,19 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.datasource.cache.SettingsCacheDataSource
 import org.monogram.data.datasource.remote.ChatsRemoteDataSource
 import org.monogram.data.datasource.remote.SettingsRemoteDataSource
+import org.monogram.data.db.dao.AttachBotDao
+import org.monogram.data.db.dao.KeyValueDao
+import org.monogram.data.db.dao.WallpaperDao
+import org.monogram.data.db.model.AttachBotEntity
+import org.monogram.data.db.model.KeyValueEntity
+import org.monogram.data.db.model.WallpaperEntity
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.mapper.mapBackgrounds
 import org.monogram.data.mapper.toApi
@@ -32,13 +41,17 @@ class SettingsRepositoryImpl(
     private val appPreferences: AppPreferencesProvider,
     private val cacheProvider: CacheProvider,
     scopeProvider: ScopeProvider,
-    private val dispatchers: DispatcherProvider
+    private val dispatchers: DispatcherProvider,
+    private val attachBotDao: AttachBotDao,
+    private val keyValueDao: KeyValueDao,
+    private val wallpaperDao: WallpaperDao
 ) : SettingsRepository {
 
     private val scope = scopeProvider.appScope
 
     private val _wallpaperUpdates = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private val _attachMenuBots = MutableStateFlow<List<AttachMenuBotModel>>(cacheProvider.attachBots.value)
+    private val _wallpapers = MutableStateFlow<List<WallpaperModel>>(emptyList())
 
     override val autoDownloadMobile = appPreferences.autoDownloadMobile
     override val autoDownloadWifi = appPreferences.autoDownloadWifi
@@ -79,6 +92,8 @@ class SettingsRepositoryImpl(
                 _attachMenuBots.value = bots
                 cacheProvider.setAttachBots(bots)
 
+                saveAttachBotsToDb(bots)
+
                 update.bots.forEach { bot ->
                     bot.androidSideMenuIcon?.let { icon ->
                         if (icon.local.path.isEmpty()) {
@@ -98,9 +113,65 @@ class SettingsRepositoryImpl(
                         val domainBots = bots.map { it.toDomain() }
                         _attachMenuBots.value = domainBots
                         cacheProvider.setAttachBots(domainBots)
+                        saveAttachBotsToDb(domainBots)
                     }
                 }
             }
+        }
+
+        scope.launch {
+            attachBotDao.getAttachBots().collect { entities ->
+                val bots = entities.mapNotNull {
+                    try {
+                        Json.decodeFromString<AttachMenuBotModel>(it.data)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                if (bots.isNotEmpty()) {
+                    _attachMenuBots.value = bots
+                    cacheProvider.setAttachBots(bots)
+                }
+            }
+        }
+
+        scope.launch {
+            keyValueDao.observeValue("cached_sim_country_iso").collect { entity ->
+                cacheProvider.setCachedSimCountryIso(entity?.value)
+            }
+        }
+
+        scope.launch {
+            wallpaperDao.getWallpapers().collect { entities ->
+                val wallpapers = entities.mapNotNull {
+                    try {
+                        Json.decodeFromString<WallpaperModel>(it.data)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                if (wallpapers.isNotEmpty()) {
+                    _wallpapers.value = wallpapers
+                }
+            }
+        }
+    }
+
+    private suspend fun saveAttachBotsToDb(bots: List<AttachMenuBotModel>) {
+        withContext(dispatchers.io) {
+            attachBotDao.clearAll()
+            attachBotDao.insertAttachBots(bots.map {
+                AttachBotEntity(it.botUserId, Json.encodeToString(it))
+            })
+        }
+    }
+
+    private suspend fun saveWallpapersToDb(wallpapers: List<WallpaperModel>) {
+        withContext(dispatchers.io) {
+            wallpaperDao.clearAll()
+            wallpaperDao.insertWallpapers(wallpapers.map {
+                WallpaperEntity(it.id, Json.encodeToString(it))
+            })
         }
     }
 
@@ -156,14 +227,17 @@ class SettingsRepositoryImpl(
     }
 
     override fun getAttachMenuBots(): Flow<List<AttachMenuBotModel>> {
-        if (_attachMenuBots.value.isEmpty()) {
-            cache.getAttachMenuBots()?.let { bots ->
-                val domainBots = bots.map { it.toDomain() }
-                _attachMenuBots.value = domainBots
-                cacheProvider.setAttachBots(domainBots)
+        return _attachMenuBots
+    }
+
+    override suspend fun setCachedSimCountryIso(iso: String?) {
+        withContext(dispatchers.io) {
+            if (iso != null) {
+                keyValueDao.insertValue(KeyValueEntity("cached_sim_country_iso", iso))
+            } else {
+                keyValueDao.deleteValue("cached_sim_country_iso")
             }
         }
-        return _attachMenuBots
     }
 
     override suspend fun getActiveSessions(): List<SessionModel> {
@@ -179,14 +253,21 @@ class SettingsRepositoryImpl(
     override fun getWallpapers(): Flow<List<WallpaperModel>> = callbackFlow {
         suspend fun fetch() {
             val result = remote.getInstalledBackgrounds(false)
-            trySend(mapBackgrounds(result?.backgrounds ?: emptyArray()))
+            val wallpapers = mapBackgrounds(result?.backgrounds ?: emptyArray())
+            _wallpapers.value = wallpapers
+            saveWallpapersToDb(wallpapers)
+            trySend(wallpapers)
         }
 
         val wallpaperJob = _wallpaperUpdates
             .onEach { fetch() }
             .launchIn(this)
 
-        fetch()
+        if (_wallpapers.value.isNotEmpty()) {
+            trySend(_wallpapers.value)
+        } else {
+            fetch()
+        }
         awaitClose { wallpaperJob.cancel() }
     }
 
@@ -196,7 +277,7 @@ class SettingsRepositoryImpl(
 
     override suspend fun getStorageUsage(): StorageUsageModel? = coroutineScope {
         val stats = remote.getStorageStatistics(100) ?: return@coroutineScope null
-        val processedChats = (stats.byChat ?: emptyArray()).map { chatStat ->
+        val processed_chats = (stats.byChat ?: emptyArray()).map { chatStat ->
             async(dispatchers.default) {
                 val title = when {
                     chatStat.chatId == 0L -> "Other / Cache"
@@ -207,7 +288,7 @@ class SettingsRepositoryImpl(
                 chatStat.toDomain(title)
             }
         }.awaitAll()
-        stats.toDomain(processedChats)
+        stats.toDomain(processed_chats)
     }
 
     override suspend fun getNetworkUsage(): NetworkUsageModel? =

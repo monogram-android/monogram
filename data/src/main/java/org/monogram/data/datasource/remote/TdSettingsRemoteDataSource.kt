@@ -1,5 +1,6 @@
 package org.monogram.data.datasource.remote
 
+import android.util.Log
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TelegramGateway
 
@@ -32,7 +33,31 @@ class TdSettingsRemoteDataSource(
         runCatching { gateway.execute(TdApi.GetStorageStatistics(chatLimit)) }.getOrNull()
 
     override suspend fun getNetworkStatistics(): TdApi.NetworkStatistics? =
-        runCatching { gateway.execute(TdApi.GetNetworkStatistics()) }.getOrNull()
+        runCatching {
+            Log.d("NetworkStats", "Fetching network statistics...")
+            val stats = gateway.execute(TdApi.GetNetworkStatistics(true))
+            Log.d("NetworkStats", "Received stats with ${stats.entries.size} entries")
+            stats.entries.forEachIndexed { index, entry ->
+                when (entry) {
+                    is TdApi.NetworkStatisticsEntryFile -> {
+                        Log.d(
+                            "NetworkStats",
+                            "Entry $index: File - Type: ${entry.fileType}, Network: ${entry.networkType}, Sent: ${entry.sentBytes}, Received: ${entry.receivedBytes}"
+                        )
+                    }
+
+                    is TdApi.NetworkStatisticsEntryCall -> {
+                        Log.d(
+                            "NetworkStats",
+                            "Entry $index: Call - Network: ${entry.networkType}, Sent: ${entry.sentBytes}, Received: ${entry.receivedBytes}, Duration: ${entry.duration}"
+                        )
+                    }
+                }
+            }
+            stats
+        }.onFailure {
+            Log.e("NetworkStats", "Failed to fetch network statistics", it)
+        }.getOrNull()
 
     override suspend fun getOption(name: String): TdApi.OptionValue? =
         runCatching { gateway.execute(TdApi.GetOption(name)) }.getOrNull()
@@ -86,7 +111,11 @@ class TdSettingsRemoteDataSource(
         }.getOrDefault(false)
 
     override suspend fun resetNetworkStatistics(): Boolean =
-        runCatching { gateway.execute(TdApi.ResetNetworkStatistics()); true }.getOrDefault(false)
+        runCatching {
+            Log.d("NetworkStats", "Resetting network statistics...")
+            gateway.execute(TdApi.ResetNetworkStatistics())
+            true
+        }.getOrDefault(false)
 
     override suspend fun downloadFile(fileId: Int, priority: Int) {
         runCatching { gateway.execute(TdApi.DownloadFile(fileId, priority, 0, 0, false)) }

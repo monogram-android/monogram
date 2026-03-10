@@ -46,6 +46,8 @@ interface SettingsRepository {
 
     fun getAttachMenuBots(): Flow<List<AttachMenuBotModel>>
 
+    suspend fun setCachedSimCountryIso(iso: String?)
+
     enum class TdNotificationScope {
         PRIVATE_CHATS, GROUPS, CHANNELS
     }

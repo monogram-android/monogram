@@ -8,8 +8,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import org.monogram.app.ui.theme.MonoGramTheme
-import org.monogram.presentation.util.AppPreferences
-import org.monogram.presentation.util.NightMode
+import org.monogram.presentation.core.util.AppPreferences
+import org.monogram.presentation.core.util.NightMode
 import java.util.*
 
 @Composable

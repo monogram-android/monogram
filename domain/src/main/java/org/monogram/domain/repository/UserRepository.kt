@@ -8,6 +8,7 @@ interface UserRepository {
     val currentUserFlow: StateFlow<UserModel?>
     suspend fun getMe(): UserModel
     suspend fun getUser(userId: Long): UserModel?
+    suspend fun getUserFullInfo(userId: Long): UserModel?
     fun getUserFlow(userId: Long): Flow<UserModel?>
     suspend fun getUserProfilePhotos(userId: Long, offset: Int = 0, limit: Int = 10): List<String>
     fun getUserProfilePhotosFlow(userId: Long): Flow<List<String>>

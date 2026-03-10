@@ -4,8 +4,10 @@ import android.os.Build
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.monogram.domain.managers.DomainManager
+import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.ExternalNavigator
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
@@ -33,6 +35,7 @@ class DefaultSettingsComponent(
     private val repository: UserRepository = container.repositories.userRepository
     private val externalNavigator: ExternalNavigator = container.utils.externalNavigator()
     private val domainManager: DomainManager = container.utils.domainManager()
+    private val preferences: AppPreferencesProvider = container.preferences.appPreferences
     override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
     private val _state = MutableValue(SettingsComponent.State())
@@ -53,6 +56,13 @@ class DefaultSettingsComponent(
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(currentUser = null) }
+            }
+        }
+        scope.launch {
+            preferences.isSupportViewed.collectLatest { viewed ->
+                if (!viewed) {
+                    _state.update { it.copy(isSupportVisible = true) }
+                }
             }
         }
         checkLinkStatus()
@@ -138,5 +148,19 @@ class DefaultSettingsComponent(
 
     override fun onDebugClicked() {
         onDebugClick()
+    }
+
+    override fun onSupportClicked() {
+        externalNavigator.openUrl("https://boosty.to/monogram")
+        onSupportDismissed()
+    }
+
+    override fun onSupportDismissed() {
+        preferences.setSupportViewed(true)
+        _state.update { it.copy(isSupportVisible = false) }
+    }
+
+    override fun onShowSupportClicked() {
+        _state.update { it.copy(isSupportVisible = true) }
     }
 }

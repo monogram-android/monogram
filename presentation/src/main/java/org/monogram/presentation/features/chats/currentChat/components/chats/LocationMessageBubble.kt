@@ -1,6 +1,5 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
-import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,19 +17,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
+import com.maplibre.compose.MapView
+import com.maplibre.compose.camera.CameraState.Centered
+import com.maplibre.compose.camera.MapViewCamera
+import com.maplibre.compose.rememberSaveableMapViewCamera
+import com.maplibre.compose.symbols.Symbol
+import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.maps.MapLibreMapOptions
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 import org.monogram.presentation.features.profile.ProfileComponent
 import org.monogram.presentation.features.profile.components.LocationViewer
-import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
+
+private const val MAP_STYLE = "https://tiles.openfreemap.org/styles/bright"
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -54,6 +58,7 @@ fun LocationMessageBubble(
     val smallCorner = (bubbleRadius / 4f).coerceAtLeast(4f).dp
     val tailCorner = 2.dp
     var showLocationViewer by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     val bubbleShape = RoundedCornerShape(
         topStart = if (!isOutgoing && isSameSenderAbove) smallCorner else cornerRadius,
@@ -71,6 +76,24 @@ fun LocationMessageBubble(
     val contentColor =
         if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
     val timeColor = contentColor.copy(alpha = 0.7f)
+    val camera = rememberSaveableMapViewCamera(
+        MapViewCamera(
+            Centered(
+                content.latitude,
+                content.longitude,
+            ),
+        )
+    )
+    val mapOptions = remember {
+        MapLibreMapOptions.createFromAttributes(context, null).apply {
+            scrollGesturesEnabled(false)
+            zoomGesturesEnabled(false)
+            tiltGesturesEnabled(false)
+            rotateGesturesEnabled(false)
+            doubleTapGesturesEnabled(false)
+            textureMode(true)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -110,25 +133,19 @@ fun LocationMessageBubble(
                         .height(180.dp)
                         .clip(RoundedCornerShape(bubbleRadius.dp / 2f))
                 ) {
-                    AndroidView(
-                        factory = { ctx ->
-                            Configuration.getInstance()
-                                .load(ctx, ctx.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
-                            MapView(ctx).apply {
-                                setTileSource(TileSourceFactory.MAPNIK)
-                                setMultiTouchControls(false)
-                                controller.setZoom(15.0)
-                                val startPoint = GeoPoint(content.latitude, content.longitude)
-                                controller.setCenter(startPoint)
-
-                                val marker = Marker(this)
-                                marker.position = startPoint
-                                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                overlays.add(marker)
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    MapView(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        camera = camera,
+                        styleUrl = MAP_STYLE,
+                        mapOptions = mapOptions
+                    ) {
+                        Symbol(
+                            center = LatLng(content.latitude, content.longitude),
+                            imageId = R.drawable.ic_map_marker,
+                            size = 2f
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -228,6 +245,7 @@ fun VenueMessageBubble(
     val smallCorner = (bubbleRadius / 4f).coerceAtLeast(4f).dp
     val tailCorner = 2.dp
     var showLocationViewer by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     val bubbleShape = RoundedCornerShape(
         topStart = if (!isOutgoing && isSameSenderAbove) smallCorner else cornerRadius,
@@ -245,7 +263,24 @@ fun VenueMessageBubble(
     val contentColor =
         if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
     val timeColor = contentColor.copy(alpha = 0.7f)
-
+    val camera = rememberSaveableMapViewCamera(
+        MapViewCamera(
+            Centered(
+                content.latitude,
+                content.longitude,
+            ),
+        )
+    )
+    val mapOptions = remember {
+        MapLibreMapOptions.createFromAttributes(context, null).apply {
+            scrollGesturesEnabled(true)
+            zoomGesturesEnabled(true)
+            tiltGesturesEnabled(false)
+            rotateGesturesEnabled(false)
+            doubleTapGesturesEnabled(true)
+            textureMode(true)
+        }
+    }
     Column(
         modifier = Modifier
             .padding(horizontal = 8.dp, vertical = 2.dp)
@@ -284,25 +319,19 @@ fun VenueMessageBubble(
                         .height(180.dp)
                         .clip(RoundedCornerShape(bubbleRadius.dp / 2f))
                 ) {
-                    AndroidView(
-                        factory = { ctx ->
-                            Configuration.getInstance()
-                                .load(ctx, ctx.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
-                            MapView(ctx).apply {
-                                setTileSource(TileSourceFactory.MAPNIK)
-                                setMultiTouchControls(false)
-                                controller.setZoom(15.0)
-                                val startPoint = GeoPoint(content.latitude, content.longitude)
-                                controller.setCenter(startPoint)
-
-                                val marker = Marker(this)
-                                marker.position = startPoint
-                                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                overlays.add(marker)
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    MapView(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        camera = camera,
+                        styleUrl = MAP_STYLE,
+                        mapOptions = mapOptions
+                    ) {
+                        Symbol(
+                            center = LatLng(content.latitude, content.longitude),
+                            imageId = R.drawable.ic_map_marker,
+                            size = 2f
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()

@@ -1,7 +1,6 @@
 package org.monogram.presentation.settings.profile
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -26,29 +25,31 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.maplibre.compose.MapView
+import com.maplibre.compose.camera.CameraState
+import com.maplibre.compose.camera.MapViewCamera
+import com.maplibre.compose.rememberSaveableMapViewCamera
+import com.maplibre.compose.symbols.Symbol
 import kotlinx.coroutines.delay
+import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.maps.MapLibreMapOptions
 import org.monogram.domain.models.BirthdateModel
 import org.monogram.domain.models.BusinessOpeningHoursIntervalModel
 import org.monogram.domain.models.BusinessOpeningHoursModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
+import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.util.FileUtils
 import org.monogram.presentation.features.chats.chatList.components.SectionHeader
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
-import org.monogram.presentation.core.ui.ItemPosition
-import org.osmdroid.config.Configuration
-import org.osmdroid.events.MapEventsReceiver
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.MapEventsOverlay
-import org.osmdroid.views.overlay.Marker
 import java.util.*
+
+private const val MAP_STYLE = "https://tiles.openfreemap.org/styles/bright"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +66,17 @@ fun EditProfileContent(component: EditProfileComponent) {
             }
         }
     )
+
+    val mapOptions = remember {
+        MapLibreMapOptions.createFromAttributes(context, null).apply {
+            scrollGesturesEnabled(true)
+            zoomGesturesEnabled(true)
+            tiltGesturesEnabled(true)
+            rotateGesturesEnabled(true)
+            doubleTapGesturesEnabled(true)
+            textureMode(true)
+        }
+    }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showWorkHoursSheet by remember { mutableStateOf(false) }
@@ -533,15 +545,33 @@ fun EditProfileContent(component: EditProfileComponent) {
             onDismissRequest = { showGeoDialog = false },
             properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            var selectedPoint by remember {
+            var selectedLatitude by remember {
                 mutableStateOf(
                     if (state.businessLatitude != 0.0 || state.businessLongitude != 0.0) {
-                        GeoPoint(state.businessLatitude, state.businessLongitude)
+                        state.businessLatitude
                     } else {
-                        GeoPoint(51.505, -0.09)
+                        51.505
                     }
                 )
             }
+            var selectedLongitude by remember {
+                mutableStateOf(
+                    if (state.businessLatitude != 0.0 || state.businessLongitude != 0.0) {
+                        state.businessLongitude
+                    } else {
+                        -0.09
+                    }
+                )
+            }
+
+            val camera = rememberSaveableMapViewCamera(
+                MapViewCamera(
+                    CameraState.Centered(
+                        selectedLatitude,
+                        selectedLongitude,
+                    ),
+                )
+            )
 
             val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
             val permissionLauncher = rememberLauncherForActivityResult(
@@ -553,7 +583,8 @@ fun EditProfileContent(component: EditProfileComponent) {
                     fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                         .addOnSuccessListener { location ->
                             location?.let {
-                                selectedPoint = GeoPoint(it.latitude, it.longitude)
+                                selectedLatitude = it.latitude
+                                selectedLongitude = it.longitude
                                 component.onReverseGeocode(it.latitude, it.longitude)
                             }
                         }
@@ -587,7 +618,8 @@ fun EditProfileContent(component: EditProfileComponent) {
                                     fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                                         .addOnSuccessListener { location ->
                                             location?.let {
-                                                selectedPoint = GeoPoint(it.latitude, it.longitude)
+                                                selectedLatitude = it.latitude
+                                                selectedLongitude = it.longitude
                                                 component.onReverseGeocode(it.latitude, it.longitude)
                                             }
                                         }
@@ -611,43 +643,24 @@ fun EditProfileContent(component: EditProfileComponent) {
                         .fillMaxSize()
                         .padding(padding)
                 ) {
-                    AndroidView(
-                        factory = { ctx ->
-                            Configuration.getInstance()
-                                .load(ctx, ctx.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
-                            MapView(ctx).apply {
-                                setTileSource(TileSourceFactory.MAPNIK)
-                                setMultiTouchControls(true)
-                                controller.setZoom(15.0)
-                                controller.setCenter(selectedPoint)
-
-                                val marker = Marker(this)
-                                marker.position = selectedPoint
-                                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                overlays.add(marker)
-
-                                val eventsOverlay = MapEventsOverlay(object : MapEventsReceiver {
-                                    override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
-                                        selectedPoint = p
-                                        marker.position = p
-                                        invalidate()
-                                        component.onReverseGeocode(p.latitude, p.longitude)
-                                        return true
-                                    }
-
-                                    override fun longPressHelper(p: GeoPoint): Boolean = false
-                                })
-                                overlays.add(eventsOverlay)
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                        update = { mapView ->
-                            mapView.overlays.filterIsInstance<Marker>().firstOrNull()?.position = selectedPoint
-                            if (mapView.mapCenter.latitude != selectedPoint.latitude || mapView.mapCenter.longitude != selectedPoint.longitude) {
-                                mapView.controller.animateTo(selectedPoint)
-                            }
+                    MapView(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        camera = camera,
+                        styleUrl = MAP_STYLE,
+                        mapOptions = mapOptions,
+                        onTapGestureCallback = { coordinate ->
+                            selectedLatitude = coordinate.coordinate.latitude
+                            selectedLongitude = coordinate.coordinate.longitude
+                            component.onReverseGeocode(coordinate.coordinate.latitude, coordinate.coordinate.longitude)
                         }
-                    )
+                    ) {
+                        Symbol(
+                            center = LatLng(selectedLatitude, selectedLongitude),
+                            imageId = R.drawable.ic_map_marker,
+                            size = 2f
+                        )
+                    }
 
                     Icon(
                         Icons.Rounded.Add,
@@ -674,8 +687,8 @@ fun EditProfileContent(component: EditProfileComponent) {
                                 onValueChange = {
                                     component.onUpdateBusinessAddress(
                                         it,
-                                        selectedPoint.latitude,
-                                        selectedPoint.longitude
+                                        selectedLatitude,
+                                        selectedLongitude
                                     )
                                 },
                                 label = { Text("Address") },
@@ -695,8 +708,8 @@ fun EditProfileContent(component: EditProfileComponent) {
                                 onClick = {
                                     component.onUpdateBusinessAddress(
                                         state.businessAddress,
-                                        selectedPoint.latitude,
-                                        selectedPoint.longitude
+                                        selectedLatitude,
+                                        selectedLongitude
                                     )
                                     showGeoDialog = false
                                 },

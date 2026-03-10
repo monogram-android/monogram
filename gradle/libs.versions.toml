@@ -34,7 +34,7 @@ koin = "4.1.1"
 # UI & Media
 coil = "3.4.0"
 lottie = "6.7.1"
-osmdroid = "6.1.20"
+maplibre = "1.4.1"
 
 # Google & Firebase
 firebase-bom = "34.10.0"
@@ -126,7 +126,7 @@ play-services-oss-licenses = { group = "com.google.android.gms", name = "play-se
 
 # Others
 lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
-osmdroid-android = { module = "org.osmdroid:osmdroid-android", version.ref = "osmdroid" }
+maplibre-compose = { module = "io.github.rallista:maplibre-compose", version.ref = "maplibre" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 
 [bundles]

@@ -28,12 +28,16 @@ interface SettingsComponent {
     fun onStickersClicked()
     fun onAboutClicked()
     fun onDebugClicked()
+    fun onSupportClicked()
+    fun onSupportDismissed()
+    fun onShowSupportClicked()
 
     data class State(
         val currentUser: UserModel? = null,
         val areNotificationsEnabled: Boolean = true,
         val isTMeLinkEnabled: Boolean = true,
         val isQrVisible: Boolean = false,
-        val qrContent: String = ""
+        val qrContent: String = "",
+        val isSupportVisible: Boolean = false
     )
 }

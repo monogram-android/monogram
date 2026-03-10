@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
@@ -41,10 +42,6 @@ import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.core.util.formatMaskedGlobal
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.presentation.settings.sessions.SectionHeader
-import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.core.ui.SettingsItem
-import org.monogram.presentation.core.ui.UserProfileHeader
-import org.monogram.presentation.core.ui.UsernamesTile
 
 val QrBackgroundColor = Color(0xFFEFF1E6)
 val QrDarkGreen = Color(0xFF3E4D36)
@@ -170,6 +167,62 @@ fun SettingsContent(component: SettingsComponent) {
                         colors = ButtonDefaults.buttonColors(containerColor = QrDarkGreen),
                         shape = RoundedCornerShape(12.dp)
                     ) { Text("Share") }
+                }
+            }
+        }
+    }
+
+    if (state.isSupportVisible) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = component::onSupportDismissed,
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 48.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Favorite,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = pinkColor
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Support MonoGram",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "MonoGram is a free and open-source project. Your support helps us to keep it alive and develop new features.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                Button(
+                    onClick = component::onSupportClicked,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Support on Boosty")
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                TextButton(
+                    onClick = component::onSupportDismissed,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Maybe later")
                 }
             }
         }
@@ -347,7 +400,9 @@ fun SettingsContent(component: SettingsComponent) {
                 val bottomPadding = navBarInsets.calculateBottomPadding() + 80.dp
 
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().semantics { contentDescription = "SettingsList" },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .semantics { contentDescription = "SettingsList" },
                     contentPadding = PaddingValues(
                         start = 16.dp,
                         end = 16.dp,
@@ -552,8 +607,16 @@ fun SettingsContent(component: SettingsComponent) {
                             title = "Telegram Premium",
                             subtitle = "Unlock exclusive features",
                             iconBackgroundColor = purpleColor,
-                            position = ItemPosition.STANDALONE,
+                            position = ItemPosition.TOP,
                             onClick = component::onPremiumClicked
+                        )
+                        SettingsItem(
+                            icon = Icons.Rounded.Favorite,
+                            title = "Support MonoGram",
+                            subtitle = "Help us develop the project",
+                            iconBackgroundColor = pinkColor,
+                            position = ItemPosition.BOTTOM,
+                            onClick = component::onShowSupportClicked
                         )
                     }
 

@@ -99,6 +99,7 @@ val dataModule = module {
     single { get<MonogramDatabase>().keyValueDao() }
     single { get<MonogramDatabase>().notificationSettingDao() }
     single { get<MonogramDatabase>().wallpaperDao() }
+    single { get<MonogramDatabase>().stickerPathDao() }
 
     single<UserLocalDataSource> {
         RoomUserLocalDataSource(
@@ -308,7 +309,8 @@ val dataModule = module {
             context = androidContext(),
             scopeProvider = get(),
             stickerSetDao = get(),
-            recentEmojiDao = get()
+            recentEmojiDao = get(),
+            stickerPathDao = get()
         )
     }
 

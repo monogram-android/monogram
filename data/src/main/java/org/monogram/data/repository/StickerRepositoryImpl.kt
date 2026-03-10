@@ -14,8 +14,10 @@ import kotlinx.serialization.json.Json
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.datasource.remote.StickerRemoteSource
 import org.monogram.data.db.dao.RecentEmojiDao
+import org.monogram.data.db.dao.StickerPathDao
 import org.monogram.data.db.dao.StickerSetDao
 import org.monogram.data.db.model.RecentEmojiEntity
+import org.monogram.data.db.model.StickerPathEntity
 import org.monogram.data.db.model.StickerSetEntity
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.EmojiLoader
@@ -42,6 +44,7 @@ class StickerRepositoryImpl(
     private val context: Context,
     private val stickerSetDao: StickerSetDao,
     private val recentEmojiDao: RecentEmojiDao,
+    private val stickerPathDao: StickerPathDao,
     scopeProvider: ScopeProvider
 ) : StickerRepository {
 
@@ -294,11 +297,19 @@ class StickerRepositoryImpl(
     override fun getStickerFile(fileId: Long): Flow<String?> = channelFlow {
         filePathsCache[fileId]?.let { send(it); return@channelFlow }
 
+        val dbPath = stickerPathDao.getPath(fileId)
+        if (dbPath != null) {
+            filePathsCache[fileId] = dbPath
+            send(dbPath)
+            return@channelFlow
+        }
+
         val job = launch {
             fileUpdateHandler.downloadCompleted
                 .filter { it.first == fileId }
                 .collect { (_, path) ->
                     filePathsCache[fileId] = path
+                    stickerPathDao.insertPath(StickerPathEntity(fileId, path))
                     send(path)
                 }
         }
@@ -310,6 +321,7 @@ class StickerRepositoryImpl(
 
         if (cachedPath != null) {
             filePathsCache[fileId] = cachedPath
+            stickerPathDao.insertPath(StickerPathEntity(fileId, cachedPath))
             send(cachedPath)
             job.cancel()
             return@channelFlow
@@ -344,6 +356,9 @@ class StickerRepositoryImpl(
         cachedEmojis = null
         fallbackEmojisCache = null
         invalidateStickerSetCaches()
+        scope.launch {
+            stickerPathDao.clearAll()
+        }
     }
 
     private fun invalidateStickerSetCaches() {

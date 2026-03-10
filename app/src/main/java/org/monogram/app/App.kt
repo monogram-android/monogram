@@ -17,6 +17,8 @@ import org.koin.android.ext.android.get
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
+import org.maplibre.android.MapLibre
+import org.maplibre.android.WellKnownTileServer
 import org.monogram.app.di.*
 import org.monogram.core.Logger
 import org.monogram.data.di.TdLibClient
@@ -43,6 +45,7 @@ class App : Application(), SingletonImageLoader.Factory {
         initCrashHandler()
         initKoin()
         initTdLib()
+        initMapLibre()
         checkGmsAvailability()
     }
 
@@ -81,6 +84,10 @@ class App : Application(), SingletonImageLoader.Factory {
         get<TdLibClient>()
         get<AuthRepository>()
         get<TdNotificationManager>()
+    }
+
+    private fun initMapLibre() {
+        MapLibre.getInstance(this, null, WellKnownTileServer.MapLibre)
     }
 
     private fun checkGmsAvailability() {

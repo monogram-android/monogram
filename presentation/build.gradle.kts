@@ -16,7 +16,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 25
         consumerProguardFiles("consumer-rules.pro")
         externalNativeBuild {
             cmake {
@@ -108,7 +108,7 @@ dependencies {
     implementation(libs.zxing.core)
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.security.crypto)
-    implementation(libs.osmdroid.android)
+    implementation(libs.maplibre.compose)
     implementation(libs.play.services.oss.licenses)
     implementation(libs.play.services.location)
 }

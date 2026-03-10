@@ -21,7 +21,7 @@ android {
     }
     defaultConfig {
         applicationId = "org.monogram"
-        minSdk = 24
+        minSdk = 25
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -93,6 +93,8 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+
+    implementation(libs.maplibre.compose)
 
     implementation(project(":domain"))
     implementation(project(":presentation"))

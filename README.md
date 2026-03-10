@@ -22,7 +22,7 @@ Monogram is built to deliver a native and seamless Telegram experience. Powered 
 * **Async:** Kotlin Coroutines & Flow.
 * **Media:** Media3/ExoPlayer (playback), Coil 3 (GIF/SVG/video frames), Lottie (animations).
 * **Camera & ML:** CameraX + ML Kit Vision (lightning-fast QR/barcode scanning).
-* **Maps:** OSMDroid (open-source native map rendering).
+* **Maps:** MapLibre (open-source native map rendering).
 * **Security:** Biometric Compose (app locking), Security Crypto (safe local data storage).
 
 ##  Getting Started

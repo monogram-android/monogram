@@ -1,6 +1,5 @@
 package org.monogram.presentation.features.profile.components
 
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
@@ -21,14 +20,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
+import com.maplibre.compose.MapView
+import com.maplibre.compose.camera.CameraState
+import com.maplibre.compose.camera.MapViewCamera
+import com.maplibre.compose.rememberSaveableMapViewCamera
+import com.maplibre.compose.symbols.Symbol
+import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.maps.MapLibreMapOptions
+import org.monogram.presentation.R
 import org.monogram.presentation.features.profile.ProfileComponent
-import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
+
+private const val MAP_STYLE = "https://tiles.openfreemap.org/styles/bright"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +44,25 @@ fun LocationViewer(
     )
     var showMapsSelection by remember { mutableStateOf(false) }
     var isNavigationMode by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val camera = rememberSaveableMapViewCamera(
+        MapViewCamera(
+            CameraState.Centered(
+                location.latitude,
+                location.longitude,
+            ),
+        )
+    )
+    val mapOptions = remember {
+        MapLibreMapOptions.createFromAttributes(context, null).apply {
+            scrollGesturesEnabled(true)
+            zoomGesturesEnabled(true)
+            tiltGesturesEnabled(false)
+            rotateGesturesEnabled(false)
+            doubleTapGesturesEnabled(true)
+            textureMode(true)
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -69,25 +91,19 @@ fun LocationViewer(
                     .height(240.dp)
                     .clip(RoundedCornerShape(16.dp))
             ) {
-                AndroidView(
-                    factory = { ctx ->
-                        Configuration.getInstance()
-                            .load(ctx, ctx.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
-                        MapView(ctx).apply {
-                            setTileSource(TileSourceFactory.MAPNIK)
-                            setMultiTouchControls(true)
-                            controller.setZoom(16.0)
-                            val startPoint = GeoPoint(location.latitude, location.longitude)
-                            controller.setCenter(startPoint)
-
-                            val marker = Marker(this)
-                            marker.position = startPoint
-                            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                            overlays.add(marker)
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+                MapView(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    camera = camera,
+                    styleUrl = MAP_STYLE,
+                    mapOptions = mapOptions
+                ) {
+                    Symbol(
+                        center = LatLng(location.latitude, location.longitude),
+                        imageId = R.drawable.ic_map_marker,
+                        size = 2f
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

@@ -6,7 +6,12 @@ import org.monogram.core.ScopeProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.db.dao.ChatFolderDao
+import org.monogram.data.db.model.ChatFolderEntity
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.domain.models.FolderModel
 import org.monogram.domain.repository.CacheProvider
@@ -19,12 +24,14 @@ class ChatFolderManager(
     private val dispatchers: DispatcherProvider,
     scopeProvider: ScopeProvider,
     private val foldersFlow: MutableStateFlow<List<FolderModel>>,
-    private val cacheProvider: CacheProvider
+    private val cacheProvider: CacheProvider,
+    private val chatFolderDao: ChatFolderDao
 ) {
     private val scope = scopeProvider.appScope
 
     private val chatUnreadCounts = ConcurrentHashMap<Long, Int>()
     private val folderChatIds = ConcurrentHashMap<Int, List<Long>>()
+    private val folderPinnedChatIds = ConcurrentHashMap<Int, List<Long>>()
 
     init {
         val cachedFolders = cacheProvider.chatFolders.value
@@ -33,6 +40,29 @@ class ChatFolderManager(
             cachedFolders.forEach { folder ->
                 if (folder.id > 0) {
                     folderChatIds[folder.id] = folder.includedChatIds
+                    folderPinnedChatIds[folder.id] = folder.pinnedChatIds
+                }
+            }
+        }
+
+        scope.launch {
+            chatFolderDao.getChatFolders().collect { entities ->
+                val folders = entities.mapNotNull {
+                    try {
+                        Json.decodeFromString<FolderModel>(it.data)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                if (folders.isNotEmpty()) {
+                    foldersFlow.update { folders }
+                    cacheProvider.setChatFolders(folders)
+                    folders.forEach { folder ->
+                        if (folder.id > 0) {
+                            folderChatIds[folder.id] = folder.includedChatIds
+                            folderPinnedChatIds[folder.id] = folder.pinnedChatIds
+                        }
+                    }
                 }
             }
         }
@@ -42,34 +72,60 @@ class ChatFolderManager(
         val folderInfos = update.chatFolders
         Log.d(TAG, "handleChatFoldersUpdate: ${folderInfos.size} folders")
 
+        val currentFolders = foldersFlow.value
         val newFolders = listOf(FolderModel(-1, "Все", "All")) +
-                folderInfos.map { info -> FolderModel(info.id, info.name.text.text, info.icon?.name, 0) }
+                folderInfos.map { info ->
+                    val existing = currentFolders.find { it.id == info.id }
+                    FolderModel(
+                        id = info.id,
+                        title = info.name.text.text,
+                        iconName = info.icon?.name,
+                        unreadCount = existing?.unreadCount ?: 0,
+                        includedChatIds = existing?.includedChatIds ?: emptyList(),
+                        pinnedChatIds = existing?.pinnedChatIds ?: emptyList()
+                    )
+                }
 
         foldersFlow.update { newFolders }
         cacheProvider.setChatFolders(newFolders)
+        saveFoldersToDb(newFolders)
 
         folderInfos.forEach { info ->
             scope.launch(dispatchers.io) {
                 runCatching {
                     val result = gateway.execute(TdApi.GetChatFolder(info.id))
                     val chatIds = result.includedChatIds.toList()
+                    val pinnedIds = result.pinnedChatIds.toList()
                     folderChatIds[info.id] = chatIds
-                    Log.d(TAG, "Folder ${info.id} (${info.name.text.text}) has ${chatIds.size} chats")
+                    folderPinnedChatIds[info.id] = pinnedIds
+                    Log.d(TAG, "Folder ${info.id} (${info.name.text.text}) has ${chatIds.size} chats, ${pinnedIds.size} pinned")
 
                     foldersFlow.update { current ->
                         val updated = current.map { folder ->
                             if (folder.id == info.id) folder.copy(
                                 unreadCount = chatIds.sumOf { chatUnreadCounts[it] ?: 0 },
-                                includedChatIds = chatIds
+                                includedChatIds = chatIds,
+                                pinnedChatIds = pinnedIds
                             ) else folder
                         }
                         cacheProvider.setChatFolders(updated)
+                        saveFoldersToDb(updated)
                         updated
                     }
                 }.onFailure { e ->
                     Log.e(TAG, "Failed to fetch folder ${info.id}", e)
                 }
             }
+        }
+    }
+
+    private fun saveFoldersToDb(folders: List<FolderModel>) {
+        scope.launch(dispatchers.io) {
+            val entities = folders.mapIndexed { index, folder ->
+                ChatFolderEntity(folder.id, Json.encodeToString(folder), index)
+            }
+            chatFolderDao.clearAll()
+            chatFolderDao.insertChatFolders(entities)
         }
     }
 
@@ -132,8 +188,17 @@ class ChatFolderManager(
             val remaining = user.filter { it.id !in userFolderIdsOnly }
             val newList = system + sorted + remaining
             cacheProvider.setChatFolders(newList)
+            saveFoldersToDb(newList)
             newList
         }
         gateway.execute(TdApi.ReorderChatFolders(userFolderIdsOnly.toIntArray(), 0))
+    }
+
+    fun getPinnedChatIds(folderId: Int): List<Long> {
+        return folderPinnedChatIds[folderId] ?: emptyList()
+    }
+
+    fun getIncludedChatIds(folderId: Int): List<Long> {
+        return folderChatIds[folderId] ?: emptyList()
     }
 }

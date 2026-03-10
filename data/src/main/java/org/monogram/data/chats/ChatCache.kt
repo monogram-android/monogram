@@ -266,6 +266,7 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
     }
 
     fun putChatFromEntity(entity: org.monogram.data.db.model.ChatEntity) {
+        val chatList = if (entity.isArchived) TdApi.ChatListArchive() else TdApi.ChatListMain()
         val chat = TdApi.Chat().apply {
             id = entity.id
             title = entity.title
@@ -279,7 +280,7 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                 content = TdApi.MessageText().apply { text = TdApi.FormattedText(entity.lastMessageText, emptyArray()) }
                 date = 0
             }
-            positions = arrayOf(TdApi.ChatPosition(TdApi.ChatListMain(), entity.order, entity.isPinned, null))
+            positions = arrayOf(TdApi.ChatPosition(chatList, entity.order, entity.isPinned, null))
             notificationSettings = TdApi.ChatNotificationSettings().apply {
                 muteFor = if (entity.isMuted) Int.MAX_VALUE else 0
             }

@@ -9,28 +9,35 @@ import org.monogram.domain.models.AttachMenuBotModel
 import org.monogram.domain.models.FolderModel
 import org.monogram.domain.models.GifModel
 import org.monogram.domain.models.RecentEmojiModel
+import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.repository.CacheProvider
 
 class CachePreferences(private val context: Context) : CacheProvider {
     private val prefs: SharedPreferences = context.getSharedPreferences("monogram_cache", Context.MODE_PRIVATE)
 
-    private val _recentEmojis = MutableStateFlow(getRecentEmojisFromPrefs())
+    private val _recentEmojis = MutableStateFlow<List<RecentEmojiModel>>(emptyList())
     override val recentEmojis: StateFlow<List<RecentEmojiModel>> = _recentEmojis
 
-    private val _searchHistory = MutableStateFlow(getSearchHistoryFromPrefs())
+    private val _searchHistory = MutableStateFlow<List<Long>>(emptyList())
     override val searchHistory: StateFlow<List<Long>> = _searchHistory
 
-    private val _chatFolders = MutableStateFlow(getChatFoldersFromPrefs())
+    private val _chatFolders = MutableStateFlow<List<FolderModel>>(emptyList())
     override val chatFolders: StateFlow<List<FolderModel>> = _chatFolders
 
-    private val _attachBots = MutableStateFlow(getAttachBotsFromPrefs())
+    private val _attachBots = MutableStateFlow<List<AttachMenuBotModel>>(emptyList())
     override val attachBots: StateFlow<List<AttachMenuBotModel>> = _attachBots
 
-    private val _cachedSimCountryIso = MutableStateFlow(prefs.getString(KEY_CACHED_SIM_COUNTRY_ISO, null))
+    private val _cachedSimCountryIso = MutableStateFlow<String?>(null)
     override val cachedSimCountryIso: StateFlow<String?> = _cachedSimCountryIso
 
     private val _savedGifs = MutableStateFlow(getSavedGifsFromPrefs())
     override val savedGifs: StateFlow<List<GifModel>> = _savedGifs
+
+    private val _installedStickerSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
+    override val installedStickerSets: StateFlow<List<StickerSetModel>> = _installedStickerSets
+
+    private val _customEmojiStickerSets = MutableStateFlow<List<StickerSetModel>>(emptyList())
+    override val customEmojiStickerSets: StateFlow<List<StickerSetModel>> = _customEmojiStickerSets
 
     override fun addRecentEmoji(recentEmoji: RecentEmojiModel) {
         val current = _recentEmojis.value.toMutableList()
@@ -40,12 +47,14 @@ class CachePreferences(private val context: Context) : CacheProvider {
             current.removeAt(current.lastIndex)
         }
         _recentEmojis.value = current
-        prefs.edit().putString(KEY_RECENT_EMOJIS, Json.encodeToString(current)).apply()
     }
 
     override fun clearRecentEmojis() {
         _recentEmojis.value = emptyList()
-        prefs.edit().remove(KEY_RECENT_EMOJIS).apply()
+    }
+
+    override fun setRecentEmojis(emojis: List<RecentEmojiModel>) {
+        _recentEmojis.value = emojis
     }
 
     override fun addSearchChatId(chatId: Long) {
@@ -56,38 +65,32 @@ class CachePreferences(private val context: Context) : CacheProvider {
             current.removeAt(current.lastIndex)
         }
         _searchHistory.value = current
-        prefs.edit().putString(KEY_SEARCH_HISTORY, Json.encodeToString(current)).apply()
     }
 
     override fun removeSearchChatId(chatId: Long) {
         val current = _searchHistory.value.toMutableList()
         if (current.remove(chatId)) {
             _searchHistory.value = current
-            prefs.edit().putString(KEY_SEARCH_HISTORY, Json.encodeToString(current)).apply()
         }
     }
 
     override fun clearSearchHistory() {
         _searchHistory.value = emptyList()
-        prefs.edit().remove(KEY_SEARCH_HISTORY).apply()
+    }
+
+    override fun setSearchHistory(history: List<Long>) {
+        _searchHistory.value = history
     }
 
     override fun setChatFolders(folders: List<FolderModel>) {
-        prefs.edit().putString(KEY_CHAT_FOLDERS, Json.encodeToString(folders)).apply()
         _chatFolders.value = folders
     }
 
     override fun setAttachBots(bots: List<AttachMenuBotModel>) {
-        prefs.edit().putString(KEY_ATTACH_BOTS, Json.encodeToString(bots)).apply()
         _attachBots.value = bots
     }
 
     override fun setCachedSimCountryIso(iso: String?) {
-        if (iso != null) {
-            prefs.edit().putString(KEY_CACHED_SIM_COUNTRY_ISO, iso).apply()
-        } else {
-            prefs.edit().remove(KEY_CACHED_SIM_COUNTRY_ISO).apply()
-        }
         _cachedSimCountryIso.value = iso
     }
 
@@ -104,44 +107,12 @@ class CachePreferences(private val context: Context) : CacheProvider {
         _savedGifs.value = gifs
     }
 
-    private fun getRecentEmojisFromPrefs(): List<RecentEmojiModel> {
-        val json = prefs.getString(KEY_RECENT_EMOJIS, null) ?: return emptyList()
-        return try {
-            Json.decodeFromString(json)
-        } catch (e: Exception) {
-            try {
-                Json.decodeFromString<List<String>>(json).map { RecentEmojiModel(it) }
-            } catch (e2: Exception) {
-                emptyList()
-            }
-        }
+    override fun setInstalledStickerSets(sets: List<StickerSetModel>) {
+        _installedStickerSets.value = sets
     }
 
-    private fun getSearchHistoryFromPrefs(): List<Long> {
-        return try {
-            val json = prefs.getString(KEY_SEARCH_HISTORY, null) ?: return emptyList()
-            Json.decodeFromString<List<Long>>(json)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun getChatFoldersFromPrefs(): List<FolderModel> {
-        val json = prefs.getString(KEY_CHAT_FOLDERS, null) ?: return emptyList()
-        return try {
-            Json.decodeFromString(json)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun getAttachBotsFromPrefs(): List<AttachMenuBotModel> {
-        val json = prefs.getString(KEY_ATTACH_BOTS, null) ?: return emptyList()
-        return try {
-            Json.decodeFromString(json)
-        } catch (e: Exception) {
-            emptyList()
-        }
+    override fun setCustomEmojiStickerSets(sets: List<StickerSetModel>) {
+        _customEmojiStickerSets.value = sets
     }
 
     private fun getSavedGifsFromPrefs(): List<GifModel> {
@@ -154,11 +125,6 @@ class CachePreferences(private val context: Context) : CacheProvider {
     }
 
     companion object {
-        private const val KEY_RECENT_EMOJIS = "recent_emojis"
-        private const val KEY_SEARCH_HISTORY = "search_history"
-        private const val KEY_CHAT_FOLDERS = "chat_folders"
-        private const val KEY_ATTACH_BOTS = "attach_bots"
-        private const val KEY_CACHED_SIM_COUNTRY_ISO = "cached_sim_country_iso"
         private const val KEY_SAVED_GIFS = "saved_gifs"
     }
 }

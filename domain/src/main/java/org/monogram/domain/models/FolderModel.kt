@@ -9,5 +9,6 @@ data class FolderModel(
     val title: String,
     val iconName: String? = null,
     val unreadCount: Int = 0,
-    val includedChatIds: List<Long> = emptyList()
+    val includedChatIds: List<Long> = emptyList(),
+    val pinnedChatIds: List<Long> = emptyList()
 )

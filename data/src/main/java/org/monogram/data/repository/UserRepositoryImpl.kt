@@ -424,6 +424,7 @@ class UserRepositoryImpl(
 
     private fun TdApi.Chat.toEntity(): org.monogram.data.db.model.ChatEntity {
         val isChannel = (type as? TdApi.ChatTypeSupergroup)?.isChannel ?: false
+        val isArchived = positions.any { it.list is TdApi.ChatListArchive }
         return org.monogram.data.db.model.ChatEntity(
             id = id,
             title = title,
@@ -443,6 +444,7 @@ class UserRepositoryImpl(
                 is TdApi.ChatTypeSecret -> "SECRET"
                 else -> "PRIVATE"
             },
+            isArchived = isArchived,
             createdAt = System.currentTimeMillis()
         )
     }

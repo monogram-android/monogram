@@ -17,5 +17,6 @@ data class ChatEntity(
     val isChannel: Boolean,
     val isGroup: Boolean,
     val type: String,
+    val isArchived: Boolean,
     val createdAt: Long = System.currentTimeMillis()
 )

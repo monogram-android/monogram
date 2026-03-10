@@ -44,6 +44,8 @@ class ChatModelFactory(
         var hasAutomaticTranslation = false
         var personalAvatarPath: String? = null
 
+        val isArchived = chat.positions.any { it.list is TdApi.ChatListArchive }
+
         when (val type = chat.type) {
             is TdApi.ChatTypeBasicGroup -> {
                 cache.basicGroups[type.basicGroupId]?.let {
@@ -179,12 +181,32 @@ class ChatModelFactory(
         }
 
         return chatMapper.mapChatToModel(
-            chat, order, isPinned, finalPath, photoId, isOnline, userStatus,
-            isVerified, isForum, isBot, memberCount, onlineCount, emojiPath,
-            typingManager.formatTypingAction(chat.id), txt, entities, time,
-            isMuted = isMuted, isAdmin = isAdmin, isMember = isMember,
-            username = username, usernames = usernames, description = description,
-            inviteLink = inviteLink, hasAutomaticTranslation = hasAutomaticTranslation,
+            chat = chat,
+            order = order,
+            isPinned = isPinned,
+            isArchived = isArchived,
+            smallPhotoPath = finalPath,
+            photoId = photoId,
+            isOnline = isOnline,
+            userStatus = userStatus,
+            isVerified = isVerified,
+            isForum = isForum,
+            isBot = isBot,
+            memberCount = memberCount,
+            onlineCount = onlineCount,
+            emojiPath = emojiPath,
+            typingAction = typingManager.formatTypingAction(chat.id),
+            lastMessageText = txt,
+            lastMessageEntities = entities,
+            lastMessageTime = time,
+            isMuted = isMuted,
+            isAdmin = isAdmin,
+            isMember = isMember,
+            username = username,
+            usernames = usernames,
+            description = description,
+            inviteLink = inviteLink,
+            hasAutomaticTranslation = hasAutomaticTranslation,
             personalAvatarPath = personalAvatarPath
         )
     }

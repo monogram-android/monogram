@@ -1,5 +1,8 @@
 package org.monogram.domain.models
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class WallpaperModel(
     val id: Long,
     val slug: String,
@@ -13,6 +16,7 @@ data class WallpaperModel(
     val isDefault: Boolean = false
 )
 
+@Serializable
 data class ThumbnailModel(
     val fileId: Int,
     val width: Int,
@@ -20,6 +24,7 @@ data class ThumbnailModel(
     val localPath: String?
 )
 
+@Serializable
 data class WallpaperSettings(
     val backgroundColor: Int?,
     val secondBackgroundColor: Int?,

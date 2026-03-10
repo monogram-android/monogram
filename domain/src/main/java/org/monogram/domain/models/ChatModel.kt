@@ -1,5 +1,8 @@
 package org.monogram.domain.models
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class ChatModel(
     val id: Long,
     val title: String,
@@ -56,13 +59,16 @@ data class ChatModel(
     val inviteLink: String? = null,
     val type: ChatType = ChatType.PRIVATE,
     val isBot: Boolean = false,
-    val isMember: Boolean = true
+    val isMember: Boolean = true,
+    val isArchived: Boolean = false,
 )
 
+@Serializable
 enum class ChatType {
     PRIVATE, BASIC_GROUP, SUPERGROUP, SECRET
 }
 
+@Serializable
 data class ChatPermissionsModel(
     val canSendBasicMessages: Boolean = true,
     val canSendAudios: Boolean = true,

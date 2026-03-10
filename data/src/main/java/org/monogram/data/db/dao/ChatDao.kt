@@ -9,7 +9,7 @@ import org.monogram.data.db.model.ChatEntity
 
 @Dao
 interface ChatDao {
-    @Query("SELECT * FROM chats ORDER BY `order` DESC")
+    @Query("SELECT * FROM chats ORDER BY isPinned DESC, `order` DESC")
     fun getAllChats(): Flow<List<ChatEntity>>
 
     @Query("SELECT * FROM chats WHERE id = :chatId")

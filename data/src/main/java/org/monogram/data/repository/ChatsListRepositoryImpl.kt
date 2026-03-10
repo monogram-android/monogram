@@ -14,7 +14,10 @@ import org.monogram.data.datasource.cache.ChatsCacheDataSource
 import org.monogram.data.datasource.remote.ChatRemoteSource
 import org.monogram.data.datasource.remote.ChatsRemoteDataSource
 import org.monogram.data.datasource.remote.ProxyRemoteDataSource
+import org.monogram.data.db.dao.ChatFolderDao
+import org.monogram.data.db.dao.SearchHistoryDao
 import org.monogram.data.db.model.ChatEntity
+import org.monogram.data.db.model.SearchHistoryEntity
 import org.monogram.data.db.model.TopicEntity
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
@@ -48,7 +51,9 @@ class ChatsListRepositoryImpl(
     scopeProvider: ScopeProvider,
     private val chatLocalDataSource: ChatLocalDataSource,
     private val connectionManager: ConnectionManager,
-    private val databaseFile: File
+    private val databaseFile: File,
+    private val searchHistoryDao: SearchHistoryDao,
+    private val chatFolderDao: ChatFolderDao
 ) : ChatsListRepository {
 
     private val TAG = "ChatsListRepo"
@@ -106,7 +111,8 @@ class ChatsListRepositoryImpl(
         dispatchers = dispatchers,
         scopeProvider = scopeProvider,
         foldersFlow = _foldersFlow,
-        cacheProvider = cacheProvider
+        cacheProvider = cacheProvider,
+        chatFolderDao = chatFolderDao
     )
     override val isArchivePinned = appPreferences.isArchivePinned
     override val isArchiveAlwaysVisible = appPreferences.isArchiveAlwaysVisible
@@ -137,21 +143,12 @@ class ChatsListRepositoryImpl(
         scope.launch(dispatchers.io) {
             val entities = chatLocalDataSource.getAllChats().first()
             if (entities.isNotEmpty()) {
-                val (pinned, others) = entities.partition { it.isPinned }
-
-                pinned.forEach { entity ->
+                entities.forEach { entity ->
                     cache.putChatFromEntity(entity)
                     lastSavedEntities[entity.id] = entity
                 }
                 updateActiveListPositionsFromCache()
-                rebuildAndEmit()
-
-                others.forEach { entity ->
-                    cache.putChatFromEntity(entity)
-                    lastSavedEntities[entity.id] = entity
-                }
-                updateActiveListPositionsFromCache()
-                rebuildAndEmit()
+                triggerUpdate()
             }
         }
 
@@ -170,13 +167,26 @@ class ChatsListRepositoryImpl(
             updates.chatFolders.collect { update ->
                 Log.d(TAG, "UpdateChatFolders received via dedicated flow")
                 folderManager.handleChatFoldersUpdate(update)
+                triggerUpdate()
+            }
+        }
+
+        scope.launch {
+            searchHistoryDao.getSearchHistory().collect { entities ->
+                cacheProvider.setSearchHistory(entities.map { it.chatId })
             }
         }
     }
 
     private suspend fun rebuildAndEmit() {
         runCatching {
-            val newList = listManager.rebuildChatList(currentLimit) { chat, order, isPinned ->
+            val excludedChatIds = if (activeChatList is TdApi.ChatListMain) {
+                _foldersFlow.value.flatMap { it.pinnedChatIds }.distinct()
+            } else {
+                emptyList()
+            }
+
+            val newList = listManager.rebuildChatList(currentLimit, excludedChatIds) { chat, order, isPinned ->
                 val cached = modelCache[chat.id]
                 if (cached != null && cached.order == order && cached.isPinned == isPinned && !invalidatedModels.contains(
                         chat.id
@@ -313,6 +323,7 @@ class ChatsListRepositoryImpl(
             is TdApi.UpdateChatFolders -> {
                 Log.d(TAG, "UpdateChatFolders received in handleUpdate")
                 folderManager.handleChatFoldersUpdate(update)
+                triggerUpdate()
             }
             is TdApi.UpdateUserStatus -> {
                 cache.updateUser(update.userId) { it.status = update.status }
@@ -410,6 +421,8 @@ class ChatsListRepositoryImpl(
         pendingSaveJobs[chatId] = scope.launch(dispatchers.io) {
             delay(2000)
             val position = chat.positions.find { listManager.isSameChatList(it.list, activeChatList) }
+                ?: chat.positions.firstOrNull()
+            
             val model = modelFactory.mapChatToModel(chat, position?.order ?: 0L, position?.isPinned ?: false)
             val entity = chatMapper.mapToEntity(model)
 
@@ -429,7 +442,8 @@ class ChatsListRepositoryImpl(
                 old.lastMessageText != new.lastMessageText ||
                 old.lastMessageTime != new.lastMessageTime ||
                 old.order != new.order ||
-                old.isPinned != new.isPinned
+                old.isPinned != new.isPinned ||
+                old.isArchived != new.isArchived
     }
 
     private fun triggerUpdate(chatId: Long? = null) {
@@ -663,14 +677,23 @@ class ChatsListRepositoryImpl(
 
     override fun addSearchChatId(chatId: Long) {
         cacheProvider.addSearchChatId(chatId)
+        scope.launch(dispatchers.io) {
+            searchHistoryDao.insertSearchChatId(SearchHistoryEntity(chatId))
+        }
     }
 
     override fun removeSearchChatId(chatId: Long) {
         cacheProvider.removeSearchChatId(chatId)
+        scope.launch(dispatchers.io) {
+            searchHistoryDao.deleteSearchChatId(chatId)
+        }
     }
 
     override fun clearSearchHistory() {
         cacheProvider.clearSearchHistory()
+        scope.launch(dispatchers.io) {
+            searchHistoryDao.clearAll()
+        }
     }
 
     override suspend fun createGroup(title: String, userIds: List<Long>, messageAutoDeleteTime: Int) =

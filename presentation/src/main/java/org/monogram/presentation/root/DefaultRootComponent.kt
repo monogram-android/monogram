@@ -184,7 +184,9 @@ class DefaultRootComponent(
     private fun updateSimCountryIso() {
         val countryCode = phoneManager.getSimCountryIso()
         if (!countryCode.isNullOrBlank()) {
-            cacheProvider.setCachedSimCountryIso(countryCode)
+            scope.launch {
+                settingsRepository.setCachedSimCountryIso(countryCode)
+            }
         }
     }
 

@@ -83,7 +83,7 @@ val dataModule = module {
             androidContext(),
             MonogramDatabase::class.java,
             "monogram_db"
-        ).fallbackToDestructiveMigration(false).build()
+        ).fallbackToDestructiveMigration(true).build()
     }
     single { get<MonogramDatabase>().chatDao() }
     single { get<MonogramDatabase>().messageDao() }
@@ -91,6 +91,14 @@ val dataModule = module {
     single { get<MonogramDatabase>().chatFullInfoDao() }
     single { get<MonogramDatabase>().topicDao() }
     single { get<MonogramDatabase>().userFullInfoDao() }
+    single { get<MonogramDatabase>().stickerSetDao() }
+    single { get<MonogramDatabase>().recentEmojiDao() }
+    single { get<MonogramDatabase>().searchHistoryDao() }
+    single { get<MonogramDatabase>().chatFolderDao() }
+    single { get<MonogramDatabase>().attachBotDao() }
+    single { get<MonogramDatabase>().keyValueDao() }
+    single { get<MonogramDatabase>().notificationSettingDao() }
+    single { get<MonogramDatabase>().wallpaperDao() }
 
     single<UserLocalDataSource> {
         RoomUserLocalDataSource(
@@ -197,7 +205,9 @@ val dataModule = module {
             scopeProvider = get(),
             chatLocalDataSource = get(),
             connectionManager = get(),
-            databaseFile = androidContext().getDatabasePath("monogram_db")
+            databaseFile = androidContext().getDatabasePath("monogram_db"),
+            searchHistoryDao = get(),
+            chatFolderDao = get()
         )
     }
 
@@ -220,7 +230,10 @@ val dataModule = module {
             appPreferences = get(),
             cacheProvider = get(),
             scopeProvider = get(),
-            dispatchers = get()
+            dispatchers = get(),
+            attachBotDao = get(),
+            keyValueDao = get(),
+            wallpaperDao = get()
         )
     }
     single<PollRepository> {
@@ -293,7 +306,9 @@ val dataModule = module {
             cacheProvider = get(),
             dispatchers = get(),
             context = androidContext(),
-            scopeProvider = get()
+            scopeProvider = get(),
+            stickerSetDao = get(),
+            recentEmojiDao = get()
         )
     }
 
@@ -358,4 +373,6 @@ val dataModule = module {
             scopeProvider = get(),
         )
     }
+
+    single { TdNotificationManager(androidContext(), get(), get(), get()) }
 }

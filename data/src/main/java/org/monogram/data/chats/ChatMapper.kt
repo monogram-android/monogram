@@ -13,6 +13,7 @@ class ChatMapper {
         chat: TdApi.Chat,
         order: Long,
         isPinned: Boolean,
+        isArchived: Boolean,
         smallPhotoPath: String?,
         photoId: Int,
         isOnline: Boolean,
@@ -80,6 +81,7 @@ class ChatMapper {
             onlineCount = onlineCount,
             photoId = photoId,
             isPinned = isPinned,
+            isArchived = isArchived,
             accentColorId = chat.accentColorId,
             profileAccentColorId = chat.profileAccentColorId,
             backgroundCustomEmojiId = chat.backgroundCustomEmojiId,
@@ -144,7 +146,8 @@ class ChatMapper {
             isMuted = entity.isMuted,
             isChannel = entity.isChannel,
             isGroup = entity.isGroup,
-            type = ChatType.valueOf(entity.type)
+            type = ChatType.valueOf(entity.type),
+            isArchived = entity.isArchived
         )
     }
 
@@ -162,6 +165,7 @@ class ChatMapper {
             isChannel = domain.isChannel,
             isGroup = domain.isGroup,
             type = domain.type.name,
+            isArchived = domain.isArchived,
             createdAt = System.currentTimeMillis()
         )
     }

@@ -12,9 +12,17 @@ import org.monogram.data.db.model.*
         UserEntity::class,
         ChatFullInfoEntity::class,
         TopicEntity::class,
-        UserFullInfoEntity::class
+        UserFullInfoEntity::class,
+        StickerSetEntity::class,
+        RecentEmojiEntity::class,
+        SearchHistoryEntity::class,
+        ChatFolderEntity::class,
+        AttachBotEntity::class,
+        KeyValueEntity::class,
+        NotificationSettingEntity::class,
+        WallpaperEntity::class
     ],
-    version = 5,
+    version = 12,
     exportSchema = false
 )
 abstract class MonogramDatabase : RoomDatabase() {
@@ -24,4 +32,12 @@ abstract class MonogramDatabase : RoomDatabase() {
     abstract fun chatFullInfoDao(): ChatFullInfoDao
     abstract fun topicDao(): TopicDao
     abstract fun userFullInfoDao(): UserFullInfoDao
+    abstract fun stickerSetDao(): StickerSetDao
+    abstract fun recentEmojiDao(): RecentEmojiDao
+    abstract fun searchHistoryDao(): SearchHistoryDao
+    abstract fun chatFolderDao(): ChatFolderDao
+    abstract fun attachBotDao(): AttachBotDao
+    abstract fun keyValueDao(): KeyValueDao
+    abstract fun notificationSettingDao(): NotificationSettingDao
+    abstract fun wallpaperDao(): WallpaperDao
 }

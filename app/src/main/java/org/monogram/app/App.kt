@@ -112,7 +112,6 @@ val appModule = module {
     single<BotPreferencesProvider> { BotPreferences(androidContext()) }
 
     // Utils
-    single { TdNotificationManager(androidContext(), get(), get()) }
     single { ExoPlayerCache() }
     single { CacheController(androidContext(), get()) }
     single { VideoPlayerPool(androidContext(), get()) }

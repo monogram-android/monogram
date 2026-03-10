@@ -11,7 +11,6 @@ import org.koin.dsl.module
 import org.monogram.core.DispatcherProvider
 import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
-import org.monogram.data.chats.ChatMapper
 import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.PlayerDataSourceFactoryImpl
 import org.monogram.data.datasource.TdFileDataSource
@@ -23,6 +22,7 @@ import org.monogram.data.gateway.TelegramGatewayImpl
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.gateway.UpdateDispatcherImpl
 import org.monogram.data.infra.*
+import org.monogram.data.mapper.ChatMapper
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.repository.*
 import org.monogram.domain.repository.*

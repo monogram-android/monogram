@@ -445,6 +445,8 @@ class UserRepositoryImpl(
                 else -> "PRIVATE"
             },
             isArchived = isArchived,
+            memberCount = 0,
+            onlineCount = 0,
             createdAt = System.currentTimeMillis()
         )
     }

@@ -22,6 +22,7 @@ import org.monogram.data.db.model.TopicEntity
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.ConnectionManager
+import org.monogram.data.mapper.ChatMapper
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.user.toEntity
 import org.monogram.domain.models.ChatModel
@@ -443,7 +444,9 @@ class ChatsListRepositoryImpl(
                 old.lastMessageTime != new.lastMessageTime ||
                 old.order != new.order ||
                 old.isPinned != new.isPinned ||
-                old.isArchived != new.isArchived
+                old.isArchived != new.isArchived ||
+                old.memberCount != new.memberCount ||
+                old.onlineCount != new.onlineCount
     }
 
     private fun triggerUpdate(chatId: Long? = null) {

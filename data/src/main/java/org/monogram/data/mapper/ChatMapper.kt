@@ -2,14 +2,12 @@ package org.monogram.data.mapper
 
 import android.text.format.DateUtils
 import org.drinkless.tdlib.TdApi
-import org.monogram.data.chats.ChatMapper
 import org.monogram.data.db.model.ChatEntity
 import org.monogram.domain.models.*
 import java.text.SimpleDateFormat
 import java.util.*
 
 class ChatMapper {
-
     fun mapChatToModel(
         chat: TdApi.Chat,
         order: Long,
@@ -148,7 +146,9 @@ class ChatMapper {
             isChannel = entity.isChannel,
             isGroup = entity.isGroup,
             type = ChatType.valueOf(entity.type),
-            isArchived = entity.isArchived
+            isArchived = entity.isArchived,
+            memberCount = entity.memberCount,
+            onlineCount = entity.onlineCount
         )
     }
 
@@ -167,6 +167,8 @@ class ChatMapper {
             isGroup = domain.isGroup,
             type = domain.type.name,
             isArchived = domain.isArchived,
+            memberCount = domain.memberCount,
+            onlineCount = domain.onlineCount,
             createdAt = System.currentTimeMillis()
         )
     }

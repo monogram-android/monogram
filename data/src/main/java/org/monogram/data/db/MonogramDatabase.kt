@@ -22,7 +22,7 @@ import org.monogram.data.db.model.*
         NotificationSettingEntity::class,
         WallpaperEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class MonogramDatabase : RoomDatabase() {

@@ -120,6 +120,7 @@ class ChatModelFactory(
                     description = fullInfo.bio?.text
                     personalAvatarPath = resolvePhotoPath(fullInfo.photo?.sizes?.lastOrNull()?.photo, chat.id)
                 } ?: lazyLoad(cache.pendingUserFullInfo, type.userId) {
+                    if (type.userId == 0L) return@lazyLoad
                     val result = gateway.execute(TdApi.GetUserFullInfo(type.userId))
                     cache.userFullInfoCache[type.userId] = result
                     triggerUpdate(chat.id)

@@ -729,6 +729,7 @@ class ChatsListRepositoryImpl(
     }
 
     private fun fetchUser(userId: Long) {
+        if (userId == 0L) return
         if (cache.pendingUsers.add(userId)) {
             scope.launch(dispatchers.io) {
                 runCatching {

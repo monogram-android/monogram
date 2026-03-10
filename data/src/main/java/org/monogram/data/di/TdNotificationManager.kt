@@ -694,6 +694,7 @@ class TdNotificationManager(
     }
 
     private fun getUser(userId: Long, callback: (TdApi.User) -> Unit) {
+        if (userId == 0L) return
         userCache[userId]?.let {
             callback(it)
             return

@@ -653,6 +653,86 @@ class AppPreferences(
         _isPermissionRequested.value = requested
     }
 
+    override fun clearPreferences() {
+        prefs.edit().clear().apply()
+        _fontSize.value = 16f
+        _bubbleRadius.value = 18f
+        _wallpaper.value = null
+        _isWallpaperBlurred.value = false
+        _wallpaperBlurIntensity.value = 20
+        _isWallpaperMoving.value = false
+        _wallpaperDimming.value = 0
+        _isWallpaperGrayscale.value = false
+        _isPlayerGesturesEnabled.value = true
+        _isPlayerDoubleTapSeekEnabled.value = true
+        _playerSeekDuration.value = 10
+        _isPlayerZoomEnabled.value = true
+        _nightMode.value = NightMode.SYSTEM
+        _isDynamicColorsEnabled.value = true
+        _nightModeStartTime.value = "22:00"
+        _nightModeEndTime.value = "07:00"
+        _nightModeBrightnessThreshold.value = 0.2f
+        _emojiStyle.value = EmojiStyle.SYSTEM
+        _isAppleEmojiDownloaded.value = false
+        _isTwitterEmojiDownloaded.value = false
+        _isWindowsEmojiDownloaded.value = false
+        _isCatmojiEmojiDownloaded.value = false
+        _isNotoEmojiDownloaded.value = false
+        _autoDownloadMobile.value = true
+        _autoDownloadWifi.value = true
+        _autoDownloadRoaming.value = false
+        _autoDownloadFiles.value = false
+        _autoDownloadStickers.value = true
+        _autoDownloadVideoNotes.value = true
+        _autoplayGifs.value = true
+        _autoplayVideos.value = true
+        _enableStreaming.value = true
+        _compressPhotos.value = true
+        _compressVideos.value = true
+        _cacheLimitSize.value = 10L * 1024 * 1024 * 1024
+        _autoClearCacheTime.value = 7
+        _privateChatsNotifications.value = true
+        _groupsNotifications.value = true
+        _channelsNotifications.value = true
+        _inAppSounds.value = true
+        _inAppVibrate.value = true
+        _inAppPreview.value = true
+        _contactJoinedNotifications.value = true
+        _pinnedMessagesNotifications.value = true
+        _backgroundServiceEnabled.value = true
+        _isPowerSavingMode.value = false
+        _isWakeLockEnabled.value = true
+        _hideForegroundNotification.value = false
+        _batteryOptimizationEnabled.value = false
+        _notificationVibrationPattern.value = "default"
+        _notificationPriority.value = 1
+        _repeatNotifications.value = 60
+        _showSenderOnly.value = false
+        _pushProvider.value = PushProvider.FCM
+        _isArchivePinned.value = true
+        _isArchiveAlwaysVisible.value = false
+        _showLinkPreviews.value = true
+        _isDragToBackEnabled.value = true
+        _isChatAnimationsEnabled.value = true
+        _chatListMessageLines.value = 1
+        _showChatListPhotos.value = true
+        _isAdBlockEnabled.value = false
+        _adBlockKeywords.value = emptySet()
+        _adBlockWhitelistedChannels.value = emptySet()
+        _enabledProxyId.value = null
+        _isAutoBestProxyEnabled.value = false
+        _isTelegaProxyEnabled.value = false
+        _telegaProxyUrls.value = emptySet()
+        _preferIpv6.value = false
+        _isPermissionRequested.value = false
+    }
+
+    override fun clearSecurePreferences() {
+        securePrefs.edit().clear().apply()
+        _isBiometricEnabled.value = false
+        _passcode.value = null
+    }
+
     companion object {
         private const val KEY_FONT_SIZE = "font_size"
         private const val KEY_BUBBLE_RADIUS = "bubble_radius"

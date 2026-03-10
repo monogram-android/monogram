@@ -38,4 +38,6 @@ interface CacheProvider {
 
     fun setInstalledStickerSets(sets: List<StickerSetModel>)
     fun setCustomEmojiStickerSets(sets: List<StickerSetModel>)
+
+    fun clearAll()
 }

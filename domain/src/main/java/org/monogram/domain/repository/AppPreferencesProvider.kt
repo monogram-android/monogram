@@ -94,4 +94,7 @@ interface AppPreferencesProvider {
     fun setPasscode(passcode: String?)
 
     fun setPermissionRequested(requested: Boolean)
+
+    fun clearPreferences()
+    fun clearSecurePreferences()
 }

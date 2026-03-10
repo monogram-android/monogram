@@ -115,6 +115,18 @@ class CachePreferences(private val context: Context) : CacheProvider {
         _customEmojiStickerSets.value = sets
     }
 
+    override fun clearAll() {
+        prefs.edit().clear().apply()
+        _recentEmojis.value = emptyList()
+        _searchHistory.value = emptyList()
+        _chatFolders.value = emptyList()
+        _attachBots.value = emptyList()
+        _cachedSimCountryIso.value = null
+        _savedGifs.value = emptyList()
+        _installedStickerSets.value = emptyList()
+        _customEmojiStickerSets.value = emptyList()
+    }
+
     private fun getSavedGifsFromPrefs(): List<GifModel> {
         val json = prefs.getString(KEY_SAVED_GIFS, null) ?: return emptyList()
         return try {

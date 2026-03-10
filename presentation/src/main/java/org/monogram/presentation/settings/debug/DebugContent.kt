@@ -7,6 +7,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -43,8 +46,38 @@ fun DebugContent(component: DebugComponent) {
                     title = "Crash App",
                     subtitle = "Trigger a manual RuntimeException",
                     iconBackgroundColor = Color.Red,
-                    position = ItemPosition.STANDALONE,
+                    position = ItemPosition.TOP,
                     onClick = component::onCrashClicked
+                )
+            }
+            item {
+                SettingsItem(
+                    icon = Icons.Rounded.Storage,
+                    title = "Drop Databases",
+                    subtitle = "Delete all app databases",
+                    iconBackgroundColor = Color.Red,
+                    position = ItemPosition.MIDDLE,
+                    onClick = component::onDropDatabasesClicked
+                )
+            }
+            item {
+                SettingsItem(
+                    icon = Icons.Rounded.DeleteSweep,
+                    title = "Drop Cache",
+                    subtitle = "Delete all cache",
+                    iconBackgroundColor = Color.Red,
+                    position = ItemPosition.MIDDLE,
+                    onClick = component::onDropCachePrefsClicked
+                )
+            }
+            item {
+                SettingsItem(
+                    icon = Icons.Rounded.Delete,
+                    title = "Drop Prefs",
+                    subtitle = "Delete all preferences",
+                    iconBackgroundColor = Color.Red,
+                    position = ItemPosition.BOTTOM,
+                    onClick = component::onDropPrefsClicked
                 )
             }
         }

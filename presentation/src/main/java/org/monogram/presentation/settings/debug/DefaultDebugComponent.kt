@@ -26,6 +26,12 @@ class DefaultDebugComponent(
         assetsManager.exitProcess(0)
     }
 
+    override fun onDropDatabaseCacheClicked() {
+        messageDisplayer.show("Dropping databases and restarting...")
+        assetsManager.getDatabasePath("monogram_db").delete()
+        assetsManager.exitProcess(0)
+    }
+
     override fun onDropCachePrefsClicked() {
         messageDisplayer.show("Dropping cache prefs and restarting...")
         assetsManager.clearSharedPreferences("monogram_cache")

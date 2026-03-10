@@ -54,10 +54,20 @@ fun DebugContent(component: DebugComponent) {
                 SettingsItem(
                     icon = Icons.Rounded.Storage,
                     title = "Drop Databases",
-                    subtitle = "Delete all app databases",
+                    subtitle = "Delete all app databases and tdlib",
                     iconBackgroundColor = Color.Red,
                     position = ItemPosition.MIDDLE,
                     onClick = component::onDropDatabasesClicked
+                )
+            }
+            item {
+                SettingsItem(
+                    icon = Icons.Rounded.Storage,
+                    title = "Drop Cache Database",
+                    subtitle = "Delete cache database",
+                    iconBackgroundColor = Color.Red,
+                    position = ItemPosition.MIDDLE,
+                    onClick = component::onDropDatabaseCacheClicked
                 )
             }
             item {

@@ -6,4 +6,5 @@ interface DebugComponent {
     fun onDropDatabasesClicked()
     fun onDropCachePrefsClicked()
     fun onDropPrefsClicked()
+    fun onDropDatabaseCacheClicked()
 }

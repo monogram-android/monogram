@@ -47,9 +47,9 @@ fun TdApi.User.toDomain(fullInfo: TdApi.UserFullInfo? = null): UserModel {
 }
 
 fun TdApi.ChatMember.toDomain(user: UserModel): GroupMemberModel {
-    val rank = when (val status = this.status) {
-        is TdApi.ChatMemberStatusCreator -> status.customTitle.ifEmpty { "Owner" }
-        is TdApi.ChatMemberStatusAdministrator -> status.customTitle.ifEmpty { "Admin" }
+    val rank = when (this.status) {
+        is TdApi.ChatMemberStatusCreator -> "Owner"
+        is TdApi.ChatMemberStatusAdministrator -> "Admin"
         else -> null
     }
     return GroupMemberModel(
@@ -119,7 +119,7 @@ fun TdApi.ChatMemberStatus.toDomain(): ChatMemberStatus {
     return when (this) {
         is TdApi.ChatMemberStatusCreator -> ChatMemberStatus.Creator
         is TdApi.ChatMemberStatusAdministrator -> ChatMemberStatus.Administrator(
-            customTitle = customTitle,
+            customTitle = "",
             canBeEdited = canBeEdited,
             canManageChat = rights.canManageChat,
             canChangeInfo = rights.canChangeInfo,
@@ -181,7 +181,6 @@ fun ChatMemberStatus.toApi(): TdApi.ChatMemberStatus {
     return when (this) {
         is ChatMemberStatus.Member -> TdApi.ChatMemberStatusMember()
         is ChatMemberStatus.Administrator -> TdApi.ChatMemberStatusAdministrator(
-            customTitle,
             canBeEdited,
             TdApi.ChatAdministratorRights(
                 canManageChat,
@@ -199,6 +198,7 @@ fun ChatMemberStatus.toApi(): TdApi.ChatMemberStatus {
                 canEditStories,
                 canDeleteStories,
                 canManageDirectMessages,
+                false,
                 isAnonymous
             )
         )
@@ -209,7 +209,7 @@ fun ChatMemberStatus.toApi(): TdApi.ChatMemberStatus {
         )
         is ChatMemberStatus.Left -> TdApi.ChatMemberStatusLeft()
         is ChatMemberStatus.Banned -> TdApi.ChatMemberStatusBanned(bannedUntilDate)
-        is ChatMemberStatus.Creator -> TdApi.ChatMemberStatusCreator("", false, true)
+        is ChatMemberStatus.Creator -> TdApi.ChatMemberStatusCreator(false, true)
     }
 }
 
@@ -295,11 +295,12 @@ private fun TdApi.ChatPermissions.toDomain(): ChatPermissionsModel {
         canSendVoiceNotes = canSendVoiceNotes,
         canSendPolls = canSendPolls,
         canSendOtherMessages = canSendOtherMessages,
-        canAddWebPagePreviews = canAddLinkPreviews,
+        canAddLinkPreviews = canAddLinkPreviews,
+        canEditTag = canEditTag,
         canChangeInfo = canChangeInfo,
         canInviteUsers = canInviteUsers,
         canPinMessages = canPinMessages,
-        canManageTopics = canCreateTopics
+        canCreateTopics = canCreateTopics
     )
 }
 
@@ -314,11 +315,12 @@ private fun ChatPermissionsModel.toApi(): TdApi.ChatPermissions {
         canSendVoiceNotes,
         canSendPolls,
         canSendOtherMessages,
-        canAddWebPagePreviews,
+        canAddLinkPreviews,
+        canEditTag,
         canChangeInfo,
         canInviteUsers,
         canPinMessages,
-        canManageTopics
+        canCreateTopics
     )
 }
 

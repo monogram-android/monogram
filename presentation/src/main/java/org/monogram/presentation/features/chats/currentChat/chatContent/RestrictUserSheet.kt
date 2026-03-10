@@ -156,8 +156,11 @@ fun RestrictUserSheet(
                     PermissionToggle("Send Polls", permissions.canSendPolls) {
                         permissions = permissions.copy(canSendPolls = it)
                     }
-                    PermissionToggle("Embed Links", permissions.canAddWebPagePreviews) {
-                        permissions = permissions.copy(canAddWebPagePreviews = it)
+                    PermissionToggle(
+                        "Embed Links",
+                        permissions.canAddLinkPreviews
+                    ) {
+                        permissions = permissions.copy(canAddLinkPreviews = it)
                     }
                     PermissionToggle("Pin Messages", permissions.canPinMessages) {
                         permissions = permissions.copy(canPinMessages = it)

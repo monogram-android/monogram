@@ -536,11 +536,12 @@ class MessageRepositoryImpl(
             permissions.canSendVoiceNotes,
             permissions.canSendPolls,
             permissions.canSendOtherMessages,
-            permissions.canAddWebPagePreviews,
+            permissions.canAddLinkPreviews,
+            permissions.canEditTag,
             permissions.canChangeInfo,
             permissions.canInviteUsers,
             permissions.canPinMessages,
-            permissions.canManageTopics
+            permissions.canCreateTopics
         )
         gateway.execute(
             TdApi.SetChatMemberStatus(
@@ -736,6 +737,7 @@ class MessageRepositoryImpl(
                 filters.memberInvites,
                 filters.memberPromotions,
                 filters.memberRestrictions,
+                false,
                 filters.infoChanges,
                 filters.settingChanges,
                 filters.inviteLinkChanges,
@@ -827,11 +829,12 @@ class MessageRepositoryImpl(
                                             canSendVoiceNotes = p.canSendVoiceNotes,
                                             canSendPolls = p.canSendPolls,
                                             canSendOtherMessages = p.canSendOtherMessages,
-                                            canAddWebPagePreviews = p.canAddLinkPreviews,
+                                            canAddLinkPreviews = p.canAddLinkPreviews,
+                                            canEditTag = p.canEditTag,
                                             canChangeInfo = p.canChangeInfo,
                                             canInviteUsers = p.canInviteUsers,
                                             canPinMessages = p.canPinMessages,
-                                            canManageTopics = p.canCreateTopics
+                                            canCreateTopics = p.canCreateTopics
                                         )
                                     },
                                     newPermissions = (newStatus as? TdApi.ChatMemberStatusRestricted)?.permissions?.let { p ->
@@ -845,11 +848,12 @@ class MessageRepositoryImpl(
                                             canSendVoiceNotes = p.canSendVoiceNotes,
                                             canSendPolls = p.canSendPolls,
                                             canSendOtherMessages = p.canSendOtherMessages,
-                                            canAddWebPagePreviews = p.canAddLinkPreviews,
+                                            canAddLinkPreviews = p.canAddLinkPreviews,
+                                            canEditTag = p.canEditTag,
                                             canChangeInfo = p.canChangeInfo,
                                             canInviteUsers = p.canInviteUsers,
                                             canPinMessages = p.canPinMessages,
-                                            canManageTopics = p.canCreateTopics
+                                            canCreateTopics = p.canCreateTopics
                                         )
                                     }
                                 )

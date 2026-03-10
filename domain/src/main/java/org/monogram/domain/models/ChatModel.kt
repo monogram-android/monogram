@@ -67,7 +67,6 @@ data class ChatModel(
 enum class ChatType {
     PRIVATE, BASIC_GROUP, SUPERGROUP, SECRET
 }
-
 @Serializable
 data class ChatPermissionsModel(
     val canSendBasicMessages: Boolean = true,
@@ -79,9 +78,11 @@ data class ChatPermissionsModel(
     val canSendVoiceNotes: Boolean = true,
     val canSendPolls: Boolean = true,
     val canSendOtherMessages: Boolean = true,
-    val canAddWebPagePreviews: Boolean = true,
+    val canAddLinkPreviews: Boolean = true,
+    val canEditTag: Boolean = false,
     val canChangeInfo: Boolean = false,
     val canInviteUsers: Boolean = false,
     val canPinMessages: Boolean = false,
-    val canManageTopics: Boolean = false
+    val canCreateTopics: Boolean = false
 )
+

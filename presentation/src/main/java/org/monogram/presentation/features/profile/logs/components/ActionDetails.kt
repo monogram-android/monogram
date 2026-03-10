@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.StickyNote2
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -112,7 +113,8 @@ fun ActionDetails(
 
                 if (action.untilDate > 0) {
                     val date = Date(action.untilDate.toLong() * 1000)
-                    val dateText = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(date)
+                    val dateText =
+                        SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(date)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(top = 8.dp)
@@ -136,7 +138,11 @@ fun ActionDetails(
                             fontWeight = FontWeight.Medium
                         )
                     }
-                } else if (action.untilDate == 0 && action.newStatus.contains("Restricted", ignoreCase = true)) {
+                } else if (action.untilDate == 0 && action.newStatus.contains(
+                        "Restricted",
+                        ignoreCase = true
+                    )
+                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(top = 8.dp)
@@ -178,7 +184,10 @@ fun ActionDetails(
                                 .size(60.dp)
                                 .clip(CircleShape)
                                 .clickable {
-                                    component.onPhotoClick(action.oldPhotoPath.toString(), "Old chat photo")
+                                    component.onPhotoClick(
+                                        action.oldPhotoPath.toString(),
+                                        "Old chat photo"
+                                    )
                                 },
                             contentScale = ContentScale.Crop
                         )
@@ -194,7 +203,10 @@ fun ActionDetails(
                                 .size(60.dp)
                                 .clip(CircleShape)
                                 .clickable {
-                                    component.onPhotoClick(action.newPhotoPath.toString(), "New chat photo")
+                                    component.onPhotoClick(
+                                        action.newPhotoPath.toString(),
+                                        "New chat photo"
+                                    )
                                 },
                             contentScale = ContentScale.Crop
                         )
@@ -272,17 +284,37 @@ private fun PermissionsDiff(old: ChatPermissionsModel?, new: ChatPermissionsMode
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            PermissionChip("Messages", old?.canSendBasicMessages, new.canSendBasicMessages, Icons.Rounded.ChatBubble)
+            PermissionChip(
+                "Messages",
+                old?.canSendBasicMessages,
+                new.canSendBasicMessages,
+                Icons.Rounded.ChatBubble
+            )
             PermissionChip(
                 "Media",
                 (old?.canSendPhotos ?: true) || (old?.canSendVideos ?: true),
                 new.canSendPhotos || new.canSendVideos,
                 Icons.Rounded.PermMedia
             )
-            PermissionChip("Stickers", old?.canSendOtherMessages, new.canSendOtherMessages, Icons.Rounded.StickyNote2)
-            PermissionChip("Links", old?.canAddWebPagePreviews, new.canAddWebPagePreviews, Icons.Rounded.Link)
+            PermissionChip(
+                "Stickers",
+                old?.canSendOtherMessages,
+                new.canSendOtherMessages,
+                Icons.AutoMirrored.Rounded.StickyNote2
+            )
+            PermissionChip(
+                "Links",
+                old?.canAddLinkPreviews,
+                new.canAddLinkPreviews,
+                Icons.Rounded.Link
+            )
             PermissionChip("Polls", old?.canSendPolls, new.canSendPolls, Icons.Rounded.Poll)
-            PermissionChip("Invite", old?.canInviteUsers, new.canInviteUsers, Icons.Rounded.PersonAdd)
+            PermissionChip(
+                "Invite",
+                old?.canInviteUsers,
+                new.canInviteUsers,
+                Icons.Rounded.PersonAdd
+            )
             PermissionChip("Pin", old?.canPinMessages, new.canPinMessages, Icons.Rounded.PushPin)
             PermissionChip("Info", old?.canChangeInfo, new.canChangeInfo, Icons.Rounded.Info)
         }
@@ -295,7 +327,8 @@ private fun PermissionChip(label: String, oldVal: Boolean?, newVal: Boolean, ico
 
     if (shouldShow) {
         val isRestricted = !newVal
-        val color = if (isRestricted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+        val color =
+            if (isRestricted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
         val containerColor = color.copy(alpha = 0.1f)
 
         Row(

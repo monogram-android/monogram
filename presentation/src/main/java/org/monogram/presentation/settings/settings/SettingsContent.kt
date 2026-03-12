@@ -76,6 +76,11 @@ fun SettingsContent(component: SettingsComponent) {
         stop = expandedColor,
         fraction = collapsingToolbarState.toolbarState.progress
     )
+    val dynamicContainerColorTopBar = lerp(
+        start = collapsedColor,
+        stop = Color.Transparent,
+        fraction = collapsingToolbarState.toolbarState.progress
+    )
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -336,12 +341,22 @@ fun SettingsContent(component: SettingsComponent) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
+                    containerColor = dynamicContainerColorTopBar,
+                    scrolledContainerColor = Color.Transparent,
+
                 )
             )
         }
     ) { padding ->
+        var safeTopPadding by remember { mutableStateOf(0.dp) }
+        var safeBottomPadding by remember { mutableStateOf(0.dp) }
+
+        val currentTop = padding.calculateTopPadding()
+        val currentBottom = padding.calculateBottomPadding()
+
+        if (currentTop > 0.dp) safeTopPadding = currentTop
+        if (currentBottom > 0.dp) safeBottomPadding = currentBottom
+
         CollapsingToolbarScaffold(
             modifier = Modifier
                 .fillMaxSize()
@@ -352,7 +367,6 @@ fun SettingsContent(component: SettingsComponent) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(padding.calculateTopPadding())
                         .pin()
                 )
 
@@ -396,9 +410,6 @@ fun SettingsContent(component: SettingsComponent) {
                 }
             },
             body = {
-                val navBarInsets = WindowInsets.navigationBars.asPaddingValues()
-                val bottomPadding = navBarInsets.calculateBottomPadding() + 80.dp
-
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -407,8 +418,7 @@ fun SettingsContent(component: SettingsComponent) {
                         start = 16.dp,
                         end = 16.dp,
                         top = 0.dp,
-
-                        bottom = bottomPadding
+                        bottom = safeBottomPadding
                     ),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {

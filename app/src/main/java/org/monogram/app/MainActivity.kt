@@ -56,6 +56,12 @@ class MainActivity : FragmentActivity() {
         val data = intent.dataString
         if (data != null) {
             root.handleLink(data)
+            return
+        }
+
+        val chatId = intent.getLongExtra("chat_id", 0L)
+        if (chatId != 0L) {
+            root.navigateToChat(chatId)
         }
     }
 

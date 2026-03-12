@@ -41,7 +41,10 @@ data class MessageModel(
     val replyCount: Int = 0,
     val replyMarkup: ReplyMarkupModel? = null,
     val viaBotUserId: Long = 0L,
-    val viaBotName: String? = null
+    val viaBotName: String? = null,
+    val isSenderPremium: Boolean = false,
+    val senderStatusEmojiId: Long = 0L,
+    val senderStatusEmojiPath: String? = null
 )
 
 data class ForwardInfo(

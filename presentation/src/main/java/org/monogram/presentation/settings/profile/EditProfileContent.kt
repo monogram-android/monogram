@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -127,7 +128,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Usernames",
+                        text = stringResource(R.string.usernames_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 4.dp)
@@ -139,7 +140,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                text = "Retry in ${retryAfterSeconds}s",
+                                text = stringResource(R.string.retry_after_format, retryAfterSeconds),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -157,7 +158,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                     if (activeUsernames.isNotEmpty()) {
                         item(key = "active_header") {
                             SectionHeader(
-                                "Active Usernames",
+                                stringResource(R.string.active_usernames_title),
                                 modifier = Modifier
                                     .animateItem()
                                     .padding(start = 4.dp)
@@ -218,7 +219,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                     if (disabledUsernames.isNotEmpty()) {
                         item(key = "disabled_header") {
                             SectionHeader(
-                                "Disabled Usernames",
+                                stringResource(R.string.disabled_usernames_title),
                                 modifier = Modifier
                                     .animateItem()
                                     .padding(start = 4.dp)
@@ -250,7 +251,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                     if (collectibleUsernames.isNotEmpty()) {
                         item(key = "collectible_header") {
                             SectionHeader(
-                                "Collectible Usernames",
+                                stringResource(R.string.collectible_usernames_title),
                                 modifier = Modifier
                                     .animateItem()
                                     .padding(start = 4.dp)
@@ -285,7 +286,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Done", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.done_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -315,12 +316,12 @@ fun EditProfileContent(component: EditProfileComponent) {
                     }
                     showDatePicker = false
                 }) {
-                    Text("OK")
+                    Text(stringResource(R.string.ok_button))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel_button))
                 }
             }
         ) {
@@ -366,7 +367,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                "Select Start Time",
+                                stringResource(R.string.select_start_time),
                                 style = MaterialTheme.typography.labelLarge,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -376,11 +377,13 @@ fun EditProfileContent(component: EditProfileComponent) {
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End
                             ) {
-                                TextButton(onClick = { showStartTimePicker = false }) { Text("Cancel") }
+                                TextButton(onClick = {
+                                    showStartTimePicker = false
+                                }) { Text(stringResource(R.string.cancel_button)) }
                                 TextButton(onClick = {
                                     startMinuteOfDay = timePickerState.hour * 60 + timePickerState.minute
                                     showStartTimePicker = false
-                                }) { Text("OK") }
+                                }) { Text(stringResource(R.string.ok_button)) }
                             }
                         }
                     }
@@ -403,7 +406,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                "Select End Time",
+                                stringResource(R.string.select_end_time),
                                 style = MaterialTheme.typography.labelLarge,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -413,11 +416,13 @@ fun EditProfileContent(component: EditProfileComponent) {
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End
                             ) {
-                                TextButton(onClick = { showEndTimePicker = false }) { Text("Cancel") }
+                                TextButton(onClick = {
+                                    showEndTimePicker = false
+                                }) { Text(stringResource(R.string.cancel_button)) }
                                 TextButton(onClick = {
                                     endMinuteOfDay = timePickerState.hour * 60 + timePickerState.minute
                                     showEndTimePicker = false
-                                }) { Text("OK") }
+                                }) { Text(stringResource(R.string.ok_button)) }
                             }
                         }
                     }
@@ -431,14 +436,14 @@ fun EditProfileContent(component: EditProfileComponent) {
                     .padding(bottom = 40.dp)
             ) {
                 Text(
-                    text = "Work Hours",
+                    text = stringResource(R.string.work_hours_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "Working Days",
+                    text = stringResource(R.string.working_days_title),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -447,7 +452,15 @@ fun EditProfileContent(component: EditProfileComponent) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    val days = listOf("M", "T", "W", "T", "F", "S", "S")
+                    val days = listOf(
+                        stringResource(R.string.monday_short),
+                        stringResource(R.string.tuesday_short),
+                        stringResource(R.string.wednesday_short),
+                        stringResource(R.string.thursday_short),
+                        stringResource(R.string.friday_short),
+                        stringResource(R.string.saturday_short),
+                        stringResource(R.string.sunday_short)
+                    )
                     days.forEachIndexed { index, day ->
                         val dayNum = index + 1
                         val isSelected = selectedDays.contains(dayNum)
@@ -472,7 +485,7 @@ fun EditProfileContent(component: EditProfileComponent) {
 
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    text = "Time Range",
+                    text = stringResource(R.string.time_range_title),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -488,7 +501,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                         color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
-                            Text("From", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.from_label), style = MaterialTheme.typography.labelSmall)
                             Text(
                                 String.format("%02d:%02d", startMinuteOfDay / 60, startMinuteOfDay % 60),
                                 style = MaterialTheme.typography.titleMedium
@@ -503,7 +516,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                         color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
-                            Text("To", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.to_label), style = MaterialTheme.typography.labelSmall)
                             Text(
                                 String.format("%02d:%02d", endMinuteOfDay / 60, endMinuteOfDay % 60),
                                 style = MaterialTheme.typography.titleMedium
@@ -534,7 +547,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Save")
+                    Text(stringResource(R.string.action_save))
                 }
             }
         }
@@ -597,7 +610,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                     TopAppBar(
                         title = {
                             Text(
-                                "Business Location",
+                                stringResource(R.string.business_location_title),
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -691,7 +704,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                                         selectedLongitude
                                     )
                                 },
-                                label = { Text("Address") },
+                                label = { Text(stringResource(R.string.address_label)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
                                 leadingIcon = {
@@ -717,7 +730,11 @@ fun EditProfileContent(component: EditProfileComponent) {
                                 shape = RoundedCornerShape(16.dp),
                                 contentPadding = PaddingValues(16.dp)
                             ) {
-                                Text("Confirm Location", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    stringResource(R.string.confirm_location_button),
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
@@ -731,7 +748,7 @@ fun EditProfileContent(component: EditProfileComponent) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Edit Profile",
+                        text = stringResource(R.string.edit_profile_title),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -739,7 +756,10 @@ fun EditProfileContent(component: EditProfileComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 },
                 actions = {
@@ -754,7 +774,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                         IconButton(onClick = component::onSave) {
                             Icon(
                                 Icons.Rounded.Check,
-                                contentDescription = "Save",
+                                contentDescription = stringResource(R.string.action_save),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -830,28 +850,28 @@ fun EditProfileContent(component: EditProfileComponent) {
                     SettingsTextField(
                         value = state.firstName,
                         onValueChange = component::onUpdateFirstName,
-                        placeholder = "First Name (Required)",
+                        placeholder = stringResource(R.string.first_name_placeholder),
                         icon = Icons.Rounded.Person,
                         position = ItemPosition.TOP
                     )
                     SettingsTextField(
                         value = state.lastName,
                         onValueChange = component::onUpdateLastName,
-                        placeholder = "Last Name (Optional)",
+                        placeholder = stringResource(R.string.last_name_placeholder),
                         icon = Icons.Rounded.PersonOutline,
                         position = ItemPosition.MIDDLE
                     )
                     SettingsTextField(
                         value = state.bio,
                         onValueChange = component::onUpdateBio,
-                        placeholder = "Bio",
+                        placeholder = stringResource(R.string.bio_placeholder),
                         icon = Icons.Rounded.Info,
                         position = ItemPosition.BOTTOM,
                         singleLine = false
                     )
 
                     Text(
-                        text = "Any details such as age, occupation or city. Example: 23 y.o. designer from San Francisco.",
+                        text = stringResource(R.string.bio_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -861,7 +881,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        text = "Username",
+                        text = stringResource(R.string.username_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
@@ -875,7 +895,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                     SettingsTextField(
                         value = state.username,
                         onValueChange = component::onUpdateUsername,
-                        placeholder = "Username",
+                        placeholder = stringResource(R.string.username_label),
                         icon = Icons.Rounded.AlternateEmail,
                         position = ItemPosition.STANDALONE,
                         trailingIcon = if (hasMultipleUsernames) {
@@ -887,7 +907,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                         } else null
                     )
                     Text(
-                        text = "You can choose a username on Telegram. If you do, people will be able to find you by this username and contact you without needing your phone number.",
+                        text = stringResource(R.string.username_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -897,19 +917,20 @@ fun EditProfileContent(component: EditProfileComponent) {
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        text = "Your Birthday",
+                        text = stringResource(R.string.birthday_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)
                     )
 
-                    val birthdateText = state.birthdate?.let { "${it.day}/${it.month}/${it.year ?: ""}" } ?: "Not set"
+                    val birthdateText = state.birthdate?.let { "${it.day}/${it.month}/${it.year ?: ""}" }
+                        ?: stringResource(R.string.not_set)
                     Box(modifier = Modifier.clickable { showDatePicker = true }) {
                         SettingsTextField(
                             value = birthdateText,
                             onValueChange = { },
-                            placeholder = "Birthday",
+                            placeholder = stringResource(R.string.birthday_placeholder),
                             icon = Icons.Rounded.Cake,
                             position = ItemPosition.STANDALONE,
                             enabled = false
@@ -921,7 +942,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                     item {
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
-                            text = "Telegram Business",
+                            text = stringResource(R.string.telegram_business_title),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
@@ -939,7 +960,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                                 onValueChange = {
                                     it.toLongOrNull()?.let { id -> component.onUpdatePersonalChatId(id) }
                                 },
-                                placeholder = "Linked Channel ID",
+                                placeholder = stringResource(R.string.linked_channel_id_placeholder),
                                 icon = Icons.Rounded.Link,
                                 position = ItemPosition.TOP
                             )
@@ -983,7 +1004,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                         SettingsTextField(
                             value = state.businessBio,
                             onValueChange = component::onUpdateBusinessBio,
-                            placeholder = "Business Bio",
+                            placeholder = stringResource(R.string.business_bio_placeholder),
                             icon = Icons.Rounded.Business,
                             position = ItemPosition.MIDDLE
                         )
@@ -997,7 +1018,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                                     state.businessLongitude
                                 )
                             },
-                            placeholder = "Business Address",
+                            placeholder = stringResource(R.string.business_address_placeholder),
                             icon = Icons.Rounded.LocationOn,
                             position = ItemPosition.MIDDLE
                         )
@@ -1009,13 +1030,13 @@ fun EditProfileContent(component: EditProfileComponent) {
                                     state.businessLongitude
                                 )
                             }"
-                        } else "Not set"
+                        } else stringResource(R.string.not_set)
 
                         Box(modifier = Modifier.clickable { showGeoDialog = true }) {
                             SettingsTextField(
                                 value = geoText,
                                 onValueChange = { },
-                                placeholder = "Location Geo",
+                                placeholder = stringResource(R.string.location_geo_placeholder),
                                 icon = Icons.Rounded.Map,
                                 position = ItemPosition.MIDDLE,
                                 enabled = false
@@ -1030,14 +1051,21 @@ fun EditProfileContent(component: EditProfileComponent) {
                             val endH = (it.endMinute % 1440) / 60
                             val endM = (it.endMinute % 1440) % 60
                             val daysCount = state.businessOpeningHours?.intervals?.size ?: 0
-                            String.format("%02d:%02d - %02d:%02d (%d days)", startH, startM, endH, endM, daysCount)
-                        } ?: "Not set"
+                            String.format(
+                                "%02d:%02d - %02d:%02d %s",
+                                startH,
+                                startM,
+                                endH,
+                                endM,
+                                stringResource(R.string.days_count_format, daysCount)
+                            )
+                        } ?: stringResource(R.string.not_set)
 
                         Box(modifier = Modifier.clickable { showWorkHoursSheet = true }) {
                             SettingsTextField(
                                 value = hoursText,
                                 onValueChange = { },
-                                placeholder = "Opening Hours",
+                                placeholder = stringResource(R.string.opening_hours_placeholder),
                                 icon = Icons.Rounded.Schedule,
                                 position = ItemPosition.BOTTOM,
                                 enabled = false
@@ -1045,7 +1073,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                         }
 
                         Text(
-                            text = "As a Premium user, you can add your link a channel, and set business details to your profile",
+                            text = stringResource(R.string.premium_business_description),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

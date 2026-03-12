@@ -10,10 +10,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
 
@@ -25,13 +27,18 @@ fun PowerSavingContent(component: PowerSavingComponent) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Power Saving",
+                title = {
+                    Text(
+                        stringResource(R.string.power_saving_header),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 }
             )
@@ -46,11 +53,11 @@ fun PowerSavingContent(component: PowerSavingComponent) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                SectionHeader("Battery")
+                SectionHeader(stringResource(R.string.battery_header))
                 SettingsSwitchTile(
                     icon = Icons.Rounded.BatteryAlert,
-                    title = "Power Saving Mode",
-                    subtitle = "Reduces background activity and animations to save battery",
+                    title = stringResource(R.string.power_saving_mode_title),
+                    subtitle = stringResource(R.string.power_saving_mode_subtitle),
                     checked = state.isPowerSavingModeEnabled,
                     iconColor = Color(0xFFF44336),
                     position = ItemPosition.TOP,
@@ -58,8 +65,8 @@ fun PowerSavingContent(component: PowerSavingComponent) {
                 )
                 SettingsSwitchTile(
                     icon = Icons.Rounded.BatterySaver,
-                    title = "Optimize Battery Usage",
-                    subtitle = "Aggressively limit background work and release wake locks",
+                    title = stringResource(R.string.optimize_battery_usage_title),
+                    subtitle = stringResource(R.string.optimize_battery_usage_subtitle),
                     checked = state.batteryOptimizationEnabled,
                     iconColor = Color(0xFF4CAF50),
                     position = ItemPosition.MIDDLE,
@@ -67,8 +74,8 @@ fun PowerSavingContent(component: PowerSavingComponent) {
                 )
                 SettingsSwitchTile(
                     icon = Icons.Rounded.Power,
-                    title = "Wake Lock",
-                    subtitle = "Keep CPU awake for background tasks. Disable to save battery",
+                    title = stringResource(R.string.wake_lock_title),
+                    subtitle = stringResource(R.string.wake_lock_subtitle),
                     checked = if (state.isPowerSavingModeEnabled || state.batteryOptimizationEnabled) false else state.isWakeLockEnabled,
                     enabled = !state.isPowerSavingModeEnabled && !state.batteryOptimizationEnabled,
                     iconColor = Color(0xFFFF9800),
@@ -78,11 +85,11 @@ fun PowerSavingContent(component: PowerSavingComponent) {
             }
 
             item {
-                SectionHeader("Animations")
+                SectionHeader(stringResource(R.string.animations_header))
                 SettingsSwitchTile(
                     icon = Icons.Rounded.Animation,
-                    title = "Chat Animations",
-                    subtitle = "Disable animations in chat to save battery",
+                    title = stringResource(R.string.chat_animations_title),
+                    subtitle = stringResource(R.string.chat_animations_subtitle),
                     checked = if (state.isPowerSavingModeEnabled) false else state.isChatAnimationsEnabled,
                     enabled = !state.isPowerSavingModeEnabled,
                     iconColor = Color(0xFF4285F4),
@@ -92,11 +99,11 @@ fun PowerSavingContent(component: PowerSavingComponent) {
             }
 
             item {
-                SectionHeader("Background")
+                SectionHeader(stringResource(R.string.background_header))
                 SettingsSwitchTile(
                     icon = Icons.Rounded.Sync,
-                    title = "Keep-Alive Service",
-                    subtitle = "Disabling this will reduce power usage but may delay background notifications",
+                    title = stringResource(R.string.keep_alive_service_title),
+                    subtitle = stringResource(R.string.keep_alive_power_saving_subtitle),
                     checked = if (state.isPowerSavingModeEnabled) false else state.backgroundServiceEnabled,
                     enabled = !state.isPowerSavingModeEnabled,
                     iconColor = Color(0xFF607D8B),

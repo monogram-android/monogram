@@ -19,11 +19,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.PrivacyValue
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.SettingsTile
@@ -51,7 +53,7 @@ fun PrivacyListContent(component: PrivacyListComponent) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Privacy and Security",
+                        text = stringResource(R.string.privacy_security_header),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -59,7 +61,10 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -94,18 +99,21 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item {
-                        SectionHeader("Privacy")
+                        SectionHeader(stringResource(R.string.privacy_section_header))
                         SettingsTile(
                             icon = Icons.Rounded.Block,
-                            title = "Blocked Users",
-                            subtitle = if (state.blockedUsersCount > 0) "${state.blockedUsersCount} users" else "None",
+                            title = stringResource(R.string.blocked_users_title),
+                            subtitle = if (state.blockedUsersCount > 0) stringResource(
+                                R.string.blocked_users_count_format,
+                                state.blockedUsersCount
+                            ) else stringResource(R.string.none_label),
                             iconColor = redColor,
                             position = ItemPosition.TOP,
                             onClick = component::onBlockedUsersClicked
                         )
                         SettingsTile(
                             icon = Icons.Rounded.Phone,
-                            title = "Phone Number",
+                            title = stringResource(R.string.phone_number_title),
                             subtitle = state.phoneNumberPrivacy.toUiString(),
                             iconColor = orangeColor,
                             position = ItemPosition.MIDDLE,
@@ -113,7 +121,7 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                         )
                         SettingsTile(
                             icon = Icons.Rounded.AccessTime,
-                            title = "Last Seen & Online",
+                            title = stringResource(R.string.last_seen_title),
                             subtitle = state.lastSeenPrivacy.toUiString(),
                             iconColor = blueColor,
                             position = ItemPosition.MIDDLE,
@@ -121,7 +129,7 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                         )
                         SettingsTile(
                             icon = Icons.Rounded.Person,
-                            title = "Profile Photos",
+                            title = stringResource(R.string.profile_photos_title),
                             subtitle = state.profilePhotoPrivacy.toUiString(),
                             iconColor = purpleColor,
                             position = ItemPosition.MIDDLE,
@@ -129,7 +137,7 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                         )
                         SettingsTile(
                             icon = Icons.Rounded.Info,
-                            title = "Bio",
+                            title = stringResource(R.string.bio_label),
                             subtitle = state.bioPrivacy.toUiString(),
                             iconColor = tealColor,
                             position = ItemPosition.MIDDLE,
@@ -137,7 +145,7 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                         )
                         SettingsTile(
                             icon = Icons.Rounded.Forward,
-                            title = "Forwarded Messages",
+                            title = stringResource(R.string.forwarded_messages_title),
                             subtitle = state.forwardedMessagesPrivacy.toUiString(),
                             iconColor = greenColor,
                             position = ItemPosition.MIDDLE,
@@ -145,7 +153,7 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                         )
                         SettingsTile(
                             icon = Icons.Rounded.Call,
-                            title = "Calls",
+                            title = stringResource(R.string.calls_title),
                             subtitle = state.callsPrivacy.toUiString(),
                             iconColor = indigoColor,
                             position = ItemPosition.MIDDLE,
@@ -153,7 +161,7 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                         )
                         SettingsTile(
                             icon = Icons.Rounded.Group,
-                            title = "Groups & Channels",
+                            title = stringResource(R.string.groups_channels_title),
                             subtitle = state.groupsAndChannelsPrivacy.toUiString(),
                             iconColor = pinkColor,
                             position = ItemPosition.BOTTOM,
@@ -162,11 +170,13 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                     }
 
                     item {
-                        SectionHeader("Security")
+                        SectionHeader(stringResource(R.string.security_section_header))
                         SettingsTile(
                             icon = Icons.Rounded.Lock,
-                            title = "Passcode Lock",
-                            subtitle = if (state.isPasscodeEnabled) "On" else "Off",
+                            title = stringResource(R.string.passcode_lock_title),
+                            subtitle = if (state.isPasscodeEnabled) stringResource(R.string.on_label) else stringResource(
+                                R.string.off_label
+                            ),
                             iconColor = blueColor,
                             position = ItemPosition.TOP,
                             onClick = component::onPasscodeClicked
@@ -174,8 +184,8 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                         if (state.isPasscodeEnabled) {
                             SettingsSwitchTile(
                                 icon = Icons.Rounded.Fingerprint,
-                                title = "Unlock with Biometrics",
-                                subtitle = "Use fingerprint or face to unlock",
+                                title = stringResource(R.string.biometric_unlock_title),
+                                subtitle = stringResource(R.string.biometric_unlock_subtitle),
                                 iconColor = greenColor,
                                 checked = state.isBiometricEnabled,
                                 position = ItemPosition.MIDDLE,
@@ -184,18 +194,21 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                         }
                         SettingsTile(
                             icon = Icons.Rounded.Security,
-                            title = "Two-Step Verification",
-                            subtitle = if (state.isTwoStepVerificationEnabled) "On" else "Off",
+                            title = stringResource(R.string.two_step_verification_title),
+                            subtitle = if (state.isTwoStepVerificationEnabled) stringResource(R.string.on_label) else stringResource(
+                                R.string.off_label
+                            ),
                             iconColor = greenColor,
                             position = if (state.isPasscodeEnabled) ItemPosition.MIDDLE else ItemPosition.MIDDLE,
                             onClick = {
-                                Toast.makeText(context, "Not implemented", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.not_implemented), Toast.LENGTH_SHORT)
+                                    .show()
                             }
                         )
                         SettingsTile(
                             icon = Icons.Rounded.Devices,
-                            title = "Active Sessions",
-                            subtitle = "Manage your logged-in devices",
+                            title = stringResource(R.string.active_sessions_title),
+                            subtitle = stringResource(R.string.active_sessions_subtitle),
                             iconColor = orangeColor,
                             position = ItemPosition.BOTTOM,
                             onClick = component::onActiveSessionsClicked
@@ -204,11 +217,11 @@ fun PrivacyListContent(component: PrivacyListComponent) {
 
                     if (state.canShowSensitiveContent && !state.isInstalledFromGooglePlay) {
                         item {
-                            SectionHeader("Sensitive Content")
+                            SectionHeader(stringResource(R.string.sensitive_content_header))
                             SettingsSwitchTile(
                                 icon = Icons.Rounded.Visibility,
-                                title = "Disable filtering",
-                                subtitle = "Display sensitive media in public channels on all your devices.",
+                                title = stringResource(R.string.disable_filtering_title),
+                                subtitle = stringResource(R.string.disable_filtering_subtitle),
                                 iconColor = pinkColor,
                                 checked = state.isSensitiveContentEnabled,
                                 position = ItemPosition.STANDALONE,
@@ -218,19 +231,22 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                     }
 
                     item {
-                        SectionHeader("Advanced")
+                        SectionHeader(stringResource(R.string.advanced_section_header))
                         SettingsTile(
                             icon = Icons.Rounded.DeleteForever,
-                            title = "Delete My Account",
-                            subtitle = "If away for ${state.accountTtlDays.toTtlString()}",
+                            title = stringResource(R.string.delete_my_account_title),
+                            subtitle = stringResource(
+                                R.string.delete_my_account_subtitle,
+                                state.accountTtlDays.toTtlString()
+                            ),
                             iconColor = purpleColor,
                             position = ItemPosition.TOP,
                             onClick = { showTtlSheet = true }
                         )
                         SettingsTile(
                             icon = Icons.Rounded.Warning,
-                            title = "Delete Account Now",
-                            subtitle = "Permanently delete your account and all data",
+                            title = stringResource(R.string.delete_account_now_title),
+                            subtitle = stringResource(R.string.delete_account_now_subtitle),
                             iconColor = redColor,
                             position = ItemPosition.BOTTOM,
                             onClick = { showDeleteConfirmation = true }
@@ -256,7 +272,7 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                     .padding(bottom = 32.dp)
             ) {
                 Text(
-                    text = "Self-Destruct if Inactive For...",
+                    text = stringResource(R.string.self_destruct_title),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
                 )
@@ -304,8 +320,8 @@ fun PrivacyListContent(component: PrivacyListComponent) {
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Delete Account") },
-            text = { Text("Are you sure you want to delete your account? This action is permanent and cannot be undone.") },
+            title = { Text(stringResource(R.string.delete_account_confirmation_title)) },
+            text = { Text(stringResource(R.string.delete_account_confirmation_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -314,12 +330,12 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.action_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirmation = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel_button))
                 }
             }
         )
@@ -337,23 +353,25 @@ private fun SectionHeader(text: String) {
     )
 }
 
+@Composable
 private fun Int.toTtlString(): String {
     return when (this) {
-        30 -> "1 month"
-        90 -> "3 months"
-        180 -> "6 months"
-        365 -> "1 year"
-        548 -> "18 months"
-        720 -> "24 months"
-        730 -> "2 years"
+        30 -> stringResource(R.string.ttl_1_month)
+        90 -> stringResource(R.string.ttl_3_months)
+        180 -> stringResource(R.string.ttl_6_months)
+        365 -> stringResource(R.string.ttl_1_year)
+        548 -> stringResource(R.string.ttl_18_months)
+        720 -> stringResource(R.string.ttl_2_years)
+        730 -> stringResource(R.string.ttl_2_years)
         else -> if (this % 30 == 0) "${this / 30} months" else "$this days"
     }
 }
 
+@Composable
 private fun PrivacyValue.toUiString(): String {
     return when (this) {
-        PrivacyValue.EVERYBODY -> "Everybody"
-        PrivacyValue.MY_CONTACTS -> "My Contacts"
-        PrivacyValue.NOBODY -> "Nobody"
+        PrivacyValue.EVERYBODY -> stringResource(R.string.privacy_everybody)
+        PrivacyValue.MY_CONTACTS -> stringResource(R.string.privacy_my_contacts)
+        PrivacyValue.NOBODY -> stringResource(R.string.privacy_nobody)
     }
 }

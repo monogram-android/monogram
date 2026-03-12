@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +49,7 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.ReplyMarkupModel
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.chatContent.*
 import org.monogram.presentation.features.chats.currentChat.components.*
 import org.monogram.presentation.features.chats.currentChat.components.chats.BotCommandsSheet
@@ -559,7 +561,7 @@ fun ChatContent(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "JOIN",
+                                        text = stringResource(R.string.action_join),
                                         style = MaterialTheme.typography.labelLarge,
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold
@@ -724,7 +726,7 @@ fun ChatContent(
                                     ) {
                                         Icon(
                                             Icons.Default.KeyboardArrowDown,
-                                            contentDescription = "Scroll to bottom",
+                                            contentDescription = stringResource(R.string.cd_scroll_to_bottom),
                                             modifier = Modifier.size(24.dp)
                                         )
                                     }

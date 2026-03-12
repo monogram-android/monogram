@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +28,7 @@ import org.monogram.domain.models.PrivacyValue
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.repository.PrivacyKey
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.core.ui.ItemPosition
@@ -45,7 +47,7 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
             TopAppBar(
                 title = {
                     Text(
-                        text = state.title,
+                        text = stringResource(state.titleRes),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -53,7 +55,10 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -72,21 +77,26 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                SectionHeader("Who can add me to ${state.title.lowercase()}?")
+                SectionHeader(
+                    stringResource(
+                        R.string.privacy_who_can_add_me,
+                        stringResource(state.titleRes).lowercase()
+                    )
+                )
                 PrivacyOption(
-                    title = "Everybody",
+                    title = stringResource(R.string.privacy_everybody),
                     selected = state.selectedValue == PrivacyValue.EVERYBODY,
                     position = ItemPosition.TOP,
                     onClick = { component.onPrivacyValueChanged(PrivacyValue.EVERYBODY) }
                 )
                 PrivacyOption(
-                    title = "My Contacts",
+                    title = stringResource(R.string.privacy_my_contacts),
                     selected = state.selectedValue == PrivacyValue.MY_CONTACTS,
                     position = ItemPosition.MIDDLE,
                     onClick = { component.onPrivacyValueChanged(PrivacyValue.MY_CONTACTS) }
                 )
                 PrivacyOption(
-                    title = "Nobody",
+                    title = stringResource(R.string.privacy_nobody),
                     selected = state.selectedValue == PrivacyValue.NOBODY,
                     position = ItemPosition.BOTTOM,
                     onClick = { component.onPrivacyValueChanged(PrivacyValue.NOBODY) }
@@ -95,21 +105,21 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
 
             if (state.privacyKey == PrivacyKey.PHONE_NUMBER) {
                 item {
-                    SectionHeader("Who can find me by my number?")
+                    SectionHeader(stringResource(R.string.privacy_who_can_find_me_by_number))
                     PrivacyOption(
-                        title = "Everybody",
+                        title = stringResource(R.string.privacy_everybody),
                         selected = state.searchSelectedValue == PrivacyValue.EVERYBODY,
                         position = ItemPosition.TOP,
                         onClick = { component.onSearchPrivacyValueChanged(PrivacyValue.EVERYBODY) }
                     )
                     PrivacyOption(
-                        title = "My Contacts",
+                        title = stringResource(R.string.privacy_my_contacts),
                         selected = state.searchSelectedValue == PrivacyValue.MY_CONTACTS,
                         position = ItemPosition.BOTTOM,
                         onClick = { component.onSearchPrivacyValueChanged(PrivacyValue.MY_CONTACTS) }
                     )
                     Text(
-                        text = "Users who add your number to their contacts will see it on Telegram only if they are allowed to by the setting above.",
+                        text = stringResource(R.string.privacy_phone_number_search_help),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
@@ -118,7 +128,7 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
             }
 
             item {
-                SectionHeader("Add exceptions")
+                SectionHeader(stringResource(R.string.privacy_add_exceptions))
                 val showAlways = state.selectedValue != PrivacyValue.EVERYBODY
                 val showNever = state.selectedValue != PrivacyValue.NOBODY
 
@@ -126,8 +136,11 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
                     val total = state.allowUsers.size + state.allowChats.size
                     SettingsTile(
                         icon = Icons.Rounded.Add,
-                        title = "Always Allow",
-                        subtitle = if (total > 0) "$total users/chats" else null,
+                        title = stringResource(R.string.privacy_always_allow),
+                        subtitle = if (total > 0) stringResource(
+                            R.string.privacy_exceptions_count_format,
+                            total
+                        ) else null,
                         iconColor = greenColor,
                         position = if (showNever) ItemPosition.TOP else ItemPosition.STANDALONE,
                         onClick = { component.onAddExceptionClicked(true) }
@@ -138,8 +151,11 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
                     val total = state.disallowUsers.size + state.disallowChats.size
                     SettingsTile(
                         icon = Icons.Rounded.RemoveCircle,
-                        title = "Never Allow",
-                        subtitle = if (total > 0) "$total users/chats" else null,
+                        title = stringResource(R.string.privacy_never_allow),
+                        subtitle = if (total > 0) stringResource(
+                            R.string.privacy_exceptions_count_format,
+                            total
+                        ) else null,
                         iconColor = redColor,
                         position = if (showAlways) ItemPosition.BOTTOM else ItemPosition.STANDALONE,
                         onClick = { component.onAddExceptionClicked(false) }
@@ -149,7 +165,7 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
 
             if (state.allowUsers.isNotEmpty() || state.allowChats.isNotEmpty()) {
                 item {
-                    SectionHeader("Always Allow")
+                    SectionHeader(stringResource(R.string.privacy_always_allow))
                     val totalItems = state.allowUsers.size + state.allowChats.size
                     var currentIndex = 0
 
@@ -189,7 +205,7 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
 
             if (state.disallowUsers.isNotEmpty() || state.disallowChats.isNotEmpty()) {
                 item {
-                    SectionHeader("Never Allow")
+                    SectionHeader(stringResource(R.string.privacy_never_allow))
                     val totalItems = state.disallowUsers.size + state.disallowChats.size
                     var currentIndex = 0
 
@@ -239,10 +255,11 @@ fun ExceptionUserItem(
     onClick: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val displayName = remember(user) {
+    val deletedText = stringResource(R.string.privacy_user_deleted)
+    val displayName = remember(user, deletedText) {
         buildString {
             if (user.firstName.isBlank()) {
-                append("${user.id} (deleted)")
+                append("${user.id} $deletedText")
             } else {
                 append(user.firstName)
                 if (!user.lastName.isNullOrBlank()) {
@@ -300,7 +317,7 @@ fun ExceptionUserItem(
                 Text(text = displayName, style = MaterialTheme.typography.titleMedium, fontSize = 16.sp)
             }
             IconButton(onClick = onRemove) {
-                Icon(Icons.Rounded.Close, contentDescription = "Remove")
+                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_delete))
             }
         }
     }
@@ -355,13 +372,13 @@ fun ExceptionChatItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = chat.title, style = MaterialTheme.typography.titleMedium, fontSize = 16.sp)
                 Text(
-                    text = "Chat members",
+                    text = stringResource(R.string.privacy_chat_members),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             IconButton(onClick = onRemove) {
-                Icon(Icons.Rounded.Close, contentDescription = "Remove")
+                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_delete))
             }
         }
     }
@@ -416,7 +433,7 @@ fun PrivacyOption(
             if (selected) {
                 Icon(
                     imageVector = Icons.Rounded.Check,
-                    contentDescription = "Selected",
+                    contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary
                 )
             }

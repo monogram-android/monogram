@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,14 +34,15 @@ import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.NetworkTypeUsage
 import org.monogram.domain.models.NetworkUsageCategory
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import java.util.*
 
-private enum class NetworkTab(val title: String, val icon: ImageVector) {
-    Mobile("Mobile", Icons.Rounded.SignalCellularAlt),
-    Wifi("Wi-Fi", Icons.Rounded.Wifi),
-    Roaming("Roaming", Icons.Rounded.Public),
-    Other("Other", Icons.Rounded.DevicesOther)
+private enum class NetworkTab(val titleRes: Int, val icon: ImageVector) {
+    Mobile(R.string.mobile_tab, Icons.Rounded.SignalCellularAlt),
+    Wifi(R.string.wifi_tab, Icons.Rounded.Wifi),
+    Roaming(R.string.roaming_tab, Icons.Rounded.Public),
+    Other(R.string.other_tab, Icons.Rounded.DevicesOther)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,7 +62,7 @@ fun NetworkUsageContent(component: NetworkUsageComponent) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Network Usage",
+                        text = stringResource(R.string.network_usage_header),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -68,13 +70,19 @@ fun NetworkUsageContent(component: NetworkUsageComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 },
                 actions = {
                     if (state.isNetworkStatsEnabled) {
                         IconButton(onClick = component::onResetClicked) {
-                            Icon(Icons.Rounded.Refresh, contentDescription = "Reset Statistics")
+                            Icon(
+                                Icons.Rounded.Refresh,
+                                contentDescription = stringResource(R.string.reset_statistics_cd)
+                            )
                         }
                     }
                 },
@@ -116,12 +124,12 @@ fun NetworkUsageContent(component: NetworkUsageComponent) {
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Network Statistics",
+                                text = stringResource(R.string.network_statistics_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Keep track of how much data you use. Disabling can reduce disk space usage.",
+                                text = stringResource(R.string.network_statistics_description),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -175,7 +183,7 @@ fun NetworkUsageContent(component: NetworkUsageComponent) {
                                         )
                                         Spacer(Modifier.width(8.dp))
                                         Text(
-                                            text = tab.title,
+                                            text = stringResource(tab.titleRes),
                                             style = MaterialTheme.typography.labelLarge,
                                             color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
@@ -237,14 +245,14 @@ private fun DisabledStateView() {
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            "Network Statistics Disabled",
+            stringResource(R.string.network_stats_disabled_title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            "Network usage tracking is currently turned off. Enable it using the switch above to see how much data you're using on mobile, Wi-Fi, and roaming networks.",
+            stringResource(R.string.network_stats_disabled_description),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -270,7 +278,7 @@ private fun NetworkTabBody(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 16.dp)
     ) {
         item {
-            SectionHeader("Overview")
+            SectionHeader(stringResource(R.string.overview_header))
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainer,
                 shape = RoundedCornerShape(24.dp),
@@ -290,7 +298,7 @@ private fun NetworkTabBody(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Total Usage",
+                                text = stringResource(R.string.total_usage_label),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -338,7 +346,7 @@ private fun NetworkTabBody(
                                 .background(primaryColor, CircleShape))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                "Sent",
+                                stringResource(R.string.sent_label),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -356,7 +364,7 @@ private fun NetworkTabBody(
                                 .background(primaryColor.copy(alpha = 0.3f), CircleShape))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                "Received",
+                                stringResource(R.string.received_label),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -373,7 +381,7 @@ private fun NetworkTabBody(
         }
 
         item {
-            SectionHeader("App Usage")
+            SectionHeader(stringResource(R.string.app_usage_header))
         }
 
         if (sortedCategories.isEmpty()) {
@@ -387,7 +395,7 @@ private fun NetworkTabBody(
                         .fillMaxWidth()
                         .padding(24.dp), contentAlignment = Alignment.Center) {
                         Text(
-                            "No usage data recorded",
+                            stringResource(R.string.no_usage_data_recorded),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.outline
                         )
@@ -484,7 +492,11 @@ private fun UsageRowItem(
                     maxLines = 1
                 )
                 Text(
-                    text = "Sent: ${formatSize(category.sent)} • Received: ${formatSize(category.received)}",
+                    text = "${stringResource(R.string.sent_label)}: ${formatSize(category.sent)} • ${stringResource(R.string.received_label)}: ${
+                        formatSize(
+                            category.received
+                        )
+                    }",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -536,7 +548,7 @@ private fun EmptyStateView(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            "No statistics available",
+            stringResource(R.string.no_statistics_available),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

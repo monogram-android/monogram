@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +54,7 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.monogram.domain.models.ChatType
 import org.monogram.domain.repository.ConnectionStatus
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.ChatListComponent
 import org.monogram.presentation.features.chats.chatList.components.*
@@ -405,13 +407,16 @@ fun ChatListContent(component: ChatListComponent) {
                                 title = {
                                     Column {
                                         Text(
-                                            "Forward to...",
+                                            stringResource(R.string.forward_to_title),
                                             fontWeight = FontWeight.SemiBold,
                                             style = MaterialTheme.typography.titleMedium
                                         )
                                         if (state.selectedChatIds.isNotEmpty()) {
                                             Text(
-                                                text = "${state.selectedChatIds.size} chats selected",
+                                                text = stringResource(
+                                                    R.string.chats_selected_format,
+                                                    state.selectedChatIds.size
+                                                ),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.primary
                                             )
@@ -420,7 +425,7 @@ fun ChatListContent(component: ChatListComponent) {
                                 },
                                 navigationIcon = {
                                     IconButton(onClick = { component.handleBack() }) {
-                                        Icon(Icons.Rounded.Close, "Cancel")
+                                        Icon(Icons.Rounded.Close, stringResource(R.string.cancel_button))
                                     }
                                 },
                                 actions = {
@@ -428,7 +433,7 @@ fun ChatListContent(component: ChatListComponent) {
                                         IconButton(onClick = { component.onConfirmForwarding() }) {
                                             Icon(
                                                 Icons.AutoMirrored.Rounded.Send,
-                                                "Send",
+                                                stringResource(R.string.action_send),
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                         }
@@ -438,10 +443,15 @@ fun ChatListContent(component: ChatListComponent) {
                             )
                         } else if (state.selectedFolderId == -2 && !state.isSearchActive) {
                             TopAppBar(
-                                title = { Text("Archived Chats", fontWeight = FontWeight.SemiBold) },
+                                title = {
+                                    Text(
+                                        stringResource(R.string.archived_chats_title),
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                },
                                 navigationIcon = {
                                     IconButton(onClick = { component.handleBack() }) {
-                                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
+                                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.cd_back))
                                     }
                                 },
                                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
@@ -585,7 +595,7 @@ fun ChatListContent(component: ChatListComponent) {
                 ExtendedFloatingActionButton(
                     onClick = { component.onNewChatClicked() },
                     icon = { Icon(Icons.Rounded.Edit, null) },
-                    text = { Text("New Chat") },
+                    text = { Text(stringResource(R.string.new_chat_fab)) },
                     expanded = isFabExpanded,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -602,7 +612,7 @@ fun ChatListContent(component: ChatListComponent) {
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
-                    Icon(Icons.AutoMirrored.Rounded.Send, "Send")
+                    Icon(Icons.AutoMirrored.Rounded.Send, stringResource(R.string.action_send))
                 }
             }
         }
@@ -675,12 +685,12 @@ fun ChatListContent(component: ChatListComponent) {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Recent",
+                                        text = stringResource(R.string.search_recent),
                                         style = MaterialTheme.typography.titleSmall,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                     TextButton(onClick = { component.onClearSearchHistory() }) {
-                                        Text("Clear All")
+                                        Text(stringResource(R.string.action_clear_all))
                                     }
                                 }
                             }
@@ -767,7 +777,7 @@ fun ChatListContent(component: ChatListComponent) {
                         if (state.searchResults.isNotEmpty()) {
                             item {
                                 Text(
-                                    text = "Chats and contacts",
+                                    text = stringResource(R.string.search_section_chats),
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.primary
@@ -792,7 +802,7 @@ fun ChatListContent(component: ChatListComponent) {
                         if (state.globalSearchResults.isNotEmpty()) {
                             item {
                                 Text(
-                                    text = "Global search",
+                                    text = stringResource(R.string.search_section_global),
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.primary
@@ -827,7 +837,7 @@ fun ChatListContent(component: ChatListComponent) {
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = "Show more",
+                                            text = stringResource(R.string.action_show_more),
                                             color = MaterialTheme.colorScheme.primary,
                                             style = MaterialTheme.typography.labelLarge
                                         )
@@ -839,7 +849,7 @@ fun ChatListContent(component: ChatListComponent) {
                         if (state.messageSearchResults.isNotEmpty()) {
                             item {
                                 Text(
-                                    text = "Messages",
+                                    text = stringResource(R.string.search_section_messages),
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                     style = MaterialTheme.typography.titleSmall,
                                     color = MaterialTheme.colorScheme.primary
@@ -874,7 +884,7 @@ fun ChatListContent(component: ChatListComponent) {
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = "Show more",
+                                            text = stringResource(R.string.action_show_more),
                                             color = MaterialTheme.colorScheme.primary,
                                             style = MaterialTheme.typography.labelLarge
                                         )

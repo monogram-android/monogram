@@ -11,10 +11,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.ComponentContext
+import org.monogram.presentation.R
 
 interface StartupComponent
 
@@ -37,7 +39,7 @@ fun StartupContent() {
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "MonoGram",
+                text = stringResource(R.string.app_name_monogram),
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 2.sp
@@ -46,7 +48,7 @@ fun StartupContent() {
             )
 
             Text(
-                text = "Connecting to Telegram...",
+                text = stringResource(R.string.startup_connecting),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )

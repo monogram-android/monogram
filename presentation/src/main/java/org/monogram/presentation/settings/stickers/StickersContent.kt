@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.monogram.domain.models.StickerSetModel
+import org.monogram.presentation.R
 import org.monogram.presentation.features.stickers.ui.view.LocalIsScrolling
 import org.monogram.presentation.features.webapp.MiniAppViewer
 import org.monogram.presentation.core.ui.ItemPosition
@@ -50,9 +52,9 @@ import org.monogram.presentation.core.ui.SettingsTile
 import org.monogram.presentation.core.ui.StickerSetItem
 import org.monogram.presentation.core.ui.getItemShape
 
-private enum class StickerTab(val title: String, val icon: ImageVector) {
-    Stickers("Stickers", Icons.AutoMirrored.Rounded.StickyNote2),
-    Emoji("Emoji", Icons.Rounded.EmojiEmotions)
+private enum class StickerTab(val titleRes: Int, val icon: ImageVector) {
+    Stickers(R.string.stickers_tab, Icons.AutoMirrored.Rounded.StickyNote2),
+    Emoji(R.string.emoji_tab, Icons.Rounded.EmojiEmotions)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,14 +75,17 @@ fun StickersContent(component: StickersComponent) {
                     TopAppBar(
                         title = {
                             Text(
-                                text = "Stickers and Emoji",
+                                text = stringResource(R.string.stickers_emoji_header),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
                         },
                         navigationIcon = {
                             IconButton(onClick = component::onBackClicked) {
-                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                                Icon(
+                                    Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = stringResource(R.string.cd_back)
+                                )
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
@@ -136,7 +141,7 @@ fun StickersContent(component: StickersComponent) {
                                     )
                                     Spacer(Modifier.width(8.dp))
                                     Text(
-                                        text = tab.title,
+                                        text = stringResource(tab.titleRes),
                                         style = MaterialTheme.typography.labelLarge,
                                         color = contentColor,
                                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
@@ -194,13 +199,13 @@ fun StickersContent(component: StickersComponent) {
                                 GenericStickerList(
                                     sets = filteredSets,
                                     archivedSets = state.archivedStickerSets,
-                                    recentHeader = "Recent Stickers",
-                                    setsHeader = "Sticker Sets",
-                                    archivedHeader = "Archived Stickers",
-                                    addStickersTitle = "Add own stickers",
-                                    addStickersSubtitle = "Create your own sticker sets using @Stickers bot",
-                                    clearRecentTitle = "Clear Recent Stickers",
-                                    clearRecentSubtitle = "Remove all recently used stickers",
+                                    recentHeader = stringResource(R.string.recent_stickers_header),
+                                    setsHeader = stringResource(R.string.sticker_sets_header),
+                                    archivedHeader = stringResource(R.string.archived_stickers_header),
+                                    addStickersTitle = stringResource(R.string.add_own_stickers_title),
+                                    addStickersSubtitle = stringResource(R.string.add_own_stickers_subtitle),
+                                    clearRecentTitle = stringResource(R.string.clear_recent_stickers_title),
+                                    clearRecentSubtitle = stringResource(R.string.clear_recent_stickers_subtitle),
                                     clearRecentIcon = Icons.AutoMirrored.Rounded.StickyNote2,
                                     clearRecentIconColor = orangeColor,
                                     onClearRecent = component::onClearRecentStickers,
@@ -211,7 +216,10 @@ fun StickersContent(component: StickersComponent) {
                                     listState = stickersListState,
                                     searchQuery = state.searchQuery,
                                     onSearchQueryChange = component::onSearchQueryChanged,
-                                    emptyText = if (state.searchQuery.isEmpty()) "No sticker sets installed" else "No stickers found for \"${state.searchQuery}\"",
+                                    emptyText = if (state.searchQuery.isEmpty()) stringResource(R.string.no_sticker_sets_installed) else stringResource(
+                                        R.string.no_stickers_found_format,
+                                        state.searchQuery
+                                    ),
                                     onAddStickers = component::onAddStickersClicked
                                 )
                             }
@@ -229,13 +237,13 @@ fun StickersContent(component: StickersComponent) {
                                 GenericStickerList(
                                     sets = filteredSets,
                                     archivedSets = state.archivedEmojiSets,
-                                    recentHeader = "Recent Emojis",
-                                    setsHeader = "Emoji Packs",
-                                    archivedHeader = "Archived Emojis",
-                                    addStickersTitle = "Add own emoji",
-                                    addStickersSubtitle = "Create your own emoji packs using @Stickers bot",
-                                    clearRecentTitle = "Clear Recent Emojis",
-                                    clearRecentSubtitle = "Remove all recently used emojis",
+                                    recentHeader = stringResource(R.string.recent_emojis_header),
+                                    setsHeader = stringResource(R.string.emoji_packs_header),
+                                    archivedHeader = stringResource(R.string.archived_emojis_header),
+                                    addStickersTitle = stringResource(R.string.add_own_emoji_title),
+                                    addStickersSubtitle = stringResource(R.string.add_own_emoji_subtitle),
+                                    clearRecentTitle = stringResource(R.string.clear_recent_emojis_title_settings),
+                                    clearRecentSubtitle = stringResource(R.string.clear_recent_emojis_subtitle_settings),
                                     clearRecentIcon = Icons.Rounded.EmojiEmotions,
                                     clearRecentIconColor = tealColor,
                                     onClearRecent = component::onClearRecentEmojis,
@@ -246,7 +254,10 @@ fun StickersContent(component: StickersComponent) {
                                     listState = emojisListState,
                                     searchQuery = state.searchQuery,
                                     onSearchQueryChange = component::onSearchQueryChanged,
-                                    emptyText = if (state.searchQuery.isEmpty()) "No emoji packs installed" else "No emojis found for \"${state.searchQuery}\"",
+                                    emptyText = if (state.searchQuery.isEmpty()) stringResource(R.string.no_emoji_packs_installed) else stringResource(
+                                        R.string.no_emojis_found_format,
+                                        state.searchQuery
+                                    ),
                                     onAddStickers = component::onAddStickersClicked
                                 )
                             }
@@ -325,14 +336,14 @@ private fun GenericStickerList(
                     onSearch = { },
                     active = false,
                     onActiveChange = { },
-                    placeholder = { Text("Search packs") },
+                    placeholder = { Text(stringResource(R.string.search_packs_placeholder)) },
                     leadingIcon = {
-                        Icon(Icons.Rounded.Search, contentDescription = "Search")
+                        Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.action_search))
                     },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { onSearchQueryChange("") }) {
-                                Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_clear))
                             }
                         }
                     },

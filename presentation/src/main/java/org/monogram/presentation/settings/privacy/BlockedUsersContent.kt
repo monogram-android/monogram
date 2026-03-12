@@ -18,11 +18,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.UserModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.core.ui.ItemPosition
@@ -38,14 +40,14 @@ fun BlockedUsersContent(component: BlockedUsersComponent) {
                 title = {
                     Column {
                         Text(
-                            text = "Blocked Users",
+                            text = stringResource(R.string.blocked_users_title),
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         if (state.blockedUsers.isNotEmpty()) {
                             Text(
-                                text = "${state.blockedUsers.size} users",
+                                text = stringResource(R.string.blocked_users_count_format, state.blockedUsers.size),
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -54,7 +56,10 @@ fun BlockedUsersContent(component: BlockedUsersComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -69,7 +74,7 @@ fun BlockedUsersContent(component: BlockedUsersComponent) {
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Icon(Icons.Rounded.Add, contentDescription = "Block User")
+                Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.privacy_block_user_cd))
             }
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -102,7 +107,7 @@ fun BlockedUsersContent(component: BlockedUsersComponent) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No blocked users",
+                            text = stringResource(R.string.privacy_no_blocked_users),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -116,7 +121,7 @@ fun BlockedUsersContent(component: BlockedUsersComponent) {
                     ) {
                         item {
                             Text(
-                                text = "Blocked users will not be able to contact you and will not see your Last Seen time.",
+                                text = stringResource(R.string.privacy_blocked_users_help),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(vertical = 16.dp, horizontal = 12.dp)
@@ -157,10 +162,11 @@ fun BlockedUserItem(
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
-    val displayName = remember(user) {
+    val deletedText = stringResource(R.string.privacy_user_deleted)
+    val displayName = remember(user, deletedText) {
         buildString {
             if (user.firstName.isBlank()) {
-                append("${user.id} (deleted)")
+                append("${user.id} $deletedText")
             } else {
                 append(user.firstName)
                 if (!user.lastName.isNullOrBlank()) {
@@ -224,7 +230,7 @@ fun BlockedUserItem(
                     Spacer(Modifier.width(4.dp))
                     Icon(
                         imageVector = Icons.Rounded.Verified,
-                        contentDescription = "Verified",
+                        contentDescription = stringResource(R.string.cd_verified),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -232,14 +238,14 @@ fun BlockedUserItem(
             }
             Box {
                 IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Rounded.MoreVert, contentDescription = "More")
+                    Icon(Icons.Rounded.MoreVert, contentDescription = null)
                 }
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Unblock") },
+                        text = { Text(stringResource(R.string.privacy_unblock_action)) },
                         onClick = {
                             onUnblock()
                             showMenu = false

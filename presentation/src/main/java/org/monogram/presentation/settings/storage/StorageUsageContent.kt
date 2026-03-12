@@ -24,12 +24,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.ChatStorageUsageModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsTile
 import java.util.*
@@ -68,7 +70,7 @@ fun StorageUsageContent(component: StorageUsageComponent) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Storage Usage",
+                        text = stringResource(R.string.storage_usage_header),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -76,7 +78,10 @@ fun StorageUsageContent(component: StorageUsageComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -103,7 +108,7 @@ fun StorageUsageContent(component: StorageUsageComponent) {
             ) {
                 if (usage != null && usage.totalSize > 0) {
                     item {
-                        SectionHeader("Overview")
+                        SectionHeader(stringResource(R.string.overview_header))
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceContainer,
                             shape = RoundedCornerShape(24.dp),
@@ -133,13 +138,13 @@ fun StorageUsageContent(component: StorageUsageComponent) {
                                 Icon(Icons.Rounded.Delete, null)
                                 Spacer(Modifier.width(12.dp))
                                 Text(
-                                    "Clear All Cache • ${formatSize(usage.totalSize)}",
+                                    stringResource(R.string.clear_all_cache_format, formatSize(usage.totalSize)),
                                     style = MaterialTheme.typography.titleMedium
                                 )
                             }
 
                             Text(
-                                text = "Includes photos, videos, documents, stickers, and GIFs from all chats.",
+                                text = stringResource(R.string.clear_cache_description),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
@@ -152,10 +157,10 @@ fun StorageUsageContent(component: StorageUsageComponent) {
                 }
 
                 item {
-                    SectionHeader("Settings")
+                    SectionHeader(stringResource(R.string.settings_section_header))
                     SettingsTile(
                         icon = Icons.Rounded.SdStorage,
-                        title = "Cache Limit",
+                        title = stringResource(R.string.cache_limit_title),
                         subtitle = formatCacheLimit(state.cacheLimitSize),
                         iconColor = Color(0xFF4285F4),
                         position = ItemPosition.TOP,
@@ -164,7 +169,7 @@ fun StorageUsageContent(component: StorageUsageComponent) {
                     Spacer(Modifier.height(2.dp))
                     SettingsTile(
                         icon = Icons.Rounded.Timer,
-                        title = "Auto-Clear Cache",
+                        title = stringResource(R.string.auto_clear_cache_title),
                         subtitle = formatAutoClearTime(state.autoClearCacheTime),
                         iconColor = Color(0xFF34A853),
                         position = ItemPosition.MIDDLE,
@@ -173,8 +178,8 @@ fun StorageUsageContent(component: StorageUsageComponent) {
                     Spacer(Modifier.height(2.dp))
                     SettingsTile(
                         icon = Icons.Rounded.AutoFixHigh,
-                        title = "Storage Optimizer",
-                        subtitle = "Background storage optimization",
+                        title = stringResource(R.string.storage_optimizer_title),
+                        subtitle = stringResource(R.string.storage_optimizer_subtitle),
                         iconColor = Color(0xFFAF52DE),
                         position = ItemPosition.BOTTOM,
                         onClick = { component.onStorageOptimizerChanged(!state.isStorageOptimizerEnabled) },
@@ -189,7 +194,7 @@ fun StorageUsageContent(component: StorageUsageComponent) {
 
                 if (usage != null && usage.totalSize > 0) {
                     item {
-                        SectionHeader("Detailed Usage")
+                        SectionHeader(stringResource(R.string.detailed_usage_header))
                     }
                     val sortedChats = usage.chatStats.sortedByDescending { it.size }
                     val maxChatSize = sortedChats.firstOrNull()?.size?.toFloat() ?: 1f
@@ -227,9 +232,12 @@ fun StorageUsageContent(component: StorageUsageComponent) {
                                     tint = MaterialTheme.colorScheme.surfaceVariant
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text("Storage is Clean", style = MaterialTheme.typography.titleMedium)
                                 Text(
-                                    "No cached files found.",
+                                    stringResource(R.string.storage_clean_title),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    stringResource(R.string.storage_clean_description),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -245,14 +253,10 @@ fun StorageUsageContent(component: StorageUsageComponent) {
     selectedChatForDeletion?.let { chat ->
         AlertDialog(
             onDismissRequest = { selectedChatForDeletion = null },
-            title = { Text("Clear Cache") },
+            title = { Text(stringResource(R.string.clear_cache_title_dialog)) },
             text = {
                 Text(
-                    "Are you sure you want to clear cache for \"${chat.chatTitle}\"? This will free up ${
-                        formatSize(
-                            chat.size
-                        )
-                    }."
+                    stringResource(R.string.clear_cache_confirmation_format, chat.chatTitle, formatSize(chat.size))
                 )
             },
             confirmButton = {
@@ -263,12 +267,12 @@ fun StorageUsageContent(component: StorageUsageComponent) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Clear")
+                    Text(stringResource(R.string.action_clear))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { selectedChatForDeletion = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel_action))
                 }
             }
         )
@@ -277,8 +281,8 @@ fun StorageUsageContent(component: StorageUsageComponent) {
     if (showClearAllConfirmation) {
         AlertDialog(
             onDismissRequest = { showClearAllConfirmation = false },
-            title = { Text("Clear All Cache") },
-            text = { Text("This will remove all cached media files from all chats. Are you sure?") },
+            title = { Text(stringResource(R.string.clear_all_cache_title)) },
+            text = { Text(stringResource(R.string.clear_all_cache_confirmation)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -287,12 +291,12 @@ fun StorageUsageContent(component: StorageUsageComponent) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Clear All")
+                    Text(stringResource(R.string.action_clear_all))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearAllConfirmation = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel_action))
                 }
             }
         )
@@ -314,7 +318,7 @@ fun StorageUsageContent(component: StorageUsageComponent) {
 
         AlertDialog(
             onDismissRequest = { showCacheLimitDialog = false },
-            title = { Text("Cache Limit") },
+            title = { Text(stringResource(R.string.cache_limit_title)) },
             text = {
                 Column {
                     Text(
@@ -322,7 +326,7 @@ fun StorageUsageContent(component: StorageUsageComponent) {
                             0 -> "5 GB"
                             1 -> "10 GB"
                             2 -> "15 GB"
-                            else -> "Unlimited"
+                            else -> stringResource(R.string.unlimited_label)
                         },
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -349,12 +353,12 @@ fun StorageUsageContent(component: StorageUsageComponent) {
                         showCacheLimitDialog = false
                     }
                 ) {
-                    Text("Save")
+                    Text(stringResource(R.string.action_save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCacheLimitDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel_action))
                 }
             }
         )
@@ -376,15 +380,15 @@ fun StorageUsageContent(component: StorageUsageComponent) {
 
         AlertDialog(
             onDismissRequest = { showAutoClearDialog = false },
-            title = { Text("Auto-Clear Cache") },
+            title = { Text(stringResource(R.string.auto_clear_cache_title)) },
             text = {
                 Column {
                     Text(
                         text = when (sliderValue.roundToInt()) {
-                            0 -> "Every Day"
-                            1 -> "Every Week"
-                            2 -> "Every Month"
-                            else -> "Never"
+                            0 -> stringResource(R.string.every_day_label)
+                            1 -> stringResource(R.string.every_week_label)
+                            2 -> stringResource(R.string.every_month_label)
+                            else -> stringResource(R.string.never_label)
                         },
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -411,12 +415,12 @@ fun StorageUsageContent(component: StorageUsageComponent) {
                         showAutoClearDialog = false
                     }
                 ) {
-                    Text("Save")
+                    Text(stringResource(R.string.action_save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showAutoClearDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel_action))
                 }
             }
         )
@@ -486,7 +490,7 @@ fun StorageChartHeader(
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Total Used",
+                    text = stringResource(R.string.total_used_label),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -496,7 +500,7 @@ fun StorageChartHeader(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "$totalFileCount files",
+                    text = stringResource(R.string.files_count_label, totalFileCount),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
@@ -531,7 +535,7 @@ fun StorageChartHeader(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "${segment.count} files",
+                                text = stringResource(R.string.files_count_label, segment.count),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -632,7 +636,12 @@ fun StorageItemRow(
                 val fileTypesSummary = chatUsage.byFileType.sortedByDescending { it.size }.take(2)
                     .joinToString(", ") { formatFileType(it.fileType) }
                 Text(
-                    text = if (fileTypesSummary.isNotEmpty()) "$fileTypesSummary • ${chatUsage.fileCount} files" else "${chatUsage.fileCount} files",
+                    text = if (fileTypesSummary.isNotEmpty()) "$fileTypesSummary • ${
+                        stringResource(
+                            R.string.files_count_label,
+                            chatUsage.fileCount
+                        )
+                    }" else stringResource(R.string.files_count_label, chatUsage.fileCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -682,19 +691,21 @@ private fun formatSize(bytes: Long): String {
     return String.format(Locale.US, "%.1f %cB", bytes / Math.pow(1024.0, exp.toDouble()), pre)
 }
 
+@Composable
 private fun formatCacheLimit(size: Long): String {
     return when (size) {
-        -1L -> "Unlimited"
+        -1L -> stringResource(R.string.unlimited_label)
         else -> formatSize(size)
     }
 }
 
+@Composable
 private fun formatAutoClearTime(days: Int): String {
     return when (days) {
-        -1 -> "Never"
-        1 -> "Every Day"
-        7 -> "Every Week"
-        30 -> "Every Month"
-        else -> "$days Days"
+        -1 -> stringResource(R.string.never_label)
+        1 -> stringResource(R.string.every_day_label)
+        7 -> stringResource(R.string.every_week_label)
+        30 -> stringResource(R.string.every_month_label)
+        else -> stringResource(R.string.repeat_hours_format, days / 24)
     }
 }

@@ -16,4 +16,663 @@
     <string name="cd_navigate_back">Navigate back</string>
     <string name="cd_close_scanner">Close scanner</string>
     <string name="cd_qr_icon">QR Scanner icon</string>
+
+    <!-- Startup -->
+    <string name="startup_connecting">Connecting to Telegram…</string>
+
+    <!-- About Screen -->
+    <string name="about_title">About</string>
+    <string name="cd_back">Back</string>
+    <string name="app_name_monogram">MonoGram</string>
+    <string name="version_format">Version %1$s</string>
+    <string name="terms_of_service_title">Terms of Service</string>
+    <string name="terms_of_service_subtitle">Read our terms and conditions</string>
+    <string name="open_source_licenses_title">Open Source Licenses</string>
+    <string name="open_source_licenses_subtitle">Software used in MonoGram</string>
+    <string name="github_title">GitHub</string>
+    <string name="github_subtitle">View source code</string>
+    <string name="tdlib_version_title">TDLib Version</string>
+    <string name="tdlib_version_with_hash">%1$s (%2$s)</string>
+    <string name="community_section">Community</string>
+    <string name="telegram_chat_title">Telegram Chat</string>
+    <string name="telegram_chat_subtitle">Join our community to discuss features and get help</string>
+    <string name="telegram_channel_title">Telegram Channel</string>
+    <string name="telegram_channel_subtitle">Stay updated with the latest news and announcements</string>
+    <string name="support_monogram_title">Support MonoGram</string>
+    <string name="support_monogram_subtitle">Support the development and help us keep the project alive</string>
+    <string name="maintainers_section">Maintainers</string>
+    <string name="role_developer">Developer</string>
+    <string name="role_designer">Icon &amp; Logo Designer</string>
+    <string name="monogram_description">MonoGram is an unofficial Telegram client built with Material Design 3</string>
+    <string name="copyright_text">© 2026 Monogram</string>
+
+    <!-- Updates -->
+    <string name="check_for_updates">Check for Updates</string>
+    <string name="checking_updates">Checking...</string>
+    <string name="update_available_format">Update Available: %1$s</string>
+    <string name="up_to_date">You are up to date</string>
+    <string name="update_ready">Update Ready</string>
+    <string name="update_error">Update Error</string>
+    <string name="check_update_subtitle">Tap to check for new version</string>
+    <string name="connecting_server_subtitle">Connecting to server</string>
+    <string name="update_available_subtitle">New version is available for download</string>
+    <string name="latest_version_subtitle">You are using the latest version</string>
+    <string name="install_update_subtitle">Tap to install the update</string>
+    <string name="downloading_update">Downloading Update...</string>
+    <string name="update_progress_format">%1$d%%</string>
+    <string name="whats_new_format">What\'s New in %1$s</string>
+    <string name="download_update_action">Download Update</string>
+    <string name="cancel_button">Cancel</string>
+    <string name="loading_text">Loading...</string>
+
+    <!-- Auth -->
+    <string name="auth_title_phone">Your Phone</string>
+    <string name="auth_title_verification">Verification</string>
+    <string name="auth_title_password">Password</string>
+    <string name="cd_proxy_settings">Proxy Settings</string>
+    <string name="phone_input_title">Your Phone Number</string>
+    <string name="phone_input_description">Please confirm your country code and enter your phone number.</string>
+    <string name="country_label">Country</string>
+    <string name="code_label">Code</string>
+    <string name="phone_number_label">Phone Number</string>
+    <string name="continue_button">Continue</string>
+    <string name="select_country_title">Select Country</string>
+    <string name="search_country_hint">Search country or code...</string>
+    <string name="verification_delivery_telegram">We\'ve sent the code to the Telegram app on your other device.
+    </string>
+    <string name="verification_delivery_sms">We\'ve sent the code via SMS.</string>
+    <string name="verification_delivery_call">We\'re calling you with the code.</string>
+    <string name="verification_delivery_default">We\'ve sent the verification code.</string>
+    <string name="confirm_button">Confirm</string>
+    <string name="resend_code_timer">Resend code in %1$s</string>
+    <string name="resend_via_sms">Resend via SMS</string>
+    <string name="resend_via_call">Resend via Call</string>
+    <string name="resend_code">Resend code</string>
+    <string name="wrong_number">Wrong number?</string>
+    <string name="two_step_verification_title">Two-Step Verification</string>
+    <string name="two_step_verification_description">Your account is protected with an additional password.</string>
+    <string name="password_label">Password</string>
+    <string name="unlock_button">Unlock</string>
+    <string name="paste_action">Paste</string>
+
+    <!-- Chat List -->
+    <string name="forward_to_title">Forward to...</string>
+    <string name="chats_selected_format">%1$d chats selected</string>
+    <string name="action_send">Send</string>
+    <string name="archived_chats_title">Archived Chats</string>
+    <string name="new_chat_fab">New Chat</string>
+    <string name="search_recent">Recent</string>
+    <string name="action_clear_all">Clear All</string>
+    <string name="search_section_chats">Chats and contacts</string>
+    <string name="search_section_global">Global search</string>
+    <string name="search_section_messages">Messages</string>
+    <string name="action_show_more">Show more</string>
+
+    <!-- Account Menu -->
+    <string name="app_name_dev">MonoGram Dev</string>
+    <string name="action_add_account">Add Account</string>
+    <string name="add_account_subtitle">Login to another account</string>
+    <string name="menu_my_profile">My Profile</string>
+    <string name="menu_my_profile_subtitle">View your profile</string>
+    <string name="menu_saved_messages">Saved Messages</string>
+    <string name="menu_saved_messages_subtitle">Cloud storage</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_settings_subtitle">App configuration</string>
+    <string name="menu_update_available">Update Available</string>
+    <string name="update_available_subtitle_format">New version %1$s is available</string>
+    <string name="update_downloading_subtitle_format">Downloading update... %1$d%%</string>
+    <string name="update_ready_subtitle">Update ready to install</string>
+    <string name="menu_help_feedback">Help &amp; Feedback</string>
+    <string name="menu_help_feedback_subtitle">FAQ and support</string>
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="app_version_footer_format">MonoGram Dev for Android v%1$s</string>
+    <string name="unknown_user">Unknown User</string>
+    <string name="no_info">No info</string>
+    <string name="cd_show_accounts">Show accounts</string>
+
+    <!-- Current Chat -->
+    <string name="search_messages_hint">Search messages...</string>
+    <string name="action_clear">Clear</string>
+    <string name="cd_muted">Muted</string>
+    <string name="cd_verified">Verified</string>
+    <string name="menu_unmute">Unmute</string>
+    <string name="menu_mute">Mute</string>
+    <string name="menu_filter_ads">Filter Ads</string>
+    <string name="menu_whitelist_channel">Whitelist Channel</string>
+    <string name="menu_copy_link">Copy Link</string>
+    <string name="menu_clear_history">Clear History</string>
+    <string name="menu_delete_chat">Delete Chat</string>
+    <string name="menu_report">Report</string>
+    <string name="action_join">JOIN</string>
+    <string name="cd_scroll_to_bottom">Scroll to bottom</string>
+    <string name="topic_closed_bar">This topic is closed</string>
+    <string name="cd_attach">Attach</string>
+
+    <!-- Profile -->
+    <string name="unknown_title">Unknown</string>
+    <string name="members_count_format">%1$d members</string>
+    <string name="members_online_count_format">%1$s, %2$d online</string>
+    <string name="not_implemented">Not implemented</string>
+    <string name="search_not_implemented">Search not implemented</string>
+    <string name="share_not_implemented">Share not implemented</string>
+    <string name="block_not_implemented">Block not implemented</string>
+    <string name="delete_not_implemented">Delete not implemented</string>
+    <string name="statistics_title">Statistics</string>
+    <string name="revenue_title">Revenue</string>
+    <string name="menu_share">Share</string>
+    <string name="menu_edit">Edit</string>
+    <string name="menu_block_user">Block User</string>
+    <string name="menu_leave">Leave</string>
+    <string name="action_message">Message</string>
+    <string name="action_join_chat">Join</string>
+    <string name="action_report">Report</string>
+    <string name="action_qr_code">QR Code</string>
+    <string name="action_add">Add</string>
+    <string name="personal_photo_title">Personal Photo</string>
+    <string name="personal_photo_subtitle">This photo is only visible to you</string>
+    <string name="open_mini_app">Open Mini App</string>
+    <string name="open_mini_app_subtitle">Launch bot\'s web application</string>
+    <string name="accept_tos">Accept TOS</string>
+    <string name="accept_tos_subtitle">Review and accept bot\'s terms of service</string>
+    <string name="bot_permissions">Bot Permissions</string>
+    <string name="bot_permissions_subtitle">Manage permissions for this bot</string>
+    <string name="username_label">Username</string>
+    <string name="link_label">Link</string>
+    <string name="bot_info_label">Bot Info</string>
+    <string name="description_label">Description</string>
+    <string name="bio_label">Bio</string>
+    <string name="birthdate_label">Birthdate</string>
+    <string name="location_label">Location</string>
+    <string name="opening_hours_label">Opening Hours</string>
+    <string name="recent_actions_title">Recent Actions</string>
+    <string name="recent_actions_subtitle">View chat event log</string>
+    <string name="statistics_subtitle">View detailed chat statistics</string>
+    <string name="revenue_subtitle">View chat revenue statistics</string>
+    <string name="chat_stats_subtitle">Chat Stats</string>
+    <string name="admins_count_format">%1$d admins</string>
+    <string name="restricted_count_format">%1$d restricted</string>
+    <string name="banned_count_format">%1$d banned</string>
+    <string name="info_section_header">Info</string>
+    <string name="notifications_title">Notifications</string>
+    <string name="auto_delete_subtitle">Auto-delete messages</string>
+    <string name="settings_section_header">Settings</string>
+    <string name="action_save">Save</string>
+    <string name="report_spam">Spam</string>
+    <string name="report_violence">Violence</string>
+    <string name="report_pornography">Pornography</string>
+    <string name="report_child_abuse">Child Abuse</string>
+    <string name="report_copyright">Copyright</string>
+    <string name="report_other">Other</string>
+    <string name="close_button">Close</string>
+    <string name="tos_dialog_description">By launching this Mini App, you agree to the Terms of Service and Privacy
+        Policy. The bot will be able to access your basic profile information.
+    </string>
+    <string name="accept_and_launch">Accept and Launch</string>
+
+    <!-- Settings -->
+    <string name="qr_code_title">QR Code</string>
+    <string name="action_share">Share</string>
+    <string name="support_monogram_description">MonoGram is a free and open-source project. Your support helps us to
+        keep it alive and develop new features.
+    </string>
+    <string name="action_support_boosty">Support on Boosty</string>
+    <string name="action_maybe_later">Maybe later</string>
+    <string name="cd_edit_profile">Edit Profile</string>
+    <string name="phone_subtitle_visible">Long press to mask</string>
+    <string name="phone_subtitle_hidden">Hold to show, click to copy</string>
+    <string name="your_id_label">Your ID</string>
+    <string name="edit_profile_subtitle">Change your name, bio, and profile photo</string>
+    <string name="enable_tme_links">Enable t.me links</string>
+    <string name="enable_tme_links_subtitle">Open Telegram links to open them in-app</string>
+    <string name="section_general">General</string>
+    <string name="chat_settings_title">Chat Settings</string>
+    <string name="chat_settings_subtitle">Themes, text size, video player</string>
+    <string name="privacy_security_title">Privacy and Security</string>
+    <string name="privacy_security_subtitle">Passcode, active sessions, privacy</string>
+    <string name="notifications_sounds_title">Notifications and Sounds</string>
+    <string name="notifications_sounds_subtitle">Messages, groups, calls</string>
+    <string name="data_storage_title">Data and Storage</string>
+    <string name="data_storage_subtitle">Network usage, auto-download</string>
+    <string name="power_saving_title">Power Saving</string>
+    <string name="power_saving_subtitle">Battery usage settings</string>
+    <string name="chat_folders_title">Chat Folders</string>
+    <string name="chat_folders_subtitle">Organize your chats</string>
+    <string name="stickers_emoji_title">Stickers and Emoji</string>
+    <string name="stickers_emoji_subtitle">Manage sticker sets and emoji packs</string>
+    <string name="devices_subtitle">Linked devices</string>
+    <string name="language_title">Language</string>
+    <string name="language_english">English</string>
+    <string name="proxy_settings_title">Proxy Settings</string>
+    <string name="proxy_settings_subtitle">MTProto, SOCKS5, HTTP</string>
+    <string name="telegram_premium_title">Telegram Premium</string>
+    <string name="telegram_premium_subtitle">Unlock exclusive features</string>
+    <string name="support_monogram_subtitle_settings">Help us develop the project</string>
+    <string name="about_subtitle_settings">MonoGram version and info</string>
+    <string name="debug_title">Debug</string>
+    <string name="debug_subtitle">Debug options</string>
+    <string name="log_out_title">Log Out</string>
+    <string name="log_out_subtitle">Disconnect from account</string>
+
+    <!-- Edit Profile -->
+    <string name="usernames_title">Usernames</string>
+    <string name="retry_after_format">Retry in %1$ds</string>
+    <string name="active_usernames_title">Active Usernames</string>
+    <string name="disabled_usernames_title">Disabled Usernames</string>
+    <string name="collectible_usernames_title">Collectible Usernames</string>
+    <string name="done_button">Done</string>
+    <string name="ok_button">OK</string>
+    <string name="select_start_time">Select Start Time</string>
+    <string name="select_end_time">Select End Time</string>
+    <string name="work_hours_title">Work Hours</string>
+    <string name="working_days_title">Working Days</string>
+    <string name="time_range_title">Time Range</string>
+    <string name="from_label">From</string>
+    <string name="to_label">To</string>
+    <string name="business_location_title">Business Location</string>
+    <string name="address_label">Address</string>
+    <string name="confirm_location_button">Confirm Location</string>
+    <string name="edit_profile_title">Edit Profile</string>
+    <string name="first_name_placeholder">First Name (Required)</string>
+    <string name="last_name_placeholder">Last Name (Optional)</string>
+    <string name="bio_placeholder">Bio</string>
+    <string name="bio_description">Any details such as age, occupation or city. Example: 23 y.o. designer from San
+        Francisco.
+    </string>
+    <string name="username_title">Username</string>
+    <string name="username_description">You can choose a username on Telegram. If you do, people will be able to find
+        you by this username and contact you without needing your phone number.
+    </string>
+    <string name="birthday_title">Your Birthday</string>
+    <string name="birthday_placeholder">Birthday</string>
+    <string name="telegram_business_title">Telegram Business</string>
+    <string name="linked_channel_id_placeholder">Linked Channel ID</string>
+    <string name="business_bio_placeholder">Business Bio</string>
+    <string name="business_address_placeholder">Business Address</string>
+    <string name="location_geo_placeholder">Location Geo</string>
+    <string name="opening_hours_placeholder">Opening Hours</string>
+    <string name="premium_business_description">As a Premium user, you can add your link a channel, and set business
+        details to your profile
+    </string>
+    <string name="not_set">Not set</string>
+    <string name="days_count_format">(%1$d days)</string>
+    <string name="monday_short">M</string>
+    <string name="tuesday_short">T</string>
+    <string name="wednesday_short">W</string>
+    <string name="thursday_short">T</string>
+    <string name="friday_short">F</string>
+    <string name="saturday_short">S</string>
+    <string name="sunday_short">S</string>
+
+    <!-- Privacy and Security -->
+    <string name="privacy_security_header">Privacy and Security</string>
+    <string name="privacy_section_header">Privacy</string>
+    <string name="blocked_users_title">Blocked Users</string>
+    <string name="blocked_users_count_format">%1$d users</string>
+    <string name="none_label">None</string>
+    <string name="phone_number_title">Phone Number</string>
+    <string name="last_seen_title">Last Seen &amp; Online</string>
+    <string name="profile_photos_title">Profile Photos</string>
+    <string name="forwarded_messages_title">Forwarded Messages</string>
+    <string name="calls_title">Calls</string>
+    <string name="groups_channels_title">Groups &amp; Channels</string>
+    <string name="security_section_header">Security</string>
+    <string name="passcode_lock_title">Passcode Lock</string>
+    <string name="on_label">On</string>
+    <string name="off_label">Off</string>
+    <string name="biometric_unlock_title">Unlock with Biometrics</string>
+    <string name="biometric_unlock_subtitle">Use fingerprint or face to unlock</string>
+    <string name="active_sessions_title">Active Sessions</string>
+    <string name="active_sessions_subtitle">Manage your logged-in devices</string>
+    <string name="sensitive_content_header">Sensitive Content</string>
+    <string name="disable_filtering_title">Disable filtering</string>
+    <string name="disable_filtering_subtitle">Display sensitive media in public channels on all your devices.</string>
+    <string name="advanced_section_header">Advanced</string>
+    <string name="delete_my_account_title">Delete My Account</string>
+    <string name="delete_my_account_subtitle">If away for %1$s</string>
+    <string name="delete_account_now_title">Delete Account Now</string>
+    <string name="delete_account_now_subtitle">Permanently delete your account and all data</string>
+    <string name="self_destruct_title">Self-Destruct if Inactive For...</string>
+    <string name="delete_account_confirmation_title">Delete Account</string>
+    <string name="delete_account_confirmation_message">Are you sure you want to delete your account? This action is
+        permanent and cannot be undone.
+    </string>
+    <string name="privacy_everybody">Everybody</string>
+    <string name="privacy_my_contacts">My Contacts</string>
+    <string name="privacy_nobody">Nobody</string>
+    <string name="ttl_1_month">1 month</string>
+    <string name="ttl_3_months">3 months</string>
+    <string name="ttl_6_months">6 months</string>
+    <string name="ttl_1_year">1 year</string>
+    <string name="ttl_18_months">18 months</string>
+    <string name="ttl_2_years">2 years</string>
+    <string name="ttl_months_format">%1$d months</string>
+    <string name="ttl_days_format">%1$d days</string>
+    <string name="privacy_deletion_reason_user">User requested deletion</string>
+
+    <!-- Proxy Settings -->
+    <string name="proxy_settings_header">Proxy Settings</string>
+    <string name="refresh_pings_cd">Refresh Pings</string>
+    <string name="add_proxy_button">Add Proxy</string>
+    <string name="connection_section_header">Connection</string>
+    <string name="smart_switching_title">Smart Switching</string>
+    <string name="smart_switching_subtitle">Automatically use the fastest proxy</string>
+    <string name="prefer_ipv6_title">Prefer IPv6</string>
+    <string name="prefer_ipv6_subtitle">Use IPv6 when available</string>
+    <string name="disable_proxy_title">Disable Proxy</string>
+    <string name="connected_directly_subtitle">Connected directly</string>
+    <string name="switch_to_direct_subtitle">Switch to direct connection</string>
+    <string name="telega_proxy_header">Telega Proxy</string>
+    <string name="telega_proxy_subtitle">Community-provided proxies. Use at your own risk. More info: t.me/telegaru
+    </string>
+    <string name="enable_telega_proxy_title">Enable Telega Proxy</string>
+    <string name="enable_telega_proxy_subtitle">Auto-fetch and switch to best</string>
+    <string name="refresh_list_title">Refresh List</string>
+    <string name="refresh_list_subtitle">Fetch latest community proxies</string>
+    <string name="your_proxies_header">Your Proxies</string>
+    <string name="clear_offline_cd">Clear Offline</string>
+    <string name="remove_all_cd">Remove All</string>
+    <string name="no_proxies_label">No proxies added</string>
+    <string name="delete_proxy_title">Delete Proxy</string>
+    <string name="delete_proxy_confirmation_format">Are you sure you want to delete the proxy %1$s?</string>
+    <string name="new_proxy_title">New Proxy</string>
+    <string name="edit_proxy_title">Edit Proxy</string>
+    <string name="server_address_placeholder">Server Address</string>
+    <string name="port_placeholder">Port</string>
+    <string name="secret_hex_placeholder">Secret (Hex)</string>
+    <string name="username_optional_placeholder">Username (Optional)</string>
+    <string name="password_optional_placeholder">Password (Optional)</string>
+    <string name="save_changes_button">Save Changes</string>
+    <string name="action_delete">Delete</string>
+
+    <!-- Settings General -->
+    <string name="your_usernames_header">Your Usernames</string>
+    <string name="more_options_cd">More options</string>
+
+    <!-- Notifications and Sounds -->
+    <string name="notifications_sounds_header">Notifications and Sounds</string>
+    <string name="message_notifications_header">Message Notifications</string>
+    <string name="private_chats_title">Private Chats</string>
+    <string name="groups_title">Groups</string>
+    <string name="channels_title">Channels</string>
+    <string name="notification_settings_header">Notification Settings</string>
+    <string name="vibration_title">Vibration</string>
+    <string name="priority_title">Priority</string>
+    <string name="repeat_notifications_title">Repeat Notifications</string>
+    <string name="show_sender_only_title">Show Sender Only</string>
+    <string name="show_sender_only_subtitle">Hide message content in notifications</string>
+    <string name="push_service_header">Push Service</string>
+    <string name="push_provider_title">Push Provider</string>
+    <string name="keep_alive_service_title">Keep-Alive Service</string>
+    <string name="keep_alive_service_subtitle">Keep the app running in the background for reliable notifications
+    </string>
+    <string name="hide_foreground_notification_title">Hide Foreground Notification</string>
+    <string name="hide_foreground_notification_subtitle">Hide the service notification after it starts. May lead to
+        service termination by system
+    </string>
+    <string name="in_app_notifications_header">In-App Notifications</string>
+    <string name="in_app_sounds_title">In-App Sounds</string>
+    <string name="in_app_vibrate_title">In-App Vibrate</string>
+    <string name="in_app_preview_title">In-App Preview</string>
+    <string name="events_header">Events</string>
+    <string name="contact_joined_telegram_title">Contact Joined Telegram</string>
+    <string name="pinned_messages_title">Pinned Messages</string>
+    <string name="reset_all_notifications_title">Reset All Notifications</string>
+    <string name="reset_all_notifications_subtitle">Undo all custom notification settings for all your contacts and
+        groups
+    </string>
+    <string name="vibration_pattern_title">Vibration Pattern</string>
+    <string name="notification_priority_title">Notification Priority</string>
+    <string name="exceptions_count_format">%1$s, %2$d exceptions</string>
+    <string name="vibration_pattern_default">Default</string>
+    <string name="vibration_pattern_short">Short</string>
+    <string name="vibration_pattern_long">Long</string>
+    <string name="vibration_pattern_disabled">Disabled</string>
+    <string name="priority_low">Low</string>
+    <string name="priority_default">Default</string>
+    <string name="priority_high">High</string>
+    <string name="repeat_never">Never</string>
+    <string name="repeat_minutes_format">Every %1$d minutes</string>
+    <string name="repeat_hour_format">Every 1 hour</string>
+    <string name="repeat_hours_format">Every %1$d hours</string>
+    <string name="push_provider_fcm">Firebase Cloud Messaging</string>
+    <string name="push_provider_gms_less">GMS-less (Background Service)</string>
+
+    <!-- Chat Settings -->
+    <string name="chat_settings_header">Chat Settings</string>
+    <string name="appearance_header">Appearance</string>
+    <string name="message_text_size_title">Message text size</string>
+    <string name="bubble_rounding_title">Bubble rounding</string>
+    <string name="reset_button">Reset</string>
+    <string name="chat_wallpaper_header">Chat Wallpaper</string>
+    <string name="reset_wallpaper_cd">Reset Wallpaper</string>
+    <string name="emoji_style_header">Emoji Style</string>
+    <string name="theme_header">Theme</string>
+    <string name="night_mode_title">Night Mode</string>
+    <string name="night_mode_system">System</string>
+    <string name="night_mode_light">Light</string>
+    <string name="night_mode_dark">Dark</string>
+    <string name="night_mode_scheduled">Schedule</string>
+    <string name="night_mode_brightness">Auto</string>
+    <string name="brightness_threshold_format">Brightness threshold: %1$d%%</string>
+    <string name="brightness_threshold_description">Switch to dark theme when screen brightness is below this level.
+    </string>
+    <string name="dynamic_colors_header">Dynamic Colors</string>
+    <string name="dynamic_colors_title">Dynamic Colors</string>
+    <string name="dynamic_colors_subtitle">Use system colors for the app theme</string>
+    <string name="data_storage_header">Data and Storage</string>
+    <string name="compress_photos_title">Compress Photos</string>
+    <string name="compress_photos_subtitle">Reduce photo size before sending</string>
+    <string name="compress_videos_title">Compress Videos</string>
+    <string name="compress_videos_subtitle">Reduce video size before sending</string>
+    <string name="video_player_header">Video Player</string>
+    <string name="enable_gestures_title">Enable Gestures</string>
+    <string name="enable_gestures_subtitle">Swipe to control volume and brightness</string>
+    <string name="double_tap_seek_title">Double Tap to Seek</string>
+    <string name="double_tap_seek_subtitle">Double tap on video edges to seek</string>
+    <string name="seek_duration_title">Seek Duration</string>
+    <string name="enable_zoom_title">Enable Zoom</string>
+    <string name="enable_zoom_subtitle">Pinch to zoom in video player</string>
+    <string name="chat_list_header">Chat List</string>
+    <string name="pin_archived_chats_title">Pin Archived Chats</string>
+    <string name="pin_archived_chats_subtitle">Keep archived chats at the top of the list</string>
+    <string name="always_show_pinned_archive_title">Always Show Pinned Archive</string>
+    <string name="always_show_pinned_archive_subtitle">Keep pinned archive visible even when scrolling</string>
+    <string name="show_link_previews_title">Show Link Previews</string>
+    <string name="show_link_previews_subtitle">Display previews for links in messages</string>
+    <string name="drag_to_back_title">Drag to Back</string>
+    <string name="drag_to_back_subtitle">Swipe from left edge to go back</string>
+    <string name="two_line_label">Two-line</string>
+    <string name="three_line_label">Three-line</string>
+    <string name="show_photos_title">Show Photos</string>
+    <string name="show_photos_subtitle">Display profile photos in the chat list</string>
+    <string name="experimental_header">Experimental</string>
+    <string name="adblock_channels_title">AdBlock for Channels</string>
+    <string name="adblock_channels_subtitle">Hide sponsored posts in channels</string>
+    <string name="recent_media_header">Recent Media</string>
+    <string name="clear_recent_stickers_title">Clear Recent Stickers</string>
+    <string name="clear_recent_stickers_subtitle">Remove all recently used stickers</string>
+    <string name="clear_recent_emojis_title">Clear Recent Emojis</string>
+    <string name="clear_recent_emojis_subtitle">Remove all recently used emojis</string>
+    <string name="remove_emoji_pack_title">Remove Emoji Pack</string>
+    <string name="remove_pack_confirmation_format">Remove %1$s Pack?</string>
+    <string name="remove_pack_description">This will delete the downloaded emoji pack from your device. You can download
+        it again later.
+    </string>
+
+    <!-- Data and Storage -->
+    <string name="data_storage_title_header">Data and Storage</string>
+    <string name="disk_network_usage_header">Disk and network usage</string>
+    <string name="storage_usage_title">Storage Usage</string>
+    <string name="storage_usage_subtitle">Manage your local cache</string>
+    <string name="network_usage_title">Network Usage</string>
+    <string name="network_usage_subtitle">View data sent and received</string>
+    <string name="database_header">Database</string>
+    <string name="database_size_title">Database Size</string>
+    <string name="clear_database_title">Clear Database</string>
+    <string name="clear_database_subtitle">Delete all cached chats and messages</string>
+    <string name="automatic_media_download_header">Automatic media download</string>
+    <string name="when_using_mobile_data_title">When using mobile data</string>
+    <string name="when_connected_on_wifi_title">When connected on Wi-Fi</string>
+    <string name="when_roaming_title">When roaming</string>
+    <string name="auto_download_files_title">Auto Download files</string>
+    <string name="auto_download_files_subtitle">Automatically download incoming files</string>
+    <string name="auto_download_stickers_title">Auto Download stickers</string>
+    <string name="auto_download_stickers_subtitle">Automatically download stickers</string>
+    <string name="auto_download_video_notes_title">Auto Download video notes</string>
+    <string name="auto_download_video_notes_subtitle">Automatically download video notes</string>
+    <string name="autoplay_media_header">Autoplay media</string>
+    <string name="gifs_title">GIFs</string>
+    <string name="gifs_autoplay_subtitle">Autoplay GIFs in chat list and chats</string>
+    <string name="videos_title">Videos</string>
+    <string name="videos_autoplay_subtitle">Autoplay videos in chats</string>
+    <string name="enabled_label">Enabled</string>
+    <string name="disabled_label">Disabled</string>
+
+    <!-- Power Saving -->
+    <string name="power_saving_header">Power Saving</string>
+    <string name="battery_header">Battery</string>
+    <string name="power_saving_mode_title">Power Saving Mode</string>
+    <string name="power_saving_mode_subtitle">Reduces background activity and animations to save battery</string>
+    <string name="optimize_battery_usage_title">Optimize Battery Usage</string>
+    <string name="optimize_battery_usage_subtitle">Aggressively limit background work and release wake locks</string>
+    <string name="wake_lock_title">Wake Lock</string>
+    <string name="wake_lock_subtitle">Keep CPU awake for background tasks. Disable to save battery</string>
+    <string name="animations_header">Animations</string>
+    <string name="chat_animations_title">Chat Animations</string>
+    <string name="chat_animations_subtitle">Disable animations in chat to save battery</string>
+    <string name="background_header">Background</string>
+    <string name="keep_alive_power_saving_subtitle">Disabling this will reduce power usage but may delay background
+        notifications
+    </string>
+
+    <!-- Stickers and Emoji -->
+    <string name="stickers_emoji_header">Stickers and Emoji</string>
+    <string name="stickers_tab">Stickers</string>
+    <string name="emoji_tab">Emoji</string>
+    <string name="recent_stickers_header">Recent Stickers</string>
+    <string name="sticker_sets_header">Sticker Sets</string>
+    <string name="archived_stickers_header">Archived Stickers</string>
+    <string name="add_own_stickers_title">Add own stickers</string>
+    <string name="add_own_stickers_subtitle">Create your own sticker sets using @Stickers bot</string>
+    <string name="no_sticker_sets_installed">No sticker sets installed</string>
+    <string name="no_stickers_found_format">No stickers found for \"%1$s\"</string>
+    <string name="recent_emojis_header">Recent Emojis</string>
+    <string name="emoji_packs_header">Emoji Packs</string>
+    <string name="archived_emojis_header">Archived Emojis</string>
+    <string name="add_own_emoji_title">Add own emoji</string>
+    <string name="add_own_emoji_subtitle">Create your own emoji packs using @Stickers bot</string>
+    <string name="clear_recent_emojis_title_settings">Clear Recent Emojis</string>
+    <string name="clear_recent_emojis_subtitle_settings">Remove all recently used emojis</string>
+    <string name="no_emoji_packs_installed">No emoji packs installed</string>
+    <string name="no_emojis_found_format">No emojis found for \"%1$s\"</string>
+    <string name="search_packs_placeholder">Search packs</string>
+    <string name="action_search">Search</string>
+
+    <!-- Network Usage -->
+    <string name="network_usage_header">Network Usage</string>
+    <string name="reset_statistics_cd">Reset Statistics</string>
+    <string name="network_statistics_title">Network Statistics</string>
+    <string name="network_statistics_description">Keep track of how much data you use. Disabling can reduce disk space
+        usage.
+    </string>
+    <string name="network_stats_disabled_title">Network Statistics Disabled</string>
+    <string name="network_stats_disabled_description">Network usage tracking is currently turned off. Enable it using
+        the switch above to see how much data you\'re using on mobile, Wi-Fi, and roaming networks.
+    </string>
+    <string name="total_usage_label">Total Usage</string>
+    <string name="sent_label">Sent</string>
+    <string name="received_label">Received</string>
+    <string name="overview_header">Overview</string>
+    <string name="app_usage_header">App Usage</string>
+    <string name="no_usage_data_recorded">No usage data recorded</string>
+    <string name="no_statistics_available">No statistics available</string>
+    <string name="mobile_tab">Mobile</string>
+    <string name="wifi_tab">Wi-Fi</string>
+    <string name="roaming_tab">Roaming</string>
+    <string name="other_tab">Other</string>
+
+    <!-- Storage Usage -->
+    <string name="storage_usage_header">Storage Usage</string>
+    <string name="clear_all_cache_format">Clear All Cache • %1$s</string>
+    <string name="clear_cache_description">Includes photos, videos, documents, stickers, and GIFs from all chats.
+    </string>
+    <string name="cache_limit_title">Cache Limit</string>
+    <string name="auto_clear_cache_title">Auto-Clear Cache</string>
+    <string name="storage_optimizer_title">Storage Optimizer</string>
+    <string name="storage_optimizer_subtitle">Background storage optimization</string>
+    <string name="detailed_usage_header">Detailed Usage</string>
+    <string name="storage_clean_title">Storage is Clean</string>
+    <string name="storage_clean_description">No cached files found.</string>
+    <string name="clear_cache_title_dialog">Clear Cache</string>
+    <string name="clear_cache_confirmation_format">Are you sure you want to clear cache for \"%1$s\"? This will free up
+        %2$s.
+    </string>
+    <string name="clear_all_cache_title">Clear All Cache</string>
+    <string name="clear_all_cache_confirmation">This will remove all cached media files from all chats. Are you sure?
+    </string>
+    <string name="unlimited_label">Unlimited</string>
+    <string name="never_label">Never</string>
+    <string name="every_day_label">Every Day</string>
+    <string name="every_week_label">Every Week</string>
+    <string name="every_month_label">Every Month</string>
+    <string name="total_used_label">Total Used</string>
+    <string name="files_count_format">%1$d files</string>
+    <string name="files_count_label">%1$d files</string>
+
+    <!-- Privacy Setting -->
+    <string name="privacy_who_can_add_me">Who can add me to %1$s?</string>
+    <string name="privacy_who_can_find_me_by_number">Who can find me by my number?</string>
+    <string name="privacy_phone_number_search_help">Users who add your number to their contacts will see it on Telegram
+        only if they are allowed to by the setting above.
+    </string>
+    <string name="privacy_add_exceptions">Add exceptions</string>
+    <string name="privacy_always_allow">Always Allow</string>
+    <string name="privacy_never_allow">Never Allow</string>
+    <string name="privacy_exceptions_count_format">%1$d users/chats</string>
+    <string name="privacy_user_deleted">(deleted)</string>
+    <string name="privacy_chat_members">Chat members</string>
+    <string name="privacy_phone_number_search_title">Phone Number Search</string>
+    <string name="privacy_no_blocked_users">No blocked users</string>
+    <string name="privacy_blocked_users_help">Blocked users will not be able to contact you and will not see your Last
+        Seen time.
+    </string>
+    <string name="privacy_unblock_action">Unblock</string>
+    <string name="privacy_block_user_cd">Block User</string>
+    <string name="privacy_search_users_placeholder">Search users (ID for now)</string>
+    <string name="privacy_no_users_found">No users found</string>
+
+    <!-- Passcode -->
+    <string name="passcode_change_title">Change Passcode</string>
+    <string name="passcode_set_title">Set Passcode</string>
+    <string name="passcode_change_description">Your app is currently protected with a passcode. Enter a new one to
+        change it.
+    </string>
+    <string name="passcode_set_description">Enter a 4-digit passcode to lock the app and protect your privacy.</string>
+    <string name="passcode_label">Passcode</string>
+    <string name="passcode_save_action">Save Passcode</string>
+    <string name="passcode_off_action">Turn Passcode Off</string>
+
+    <!-- AdBlock -->
+    <string name="cd_add_keyword">Add Keyword</string>
+    <string name="adblock_enable">Enable AdBlock</string>
+    <string name="adblock_whitelisted_channels">Whitelisted Channels</string>
+    <string name="adblock_channels_count_format">%1$d channels allowed</string>
+    <string name="adblock_load_base">Load base keywords</string>
+    <string name="adblock_load_base_subtitle">Import common ad keywords from assets</string>
+    <string name="adblock_copy_all">Copy all keywords</string>
+    <string name="adblock_copy_all_subtitle">Copy current list to clipboard</string>
+    <string name="adblock_clear_all">Clear all keywords</string>
+    <string name="adblock_clear_all_subtitle">Remove all keywords from the list</string>
+    <string name="adblock_keywords_section">Keywords to hide posts</string>
+    <string name="adblock_no_keywords">No keywords added</string>
+    <string name="adblock_no_keywords_subtitle">Tap the + button to add keywords for filtering</string>
+    <string name="adblock_add_keywords_title">Add Keywords</string>
+    <string name="adblock_add_keywords_description">Enter keywords separated by commas or new lines to filter channel
+        posts.
+    </string>
+    <string name="adblock_add_keywords_placeholder">e.g. #promo, ad, реклама</string>
+    <string name="adblock_add_to_list">Add to List</string>
+    <string name="adblock_whitelisted_subtitle">Posts from these channels won\'t be filtered</string>
+    <string name="adblock_no_whitelisted">No channels whitelisted</string>
+    <string name="action_remove">Remove</string>
 </resources>

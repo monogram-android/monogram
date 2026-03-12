@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,6 +22,7 @@ import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.repository.PushProvider
 import org.monogram.domain.repository.SettingsRepository.TdNotificationScope
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsItem
 import org.monogram.presentation.core.ui.SettingsSwitchTile
@@ -47,13 +49,18 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Notifications and Sounds",
+                title = {
+                    Text(
+                        stringResource(R.string.notifications_sounds_header),
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 }
             )
@@ -67,14 +74,18 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                SectionHeader("Message Notifications")
+                SectionHeader(stringResource(R.string.message_notifications_header))
                 SettingsSwitchTile(
                     icon = Icons.Rounded.Person,
-                    title = "Private Chats",
+                    title = stringResource(R.string.private_chats_title),
                     subtitle = if (!state.privateExceptions.isNullOrEmpty()) {
-                        "${if (state.privateChatsEnabled) "On" else "Off"}, ${state.privateExceptions?.size} exceptions"
+                        stringResource(
+                            R.string.exceptions_count_format,
+                            if (state.privateChatsEnabled) stringResource(R.string.on_label) else stringResource(R.string.off_label),
+                            state.privateExceptions?.size ?: 0
+                        )
                     } else {
-                        if (state.privateChatsEnabled) "On" else "Off"
+                        if (state.privateChatsEnabled) stringResource(R.string.on_label) else stringResource(R.string.off_label)
                     },
                     checked = state.privateChatsEnabled,
                     iconColor = Color(0xFF4285F4),
@@ -84,11 +95,15 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                 )
                 SettingsSwitchTile(
                     icon = Icons.Rounded.Group,
-                    title = "Groups",
+                    title = stringResource(R.string.groups_title),
                     subtitle = if (!state.groupExceptions.isNullOrEmpty()) {
-                        "${if (state.groupsEnabled) "On" else "Off"}, ${state.groupExceptions?.size} exceptions"
+                        stringResource(
+                            R.string.exceptions_count_format,
+                            if (state.groupsEnabled) stringResource(R.string.on_label) else stringResource(R.string.off_label),
+                            state.groupExceptions?.size ?: 0
+                        )
                     } else {
-                        if (state.groupsEnabled) "On" else "Off"
+                        if (state.groupsEnabled) stringResource(R.string.on_label) else stringResource(R.string.off_label)
                     },
                     checked = state.groupsEnabled,
                     iconColor = Color(0xFF34A853),
@@ -98,11 +113,15 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                 )
                 SettingsSwitchTile(
                     icon = Icons.Rounded.Campaign,
-                    title = "Channels",
+                    title = stringResource(R.string.channels_title),
                     subtitle = if (!state.channelExceptions.isNullOrEmpty()) {
-                        "${if (state.channelsEnabled) "On" else "Off"}, ${state.channelExceptions?.size} exceptions"
+                        stringResource(
+                            R.string.exceptions_count_format,
+                            if (state.channelsEnabled) stringResource(R.string.on_label) else stringResource(R.string.off_label),
+                            state.channelExceptions?.size ?: 0
+                        )
                     } else {
-                        if (state.channelsEnabled) "On" else "Off"
+                        if (state.channelsEnabled) stringResource(R.string.on_label) else stringResource(R.string.off_label)
                     },
                     checked = state.channelsEnabled,
                     iconColor = Color(0xFFF9AB00),
@@ -113,22 +132,27 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
             }
 
             item {
-                SectionHeader("Notification Settings")
+                SectionHeader(stringResource(R.string.notification_settings_header))
                 SettingsItem(
                     icon = Icons.Rounded.Vibration,
-                    title = "Vibration",
-                    subtitle = state.vibrationPattern.replaceFirstChar { it.uppercase() },
+                    title = stringResource(R.string.vibration_title),
+                    subtitle = when (state.vibrationPattern) {
+                        "short" -> stringResource(R.string.vibration_pattern_short)
+                        "long" -> stringResource(R.string.vibration_pattern_long)
+                        "disabled" -> stringResource(R.string.vibration_pattern_disabled)
+                        else -> stringResource(R.string.vibration_pattern_default)
+                    },
                     iconBackgroundColor = Color(0xFF9C27B0),
                     position = ItemPosition.TOP,
                     onClick = { showVibrationSheet = true }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.PriorityHigh,
-                    title = "Priority",
+                    title = stringResource(R.string.priority_title),
                     subtitle = when(state.priority) {
-                        0 -> "Low"
-                        2 -> "High"
-                        else -> "Default"
+                        0 -> stringResource(R.string.priority_low)
+                        2 -> stringResource(R.string.priority_high)
+                        else -> stringResource(R.string.priority_default)
                     },
                     iconBackgroundColor = Color(0xFFFF5722),
                     position = ItemPosition.MIDDLE,
@@ -136,14 +160,12 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Repeat,
-                    title = "Repeat Notifications",
+                    title = stringResource(R.string.repeat_notifications_title),
                     subtitle = when (state.repeatNotifications) {
-                        0 -> "Never"
-                        5, 10, 30 -> "Every ${state.repeatNotifications} minutes"
-                        60 -> "Every 1 hour"
-                        120 -> "Every 2 hours"
-                        240 -> "Every 4 hours"
-                        else -> "Every ${state.repeatNotifications} minutes"
+                        0 -> stringResource(R.string.repeat_never)
+                        60 -> stringResource(R.string.repeat_hour_format)
+                        120, 240 -> stringResource(R.string.repeat_hours_format, state.repeatNotifications / 60)
+                        else -> stringResource(R.string.repeat_minutes_format, state.repeatNotifications)
                     },
                     iconBackgroundColor = Color(0xFF3F51B5),
                     position = ItemPosition.MIDDLE,
@@ -151,8 +173,8 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                 )
                 SettingsSwitchTile(
                     icon = Icons.Rounded.Visibility,
-                    title = "Show Sender Only",
-                    subtitle = "Hide message content in notifications",
+                    title = stringResource(R.string.show_sender_only_title),
+                    subtitle = stringResource(R.string.show_sender_only_subtitle),
                     checked = state.showSenderOnly,
                     iconColor = Color(0xFF607D8B),
                     position = ItemPosition.BOTTOM,
@@ -161,13 +183,13 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
             }
 
             item {
-                SectionHeader("Push Service")
+                SectionHeader(stringResource(R.string.push_service_header))
                 SettingsItem(
                     icon = Icons.Rounded.NotificationsActive,
-                    title = "Push Provider",
+                    title = stringResource(R.string.push_provider_title),
                     subtitle = when (state.pushProvider) {
-                        PushProvider.FCM -> "Firebase Cloud Messaging"
-                        PushProvider.GMS_LESS -> "GMS-less (Background Service)"
+                        PushProvider.FCM -> stringResource(R.string.push_provider_fcm)
+                        PushProvider.GMS_LESS -> stringResource(R.string.push_provider_gms_less)
                     },
                     iconBackgroundColor = Color(0xFF4CAF50),
                     position = ItemPosition.TOP,
@@ -175,8 +197,8 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                 )
                 SettingsSwitchTile(
                     icon = Icons.Rounded.Sync,
-                    title = "Keep-Alive Service",
-                    subtitle = "Keep the app running in the background for reliable notifications",
+                    title = stringResource(R.string.keep_alive_service_title),
+                    subtitle = stringResource(R.string.keep_alive_service_subtitle),
                     checked = state.backgroundServiceEnabled,
                     iconColor = Color(0xFF607D8B),
                     position = ItemPosition.MIDDLE,
@@ -184,8 +206,8 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                 )
                 SettingsSwitchTile(
                     icon = Icons.Rounded.VisibilityOff,
-                    title = "Hide Foreground Notification",
-                    subtitle = "Hide the service notification after it starts. May lead to service termination by system",
+                    title = stringResource(R.string.hide_foreground_notification_title),
+                    subtitle = stringResource(R.string.hide_foreground_notification_subtitle),
                     checked = state.hideForegroundNotification,
                     iconColor = Color(0xFF9E9E9E),
                     position = ItemPosition.BOTTOM,
@@ -194,10 +216,10 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
             }
 
             item {
-                SectionHeader("In-App Notifications")
+                SectionHeader(stringResource(R.string.in_app_notifications_header))
                 SettingsSwitchTile(
                     icon = Icons.AutoMirrored.Rounded.VolumeUp,
-                    title = "In-App Sounds",
+                    title = stringResource(R.string.in_app_sounds_title),
                     checked = state.inAppSounds,
                     iconColor = Color(0xFFE91E63),
                     position = ItemPosition.TOP,
@@ -205,7 +227,7 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                 )
                 SettingsSwitchTile(
                     icon = Icons.Rounded.Vibration,
-                    title = "In-App Vibrate",
+                    title = stringResource(R.string.in_app_vibrate_title),
                     checked = state.inAppVibrate,
                     iconColor = Color(0xFF9C27B0),
                     position = ItemPosition.MIDDLE,
@@ -213,7 +235,7 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                 )
                 SettingsSwitchTile(
                     icon = Icons.Rounded.ChatBubbleOutline,
-                    title = "In-App Preview",
+                    title = stringResource(R.string.in_app_preview_title),
                     checked = state.inAppPreview,
                     iconColor = Color(0xFF00BCD4),
                     position = ItemPosition.BOTTOM,
@@ -222,10 +244,10 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
             }
 
             item {
-                SectionHeader("Events")
+                SectionHeader(stringResource(R.string.events_header))
                 SettingsSwitchTile(
                     icon = Icons.Rounded.PersonAdd,
-                    title = "Contact Joined Telegram",
+                    title = stringResource(R.string.contact_joined_telegram_title),
                     checked = state.contactJoined,
                     iconColor = Color(0xFF4CAF50),
                     position = ItemPosition.TOP,
@@ -233,7 +255,7 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                 )
                 SettingsSwitchTile(
                     icon = Icons.Rounded.PushPin,
-                    title = "Pinned Messages",
+                    title = stringResource(R.string.pinned_messages_title),
                     checked = state.pinnedMessages,
                     iconColor = Color(0xFFFF9800),
                     position = ItemPosition.BOTTOM,
@@ -245,8 +267,8 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                 Spacer(modifier = Modifier.height(16.dp))
                 SettingsItem(
                     icon = Icons.Rounded.Refresh,
-                    title = "Reset All Notifications",
-                    subtitle = "Undo all custom notification settings for all your contacts and groups",
+                    title = stringResource(R.string.reset_all_notifications_title),
+                    subtitle = stringResource(R.string.reset_all_notifications_subtitle),
                     iconBackgroundColor = MaterialTheme.colorScheme.error,
                     position = ItemPosition.STANDALONE,
                     onClick = component::onResetNotificationsClicked
@@ -257,10 +279,15 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
     }
 
     if (showVibrationSheet) {
-        val options = listOf("default", "short", "long", "disabled")
+        val options = listOf(
+            "default" to stringResource(R.string.vibration_pattern_default),
+            "short" to stringResource(R.string.vibration_pattern_short),
+            "long" to stringResource(R.string.vibration_pattern_long),
+            "disabled" to stringResource(R.string.vibration_pattern_disabled)
+        )
         NotificationOptionSheet(
-            title = "Vibration Pattern",
-            options = options.map { it to it.replaceFirstChar { char -> char.uppercase() } },
+            title = stringResource(R.string.vibration_pattern_title),
+            options = options,
             selectedOption = state.vibrationPattern,
             onOptionSelected = {
                 component.onVibrationPatternChanged(it)
@@ -271,10 +298,14 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
     }
 
     if (showPrioritySheet) {
-        val options = listOf(0 to "Low", 1 to "Default", 2 to "High")
+        val options = listOf(
+            "0" to stringResource(R.string.priority_low),
+            "1" to stringResource(R.string.priority_default),
+            "2" to stringResource(R.string.priority_high)
+        )
         NotificationOptionSheet(
-            title = "Notification Priority",
-            options = options.map { it.first.toString() to it.second },
+            title = stringResource(R.string.notification_priority_title),
+            options = options,
             selectedOption = state.priority.toString(),
             onOptionSelected = {
                 component.onPriorityChanged(it.toInt())
@@ -286,17 +317,17 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
 
     if (showRepeatSheet) {
         val options = listOf(
-            0 to "Never",
-            5 to "5 minutes",
-            10 to "10 minutes",
-            30 to "30 minutes",
-            60 to "1 hour",
-            120 to "2 hours",
-            240 to "4 hours"
+            "0" to stringResource(R.string.repeat_never),
+            "5" to stringResource(R.string.repeat_minutes_format, 5),
+            "10" to stringResource(R.string.repeat_minutes_format, 10),
+            "30" to stringResource(R.string.repeat_minutes_format, 30),
+            "60" to stringResource(R.string.repeat_hour_format),
+            "120" to stringResource(R.string.repeat_hours_format, 2),
+            "240" to stringResource(R.string.repeat_hours_format, 4)
         )
         NotificationOptionSheet(
-            title = "Repeat Notifications",
-            options = options.map { it.first.toString() to it.second },
+            title = stringResource(R.string.repeat_notifications_title),
+            options = options,
             selectedOption = state.repeatNotifications.toString(),
             onOptionSelected = {
                 component.onRepeatNotificationsChanged(it.toInt())
@@ -309,12 +340,12 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
     if (showPushProviderSheet) {
         val options = mutableListOf<Pair<String, String>>()
         if (state.isGmsAvailable) {
-            options.add(PushProvider.FCM.name to "Firebase Cloud Messaging")
+            options.add(PushProvider.FCM.name to stringResource(R.string.push_provider_fcm))
         }
-        options.add(PushProvider.GMS_LESS.name to "GMS-less (Background Service)")
+        options.add(PushProvider.GMS_LESS.name to stringResource(R.string.push_provider_gms_less))
 
         NotificationOptionSheet(
-            title = "Push Provider",
+            title = stringResource(R.string.push_provider_title),
             options = options,
             selectedOption = state.pushProvider.name,
             onOptionSelected = {
@@ -397,7 +428,7 @@ private fun NotificationOptionSheet(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.cancel_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

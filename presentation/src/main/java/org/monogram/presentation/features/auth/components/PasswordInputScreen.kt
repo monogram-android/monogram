@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 
 @Composable
 fun PasswordInputScreen(
@@ -120,7 +122,7 @@ fun PasswordInputScreen(
         Spacer(modifier = Modifier.height(if (isInputMode) 12.dp else 24.dp))
 
         Text(
-            text = "Two-Step Verification",
+            text = stringResource(R.string.two_step_verification_title),
             style = if (isInputMode) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
@@ -129,7 +131,7 @@ fun PasswordInputScreen(
         Spacer(modifier = Modifier.height(if (isInputMode) 4.dp else 12.dp))
 
         Text(
-            text = "Your account is protected with an additional password.",
+            text = stringResource(R.string.two_step_verification_description),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -140,7 +142,7 @@ fun PasswordInputScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = { Text(stringResource(R.string.password_label)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(focusRequester)
@@ -191,7 +193,7 @@ fun PasswordInputScreen(
                     strokeWidth = 2.dp
                 )
             } else {
-                Text("Unlock", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.unlock_button), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
             }

@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -27,6 +28,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.UserModel
+import org.monogram.presentation.R
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.presentation.features.viewers.components.ViewerSettingsDropdown
@@ -80,7 +82,7 @@ fun ProfileTopBar(
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             imageVector = Icons.Rounded.Verified,
-                            contentDescription = "Verified",
+                            contentDescription = stringResource(R.string.cd_verified),
                             modifier = Modifier.size(22.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -115,7 +117,7 @@ fun ProfileTopBar(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.cd_back),
                             tint = iconTint
                         )
                     }
@@ -129,10 +131,14 @@ fun ProfileTopBar(
                 ) {
                     Row {
                         IconButton(onClick = onSearch) {
-                            Icon(Icons.Rounded.Search, contentDescription = "Search", tint = iconTint)
+                            Icon(
+                                Icons.Rounded.Search,
+                                contentDescription = stringResource(R.string.search_section_chats),
+                                tint = iconTint
+                            )
                         }
                         IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = iconTint)
+                            Icon(Icons.Rounded.MoreVert, contentDescription = null, tint = iconTint)
                         }
                     }
                 }
@@ -182,7 +188,7 @@ fun ProfileTopBar(
                         ViewerSettingsDropdown {
                             MenuOptionRow(
                                 icon = Icons.Rounded.Share,
-                                title = "Share",
+                                title = stringResource(R.string.menu_share),
                                 onClick = {
                                     showMenu = false
                                     onShare()
@@ -190,7 +196,7 @@ fun ProfileTopBar(
                             )
                             MenuOptionRow(
                                 icon = Icons.Rounded.Edit,
-                                title = "Edit",
+                                title = stringResource(R.string.menu_edit),
                                 onClick = {
                                     showMenu = false
                                     onEdit()
@@ -199,7 +205,7 @@ fun ProfileTopBar(
                             if (userModel != null) {
                                 MenuOptionRow(
                                     icon = Icons.Rounded.Block,
-                                    title = "Block User",
+                                    title = stringResource(R.string.menu_block_user),
                                     textColor = MaterialTheme.colorScheme.error,
                                     iconTint = MaterialTheme.colorScheme.error,
                                     onClick = {
@@ -210,7 +216,9 @@ fun ProfileTopBar(
                             }
                             MenuOptionRow(
                                 icon = Icons.Rounded.Delete,
-                                title = if (chatModel?.isGroup == true || chatModel?.isChannel == true) "Leave" else "Delete Chat",
+                                title = if (chatModel?.isGroup == true || chatModel?.isChannel == true) stringResource(R.string.menu_leave) else stringResource(
+                                    R.string.menu_delete_chat
+                                ),
                                 textColor = MaterialTheme.colorScheme.error,
                                 iconTint = MaterialTheme.colorScheme.error,
                                 onClick = {

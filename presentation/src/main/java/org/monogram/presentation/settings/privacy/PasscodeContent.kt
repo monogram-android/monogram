@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -27,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import org.monogram.presentation.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,10 +55,13 @@ fun PasscodeContent(component: PasscodeComponent) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Passcode Lock", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.passcode_lock_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -107,7 +112,7 @@ fun PasscodeContent(component: PasscodeComponent) {
             }
 
             Text(
-                text = if (state.isPasscodeSet) "Change Passcode" else "Set Passcode",
+                text = if (state.isPasscodeSet) stringResource(R.string.passcode_change_title) else stringResource(R.string.passcode_set_title),
                 fontSize = if (isFocused) 20.sp else 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -122,9 +127,9 @@ fun PasscodeContent(component: PasscodeComponent) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = if (state.isPasscodeSet)
-                            "Your app is currently protected with a passcode. Enter a new one to change it."
+                            stringResource(R.string.passcode_change_description)
                         else
-                            "Enter a 4-digit passcode to lock the app and protect your privacy.",
+                            stringResource(R.string.passcode_set_description),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodyLarge
@@ -137,7 +142,7 @@ fun PasscodeContent(component: PasscodeComponent) {
             OutlinedTextField(
                 value = passcode,
                 onValueChange = { if (it.length <= 4 && it.all { char -> char.isDigit() }) passcode = it },
-                label = { Text("Passcode") },
+                label = { Text(stringResource(R.string.passcode_label)) },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 modifier = Modifier
@@ -178,7 +183,7 @@ fun PasscodeContent(component: PasscodeComponent) {
                 enabled = passcode.length == 4,
                 shape = MaterialTheme.shapes.medium
             ) {
-                Text("Save Passcode", fontSize = 16.sp)
+                Text(stringResource(R.string.passcode_save_action), fontSize = 16.sp)
             }
 
             if (state.isPasscodeSet) {
@@ -194,7 +199,7 @@ fun PasscodeContent(component: PasscodeComponent) {
                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                     shape = MaterialTheme.shapes.medium
                 ) {
-                    Text("Turn Passcode Off")
+                    Text(stringResource(R.string.passcode_off_action))
                 }
             }
         }

@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
@@ -54,15 +56,24 @@ fun ProxyContent(component: ProxyComponent) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Proxy Settings", fontSize = 22.sp, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        stringResource(R.string.proxy_settings_header),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = component::onPingAll) {
-                        Icon(Icons.Rounded.Refresh, contentDescription = "Refresh Pings")
+                        Icon(Icons.Rounded.Refresh, contentDescription = stringResource(R.string.refresh_pings_cd))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -76,7 +87,7 @@ fun ProxyContent(component: ProxyComponent) {
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-                text = { Text("Add Proxy") }
+                text = { Text(stringResource(R.string.add_proxy_button)) }
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -89,7 +100,7 @@ fun ProxyContent(component: ProxyComponent) {
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             item {
-                SectionHeader("Connection")
+                SectionHeader(stringResource(R.string.connection_section_header))
             }
             item {
                 Column(
@@ -105,8 +116,8 @@ fun ProxyContent(component: ProxyComponent) {
                     ) {
                         SettingsSwitchTile(
                             icon = Icons.Rounded.Bolt,
-                            title = "Smart Switching",
-                            subtitle = "Automatically use the fastest proxy",
+                            title = stringResource(R.string.smart_switching_title),
+                            subtitle = stringResource(R.string.smart_switching_subtitle),
                             checked = state.isAutoBestProxyEnabled,
                             iconColor = Color(0xFFAF52DE),
                             position = ItemPosition.TOP,
@@ -116,8 +127,8 @@ fun ProxyContent(component: ProxyComponent) {
 
                     SettingsSwitchTile(
                         icon = Icons.Rounded.Public,
-                        title = "Prefer IPv6",
-                        subtitle = "Use IPv6 when available",
+                        title = stringResource(R.string.prefer_ipv6_title),
+                        subtitle = stringResource(R.string.prefer_ipv6_subtitle),
                         checked = state.preferIpv6,
                         iconColor = Color(0xFF34A853),
                         position = if (state.isTelegaProxyEnabled) ItemPosition.TOP else ItemPosition.MIDDLE,
@@ -127,8 +138,10 @@ fun ProxyContent(component: ProxyComponent) {
                     val isDirect = !state.isTelegaProxyEnabled && state.proxies.none { it.isEnabled }
                     SettingsTile(
                         icon = Icons.Rounded.LinkOff,
-                        title = "Disable Proxy",
-                        subtitle = if (isDirect) "Connected directly" else "Switch to direct connection",
+                        title = stringResource(R.string.disable_proxy_title),
+                        subtitle = if (isDirect) stringResource(R.string.connected_directly_subtitle) else stringResource(
+                            R.string.switch_to_direct_subtitle
+                        ),
                         iconColor = if (isDirect) Color(0xFF34A853) else MaterialTheme.colorScheme.error,
                         position = ItemPosition.BOTTOM,
                         onClick = { component.onDisableProxy() },
@@ -149,8 +162,8 @@ fun ProxyContent(component: ProxyComponent) {
                 ) {
                     Column {
                         SectionHeader(
-                            text = "Telega Proxy",
-                            subtitle = "Community-provided proxies. Use at your own risk. More info: t.me/telegaru",
+                            text = stringResource(R.string.telega_proxy_header),
+                            subtitle = stringResource(R.string.telega_proxy_subtitle),
                             onSubtitleClick = {
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/telegaru"))
                                 context.startActivity(intent)
@@ -165,8 +178,8 @@ fun ProxyContent(component: ProxyComponent) {
                         ) {
                             SettingsSwitchTile(
                                 icon = Icons.Rounded.CloudDownload,
-                                title = "Enable Telega Proxy",
-                                subtitle = "Auto-fetch and switch to best",
+                                title = stringResource(R.string.enable_telega_proxy_title),
+                                subtitle = stringResource(R.string.enable_telega_proxy_subtitle),
                                 checked = state.isTelegaProxyEnabled,
                                 iconColor = Color(0xFF0088CC),
                                 position = if (state.isTelegaProxyEnabled && state.telegaProxies.isNotEmpty()) ItemPosition.TOP else ItemPosition.STANDALONE,
@@ -180,8 +193,8 @@ fun ProxyContent(component: ProxyComponent) {
                             ) {
                                 SettingsTile(
                                     icon = Icons.Rounded.Refresh,
-                                    title = "Refresh List",
-                                    subtitle = "Fetch latest community proxies",
+                                    title = stringResource(R.string.refresh_list_title),
+                                    subtitle = stringResource(R.string.refresh_list_subtitle),
                                     iconColor = Color(0xFF0088CC),
                                     position = ItemPosition.BOTTOM,
                                     onClick = { component.onFetchTelegaProxies() },
@@ -235,7 +248,7 @@ fun ProxyContent(component: ProxyComponent) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Your Proxies",
+                        text = stringResource(R.string.your_proxies_header),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -245,12 +258,16 @@ fun ProxyContent(component: ProxyComponent) {
                         IconButton(onClick = { component.onClearUnavailableProxies() }) {
                             Icon(
                                 Icons.Rounded.DeleteSweep,
-                                "Clear Offline",
+                                stringResource(R.string.clear_offline_cd),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         IconButton(onClick = { component.onRemoveAllProxies() }) {
-                            Icon(Icons.Rounded.DeleteForever, "Remove All", tint = MaterialTheme.colorScheme.error)
+                            Icon(
+                                Icons.Rounded.DeleteForever,
+                                stringResource(R.string.remove_all_cd),
+                                tint = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }
@@ -294,7 +311,7 @@ fun ProxyContent(component: ProxyComponent) {
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            "No proxies added",
+                            stringResource(R.string.no_proxies_label),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -323,19 +340,19 @@ fun ProxyContent(component: ProxyComponent) {
     state.proxyToDelete?.let { proxy ->
         AlertDialog(
             onDismissRequest = component::onDismissDeleteConfirmation,
-            title = { Text("Delete Proxy") },
-            text = { Text("Are you sure you want to delete the proxy ${proxy.server}?") },
+            title = { Text(stringResource(R.string.delete_proxy_title)) },
+            text = { Text(stringResource(R.string.delete_proxy_confirmation_format, proxy.server)) },
             confirmButton = {
                 TextButton(
                     onClick = component::onConfirmDelete,
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.action_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = component::onDismissDeleteConfirmation) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel_button))
                 }
             }
         )
@@ -454,7 +471,7 @@ fun ProxyItem(
                 IconButton(onClick = onRefreshPing, modifier = Modifier.size(32.dp)) {
                     Icon(
                         Icons.Rounded.Refresh,
-                        contentDescription = "Refresh",
+                        contentDescription = stringResource(R.string.refresh_list_title),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -505,7 +522,7 @@ fun SwipeToDeleteContainer(
                 if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
                     Icon(
                         Icons.Rounded.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = stringResource(R.string.action_delete),
                         tint = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
@@ -608,7 +625,7 @@ fun ProxyAddEditSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = if (proxy == null) "New Proxy" else "Edit Proxy",
+                text = if (proxy == null) stringResource(R.string.new_proxy_title) else stringResource(R.string.edit_proxy_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -653,7 +670,7 @@ fun ProxyAddEditSheet(
             SettingsTextField(
                 value = server,
                 onValueChange = { server = it },
-                placeholder = "Server Address",
+                placeholder = stringResource(R.string.server_address_placeholder),
                 icon = Icons.Rounded.Language,
                 position = ItemPosition.TOP,
                 singleLine = true
@@ -662,7 +679,7 @@ fun ProxyAddEditSheet(
             SettingsTextField(
                 value = port,
                 onValueChange = { if (it.all { char -> char.isDigit() }) port = it },
-                placeholder = "Port",
+                placeholder = stringResource(R.string.port_placeholder),
                 icon = Icons.Rounded.Numbers,
                 position = ItemPosition.BOTTOM,
                 singleLine = true
@@ -677,7 +694,7 @@ fun ProxyAddEditSheet(
                             SettingsTextField(
                                 value = secret,
                                 onValueChange = { secret = it },
-                                placeholder = "Secret (Hex)",
+                                placeholder = stringResource(R.string.secret_hex_placeholder),
                                 icon = Icons.Rounded.Key,
                                 position = ItemPosition.STANDALONE,
                                 singleLine = true
@@ -688,7 +705,7 @@ fun ProxyAddEditSheet(
                             SettingsTextField(
                                 value = username,
                                 onValueChange = { username = it },
-                                placeholder = "Username (Optional)",
+                                placeholder = stringResource(R.string.username_optional_placeholder),
                                 icon = Icons.Rounded.Person,
                                 position = ItemPosition.TOP,
                                 singleLine = true
@@ -696,7 +713,7 @@ fun ProxyAddEditSheet(
                             SettingsTextField(
                                 value = password,
                                 onValueChange = { password = it },
-                                placeholder = "Password (Optional)",
+                                placeholder = stringResource(R.string.password_optional_placeholder),
                                 icon = Icons.Rounded.Password,
                                 position = ItemPosition.BOTTOM,
                                 singleLine = true
@@ -719,7 +736,11 @@ fun ProxyAddEditSheet(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text(if (proxy == null) "Add Proxy" else "Save Changes", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    if (proxy == null) stringResource(R.string.add_proxy_button) else stringResource(R.string.save_changes_button),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

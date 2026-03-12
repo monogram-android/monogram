@@ -14,6 +14,7 @@ import org.monogram.domain.repository.ChatsListRepository
 import org.monogram.domain.repository.PrivacyKey
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.UserRepository
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
@@ -30,7 +31,7 @@ interface PrivacySettingComponent {
     fun onRemoveChat(chatId: Long, isAllow: Boolean)
 
     data class State(
-        val title: String,
+        val titleRes: Int,
         val privacyKey: PrivacyKey,
         val selectedValue: PrivacyValue = PrivacyValue.EVERYBODY,
         val searchSelectedValue: PrivacyValue = PrivacyValue.EVERYBODY,
@@ -56,7 +57,7 @@ class DefaultPrivacySettingComponent(
     override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
     private val _state =
-        MutableValue(PrivacySettingComponent.State(title = getTitle(privacyKey), privacyKey = privacyKey))
+        MutableValue(PrivacySettingComponent.State(titleRes = getTitleRes(privacyKey), privacyKey = privacyKey))
     override val state: Value<PrivacySettingComponent.State> = _state
     private val scope = componentScope
 
@@ -277,18 +278,16 @@ class DefaultPrivacySettingComponent(
         privacyRepository.setPrivacyRule(key, newRules)
     }
 
-    companion object {
-        fun getTitle(key: PrivacyKey): String {
-            return when (key) {
-                PrivacyKey.PHONE_NUMBER -> "Phone Number"
-                PrivacyKey.PHONE_NUMBER_SEARCH -> "Phone Number Search"
-                PrivacyKey.LAST_SEEN -> "Last Seen & Online"
-                PrivacyKey.PROFILE_PHOTO -> "Profile Photos"
-                PrivacyKey.BIO -> "Bio"
-                PrivacyKey.FORWARDED_MESSAGES -> "Forwarded Messages"
-                PrivacyKey.CALLS -> "Calls"
-                PrivacyKey.GROUPS_AND_CHANNELS -> "Groups & Channels"
-            }
+    private fun getTitleRes(key: PrivacyKey): Int {
+        return when (key) {
+            PrivacyKey.PHONE_NUMBER -> R.string.phone_number_title
+            PrivacyKey.PHONE_NUMBER_SEARCH -> R.string.privacy_phone_number_search_title
+            PrivacyKey.LAST_SEEN -> R.string.last_seen_title
+            PrivacyKey.PROFILE_PHOTO -> R.string.profile_photos_title
+            PrivacyKey.BIO -> R.string.bio_label
+            PrivacyKey.FORWARDED_MESSAGES -> R.string.forwarded_messages_title
+            PrivacyKey.CALLS -> R.string.calls_title
+            PrivacyKey.GROUPS_AND_CHANNELS -> R.string.groups_channels_title
         }
     }
 }

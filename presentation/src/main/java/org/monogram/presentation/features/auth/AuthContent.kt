@@ -15,9 +15,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import org.monogram.presentation.R
 import org.monogram.presentation.features.auth.components.AuthErrorDialog
 import org.monogram.presentation.features.auth.components.CodeInputScreen
 import org.monogram.presentation.features.auth.components.PasswordInputScreen
@@ -54,9 +56,9 @@ fun AuthContent(component: AuthComponent) {
                         title = {
                             Text(
                                 text = when (model.authState) {
-                                    is AuthComponent.AuthState.InputPhone -> "Your Phone"
-                                    is AuthComponent.AuthState.InputCode -> "Verification"
-                                    is AuthComponent.AuthState.InputPassword -> "Password"
+                                    is AuthComponent.AuthState.InputPhone -> stringResource(R.string.auth_title_phone)
+                                    is AuthComponent.AuthState.InputCode -> stringResource(R.string.auth_title_verification)
+                                    is AuthComponent.AuthState.InputPassword -> stringResource(R.string.auth_title_password)
                                 },
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
@@ -65,7 +67,10 @@ fun AuthContent(component: AuthComponent) {
                         navigationIcon = {
                             if (model.authState is AuthComponent.AuthState.InputCode || model.authState is AuthComponent.AuthState.InputPassword) {
                                 IconButton(onClick = component::onBackToPhone) {
-                                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                                    Icon(
+                                        Icons.AutoMirrored.Rounded.ArrowBack,
+                                        contentDescription = stringResource(R.string.cd_back)
+                                    )
                                 }
                             }
                         },
@@ -73,7 +78,7 @@ fun AuthContent(component: AuthComponent) {
                             IconButton(onClick = component::onProxyClicked) {
                                 Icon(
                                     imageVector = Icons.Rounded.SettingsEthernet,
-                                    contentDescription = "Proxy Settings",
+                                    contentDescription = stringResource(R.string.cd_proxy_settings),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }

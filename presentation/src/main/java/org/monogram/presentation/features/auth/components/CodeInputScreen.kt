@@ -26,6 +26,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.*
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import org.monogram.presentation.R
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -149,11 +151,11 @@ fun CodeInputScreen(
             codeType.contains(
                 "TelegramMessage",
                 ignoreCase = true
-            ) -> "We've sent the code to the Telegram app on your other device."
+            ) -> stringResource(R.string.verification_delivery_telegram)
 
-            codeType.contains("Sms", ignoreCase = true) -> "We've sent the code via SMS."
-            codeType.contains("Call", ignoreCase = true) -> "We're calling you with the code."
-            else -> "We've sent the verification code."
+            codeType.contains("Sms", ignoreCase = true) -> stringResource(R.string.verification_delivery_sms)
+            codeType.contains("Call", ignoreCase = true) -> stringResource(R.string.verification_delivery_call)
+            else -> stringResource(R.string.verification_delivery_default)
         }
 
         Text(
@@ -246,7 +248,7 @@ fun CodeInputScreen(
                 offset = DpOffset(0.dp, 0.dp)
             ) {
                 DropdownMenuItem(
-                    text = { Text("Paste") },
+                    text = { Text(stringResource(R.string.paste_action)) },
                     onClick = {
                         val pastedText = clipboardManager.getText()?.text ?: ""
                         val digits = pastedText.filter { it.isDigit() }.take(maxCodeLength)
@@ -276,7 +278,7 @@ fun CodeInputScreen(
                     enabled = code.length == maxCodeLength,
                     shape = RoundedCornerShape(24.dp)
                 ) {
-                    Text("Confirm", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.confirm_button), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
                 }
@@ -285,7 +287,7 @@ fun CodeInputScreen(
                     val minutes = timeLeft / 60
                     val seconds = timeLeft % 60
                     Text(
-                        text = "Resend code in ${String.format("%02d:%02d", minutes, seconds)}",
+                        text = stringResource(R.string.resend_code_timer, String.format("%02d:%02d", minutes, seconds)),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.fillMaxWidth(),
@@ -303,9 +305,9 @@ fun CodeInputScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         val resendText = when {
-                            nextCodeType.contains("Sms", ignoreCase = true) -> "Resend via SMS"
-                            nextCodeType.contains("Call", ignoreCase = true) -> "Resend via Call"
-                            else -> "Resend code"
+                            nextCodeType.contains("Sms", ignoreCase = true) -> stringResource(R.string.resend_via_sms)
+                            nextCodeType.contains("Call", ignoreCase = true) -> stringResource(R.string.resend_via_call)
+                            else -> stringResource(R.string.resend_code)
                         }
                         Text(resendText)
                     }
@@ -321,7 +323,7 @@ fun CodeInputScreen(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Wrong number?")
+                    Text(stringResource(R.string.wrong_number))
                 }
             }
         }

@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,12 +46,14 @@ fun AboutContent(component: AboutComponent) {
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val version = remember { AppUtils.getFullVersionString(context) }
+    val loadingText = stringResource(R.string.loading_text)
 
-    val displayTdLibVersion = remember(tdLibVersion, tdLibCommitHash) {
-        if (tdLibVersion == "Loading...") {
+    val versionWithHashFormat = stringResource(R.string.tdlib_version_with_hash)
+    val displayTdLibVersion = remember(tdLibVersion, tdLibCommitHash, versionWithHashFormat, loadingText) {
+        if (tdLibVersion == loadingText || tdLibVersion == "Loading...") {
             tdLibVersion
         } else if (tdLibCommitHash.isNotEmpty()) {
-            "$tdLibVersion (${tdLibCommitHash.take(7)})"
+            String.format(versionWithHashFormat, tdLibVersion, tdLibCommitHash.take(7))
         } else {
             tdLibVersion
         }
@@ -59,10 +62,13 @@ fun AboutContent(component: AboutComponent) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("About", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.about_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 }
             )
@@ -91,12 +97,12 @@ fun AboutContent(component: AboutComponent) {
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "MonoGram",
+                    text = stringResource(R.string.app_name_monogram),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Version $version",
+                    text = stringResource(R.string.version_format, version),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -106,16 +112,16 @@ fun AboutContent(component: AboutComponent) {
             item {
                 SettingsItem(
                     icon = Icons.Rounded.Description,
-                    title = "Terms of Service",
-                    subtitle = "Read our terms and conditions",
+                    title = stringResource(R.string.terms_of_service_title),
+                    subtitle = stringResource(R.string.terms_of_service_subtitle),
                     iconBackgroundColor = Color(0xFF4285F4),
                     position = ItemPosition.TOP,
                     onClick = { uriHandler.openUri("https://telegram.org/tos") }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Code,
-                    title = "Open Source Licenses",
-                    subtitle = "Software used in MonoGram",
+                    title = stringResource(R.string.open_source_licenses_title),
+                    subtitle = stringResource(R.string.open_source_licenses_subtitle),
                     iconBackgroundColor = Color(0xFF34A853),
                     position = ItemPosition.MIDDLE,
                     onClick = component::onOpenSourceLicensesClicked
@@ -123,8 +129,8 @@ fun AboutContent(component: AboutComponent) {
 
                 SettingsItem(
                     icon = Icons.Rounded.Public,
-                    title = "GitHub",
-                    subtitle = "View source code",
+                    title = stringResource(R.string.github_title),
+                    subtitle = stringResource(R.string.github_subtitle),
                     iconBackgroundColor = Color(0xFF24292E),
                     position = ItemPosition.MIDDLE,
                     onClick = { uriHandler.openUri("https://github.com/monogram-android/monogram") }
@@ -132,7 +138,7 @@ fun AboutContent(component: AboutComponent) {
 
                 SettingsItem(
                     icon = Icons.Rounded.Terminal,
-                    title = "TDLib Version",
+                    title = stringResource(R.string.tdlib_version_title),
                     subtitle = displayTdLibVersion,
                     iconBackgroundColor = Color(0xFF673AB7),
                     position = ItemPosition.MIDDLE,
@@ -149,7 +155,7 @@ fun AboutContent(component: AboutComponent) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Community",
+                    text = stringResource(R.string.community_section),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -158,24 +164,24 @@ fun AboutContent(component: AboutComponent) {
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Forum,
-                    title = "Telegram Chat",
-                    subtitle = "Join our community to discuss features and get help",
+                    title = stringResource(R.string.telegram_chat_title),
+                    subtitle = stringResource(R.string.telegram_chat_subtitle),
                     iconBackgroundColor = Color(0xFF0088CC),
                     position = ItemPosition.TOP,
                     onClick = { uriHandler.openUri("https://t.me/monogram_discuss") }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Announcement,
-                    title = "Telegram Channel",
-                    subtitle = "Stay updated with the latest news and announcements",
+                    title = stringResource(R.string.telegram_channel_title),
+                    subtitle = stringResource(R.string.telegram_channel_subtitle),
                     iconBackgroundColor = Color(0xFF0088CC),
                     position = ItemPosition.MIDDLE,
                     onClick = { uriHandler.openUri("https://t.me/monogram_android") }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Favorite,
-                    title = "Support MonoGram",
-                    subtitle = "Support the development and help us keep the project alive",
+                    title = stringResource(R.string.support_monogram_title),
+                    subtitle = stringResource(R.string.support_monogram_subtitle),
                     iconBackgroundColor = Color(0xFFFF5F2C),
                     position = ItemPosition.BOTTOM,
                     onClick = { uriHandler.openUri("https://boosty.to/monogram") }
@@ -185,7 +191,7 @@ fun AboutContent(component: AboutComponent) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Maintainers",
+                    text = stringResource(R.string.maintainers_section),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -195,7 +201,7 @@ fun AboutContent(component: AboutComponent) {
                 SettingsItem(
                     icon = Icons.Rounded.Person,
                     title = "gdlbo",
-                    subtitle = "Developer",
+                    subtitle = stringResource(R.string.role_developer),
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.TOP,
                     onClick = { uriHandler.openUri("https://t.me/gdlbo") }
@@ -203,7 +209,7 @@ fun AboutContent(component: AboutComponent) {
                 SettingsItem(
                     icon = Icons.Rounded.Person,
                     title = "Rozetka_img",
-                    subtitle = "Developer",
+                    subtitle = stringResource(R.string.role_developer),
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.MIDDLE,
                     onClick = { uriHandler.openUri("https://t.me/Rozetka_img") }
@@ -211,7 +217,7 @@ fun AboutContent(component: AboutComponent) {
                 SettingsItem(
                     icon = Icons.Rounded.Person,
                     title = "aliveoutside",
-                    subtitle = "Developer",
+                    subtitle = stringResource(R.string.role_developer),
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.MIDDLE,
                     onClick = { uriHandler.openUri("https://t.me/toxyxd") }
@@ -219,7 +225,7 @@ fun AboutContent(component: AboutComponent) {
                 SettingsItem(
                     icon = Icons.Rounded.Person,
                     title = "recodius",
-                    subtitle = "Developer",
+                    subtitle = stringResource(R.string.role_developer),
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.MIDDLE,
                     onClick = { uriHandler.openUri("https://t.me/recodius") }
@@ -227,7 +233,7 @@ fun AboutContent(component: AboutComponent) {
                 SettingsItem(
                     icon = Icons.Rounded.Brush,
                     title = "the8055u",
-                    subtitle = "Icon & Logo Designer",
+                    subtitle = stringResource(R.string.role_designer),
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.BOTTOM,
                     onClick = { uriHandler.openUri("https://t.me/the8055u") }
@@ -237,7 +243,7 @@ fun AboutContent(component: AboutComponent) {
             item {
                 Spacer(modifier = Modifier.height(32.dp))
                 Text(
-                    text = "MonoGram is an unofficial Telegram client built with Material Design 3",
+                    text = stringResource(R.string.monogram_description),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -245,7 +251,7 @@ fun AboutContent(component: AboutComponent) {
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    text = "© 2026 Monogram",
+                    text = stringResource(R.string.copyright_text),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.outline
                 )
@@ -267,21 +273,21 @@ private fun UpdateSection(state: UpdateState, component: AboutComponent) {
             DownloadingUpdateItem(state)
         } else {
             val title = when (state) {
-                is UpdateState.Idle -> "Check for Updates"
-                is UpdateState.Checking -> "Checking..."
-                is UpdateState.UpdateAvailable -> "Update Available: ${state.info.version}"
-                is UpdateState.UpToDate -> "You are up to date"
-                is UpdateState.ReadyToInstall -> "Update Ready"
-                is UpdateState.Error -> "Update Error"
+                is UpdateState.Idle -> stringResource(R.string.check_for_updates)
+                is UpdateState.Checking -> stringResource(R.string.checking_updates)
+                is UpdateState.UpdateAvailable -> stringResource(R.string.update_available_format, state.info.version)
+                is UpdateState.UpToDate -> stringResource(R.string.up_to_date)
+                is UpdateState.ReadyToInstall -> stringResource(R.string.update_ready)
+                is UpdateState.Error -> stringResource(R.string.update_error)
                 else -> ""
             }
 
             val subtitle = when (state) {
-                is UpdateState.Idle -> "Tap to check for new version"
-                is UpdateState.Checking -> "Connecting to server"
-                is UpdateState.UpdateAvailable -> "New version is available for download"
-                is UpdateState.UpToDate -> "You are using the latest version"
-                is UpdateState.ReadyToInstall -> "Tap to install the update"
+                is UpdateState.Idle -> stringResource(R.string.check_update_subtitle)
+                is UpdateState.Checking -> stringResource(R.string.connecting_server_subtitle)
+                is UpdateState.UpdateAvailable -> stringResource(R.string.update_available_subtitle)
+                is UpdateState.UpToDate -> stringResource(R.string.latest_version_subtitle)
+                is UpdateState.ReadyToInstall -> stringResource(R.string.install_update_subtitle)
                 is UpdateState.Error -> state.message
                 else -> ""
             }
@@ -363,12 +369,12 @@ private fun DownloadingUpdateItem(state: UpdateState.Downloading) {
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Downloading Update...",
+                        text = stringResource(R.string.downloading_update),
                         style = MaterialTheme.typography.titleMedium,
                         fontSize = 18.sp
                     )
                     Text(
-                        text = "${(state.progress * 100).toInt()}%",
+                        text = stringResource(R.string.update_progress_format, (state.progress * 100).toInt()),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -410,7 +416,7 @@ private fun ChangelogSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "What's New in ${info.version}",
+                text = stringResource(R.string.whats_new_format, info.version),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -460,7 +466,7 @@ private fun ChangelogSheet(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.cancel_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Button(
@@ -470,7 +476,11 @@ private fun ChangelogSheet(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Download Update", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.download_update_action),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }

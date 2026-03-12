@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.ChatModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
@@ -42,14 +44,17 @@ fun AdBlockContent(component: AdBlockComponent) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "AdBlock for Channels",
+                        text = stringResource(R.string.adblock_channels_title),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -65,7 +70,10 @@ fun AdBlockContent(component: AdBlockComponent) {
                 exit = scaleOut() + fadeOut()
             ) {
                 FloatingActionButton(onClick = component::onAddKeywordClicked) {
-                    Icon(Icons.Rounded.Add, contentDescription = "Add Keyword")
+                    Icon(
+                        Icons.Rounded.Add,
+                        contentDescription = stringResource(R.string.cd_add_keyword)
+                    )
                 }
             }
         },
@@ -78,11 +86,11 @@ fun AdBlockContent(component: AdBlockComponent) {
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 16.dp)
         ) {
             item {
-                SectionHeader("General")
+                SectionHeader(stringResource(R.string.section_general))
                 SettingsSwitchTile(
                     icon = Icons.Rounded.Block,
-                    title = "Enable AdBlock",
-                    subtitle = "Hide sponsored posts in channels",
+                    title = stringResource(R.string.adblock_enable),
+                    subtitle = stringResource(R.string.adblock_channels_subtitle),
                     checked = state.isEnabled,
                     iconColor = Color.Red,
                     position = if (state.isEnabled) ItemPosition.TOP else ItemPosition.STANDALONE,
@@ -91,16 +99,19 @@ fun AdBlockContent(component: AdBlockComponent) {
                 if (state.isEnabled) {
                     SettingsTile(
                         icon = Icons.AutoMirrored.Rounded.PlaylistAddCheck,
-                        title = "Whitelisted Channels",
-                        subtitle = "${state.whitelistedChannels.size} channels allowed",
+                        title = stringResource(R.string.adblock_whitelisted_channels),
+                        subtitle = stringResource(
+                            R.string.adblock_channels_count_format,
+                            state.whitelistedChannels.size
+                        ),
                         iconColor = MaterialTheme.colorScheme.primary,
                         position = ItemPosition.MIDDLE,
                         onClick = component::onWhitelistedChannelsClicked
                     )
                     SettingsTile(
                         icon = Icons.Rounded.Download,
-                        title = "Load base keywords",
-                        subtitle = "Import common ad keywords from assets",
+                        title = stringResource(R.string.adblock_load_base),
+                        subtitle = stringResource(R.string.adblock_load_base_subtitle),
                         iconColor = MaterialTheme.colorScheme.secondary,
                         position = if (state.keywords.isNotEmpty()) ItemPosition.MIDDLE else ItemPosition.BOTTOM,
                         onClick = component::onLoadFromAssets
@@ -108,16 +119,16 @@ fun AdBlockContent(component: AdBlockComponent) {
                     if (state.keywords.isNotEmpty()) {
                         SettingsTile(
                             icon = Icons.Rounded.ContentCopy,
-                            title = "Copy all keywords",
-                            subtitle = "Copy current list to clipboard",
+                            title = stringResource(R.string.adblock_copy_all),
+                            subtitle = stringResource(R.string.adblock_copy_all_subtitle),
                             iconColor = MaterialTheme.colorScheme.tertiary,
                             position = ItemPosition.MIDDLE,
                             onClick = component::onCopyKeywords
                         )
                         SettingsTile(
                             icon = Icons.Rounded.DeleteSweep,
-                            title = "Clear all keywords",
-                            subtitle = "Remove all keywords from the list",
+                            title = stringResource(R.string.adblock_clear_all),
+                            subtitle = stringResource(R.string.adblock_clear_all_subtitle),
                             iconColor = MaterialTheme.colorScheme.error,
                             position = ItemPosition.BOTTOM,
                             onClick = component::onClearKeywords
@@ -128,7 +139,7 @@ fun AdBlockContent(component: AdBlockComponent) {
 
             if (state.isEnabled) {
                 item {
-                    SectionHeader("Keywords to hide posts")
+                    SectionHeader(stringResource(R.string.adblock_keywords_section))
                 }
                 val keywordsList = state.keywords.toList()
                 if (keywordsList.isEmpty()) {
@@ -185,7 +196,7 @@ private fun KeywordItem(keyword: String, position: ItemPosition, onRemove: () ->
             IconButton(onClick = onRemove) {
                 Icon(
                     Icons.Rounded.Delete,
-                    contentDescription = "Delete",
+                    contentDescription = stringResource(R.string.action_delete),
                     tint = MaterialTheme.colorScheme.error
                 )
             }
@@ -214,12 +225,12 @@ private fun EmptyKeywordsPlaceholder() {
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "No keywords added",
+                text = stringResource(R.string.adblock_no_keywords),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "Tap the + button to add keywords for filtering",
+                text = stringResource(R.string.adblock_no_keywords_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -267,7 +278,7 @@ private fun AddKeywordBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Add Keywords",
+                text = stringResource(R.string.adblock_add_keywords_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -275,7 +286,7 @@ private fun AddKeywordBottomSheet(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Enter keywords separated by commas or new lines to filter channel posts.",
+                text = stringResource(R.string.adblock_add_keywords_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -286,7 +297,7 @@ private fun AddKeywordBottomSheet(
             SettingsTextField(
                 value = text,
                 onValueChange = { text = it },
-                placeholder = "e.g. #promo, ad, реклама",
+                placeholder = stringResource(R.string.adblock_add_keywords_placeholder),
                 icon = Icons.Rounded.Edit,
                 position = ItemPosition.STANDALONE,
                 minLines = 4
@@ -302,7 +313,11 @@ private fun AddKeywordBottomSheet(
                 enabled = text.isNotBlank(),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Add to List", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = stringResource(R.string.adblock_add_to_list),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }
@@ -338,12 +353,12 @@ private fun WhitelistedChannelsBottomSheet(
             ) {
                 Column {
                     Text(
-                        text = "Whitelisted Channels",
+                        text = stringResource(R.string.adblock_whitelisted_channels),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Posts from these channels won't be filtered",
+                        text = stringResource(R.string.adblock_whitelisted_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -358,7 +373,7 @@ private fun WhitelistedChannelsBottomSheet(
                     ) {
                         Icon(
                             Icons.Rounded.DeleteSweep,
-                            contentDescription = "Clear All",
+                            contentDescription = stringResource(R.string.action_clear_all),
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
@@ -382,7 +397,7 @@ private fun WhitelistedChannelsBottomSheet(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "No channels whitelisted",
+                        text = stringResource(R.string.adblock_no_whitelisted),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -425,7 +440,10 @@ private fun WhitelistedChannelsBottomSheet(
                                         contentColor = MaterialTheme.colorScheme.error
                                     )
                                 ) {
-                                    Icon(Icons.Rounded.Delete, contentDescription = "Remove")
+                                    Icon(
+                                        Icons.Rounded.Delete,
+                                        contentDescription = stringResource(R.string.action_remove)
+                                    )
                                 }
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)

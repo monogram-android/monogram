@@ -1,6 +1,5 @@
 package org.monogram.presentation.features.chats.chatList.components
 
-import android.R.attr.version
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -29,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -41,6 +41,7 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.models.AttachMenuBotModel
 import org.monogram.domain.models.UpdateState
 import org.monogram.domain.models.UserModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.core.util.formatMaskedGlobal
@@ -274,8 +275,8 @@ fun AccountMenu(
                                     SettingsItem(
                                         icon = Icons.Rounded.Add,
                                         iconBackgroundColor = MaterialTheme.colorScheme.primary,
-                                        title = "Add Account",
-                                        subtitle = "Login to another account",
+                                        title = stringResource(R.string.action_add_account),
+                                        subtitle = stringResource(R.string.add_account_subtitle),
                                         position = ItemPosition.STANDALONE,
                                         onClick = {
                                             onAddAccountClick()
@@ -305,8 +306,8 @@ fun AccountMenu(
                             SettingsItem(
                                 icon = Icons.Rounded.Person,
                                 iconBackgroundColor = MaterialTheme.colorScheme.primary,
-                                title = "My Profile",
-                                subtitle = "View your profile",
+                                title = stringResource(R.string.menu_my_profile),
+                                subtitle = stringResource(R.string.menu_my_profile_subtitle),
                                 position = if (sideMenuBots.isEmpty()) ItemPosition.TOP else ItemPosition.MIDDLE,
                                 onClick = {
                                     onProfileClick()
@@ -317,8 +318,8 @@ fun AccountMenu(
                             SettingsItem(
                                 icon = Icons.Outlined.BookmarkBorder,
                                 iconBackgroundColor = MaterialTheme.colorScheme.primary,
-                                title = "Saved Messages",
-                                subtitle = "Cloud storage",
+                                title = stringResource(R.string.menu_saved_messages),
+                                subtitle = stringResource(R.string.menu_saved_messages_subtitle),
                                 position = ItemPosition.MIDDLE,
                                 onClick = {
                                     onSavedMessagesClick()
@@ -329,8 +330,8 @@ fun AccountMenu(
                             SettingsItem(
                                 icon = Icons.Rounded.Settings,
                                 iconBackgroundColor = MaterialTheme.colorScheme.secondary,
-                                title = "Settings",
-                                subtitle = "App configuration",
+                                title = stringResource(R.string.menu_settings),
+                                subtitle = stringResource(R.string.menu_settings_subtitle),
                                 position = ItemPosition.MIDDLE,
                                 onClick = {
                                     onSettingsClick()
@@ -342,11 +343,19 @@ fun AccountMenu(
                                 SettingsItem(
                                     icon = Icons.Rounded.SystemUpdate,
                                     iconBackgroundColor = MaterialTheme.colorScheme.error,
-                                    title = "Update Available",
+                                    title = stringResource(R.string.menu_update_available),
                                     subtitle = when (updateState) {
-                                        is UpdateState.UpdateAvailable -> "New version ${updateState.info.version} is available"
-                                        is UpdateState.Downloading -> "Downloading update... ${(updateState.progress * 100).toInt()}%"
-                                        is UpdateState.ReadyToInstall -> "Update ready to install"
+                                        is UpdateState.UpdateAvailable -> stringResource(
+                                            R.string.update_available_subtitle_format,
+                                            updateState.info.version
+                                        )
+
+                                        is UpdateState.Downloading -> stringResource(
+                                            R.string.update_downloading_subtitle_format,
+                                            (updateState.progress * 100).toInt()
+                                        )
+
+                                        is UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_subtitle)
                                         else -> null
                                     },
                                     position = ItemPosition.MIDDLE,
@@ -375,8 +384,8 @@ fun AccountMenu(
                             SettingsItem(
                                 icon = Icons.AutoMirrored.Outlined.HelpOutline,
                                 iconBackgroundColor = MaterialTheme.colorScheme.tertiary,
-                                title = "Help & Feedback",
-                                subtitle = "FAQ and support",
+                                title = stringResource(R.string.menu_help_feedback),
+                                subtitle = stringResource(R.string.menu_help_feedback_subtitle),
                                 position = ItemPosition.BOTTOM,
                                 onClick = {
                                     onHelpClick()
@@ -429,7 +438,7 @@ private fun MenuHeader(onDismiss: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "MonoGram Dev",
+            text = stringResource(R.string.app_name_dev),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -444,7 +453,7 @@ private fun MenuHeader(onDismiss: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.Rounded.Close,
-                contentDescription = "Close",
+                contentDescription = stringResource(R.string.cancel_button),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -511,7 +520,8 @@ private fun ActiveAccountCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "${user?.firstName} ${user?.lastName ?: ""}".trim().ifEmpty { "Unknown User" },
+                    text = "${user?.firstName} ${user?.lastName ?: ""}".trim()
+                        .ifEmpty { stringResource(R.string.unknown_user) },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -521,7 +531,7 @@ private fun ActiveAccountCard(
                 Text(
                     text = user?.phoneNumber?.let {
                         if (isPhoneVisible) CountryManager.formatPhone(context, it) else formatMaskedGlobal(it)
-                    } ?: user?.username ?: "No info",
+                    } ?: user?.username ?: stringResource(R.string.no_info),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -546,7 +556,7 @@ private fun ActiveAccountCard(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.ExpandMore,
-                    contentDescription = "Show accounts",
+                    contentDescription = stringResource(R.string.cd_show_accounts),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .size(20.dp)
@@ -581,19 +591,19 @@ private fun MenuFooter(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            FooterLink(text = "Privacy Policy", onClick = onPrivacyClick)
+            FooterLink(text = stringResource(R.string.privacy_policy), onClick = onPrivacyClick)
             Text(
                 text = "•",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            FooterLink(text = "Terms of Service", onClick = onTermsClick)
+            FooterLink(text = stringResource(R.string.terms_of_service_title), onClick = onTermsClick)
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "MonoGram Dev for Android v${version}",
+            text = stringResource(R.string.app_version_footer_format, version),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
         )

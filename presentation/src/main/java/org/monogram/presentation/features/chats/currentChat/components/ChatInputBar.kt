@@ -14,6 +14,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.*
 import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.features.chats.currentChat.components.chats.BotCommandSuggestions
 import org.monogram.presentation.features.chats.currentChat.components.chats.getEmojiFontFamily
@@ -554,7 +556,7 @@ private fun ClosedTopicBar() {
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            text = "This topic is closed",
+            text = stringResource(R.string.topic_closed_bar),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
@@ -581,7 +583,7 @@ private fun InputBarLeadingIcons(
         ) {
             Icon(
                 imageVector = Icons.Outlined.AddCircleOutline,
-                contentDescription = "Attach",
+                contentDescription = stringResource(R.string.cd_attach),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

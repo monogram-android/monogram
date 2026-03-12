@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -38,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.ChatType
 import org.monogram.domain.models.UserTypeEnum
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.StyledQRCode
 import org.monogram.presentation.core.ui.generatePureBitmap
 import org.monogram.presentation.core.ui.saveBitmapToGallery
@@ -92,7 +94,7 @@ fun ProfileInfoSection(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             QuickActionItem(
-                Icons.AutoMirrored.Filled.Chat, "Message",
+                Icons.AutoMirrored.Filled.Chat, stringResource(R.string.action_message),
                 onClick = onSendMessage,
                 modifier = Modifier.weight(1f),
             )
@@ -100,7 +102,7 @@ fun ProfileInfoSection(
             val isMuted = chat?.isMuted == true
             QuickActionItem(
                 if (isMuted) Icons.AutoMirrored.Rounded.VolumeUp else Icons.AutoMirrored.Rounded.VolumeOff,
-                if (isMuted) "Unmute" else "Mute",
+                if (isMuted) stringResource(R.string.menu_unmute) else stringResource(R.string.menu_mute),
                 onClick = onToggleMute,
                 modifier = Modifier.weight(1f)
             )
@@ -109,32 +111,32 @@ fun ProfileInfoSection(
                 if (it.isGroup || it.isChannel) {
                     if (it.isMember) {
                         QuickActionItem(
-                            Icons.AutoMirrored.Rounded.Logout, "Leave",
+                            Icons.AutoMirrored.Rounded.Logout, stringResource(R.string.menu_leave),
                             onClick = onLeave,
                             modifier = Modifier.weight(1f)
                         )
                     } else {
                         QuickActionItem(
-                            Icons.AutoMirrored.Rounded.Login, "Join",
+                            Icons.AutoMirrored.Rounded.Login, stringResource(R.string.action_join_chat),
                             onClick = onJoin,
                             modifier = Modifier.weight(1f)
                         )
                     }
                     QuickActionItem(
-                        Icons.Rounded.Report, "Report",
+                        Icons.Rounded.Report, stringResource(R.string.action_report),
                         onClick = onReport,
                         modifier = Modifier.weight(1f)
                     )
                 } else {
                     QuickActionItem(
-                        Icons.Default.QrCode, "QR Code",
+                        Icons.Default.QrCode, stringResource(R.string.action_qr_code),
                         onClick = onShowQRCode,
                         modifier = Modifier.weight(1f)
                     )
                     val isContact = user?.isContact ?: false
                     QuickActionItem(
                         if (isContact) Icons.Default.Edit else Icons.Default.Add,
-                        if (isContact) "Edit" else "Add",
+                        if (isContact) stringResource(R.string.menu_edit) else stringResource(R.string.action_add),
                         onClick = onEdit,
                         modifier = Modifier.weight(1f)
                     )
@@ -158,8 +160,8 @@ fun ProfileInfoSection(
         items.add { pos ->
             SettingsTile(
                 icon = Icons.Rounded.Portrait,
-                title = "Personal Photo",
-                subtitle = "This photo is only visible to you",
+                title = stringResource(R.string.personal_photo_title),
+                subtitle = stringResource(R.string.personal_photo_subtitle),
                 iconColor = MaterialTheme.colorScheme.primary,
                 position = pos,
                 onClick = { }
@@ -172,8 +174,8 @@ fun ProfileInfoSection(
         items.add { pos ->
             SettingsTile(
                 icon = Icons.Rounded.RocketLaunch,
-                title = state.botWebAppName ?: "Open Mini App",
-                subtitle = "Launch bot's web application",
+                title = state.botWebAppName ?: stringResource(R.string.open_mini_app),
+                subtitle = stringResource(R.string.open_mini_app_subtitle),
                 iconColor = MaterialTheme.colorScheme.primary,
                 position = pos,
                 onClick = { onOpenMiniApp(state.botWebAppUrl, state.botWebAppName ?: botName, state.chatId) }
@@ -186,8 +188,8 @@ fun ProfileInfoSection(
             items.add { pos ->
                 SettingsTile(
                     icon = Icons.Rounded.AssignmentTurnedIn,
-                    title = "Accept TOS",
-                    subtitle = "Review and accept bot's terms of service",
+                    title = stringResource(R.string.accept_tos),
+                    subtitle = stringResource(R.string.accept_tos_subtitle),
                     iconColor = MaterialTheme.colorScheme.primary,
                     position = pos,
                     onClick = onAcceptTOS
@@ -198,8 +200,8 @@ fun ProfileInfoSection(
         items.add { pos ->
             SettingsTile(
                 icon = Icons.Rounded.Security,
-                title = "Bot Permissions",
-                subtitle = "Manage permissions for this bot",
+                title = stringResource(R.string.bot_permissions),
+                subtitle = stringResource(R.string.bot_permissions_subtitle),
                 iconColor = MaterialTheme.colorScheme.secondary,
                 position = pos,
                 onClick = { onShowPermissions() }
@@ -231,7 +233,9 @@ fun ProfileInfoSection(
                 val finalTitle = if (isLink) displayLink else "@$displayLink"
                 val icon = if (isLink) Icons.Rounded.Link else Icons.Rounded.AlternateEmail
                 val subtitleText =
-                    if (isLink || chat?.isChannel == true || chat?.isGroup == true) "Link" else "Username"
+                    if (isLink || chat?.isChannel == true || chat?.isGroup == true) stringResource(R.string.link_label) else stringResource(
+                        R.string.username_label
+                    )
 
                 SettingsTile(
                     icon = icon,
@@ -254,9 +258,9 @@ fun ProfileInfoSection(
             RichSettingsTile(
                 icon = Icons.Rounded.Info,
                 title = when {
-                    user?.type.toString().contains("BOT", true) -> "Bot Info"
-                    chat?.isChannel == true || chat?.isGroup == true -> "Description"
-                    else -> "Bio"
+                    user?.type.toString().contains("BOT", true) -> stringResource(R.string.bot_info_label)
+                    chat?.isChannel == true || chat?.isGroup == true -> stringResource(R.string.description_label)
+                    else -> stringResource(R.string.bio_label)
                 },
                 content = aboutText,
                 iconColor = MaterialTheme.colorScheme.primary,
@@ -312,7 +316,7 @@ fun ProfileInfoSection(
             SettingsTile(
                 icon = Icons.Rounded.Cake,
                 title = birthdateText,
-                subtitle = "Birthdate",
+                subtitle = stringResource(R.string.birthdate_label),
                 iconColor = Color(0xFFE91E63),
                 position = pos,
                 onClick = { }
@@ -327,7 +331,7 @@ fun ProfileInfoSection(
                 SettingsTile(
                     icon = Icons.Rounded.LocationOn,
                     title = loc.address,
-                    subtitle = "Location",
+                    subtitle = stringResource(R.string.location_label),
                     iconColor = Color(0xFFEA4335),
                     position = pos,
                     onClick = { onLocationClick(loc.latitude, loc.longitude, loc.address) }
@@ -357,7 +361,7 @@ fun ProfileInfoSection(
 
                 SettingsTile(
                     icon = Icons.Rounded.Schedule,
-                    title = "Opening Hours",
+                    title = stringResource(R.string.opening_hours_label),
                     subtitle = formattedHours,
                     iconColor = Color(0xFFFBBC04),
                     position = pos,
@@ -371,8 +375,8 @@ fun ProfileInfoSection(
         items.add { pos ->
             SettingsTile(
                 icon = Icons.Rounded.History,
-                title = "Recent Actions",
-                subtitle = "View chat event log",
+                title = stringResource(R.string.recent_actions_title),
+                subtitle = stringResource(R.string.recent_actions_subtitle),
                 iconColor = MaterialTheme.colorScheme.secondary,
                 position = pos,
                 onClick = onShowLogs
@@ -384,8 +388,8 @@ fun ProfileInfoSection(
         items.add { pos ->
             SettingsTile(
                 icon = Icons.Rounded.BarChart,
-                title = "Statistics",
-                subtitle = "View detailed chat statistics",
+                title = stringResource(R.string.statistics_title),
+                subtitle = stringResource(R.string.statistics_subtitle),
                 iconColor = Color(0xFF00BCD4),
                 position = pos,
                 onClick = { onShowStatistics() }
@@ -397,8 +401,8 @@ fun ProfileInfoSection(
         items.add { pos ->
             SettingsTile(
                 icon = Icons.Rounded.Payments,
-                title = "Revenue",
-                subtitle = "View chat revenue statistics",
+                title = stringResource(R.string.revenue_title),
+                subtitle = stringResource(R.string.revenue_subtitle),
                 iconColor = Color(0xFFFF9800),
                 position = pos,
                 onClick = { onShowRevenueStatistics() }
@@ -408,10 +412,16 @@ fun ProfileInfoSection(
 
     if (fullInfo != null && (chat?.isGroup == true || chat?.isChannel == true)) {
         val stats = listOfNotNull(
-            if (fullInfo.memberCount > 0) "${fullInfo.memberCount} members" else null,
-            if (fullInfo.administratorCount > 0) "${fullInfo.administratorCount} admins" else null,
-            if (fullInfo.restrictedCount > 0) "${fullInfo.restrictedCount} restricted" else null,
-            if (fullInfo.bannedCount > 0) "${fullInfo.bannedCount} banned" else null
+            if (fullInfo.memberCount > 0) stringResource(R.string.members_count_format, fullInfo.memberCount) else null,
+            if (fullInfo.administratorCount > 0) stringResource(
+                R.string.admins_count_format,
+                fullInfo.administratorCount
+            ) else null,
+            if (fullInfo.restrictedCount > 0) stringResource(
+                R.string.restricted_count_format,
+                fullInfo.restrictedCount
+            ) else null,
+            if (fullInfo.bannedCount > 0) stringResource(R.string.banned_count_format, fullInfo.bannedCount) else null
         ).joinToString(", ")
 
         if (stats.isNotEmpty()) {
@@ -419,7 +429,7 @@ fun ProfileInfoSection(
                 SettingsTile(
                     icon = Icons.Rounded.Groups,
                     title = stats,
-                    subtitle = "Chat Stats",
+                    subtitle = stringResource(R.string.chat_stats_subtitle),
                     iconColor = MaterialTheme.colorScheme.primary,
                     position = pos,
                     onClick = { }
@@ -444,7 +454,10 @@ fun ProfileInfoSection(
 
     // Render Info Items
     if (items.isNotEmpty()) {
-        SectionHeader(text = "Info", onEditClick = if (chat?.isAdmin == true) onEdit else null)
+        SectionHeader(
+            text = stringResource(R.string.info_section_header),
+            onEditClick = if (chat?.isAdmin == true) onEdit else null
+        )
         items.forEachIndexed { index, item ->
             val position = when {
                 items.size == 1 -> ItemPosition.STANDALONE
@@ -510,7 +523,7 @@ fun ProfileSettingsSection(
     items.add { pos ->
         SettingsSwitchTile(
             icon = Icons.Rounded.Notifications,
-            title = "Notifications",
+            title = stringResource(R.string.notifications_title),
             checked = chat?.isMuted == true,
             iconColor = Color(0xFFFF6D66),
             position = pos,
@@ -523,7 +536,7 @@ fun ProfileSettingsSection(
             SettingsTile(
                 icon = Icons.Rounded.Timer,
                 title = "${chat.messageAutoDeleteTime}s",
-                subtitle = "Auto-delete messages",
+                subtitle = stringResource(R.string.auto_delete_subtitle),
                 iconColor = Color(0xFF009688),
                 position = pos,
                 onClick = { /* */ }
@@ -532,7 +545,10 @@ fun ProfileSettingsSection(
     }
 
     if (items.isNotEmpty()) {
-        SectionHeader(text = "Settings", onEditClick = if (chat?.isAdmin == true) onEdit else null)
+        SectionHeader(
+            text = stringResource(R.string.settings_section_header),
+            onEditClick = if (chat?.isAdmin == true) onEdit else null
+        )
         items.forEachIndexed { index, item ->
             val position = when {
                 items.size == 1 -> ItemPosition.STANDALONE
@@ -570,7 +586,7 @@ private fun SectionHeader(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Edit,
-                    contentDescription = "Edit",
+                    contentDescription = stringResource(R.string.menu_edit),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -607,7 +623,7 @@ fun ProfileQRDialog(
                 val qrSurfaceShapeColor = Color(0xFFE3E6D8)
 
                 Text(
-                    text = "QR Code",
+                    text = stringResource(R.string.action_qr_code),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -658,7 +674,7 @@ fun ProfileQRDialog(
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         ),
                         shape = RoundedCornerShape(16.dp)
-                    ) { Text("Save", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+                    ) { Text(stringResource(R.string.action_save), fontSize = 16.sp, fontWeight = FontWeight.Bold) }
 
                     Button(
                         onClick = {
@@ -670,7 +686,7 @@ fun ProfileQRDialog(
                             .height(56.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(16.dp)
-                    ) { Text("Share", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+                    ) { Text(stringResource(R.string.menu_share), fontSize = 16.sp, fontWeight = FontWeight.Bold) }
                 }
             }
         }
@@ -686,12 +702,12 @@ fun ProfileReportDialog(
 ) {
     if (state.isReportVisible) {
         val reasons = listOf(
-            "Spam" to "spam",
-            "Violence" to "violence",
-            "Pornography" to "pornography",
-            "Child Abuse" to "child_abuse",
-            "Copyright" to "copyright",
-            "Other" to "other"
+            stringResource(R.string.report_spam) to "spam",
+            stringResource(R.string.report_violence) to "violence",
+            stringResource(R.string.report_pornography) to "pornography",
+            stringResource(R.string.report_child_abuse) to "child_abuse",
+            stringResource(R.string.report_copyright) to "copyright",
+            stringResource(R.string.report_other) to "other"
         )
         ModalBottomSheet(
             onDismissRequest = onDismiss,
@@ -706,7 +722,7 @@ fun ProfileReportDialog(
                     .padding(bottom = 40.dp)
             ) {
                 Text(
-                    text = "Report",
+                    text = stringResource(R.string.action_report),
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
@@ -747,7 +763,7 @@ fun ProfileReportDialog(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.cancel_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -775,7 +791,7 @@ fun ProfilePermissionsDialog(
                     .padding(bottom = 40.dp)
             ) {
                 Text(
-                    text = "Bot Permissions",
+                    text = stringResource(R.string.bot_permissions),
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
@@ -821,7 +837,7 @@ fun ProfilePermissionsDialog(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Close", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.close_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -851,13 +867,13 @@ fun ProfileTOSDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Terms of Service",
+                    text = stringResource(R.string.terms_of_service_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "By launching this Mini App, you agree to the Terms of Service and Privacy Policy. The bot will be able to access your basic profile information.",
+                    text = stringResource(R.string.tos_dialog_description),
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -886,7 +902,11 @@ fun ProfileTOSDialog(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text("Accept and Launch", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                stringResource(R.string.accept_and_launch),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
@@ -896,11 +916,12 @@ fun ProfileTOSDialog(
                     onClick = onDismiss,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp),
                     enabled = !state.isAcceptingTOS
                 ) {
-                    Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.cancel_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -983,7 +1004,7 @@ private fun UsernamesTile(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Username",
+                    text = stringResource(R.string.username_label),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )

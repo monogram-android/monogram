@@ -31,6 +31,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.*
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -39,6 +40,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.Country
 import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
@@ -154,7 +156,7 @@ fun PhoneInputScreen(
         Spacer(modifier = Modifier.height(if (isInputMode) 8.dp else 16.dp))
 
         Text(
-            text = "Your Phone Number",
+            text = stringResource(R.string.phone_input_title),
             style = if (isInputMode) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
@@ -163,7 +165,7 @@ fun PhoneInputScreen(
         Spacer(modifier = Modifier.height(if (isInputMode) 4.dp else 8.dp))
 
         Text(
-            text = "Please confirm your country code and enter your phone number.",
+            text = stringResource(R.string.phone_input_description),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -202,7 +204,7 @@ fun PhoneInputScreen(
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = "Country",
+                        text = stringResource(R.string.country_label),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -281,7 +283,7 @@ fun PhoneInputScreen(
                                 color = if (activeField == ActiveField.CODE && isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                "Code",
+                                stringResource(R.string.code_label),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -316,7 +318,7 @@ fun PhoneInputScreen(
                                 else MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                "Phone Number",
+                                stringResource(R.string.phone_number_label),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -347,7 +349,7 @@ fun PhoneInputScreen(
                     strokeWidth = 2.dp
                 )
             } else {
-                Text("Continue", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.continue_button), fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
             }
@@ -413,7 +415,7 @@ fun PhoneInputScreen(
         ) {
             Column(modifier = Modifier.padding(bottom = 16.dp)) {
                 Text(
-                    "Select Country",
+                    stringResource(R.string.select_country_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
@@ -423,7 +425,7 @@ fun PhoneInputScreen(
                     SettingsTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        placeholder = "Search country or code...",
+                        placeholder = stringResource(R.string.search_country_hint),
                         icon = Icons.Default.Search,
                         position = ItemPosition.STANDALONE,
                         singleLine = true

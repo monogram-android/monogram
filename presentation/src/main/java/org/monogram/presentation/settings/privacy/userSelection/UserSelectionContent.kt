@@ -17,9 +17,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.UserModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.core.ui.SettingsGroup
@@ -36,7 +38,7 @@ fun UserSelectionContent(component: UserSelectionComponent) {
                     TextField(
                         value = state.searchQuery,
                         onValueChange = component::onSearchQueryChanged,
-                        placeholder = { Text("Search users (ID for now)") },
+                        placeholder = { Text(stringResource(R.string.privacy_search_users_placeholder)) },
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
@@ -48,7 +50,10 @@ fun UserSelectionContent(component: UserSelectionComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -87,7 +92,7 @@ fun UserSelectionContent(component: UserSelectionComponent) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No users found",
+                            text = stringResource(R.string.privacy_no_users_found),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -131,10 +136,11 @@ fun UserSelectionItem(
     videoPlayerPool: VideoPlayerPool,
     modifier: Modifier = Modifier
 ) {
-    val displayName = remember(user) {
+    val deletedText = stringResource(R.string.privacy_user_deleted)
+    val displayName = remember(user, deletedText) {
         buildString {
             if (user.firstName.isBlank()) {
-                append("${user.id} (deleted)")
+                append("${user.id} $deletedText")
             } else {
                 append(user.firstName)
                 if (!user.lastName.isNullOrBlank()) {
@@ -156,7 +162,7 @@ fun UserSelectionItem(
                     Spacer(Modifier.width(4.dp))
                     Icon(
                         imageVector = Icons.Rounded.Verified,
-                        contentDescription = "Verified",
+                        contentDescription = stringResource(R.string.cd_verified),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )

@@ -353,7 +353,10 @@ fun SettingsContent(component: SettingsComponent) {
     ) { padding ->
         var safeTopPadding by remember { mutableStateOf(0.dp) }
         var safeBottomPadding by remember { mutableStateOf(0.dp) }
-
+        val language = remember {
+            Locale.getDefault().displayLanguage
+                .replaceFirstChar { it.uppercase() }
+        }
         val currentTop = padding.calculateTopPadding()
         val currentBottom = padding.calculateBottomPadding()
 
@@ -587,7 +590,7 @@ fun SettingsContent(component: SettingsComponent) {
                         SettingsItem(
                             icon = Icons.Rounded.Language,
                             title = stringResource(R.string.language_title),
-                            subtitle = Locale.getDefault().displayLanguage.uppercase(),
+                            subtitle = language,
                             iconBackgroundColor = blueColor,
                             position = ItemPosition.MIDDLE,
                             onClick = {

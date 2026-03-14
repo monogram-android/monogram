@@ -50,7 +50,7 @@
     <string name="check_for_updates">Перевірити оновлення</string>
     <string name="checking_updates">Перевірка…</string>
     <string name="update_available_format">Доступне оновлення: %1$s</string>
-    <string name="up_to_date">У вас встановлена остання версія</string>
+    <string name="up_to_date">У Вас встановлена остання версія</string>
     <string name="update_ready">Оновлення готове</string>
     <string name="update_error">Помилка при оновленні</string>
     <string name="check_update_subtitle">Натисніть, щоб перевірити наявність нової версії</string>
@@ -84,13 +84,13 @@
     <string name="verification_delivery_call">Ми телефонуємо Вам, щоб повідомити код.</string>
     <string name="verification_delivery_default">Ми надіслали код підтвердження.</string>
     <string name="confirm_button">Підтвердити</string>
-    <string name="resend_code_timer">Надіслати код ще раз через %1$s</string>
+    <string name="resend_code_timer">Надіслати ще раз через %1$s</string>
     <string name="resend_via_sms">Надіслати через СМС</string>
     <string name="resend_via_call">Зателефонувати для отримання коду</string>
     <string name="resend_code">Надіслати код ще раз</string>
     <string name="wrong_number">Неправильний номер?</string>
     <string name="two_step_verification_title">Двокрокова перевірка</string>
-    <string name="two_step_verification_description">Ваш акаунт захищено хмарним паролем. Введіть його.</string>
+    <string name="two_step_verification_description">Ваш акаунт захищено хмарним паролем.</string>
     <string name="password_label">Пароль</string>
     <string name="unlock_button">Розблокувати</string>
     <string name="paste_action">Вставити</string>
@@ -103,7 +103,7 @@
     <string name="loading_reset_connection">Скинути з\'єднання</string>
 
     <!-- Chat List -->
-    <string name="forward_to_title">Переслать…</string>
+    <string name="forward_to_title">Переслати…</string>
     <string name="chats_selected_format">Вибрано чатів: %1$d</string>
     <string name="action_send">Надіслати</string>
     <string name="archived_chats_title">Архів</string>
@@ -179,8 +179,8 @@
     <string name="delete_messages_title">Видалити %1$d повідомлень?</string>
     <string name="delete_message_confirmation">Ви впевнені, що хочете видалити це повідомлення?</string>
     <string name="delete_messages_confirmation">Ви впевнені, що хочете видалити ці повідомлення?</string>
-    <string name="delete_for_everyone">Видалити для всіх</string>
-    <string name="delete_for_me">Видалити для мене</string>
+    <string name="delete_for_everyone">Видалити у всіх</string>
+    <string name="delete_for_me">Видалити у мене</string>
 
     <string name="report_title">Чому Ви скаржитесь на це?</string>
     <string name="report_description">Ваша скарга анонімна. Ми перевіримо історію чату для забезпечення безпеки.</string>
@@ -223,17 +223,19 @@
     <string name="action_restrict">Обмежити</string>
 
     <string name="menu_reply">Відповісти</string>
+    <string name="menu_copy">Копіювати</string>
     <string name="menu_pin">Закріпити</string>
     <string name="menu_unpin">Відкріпити</string>
     <string name="menu_forward">Переслати</string>
     <string name="menu_select">Вибрати</string>
     <string name="menu_more">Ще</string>
+    <string name="menu_delete">Видалити</string>
     <string name="menu_view_comments">Переглянути коментарі</string>
     <string name="menu_save_to_downloads">Зберегти у завантаження</string>
     <string name="menu_restrict_user">Обмежити</string>
-    <string name="info_edited">Змінено</string>
-    <string name="info_read">Прочитано</string>
-    <string name="info_views">Перегляди</string>
+    <string name="info_edited">змінено</string>
+    <string name="info_read">прочитано</string>
+    <string name="info_views">перегляди</string>
 
     <!-- Profile -->
     <string name="unknown_title">Невідомо</string>
@@ -251,7 +253,7 @@
     <string name="menu_block_user">Заблокувати</string>
     <string name="menu_leave">Покинути</string>
     <string name="action_message">Повідомлення</string>
-    <string name="action_join_chat">Вступити</string>
+    <string name="action_join_chat">Вступить</string>
     <string name="action_report">Поскаржитися</string>
     <string name="action_qr_code">QR-код</string>
     <string name="action_add">Додати</string>
@@ -480,7 +482,7 @@
     <string name="keep_alive_service_subtitle">Робота застосунку у фоні для надійної доставки сповіщень</string>
     <string name="hide_foreground_notification_title">Приховати сповіщення служби</string>
     <string name="hide_foreground_notification_subtitle">Приховати сервісне сповіщення. Може призвести до завершення роботи системою</string>
-    <string name="in_app_notifications_header">Сповіщення у застосунку</string>
+    <string name="in_app_notifications_header">Сповіщення у застоспонку</string>
     <string name="in_app_sounds_title">Звуки у застосунку</string>
     <string name="in_app_vibrate_title">Вібрація у застосунку</string>
     <string name="in_app_preview_title">Попередній перегляд</string>
@@ -629,7 +631,7 @@
     <string name="clear_recent_emojis_subtitle_settings">Видалити список недавно використаних емодзі</string>
     <string name="no_emoji_packs_installed">Набори емодзі не встановлено</string>
     <string name="no_emojis_found_format">Емодзі за запитом «%1$s» не знайдено</string>
-    <string name="search_packs_placeholder">Поиск наборів</string>
+    <string name="search_packs_placeholder">Пошук наборів</string>
     <string name="action_search">Пошук</string>
     <plurals name="stickers_count">
         <item quantity="one">%1$d наліпка</item>
@@ -729,7 +731,7 @@
     <string name="adblock_copy_all_subtitle">Скопіювати всі ключі в буфер обміну</string>
     <string name="adblock_clear_all">Очистити список</string>
     <string name="adblock_clear_all_subtitle">Видалити всі ключові слова</string>
-    <string name="adblock_keywords_section">Ключові слова для фільтрації</string>
+    <string name="adblock_keywords_section">Ключеві слова для фільтрації</string>
     <string name="adblock_no_keywords">Список порожній</string>
     <string name="adblock_no_keywords_subtitle">Натисніть «+», щоб додати слова для фільтрації</string>
     <string name="adblock_add_keywords_title">Додати слова</string>

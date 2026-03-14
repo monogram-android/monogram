@@ -50,7 +50,7 @@
     <string name="check_for_updates">Проверить обновления</string>
     <string name="checking_updates">Проверка…</string>
     <string name="update_available_format">Доступно обновление: %1$s</string>
-    <string name="up_to_date">У вас установлена последняя версия</string>
+    <string name="up_to_date">У Вас установлена последняя версия</string>
     <string name="update_ready">Обновление готово</string>
     <string name="update_error">Ошибка при обновлении</string>
     <string name="check_update_subtitle">Нажмите, чтобы проверить наличие новой версии</string>
@@ -84,13 +84,13 @@
     <string name="verification_delivery_call">Мы звоним Вам, чтобы сообщить код.</string>
     <string name="verification_delivery_default">Мы отправили код подтверждения.</string>
     <string name="confirm_button">Подтвердить</string>
-    <string name="resend_code_timer">Отправить код ещё раз через %1$s</string>
+    <string name="resend_code_timer">Отправить ещё раз через %1$s</string>
     <string name="resend_via_sms">Отправить по СМС</string>
     <string name="resend_via_call">Позвонить для получения кода</string>
     <string name="resend_code">Отправить код ещё раз</string>
     <string name="wrong_number">Неверный номер?</string>
     <string name="two_step_verification_title">Двухэтапная аутентификация</string>
-    <string name="two_step_verification_description">Ваш аккаунт защищён облачным паролем. Введите его.</string>
+    <string name="two_step_verification_description">Ваш аккаунт защищён облачным паролем.</string>
     <string name="password_label">Пароль</string>
     <string name="unlock_button">Разблокировать</string>
     <string name="paste_action">Вставить</string>
@@ -179,8 +179,8 @@
     <string name="delete_messages_title">Удалить %1$d сообщений?</string>
     <string name="delete_message_confirmation">Вы уверены, что хотите удалить это сообщение?</string>
     <string name="delete_messages_confirmation">Вы уверены, что хотите удалить эти сообщения?</string>
-    <string name="delete_for_everyone">Удалить для всех</string>
-    <string name="delete_for_me">Удалить для меня</string>
+    <string name="delete_for_everyone">Удалить у всех</string>
+    <string name="delete_for_me">Удалить у меня</string>
 
     <string name="report_title">Почему Вы жалуетесь на это?</string>
     <string name="report_description">Ваша жалоба анонимна. Мы проверим историю чата для обеспечения безопасности.</string>
@@ -223,17 +223,19 @@
     <string name="action_restrict">Ограничить</string>
 
     <string name="menu_reply">Ответить</string>
+    <string name="menu_copy">Копировать</string>
     <string name="menu_pin">Закрепить</string>
     <string name="menu_unpin">Открепить</string>
     <string name="menu_forward">Переслать</string>
     <string name="menu_select">Выбрать</string>
     <string name="menu_more">Ещё</string>
+    <string name="menu_delete">Удалить</string>
     <string name="menu_view_comments">Посмотреть комментарии</string>
     <string name="menu_save_to_downloads">Сохранить в загрузки</string>
     <string name="menu_restrict_user">Ограничить</string>
-    <string name="info_edited">Изменено</string>
-    <string name="info_read">Прочитано</string>
-    <string name="info_views">Просмотры</string>
+    <string name="info_edited">изменено</string>
+    <string name="info_read">прочитано</string>
+    <string name="info_views">просмотры</string>
 
     <!-- Profile -->
     <string name="unknown_title">Неизвестно</string>
@@ -774,7 +776,7 @@
     <string name="contacts_count_format">Контактов: %1$d</string>
     <string name="members_limit_format">%1$d / 200000</string>
     <string name="search_contacts_hint">Поиск контактов…</string>
-    <string name="sorted_by_last_seen">За временем посещения</string>
+    <string name="sorted_by_last_seen">По времени посещения</string>
     <string name="new_group_action">Создать группу</string>
     <string name="new_channel_action">Создать канал</string>
     <string name="support_label">Поддержка</string>

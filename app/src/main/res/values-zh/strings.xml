@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">MonoGram</string>
+
+    <!-- Lock Screen -->
+    <string name="lock_unlock_title">解锁 MonoGram</string>
+    <string name="lock_unlock_subtitle">使用指纹或面容登录</string>
+    <string name="lock_use_passcode">使用密码</string>
+    <string name="lock_enter_passcode">输入锁屏密码</string>
+    <string name="lock_messages_protected">您的消息已受保护</string>
+    <string name="lock_invalid_passcode">密码错误</string>
+    <string name="lock_biometric_unlock">生物识别解锁</string>
+
+    <!-- Main Content / Proxy Confirm -->
+    <string name="proxy_details">代理详情</string>
+    <string name="proxy_add_connect">添加并连接到此代理服务器</string>
+    <string name="proxy_server">服务器</string>
+    <string name="proxy_port">端口</string>
+    <string name="proxy_type">类型</string>
+    <string name="proxy_unknown">未知</string>
+    <string name="cancel">取消</string>
+    <string name="connect">连接</string>
+
+    <!-- Main Content / Chat Confirm -->
+    <string name="chat_join">加入</string>
+    <string name="chat_channel">频道</string>
+    <string name="chat_group">群组</string>
+    <plurals name="members_count">
+        <item quantity="one">%d 位成员</item>
+        <item quantity="other">%d 位成员</item>
+    </plurals>
+
+    <!-- Tablet Layout -->
+    <string name="tablet_select_setting">选择设置</string>
+    <string name="tablet_select_chat">选择一个会话开始聊天</string>
+
+    <!-- Crash Activity -->
+    <string name="crash_log_label">崩溃日志</string>
+    <string name="crash_copied_to_clipboard">已复制到剪贴板</string>
+    <string name="crash_share_title">分享崩溃日志</string>
+    <string name="crash_share">分享</string>
+    <string name="crash_copy">复制</string>
+    <string name="crash_restart">重启应用</string>
+    <string name="crash_error_details">错误详情</string>
+    <string name="crash_description">程序出现异常。请分享或复制下方日志向开发者反馈此问题。</string>
+</resources>

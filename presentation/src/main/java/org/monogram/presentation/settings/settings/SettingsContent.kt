@@ -587,7 +587,7 @@ fun SettingsContent(component: SettingsComponent) {
                         SettingsItem(
                             icon = Icons.Rounded.Language,
                             title = stringResource(R.string.language_title),
-                            subtitle = Locale.getDefault().displayLanguage,
+                            subtitle = Locale.getDefault().displayLanguage.uppercase(),
                             iconBackgroundColor = blueColor,
                             position = ItemPosition.MIDDLE,
                             onClick = {

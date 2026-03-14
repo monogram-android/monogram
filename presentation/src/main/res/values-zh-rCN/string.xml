@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="confirmation_title">确认</string>
-    <string name="confirmation_message">您确定要在此设备上确认登录吗？</string>
+    <string name="confirmation_message">您确定要授权此设备吗？</string>
     <string name="confirm_auth_action">是，登录</string>
     <string name="cancel_action">取消</string>
 
@@ -42,8 +42,8 @@
     <string name="support_monogram_subtitle">支持开发并帮助我们维持项目</string>
     <string name="maintainers_section">维护者</string>
     <string name="role_developer">开发者</string>
-    <string name="role_designer">图标和徽标设计师</string>
-    <string name="monogram_description">MonoGram 是一款基于 Material Design 3 构建的第三方 Telegram 客户端</string>
+    <string name="role_designer">设计师</string>
+    <string name="monogram_description">MonoGram 是一款基于 Material Design 3 构建的非官方 Telegram 客户端</string>
     <string name="copyright_text">© 2026 MonoGram</string>
 
     <!-- Updates -->
@@ -67,7 +67,7 @@
 
     <!-- Auth -->
     <string name="auth_title_phone">您的手机</string>
-    <string name="auth_title_verification">验证</string>
+    <string name="auth_title_verification">验证码</string>
     <string name="auth_title_password">密码</string>
     <string name="cd_proxy_settings">代理设置</string>
     <string name="phone_input_title">您的手机号码</string>
@@ -75,6 +75,7 @@
     <string name="country_label">国家</string>
     <string name="code_label">代码</string>
     <string name="phone_number_label">手机号码</string>
+    <string name="phone_number_placeholder">000 00 00</string>
     <string name="continue_button">继续</string>
     <string name="select_country_title">选择国家</string>
     <string name="search_country_hint">搜索国家或代码…</string>
@@ -83,16 +84,23 @@
     <string name="verification_delivery_call">我们正在拨打您的电话以告知验证码。</string>
     <string name="verification_delivery_default">我们已发送验证码。</string>
     <string name="confirm_button">确认</string>
-    <string name="resend_code_timer">%1$s 后重新发送验证码</string>
+    <string name="resend_code_timer">%1$s 后重新发送</string>
     <string name="resend_via_sms">通过短信重新发送</string>
     <string name="resend_via_call">通过电话重新发送</string>
     <string name="resend_code">重新发送验证码</string>
     <string name="wrong_number">号码错误？</string>
     <string name="two_step_verification_title">两步验证</string>
-    <string name="two_step_verification_description">您的账号受附加密码保护。请输入密码。</string>
+    <string name="two_step_verification_description">您的账号受附加密码保护。</string>
     <string name="password_label">密码</string>
     <string name="unlock_button">解锁</string>
     <string name="paste_action">粘贴</string>
+    <string name="auth_error_title">认证错误</string>
+    <string name="dismiss_button">关闭</string>
+
+    <!-- Loading -->
+    <string name="loading_please_wait">请稍候</string>
+    <string name="loading_taking_too_long">加载时间过长？</string>
+    <string name="loading_reset_connection">重置连接</string>
 
     <!-- Chat List -->
     <string name="forward_to_title">转发至…</string>
@@ -106,6 +114,25 @@
     <string name="search_section_global">全局搜索</string>
     <string name="search_section_messages">消息</string>
     <string name="action_show_more">显示更多</string>
+    <string name="cd_chat_list">会话列表</string>
+    <string name="search_conversations_placeholder">搜索会话…</string>
+    <string name="waiting_for_network">等待网络连接…</string>
+    <string name="connecting">正在连接…</string>
+    <string name="updating">正在更新…</string>
+    <string name="connecting_to_proxy">正在连接代理…</string>
+    <string name="proxy_enabled">代理已启用</string>
+    <string name="cd_proxy">代理</string>
+    <string name="cd_forum">论坛</string>
+    <string name="message_spoiler">剧透</string>
+    <string name="message_draft_prefix">草稿: </string>
+    <string name="no_posts_yet">暂无动态</string>
+    <string name="no_messages_yet">暂无消息</string>
+    <string name="cd_pinned">已置顶</string>
+    <string name="cd_mentions">提到我的</string>
+    <string name="archived_chats_subtitle">已从主列表中隐藏</string>
+    <string name="no_chats_yet">暂无会话</string>
+    <string name="start_new_conversation">开始新对话</string>
+    <string name="mini_app_default_name">小程序</string>
 
     <!-- Account Menu -->
     <string name="app_name_dev">MonoGram Dev</string>
@@ -137,7 +164,7 @@
     <string name="menu_unmute">取消静音</string>
     <string name="menu_mute">静音</string>
     <string name="menu_filter_ads">过滤广告</string>
-    <string name="menu_whitelist_channel">添加频道至白名单</string>
+    <string name="menu_whitelist_channel">白名单该频道</string>
     <string name="menu_copy_link">复制链接</string>
     <string name="menu_clear_history">清除历史记录</string>
     <string name="menu_delete_chat">删除会话</string>
@@ -147,15 +174,78 @@
     <string name="topic_closed_bar">此话题已关闭</string>
     <string name="cd_attach">附件</string>
 
+    <!-- Current Chat Additions -->
+    <string name="delete_message_title">删除消息？</string>
+    <string name="delete_messages_title">删除 %1$d 条消息？</string>
+    <string name="delete_message_confirmation">确定要删除这条消息吗？</string>
+    <string name="delete_messages_confirmation">确定要删除这些消息吗？</string>
+    <string name="delete_for_everyone">为所有人删除</string>
+    <string name="delete_for_me">为我删除</string>
+
+    <string name="report_title">为什么举报该内容？</string>
+    <string name="report_description">您的举报是匿名的。我们将审查聊天记录以确保安全。</string>
+    <string name="report_details_title">举报详情</string>
+    <string name="report_details_placeholder">描述问题…</string>
+    <string name="report_send">发送举报</string>
+    <string name="report_reason_spam">垃圾信息</string>
+    <string name="report_reason_spam_description">不受欢迎的商业内容或诈骗</string>
+    <string name="report_reason_violence">暴力</string>
+    <string name="report_reason_violence_description">威胁或美化暴力</string>
+    <string name="report_reason_pornography">色情</string>
+    <string name="report_reason_pornography_description">不当媒体或显露性语言</string>
+    <string name="report_reason_child_abuse">儿童安全</string>
+    <string name="report_reason_child_abuse_description">涉及伤害未成年人的内容</string>
+    <string name="report_reason_copyright">版权</string>
+    <string name="report_reason_copyright_description">使用他人的知识产权</string>
+    <string name="report_reason_fake">冒充</string>
+    <string name="report_reason_fake_description">假冒他人或机器人</string>
+    <string name="report_reason_illegal_drugs">违禁药物</string>
+    <string name="report_reason_illegal_drugs_description">促销或使用违禁物质</string>
+    <string name="report_reason_personal_details">侵犯隐私</string>
+    <string name="report_reason_personal_details_description">分享私人联系信息或地址</string>
+    <string name="report_reason_unrelated_location">无关地点</string>
+    <string name="report_reason_unrelated_location_description">与此特定地点无关的内容</string>
+    <string name="report_reason_other">其他</string>
+    <string name="report_reason_other_description">其他违反我们条款的行为</string>
+
+    <string name="restrict_user_title">限制用户</string>
+    <string name="permission_send_messages">发送消息</string>
+    <string name="permission_send_media">发送媒体</string>
+    <string name="permission_send_stickers_gifs">发送贴纸和 GIF</string>
+    <string name="permission_send_polls">发送投票</string>
+    <string name="permission_embed_links">嵌入链接</string>
+    <string name="permission_pin_messages">置顶消息</string>
+    <string name="permission_change_chat_info">更改会话信息</string>
+    <string name="restrict_until">限制直到</string>
+    <string name="restrict_forever">永久</string>
+    <string name="cd_select_date">选择日期</string>
+    <string name="cd_select_time">选择时间</string>
+    <string name="action_restrict">限制</string>
+
+    <string name="menu_reply">回复</string>
+    <string name="menu_copy">复制</string>
+    <string name="menu_pin">置顶</string>
+    <string name="menu_unpin">取消置顶</string>
+    <string name="menu_forward">转发</string>
+    <string name="menu_select">选择</string>
+    <string name="menu_more">更多</string>
+    <string name="menu_delete">删除</string>
+    <string name="menu_view_comments">查看评论</string>
+    <string name="menu_save_to_downloads">保存到下载</string>
+    <string name="menu_restrict_user">限制用户</string>
+    <string name="info_edited">已编辑</string>
+    <string name="info_read">已读</string>
+    <string name="info_views">浏览次数</string>
+
     <!-- Profile -->
     <string name="unknown_title">未知</string>
     <string name="members_count_format">%1$d 名成员</string>
     <string name="members_online_count_format">%1$s，%2$d 人在线</string>
     <string name="not_implemented">未实现</string>
-    <string name="search_not_implemented">搜索功能尚未实现</string>
-    <string name="share_not_implemented">分享功能尚未实现</string>
-    <string name="block_not_implemented">屏蔽功能尚未实现</string>
-    <string name="delete_not_implemented">删除功能尚未实现</string>
+    <string name="search_not_implemented">搜索尚未实现</string>
+    <string name="share_not_implemented">分享尚未实现</string>
+    <string name="block_not_implemented">屏蔽尚未实现</string>
+    <string name="delete_not_implemented">删除尚未实现</string>
     <string name="statistics_title">统计</string>
     <string name="revenue_title">收入</string>
     <string name="menu_share">分享</string>
@@ -179,8 +269,8 @@
     <string name="link_label">链接</string>
     <string name="bot_info_label">机器人信息</string>
     <string name="description_label">描述</string>
-    <string name="bio_label">个人简介</string>
-    <string name="birthdate_label">出生日期</string>
+    <string name="bio_label">简介</string>
+    <string name="birthdate_label">生日</string>
     <string name="location_label">位置</string>
     <string name="opening_hours_label">营业时间</string>
     <string name="recent_actions_title">最近操作</string>
@@ -200,7 +290,7 @@
     <string name="report_violence">暴力</string>
     <string name="report_pornography">色情</string>
     <string name="report_child_abuse">虐待儿童</string>
-    <string name="report_copyright">版权问题</string>
+    <string name="report_copyright">版权</string>
     <string name="report_other">其他</string>
     <string name="close_button">关闭</string>
     <string name="tos_dialog_description">通过启动此小程序，您同意其服务条款和隐私政策。此机器人将能够访问您的基本个人资料信息。</string>
@@ -269,7 +359,7 @@
     <string name="edit_profile_title">编辑个人资料</string>
     <string name="first_name_placeholder">名字（必填）</string>
     <string name="last_name_placeholder">姓氏（选填）</string>
-    <string name="bio_placeholder">个人简介</string>
+    <string name="bio_placeholder">简介</string>
     <string name="bio_description">任何详情，如年龄、职业或城市。</string>
     <string name="username_title">用户名</string>
     <string name="username_description">您可以在 Telegram 上选择一个用户名。如果您这样做，人们就可以通过该用户名找到并联系您，而无需知道您的电话号码。</string>
@@ -543,6 +633,18 @@
     <string name="no_emojis_found_format">未找到关于 “%1$s” 的表情</string>
     <string name="search_packs_placeholder">搜索表情包</string>
     <string name="action_search">搜索</string>
+    <plurals name="stickers_count">
+        <item quantity="one">%1$d 个贴纸</item>
+        <item quantity="other">%1$d 个贴纸</item>
+    </plurals>
+    <plurals name="emojis_count">
+        <item quantity="one">%1$d 个表情符号</item>
+        <item quantity="other">%1$d 个表情符号</item>
+    </plurals>
+    <string name="sticker_type_masks">面具</string>
+    <string name="sticker_type_custom_emojis">自定义表情</string>
+    <string name="sticker_official">官方</string>
+    <string name="link_copied">链接已复制到剪贴板</string>
 
     <!-- Network Usage -->
     <string name="network_usage_header">网络使用情况</string>
@@ -554,7 +656,7 @@
     <string name="total_usage_label">总使用量</string>
     <string name="sent_label">已发送</string>
     <string name="received_label">已接收</string>
-    <string name="overview_header">总览</string>
+    <string name="overview_header">概览</string>
     <string name="app_usage_header">应用使用</string>
     <string name="no_usage_data_recorded">暂无使用数据记录</string>
     <string name="no_statistics_available">暂无统计数据</string>
@@ -572,7 +674,7 @@
     <string name="storage_optimizer_title">存储优化器</string>
     <string name="storage_optimizer_subtitle">后台存储优化</string>
     <string name="detailed_usage_header">详细使用情况</string>
-    <string name="storage_clean_title">存储空间很整洁</string>
+    <string name="storage_clean_title">存储空间已清理</string>
     <string name="storage_clean_description">未找到缓存文件。</string>
     <string name="clear_cache_title_dialog">清除缓存</string>
     <string name="clear_cache_confirmation_format">您确定要清除 “%1$s” 的缓存吗？这将释放 %2$s。</string>
@@ -598,9 +700,9 @@
     <string name="privacy_user_deleted">(已注销)</string>
     <string name="privacy_chat_members">群组成员</string>
     <string name="privacy_phone_number_search_title">手机号码搜索</string>
-    <string name="privacy_no_blocked_users">暂无屏蔽用户</string>
-    <string name="privacy_blocked_users_help">被屏蔽的用户将无法联系您，也无法看到您的最近上线时间。</string>
-    <string name="privacy_unblock_action">取消屏蔽</string>
+    <string name="privacy_no_blocked_users">暂无黑名单用户</string>
+    <string name="privacy_blocked_users_help">黑名单中的用户将无法联系您，也无法看到您的最近上线时间。</string>
+    <string name="privacy_unblock_action">解除屏蔽</string>
     <string name="privacy_block_user_cd">屏蔽用户</string>
     <string name="privacy_search_users_placeholder">搜索用户（目前通过 ID）</string>
     <string name="privacy_no_users_found">未找到用户</string>
@@ -632,7 +734,100 @@
     <string name="adblock_add_keywords_description">输入以逗号或换行分隔的关键词，以过滤频道消息。</string>
     <string name="adblock_add_keywords_placeholder">例如 #promo, ad, 广告</string>
     <string name="adblock_add_to_list">添加到列表</string>
-    <string name="adblock_whitelisted_subtitle">来自这些频道的消消息将不会被过滤</string>
+    <string name="adblock_whitelisted_subtitle">来自这些频道的消息将不会被过滤</string>
     <string name="adblock_no_whitelisted">暂无白名单频道</string>
     <string name="action_remove">移除</string>
+
+    <!-- Core/Common -->
+    <string name="last_seen_recently">最近上线</string>
+    <string name="last_seen_just_now">刚刚上线</string>
+    <plurals name="last_seen_minutes_ago">
+        <item quantity="other">最近上线于 %1$d 分钟前</item>
+    </plurals>
+    <string name="last_seen_at">最近上线于 %1$s</string>
+    <string name="last_seen_yesterday_at">昨天 %1$s 上线</string>
+    <string name="last_seen_date">最近上线于 %1$s</string>
+    <string name="last_seen_within_week">一周内上线过</string>
+    <string name="last_seen_within_month">一个月内上线过</string>
+    <string name="last_seen_long_time_ago">很久以前上线过</string>
+    <string name="status_online">在线</string>
+    <string name="status_offline">离线</string>
+    <string name="status_bot">机器人</string>
+    <string name="username_label_core">用户名</string>
+    <string name="stickers_count_format">%1$d 个贴纸</string>
+    <string name="sticker_set_archived">已归档</string>
+    <string name="action_add_sticker_set">添加</string>
+    <string name="menu_unarchive">取消归档</string>
+    <string name="menu_archive">归档</string>
+    <string name="menu_remove_set">移除贴纸包</string>
+
+    <!-- New Chat -->
+    <string name="new_message_title">新消息</string>
+    <string name="add_members_title">添加成员</string>
+    <string name="new_group_title">新建群组</string>
+    <string name="new_channel_title">新建频道</string>
+    <string name="contacts_count_format">%1$d 个联系人</string>
+    <string name="members_limit_format">%1$d / 200000</string>
+    <string name="search_contacts_hint">搜索联系人…</string>
+    <string name="sorted_by_last_seen">按最后上线时间排序</string>
+    <string name="new_group_action">新建群组</string>
+    <string name="new_channel_action">新建频道</string>
+    <string name="support_label">支持</string>
+    <string name="channel_description_hint">频道是向无限受众广播消息的工具。</string>
+    <string name="channel_details_header">频道详情</string>
+    <string name="channel_name_placeholder">频道名称</string>
+    <string name="description_optional_placeholder">描述（选填）</string>
+    <string name="auto_delete_messages_title">自动删除消息</string>
+    <string name="channel_join_info">您可以为频道提供可选描述。任何拥有链接的人都可以加入您的频道。</string>
+    <string name="group_description_hint">为您的新群组提供名称和可选照片。</string>
+    <string name="group_details_header">群组详情</string>
+    <string name="group_name_placeholder">群组名称</string>
+    <string name="group_auto_delete_info">在一定时间后自动删除该群组中发送的新消息。</string>
+    <string name="add_photo_cd">添加照片</string>
+    <string name="change_photo_cd">更改照片</string>
+
+    <!-- Permissions -->
+    <string name="permissions_required_title">需要权限</string>
+    <string name="permissions_required_description">为了提供最佳体验，MonoGram 需要以下权限。</string>
+    <string name="permission_notifications_title">通知</string>
+    <string name="permission_notifications_description">获取新消息通知</string>
+    <string name="permission_allow_button">允许</string>
+    <string name="permission_phone_state_title">电话状态</string>
+    <string name="permission_phone_state_description">管理设备状态以获得更好的用户体验</string>
+    <string name="permission_battery_optimization_title">电池优化</string>
+    <string name="permission_battery_optimization_description">确保可靠的后台运行</string>
+    <string name="permission_disable_button">禁用</string>
+    <string name="permission_camera_title">相机</string>
+    <string name="permission_camera_description">拍摄照片和录制视频消息</string>
+    <string name="permission_microphone_title">麦克风</string>
+    <string name="permission_microphone_description">录制语音和视频消息</string>
+    <string name="permission_location_title">位置</string>
+    <string name="permission_location_description">共享您的位置并查看附近的用户</string>
+
+    <!-- Selection -->
+    <string name="cd_clear_selection">清除选择</string>
+    <string name="action_pin">置顶</string>
+
+    <!-- Bot Commands -->
+    <string name="bot_commands_title">机器人指令</string>
+    <string name="bot_commands_subtitle">选择要发送给机器人的指令</string>
+
+    <!-- Chat List Preview -->
+    <string name="chat_list_preview_title">会话列表</string>
+    <string name="preview_name_konata">泉此方</string>
+    <string name="preview_message_konata">我不是矮，我只是浓缩的精华！🍫 而且，我已经决定成为一名职业睡觉家了 😴</string>
+    <string name="preview_time_konata">12:45</string>
+    <string name="preview_name_kagami">柊镜</string>
+    <string name="preview_message_kagami">别忘了作业！明天早上就要交了，而且挺难的。</string>
+    <string name="preview_time_kagami">11:20</string>
+
+    <!-- Chat Settings Preview -->
+    <string name="chat_settings_preview_title">预览</string>
+    <string name="preview_msg_sender_me">我</string>
+    <string name="preview_msg_text_1">我不是矮，我只是浓缩的精华！🍫\n而且，我已经决定成为一名职业睡觉家了 😴</string>
+    <string name="preview_msg_text_2">当你够不到最上面的架子时你总是这么说… 🙄\n看看这个：这个</string>
+    <string name="preview_msg_text_3">别揭穿我！😤✨\n我只是在使用我的秘密武器：💯 纯粹的懒惰</string>
+    <string name="preview_msg_text_4">效果拔群！😵‍💫</string>
+    <string name="preview_date_today">今天</string>
+    <string name="preview_name_konata_short">此方</string>
 </resources>

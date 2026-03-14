@@ -24,8 +24,7 @@
         android:name=".App"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MonoGram"
-        android:localeConfig="@xml/locales_config">
+        android:theme="@style/Theme.MonoGram">
         <activity
                 android:name=".MainActivity"
                 android:exported="true"

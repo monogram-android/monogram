@@ -12,9 +12,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.core.ui.ItemPosition
@@ -52,7 +54,7 @@ fun ChatListPreview(
     Column(modifier = modifier) {
         if (position == ItemPosition.TOP || position == ItemPosition.STANDALONE) {
             Text(
-                text = "Chat List",
+                text = stringResource(R.string.chat_list_preview_title),
                 modifier = Modifier.padding(start = 12.dp, bottom = 8.dp, top = 16.dp),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
@@ -76,9 +78,9 @@ fun ChatListPreview(
                     )
             ) {
                 PreviewChatItem(
-                    name = "Konata Izumi",
-                    message = "I'm not short, I'm just concentrated awesome! 🍫 Also, I've decided to become a professional sleeper 😴",
-                    time = "12:45",
+                    name = stringResource(R.string.preview_name_konata),
+                    message = stringResource(R.string.preview_message_konata),
+                    time = stringResource(R.string.preview_time_konata),
                     lines = messageLines,
                     showPhotos = showPhotos,
                     isKonata = true,
@@ -86,9 +88,9 @@ fun ChatListPreview(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 PreviewChatItem(
-                    name = "Kagami Hiiragi",
-                    message = "Don't forget about the homework! It's due tomorrow morning and it's quite difficult.",
-                    time = "11:20",
+                    name = stringResource(R.string.preview_name_kagami),
+                    message = stringResource(R.string.preview_message_kagami),
+                    time = stringResource(R.string.preview_time_kagami),
                     lines = messageLines,
                     showPhotos = showPhotos,
                     isKonata = false,

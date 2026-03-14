@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.zIndex
@@ -43,6 +44,7 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.RecentEmojiModel
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.features.chats.currentChat.chatContent.DeleteMessagesSheet
 import org.monogram.presentation.features.chats.currentChat.components.chats.getEmojiFontFamily
@@ -373,20 +375,20 @@ fun MessageOptionsMenu(
 
                         InternalMenuOptionItem(
                             icon = Icons.AutoMirrored.Rounded.Reply,
-                            text = "Reply",
+                            text = stringResource(R.string.menu_reply),
                             onClick = { animateOutAndDismiss(onReply) }
                         )
 
                         if (canWrite) {
                             InternalMenuOptionItem(
                                 icon = Icons.Rounded.PushPin,
-                                text = if (isPinned) "Unpin" else "Pin",
+                                text = if (isPinned) stringResource(R.string.menu_unpin) else stringResource(R.string.menu_pin),
                                 onClick = { animateOutAndDismiss(onPin) }
                             )
                             if (message.canBeEdited) {
                                 InternalMenuOptionItem(
                                     icon = Icons.Rounded.Edit,
-                                    text = "Edit",
+                                    text = stringResource(R.string.menu_edit),
                                     onClick = { animateOutAndDismiss(onEdit) }
                                 )
                             }
@@ -395,26 +397,26 @@ fun MessageOptionsMenu(
                         if (shouldShowCopy(message)) {
                             InternalMenuOptionItem(
                                 icon = Icons.Rounded.ContentCopy,
-                                text = "Copy",
+                                text = stringResource(R.string.menu_copy),
                                 onClick = { animateOutAndDismiss(onCopy) }
                             )
                         }
 
                         InternalMenuOptionItem(
                             icon = Icons.AutoMirrored.Rounded.Forward,
-                            text = "Forward",
+                            text = stringResource(R.string.menu_forward),
                             onClick = { animateOutAndDismiss(onForward) }
                         )
 
                         InternalMenuOptionItem(
                             icon = Icons.Rounded.CheckCircle,
-                            text = "Select",
+                            text = stringResource(R.string.menu_select),
                             onClick = { animateOutAndDismiss(onSelect) }
                         )
 
                         InternalMenuOptionItem(
                             icon = Icons.Rounded.MoreHoriz,
-                            text = "More",
+                            text = stringResource(R.string.menu_more),
                             trailingIcon = Icons.Rounded.ChevronRight,
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -429,7 +431,7 @@ fun MessageOptionsMenu(
                             )
                             InternalMenuOptionItem(
                                 icon = Icons.Rounded.Delete,
-                                text = "Delete",
+                                text = stringResource(R.string.menu_delete),
                                 textColor = MaterialTheme.colorScheme.error,
                                 iconTint = MaterialTheme.colorScheme.error,
                                 onClick = { showDeleteSheet = true }
@@ -438,7 +440,7 @@ fun MessageOptionsMenu(
                     } else {
                         InternalMenuOptionItem(
                             icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                            text = "Back",
+                            text = stringResource(R.string.cd_back),
                             iconTint = MaterialTheme.colorScheme.primary,
                             textColor = MaterialTheme.colorScheme.primary,
                             onClick = {
@@ -455,42 +457,42 @@ fun MessageOptionsMenu(
                         if (message.canGetMessageThread) {
                             InternalMenuOptionItem(
                                 icon = Icons.AutoMirrored.Rounded.Chat,
-                                text = "View Comments",
+                                text = stringResource(R.string.menu_view_comments),
                                 onClick = { animateOutAndDismiss(onComments) }
                             )
                         }
 
                         InternalMenuOptionItem(
                             icon = Icons.Rounded.Link,
-                            text = "Copy Link",
+                            text = stringResource(R.string.menu_copy_link),
                             onClick = { animateOutAndDismiss(onCopyLink) }
                         )
 
                         if (shouldShowDownload(message)) {
                             InternalMenuOptionItem(
                                 icon = Icons.Rounded.Download,
-                                text = "Save to Downloads",
+                                text = stringResource(R.string.menu_save_to_downloads),
                                 onClick = { animateOutAndDismiss(onSaveToDownloads) }
                             )
                         }
 
                         InternalMenuOptionItem(
                             icon = Icons.Rounded.Report,
-                            text = "Report",
+                            text = stringResource(R.string.menu_report),
                             onClick = { animateOutAndDismiss(onReport) }
                         )
 
                         if (!message.isOutgoing) {
                             InternalMenuOptionItem(
                                 icon = Icons.Rounded.Block,
-                                text = "Block User",
+                                text = stringResource(R.string.menu_block_user),
                                 textColor = MaterialTheme.colorScheme.error,
                                 iconTint = MaterialTheme.colorScheme.error,
                                 onClick = { animateOutAndDismiss(onBlock) }
                             )
                             InternalMenuOptionItem(
                                 icon = Icons.Rounded.Gavel,
-                                text = "Restrict User",
+                                text = stringResource(R.string.menu_restrict_user),
                                 textColor = MaterialTheme.colorScheme.error,
                                 iconTint = MaterialTheme.colorScheme.error,
                                 onClick = { animateOutAndDismiss(onRestrict) }
@@ -611,7 +613,7 @@ private fun InternalMenuHeaderInfo(message: MessageModel) {
             if (editDate != null) {
                 InternalMenuInfoRow(
                     icon = Icons.Rounded.Edit,
-                    label = "Edited",
+                    label = stringResource(R.string.info_edited),
                     value = editDate
                 )
             }
@@ -619,7 +621,7 @@ private fun InternalMenuHeaderInfo(message: MessageModel) {
             if (readDate != null) {
                 InternalMenuInfoRow(
                     icon = Icons.Rounded.DoneAll,
-                    label = "Read",
+                    label = stringResource(R.string.info_read),
                     value = readDate,
                     iconTint = MaterialTheme.colorScheme.primary
                 )
@@ -628,7 +630,7 @@ private fun InternalMenuHeaderInfo(message: MessageModel) {
             if (views != null) {
                 InternalMenuInfoRow(
                     icon = Icons.Rounded.Visibility,
-                    label = "Views",
+                    label = stringResource(R.string.info_views),
                     value = views
                 )
             }

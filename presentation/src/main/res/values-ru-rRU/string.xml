@@ -174,6 +174,67 @@
     <string name="topic_closed_bar">Эта тема закрыта</string>
     <string name="cd_attach">Прикрепить</string>
 
+    <!-- Current Chat Additions -->
+    <string name="delete_message_title">Удалить сообщение?</string>
+    <string name="delete_messages_title">Удалить %1$d сообщений?</string>
+    <string name="delete_message_confirmation">Вы уверены, что хотите удалить это сообщение?</string>
+    <string name="delete_messages_confirmation">Вы уверены, что хотите удалить эти сообщения?</string>
+    <string name="delete_for_everyone">Удалить для всех</string>
+    <string name="delete_for_me">Удалить для меня</string>
+
+    <string name="report_title">Почему Вы жалуетесь на это?</string>
+    <string name="report_description">Ваша жалоба анонимна. Мы проверим историю чата для обеспечения безопасности.</string>
+    <string name="report_details_title">Детали жалобы</string>
+    <string name="report_details_placeholder">Опишите проблему…</string>
+    <string name="report_send">Отправить жалобу</string>
+    <string name="report_reason_spam">Спам</string>
+    <string name="report_reason_spam_description">Нежелательная реклама или мошенничество</string>
+    <string name="report_reason_violence">Насилие</string>
+    <string name="report_reason_violence_description">Угрозы или пропаганда насилия</string>
+    <string name="report_reason_pornography">Порнография</string>
+    <string name="report_reason_pornography_description">Неприемлемый контент или нецензурная лексика</string>
+    <string name="report_reason_child_abuse">Детская безопасность</string>
+    <string name="report_reason_child_abuse_description">Контент, наносящий вред несовершеннолетним</string>
+    <string name="report_reason_copyright">Авторское право</string>
+    <string name="report_reason_copyright_description">Использование чужой интеллектуальной собственности</string>
+    <string name="report_reason_fake">Выдача себя за другого</string>
+    <string name="report_reason_fake_description">Выдача себя за другое лицо или бота</string>
+    <string name="report_reason_illegal_drugs">Наркотики</string>
+    <string name="report_reason_illegal_drugs_description">Пропаганда продажи или употребления запрещенных веществ</string>
+    <string name="report_reason_personal_details">Нарушение приватности</string>
+    <string name="report_reason_personal_details_description">Распространение личных контактных данных или адресов</string>
+    <string name="report_reason_unrelated_location">Несоответствующее место</string>
+    <string name="report_reason_unrelated_location_description">Контент не имеет отношения к этому месту</string>
+    <string name="report_reason_other">Другое</string>
+    <string name="report_reason_other_description">Что-то другое, что нарушает наши условия</string>
+
+    <string name="restrict_user_title">Ограничить пользователя</string>
+    <string name="permission_send_messages">Отправка сообщений</string>
+    <string name="permission_send_media">Отправка медиа</string>
+    <string name="permission_send_stickers_gifs">Отправка стикеров и GIF</string>
+    <string name="permission_send_polls">Отправка опросов</string>
+    <string name="permission_embed_links">Предпросмотр ссылок</string>
+    <string name="permission_pin_messages">Закрепление сообщений</string>
+    <string name="permission_change_chat_info">Изменение данных чата</string>
+    <string name="restrict_until">Ограничить до</string>
+    <string name="restrict_forever">Навсегда</string>
+    <string name="cd_select_date">Выбрать дату</string>
+    <string name="cd_select_time">Выбрать время</string>
+    <string name="action_restrict">Ограничить</string>
+
+    <string name="menu_reply">Ответить</string>
+    <string name="menu_pin">Закрепить</string>
+    <string name="menu_unpin">Открепить</string>
+    <string name="menu_forward">Переслать</string>
+    <string name="menu_select">Выбрать</string>
+    <string name="menu_more">Ещё</string>
+    <string name="menu_view_comments">Посмотреть комментарии</string>
+    <string name="menu_save_to_downloads">Сохранить в загрузки</string>
+    <string name="menu_restrict_user">Ограничить</string>
+    <string name="info_edited">Изменено</string>
+    <string name="info_read">Прочитано</string>
+    <string name="info_views">Просмотры</string>
+
     <!-- Profile -->
     <string name="unknown_title">Неизвестно</string>
     <string name="members_count_format">Участники: %1$d</string>
@@ -367,7 +428,7 @@
     <string name="proxy_settings_header">Настройки прокси</string>
     <string name="refresh_pings_cd">Обновить задержку</string>
     <string name="add_proxy_button">Добавить прокси</string>
-    <string name="connection_section_header">Подключение</string>
+    <string name="connection_section_header">Соединение</string>
     <string name="smart_switching_title">Умное переключение</string>
     <string name="smart_switching_subtitle">Автоматически выбирать самый быстрый прокси</string>
     <string name="prefer_ipv6_title">Предпочитать IPv6</string>
@@ -570,6 +631,22 @@
     <string name="no_emojis_found_format">Эмодзи по запросу «%1$s» не найдены</string>
     <string name="search_packs_placeholder">Поиск наборов</string>
     <string name="action_search">Поиск</string>
+    <plurals name="stickers_count">
+        <item quantity="one">%1$d стикер</item>
+        <item quantity="few">%1$d стикера</item>
+        <item quantity="many">%1$d стикеров</item>
+        <item quantity="other">%1$d стикеров</item>
+    </plurals>
+    <plurals name="emojis_count">
+        <item quantity="one">%1$d эмодзи</item>
+        <item quantity="few">%1$d эмодзи</item>
+        <item quantity="many">%1$d эмодзи</item>
+        <item quantity="other">%1$d эмодзи</item>
+    </plurals>
+    <string name="sticker_type_masks">Маски</string>
+    <string name="sticker_type_custom_emojis">Эмодзи</string>
+    <string name="sticker_official">Официальный</string>
+    <string name="link_copied">Ссылка скопирована</string>
 
     <!-- Network Usage -->
     <string name="network_usage_header">Использование сети</string>
@@ -735,4 +812,27 @@
     <!-- Selection -->
     <string name="cd_clear_selection">Очистить выделение</string>
     <string name="action_pin">Закрепить</string>
+
+    <!-- Bot Commands -->
+    <string name="bot_commands_title">Команды бота</string>
+    <string name="bot_commands_subtitle">Выберите команду для отправки боту</string>
+
+    <!-- Chat List Preview -->
+    <string name="chat_list_preview_title">Список чатов</string>
+    <string name="preview_name_konata">Коната Идзуми</string>
+    <string name="preview_message_konata">Я не коротышка, я просто концентрированная крутость! 🍫 А ещё я решила стать профессиональной соней 😴</string>
+    <string name="preview_time_konata">12:45</string>
+    <string name="preview_name_kagami">Кагами Хиираги</string>
+    <string name="preview_message_kagami">Не забудь про домашку! Её нужно сдать завтра утром, и она довольно сложная.</string>
+    <string name="preview_time_kagami">11:20</string>
+
+    <!-- Chat Settings Preview -->
+    <string name="chat_settings_preview_title">Предпросмотр</string>
+    <string name="preview_msg_sender_me">Я</string>
+    <string name="preview_msg_text_1">Я не коротышка, я просто концентрированная крутость! 🍫\nА ещё я решила стать профессиональной соней 😴</string>
+    <string name="preview_msg_text_2">Ты так говоришь каждый раз, когда не можешь дотянуться до верхней полки... 🙄\nЗацени: вот</string>
+    <string name="preview_msg_text_3">Хватит меня разоблачать! 😤✨\nЯ просто использую своё секретное оружие: 💯 чистая лень</string>
+    <string name="preview_msg_text_4">Это суперэффективно! 😵‍💫</string>
+    <string name="preview_date_today">Сегодня</string>
+    <string name="preview_name_konata_short">Коната</string>
 </resources>

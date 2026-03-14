@@ -8,10 +8,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +47,7 @@ fun DeleteMessagesSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = if (count > 1) "Delete $count messages?" else "Delete message?",
+                text = if (count > 1) stringResource(R.string.delete_messages_title, count) else stringResource(R.string.delete_message_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
@@ -54,7 +56,7 @@ fun DeleteMessagesSheet(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Are you sure you want to delete ${if (count > 1) "these messages" else "this message"}?",
+                text = if (count > 1) stringResource(R.string.delete_messages_confirmation) else stringResource(R.string.delete_message_confirmation),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -78,7 +80,7 @@ fun DeleteMessagesSheet(
                             contentColor = MaterialTheme.colorScheme.onErrorContainer
                         )
                     ) {
-                        Text("Delete for everyone", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.delete_for_everyone), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -93,7 +95,7 @@ fun DeleteMessagesSheet(
                         contentColor = MaterialTheme.colorScheme.onError
                     )
                 ) {
-                    Text("Delete for me", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.delete_for_me), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
                 OutlinedButton(
@@ -103,7 +105,7 @@ fun DeleteMessagesSheet(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.cancel_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

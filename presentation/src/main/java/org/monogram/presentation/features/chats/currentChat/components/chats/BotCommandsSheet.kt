@@ -14,11 +14,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.BotCommandModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -78,7 +80,11 @@ fun BotCommandsSheet(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Close", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = stringResource(R.string.close_button),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -109,13 +115,13 @@ private fun BotCommandsHeader() {
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Bot Commands",
+            text = stringResource(R.string.bot_commands_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text = "Select a command to send to the bot",
+            text = stringResource(R.string.bot_commands_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

@@ -12,10 +12,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.ChatPermissionsModel
+import org.monogram.presentation.R
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -59,12 +61,12 @@ fun RestrictUserSheet(
                     }
                     showDatePicker = false
                 }) {
-                    Text("OK")
+                    Text(stringResource(R.string.ok_button))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel_button))
                 }
             }
         ) {
@@ -91,12 +93,12 @@ fun RestrictUserSheet(
                     untilDate = (newCalendar.timeInMillis / 1000).toInt()
                     showTimePicker = false
                 }) {
-                    Text("OK")
+                    Text(stringResource(R.string.ok_button))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showTimePicker = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel_button))
                 }
             },
             text = {
@@ -119,7 +121,7 @@ fun RestrictUserSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Restrict User",
+                text = stringResource(R.string.restrict_user_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -137,10 +139,10 @@ fun RestrictUserSheet(
                         .padding(8.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    PermissionToggle("Send Messages", permissions.canSendBasicMessages) {
+                    PermissionToggle(stringResource(R.string.permission_send_messages), permissions.canSendBasicMessages) {
                         permissions = permissions.copy(canSendBasicMessages = it)
                     }
-                    PermissionToggle("Send Media", permissions.canSendPhotos && permissions.canSendVideos) {
+                    PermissionToggle(stringResource(R.string.permission_send_media), permissions.canSendPhotos && permissions.canSendVideos) {
                         permissions = permissions.copy(
                             canSendPhotos = it,
                             canSendVideos = it,
@@ -150,22 +152,22 @@ fun RestrictUserSheet(
                             canSendVoiceNotes = it
                         )
                     }
-                    PermissionToggle("Send Stickers & GIFs", permissions.canSendOtherMessages) {
+                    PermissionToggle(stringResource(R.string.permission_send_stickers_gifs), permissions.canSendOtherMessages) {
                         permissions = permissions.copy(canSendOtherMessages = it)
                     }
-                    PermissionToggle("Send Polls", permissions.canSendPolls) {
+                    PermissionToggle(stringResource(R.string.permission_send_polls), permissions.canSendPolls) {
                         permissions = permissions.copy(canSendPolls = it)
                     }
                     PermissionToggle(
-                        "Embed Links",
+                        stringResource(R.string.permission_embed_links),
                         permissions.canAddLinkPreviews
                     ) {
                         permissions = permissions.copy(canAddLinkPreviews = it)
                     }
-                    PermissionToggle("Pin Messages", permissions.canPinMessages) {
+                    PermissionToggle(stringResource(R.string.permission_pin_messages), permissions.canPinMessages) {
                         permissions = permissions.copy(canPinMessages = it)
                     }
-                    PermissionToggle("Change Chat Info", permissions.canChangeInfo) {
+                    PermissionToggle(stringResource(R.string.permission_change_chat_info), permissions.canChangeInfo) {
                         permissions = permissions.copy(canChangeInfo = it)
                     }
 
@@ -179,9 +181,9 @@ fun RestrictUserSheet(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Restrict until", style = MaterialTheme.typography.bodyLarge)
+                            Text(stringResource(R.string.restrict_until), style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                text = if (untilDate == 0) "Forever" else SimpleDateFormat(
+                                text = if (untilDate == 0) stringResource(R.string.restrict_forever) else SimpleDateFormat(
                                     "MMM d, yyyy, HH:mm",
                                     Locale.getDefault()
                                 ).format(Date(untilDate.toLong() * 1000)),
@@ -191,10 +193,10 @@ fun RestrictUserSheet(
                         }
                         Row {
                             IconButton(onClick = { showDatePicker = true }) {
-                                Icon(Icons.Rounded.CalendarToday, contentDescription = "Select Date")
+                                Icon(Icons.Rounded.CalendarToday, contentDescription = stringResource(R.string.cd_select_date))
                             }
                             IconButton(onClick = { showTimePicker = true }) {
-                                Icon(Icons.Rounded.AccessTime, contentDescription = "Select Time")
+                                Icon(Icons.Rounded.AccessTime, contentDescription = stringResource(R.string.cd_select_time))
                             }
                         }
                     }
@@ -214,7 +216,7 @@ fun RestrictUserSheet(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.cancel_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Button(
@@ -224,7 +226,7 @@ fun RestrictUserSheet(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Restrict", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.action_restrict), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

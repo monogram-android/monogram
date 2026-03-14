@@ -14,9 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
 import org.monogram.presentation.core.ui.ItemPosition
 
@@ -30,36 +32,36 @@ fun ReportChatDialog(
     var customText by remember { mutableStateOf("") }
 
     val reasons = listOf(
-        ReportReason("spam", "Spam", "Unwanted commercial content or scams", Icons.Outlined.Report),
-        ReportReason("violence", "Violence", "Threats or glorification of violence", Icons.Outlined.Gavel),
+        ReportReason("spam", stringResource(R.string.report_reason_spam), stringResource(R.string.report_reason_spam_description), Icons.Outlined.Report),
+        ReportReason("violence", stringResource(R.string.report_reason_violence), stringResource(R.string.report_reason_violence_description), Icons.Outlined.Gavel),
         ReportReason(
             "pornography",
-            "Pornography",
-            "Inappropriate media or explicit language",
+            stringResource(R.string.report_reason_pornography),
+            stringResource(R.string.report_reason_pornography_description),
             Icons.Outlined.NoAdultContent
         ),
-        ReportReason("child_abuse", "Child safety", "Content involving harm to minors", Icons.Outlined.ChildCare),
-        ReportReason("copyright", "Copyright", "Using someone else's intellectual property", Icons.Outlined.Copyright),
-        ReportReason("fake", "Impersonation", "Pretending to be someone else or a bot", Icons.Outlined.AccountCircle),
+        ReportReason("child_abuse", stringResource(R.string.report_reason_child_abuse), stringResource(R.string.report_reason_child_abuse_description), Icons.Outlined.ChildCare),
+        ReportReason("copyright", stringResource(R.string.report_reason_copyright), stringResource(R.string.report_reason_copyright_description), Icons.Outlined.Copyright),
+        ReportReason("fake", stringResource(R.string.report_reason_fake), stringResource(R.string.report_reason_fake_description), Icons.Outlined.AccountCircle),
         ReportReason(
             "illegal_drugs",
-            "Illegal drugs",
-            "Promoting the sale or use of prohibited substances",
+            stringResource(R.string.report_reason_illegal_drugs),
+            stringResource(R.string.report_reason_illegal_drugs_description),
             Icons.Outlined.Warning
         ),
         ReportReason(
             "personal_details",
-            "Privacy violation",
-            "Sharing private contact info or addresses",
+            stringResource(R.string.report_reason_personal_details),
+            stringResource(R.string.report_reason_personal_details_description),
             Icons.Outlined.VisibilityOff
         ),
         ReportReason(
             "unrelated_location",
-            "Unrelated location",
-            "Content not relevant to this specific place",
+            stringResource(R.string.report_reason_unrelated_location),
+            stringResource(R.string.report_reason_unrelated_location_description),
             Icons.Outlined.LocationOff
         ),
-        ReportReason("custom", "Other", "Something else that violates our terms", Icons.Outlined.MoreHoriz)
+        ReportReason("custom", stringResource(R.string.report_reason_other), stringResource(R.string.report_reason_other_description), Icons.Outlined.MoreHoriz)
     )
 
     ModalBottomSheet(
@@ -80,13 +82,13 @@ fun ReportChatDialog(
                         .padding(bottom = 16.dp)
                 ) {
                     Text(
-                        text = "Why are you reporting this?",
+                        text = stringResource(R.string.report_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Your report is anonymous. We will review the chat history to ensure safety.",
+                        text = stringResource(R.string.report_description),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -125,7 +127,7 @@ fun ReportChatDialog(
                         .padding(bottom = 32.dp)
                 ) {
                     Text(
-                        text = "Report details",
+                        text = stringResource(R.string.report_details_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -134,7 +136,7 @@ fun ReportChatDialog(
                     SettingsTextField(
                         value = customText,
                         onValueChange = { customText = it },
-                        placeholder = "Describe the issue...",
+                        placeholder = stringResource(R.string.report_details_placeholder),
                         icon = Icons.Rounded.Edit,
                         position = ItemPosition.STANDALONE,
                         minLines = 3
@@ -153,7 +155,7 @@ fun ReportChatDialog(
                                 .height(56.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Text("Back", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.cd_back), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
 
                         Button(
@@ -164,7 +166,7 @@ fun ReportChatDialog(
                                 .height(56.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Text("Send Report", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.report_send), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

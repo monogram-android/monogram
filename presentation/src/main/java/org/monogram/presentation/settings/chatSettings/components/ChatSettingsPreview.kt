@@ -15,10 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import org.monogram.domain.models.*
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.components.MessageBubbleContainer
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
@@ -41,7 +43,7 @@ fun ChatSettingsPreview(
 ) {
     Column(modifier = modifier) {
         Text(
-            text = "Preview",
+            text = stringResource(R.string.chat_settings_preview_title),
             modifier = Modifier.padding(start = 12.dp, bottom = 8.dp, top = 16.dp),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary,
@@ -95,15 +97,22 @@ fun ChatSettingsPreview(
                 WallpaperBackground(wallpaper = null, modifier = Modifier.fillMaxSize())
             }
 
-            val messages = remember {
+            val meName = stringResource(R.string.preview_msg_sender_me)
+            val konataName = stringResource(R.string.preview_name_konata_short)
+            val msgText1 = stringResource(R.string.preview_msg_text_1)
+            val msgText2 = stringResource(R.string.preview_msg_text_2)
+            val msgText3 = stringResource(R.string.preview_msg_text_3)
+            val msgText4 = stringResource(R.string.preview_msg_text_4)
+
+            val messages = remember(meName, konataName, msgText1, msgText2, msgText3, msgText4) {
                 val msg2 = MessageModel(
                     id = 3,
                     date = 1678887000,
                     isOutgoing = true,
-                    senderName = "Me",
+                    senderName = meName,
                     chatId = 1,
                     content = MessageContent.Text(
-                        text = "That's what you say every time you can't reach the top shelf... 🙄\nCheck this out: this",
+                        text = msgText2,
                         entities = listOf(
                             MessageEntity(83, 4, MessageEntityType.TextUrl("https://youtu.be/dQw4w9WgXcQ"))
                         )
@@ -119,11 +128,11 @@ fun ChatSettingsPreview(
                     id = 1,
                     date = 1678886400,
                     isOutgoing = false,
-                    senderName = "Konata",
+                    senderName = konataName,
                     senderAvatar = "local",
                     chatId = 1,
                     content = MessageContent.Text(
-                        text = "I'm not short, I'm just concentrated awesome! 🍫\nAlso, I've decided to become a professional sleeper 😴",
+                        text = msgText1,
                         entities = listOf(
                             MessageEntity(0, 13, MessageEntityType.Bold),
                             MessageEntity(80, 20, MessageEntityType.Italic),
@@ -141,11 +150,11 @@ fun ChatSettingsPreview(
                     id = 4,
                     date = 1678887060,
                     isOutgoing = false,
-                    senderName = "Konata",
+                    senderName = konataName,
                     senderAvatar = "local",
                     chatId = 1,
                     content = MessageContent.Text(
-                        text = "Stop exposing me! 😤✨\nI'll just use my secret weapon: \uD83D\uDCAF pure laziness"
+                        text = msgText3
                     ),
                     replyToMsg = msg2,
                     replyToMsgId = msg2.id,
@@ -156,10 +165,10 @@ fun ChatSettingsPreview(
                     id = 5,
                     date = 1678887120,
                     isOutgoing = true,
-                    senderName = "Me",
+                    senderName = meName,
                     chatId = 1,
                     content = MessageContent.Text(
-                        text = "It's super effective! 😵‍💫",
+                        text = msgText4,
                         entities = listOf(
                             MessageEntity(5, 16, MessageEntityType.Bold)
                         )
@@ -191,7 +200,7 @@ fun ChatSettingsPreview(
                             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
                         ) {
                             Text(
-                                text = "Today",
+                                text = stringResource(R.string.preview_date_today),
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                                 color = MaterialTheme.colorScheme.onSurface

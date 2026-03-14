@@ -19,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,6 +30,7 @@ import org.koin.compose.koinInject
 import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.models.StickerType
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.presentation.R
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,7 +77,11 @@ fun StickerSetSheet(
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "${stickerSet.stickers.size} ${if (stickerSet.stickerType == StickerType.CUSTOM_EMOJI) "emojis" else "stickers"}",
+                            text = if (stickerSet.stickerType == StickerType.CUSTOM_EMOJI) {
+                                pluralStringResource(R.plurals.emojis_count, stickerSet.stickers.size, stickerSet.stickers.size)
+                            } else {
+                                pluralStringResource(R.plurals.stickers_count, stickerSet.stickers.size, stickerSet.stickers.size)
+                            },
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -86,8 +93,8 @@ fun StickerSetSheet(
                             )
                             Text(
                                 text = when (stickerSet.stickerType) {
-                                    StickerType.MASK -> "Masks"
-                                    StickerType.CUSTOM_EMOJI -> "Custom Emojis"
+                                    StickerType.MASK -> stringResource(R.string.sticker_type_masks)
+                                    StickerType.CUSTOM_EMOJI -> stringResource(R.string.sticker_type_custom_emojis)
                                     else -> ""
                                 },
                                 style = MaterialTheme.typography.labelMedium,
@@ -101,7 +108,7 @@ fun StickerSetSheet(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "Official",
+                                text = stringResource(R.string.sticker_official),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -110,18 +117,19 @@ fun StickerSetSheet(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    val linkCopiedText = stringResource(R.string.link_copied)
                     IconButton(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             val link = "https://t.me/addstickers/${stickerSet.name}"
                             val clip = ClipData.newPlainText("Sticker Set Link", link)
                             clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, linkCopiedText, Toast.LENGTH_SHORT).show()
                         }
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Share,
-                            contentDescription = "Share",
+                            contentDescription = stringResource(R.string.menu_share),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -215,7 +223,7 @@ fun StickerSetSheet(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Close", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.close_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
 
                 if (!isInstalled) {
@@ -231,7 +239,7 @@ fun StickerSetSheet(
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Add", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.action_add), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 } else {
                     Button(
@@ -250,7 +258,7 @@ fun StickerSetSheet(
                             contentColor = MaterialTheme.colorScheme.error
                         )
                     ) {
-                        Text("Remove", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.menu_delete), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

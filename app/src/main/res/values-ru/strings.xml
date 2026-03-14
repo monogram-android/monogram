@@ -1,0 +1,47 @@
+<resources>
+    <string name="app_name">MonoGram</string>
+
+    <!-- Lock Screen -->
+    <string name="lock_unlock_title">Разблокировать MonoGram</string>
+    <string name="lock_unlock_subtitle">Войдите с помощью биометрии</string>
+    <string name="lock_use_passcode">Использовать код</string>
+    <string name="lock_enter_passcode">Введите код-пароль</string>
+    <string name="lock_messages_protected">Ваши сообщения защищены</string>
+    <string name="lock_invalid_passcode">Неверный код-пароль</string>
+    <string name="lock_biometric_unlock">Биометрическая разблокировка</string>
+
+    <!-- Main Content / Proxy Confirm -->
+    <string name="proxy_details">Детали прокси</string>
+    <string name="proxy_add_connect">Добавить и подключиться к этому прокси-серверу</string>
+    <string name="proxy_server">Сервер</string>
+    <string name="proxy_port">Порт</string>
+    <string name="proxy_type">Тип</string>
+    <string name="proxy_unknown">Неизвестно</string>
+    <string name="cancel">Отмена</string>
+    <string name="connect">Подключить</string>
+
+    <!-- Main Content / Chat Confirm -->
+    <string name="chat_join">Вступить</string>
+    <string name="chat_channel">Канал</string>
+    <string name="chat_group">Группа</string>
+    <plurals name="members_count">
+        <item quantity="one">%d участник</item>
+        <item quantity="few">%d участника</item>
+        <item quantity="many">%d участников</item>
+        <item quantity="other">%d участников</item>
+    </plurals>
+
+    <!-- Tablet Layout -->
+    <string name="tablet_select_setting">Выберите настройку</string>
+    <string name="tablet_select_chat">Выберите чат, чтобы начать общение</string>
+
+    <!-- Crash Activity -->
+    <string name="crash_log_label">Лог ошибки</string>
+    <string name="crash_copied_to_clipboard">Скопировано в буфер обмена</string>
+    <string name="crash_share_title">Поделиться логом ошибки</string>
+    <string name="crash_share">Поделиться</string>
+    <string name="crash_copy">Копировать</string>
+    <string name="crash_restart">Перезапустить приложение</string>
+    <string name="crash_error_details">Детали ошибки</string>
+    <string name="crash_description">Что-то пошло не так. Пожалуйста, поделитесь или скопируйте логи ниже, чтобы сообщить об этой проблеме разработчикам.</string>
+</resources>

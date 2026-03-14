@@ -17,6 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -145,14 +147,14 @@ private fun ProxyConfirmSheet(root: RootComponent) {
                     .padding(bottom = 32.dp)
             ) {
                 Text(
-                    text = "Proxy Details",
+                    text = stringResource(R.string.proxy_details),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
 
                 Text(
-                    text = "Add and connect to this proxy server",
+                    text = stringResource(R.string.proxy_add_connect),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
@@ -169,15 +171,15 @@ private fun ProxyConfirmSheet(root: RootComponent) {
                         Modifier.padding(vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        DetailRow("Server", proxyConfirmState.server!!)
-                        DetailRow("Port", proxyConfirmState.port!!.toString())
+                        DetailRow(stringResource(R.string.proxy_server), proxyConfirmState.server!!)
+                        DetailRow(stringResource(R.string.proxy_port), proxyConfirmState.port!!.toString())
                         val typeName = when (proxyConfirmState.type) {
                             is ProxyTypeModel.Mtproto -> "MTProto"
                             is ProxyTypeModel.Socks5 -> "SOCKS5"
                             is ProxyTypeModel.Http -> "HTTP"
-                            else -> "Unknown"
+                            else -> stringResource(R.string.proxy_unknown)
                         }
-                        DetailRow("Type", typeName)
+                        DetailRow(stringResource(R.string.proxy_type), typeName)
                     }
                 }
 
@@ -194,7 +196,7 @@ private fun ProxyConfirmSheet(root: RootComponent) {
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.cancel), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Button(
@@ -210,7 +212,7 @@ private fun ProxyConfirmSheet(root: RootComponent) {
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Connect", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.connect), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -264,9 +266,14 @@ private fun ChatConfirmJoinSheet(root: RootComponent) {
                     textAlign = TextAlign.Center
                 )
 
+                val channelStr = stringResource(R.string.chat_channel)
+                val groupStr = stringResource(R.string.chat_group)
                 val infoText = buildString {
-                    if (isChannel) append("Channel") else append("Group")
-                    if (memberCount > 0) append(" • $memberCount members")
+                    if (isChannel) append(channelStr) else append(groupStr)
+                    if (memberCount > 0) {
+                        append(" • ")
+                        append(pluralStringResource(R.plurals.members_count, memberCount, memberCount))
+                    }
                 }
 
                 Text(
@@ -298,7 +305,7 @@ private fun ChatConfirmJoinSheet(root: RootComponent) {
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.cancel), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Button(
@@ -316,7 +323,7 @@ private fun ChatConfirmJoinSheet(root: RootComponent) {
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Join", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.chat_join), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -440,7 +447,7 @@ private fun TabletLayout(root: RootComponent, childStack: ChildStack<*, RootComp
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (isSettings) "Select a setting" else "Select a chat to start messaging",
+                        text = if (isSettings) stringResource(R.string.tablet_select_setting) else stringResource(R.string.tablet_select_chat),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

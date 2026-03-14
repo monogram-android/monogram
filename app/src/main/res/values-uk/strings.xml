@@ -1,0 +1,47 @@
+<resources>
+    <string name="app_name">MonoGram</string>
+
+    <!-- Lock Screen -->
+    <string name="lock_unlock_title">Розблокувати MonoGram</string>
+    <string name="lock_unlock_subtitle">Увійдіть за допомогою біометрії</string>
+    <string name="lock_use_passcode">Використати код</string>
+    <string name="lock_enter_passcode">Введіть код-пароль</string>
+    <string name="lock_messages_protected">Ваші повідомлення захищені</string>
+    <string name="lock_invalid_passcode">Невірний код-пароль</string>
+    <string name="lock_biometric_unlock">Біометричне розблокування</string>
+
+    <!-- Main Content / Proxy Confirm -->
+    <string name="proxy_details">Деталі проксі</string>
+    <string name="proxy_add_connect">Додати та підключитися до цього проксі-сервера</string>
+    <string name="proxy_server">Сервер</string>
+    <string name="proxy_port">Порт</string>
+    <string name="proxy_type">Тип</string>
+    <string name="proxy_unknown">Невідомо</string>
+    <string name="cancel">Скасувати</string>
+    <string name="connect">Підключити</string>
+
+    <!-- Main Content / Chat Confirm -->
+    <string name="chat_join">Приєднатися</string>
+    <string name="chat_channel">Канал</string>
+    <string name="chat_group">Група</string>
+    <plurals name="members_count">
+        <item quantity="one">%d учасник</item>
+        <item quantity="few">%d учасники</item>
+        <item quantity="many">%d учасників</item>
+        <item quantity="other">%d учасників</item>
+    </plurals>
+
+    <!-- Tablet Layout -->
+    <string name="tablet_select_setting">Оберіть налаштування</string>
+    <string name="tablet_select_chat">Оберіть чат, щоб почати спілкування</string>
+
+    <!-- Crash Activity -->
+    <string name="crash_log_label">Лог помилки</string>
+    <string name="crash_copied_to_clipboard">Скопійовано в буфер обміну</string>
+    <string name="crash_share_title">Поділитися логом помилки</string>
+    <string name="crash_share">Поділитися</string>
+    <string name="crash_copy">Копіювати</string>
+    <string name="crash_restart">Перезапустити додаток</string>
+    <string name="crash_error_details">Деталі помилки</string>
+    <string name="crash_description">Щось пішло не так. Будь ласка, поділіться або скопіюйте логи нижче, щоб повідомити про цю проблему розробникам.</string>
+</resources>

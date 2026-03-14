@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -62,6 +63,10 @@ fun LockScreen(root: RootComponent) {
         focusManager.clearFocus()
     }
 
+    val unlockTitle = stringResource(R.string.lock_unlock_title)
+    val unlockSubtitle = stringResource(R.string.lock_unlock_subtitle)
+    val usePasscode = stringResource(R.string.lock_use_passcode)
+
     val authenticateBiometric = {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val executor = Executors.newSingleThreadExecutor()
@@ -77,9 +82,9 @@ fun LockScreen(root: RootComponent) {
             )
 
             val promptInfo = BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Unlock MonoGram")
-                .setSubtitle("Log in using your biometric credential")
-                .setNegativeButtonText("Use passcode")
+                .setTitle(unlockTitle)
+                .setSubtitle(unlockSubtitle)
+                .setNegativeButtonText(usePasscode)
                 .build()
 
             biometricPrompt.authenticate(promptInfo)
@@ -240,7 +245,7 @@ private fun PasswordContent(
             label = "Title"
         ) { inputMode ->
             Text(
-                text = "Enter Passcode",
+                text = stringResource(R.string.lock_enter_passcode),
                 style = if (inputMode) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -255,7 +260,7 @@ private fun PasswordContent(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Your messages are protected",
+                    text = stringResource(R.string.lock_messages_protected),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -299,7 +304,7 @@ private fun PasswordContent(
                 exit = fadeOut() + shrinkVertically()
             ) {
                 Text(
-                    text = "Invalid passcode",
+                    text = stringResource(R.string.lock_invalid_passcode),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.padding(top = 8.dp)
@@ -330,7 +335,7 @@ private fun PasswordContent(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Fingerprint,
-                        contentDescription = "Biometric Unlock",
+                        contentDescription = stringResource(R.string.lock_biometric_unlock),
                         modifier = Modifier.size(40.dp)
                     )
                 }

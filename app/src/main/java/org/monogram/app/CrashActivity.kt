@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -55,9 +56,9 @@ class CrashActivity : ComponentActivity() {
 
     private fun copyToClipboard(text: String) {
         val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("Crash Log", text)
+        val clip = ClipData.newPlainText(getString(R.string.crash_log_label), text)
         clipboard.setPrimaryClip(clip)
-        Toast.makeText(this, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.crash_copied_to_clipboard), Toast.LENGTH_SHORT).show()
     }
 
     private fun shareLog(text: String) {
@@ -66,7 +67,7 @@ class CrashActivity : ComponentActivity() {
             putExtra(Intent.EXTRA_TEXT, text)
             type = "text/plain"
         }
-        val shareIntent = Intent.createChooser(sendIntent, "Share Crash Log")
+        val shareIntent = Intent.createChooser(sendIntent, getString(R.string.crash_share_title))
         startActivity(shareIntent)
     }
 
@@ -110,9 +111,9 @@ fun CrashScreen(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Icon(Icons.Default.Share, contentDescription = "Share", modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Share, contentDescription = stringResource(R.string.crash_share), modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Share")
+                            Text(stringResource(R.string.crash_share))
                         }
 
                         FilledTonalButton(
@@ -122,11 +123,11 @@ fun CrashScreen(
                         ) {
                             Icon(
                                 Icons.Default.ContentCopy,
-                                contentDescription = "Copy",
+                                contentDescription = stringResource(R.string.crash_copy),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(Modifier.width(8.dp))
-                            Text("Copy")
+                            Text(stringResource(R.string.crash_copy))
                         }
                     }
 
@@ -142,9 +143,9 @@ fun CrashScreen(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Restart", modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.crash_restart), modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Restart App", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.crash_restart), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -162,7 +163,7 @@ fun CrashScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Error Details",
+                text = stringResource(R.string.crash_error_details),
                 modifier = Modifier.padding(start = 4.dp, bottom = 8.dp, top = 8.dp),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
@@ -220,7 +221,7 @@ fun CrashHeaderDescription() {
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Something went wrong. Please share or copy the logs below to report this issue to the developers.",
+            text = stringResource(R.string.crash_description),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

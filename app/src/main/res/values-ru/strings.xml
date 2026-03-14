@@ -1,6 +1,4 @@
 <resources>
-    <string name="app_name">MonoGram</string>
-
     <!-- Lock Screen -->
     <string name="lock_unlock_title">Разблокировать MonoGram</string>
     <string name="lock_unlock_subtitle">Используйте биометрические данные для входа</string>

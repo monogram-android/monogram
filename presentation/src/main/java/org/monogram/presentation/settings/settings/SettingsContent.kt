@@ -587,28 +587,23 @@ fun SettingsContent(component: SettingsComponent) {
                             position = ItemPosition.MIDDLE,
                             onClick = component::onDevicesClicked
                         )
-                        SettingsItem(
-                            icon = Icons.Rounded.Language,
-                            title = stringResource(R.string.language_title),
-                            subtitle = language,
-                            iconBackgroundColor = blueColor,
-                            position = ItemPosition.MIDDLE,
-                            onClick = {
-                                val intent =
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            SettingsItem(
+                                icon = Icons.Rounded.Language,
+                                title = stringResource(R.string.language_title),
+                                subtitle = language,
+                                iconBackgroundColor = blueColor,
+                                position = ItemPosition.MIDDLE,
+                                onClick = {
+                                    val intent =
                                         Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {
                                             data =
                                                 Uri.fromParts("package", context.packageName, null)
                                         }
-                                    } else {
-                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                            data =
-                                                Uri.fromParts("package", context.packageName, null)
-                                        }
-                                    }
-                                context.startActivity(intent)
-                            }
-                        )
+                                    context.startActivity(intent)
+                                }
+                            )
+                        }
                         SettingsItem(
                             icon = Icons.Rounded.SettingsEthernet,
                             title = stringResource(R.string.proxy_settings_title),

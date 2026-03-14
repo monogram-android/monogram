@@ -75,6 +75,7 @@
     <string name="country_label">Країна</string>
     <string name="code_label">Код</string>
     <string name="phone_number_label">Номер телефону</string>
+    <string name="phone_number_placeholder">000 00 00</string>
     <string name="continue_button">Продовжити</string>
     <string name="select_country_title">Виберіть країну</string>
     <string name="search_country_hint">Пошук країни або коду…</string>
@@ -93,9 +94,16 @@
     <string name="password_label">Пароль</string>
     <string name="unlock_button">Розблокувати</string>
     <string name="paste_action">Вставити</string>
+    <string name="auth_error_title">Помилка авторизації</string>
+    <string name="dismiss_button">Закрити</string>
+
+    <!-- Loading -->
+    <string name="loading_please_wait">Будь ласка, зачекайте…</string>
+    <string name="loading_taking_too_long">Завантаження триває занадто довго?</string>
+    <string name="loading_reset_connection">Скинути з\'єднання</string>
 
     <!-- Chat List -->
-    <string name="forward_to_title">Переслати…</string>
+    <string name="forward_to_title">Переслать…</string>
     <string name="chats_selected_format">Вибрано чатів: %1$d</string>
     <string name="action_send">Надіслати</string>
     <string name="archived_chats_title">Архів</string>
@@ -106,6 +114,25 @@
     <string name="search_section_global">Глобальний пошук</string>
     <string name="search_section_messages">Повідомлення</string>
     <string name="action_show_more">Більше результатів</string>
+    <string name="cd_chat_list">Список чатів</string>
+    <string name="search_conversations_placeholder">Пошук чатів…</string>
+    <string name="waiting_for_network">Очікування мережі…</string>
+    <string name="connecting">Підключення…</string>
+    <string name="updating">Оновлення…</string>
+    <string name="connecting_to_proxy">Підключення до проксі…</string>
+    <string name="proxy_enabled">Проксі увімкнено</string>
+    <string name="cd_proxy">Проксі</string>
+    <string name="cd_forum">Форум</string>
+    <string name="message_spoiler">Спойлер</string>
+    <string name="message_draft_prefix">Чернетка: </string>
+    <string name="no_posts_yet">Дописів поки немає</string>
+    <string name="no_messages_yet">Повідомлень поки немає</string>
+    <string name="cd_pinned">Закріплено</string>
+    <string name="cd_mentions">Згадування</string>
+    <string name="archived_chats_subtitle">Приховано з основного списку</string>
+    <string name="no_chats_yet">Чатів поки немає</string>
+    <string name="start_new_conversation">Почніть нову розмову</string>
+    <string name="mini_app_default_name">Mini App</string>
 
     <!-- Account Menu -->
     <string name="app_name_dev">MonoGram Dev</string>
@@ -541,7 +568,7 @@
     <string name="clear_recent_emojis_subtitle_settings">Видалити список недавно використаних емодзі</string>
     <string name="no_emoji_packs_installed">Набори емодзі не встановлено</string>
     <string name="no_emojis_found_format">Емодзі за запитом «%1$s» не знайдено</string>
-    <string name="search_packs_placeholder">Пошук наборів</string>
+    <string name="search_packs_placeholder">Поиск наборів</string>
     <string name="action_search">Пошук</string>
 
     <!-- Network Usage -->
@@ -635,4 +662,77 @@
     <string name="adblock_whitelisted_subtitle">Дописи в цих каналах не фільтруватимуться</string>
     <string name="adblock_no_whitelisted">Список порожній</string>
     <string name="action_remove">Видалити</string>
+
+    <!-- Core/Common -->
+    <string name="last_seen_recently">був(ла) нещодавно</string>
+    <string name="last_seen_just_now">був(ла) щойно</string>
+    <plurals name="last_seen_minutes_ago">
+        <item quantity="one">був(ла) %1$d хвилину тому</item>
+        <item quantity="few">був(ла) %1$d хвилини тому</item>
+        <item quantity="many">був(ла) %1$d хвилин тому</item>
+        <item quantity="other">був(ла) %1$d хвилин тому</item>
+    </plurals>
+    <string name="last_seen_at">був(ла) о %1$s</string>
+    <string name="last_seen_yesterday_at">був(ла) вчора о %1$s</string>
+    <string name="last_seen_date">був(ла) %1$s</string>
+    <string name="last_seen_within_week">був(ла) цього тижня</string>
+    <string name="last_seen_within_month">був(ла) цього місяця</string>
+    <string name="last_seen_long_time_ago">був(ла) дуже давно</string>
+    <string name="status_online">у мережі</string>
+    <string name="status_offline">не в мережі</string>
+    <string name="status_bot">бот</string>
+    <string name="username_label_core">Ім\'я користувача</string>
+    <string name="stickers_count_format">Наліпок: %1$d</string>
+    <string name="sticker_set_archived">В архіві</string>
+    <string name="action_add_sticker_set">Додати</string>
+    <string name="menu_unarchive">Розархівувати</string>
+    <string name="menu_archive">В архів</string>
+    <string name="menu_remove_set">Видалити набір</string>
+
+    <!-- New Chat -->
+    <string name="new_message_title">Нове повідомлення</string>
+    <string name="add_members_title">Додати учасників</string>
+    <string name="new_group_title">Нова група</string>
+    <string name="new_channel_title">Новий канал</string>
+    <string name="contacts_count_format">Контактів: %1$d</string>
+    <string name="members_limit_format">%1$d / 200000</string>
+    <string name="search_contacts_hint">Пошук контактів…</string>
+    <string name="sorted_by_last_seen">За часом відвідування</string>
+    <string name="new_group_action">Створити групу</string>
+    <string name="new_channel_action">Створити канал</string>
+    <string name="support_label">Підтримка</string>
+    <string name="channel_description_hint">Канали — це інструмент для трансляції Ваших повідомлень необмеженій аудиторії.</string>
+    <string name="channel_details_header">Дані каналу</string>
+    <string name="channel_name_placeholder">Назва каналу</string>
+    <string name="description_optional_placeholder">Опис (необов\'язково)</string>
+    <string name="auto_delete_messages_title">Автовидалення повідомлень</string>
+    <string name="channel_join_info">Ви можете додати опис каналу. Будь-хто зможе приєднатися до Вашого каналу, якщо матиме посилання.</string>
+    <string name="group_description_hint">Вкажіть назву та додайте фото для Вашої нової групи.</string>
+    <string name="group_details_header">Дані групи</string>
+    <string name="group_name_placeholder">Назва групи</string>
+    <string name="group_auto_delete_info">Автоматично видаляти нові повідомлення в цій групі через певний час.</string>
+    <string name="add_photo_cd">Додати фото</string>
+    <string name="change_photo_cd">Змінити фото</string>
+
+    <!-- Permissions -->
+    <string name="permissions_required_title">Необхідні дозволи</string>
+    <string name="permissions_required_description">Для забезпечення найкращого досвіду MonoGram потребує наступних дозволів.</string>
+    <string name="permission_notifications_title">Сповіщення</string>
+    <string name="permission_notifications_description">Отримуйте сповіщення про нові повідомлення</string>
+    <string name="permission_allow_button">Дозволити</string>
+    <string name="permission_phone_state_title">Стан телефону</string>
+    <string name="permission_phone_state_description">Керування станом пристрою для найкращого досвіду</string>
+    <string name="permission_battery_optimization_title">Оптимізація батареї</string>
+    <string name="permission_battery_optimization_description">Забезпечення надійної фонової роботи</string>
+    <string name="permission_disable_button">Вимкнути</string>
+    <string name="permission_camera_title">Камера</string>
+    <string name="permission_camera_description">Робіть фото та записуйте відеоповідомлення</string>
+    <string name="permission_microphone_title">Мікрофон</string>
+    <string name="permission_microphone_description">Записуйте голосові та відеоповідомлення</string>
+    <string name="permission_location_title">Місцезнаходження</string>
+    <string name="permission_location_description">Діліться місцезнаходженням та знаходьте користувачів поруч</string>
+
+    <!-- Selection -->
+    <string name="cd_clear_selection">Очистити виділення</string>
+    <string name="action_pin">Закріпити</string>
 </resources>

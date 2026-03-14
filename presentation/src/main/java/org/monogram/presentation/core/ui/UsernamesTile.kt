@@ -17,10 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -98,7 +100,7 @@ fun UsernamesTile(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Username",
+                    text = stringResource(R.string.username_label_core),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )

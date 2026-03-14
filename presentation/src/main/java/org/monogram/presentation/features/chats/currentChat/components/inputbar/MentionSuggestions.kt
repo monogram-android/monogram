@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -25,6 +26,7 @@ fun MentionSuggestions(
     videoPlayerPool: VideoPlayerPool,
     onMentionClick: (UserModel) -> Unit
 ) {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -58,7 +60,7 @@ fun MentionSuggestions(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        val status = user.username?.let { "@$it" } ?: getUserStatusText(user)
+                        val status = user.username?.let { "@$it" } ?: getUserStatusText(user, context)
                         Text(
                             text = status,
                             style = MaterialTheme.typography.labelMedium,

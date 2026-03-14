@@ -16,11 +16,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.core.ui.ItemPosition
@@ -64,7 +66,7 @@ fun NewChannelContent(
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Channels are a tool for broadcasting your messages to unlimited audiences.",
+                text = stringResource(R.string.channel_description_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -72,12 +74,12 @@ fun NewChannelContent(
             )
         }
 
-        SectionHeader("Channel Details")
+        SectionHeader(stringResource(R.string.channel_details_header))
 
         SettingsTextField(
             value = title,
             onValueChange = onTitleChange,
-            placeholder = "Channel Name",
+            placeholder = stringResource(R.string.channel_name_placeholder),
             icon = Icons.Rounded.Campaign,
             position = ItemPosition.TOP,
             singleLine = true,
@@ -88,7 +90,7 @@ fun NewChannelContent(
             trailingIcon = {
                 if (title.isNotEmpty()) {
                     IconButton(onClick = { onTitleChange("") }) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Clear text")
+                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_clear))
                     }
                 }
             }
@@ -97,7 +99,7 @@ fun NewChannelContent(
         SettingsTextField(
             value = description,
             onValueChange = onDescriptionChange,
-            placeholder = "Description (optional)",
+            placeholder = stringResource(R.string.description_optional_placeholder),
             icon = Icons.Rounded.Description,
             position = ItemPosition.BOTTOM,
             minLines = 3,
@@ -111,12 +113,12 @@ fun NewChannelContent(
             )
         )
 
-        SectionHeader("Settings")
+        SectionHeader(stringResource(R.string.settings_section_header))
 
         SettingsItem(
             icon = Icons.Rounded.Timer,
             iconBackgroundColor = MaterialTheme.colorScheme.primary,
-            title = "Auto-Delete Messages",
+            title = stringResource(R.string.auto_delete_messages_title),
             subtitle = autoDeleteTime.toAutoDeleteString(),
             position = ItemPosition.STANDALONE,
             onClick = { showAutoDeleteSheet = true }
@@ -124,7 +126,7 @@ fun NewChannelContent(
 
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "You can provide an optional description for your channel. Any person can join your channel if they have a link.",
+            text = stringResource(R.string.channel_join_info),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp)
@@ -194,7 +196,7 @@ private fun ChannelPhotoSelector(
         ) {
             Icon(
                 imageVector = if (photoPath == null) Icons.Rounded.Add else Icons.Rounded.CameraAlt,
-                contentDescription = if (photoPath == null) "Add photo" else "Change photo",
+                contentDescription = if (photoPath == null) stringResource(R.string.add_photo_cd) else stringResource(R.string.change_photo_cd),
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.onPrimary
             )

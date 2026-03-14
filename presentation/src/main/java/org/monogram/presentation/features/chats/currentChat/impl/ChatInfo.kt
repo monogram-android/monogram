@@ -7,7 +7,6 @@ import org.monogram.domain.models.ChatType
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.domain.repository.ChatMemberStatus
-import org.monogram.presentation.core.util.getUserStatusText
 import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
 
 internal fun DefaultChatComponent.loadChatInfo() {
@@ -96,8 +95,9 @@ internal fun DefaultChatComponent.observeUserUpdates() {
                     it.copy(
                     isOnline = !isBot && user.userStatus == UserStatusType.ONLINE,
                     isVerified = user.isVerified,
-                    userStatus = getUserStatusText(user),
-                    chatPersonalAvatar = user.personalAvatarPath
+                    userStatus = user.userStatus.toString(), 
+                    chatPersonalAvatar = user.personalAvatarPath,
+                    otherUser = user
                     )
                 }
             }

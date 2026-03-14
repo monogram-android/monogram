@@ -16,11 +16,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.core.ui.ItemPosition
@@ -62,7 +64,7 @@ fun NewGroupContent(
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Provide a name and an optional photo for your new group.",
+                text = stringResource(R.string.group_description_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -70,12 +72,12 @@ fun NewGroupContent(
             )
         }
 
-        SectionHeader("Group Details")
+        SectionHeader(stringResource(R.string.group_details_header))
 
         SettingsTextField(
             value = title,
             onValueChange = onTitleChange,
-            placeholder = "Group Name",
+            placeholder = stringResource(R.string.group_name_placeholder),
             icon = Icons.Rounded.Groups,
             position = ItemPosition.STANDALONE,
             singleLine = true,
@@ -89,18 +91,18 @@ fun NewGroupContent(
             trailingIcon = {
                 if (title.isNotEmpty()) {
                     IconButton(onClick = { onTitleChange("") }) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Clear text")
+                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_clear))
                     }
                 }
             }
         )
 
-        SectionHeader("Settings")
+        SectionHeader(stringResource(R.string.settings_section_header))
 
         SettingsItem(
             icon = Icons.Rounded.Timer,
             iconBackgroundColor = MaterialTheme.colorScheme.primary,
-            title = "Auto-Delete Messages",
+            title = stringResource(R.string.auto_delete_messages_title),
             subtitle = autoDeleteTime.toAutoDeleteString(),
             position = ItemPosition.STANDALONE,
             onClick = { showAutoDeleteSheet = true }
@@ -108,7 +110,7 @@ fun NewGroupContent(
 
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "Automatically delete new messages sent in this group after a certain period of time.",
+            text = stringResource(R.string.group_auto_delete_info),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp)
@@ -178,7 +180,7 @@ private fun GroupPhotoSelector(
         ) {
             Icon(
                 imageVector = if (photoPath == null) Icons.Rounded.Add else Icons.Rounded.CameraAlt,
-                contentDescription = if (photoPath == null) "Add photo" else "Change photo",
+                contentDescription = if (photoPath == null) stringResource(R.string.add_photo_cd) else stringResource(R.string.change_photo_cd),
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.onPrimary
             )

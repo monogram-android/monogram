@@ -316,7 +316,8 @@ private fun LazyGridScope.membersList(
                     }
                 },
                 supportingContent = {
-                    val statusText = getUserStatusText(user)
+                    val context = LocalContext.current
+                    val statusText = getUserStatusText(user, context)
 
                     Text(
                         text = statusText,

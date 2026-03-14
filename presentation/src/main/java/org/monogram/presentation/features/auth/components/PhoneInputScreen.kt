@@ -311,7 +311,7 @@ fun PhoneInputScreen(
                     ) {
                         Column {
                             Text(
-                                text = if (phoneBody.isEmpty()) "000 00 00" else phoneBody,
+                                text = if (phoneBody.isEmpty()) stringResource(R.string.phone_number_placeholder) else phoneBody,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = if (phoneBody.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                                 else if (activeField == ActiveField.PHONE && isFocused) MaterialTheme.colorScheme.primary

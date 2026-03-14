@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -31,6 +32,7 @@ import androidx.core.content.PermissionChecker
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import org.monogram.presentation.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -195,7 +197,7 @@ fun PermissionRequestSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Permissions Required",
+                text = stringResource(R.string.permissions_required_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center
@@ -204,7 +206,7 @@ fun PermissionRequestSheet(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "To provide the best experience, MonoGram needs the following permissions.",
+                text = stringResource(R.string.permissions_required_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -223,9 +225,9 @@ fun PermissionRequestSheet(
                         PermissionItem(
                             modifier = Modifier.animateItem(),
                             icon = Icons.Rounded.Notifications,
-                            title = "Notifications",
-                            description = "Get notified about new messages",
-                            buttonText = "Allow",
+                            title = stringResource(R.string.permission_notifications_title),
+                            description = stringResource(R.string.permission_notifications_description),
+                            buttonText = stringResource(R.string.permission_allow_button),
                             onClick = {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                     notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -240,9 +242,9 @@ fun PermissionRequestSheet(
                         PermissionItem(
                             modifier = Modifier.animateItem(),
                             icon = Icons.Rounded.Phone,
-                            title = "Phone State",
-                            description = "Manage device states for better user experience",
-                            buttonText = "Allow",
+                            title = stringResource(R.string.permission_phone_state_title),
+                            description = stringResource(R.string.permission_phone_state_description),
+                            buttonText = stringResource(R.string.permission_allow_button),
                             onClick = { phoneStateLauncher.launch(Manifest.permission.READ_PHONE_STATE) }
                         )
                     }
@@ -253,9 +255,9 @@ fun PermissionRequestSheet(
                         PermissionItem(
                             modifier = Modifier.animateItem(),
                             icon = Icons.Rounded.BatterySaver,
-                            title = "Battery Optimization",
-                            description = "Ensure reliable background operation",
-                            buttonText = "Disable",
+                            title = stringResource(R.string.permission_battery_optimization_title),
+                            description = stringResource(R.string.permission_battery_optimization_description),
+                            buttonText = stringResource(R.string.permission_disable_button),
                             onClick = {
                                 val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                                     data = "package:${context.packageName}".toUri()
@@ -271,9 +273,9 @@ fun PermissionRequestSheet(
                         PermissionItem(
                             modifier = Modifier.animateItem(),
                             icon = Icons.Rounded.CameraAlt,
-                            title = "Camera",
-                            description = "Take photos and record video messages",
-                            buttonText = "Allow",
+                            title = stringResource(R.string.permission_camera_title),
+                            description = stringResource(R.string.permission_camera_description),
+                            buttonText = stringResource(R.string.permission_allow_button),
                             onClick = { cameraLauncher.launch(Manifest.permission.CAMERA) }
                         )
                     }
@@ -284,9 +286,9 @@ fun PermissionRequestSheet(
                         PermissionItem(
                             modifier = Modifier.animateItem(),
                             icon = Icons.Rounded.Mic,
-                            title = "Microphone",
-                            description = "Record voice and video messages",
-                            buttonText = "Allow",
+                            title = stringResource(R.string.permission_microphone_title),
+                            description = stringResource(R.string.permission_microphone_description),
+                            buttonText = stringResource(R.string.permission_allow_button),
                             onClick = { microphoneLauncher.launch(Manifest.permission.RECORD_AUDIO) }
                         )
                     }
@@ -297,9 +299,9 @@ fun PermissionRequestSheet(
                         PermissionItem(
                             modifier = Modifier.animateItem(),
                             icon = Icons.Rounded.LocationOn,
-                            title = "Location",
-                            description = "Share your location and see nearby users",
-                            buttonText = "Allow",
+                            title = stringResource(R.string.permission_location_title),
+                            description = stringResource(R.string.permission_location_description),
+                            buttonText = stringResource(R.string.permission_allow_button),
                             onClick = {
                                 locationLauncher.launch(
                                     arrayOf(
@@ -322,7 +324,7 @@ fun PermissionRequestSheet(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Continue", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.continue_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

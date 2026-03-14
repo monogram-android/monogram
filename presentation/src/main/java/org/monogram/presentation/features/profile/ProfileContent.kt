@@ -68,7 +68,7 @@ fun ProfileContent(component: ProfileComponent) {
             val members = String.format(membersCountFormat, chat.memberCount)
             if (chat.onlineCount > 0) String.format(membersOnlineCountFormat, members, chat.onlineCount) else members
         } else {
-            getUserStatusText(user)
+            getUserStatusText(user, context)
         }
     }
 
@@ -327,12 +327,14 @@ fun ProfileContent(component: ProfileComponent) {
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
         ) {
-            StatisticsViewer(
-                title = stringResource(R.string.statistics_title),
-                data = state.statistics,
-                onDismiss = component::onDismissStatistics,
-                onLoadGraph = component::onLoadStatisticsGraph
-            )
+            if (state.statistics != null) {
+                StatisticsViewer(
+                    title = stringResource(R.string.statistics_title),
+                    data = state.statistics!!,
+                    onDismiss = component::onDismissStatistics,
+                    onLoadGraph = component::onLoadStatisticsGraph
+                )
+            }
         }
 
         AnimatedVisibility(
@@ -340,12 +342,14 @@ fun ProfileContent(component: ProfileComponent) {
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
         ) {
-            StatisticsViewer(
-                title = stringResource(R.string.revenue_title),
-                data = state.revenueStatistics,
-                onDismiss = component::onDismissStatistics,
-                onLoadGraph = component::onLoadStatisticsGraph
-            )
+            if (state.revenueStatistics != null) {
+                StatisticsViewer(
+                    title = stringResource(R.string.revenue_title),
+                    data = state.revenueStatistics!!,
+                    onDismiss = component::onDismissStatistics,
+                    onLoadGraph = component::onLoadStatisticsGraph
+                )
+            }
         }
 
         ProfileQRDialog(

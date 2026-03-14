@@ -520,7 +520,7 @@ private fun ActiveAccountCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "${user?.firstName} ${user?.lastName ?: ""}".trim()
+                    text = "${user?.firstName ?: ""} ${user?.lastName ?: ""}".trim()
                         .ifEmpty { stringResource(R.string.unknown_user) },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,

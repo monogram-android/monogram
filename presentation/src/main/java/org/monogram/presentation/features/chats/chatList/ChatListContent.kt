@@ -587,32 +587,34 @@ fun ChatListContent(component: ChatListComponent) {
             }
         },
         floatingActionButton = {
-            AnimatedVisibility(
-                visible = !state.isSearchActive && state.selectedFolderId != -2 && !state.isForwarding,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut()
-            ) {
-                ExtendedFloatingActionButton(
-                    onClick = { component.onNewChatClicked() },
-                    icon = { Icon(Icons.Rounded.Edit, null) },
-                    text = { Text(stringResource(R.string.new_chat_fab)) },
-                    expanded = isFabExpanded,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-
-            AnimatedVisibility(
-                visible = state.isForwarding && state.selectedChatIds.isNotEmpty(),
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut()
-            ) {
-                FloatingActionButton(
-                    onClick = { component.onConfirmForwarding() },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+            if (!isTablet) {
+                AnimatedVisibility(
+                    visible = !state.isSearchActive && state.selectedFolderId != -2 && !state.isForwarding,
+                    enter = scaleIn() + fadeIn(),
+                    exit = scaleOut() + fadeOut()
                 ) {
-                    Icon(Icons.AutoMirrored.Rounded.Send, stringResource(R.string.action_send))
+                    ExtendedFloatingActionButton(
+                        onClick = { component.onNewChatClicked() },
+                        icon = { Icon(Icons.Rounded.Edit, null) },
+                        text = { Text(stringResource(R.string.new_chat_fab)) },
+                        expanded = isFabExpanded,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = state.isForwarding && state.selectedChatIds.isNotEmpty(),
+                    enter = scaleIn() + fadeIn(),
+                    exit = scaleOut() + fadeOut()
+                ) {
+                    FloatingActionButton(
+                        onClick = { component.onConfirmForwarding() },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Icon(Icons.AutoMirrored.Rounded.Send, stringResource(R.string.action_send))
+                    }
                 }
             }
         }
@@ -665,7 +667,7 @@ fun ChatListContent(component: ChatListComponent) {
                     state = scrollState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .semantics { contentDescription = "ChatList" },
+                        .semantics { contentDescription = context.getString(R.string.cd_chat_list) },
                     contentPadding = PaddingValues(top = 12.dp, bottom = 88.dp),
                 ) {
                     if (state.isSearchActive) {
@@ -980,7 +982,7 @@ fun ChatListContent(component: ChatListComponent) {
                             state = scrollState,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .semantics { contentDescription = "ChatList" },
+                                .semantics { contentDescription = context.getString(R.string.cd_chat_list) },
                             contentPadding = PaddingValues(top = 12.dp, bottom = 88.dp)
                         ) {
                             if (folderChats.isEmpty() && !isFolderLoading) {
@@ -1054,7 +1056,7 @@ fun ChatListContent(component: ChatListComponent) {
                 chatId = botUserId,
                 botUserId = botUserId,
                 baseUrl = webAppUrl ?: "",
-                botName = botName ?: "Mini App",
+                botName = botName ?: stringResource(R.string.mini_app_default_name),
                 messageRepository = koinInject(),
                 onDismiss = { component.onDismissWebApp() }
             )

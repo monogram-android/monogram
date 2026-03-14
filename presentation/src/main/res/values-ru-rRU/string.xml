@@ -75,6 +75,7 @@
     <string name="country_label">Страна</string>
     <string name="code_label">Код</string>
     <string name="phone_number_label">Номер телефона</string>
+    <string name="phone_number_placeholder">000 00 00</string>
     <string name="continue_button">Продолжить</string>
     <string name="select_country_title">Выберите страну</string>
     <string name="search_country_hint">Поиск страны или кода…</string>
@@ -93,6 +94,13 @@
     <string name="password_label">Пароль</string>
     <string name="unlock_button">Разблокировать</string>
     <string name="paste_action">Вставить</string>
+    <string name="auth_error_title">Ошибка авторизации</string>
+    <string name="dismiss_button">Закрыть</string>
+
+    <!-- Loading -->
+    <string name="loading_please_wait">Пожалуйста, подождите…</string>
+    <string name="loading_taking_too_long">Загрузка длится слишком долго?</string>
+    <string name="loading_reset_connection">Сбросить соединение</string>
 
     <!-- Chat List -->
     <string name="forward_to_title">Переслать…</string>
@@ -106,6 +114,25 @@
     <string name="search_section_global">Глобальный поиск</string>
     <string name="search_section_messages">Сообщения</string>
     <string name="action_show_more">Показать больше</string>
+    <string name="cd_chat_list">Список чатов</string>
+    <string name="search_conversations_placeholder">Поиск чатов…</string>
+    <string name="waiting_for_network">Ожидание сети…</string>
+    <string name="connecting">Подключение…</string>
+    <string name="updating">Обновление…</string>
+    <string name="connecting_to_proxy">Подключение к прокси…</string>
+    <string name="proxy_enabled">Прокси включен</string>
+    <string name="cd_proxy">Прокси</string>
+    <string name="cd_forum">Форум</string>
+    <string name="message_spoiler">Спойлер</string>
+    <string name="message_draft_prefix">Черновик: </string>
+    <string name="no_posts_yet">Постов пока нет</string>
+    <string name="no_messages_yet">Сообщений пока нет</string>
+    <string name="cd_pinned">Закреплено</string>
+    <string name="cd_mentions">Упоминания</string>
+    <string name="archived_chats_subtitle">Скрыто из основного списка</string>
+    <string name="no_chats_yet">Чатов пока нет</string>
+    <string name="start_new_conversation">Начните новую беседу</string>
+    <string name="mini_app_default_name">Mini App</string>
 
     <!-- Account Menu -->
     <string name="app_name_dev">MonoGram Dev</string>
@@ -635,4 +662,77 @@
     <string name="adblock_whitelisted_subtitle">Посты в этих каналах не будут фильтроваться</string>
     <string name="adblock_no_whitelisted">Список пуст</string>
     <string name="action_remove">Удалить</string>
+
+    <!-- Core/Common -->
+    <string name="last_seen_recently">был(а) недавно</string>
+    <string name="last_seen_just_now">был(а) только что</string>
+    <plurals name="last_seen_minutes_ago">
+        <item quantity="one">был(а) %1$d минуту назад</item>
+        <item quantity="few">был(а) %1$d минуты назад</item>
+        <item quantity="many">был(а) %1$d минут назад</item>
+        <item quantity="other">был(а) %1$d минут назад</item>
+    </plurals>
+    <string name="last_seen_at">был(а) в %1$s</string>
+    <string name="last_seen_yesterday_at">был(а) вчера в %1$s</string>
+    <string name="last_seen_date">был(а) %1$s</string>
+    <string name="last_seen_within_week">был(а) на этой неделе</string>
+    <string name="last_seen_within_month">был(а) в этом месяце</string>
+    <string name="last_seen_long_time_ago">был(а) очень давно</string>
+    <string name="status_online">в сети</string>
+    <string name="status_offline">не в сети</string>
+    <string name="status_bot">бот</string>
+    <string name="username_label_core">Имя пользователя</string>
+    <string name="stickers_count_format">Стикеров: %1$d</string>
+    <string name="sticker_set_archived">В архиве</string>
+    <string name="action_add_sticker_set">Добавить</string>
+    <string name="menu_unarchive">Разархивировать</string>
+    <string name="menu_archive">В архив</string>
+    <string name="menu_remove_set">Удалить набор</string>
+
+    <!-- New Chat -->
+    <string name="new_message_title">Новое сообщение</string>
+    <string name="add_members_title">Добавить участников</string>
+    <string name="new_group_title">Новая группа</string>
+    <string name="new_channel_title">Новый канал</string>
+    <string name="contacts_count_format">Контактов: %1$d</string>
+    <string name="members_limit_format">%1$d / 200000</string>
+    <string name="search_contacts_hint">Поиск контактов…</string>
+    <string name="sorted_by_last_seen">За временем посещения</string>
+    <string name="new_group_action">Создать группу</string>
+    <string name="new_channel_action">Создать канал</string>
+    <string name="support_label">Поддержка</string>
+    <string name="channel_description_hint">Каналы — это инструмент для трансляции Ваших сообщений неограниченной аудитории.</string>
+    <string name="channel_details_header">Данные канала</string>
+    <string name="channel_name_placeholder">Название канала</string>
+    <string name="description_optional_placeholder">Описание (необязательно)</string>
+    <string name="auto_delete_messages_title">Автоудаление сообщений</string>
+    <string name="channel_join_info">Вы можете добавить описание канала. Любой пользователь сможет подписаться на Ваш канал, если у него есть ссылка.</string>
+    <string name="group_description_hint">Укажите название и добавьте фото для Вашей новой группы.</string>
+    <string name="group_details_header">Данные группы</string>
+    <string name="group_name_placeholder">Название группы</string>
+    <string name="group_auto_delete_info">Автоматически удалять новые сообщения в этой группе через определенное время.</string>
+    <string name="add_photo_cd">Добавить фото</string>
+    <string name="change_photo_cd">Изменить фото</string>
+
+    <!-- Permissions -->
+    <string name="permissions_required_title">Необходимы разрешения</string>
+    <string name="permissions_required_description">Для обеспечения наилучшего опыта MonoGram необходимы следующие разрешения.</string>
+    <string name="permission_notifications_title">Уведомления</string>
+    <string name="permission_notifications_description">Получайте уведомления о новых сообщениях</string>
+    <string name="permission_allow_button">Разрешить</string>
+    <string name="permission_phone_state_title">Состояние телефона</string>
+    <string name="permission_phone_state_description">Управление состоянием устройства для лучшего опыта</string>
+    <string name="permission_battery_optimization_title">Оптимизация батареи</string>
+    <string name="permission_battery_optimization_description">Обеспечение надежной фоновой работы</string>
+    <string name="permission_disable_button">Отключить</string>
+    <string name="permission_camera_title">Камера</string>
+    <string name="permission_camera_description">Делайте фото и записывайте видеосообщения</string>
+    <string name="permission_microphone_title">Микрофон</string>
+    <string name="permission_microphone_description">Записывайте голосовые и видеосообщения</string>
+    <string name="permission_location_title">Местоположение</string>
+    <string name="permission_location_description">Делитесь местоположением и находите пользователей рядом</string>
+
+    <!-- Selection -->
+    <string name="cd_clear_selection">Очистить выделение</string>
+    <string name="action_pin">Закрепить</string>
 </resources>

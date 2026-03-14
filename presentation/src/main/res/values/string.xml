@@ -75,6 +75,7 @@
     <string name="country_label">Country</string>
     <string name="code_label">Code</string>
     <string name="phone_number_label">Phone Number</string>
+    <string name="phone_number_placeholder">000 00 00</string>
     <string name="continue_button">Continue</string>
     <string name="select_country_title">Select Country</string>
     <string name="search_country_hint">Search country or code...</string>
@@ -94,6 +95,13 @@
     <string name="password_label">Password</string>
     <string name="unlock_button">Unlock</string>
     <string name="paste_action">Paste</string>
+    <string name="auth_error_title">Authentication Error</string>
+    <string name="dismiss_button">Dismiss</string>
+
+    <!-- Loading -->
+    <string name="loading_please_wait">Please wait a moment</string>
+    <string name="loading_taking_too_long">Taking too long?</string>
+    <string name="loading_reset_connection">Reset Connection</string>
 
     <!-- Chat List -->
     <string name="forward_to_title">Forward to...</string>
@@ -107,6 +115,25 @@
     <string name="search_section_global">Global search</string>
     <string name="search_section_messages">Messages</string>
     <string name="action_show_more">Show more</string>
+    <string name="cd_chat_list">Chat list</string>
+    <string name="search_conversations_placeholder">Search conversations…</string>
+    <string name="waiting_for_network">Waiting for network…</string>
+    <string name="connecting">Connecting…</string>
+    <string name="updating">Updating…</string>
+    <string name="connecting_to_proxy">Connecting to proxy…</string>
+    <string name="proxy_enabled">Proxy enabled</string>
+    <string name="cd_proxy">Proxy</string>
+    <string name="cd_forum">Forum</string>
+    <string name="message_spoiler">Spoiler</string>
+    <string name="message_draft_prefix">Draft: </string>
+    <string name="no_posts_yet">No posts yet</string>
+    <string name="no_messages_yet">No messages yet</string>
+    <string name="cd_pinned">Pinned</string>
+    <string name="cd_mentions">Mentions</string>
+    <string name="archived_chats_subtitle">Hidden from the main list</string>
+    <string name="no_chats_yet">No chats yet</string>
+    <string name="start_new_conversation">Start a new conversation</string>
+    <string name="mini_app_default_name">Mini App</string>
 
     <!-- Account Menu -->
     <string name="app_name_dev">MonoGram Dev</string>
@@ -675,4 +702,75 @@
     <string name="adblock_whitelisted_subtitle">Posts from these channels won\'t be filtered</string>
     <string name="adblock_no_whitelisted">No channels whitelisted</string>
     <string name="action_remove">Remove</string>
+
+    <!-- Core/Common -->
+    <string name="last_seen_recently">last seen recently</string>
+    <string name="last_seen_just_now">last seen just now</string>
+    <plurals name="last_seen_minutes_ago">
+        <item quantity="one">last seen %1$d minute ago</item>
+        <item quantity="other">last seen %1$d minutes ago</item>
+    </plurals>
+    <string name="last_seen_at">last seen at %1$s</string>
+    <string name="last_seen_yesterday_at">last seen yesterday at %1$s</string>
+    <string name="last_seen_date">last seen %1$s</string>
+    <string name="last_seen_within_week">last seen within a week</string>
+    <string name="last_seen_within_month">last seen within a month</string>
+    <string name="last_seen_long_time_ago">last seen a long time ago</string>
+    <string name="status_online">online</string>
+    <string name="status_offline">offline</string>
+    <string name="status_bot">bot</string>
+    <string name="username_label_core">Username</string>
+    <string name="stickers_count_format">%1$d stickers</string>
+    <string name="sticker_set_archived">Archived</string>
+    <string name="action_add_sticker_set">Add</string>
+    <string name="menu_unarchive">Unarchive</string>
+    <string name="menu_archive">Archive</string>
+    <string name="menu_remove_set">Remove set</string>
+
+    <!-- New Chat -->
+    <string name="new_message_title">New Message</string>
+    <string name="add_members_title">Add Members</string>
+    <string name="new_group_title">New Group</string>
+    <string name="new_channel_title">New Channel</string>
+    <string name="contacts_count_format">%1$d contacts</string>
+    <string name="members_limit_format">%1$d / 200000</string>
+    <string name="search_contacts_hint">Search contacts...</string>
+    <string name="sorted_by_last_seen">Sorted by last seen time</string>
+    <string name="new_group_action">New Group</string>
+    <string name="new_channel_action">New Channel</string>
+    <string name="support_label">Support</string>
+    <string name="channel_description_hint">Channels are a tool for broadcasting your messages to unlimited audiences.</string>
+    <string name="channel_details_header">Channel Details</string>
+    <string name="channel_name_placeholder">Channel Name</string>
+    <string name="description_optional_placeholder">Description (optional)</string>
+    <string name="auto_delete_messages_title">Auto-Delete Messages</string>
+    <string name="channel_join_info">You can provide an optional description for your channel. Any person can join your channel if they have a link.</string>
+    <string name="group_description_hint">Provide a name and an optional photo for your new group.</string>
+    <string name="group_details_header">Group Details</string>
+    <string name="group_name_placeholder">Group Name</string>
+    <string name="group_auto_delete_info">Automatically delete new messages sent in this group after a certain period of time.</string>
+    <string name="add_photo_cd">Add photo</string>
+    <string name="change_photo_cd">Change photo</string>
+
+    <!-- Permissions -->
+    <string name="permissions_required_title">Permissions Required</string>
+    <string name="permissions_required_description">To provide the best experience, MonoGram needs the following permissions.</string>
+    <string name="permission_notifications_title">Notifications</string>
+    <string name="permission_notifications_description">Get notified about new messages</string>
+    <string name="permission_allow_button">Allow</string>
+    <string name="permission_phone_state_title">Phone State</string>
+    <string name="permission_phone_state_description">Manage device states for better user experience</string>
+    <string name="permission_battery_optimization_title">Battery Optimization</string>
+    <string name="permission_battery_optimization_description">Ensure reliable background operation</string>
+    <string name="permission_disable_button">Disable</string>
+    <string name="permission_camera_title">Camera</string>
+    <string name="permission_camera_description">Take photos and record video messages</string>
+    <string name="permission_microphone_title">Microphone</string>
+    <string name="permission_microphone_description">Record voice and video messages</string>
+    <string name="permission_location_title">Location</string>
+    <string name="permission_location_description">Share your location and see nearby users</string>
+
+    <!-- Selection -->
+    <string name="cd_clear_selection">Clear selection</string>
+    <string name="action_pin">Pin</string>
 </resources>

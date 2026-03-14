@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.core.util.rememberUserStatusText
 import org.monogram.presentation.features.chats.currentChat.ChatComponent
 import org.monogram.presentation.features.chats.currentChat.components.ChatTopBar
 import org.monogram.presentation.features.chats.currentChat.components.pins.PinnedMessageBar
@@ -184,13 +185,14 @@ fun ChatContentTopBar(
                     }
                 )
             } else {
+                val formattedUserStatus = rememberUserStatusText(state.otherUser)
                 val statusText = remember(
                     state.typingAction,
                     state.isChannel,
                     state.isGroup,
                     state.memberCount,
                     state.onlineCount,
-                    state.userStatus
+                    formattedUserStatus
                 ) {
                     when {
                         state.typingAction != null -> state.typingAction
@@ -203,7 +205,7 @@ fun ChatContentTopBar(
                             }
                         }
 
-                        else -> state.userStatus
+                        else -> formattedUserStatus
                     }
                 }
                 val currentTopic = remember(state.currentTopicId, state.topics) {

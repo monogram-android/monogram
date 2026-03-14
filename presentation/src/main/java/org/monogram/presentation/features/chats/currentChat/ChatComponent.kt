@@ -241,6 +241,7 @@ interface ChatComponent {
         val botMenuButton: BotMenuButtonModel = BotMenuButtonModel.Default,
         val showBotCommands: Boolean = false,
         val currentUser: UserModel? = null,
+        val otherUser: UserModel? = null,
         val invoiceSlug: String? = null,
         val invoiceMessageId: Long? = null,
         val mentionSuggestions: List<UserModel> = emptyList(),

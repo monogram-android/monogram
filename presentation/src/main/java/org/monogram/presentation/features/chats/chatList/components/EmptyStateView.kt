@@ -12,8 +12,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.monogram.presentation.R
 
 @Composable
 fun EmptyStateView(
@@ -44,7 +46,7 @@ fun EmptyStateView(
         Spacer(modifier = Modifier.height(24.dp))
         
         Text(
-            text = "No chats yet",
+            text = stringResource(R.string.no_chats_yet),
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
@@ -53,7 +55,7 @@ fun EmptyStateView(
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "Start a new conversation",
+            text = stringResource(R.string.start_new_conversation),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

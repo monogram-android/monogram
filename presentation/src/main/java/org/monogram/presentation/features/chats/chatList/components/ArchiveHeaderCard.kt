@@ -16,8 +16,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.monogram.presentation.R
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -58,7 +60,7 @@ fun ArchiveHeaderCard(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Archive,
-                    contentDescription = "Archive",
+                    contentDescription = stringResource(R.string.archived_chats_title),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
@@ -71,13 +73,13 @@ fun ArchiveHeaderCard(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Archived Chats",
+                    text = stringResource(R.string.archived_chats_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Hidden from the main list",
+                    text = stringResource(R.string.archived_chats_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -86,7 +88,7 @@ fun ArchiveHeaderCard(
             if (isPinned) {
                 Icon(
                     imageVector = Icons.Rounded.PushPin,
-                    contentDescription = "Pinned",
+                    contentDescription = stringResource(R.string.cd_pinned),
                     modifier = Modifier
                         .size(18.dp)
                         .rotate(45f),

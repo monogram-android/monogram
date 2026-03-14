@@ -5,7 +5,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.monogram.presentation.R
 
 @Composable
 fun AuthErrorDialog(
@@ -22,7 +24,7 @@ fun AuthErrorDialog(
             )
         },
         title = {
-            Text(text = "Authentication Error")
+            Text(text = stringResource(R.string.auth_error_title))
         },
         text = {
             Text(text = message)
@@ -36,7 +38,7 @@ fun AuthErrorDialog(
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Dismiss")
+                Text(stringResource(R.string.dismiss_button))
             }
         },
         shape = RoundedCornerShape(28.dp),

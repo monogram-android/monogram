@@ -28,11 +28,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.UserStatusType
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.FileUtils
 import org.monogram.presentation.core.util.getUserStatusText
@@ -84,19 +86,19 @@ fun NewChatContent(component: NewChatComponent) {
                                     onSearch = {},
                                     expanded = false,
                                     onExpandedChange = {},
-                                    placeholder = { Text("Search contacts...") },
+                                    placeholder = { Text(stringResource(R.string.search_contacts_hint)) },
                                     leadingIcon = {
                                         IconButton(onClick = {
                                             isSearchActive = false
                                             component.onSearchQueryChange("")
                                         }) {
-                                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                                         }
                                     },
                                     trailingIcon = {
                                         if (state.searchQuery.isNotEmpty()) {
                                             IconButton(onClick = { component.onSearchQueryChange("") }) {
-                                                Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                                                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_clear))
                                             }
                                         }
                                     }
@@ -117,10 +119,10 @@ fun NewChatContent(component: NewChatComponent) {
                         title = {
                             Column {
                                 val title = when (state.step) {
-                                    NewChatComponent.Step.CONTACTS -> "New Message"
-                                    NewChatComponent.Step.GROUP_MEMBERS -> "Add Members"
-                                    NewChatComponent.Step.GROUP_INFO -> "New Group"
-                                    NewChatComponent.Step.CHANNEL_INFO -> "New Channel"
+                                    NewChatComponent.Step.CONTACTS -> stringResource(R.string.new_message_title)
+                                    NewChatComponent.Step.GROUP_MEMBERS -> stringResource(R.string.add_members_title)
+                                    NewChatComponent.Step.GROUP_INFO -> stringResource(R.string.new_group_title)
+                                    NewChatComponent.Step.CHANNEL_INFO -> stringResource(R.string.new_channel_title)
                                 }
                                 Text(
                                     text = title,
@@ -130,13 +132,13 @@ fun NewChatContent(component: NewChatComponent) {
                                 )
                                 if (state.step == NewChatComponent.Step.CONTACTS && state.contacts.isNotEmpty()) {
                                     Text(
-                                        "${state.contacts.size} contacts",
+                                        stringResource(R.string.contacts_count_format, state.contacts.size),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 } else if (state.step == NewChatComponent.Step.GROUP_MEMBERS) {
                                     Text(
-                                        "${state.selectedUserIds.size} / 200000",
+                                        stringResource(R.string.members_limit_format, state.selectedUserIds.size),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -148,13 +150,13 @@ fun NewChatContent(component: NewChatComponent) {
                                 if (state.step == NewChatComponent.Step.CONTACTS) component.onBack()
                                 else component.onStepBack()
                             }) {
-                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
+                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.cd_back))
                             }
                         },
                         actions = {
                             if (state.step == NewChatComponent.Step.CONTACTS) {
                                 IconButton(onClick = { isSearchActive = true }) {
-                                    Icon(Icons.Rounded.Search, "Search")
+                                    Icon(Icons.Rounded.Search, stringResource(R.string.action_search))
                                 }
                             }
                         }
@@ -165,14 +167,14 @@ fun NewChatContent(component: NewChatComponent) {
         floatingActionButton = {
             if (state.step == NewChatComponent.Step.GROUP_MEMBERS && state.selectedUserIds.isNotEmpty()) {
                 FloatingActionButton(onClick = { component.onConfirmCreate() }) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowForward, "Next")
+                    Icon(Icons.AutoMirrored.Rounded.ArrowForward, stringResource(R.string.continue_button))
                 }
             } else if (state.step == NewChatComponent.Step.GROUP_INFO || state.step == NewChatComponent.Step.CHANNEL_INFO) {
                 FloatingActionButton(
                     onClick = { component.onConfirmCreate() },
                     containerColor = if (state.title.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                 ) {
-                    Icon(Icons.Rounded.Check, "Create")
+                    Icon(Icons.Rounded.Check, stringResource(R.string.confirm_button))
                 }
             }
         },
@@ -255,20 +257,20 @@ private fun ContactsList(
             item {
                 NewChatActionItem(
                     icon = Icons.Rounded.Group,
-                    title = "New Group",
+                    title = stringResource(R.string.new_group_action),
                     position = ItemPosition.TOP,
                     onClick = { onActionClick("group") }
                 )
                 NewChatActionItem(
                     icon = Icons.AutoMirrored.Rounded.Announcement,
-                    title = "New Channel",
+                    title = stringResource(R.string.new_channel_action),
                     position = ItemPosition.BOTTOM,
                     onClick = { onActionClick("channel") }
                 )
             }
 
             item {
-                SectionHeader("Sorted by last seen time")
+                SectionHeader(stringResource(R.string.sorted_by_last_seen))
             }
         }
 
@@ -379,6 +381,7 @@ private fun ContactItem(
     videoPlayerPool: VideoPlayerPool,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val isSupport = user.isSupport
     val cornerRadius = 24.dp
     val shape = when (position) {
@@ -428,12 +431,12 @@ private fun ContactItem(
                 )
                 if (isSupport) {
                     Text(
-                        text = "Support",
+                        text = stringResource(R.string.support_label),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 } else {
-                    val statusText = getUserStatusText(user)
+                    val statusText = getUserStatusText(user, context)
                     Text(
                         text = statusText,
                         style = MaterialTheme.typography.bodySmall,

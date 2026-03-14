@@ -7,8 +7,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import org.monogram.presentation.R
 
 @Composable
 fun LoadingScreen(
@@ -36,7 +38,7 @@ fun LoadingScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Connecting to Telegram...",
+            text = stringResource(R.string.startup_connecting),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -44,7 +46,7 @@ fun LoadingScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Please wait a moment",
+            text = stringResource(R.string.loading_please_wait),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -56,7 +58,7 @@ fun LoadingScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(modifier = Modifier.height(48.dp))
                 Text(
-                    text = "Taking too long?",
+                    text = stringResource(R.string.loading_taking_too_long),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -67,7 +69,7 @@ fun LoadingScreen(
                         contentColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("Reset Connection")
+                    Text(stringResource(R.string.loading_reset_connection))
                 }
             }
         }

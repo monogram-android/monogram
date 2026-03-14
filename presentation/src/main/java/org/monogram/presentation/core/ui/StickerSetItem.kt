@@ -14,12 +14,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import org.koin.compose.koinInject
 import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.presentation.R
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -86,7 +88,7 @@ fun StickerSetItem(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "${stickerSet.stickers.size} stickers",
+                        text = stringResource(R.string.stickers_count_format, stickerSet.stickers.size),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -98,7 +100,7 @@ fun StickerSetItem(
                             shape = RoundedCornerShape(4.dp),
                         ) {
                             Text(
-                                text = "Archived",
+                                text = stringResource(R.string.sticker_set_archived),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -147,7 +149,7 @@ fun StickerSetItem(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Add",
+                        text = stringResource(R.string.action_add_sticker_set),
                         style = MaterialTheme.typography.labelLarge
                     )
                 }
@@ -171,7 +173,7 @@ private fun StickerSetActionsMenu(
         modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         DropdownMenuItem(
-            text = { Text(if (isArchived) "Unarchive" else "Archive") },
+            text = { Text(if (isArchived) stringResource(R.string.menu_unarchive) else stringResource(R.string.menu_archive)) },
             onClick = onArchive,
             leadingIcon = {
                 Icon(
@@ -181,7 +183,7 @@ private fun StickerSetActionsMenu(
             }
         )
         DropdownMenuItem(
-            text = { Text("Remove set") },
+            text = { Text(stringResource(R.string.menu_remove_set)) },
             onClick = onRemove,
             leadingIcon = {
                 Icon(

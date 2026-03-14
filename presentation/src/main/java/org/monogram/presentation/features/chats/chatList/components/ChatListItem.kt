@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.MessageEntityType
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.AvatarForChat
 import org.monogram.presentation.core.ui.TypingDots
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
@@ -201,14 +203,14 @@ private fun ChatListItemHeader(
             if (chat.isForum) {
                 Icon(
                     imageVector = Icons.Rounded.Forum,
-                    contentDescription = "Forum",
+                    contentDescription = stringResource(R.string.cd_forum),
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(Modifier.width(4.dp))
             }
             Text(
-                text = if (isSavedMessages) "Saved Messages" else chat.title,
+                text = if (isSavedMessages) stringResource(R.string.menu_saved_messages) else chat.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -221,7 +223,7 @@ private fun ChatListItemHeader(
                 Spacer(Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Rounded.NotificationsOff,
-                    contentDescription = "Muted",
+                    contentDescription = stringResource(R.string.cd_muted),
                     modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
@@ -231,7 +233,7 @@ private fun ChatListItemHeader(
                 Spacer(Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Rounded.Verified,
-                    contentDescription = "Verified",
+                    contentDescription = stringResource(R.string.cd_verified),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -298,7 +300,7 @@ private fun ChatListItemContent(
                 )
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) { append("Draft: ") }
+                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) { append(stringResource(R.string.message_draft_prefix)) }
                         append(annotatedDraft)
                     },
                     inlineContent = inlineContent,
@@ -309,7 +311,7 @@ private fun ChatListItemContent(
                 )
             } else {
                 val lastText = chat.lastMessageText.ifEmpty {
-                    if (chat.isChannel) "No posts yet" else "No messages yet"
+                    if (chat.isChannel) stringResource(R.string.no_posts_yet) else stringResource(R.string.no_messages_yet)
                 }
                 val inlineContent = rememberMessageInlineContent(
                     entities = chat.lastMessageEntities,
@@ -319,7 +321,8 @@ private fun ChatListItemContent(
                     val hasSpoiler = chat.lastMessageEntities.any { it.type is MessageEntityType.Spoiler }
                     if (hasSpoiler) {
                         buildAnnotatedString {
-                            append("Spoiler")
+                            val spoilerLabel = stringResource(R.string.message_spoiler)
+                            append(spoilerLabel)
                             addStyle(
                                 SpanStyle(
                                     background = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
@@ -327,7 +330,7 @@ private fun ChatListItemContent(
                                     fontWeight = FontWeight.Bold
                                 ),
                                 0,
-                                7
+                                spoilerLabel.length
                             )
                         }
                     } else {
@@ -367,7 +370,7 @@ private fun ChatListItemStatus(chat: ChatModel) {
         if (chat.isPinned && !hasUnread) {
             Icon(
                 Icons.Rounded.PushPin,
-                contentDescription = "Pinned",
+                contentDescription = stringResource(R.string.cd_pinned),
                 modifier = Modifier
                     .size(14.dp)
                     .rotate(45f),
@@ -385,7 +388,7 @@ private fun ChatListItemStatus(chat: ChatModel) {
             ) {
                 Icon(
                     imageVector = Icons.Rounded.AlternateEmail,
-                    contentDescription = "Mentions",
+                    contentDescription = stringResource(R.string.cd_mentions),
                     modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.onPrimary
                 )

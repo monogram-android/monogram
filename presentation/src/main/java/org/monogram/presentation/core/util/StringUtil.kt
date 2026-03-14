@@ -1,7 +1,12 @@
 package org.monogram.presentation.core.util
 
+import android.content.Context
 import android.text.format.DateUtils
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -10,37 +15,56 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import org.monogram.domain.models.*
+import org.monogram.presentation.R
 import java.text.SimpleDateFormat
 import java.util.*
 
-fun formatLastSeen(lastSeen: Long?): String {
-    if (lastSeen == null || lastSeen <= 0L) return "Last seen recently"
+fun formatLastSeen(lastSeen: Long?, context: Context): String {
+    if (lastSeen == null || lastSeen <= 0L) return context.getString(R.string.last_seen_recently)
 
     val now = System.currentTimeMillis()
     val diff = now - lastSeen
 
-    if (diff < 0) return "Last seen just now"
+    if (diff < 0) return context.getString(R.string.last_seen_just_now)
 
     return when {
-        diff < 60 * 1000L -> "Last seen just now"
+        diff < 60 * 1000L -> context.getString(R.string.last_seen_just_now)
         diff < 60 * 60 * 1000L -> {
-            val minutes = diff / (60 * 1000L)
-            "Last seen $minutes minute${if (minutes != 1L) "s" else ""} ago"
+            val minutes = (diff / (60 * 1000L)).toInt()
+            context.resources.getQuantityString(R.plurals.last_seen_minutes_ago, minutes, minutes)
         }
 
         DateUtils.isToday(lastSeen) -> {
             val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(lastSeen))
-            "Last seen at $time"
+            context.getString(R.string.last_seen_at, time)
         }
 
         isYesterday(lastSeen) -> {
             val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(lastSeen))
-            "Last seen yesterday at $time"
+            context.getString(R.string.last_seen_yesterday_at, time)
         }
 
         else -> {
             val date = SimpleDateFormat("dd.MM.yy", Locale.getDefault()).format(Date(lastSeen))
-            "Last seen $date"
+            context.getString(R.string.last_seen_date, date)
+        }
+    }
+}
+
+@Composable
+fun rememberUserStatusText(user: UserModel?): String {
+    if (user == null) return stringResource(R.string.status_offline)
+    if (user.type == UserTypeEnum.BOT) return stringResource(R.string.status_bot)
+
+    val context = LocalContext.current
+    return remember(user.userStatus, user.lastSeen) {
+        when (user.userStatus) {
+            UserStatusType.ONLINE -> context.getString(R.string.status_online)
+            UserStatusType.OFFLINE -> formatLastSeen(user.lastSeen, context)
+            UserStatusType.RECENTLY -> context.getString(R.string.last_seen_recently)
+            UserStatusType.LAST_WEEK -> context.getString(R.string.last_seen_within_week)
+            UserStatusType.LAST_MONTH -> context.getString(R.string.last_seen_within_month)
+            else -> context.getString(R.string.last_seen_long_time_ago)
         }
     }
 }
@@ -49,17 +73,17 @@ private fun isYesterday(timestamp: Long): Boolean {
     return DateUtils.isToday(timestamp + DateUtils.DAY_IN_MILLIS)
 }
 
-fun getUserStatusText(user: UserModel?): String {
-    if (user == null) return "Offline"
-    if (user.type == UserTypeEnum.BOT) return "Bot"
+fun getUserStatusText(user: UserModel?, context: Context): String {
+    if (user == null) return context.getString(R.string.status_offline)
+    if (user.type == UserTypeEnum.BOT) return context.getString(R.string.status_bot)
 
     return when (user.userStatus) {
-        UserStatusType.ONLINE -> "Online"
-        UserStatusType.OFFLINE -> formatLastSeen(user.lastSeen)
-        UserStatusType.RECENTLY -> "Last seen recently"
-        UserStatusType.LAST_WEEK -> "Last seen within a week"
-        UserStatusType.LAST_MONTH -> "Last seen within a month"
-        else -> "Long time ago"
+        UserStatusType.ONLINE -> context.getString(R.string.status_online)
+        UserStatusType.OFFLINE -> formatLastSeen(user.lastSeen, context)
+        UserStatusType.RECENTLY -> context.getString(R.string.last_seen_recently)
+        UserStatusType.LAST_WEEK -> context.getString(R.string.last_seen_within_week)
+        UserStatusType.LAST_MONTH -> context.getString(R.string.last_seen_within_month)
+        else -> context.getString(R.string.last_seen_long_time_ago)
     }
 }
 
@@ -70,7 +94,7 @@ fun buildRichText(
     return buildAnnotatedString {
         append(richText.text)
         richText.entities.forEach { entity ->
-            val style = when (val type = entity.type) {
+            val style = when (entity.type) {
                 is MessageEntityType.Bold -> SpanStyle(fontWeight = FontWeight.Bold)
                 is MessageEntityType.Italic -> SpanStyle(fontStyle = FontStyle.Italic)
                 is MessageEntityType.Underline -> SpanStyle(textDecoration = TextDecoration.Underline)
@@ -191,8 +215,7 @@ fun formatPhoneGlobal(phone: String): String {
     if (digits.isEmpty()) return ""
 
     if (digits.length == 11 && (digits.startsWith("7") || digits.startsWith("8"))) {
-        val d = digits
-        return "+7 (${d.substring(1, 4)}) ${d.substring(4, 7)}-${d.substring(7, 9)}-${d.substring(9, 11)}"
+        return "+7 (${digits.substring(1, 4)}) ${digits.substring(4, 7)}-${digits.substring(7, 9)}-${digits.substring(9, 11)}"
     }
 
     return "+$digits"

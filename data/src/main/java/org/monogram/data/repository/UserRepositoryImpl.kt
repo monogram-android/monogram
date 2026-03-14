@@ -12,6 +12,7 @@ import org.monogram.data.datasource.cache.ChatLocalDataSource
 import org.monogram.data.datasource.cache.RoomUserLocalDataSource
 import org.monogram.data.datasource.cache.UserLocalDataSource
 import org.monogram.data.datasource.remote.UserRemoteDataSource
+import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.mapper.user.*
 import org.monogram.domain.models.*
@@ -24,6 +25,7 @@ class UserRepositoryImpl(
     private val remote: UserRemoteDataSource,
     private val userLocal: UserLocalDataSource,
     private val chatLocal: ChatLocalDataSource,
+    private val gateway: TelegramGateway,
     private val updates: UpdateDispatcher,
     scopeProvider: ScopeProvider
 ) : UserRepository {
@@ -32,6 +34,9 @@ class UserRepositoryImpl(
     private var currentUserId: Long = 0L
     private val userRequests = ConcurrentHashMap<Long, Deferred<TdApi.User?>>()
     private val fullInfoRequests = ConcurrentHashMap<Long, Deferred<TdApi.UserFullInfo?>>()
+
+    private val emojiPathCache = ConcurrentHashMap<Long, String>()
+    private val fileIdToUserIdMap = ConcurrentHashMap<Int, Long>()
 
     private val _currentUserFlow = MutableStateFlow<UserModel?>(null)
     override val currentUserFlow = _currentUserFlow.asStateFlow()
@@ -68,7 +73,6 @@ class UserRepositoryImpl(
             updates.file.collect { update ->
                 val file = update.file
                 if (file.local.isDownloadingCompleted) {
-                    // Check if this file is a user profile photo
                     userLocal.getAllUsers().forEach { user ->
                         val small = user.profilePhoto?.small
                         val big = user.profilePhoto?.big
@@ -77,14 +81,60 @@ class UserRepositoryImpl(
                             if (user.id == currentUserId) refreshCurrentUser()
                         }
                     }
+                    if (file.local.path.isNotEmpty()) {
+                        val userId = fileIdToUserIdMap.remove(file.id)
+                        if (userId != null) {
+                            userLocal.getUser(userId)?.let { user ->
+                                val emojiId = user.extractEmojiStatusId()
+                                if (emojiId != 0L) {
+                                    emojiPathCache[emojiId] = file.local.path
+                                }
+                            }
+                            _userUpdateFlow.emit(userId)
+                            if (userId == currentUserId) refreshCurrentUser()
+                        }
+                    }
                 }
             }
         }
     }
 
+    private fun TdApi.User.extractEmojiStatusId(): Long {
+        return when (val type = this.emojiStatus?.type) {
+            is TdApi.EmojiStatusTypeCustomEmoji -> type.customEmojiId
+            is TdApi.EmojiStatusTypeUpgradedGift -> type.modelCustomEmojiId
+            else -> 0L
+        }
+    }
+
+    private suspend fun resolveEmojiPath(user: TdApi.User): String? {
+        val emojiId = user.extractEmojiStatusId()
+        if (emojiId == 0L) return null
+
+        emojiPathCache[emojiId]?.let { return it }
+
+        return try {
+            val result = gateway.execute(TdApi.GetCustomEmojiStickers(longArrayOf(emojiId)))
+            if (result is TdApi.Stickers && result.stickers.isNotEmpty()) {
+                val file = result.stickers.first().sticker
+                if (file.local.isDownloadingCompleted && file.local.path.isNotEmpty()) {
+                    emojiPathCache[emojiId] = file.local.path
+                    file.local.path
+                } else {
+                    fileIdToUserIdMap[file.id] = user.id
+                    gateway.execute(TdApi.DownloadFile(file.id, 1, 0, 0, true))
+                    null
+                }
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private suspend fun refreshCurrentUser() {
         val user = userLocal.getUser(currentUserId) ?: return
-        _currentUserFlow.update { user.toDomain(userLocal.getUserFullInfo(currentUserId)) }
+        val path = resolveEmojiPath(user)
+        _currentUserFlow.update { user.toDomain(userLocal.getUserFullInfo(currentUserId), path) }
     }
 
     override suspend fun getMe(): UserModel {
@@ -94,7 +144,8 @@ class UserRepositoryImpl(
         if (userLocal is RoomUserLocalDataSource) {
             userLocal.saveUser(user.toEntity())
         }
-        val model = user.toDomain(userLocal.getUserFullInfo(user.id))
+        val path = resolveEmojiPath(user)
+        val model = user.toDomain(userLocal.getUserFullInfo(user.id), path)
         _currentUserFlow.update { model }
         return model
     }
@@ -102,14 +153,14 @@ class UserRepositoryImpl(
     override suspend fun getUser(userId: Long): UserModel? {
         if (userId <= 0) return null
         userLocal.getUser(userId)?.let {
-            return it.toDomain(userLocal.getUserFullInfo(userId))
+            return it.toDomain(userLocal.getUserFullInfo(userId), resolveEmojiPath(it))
         }
 
         if (userLocal is RoomUserLocalDataSource) {
             userLocal.loadUser(userId)?.let { entity ->
                 val user = entity.toTdApi()
                 userLocal.putUser(user)
-                return user.toDomain(userLocal.getUserFullInfo(userId))
+                return user.toDomain(userLocal.getUserFullInfo(userId), resolveEmojiPath(user))
             }
         }
 
@@ -124,7 +175,9 @@ class UserRepositoryImpl(
             }
         }
         return try {
-            deferred.await()?.toDomain(userLocal.getUserFullInfo(userId))
+            deferred.await()?.let { user ->
+                user.toDomain(userLocal.getUserFullInfo(userId), resolveEmojiPath(user))
+            }
         } finally {
             userRequests.remove(userId)
         }
@@ -140,13 +193,13 @@ class UserRepositoryImpl(
         } ?: return null
 
         val cachedFullInfo = userLocal.getUserFullInfo(userId)
-        if (cachedFullInfo != null) return user.toDomain(cachedFullInfo)
+        if (cachedFullInfo != null) return user.toDomain(cachedFullInfo, resolveEmojiPath(user))
 
         val dbFullInfo = userLocal.getFullInfoEntity(userId)
         if (dbFullInfo != null) {
             val fullInfo = dbFullInfo.toTdApi()
             userLocal.putUserFullInfo(userId, fullInfo)
-            return user.toDomain(fullInfo)
+            return user.toDomain(fullInfo, resolveEmojiPath(user))
         }
 
         val deferred = fullInfoRequests.getOrPut(userId) {
@@ -159,7 +212,7 @@ class UserRepositoryImpl(
         }
         return try {
             val fullInfo = deferred.await()
-            user.toDomain(fullInfo)
+            user.toDomain(fullInfo, resolveEmojiPath(user))
         } finally {
             fullInfoRequests.remove(userId)
         }
@@ -212,7 +265,6 @@ class UserRepositoryImpl(
             return fullInfo?.mapUserFullInfoToChat()
         }
 
-        // It's a group or channel (chatId < 0)
         val chat = remote.getChat(chatId)?.also { chatLocal.insertChat(it.toEntity()) }
             ?: chatLocal.getChat(chatId)?.let { it.toTdApiChat() }
             ?: return null

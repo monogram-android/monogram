@@ -66,6 +66,7 @@ interface RootComponent {
     fun unlock(passcode: String): Boolean
     fun unlockWithBiometrics()
     fun logout()
+    fun navigateToChat(chatId: Long, messageId: Long? = null)
 
     sealed class Child {
         class StartupChild(val component: StartupComponent) : Child()

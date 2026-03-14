@@ -123,7 +123,8 @@ val dataModule = module {
             userLocal = get(),
             chatLocal = get(),
             updates = get(),
-            scopeProvider = get()
+            scopeProvider = get(),
+            gateway = get()
         )
     }
 

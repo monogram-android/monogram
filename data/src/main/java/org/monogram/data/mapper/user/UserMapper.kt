@@ -9,7 +9,10 @@ import org.monogram.domain.models.*
 import org.monogram.domain.repository.ChatMemberStatus
 import org.monogram.domain.repository.ChatMembersFilter
 
-fun TdApi.User.toDomain(fullInfo: TdApi.UserFullInfo? = null): UserModel {
+fun TdApi.User.toDomain(
+    fullInfo: TdApi.UserFullInfo? = null,
+    customEmojiPath: String? = null
+): UserModel {
     val emojiStatusId = this.getEmojiStatusId()
     val username = usernames?.activeUsernames?.firstOrNull()
 
@@ -32,7 +35,7 @@ fun TdApi.User.toDomain(fullInfo: TdApi.UserFullInfo? = null): UserModel {
         isSupport = isSupport,
         type = type.toDomain(),
         statusEmojiId = emojiStatusId,
-        statusEmojiPath = null,
+        statusEmojiPath = customEmojiPath,
         username = username,
         usernames = usernames?.let { usernames!!.toDomain() },
         userStatus = if (type is TdApi.UserTypeBot) UserStatusType.OFFLINE
@@ -228,8 +231,11 @@ private fun TdApi.User.resolveAvatarPath(): String? {
 }
 
 private fun TdApi.User.getEmojiStatusId(): Long {
-    val type = emojiStatus?.type ?: return 0L
-    return (type as? TdApi.EmojiStatusTypeCustomEmoji)?.customEmojiId ?: 0L
+    return when (val type = emojiStatus?.type) {
+        is TdApi.EmojiStatusTypeCustomEmoji -> type.customEmojiId
+        is TdApi.EmojiStatusTypeUpgradedGift -> type.modelCustomEmojiId
+        else -> 0L
+    }
 }
 
 private fun TdApi.Usernames.toDomain(): UsernamesModel {
@@ -295,12 +301,11 @@ private fun TdApi.ChatPermissions.toDomain(): ChatPermissionsModel {
         canSendVoiceNotes = canSendVoiceNotes,
         canSendPolls = canSendPolls,
         canSendOtherMessages = canSendOtherMessages,
-        canAddLinkPreviews = canAddLinkPreviews,
-        canEditTag = canEditTag,
+       canAddLinkPreviews = canAddLinkPreviews,
         canChangeInfo = canChangeInfo,
         canInviteUsers = canInviteUsers,
         canPinMessages = canPinMessages,
-        canCreateTopics = canCreateTopics
+       canCreateTopics = canCreateTopics
     )
 }
 

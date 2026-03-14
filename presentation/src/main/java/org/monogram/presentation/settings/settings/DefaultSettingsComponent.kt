@@ -5,6 +5,8 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.monogram.domain.managers.DomainManager
 import org.monogram.domain.repository.AppPreferencesProvider
@@ -46,18 +48,33 @@ class DefaultSettingsComponent(
         scope.launch {
             try {
                 val me = repository.getMe()
-                val link =
-                    if (me.username?.isNotEmpty() == true) "https://t.me/${me.username}" else ""
+                val link = if (me.username?.isNotEmpty() == true) "https://t.me/${me.username}" else ""
+
                 _state.update {
                     it.copy(
                         currentUser = me,
                         qrContent = link
                     )
                 }
+
+                repository.getUserProfilePhotosFlow(me.id)
+                    .onEach { photos ->
+                        val highResPhoto = photos.firstOrNull { !it.endsWith(".mp4", ignoreCase = true) }
+                        if (highResPhoto != null) {
+                            _state.update { state ->
+                                state.copy(
+                                    currentUser = state.currentUser?.copy(avatarPath = highResPhoto)
+                                )
+                            }
+                        }
+                    }
+                    .launchIn(scope)
+
             } catch (e: Exception) {
                 _state.update { it.copy(currentUser = null) }
             }
         }
+
         scope.launch {
             preferences.isSupportViewed.collectLatest { viewed ->
                 if (!viewed) {

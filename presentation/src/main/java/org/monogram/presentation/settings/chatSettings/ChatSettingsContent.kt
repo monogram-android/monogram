@@ -1,6 +1,5 @@
 package org.monogram.presentation.settings.chatSettings
 
-import android.app.TimePickerDialog
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -17,6 +16,9 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +58,9 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
     val purpleColor = Color(0xFF9C27B0)
     val redColor = Color(0xFFEA4335)
 
+    var showStartTimePicker by remember { mutableStateOf(false) }
+    var showEndTimePicker by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -84,10 +89,13 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = padding.calculateTopPadding()),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 16.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = padding.calculateTopPadding(),
+                bottom = padding.calculateBottomPadding() + 16.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
@@ -398,37 +406,55 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                                                 time = state.nightModeStartTime,
                                                 icon = Icons.Rounded.LightMode,
                                                 modifier = Modifier.weight(1f),
-                                                onClick = {
-                                                    val parts = state.nightModeStartTime.split(":")
-                                                    TimePickerDialog(context, { _, h, m ->
-                                                        component.onNightModeStartTimeChanged(
-                                                            String.format(
-                                                                "%02d:%02d",
-                                                                h,
-                                                                m
-                                                            )
-                                                        )
-                                                    }, parts[0].toInt(), parts[1].toInt(), true).show()
-                                                }
+                                                onClick = { showStartTimePicker = true }
                                             )
                                             TimeSettingCard(
                                                 label = stringResource(R.string.to_label),
                                                 time = state.nightModeEndTime,
                                                 icon = Icons.Rounded.DarkMode,
                                                 modifier = Modifier.weight(1f),
-                                                onClick = {
-                                                    val parts = state.nightModeEndTime.split(":")
-                                                    TimePickerDialog(context, { _, h, m ->
-                                                        component.onNightModeEndTimeChanged(
-                                                            String.format(
-                                                                "%02d:%02d",
-                                                                h,
-                                                                m
-                                                            )
-                                                        )
-                                                    }, parts[0].toInt(), parts[1].toInt(), true).show()
-                                                }
+                                                onClick = { showEndTimePicker = true }
                                             )
+                                        }
+
+                                        if (showStartTimePicker) {
+                                            val parts = state.nightModeStartTime.split(":")
+                                            val timePickerState = rememberTimePickerState(
+                                                initialHour = parts.getOrNull(0)?.toIntOrNull() ?: 0,
+                                                initialMinute = parts.getOrNull(1)?.toIntOrNull() ?: 0,
+                                                is24Hour = true
+                                            )
+                                            TimePickerDialogWrapper(
+                                                onDismissRequest = { showStartTimePicker = false },
+                                                onConfirm = {
+                                                    component.onNightModeStartTimeChanged(
+                                                        String.format("%02d:%02d", timePickerState.hour, timePickerState.minute)
+                                                    )
+                                                    showStartTimePicker = false
+                                                }
+                                            ) {
+                                                TimePicker(state = timePickerState)
+                                            }
+                                        }
+
+                                        if (showEndTimePicker) {
+                                            val parts = state.nightModeEndTime.split(":")
+                                            val timePickerState = rememberTimePickerState(
+                                                initialHour = parts.getOrNull(0)?.toIntOrNull() ?: 0,
+                                                initialMinute = parts.getOrNull(1)?.toIntOrNull() ?: 0,
+                                                is24Hour = true
+                                            )
+                                            TimePickerDialogWrapper(
+                                                onDismissRequest = { showEndTimePicker = false },
+                                                onConfirm = {
+                                                    component.onNightModeEndTimeChanged(
+                                                        String.format("%02d:%02d", timePickerState.hour, timePickerState.minute)
+                                                    )
+                                                    showEndTimePicker = false
+                                                }
+                                            ) {
+                                                TimePicker(state = timePickerState)
+                                            }
                                         }
                                     }
                                 }
@@ -725,8 +751,6 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                     onClick = component::onClearRecentEmojis
                 )
             }
-
-            item { Spacer(modifier = Modifier.height(padding.calculateBottomPadding() - 16.dp)) }
         }
     }
 
@@ -1149,4 +1173,29 @@ private fun TimeSettingCard(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimePickerDialogWrapper(
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Cancel")
+            }
+        },
+        text = {
+            content()
+        }
+    )
 }

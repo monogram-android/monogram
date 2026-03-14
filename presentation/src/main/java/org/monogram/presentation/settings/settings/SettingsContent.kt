@@ -44,6 +44,7 @@ import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.core.util.formatMaskedGlobal
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.presentation.settings.sessions.SectionHeader
+import java.util.Locale
 
 val QrBackgroundColor = Color(0xFFEFF1E6)
 val QrDarkGreen = Color(0xFF3E4D36)
@@ -586,7 +587,7 @@ fun SettingsContent(component: SettingsComponent) {
                         SettingsItem(
                             icon = Icons.Rounded.Language,
                             title = stringResource(R.string.language_title),
-                            subtitle = stringResource(R.string.language_english),
+                            subtitle = Locale.getDefault().displayLanguage,
                             iconBackgroundColor = blueColor,
                             position = ItemPosition.MIDDLE,
                             onClick = {

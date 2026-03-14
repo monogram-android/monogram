@@ -44,7 +44,7 @@
     <string name="role_developer">Разработчик</string>
     <string name="role_designer">Дизайнер</string>
     <string name="monogram_description">MonoGram — неофициальный клиент Telegram на базе Material Design 3</string>
-    <string name="copyright_text">© 2026 Monogram</string>
+    <string name="copyright_text">© 2026 MonoGram</string>
 
     <!-- Updates -->
     <string name="check_for_updates">Проверить обновления</string>

@@ -44,7 +44,7 @@
     <string name="role_developer">开发者</string>
     <string name="role_designer">图标和徽标设计师</string>
     <string name="monogram_description">MonoGram 是一款基于 Material Design 3 构建的第三方 Telegram 客户端</string>
-    <string name="copyright_text">© 2026 Monogram</string>
+    <string name="copyright_text">© 2026 MonoGram</string>
 
     <!-- Updates -->
     <string name="check_for_updates">检查更新</string>

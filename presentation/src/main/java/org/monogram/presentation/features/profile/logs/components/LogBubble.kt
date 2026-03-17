@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material3.Icon
@@ -13,6 +14,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.ChatEventActionModel
@@ -23,14 +26,18 @@ import org.monogram.presentation.features.profile.logs.ProfileLogsComponent
 import java.text.SimpleDateFormat
 import java.util.*
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun LogBubble(
     event: ChatEventModel,
     senderInfo: ProfileLogsComponent.SenderInfo?,
     allSenderInfo: Map<Long, ProfileLogsComponent.SenderInfo>,
-    component: ProfileLogsComponent
+    component: ProfileLogsComponent,
+    modifier: Modifier = Modifier
 ) {
     val isRestriction = event.action is ChatEventActionModel.MemberRestricted
+    LocalClipboardManager.current
+    LocalContext.current
 
     val actionText = when (val action = event.action) {
         is ChatEventActionModel.MessageEdited -> "edited a message"
@@ -71,6 +78,11 @@ fun LogBubble(
         is MessageSenderModel.Chat -> "Chat ${sender.chatId}"
     }
 
+    when (val s = event.memberId) {
+        is MessageSenderModel.User -> s.userId
+        is MessageSenderModel.Chat -> s.chatId
+    }
+
     var showFullDate by remember { mutableStateOf(false) }
     val date = Date(event.date.toLong() * 1000)
     val dateText = if (showFullDate) {
@@ -80,7 +92,7 @@ fun LogBubble(
     }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.Bottom
@@ -91,7 +103,7 @@ fun LogBubble(
             size = 40.dp,
             fontSize = 16,
             videoPlayerPool = component.videoPlayerPool,
-            modifier = Modifier.clickable {
+            onClick = {
                 if (event.memberId is MessageSenderModel.User) {
                     component.onUserClick((event.memberId as MessageSenderModel.User).userId)
                 }
@@ -144,13 +156,18 @@ fun LogBubble(
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = actionText,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isRestriction) FontWeight.Medium else FontWeight.Normal
-            )
 
-            ActionDetails(event.action, allSenderInfo, component)
+            SelectionContainer {
+                Column {
+                    Text(
+                        text = actionText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (isRestriction) FontWeight.Medium else FontWeight.Normal
+                    )
+
+                    ActionDetails(event.action, allSenderInfo, component)
+                }
+            }
 
             Spacer(modifier = Modifier.height(4.dp))
             Text(

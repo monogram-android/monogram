@@ -1,7 +1,9 @@
 package org.monogram.presentation.features.profile.logs.components
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -181,7 +186,7 @@ fun ActionDetails(
                             model = File(action.oldPhotoPath.toString()),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(60.dp)
+                                .size(64.dp)
                                 .clip(CircleShape)
                                 .clickable {
                                     component.onPhotoClick(
@@ -200,7 +205,7 @@ fun ActionDetails(
                             model = File(action.newPhotoPath.toString()),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(60.dp)
+                                .size(64.dp)
                                 .clip(CircleShape)
                                 .clickable {
                                     component.onPhotoClick(
@@ -227,25 +232,34 @@ private fun TargetUserRow(
 ) {
     val info = allSenderInfo[userId]
     val name = info?.name ?: "User $userId"
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .clickable { component.onUserClick(userId) }
-            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .combinedClickable(
+                onClick = { component.onUserClick(userId) },
+                onLongClick = {
+                    clipboardManager.setText(AnnotatedString(userId.toString()))
+                    Toast.makeText(context, "User ID copied", Toast.LENGTH_SHORT).show()
+                }
+            )
+            .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
         Avatar(
             path = info?.avatarPath,
             name = name,
-            size = 24.dp,
-            fontSize = 10,
+            size = 28.dp,
+            fontSize = 12,
             videoPlayerPool = component.videoPlayerPool
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = name,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -262,7 +276,7 @@ private fun StatusTransition(oldStatus: String, newStatus: String) {
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
             contentDescription = null,
-            modifier = Modifier.size(12.dp),
+            modifier = Modifier.size(14.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
         StatusChangeRow("To", newStatus)
@@ -277,12 +291,12 @@ private fun PermissionsDiff(old: ChatPermissionsModel?, new: ChatPermissionsMode
             text = if (old != null) "Permission changes:" else "Current permissions:",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 6.dp),
+            modifier = Modifier.padding(bottom = 8.dp),
             fontWeight = FontWeight.Bold
         )
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             PermissionChip(
                 "Messages",
@@ -329,25 +343,25 @@ private fun PermissionChip(label: String, oldVal: Boolean?, newVal: Boolean, ico
         val isRestricted = !newVal
         val color =
             if (isRestricted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-        val containerColor = color.copy(alpha = 0.1f)
+        val containerColor = color.copy(alpha = 0.12f)
 
         Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(10.dp))
                 .background(containerColor)
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Icon(
                 imageVector = if (isRestricted) Icons.Rounded.Block else icon,
                 contentDescription = null,
-                modifier = Modifier.size(14.dp),
+                modifier = Modifier.size(16.dp),
                 tint = color
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = color,
                 fontWeight = FontWeight.Bold
             )

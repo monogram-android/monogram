@@ -2,7 +2,6 @@ package org.monogram.presentation.features.profile.logs
 
 import android.widget.Toast
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,20 +11,19 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.FilterList
-import androidx.compose.material.icons.rounded.RadioButtonUnchecked
-import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.MessageSenderModel
 import org.monogram.presentation.core.ui.Avatar
+import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.features.chats.chatList.components.SectionHeader
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
 import org.monogram.presentation.features.profile.logs.components.DateHeader
@@ -33,7 +31,6 @@ import org.monogram.presentation.features.profile.logs.components.FilterChipComp
 import org.monogram.presentation.features.profile.logs.components.LogBubble
 import org.monogram.presentation.features.viewers.ImageViewer
 import org.monogram.presentation.features.viewers.VideoViewer
-import org.monogram.presentation.core.ui.ItemPosition
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -43,6 +40,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
     val state by component.state.subscribeAsState()
     val listState = rememberLazyListState()
     val context = LocalContext.current
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     LaunchedEffect(state.logs.size) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo }
@@ -57,6 +55,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
                 title = {
@@ -80,70 +79,86 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                     IconButton(onClick = component::onShowFilters) {
                         Icon(Icons.Rounded.FilterList, contentDescription = "Filters")
                     }
-                }
+                },
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                )
             )
         }
     ) { padding ->
-        Box(
+        Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
+                .padding(padding),
+            color = MaterialTheme.colorScheme.background
         ) {
-            if (state.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (state.logs.isEmpty()) {
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "No recent actions found",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Try changing filters",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                }
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                    reverseLayout = true
-                ) {
-                    itemsIndexed(state.logs) { index, event ->
-                        Column {
-                            val showHeader = index == state.logs.lastIndex ||
-                                    !isSameDay(event.date, state.logs[index + 1].date)
-
-                            if (showHeader) {
-                                DateHeader(event.date)
-                            }
-
-                            val senderId = when (val s = event.memberId) {
-                                is MessageSenderModel.User -> s.userId
-                                is MessageSenderModel.Chat -> s.chatId
-                            }
-                            val senderInfo = state.senderInfo[senderId]
-
-                            LogBubble(event, senderInfo, state.senderInfo, component)
-                        }
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (state.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else if (state.logs.isEmpty()) {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "No recent actions found",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Try changing filters",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
                     }
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                        reverseLayout = true
+                    ) {
+                        itemsIndexed(
+                            items = state.logs,
+                            key = { _, event -> event.id }
+                        ) { index, event ->
+                            Column {
+                                val showHeader = index == state.logs.lastIndex ||
+                                        !isSameDay(event.date, state.logs[index + 1].date)
 
-                    if (state.isLoadingMore) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                if (showHeader) {
+                                    DateHeader(event.date)
+                                }
+
+                                val senderId = when (val s = event.memberId) {
+                                    is MessageSenderModel.User -> s.userId
+                                    is MessageSenderModel.Chat -> s.chatId
+                                }
+                                val senderInfo = state.senderInfo[senderId]
+
+                                LogBubble(
+                                    event = event,
+                                    senderInfo = senderInfo,
+                                    allSenderInfo = state.senderInfo,
+                                    component = component,
+                                    modifier = Modifier.animateItem()
+                                )
+                            }
+                        }
+
+                        if (state.isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                }
                             }
                         }
                     }
@@ -202,8 +217,9 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
     if (state.isFiltersVisible) {
         ModalBottomSheet(
             onDismissRequest = component::onDismissFilters,
-            containerColor = MaterialTheme.colorScheme.background,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            dragHandle = { BottomSheetDefaults.DragHandle() },
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             var searchQuery by remember { mutableStateOf("") }
 
@@ -216,7 +232,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                        .padding(bottom = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -225,12 +241,18 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
-                    TextButton(onClick = component::onApplyFilters) {
-                        Text("Apply", fontWeight = FontWeight.Bold)
+                    Row {
+                        TextButton(onClick = {
+                            component.onResetFilters()
+                            searchQuery = ""
+                        }) {
+                            Text("Reset")
+                        }
+                        Button(onClick = component::onApplyFilters) {
+                            Text("Apply")
+                        }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
 
                 val filterItems = remember {
                     listOf(
@@ -302,9 +324,16 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     placeholder = "Search...",
-                    icon = Icons.Rounded.Search,
+                    icon = if (searchQuery.isEmpty()) Icons.Rounded.Search else Icons.Rounded.Close,
                     position = ItemPosition.TOP,
-                    singleLine = true
+                    singleLine = true,
+                    trailingIcon = if (searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                            }
+                        }
+                    } else null
                 )
 
                 Surface(

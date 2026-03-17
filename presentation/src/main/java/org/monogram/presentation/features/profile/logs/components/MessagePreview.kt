@@ -39,10 +39,10 @@ fun MessagePreview(
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
-            modifier = Modifier.padding(8.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             val content = message.content
@@ -62,8 +62,8 @@ fun MessagePreview(
                         model = file,
                         contentDescription = null,
                         modifier = Modifier
-                            .size(if (content is MessageContent.Gif) 80.dp else 40.dp)
-                            .clip(RoundedCornerShape(4.dp))
+                            .size(if (content is MessageContent.Gif) 80.dp else 48.dp)
+                            .clip(RoundedCornerShape(8.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                             .clickable {
                                 when (content) {
@@ -87,7 +87,7 @@ fun MessagePreview(
                             },
                         contentScale = ContentScale.Crop
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                 }
             }
 
@@ -99,7 +99,7 @@ fun MessagePreview(
                             MessageText(
                                 text = calculateDiff(oldContent.text, content.text),
                                 inlineContent = emptyMap(),
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodyMedium,
                                 entities = emptyList()
                             )
                         } else {
@@ -109,12 +109,12 @@ fun MessagePreview(
                             )
                             val inlineContent = rememberMessageInlineContent(
                                 entities = content.entities,
-                                fontSize = 12f
+                                fontSize = 14f
                             )
                             MessageText(
                                 text = annotatedText,
                                 inlineContent = inlineContent,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodyMedium,
                                 entities = content.entities
                             )
                         }
@@ -152,7 +152,7 @@ fun MessagePreview(
                                 }
                                 append(" ${content.emoji}")
                             },
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
 
@@ -163,7 +163,7 @@ fun MessagePreview(
                                     append("Voice message")
                                 }
                             },
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
 
@@ -174,7 +174,7 @@ fun MessagePreview(
                                     append("Video message")
                                 }
                             },
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
 
@@ -191,7 +191,7 @@ fun MessagePreview(
                                 }
                                 append(": ${content.firstName} ${content.lastName}".trim())
                             },
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
 
@@ -203,7 +203,7 @@ fun MessagePreview(
                                 }
                                 append(": ${content.question}")
                             },
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
 
@@ -214,7 +214,7 @@ fun MessagePreview(
                                     append("Location")
                                 }
                             },
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
 
@@ -226,14 +226,14 @@ fun MessagePreview(
                                 }
                                 append(": ${content.title}")
                             },
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
 
                     is MessageContent.Service -> {
                         Text(
                             text = content.text,
-                            style = MaterialTheme.typography.bodySmall.copy(fontStyle = FontStyle.Italic),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -241,7 +241,7 @@ fun MessagePreview(
                     MessageContent.Unsupported -> {
                         Text(
                             "Unsupported message",
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
@@ -274,7 +274,7 @@ private fun MediaPreviewText(
     MessageText(
         text = annotatedText,
         inlineContent = emptyMap(),
-        style = MaterialTheme.typography.bodySmall,
+        style = MaterialTheme.typography.bodyMedium,
         entities = if (oldText != null && oldText != text) emptyList() else entities
     )
 }

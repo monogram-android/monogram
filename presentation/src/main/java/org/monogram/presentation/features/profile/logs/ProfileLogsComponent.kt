@@ -18,7 +18,9 @@ interface ProfileLogsComponent {
     fun onToggleFilter(filterType: FilterType)
     fun onToggleUserFilter(userId: Long)
     fun onApplyFilters()
+    fun onResetFilters()
     fun onDismissFilters()
+    fun onRefresh()
     fun onShowFilters()
 
     fun onPhotoClick(path: String, caption: String)

@@ -5,6 +5,7 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.ChatEventActionModel
+import org.monogram.domain.models.ChatEventLogFiltersModel
 import org.monogram.domain.models.MessageSenderModel
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.UserRepository
@@ -139,8 +140,16 @@ class DefaultProfileLogsComponent(
         loadLogs(isFirstLoad = true)
     }
 
+    override fun onResetFilters() {
+        _state.update { it.copy(pendingFilters = ChatEventLogFiltersModel()) }
+    }
+
     override fun onDismissFilters() {
         _state.update { it.copy(isFiltersVisible = false) }
+    }
+
+    override fun onRefresh() {
+        loadLogs(isFirstLoad = true)
     }
 
     override fun onShowFilters() {

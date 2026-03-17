@@ -14,7 +14,7 @@ import org.monogram.presentation.features.chats.ChatListComponent
 import org.monogram.presentation.features.chats.currentChat.ChatComponent
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.newChat.NewChatComponent
-import org.monogram.presentation.features.folders.FoldersComponent
+import org.monogram.presentation.settings.folders.FoldersComponent
 import org.monogram.presentation.features.profile.ProfileComponent
 import org.monogram.presentation.features.profile.admin.AdminManageComponent
 import org.monogram.presentation.features.profile.admin.ChatEditComponent

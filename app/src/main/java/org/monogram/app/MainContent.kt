@@ -37,7 +37,7 @@ import org.monogram.presentation.features.chats.chatList.NewChatContent
 import org.monogram.presentation.features.chats.chatList.components.AvatarTopAppBar
 import org.monogram.presentation.features.chats.currentChat.ChatContent
 import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
-import org.monogram.presentation.features.folders.FoldersContent
+import org.monogram.presentation.settings.folders.FoldersContent
 import org.monogram.presentation.features.profile.ProfileContent
 import org.monogram.presentation.features.profile.admin.AdminManageContent
 import org.monogram.presentation.features.profile.admin.ChatEditContent

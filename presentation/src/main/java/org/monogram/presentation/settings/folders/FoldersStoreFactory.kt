@@ -1,11 +1,11 @@
-package org.monogram.presentation.features.folders
+package org.monogram.presentation.settings.folders
 
 import com.arkivanov.mvikotlin.core.store.Reducer
 import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
-import org.monogram.presentation.features.folders.FoldersStore.Intent
-import org.monogram.presentation.features.folders.FoldersStore.Label
+import org.monogram.presentation.settings.folders.FoldersStore.Intent
+import org.monogram.presentation.settings.folders.FoldersStore.Label
 
 class FoldersStoreFactory(
     private val storeFactory: StoreFactory,

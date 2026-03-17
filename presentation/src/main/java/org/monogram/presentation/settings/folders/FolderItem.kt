@@ -1,4 +1,4 @@
-package org.monogram.presentation.features.folders
+package org.monogram.presentation.settings.folders
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

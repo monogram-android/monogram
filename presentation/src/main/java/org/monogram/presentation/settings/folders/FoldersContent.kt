@@ -1,4 +1,4 @@
-package org.monogram.presentation.features.folders
+package org.monogram.presentation.settings.folders
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi

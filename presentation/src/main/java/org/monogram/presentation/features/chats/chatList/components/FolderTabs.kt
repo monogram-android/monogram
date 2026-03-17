@@ -20,7 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.FolderModel
-import org.monogram.presentation.features.folders.getFolderIcon
+import org.monogram.presentation.settings.folders.getFolderIcon
 
 @Composable
 fun FolderTabs(

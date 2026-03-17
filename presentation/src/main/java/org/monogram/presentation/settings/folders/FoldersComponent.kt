@@ -1,4 +1,4 @@
-package org.monogram.presentation.features.folders
+package org.monogram.presentation.settings.folders
 
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value

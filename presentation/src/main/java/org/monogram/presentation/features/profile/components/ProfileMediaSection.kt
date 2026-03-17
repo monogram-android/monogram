@@ -382,20 +382,27 @@ private fun LazyGridScope.mediaGrid(
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { onMessageClick(msg) }
             ) {
-                val path = when (val content = msg.content) {
-                    is MessageContent.Photo -> content.path
-                    is MessageContent.Video -> content.path
+                val (path, isVideo) = when (val content = msg.content) {
+                    is MessageContent.Photo -> content.path to false
+                    is MessageContent.Video -> content.path to true
+                    else -> null to false
+                }
+
+                val minithumbnail = when (val content = msg.content) {
+                    is MessageContent.Photo -> content.minithumbnail
+                    is MessageContent.Video -> content.minithumbnail
                     else -> null
                 }
 
                 val context = LocalContext.current
                 val isValidFile = path != null && File(path).exists()
 
-                if (isValidFile) {
+                if (isValidFile || minithumbnail != null) {
                     AsyncImage(
-                        model = remember(path) {
+                        model = remember(path, minithumbnail) {
+                            val data = if (isValidFile) path else minithumbnail
                             ImageRequest.Builder(context)
-                                .data(path)
+                                .data(data)
                                 .size(300, 300)
                                 .crossfade(true)
                                 .build()
@@ -406,10 +413,6 @@ private fun LazyGridScope.mediaGrid(
                         error = rememberVectorPainter(Icons.Rounded.BrokenImage)
                     )
                 } else {
-
-                    LaunchedEffect(msg.id) {
-                        onLoadMedia(msg)
-                    }
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -421,8 +424,14 @@ private fun LazyGridScope.mediaGrid(
                         )
                     }
                 }
+                
+                if (!isValidFile) {
+                    LaunchedEffect(msg.id) {
+                        onLoadMedia(msg)
+                    }
+                }
 
-                if (msg.content is MessageContent.Video) {
+                if (isVideo) {
                     val content = msg.content as MessageContent.Video
                     Icon(
                         Icons.Rounded.PlayArrow,

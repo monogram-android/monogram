@@ -393,13 +393,18 @@ class DefaultProfileComponent(
             it.copy(
                 selectedTabIndex = index,
                 canLoadMoreMedia = true,
-                isLoadingMedia = false
+                isLoadingMedia = true,
+                isLoadingMoreMedia = false
             )
         }
 
         val isGroup = _state.value.chat?.let { it.isGroup || it.isChannel } ?: false
         if (isGroup && index == 1) {
-            if (_state.value.members.isEmpty()) loadMembersNextPage()
+            if (_state.value.members.isEmpty()) {
+                loadMembersNextPage()
+            } else {
+                 _state.update { it.copy(isLoadingMedia = false) }
+            }
         } else {
             val filterIndex = if (isGroup && index > 1) index - 1 else index
             val isEmpty = when (filterIndex) {
@@ -414,6 +419,8 @@ class DefaultProfileComponent(
 
             if (isEmpty) {
                 loadMediaNextPage(isFirstLoad = true)
+            } else {
+                _state.update { it.copy(isLoadingMedia = false) }
             }
         }
     }
@@ -500,6 +507,30 @@ class DefaultProfileComponent(
                             fullScreenVideoPath = path,
                             fullScreenVideoCaption = content.caption
                         )
+                    }
+                } ?: run {
+                    if (content.fileId != 0) {
+                        scope.launch {
+                            messageRepository.downloadFile(content.fileId, priority = 32)
+                            var attempts = 0
+                            while (attempts < 60) {
+                                delay(500)
+                                val fileInfo = messageRepository.getFileInfo(content.fileId)
+                                if (fileInfo?.local?.isDownloadingCompleted == true && fileInfo.local.path.isNotEmpty()) {
+                                    withContext(Dispatchers.Main) {
+                                        _state.update {
+                                            it.copy(
+                                                fullScreenVideoPath = fileInfo.local.path,
+                                                fullScreenVideoCaption = content.caption
+                                            )
+                                        }
+                                        onFileDownloaded(content.fileId, fileInfo.local.path)
+                                    }
+                                    break
+                                }
+                                attempts++
+                            }
+                        }
                     }
                 }
             }

@@ -1,16 +1,7 @@
 package org.monogram.data.mapper.user
 
 import org.drinkless.tdlib.TdApi
-import org.monogram.domain.models.ChatRevenueStatisticsModel
-import org.monogram.domain.models.ChatStatisticsModel
-import org.monogram.domain.models.DateRangeModel
-import org.monogram.domain.models.RevenueAmountModel
-import org.monogram.domain.models.StatisticsGraphModel
-import org.monogram.domain.models.StatisticsType
-import org.monogram.domain.models.StatisticsValueModel
-import org.monogram.domain.models.TopAdministratorModel
-import org.monogram.domain.models.TopInviterModel
-import org.monogram.domain.models.TopSenderModel
+import org.monogram.domain.models.*
 
 fun TdApi.ChatStatistics.toDomain(): ChatStatisticsModel = when (this) {
     is TdApi.ChatStatisticsSupergroup -> ChatStatisticsModel(
@@ -50,6 +41,10 @@ fun TdApi.ChatStatistics.toDomain(): ChatStatisticsModel = when (this) {
         memberCount = memberCount.toDomain(),
         meanViewCount = meanMessageViewCount.toDomain(),
         meanShareCount = meanMessageShareCount.toDomain(),
+        meanReactionCount = meanMessageReactionCount.toDomain(),
+        meanStoryViewCount = meanStoryViewCount.toDomain(),
+        meanStoryShareCount = meanStoryShareCount.toDomain(),
+        meanStoryReactionCount = meanStoryReactionCount.toDomain(),
         enabledNotificationsPercentage = enabledNotificationsPercentage,
         memberCountGraph = memberCountGraph.toDomain(),
         joinGraph = joinGraph.toDomain(),
@@ -59,7 +54,11 @@ fun TdApi.ChatStatistics.toDomain(): ChatStatisticsModel = when (this) {
         joinBySourceGraph = joinBySourceGraph.toDomain(),
         languageGraph = languageGraph.toDomain(),
         messageContentGraph = messageInteractionGraph.toDomain(),
-        actionGraph = instantViewInteractionGraph.toDomain()
+        actionGraph = instantViewInteractionGraph.toDomain(),
+        messageReactionGraph = messageReactionGraph.toDomain(),
+        storyInteractionGraph = storyInteractionGraph.toDomain(),
+        storyReactionGraph = storyReactionGraph.toDomain(),
+        recentInteractions = recentInteractions.map { it.toDomain() }
     )
     else -> ChatStatisticsModel(
         type = StatisticsType.SUPERGROUP,
@@ -90,3 +89,23 @@ fun TdApi.StatisticalGraph.toDomain(): StatisticsGraphModel = when (this) {
 
 private fun TdApi.StatisticalValue.toDomain(): StatisticsValueModel =
     StatisticsValueModel(value, previousValue, growthRatePercentage)
+
+private fun TdApi.ChatStatisticsInteractionInfo.toDomain(): ChatInteractionInfoModel {
+    val objectId = when (val type = objectType) {
+        is TdApi.ChatStatisticsObjectTypeMessage -> type.messageId
+        is TdApi.ChatStatisticsObjectTypeStory -> type.storyId.toLong()
+        else -> 0L
+    }
+    val interactionType = when (objectType) {
+        is TdApi.ChatStatisticsObjectTypeMessage -> ChatInteractionType.MESSAGE
+        is TdApi.ChatStatisticsObjectTypeStory -> ChatInteractionType.STORY
+        else -> ChatInteractionType.MESSAGE
+    }
+    return ChatInteractionInfoModel(
+        objectId = objectId,
+        type = interactionType,
+        viewCount = viewCount,
+        forwardCount = forwardCount,
+        reactionCount = reactionCount
+    )
+}

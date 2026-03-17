@@ -10,10 +10,15 @@ data class ChatStatisticsModel(
     val viewCount: StatisticsValueModel? = null,
     val meanViewCount: StatisticsValueModel? = null,
     val meanShareCount: StatisticsValueModel? = null,
+    val meanReactionCount: StatisticsValueModel? = null,
+    val meanStoryViewCount: StatisticsValueModel? = null,
+    val meanStoryShareCount: StatisticsValueModel? = null,
+    val meanStoryReactionCount: StatisticsValueModel? = null,
     val enabledNotificationsPercentage: Double? = null,
     val topSenders: List<TopSenderModel> = emptyList(),
     val topAdministrators: List<TopAdministratorModel> = emptyList(),
     val topInviters: List<TopInviterModel> = emptyList(),
+    val recentInteractions: List<ChatInteractionInfoModel> = emptyList(),
     val memberCountGraph: StatisticsGraphModel? = null,
     val joinGraph: StatisticsGraphModel? = null,
     val muteGraph: StatisticsGraphModel? = null,
@@ -25,7 +30,10 @@ data class ChatStatisticsModel(
     val actionGraph: StatisticsGraphModel? = null,
     val dayGraph: StatisticsGraphModel? = null,
     val weekGraph: StatisticsGraphModel? = null,
-    val topHoursGraph: StatisticsGraphModel? = null
+    val topHoursGraph: StatisticsGraphModel? = null,
+    val messageReactionGraph: StatisticsGraphModel? = null,
+    val storyInteractionGraph: StatisticsGraphModel? = null,
+    val storyReactionGraph: StatisticsGraphModel? = null
 )
 
 enum class StatisticsType {
@@ -73,6 +81,18 @@ data class RevenueAmountModel(
     val balance: Long,
     val availableBalance: Long
 )
+
+data class ChatInteractionInfoModel(
+    val objectId: Long,
+    val type: ChatInteractionType,
+    val viewCount: Int,
+    val forwardCount: Int,
+    val reactionCount: Int
+)
+
+enum class ChatInteractionType {
+    MESSAGE, STORY
+}
 
 sealed class StatisticsGraphModel {
     data class Data(

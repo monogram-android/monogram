@@ -781,13 +781,27 @@ class DefaultProfileComponent(
 
     override fun onLoadStatisticsGraph(token: String) {
         scope.launch {
-            val stats = _state.value.statistics ?: return@launch
-            val x = stats.period.endDate.toLong()
+            val currentState = _state.value
+            val stats = currentState.statistics
+            val revenueStats = currentState.revenueStatistics
+
+            val x = stats?.period?.endDate?.toLong() ?: 0L
             val graph = userRepository.loadStatisticsGraph(chatId, token, x)
 
             if (graph != null) {
-                val updatedStats = updateStatisticsWithGraph(stats, token, graph)
-                _state.update { it.copy(statistics = updatedStats) }
+                if (stats != null) {
+                    val updatedStats = updateStatisticsWithGraph(stats, token, graph)
+                    if (updatedStats != stats) {
+                        _state.update { it.copy(statistics = updatedStats) }
+                        return@launch
+                    }
+                }
+                if (revenueStats != null) {
+                    val updatedRevenueStats = updateRevenueStatisticsWithGraph(revenueStats, token, graph)
+                    if (updatedRevenueStats != revenueStats) {
+                        _state.update { it.copy(revenueStatistics = updatedRevenueStats) }
+                    }
+                }
             }
         }
     }
@@ -896,7 +910,25 @@ class DefaultProfileComponent(
             actionGraph = if (stats.actionGraph.matchesToken(token)) newGraph else stats.actionGraph,
             dayGraph = if (stats.dayGraph.matchesToken(token)) newGraph else stats.dayGraph,
             weekGraph = if (stats.weekGraph.matchesToken(token)) newGraph else stats.weekGraph,
-            topHoursGraph = if (stats.topHoursGraph.matchesToken(token)) newGraph else stats.topHoursGraph
+            topHoursGraph = if (stats.topHoursGraph.matchesToken(token)) newGraph else stats.topHoursGraph,
+            messageReactionGraph = if (stats.messageReactionGraph.matchesToken(token)) newGraph else stats.messageReactionGraph,
+            storyInteractionGraph = if (stats.storyInteractionGraph.matchesToken(token)) newGraph else stats.storyInteractionGraph,
+            storyReactionGraph = if (stats.storyReactionGraph.matchesToken(token)) newGraph else stats.storyReactionGraph
+        )
+    }
+
+    private fun updateRevenueStatisticsWithGraph(
+        stats: ChatRevenueStatisticsModel,
+        token: String,
+        newGraph: StatisticsGraphModel
+    ): ChatRevenueStatisticsModel {
+        fun StatisticsGraphModel?.matchesToken(token: String): Boolean {
+            return this is StatisticsGraphModel.Async && this.token == token
+        }
+
+        return stats.copy(
+            revenueByHourGraph = if (stats.revenueByHourGraph.matchesToken(token)) newGraph else stats.revenueByHourGraph,
+            revenueGraph = if (stats.revenueGraph.matchesToken(token)) newGraph else stats.revenueGraph
         )
     }
 

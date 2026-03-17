@@ -21,10 +21,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.rememberUserStatusText
 import org.monogram.presentation.features.chats.currentChat.ChatComponent
 import org.monogram.presentation.features.chats.currentChat.components.ChatTopBar
@@ -85,23 +87,38 @@ fun ChatContentTopBar(
                     },
                     navigationIcon = {
                         IconButton(onClick = { component.onClearSelection() }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear selection")
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = stringResource(R.string.cd_clear_selection)
+                            )
                         }
                     },
                     actions = {
                         IconButton(onClick = { component.onForwardSelectedMessages() }) {
-                            Icon(Icons.AutoMirrored.Filled.Forward, contentDescription = "Forward")
+                            Icon(
+                                Icons.AutoMirrored.Filled.Forward,
+                                contentDescription = stringResource(R.string.menu_forward)
+                            )
                         }
                         IconButton(onClick = { component.onCopySelectedMessages(clipboardManager) }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = stringResource(R.string.menu_copy)
+                            )
                         }
                         IconButton(onClick = { showDeleteSheet = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete")
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.menu_delete)
+                            )
                         }
                         var showMenu by remember { mutableStateOf(false) }
                         Box {
                             IconButton(onClick = { showMenu = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "More")
+                                Icon(
+                                    Icons.Default.MoreVert,
+                                    contentDescription = stringResource(R.string.menu_more)
+                                )
                             }
                             if (showMenu) {
                                 Popup(
@@ -143,7 +160,7 @@ fun ChatContentTopBar(
                                             ViewerSettingsDropdown {
                                                 MenuOptionRow(
                                                     icon = Icons.AutoMirrored.Filled.Forward,
-                                                    title = "Forward",
+                                                    title = stringResource(R.string.menu_forward),
                                                     onClick = {
                                                         showMenu = false
                                                         component.onForwardSelectedMessages()
@@ -151,7 +168,7 @@ fun ChatContentTopBar(
                                                 )
                                                 MenuOptionRow(
                                                     icon = Icons.Default.ContentCopy,
-                                                    title = "Copy",
+                                                    title = stringResource(R.string.menu_copy),
                                                     onClick = {
                                                         showMenu = false
                                                         component.onCopySelectedMessages(clipboardManager)
@@ -159,7 +176,7 @@ fun ChatContentTopBar(
                                                 )
                                                 MenuOptionRow(
                                                     icon = Icons.Rounded.Report,
-                                                    title = "Report",
+                                                    title = stringResource(R.string.menu_report),
                                                     onClick = {
                                                         showMenu = false
                                                         component.onReport()
@@ -168,7 +185,7 @@ fun ChatContentTopBar(
                                                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                                                 MenuOptionRow(
                                                     icon = Icons.Default.Delete,
-                                                    title = "Delete",
+                                                    title = stringResource(R.string.menu_delete),
                                                     textColor = MaterialTheme.colorScheme.error,
                                                     iconTint = MaterialTheme.colorScheme.error,
                                                     onClick = {
@@ -186,27 +203,26 @@ fun ChatContentTopBar(
                 )
             } else {
                 val formattedUserStatus = rememberUserStatusText(state.otherUser)
-                val statusText = remember(
-                    state.typingAction,
-                    state.isChannel,
-                    state.isGroup,
-                    state.memberCount,
-                    state.onlineCount,
-                    formattedUserStatus
-                ) {
-                    when {
-                        state.typingAction != null -> state.typingAction
-                        state.isChannel -> "${state.memberCount} subscribers"
-                        state.isGroup -> {
-                            if (state.onlineCount > 0) {
-                                "${state.memberCount} members, ${state.onlineCount} online"
-                            } else {
-                                "${state.memberCount} members"
-                            }
-                        }
+                val statusText = when {
+                    state.typingAction != null -> state.typingAction
+                    state.isChannel -> stringResource(
+                        R.string.subscribers_count_format,
+                        state.memberCount
+                    )
 
-                        else -> formattedUserStatus
+                    state.isGroup -> {
+                        if (state.onlineCount > 0) {
+                            stringResource(
+                                R.string.members_online_count_format,
+                                stringResource(R.string.members_count_format, state.memberCount),
+                                state.onlineCount
+                            )
+                        } else {
+                            stringResource(R.string.members_count_format, state.memberCount)
+                        }
                     }
+
+                    else -> formattedUserStatus
                 }
                 val currentTopic = remember(state.currentTopicId, state.topics) {
                     if (state.currentTopicId != null) {
@@ -214,10 +230,11 @@ fun ChatContentTopBar(
                     } else null
                 }
 
-                val title = remember(currentTopic, state.rootMessage, state.chatTitle) {
+                val threadTitle = stringResource(R.string.thread_title)
+                val title = remember(currentTopic, state.rootMessage, state.chatTitle, threadTitle) {
                     when {
                         currentTopic != null -> currentTopic.name
-                        state.rootMessage != null -> "Thread"
+                        state.rootMessage != null -> threadTitle
                         else -> state.chatTitle
                     }
                 }
@@ -227,7 +244,7 @@ fun ChatContentTopBar(
                     title = title,
                     avatarPath = state.chatAvatar,
                     emojiStatusPath = state.chatEmojiStatus,
-                    statusText = statusText,
+                    statusText = statusText ?: "",
                     isOnline = state.isOnline,
                     isVerified = state.isVerified,
                     onBack = onBack,

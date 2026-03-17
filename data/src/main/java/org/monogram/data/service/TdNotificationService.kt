@@ -16,9 +16,11 @@ import kotlinx.coroutines.flow.combine
 import org.koin.android.ext.android.inject
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.PushProvider
+import org.monogram.domain.repository.StringProvider
 
 class TdNotificationService : Service() {
     private val appPreferences: AppPreferencesProvider by inject()
+    private val stringProvider: StringProvider by inject()
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var isServiceRunning = false
@@ -76,7 +78,7 @@ class TdNotificationService : Service() {
         }
     }
 
-    private fun startForegroundNotification(status: String = "Ожидание новых сообщений") {
+    private fun startForegroundNotification(status: String? = null) {
         createForegroundChannel()
 
         val notificationIntent = packageManager.getLaunchIntentForPackage(packageName)
@@ -99,14 +101,18 @@ class TdNotificationService : Service() {
 
         val notificationBuilder = NotificationCompat.Builder(this, FOREGROUND_CHANNEL_ID)
             .setContentTitle("MonoGram")
-            .setContentText(status)
+            .setContentText(status ?: stringProvider.getString("notification_service_waiting"))
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSmallIcon(org.monogram.data.R.drawable.message_outline)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stopPendingIntent)
+            .addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                stringProvider.getString("notification_service_stop"),
+                stopPendingIntent
+            )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             notificationBuilder.setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
@@ -220,10 +226,10 @@ class TdNotificationService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
                 FOREGROUND_CHANNEL_ID,
-                "Фоновая работа",
+                stringProvider.getString("notification_service_channel_name"),
                 NotificationManager.IMPORTANCE_MIN
             ).apply {
-                description = "Уведомление о работе приложения в фоне"
+                description = stringProvider.getString("notification_service_channel_description")
                 setShowBadge(false)
             }
             val manager = getSystemService(NotificationManager::class.java)

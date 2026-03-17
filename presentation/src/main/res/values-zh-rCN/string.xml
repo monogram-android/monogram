@@ -459,6 +459,9 @@
     <string name="password_optional_placeholder">密码（选填）</string>
     <string name="save_changes_button">保存修改</string>
     <string name="action_delete">删除</string>
+    <string name="proxy_checking">检查中...</string>
+    <string name="proxy_offline">离线</string>
+    <string name="proxy_ping_format">%1$dms</string>
 
     <!-- Settings General -->
     <string name="your_usernames_header">您的用户名</string>
@@ -830,4 +833,7 @@
     <string name="preview_msg_text_4">效果拔群！😵‍💫</string>
     <string name="preview_date_today">今天</string>
     <string name="preview_name_konata_short">此方</string>
+
+    <string name="subscribers_count_format">%1$d 位订阅者</string>
+    <string name="thread_title">回复</string>
 </resources>

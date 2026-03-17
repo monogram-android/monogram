@@ -40,4 +40,62 @@
     <string name="crash_restart">重启应用</string>
     <string name="crash_error_details">错误详情</string>
     <string name="crash_description">程序出现异常。请分享或复制下方日志向开发者反馈此问题。</string>
+
+    <!-- Chat Typing -->
+    <string name="typing_typing">正在输入</string>
+    <string name="typing_recording_video">正在录制视频</string>
+    <string name="typing_recording_voice">正在录制语音消息</string>
+    <string name="typing_uploading_photo">正在发送照片</string>
+    <string name="typing_uploading_video">正在发送视频</string>
+    <string name="typing_uploading_document">正在发送文件</string>
+    <string name="typing_choosing_sticker">正在选择贴纸</string>
+    <string name="typing_playing_game">正在玩游戏</string>
+    <string name="typing_someone">有人</string>
+    <string name="typing_and">和</string>
+    <string name="typing_and_more">以及另外 %d 人</string>
+    <string name="typing_multi_typing">正在输入</string>
+    <plurals name="typing_multi_people">
+        <item quantity="one">%d 人正在输入</item>
+        <item quantity="other">%d 人正在输入</item>
+    </plurals>
+
+    <!-- Chat List Mapper -->
+    <string name="chat_mapper_photo">照片</string>
+    <string name="chat_mapper_video">视频</string>
+    <string name="chat_mapper_voice">语音消息</string>
+    <string name="chat_mapper_sticker">贴纸</string>
+    <string name="chat_mapper_message">消息</string>
+    <string name="chat_mapper_bot">机器人</string>
+    <string name="chat_mapper_online">在线</string>
+    <string name="chat_mapper_offline">离线</string>
+    <string name="chat_mapper_seen_just_now">刚刚在线</string>
+    <string name="chat_mapper_seen_minutes_ago">%d 分钟前在线</string>
+    <string name="chat_mapper_seen_minutes_ago_plural">%d 分钟前在线</string>
+    <string name="chat_mapper_seen_at">在 %s 在线</string>
+    <string name="chat_mapper_seen_yesterday">昨天 %s 在线</string>
+    <string name="chat_mapper_seen_date">在 %s 在线</string>
+    <string name="chat_mapper_seen_recently">最近在线</string>
+    <string name="chat_mapper_seen_week">一周内在线</string>
+    <string name="chat_mapper_seen_month">一个月内在线</string>
+
+    <!-- Storage Mapper -->
+    <string name="storage_photos">照片</string>
+    <string name="storage_videos">视频</string>
+    <string name="storage_documents">文档</string>
+    <string name="storage_stickers">贴纸</string>
+    <string name="storage_music">音乐</string>
+    <string name="storage_voice_messages">语音消息</string>
+    <string name="storage_video_messages">视频消息</string>
+    <string name="storage_other_files">其他文件</string>
+    <string name="storage_other_cache">其他 / 缓存</string>
+    <string name="storage_chat_format">会话 %d</string>
+
+    <!-- Network Mapper -->
+    <string name="network_calls">通话</string>
+
+    <!-- Notification Service -->
+    <string name="notification_service_waiting">正在等待新消息</string>
+    <string name="notification_service_stop">停止</string>
+    <string name="notification_service_channel_name">后台服务</string>
+    <string name="notification_service_channel_description">关于应用在后台运行的通知</string>
 </resources>

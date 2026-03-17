@@ -42,4 +42,64 @@
     <string name="crash_restart">Перезапустить MonoGram</string>
     <string name="crash_error_details">Детали ошибки</string>
     <string name="crash_description">Что-то пошло не так. Пожалуйста, отправьте этот лог разработчикам, чтобы помочь исправить ошибку.</string>
+
+    <!-- Chat Typing -->
+    <string name="typing_typing">печатает</string>
+    <string name="typing_recording_video">записывает видео</string>
+    <string name="typing_recording_voice">записывает голосовое</string>
+    <string name="typing_uploading_photo">отправляет фото</string>
+    <string name="typing_uploading_video">отправляет видео</string>
+    <string name="typing_uploading_document">отправляет файл</string>
+    <string name="typing_choosing_sticker">выбирает стикер</string>
+    <string name="typing_playing_game">играет</string>
+    <string name="typing_someone">Кто-то</string>
+    <string name="typing_and">и</string>
+    <string name="typing_and_more">и еще %d</string>
+    <string name="typing_multi_typing">печатают</string>
+    <plurals name="typing_multi_people">
+        <item quantity="one">%d человек печатает</item>
+        <item quantity="few">%d человека печатают</item>
+        <item quantity="many">%d человек печатают</item>
+        <item quantity="other">%d человек печатают</item>
+    </plurals>
+
+    <!-- Chat List Mapper -->
+    <string name="chat_mapper_photo">Фото</string>
+    <string name="chat_mapper_video">Видео</string>
+    <string name="chat_mapper_voice">Голосовое сообщение</string>
+    <string name="chat_mapper_sticker">Стикер</string>
+    <string name="chat_mapper_message">Сообщение</string>
+    <string name="chat_mapper_bot">Бот</string>
+    <string name="chat_mapper_online">В сети</string>
+    <string name="chat_mapper_offline">Не в сети</string>
+    <string name="chat_mapper_seen_just_now">был(а) только что</string>
+    <string name="chat_mapper_seen_minutes_ago">был(а) %d минуту назад</string>
+    <string name="chat_mapper_seen_minutes_ago_plural">был(а) %d минут назад</string>
+    <string name="chat_mapper_seen_at">был(а) в %s</string>
+    <string name="chat_mapper_seen_yesterday">был(а) вчера в %s</string>
+    <string name="chat_mapper_seen_date">был(а) %s</string>
+    <string name="chat_mapper_seen_recently">был(а) недавно</string>
+    <string name="chat_mapper_seen_week">был(а) на этой неделе</string>
+    <string name="chat_mapper_seen_month">был(а) в этом месяце</string>
+
+    <!-- Storage Mapper -->
+    <string name="storage_photos">Фотографии</string>
+    <string name="storage_videos">Видео</string>
+    <string name="storage_documents">Документы</string>
+    <string name="storage_stickers">Стикеры</string>
+    <string name="storage_music">Музыка</string>
+    <string name="storage_voice_messages">Голосовые сообщения</string>
+    <string name="storage_video_messages">Видеосообщения</string>
+    <string name="storage_other_files">Другие файлы</string>
+    <string name="storage_other_cache">Прочее / Кэш</string>
+    <string name="storage_chat_format">Чат %d</string>
+
+    <!-- Network Mapper -->
+    <string name="network_calls">Звонки</string>
+
+    <!-- Notification Service -->
+    <string name="notification_service_waiting">Ожидание новых сообщений</string>
+    <string name="notification_service_stop">Остановить</string>
+    <string name="notification_service_channel_name">Фоновая работа</string>
+    <string name="notification_service_channel_description">Уведомление о работе приложения в фоне</string>
 </resources>

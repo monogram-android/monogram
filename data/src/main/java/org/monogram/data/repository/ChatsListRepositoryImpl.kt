@@ -33,6 +33,7 @@ import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.CacheProvider
 import org.monogram.domain.repository.ChatsListRepository
 import org.monogram.domain.repository.SearchMessagesResult
+import org.monogram.domain.repository.StringProvider
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -54,7 +55,8 @@ class ChatsListRepositoryImpl(
     private val connectionManager: ConnectionManager,
     private val databaseFile: File,
     private val searchHistoryDao: SearchHistoryDao,
-    private val chatFolderDao: ChatFolderDao
+    private val chatFolderDao: ChatFolderDao,
+    private val stringProvider: StringProvider
 ) : ChatsListRepository {
 
     private val TAG = "ChatsListRepo"
@@ -70,6 +72,7 @@ class ChatsListRepositoryImpl(
         scope = scope,
         usersCache = cache.usersCache,
         allChats = cache.allChats,
+        stringProvider = stringProvider,
         onUpdate = { triggerUpdate() },
         onUserNeeded = { userId -> fetchUser(userId) }
     )

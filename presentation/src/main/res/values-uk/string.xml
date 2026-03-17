@@ -459,6 +459,9 @@
     <string name="password_optional_placeholder">Пароль (опціонально)</string>
     <string name="save_changes_button">Зберегти зміни</string>
     <string name="action_delete">Видалити</string>
+    <string name="proxy_checking">檢查中...</string>
+    <string name="proxy_offline">離線</string>
+    <string name="proxy_ping_format">%1$dms</string>
 
     <!-- Settings General -->
     <string name="your_usernames_header">Ваші імена користувача</string>
@@ -837,4 +840,7 @@
     <string name="preview_msg_text_4">Це надзвичайно ефективно! 😵‍💫</string>
     <string name="preview_date_today">Сьогодні</string>
     <string name="preview_name_konata_short">Коната</string>
+
+    <string name="subscribers_count_format">%1$d підписників</string>
+    <string name="thread_title">Гілка</string>
 </resources>

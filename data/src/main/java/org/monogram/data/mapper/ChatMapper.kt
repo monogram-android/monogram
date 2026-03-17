@@ -4,10 +4,11 @@ import android.text.format.DateUtils
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.db.model.ChatEntity
 import org.monogram.domain.models.*
+import org.monogram.domain.repository.StringProvider
 import java.text.SimpleDateFormat
 import java.util.*
 
-class ChatMapper {
+class ChatMapper(private val stringProvider: StringProvider) {
     fun mapChatToModel(
         chat: TdApi.Chat,
         order: Long,
@@ -186,11 +187,11 @@ class ChatMapper {
                 entities = c.text.entities.map { mapEntity(it) }
                 c.text.text
             }
-            is TdApi.MessagePhoto -> "Фото"
-            is TdApi.MessageVideo -> "Видео"
-            is TdApi.MessageVoiceNote -> "Голосовое сообщение"
-            is TdApi.MessageSticker -> "Стикер"
-            else -> "Сообщение"
+            is TdApi.MessagePhoto -> stringProvider.getString("chat_mapper_photo")
+            is TdApi.MessageVideo -> stringProvider.getString("chat_mapper_video")
+            is TdApi.MessageVoiceNote -> stringProvider.getString("chat_mapper_voice")
+            is TdApi.MessageSticker -> stringProvider.getString("chat_mapper_sticker")
+            else -> stringProvider.getString("chat_mapper_message")
         }.replace("\n", " ")
 
         if (chat != null && !lastMsg.isOutgoing) {
@@ -241,43 +242,44 @@ class ChatMapper {
     }
 
     fun formatUserStatus(status: TdApi.UserStatus, isBot: Boolean = false): String {
-        if (isBot) return "Bot"
+        if (isBot) return stringProvider.getString("chat_mapper_bot")
         return when (status) {
-            is TdApi.UserStatusOnline -> "Online"
+            is TdApi.UserStatusOnline -> stringProvider.getString("chat_mapper_online")
             is TdApi.UserStatusOffline -> {
                 val wasOnline = status.wasOnline.toLong() * 1000L
-                if (wasOnline == 0L) return "Offline"
+                if (wasOnline == 0L) return stringProvider.getString("chat_mapper_offline")
                 val now = System.currentTimeMillis()
                 val diff = now - wasOnline
                 when {
-                    diff < 60 * 1000 -> "Last seen just now"
+                    diff < 60 * 1000 -> stringProvider.getString("chat_mapper_seen_just_now")
                     diff < 60 * 60 * 1000 -> {
                         val minutes = diff / (60 * 1000L)
-                        "Last seen $minutes minute${if (minutes != 1L) "s" else ""} ago"
+                        if (minutes == 1L) stringProvider.getString("chat_mapper_seen_minutes_ago", 1)
+                        else stringProvider.getString("chat_mapper_seen_minutes_ago_plural", minutes)
                     }
                     DateUtils.isToday(wasOnline) -> {
                         val date = Date(wasOnline)
                         val format = SimpleDateFormat("HH:mm", Locale.getDefault())
-                        "Last seen at ${format.format(date)}"
+                        stringProvider.getString("chat_mapper_seen_at", format.format(date))
                     }
 
                     isYesterday(wasOnline) -> {
                         val date = Date(wasOnline)
                         val format = SimpleDateFormat("HH:mm", Locale.getDefault())
-                        "Last seen yesterday at ${format.format(date)}"
+                        stringProvider.getString("chat_mapper_seen_yesterday", format.format(date))
                     }
                     else -> {
                         val date = Date(wasOnline)
                         val format = SimpleDateFormat("dd.MM.yy", Locale.getDefault())
-                        "Last seen ${format.format(date)}"
+                        stringProvider.getString("chat_mapper_seen_date", format.format(date))
                     }
                 }
             }
 
-            is TdApi.UserStatusRecently -> "Last seen recently"
-            is TdApi.UserStatusLastWeek -> "Last seen within a week"
-            is TdApi.UserStatusLastMonth -> "Last seen within a month"
-            is TdApi.UserStatusEmpty -> "Offline"
+            is TdApi.UserStatusRecently -> stringProvider.getString("chat_mapper_seen_recently")
+            is TdApi.UserStatusLastWeek -> stringProvider.getString("chat_mapper_seen_week")
+            is TdApi.UserStatusLastMonth -> stringProvider.getString("chat_mapper_seen_month")
+            is TdApi.UserStatusEmpty -> stringProvider.getString("chat_mapper_offline")
             else -> ""
         }
     }

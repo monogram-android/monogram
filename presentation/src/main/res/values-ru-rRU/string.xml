@@ -459,6 +459,9 @@
     <string name="password_optional_placeholder">Пароль (опционально)</string>
     <string name="save_changes_button">Сохранить изменения</string>
     <string name="action_delete">Удалить</string>
+    <string name="proxy_checking">Проверка...</string>
+    <string name="proxy_offline">Недоступен</string>
+    <string name="proxy_ping_format">%1$d мс</string>
 
     <!-- Settings General -->
     <string name="your_usernames_header">Ваши имена пользователя</string>
@@ -837,4 +840,7 @@
     <string name="preview_msg_text_4">Это суперэффективно! 😵‍💫</string>
     <string name="preview_date_today">Сегодня</string>
     <string name="preview_name_konata_short">Коната</string>
+
+    <string name="subscribers_count_format">%1$d подписчиков</string>
+    <string name="thread_title">Ветка</string>
 </resources>

@@ -473,6 +473,9 @@
     <string name="password_optional_placeholder">Password (Optional)</string>
     <string name="save_changes_button">Save Changes</string>
     <string name="action_delete">Delete</string>
+    <string name="proxy_checking">Checking...</string>
+    <string name="proxy_offline">Offline</string>
+    <string name="proxy_ping_format">%1$dms</string>
 
     <!-- Settings General -->
     <string name="your_usernames_header">Your Usernames</string>
@@ -871,4 +874,7 @@
     <string name="preview_msg_text_4">It\'s super effective! 😵‍💫</string>
     <string name="preview_date_today">Today</string>
     <string name="preview_name_konata_short">Konata</string>
+
+    <string name="subscribers_count_format">%1$d subscribers</string>
+    <string name="thread_title">Thread</string>
 </resources>

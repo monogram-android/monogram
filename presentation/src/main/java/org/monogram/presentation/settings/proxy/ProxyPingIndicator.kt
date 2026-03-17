@@ -12,9 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 
 @Composable
 fun ProxyPingIndicator(
@@ -49,16 +51,16 @@ fun ProxyPingIndicator(
             )
             Spacer(Modifier.width(4.dp))
             Text(
-                "Checking...",
+                stringResource(R.string.proxy_checking),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
         } else {
             val (color, text) = when {
-                ping == null || ping == -1L -> Color(0xFFEA4335) to "Offline"
-                ping < 300 -> Color(0xFF34A853) to "${ping}ms"
-                ping < 800 -> Color(0xFFFBBC04) to "${ping}ms"
-                else -> Color(0xFFEA4335) to "${ping}ms"
+                ping == null || ping == -1L -> Color(0xFFEA4335) to stringResource(R.string.proxy_offline)
+                ping < 300 -> Color(0xFF34A853) to stringResource(R.string.proxy_ping_format, ping)
+                ping < 800 -> Color(0xFFFBBC04) to stringResource(R.string.proxy_ping_format, ping)
+                else -> Color(0xFFEA4335) to stringResource(R.string.proxy_ping_format, ping)
             }
 
             Box(

@@ -22,6 +22,8 @@ import org.monogram.data.db.model.AttachBotEntity
 import org.monogram.data.db.model.KeyValueEntity
 import org.monogram.data.db.model.WallpaperEntity
 import org.monogram.data.gateway.UpdateDispatcher
+import org.monogram.data.mapper.NetworkMapper
+import org.monogram.data.mapper.StorageMapper
 import org.monogram.data.mapper.mapBackgrounds
 import org.monogram.data.mapper.toApi
 import org.monogram.data.mapper.toDomain
@@ -31,6 +33,7 @@ import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.CacheProvider
 import org.monogram.domain.repository.SettingsRepository
 import org.monogram.domain.repository.SettingsRepository.TdNotificationScope
+import org.monogram.domain.repository.StringProvider
 
 
 class SettingsRepositoryImpl(
@@ -44,7 +47,10 @@ class SettingsRepositoryImpl(
     private val dispatchers: DispatcherProvider,
     private val attachBotDao: AttachBotDao,
     private val keyValueDao: KeyValueDao,
-    private val wallpaperDao: WallpaperDao
+    private val wallpaperDao: WallpaperDao,
+    private val storageMapper: StorageMapper,
+    private val stringProvider: StringProvider,
+    private val networkMapper: NetworkMapper
 ) : SettingsRepository {
 
     private val scope = scopeProvider.appScope
@@ -280,19 +286,19 @@ class SettingsRepositoryImpl(
         val processed_chats = (stats.byChat ?: emptyArray()).map { chatStat ->
             async(dispatchers.default) {
                 val title = when {
-                    chatStat.chatId == 0L -> "Other / Cache"
+                    chatStat.chatId == 0L -> stringProvider.getString("storage_other_cache")
                     else -> cache.getChat(chatStat.chatId)?.title
                         ?: chatsRemote.getChat(chatStat.chatId)?.title
-                        ?: "Chat ${chatStat.chatId}"
+                        ?: stringProvider.getString("storage_chat_format", chatStat.chatId)
                 }
-                chatStat.toDomain(title)
+                storageMapper.mapChatStatsToDomain(chatStat, title)
             }
         }.awaitAll()
-        stats.toDomain(processed_chats)
+        storageMapper.mapToDomain(stats, processed_chats)
     }
 
     override suspend fun getNetworkUsage(): NetworkUsageModel? =
-        remote.getNetworkStatistics()?.toDomain()
+        remote.getNetworkStatistics()?.let { networkMapper.mapToDomain(it) }
 
     override suspend fun clearStorage(chatId: Long?): Boolean =
         remote.optimizeStorage(

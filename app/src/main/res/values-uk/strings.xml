@@ -42,4 +42,64 @@
     <string name="crash_restart">Перезапустити MonoGram</string>
     <string name="crash_error_details">Деталі помилки</string>
     <string name="crash_description">Щось пішло не так. Будь ласка, надішліть цей лог розробникам, щоб допомогти виправити помилку.</string>
+
+    <!-- Chat Typing -->
+    <string name="typing_typing">друкує</string>
+    <string name="typing_recording_video">записує відео</string>
+    <string name="typing_recording_voice">записує голосове</string>
+    <string name="typing_uploading_photo">надсилає фото</string>
+    <string name="typing_uploading_video">надсилає відео</string>
+    <string name="typing_uploading_document">надсилає файл</string>
+    <string name="typing_choosing_sticker">вибирає стікер</string>
+    <string name="typing_playing_game">грає</string>
+    <string name="typing_someone">Хтось</string>
+    <string name="typing_and">і</string>
+    <string name="typing_and_more">і ще %d</string>
+    <string name="typing_multi_typing">друкують</string>
+    <plurals name="typing_multi_people">
+        <item quantity="one">%d людина друкує</item>
+        <item quantity="few">%d людини друкують</item>
+        <item quantity="many">%d людей друкують</item>
+        <item quantity="other">%d людей друкують</item>
+    </plurals>
+
+    <!-- Chat List Mapper -->
+    <string name="chat_mapper_photo">Фото</string>
+    <string name="chat_mapper_video">Відео</string>
+    <string name="chat_mapper_voice">Голосове повідомлення</string>
+    <string name="chat_mapper_sticker">Стікер</string>
+    <string name="chat_mapper_message">Повідомлення</string>
+    <string name="chat_mapper_bot">Бот</string>
+    <string name="chat_mapper_online">В мережі</string>
+    <string name="chat_mapper_offline">Не в мережі</string>
+    <string name="chat_mapper_seen_just_now">був(ла) щойно</string>
+    <string name="chat_mapper_seen_minutes_ago">був(ла) %d хвилину тому</string>
+    <string name="chat_mapper_seen_minutes_ago_plural">був(ла) %d хвилин тому</string>
+    <string name="chat_mapper_seen_at">був(ла) о %s</string>
+    <string name="chat_mapper_seen_yesterday">був(ла) вчора о %s</string>
+    <string name="chat_mapper_seen_date">був(ла) %s</string>
+    <string name="chat_mapper_seen_recently">був(ла) нещодавно</string>
+    <string name="chat_mapper_seen_week">був(ла) на цьому тижні</string>
+    <string name="chat_mapper_seen_month">був(ла) в цьому місяці</string>
+
+    <!-- Storage Mapper -->
+    <string name="storage_photos">Фотографії</string>
+    <string name="storage_videos">Відео</string>
+    <string name="storage_documents">Документи</string>
+    <string name="storage_stickers">Стікери</string>
+    <string name="storage_music">Музика</string>
+    <string name="storage_voice_messages">Голосові повідомлення</string>
+    <string name="storage_video_messages">Відеоповідомлення</string>
+    <string name="storage_other_files">Інші файли</string>
+    <string name="storage_other_cache">Інше / Кеш</string>
+    <string name="storage_chat_format">Чат %d</string>
+
+    <!-- Network Mapper -->
+    <string name="network_calls">Дзвінки</string>
+
+    <!-- Notification Service -->
+    <string name="notification_service_waiting">Очікування нових повідомлень</string>
+    <string name="notification_service_stop">Зупинити</string>
+    <string name="notification_service_channel_name">Фонова робота</string>
+    <string name="notification_service_channel_description">Сповіщення про роботу програми у фоновому режимі</string>
 </resources>

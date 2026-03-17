@@ -40,4 +40,62 @@
     <string name="crash_restart">Restart App</string>
     <string name="crash_error_details">Error Details</string>
     <string name="crash_description">Something went wrong. Please share or copy the logs below to report this issue to the developers.</string>
+
+    <!-- Chat Typing -->
+    <string name="typing_typing">is typing</string>
+    <string name="typing_recording_video">is recording video</string>
+    <string name="typing_recording_voice">is recording voice note</string>
+    <string name="typing_uploading_photo">is sending photo</string>
+    <string name="typing_uploading_video">is sending video</string>
+    <string name="typing_uploading_document">is sending file</string>
+    <string name="typing_choosing_sticker">is choosing a sticker</string>
+    <string name="typing_playing_game">is playing</string>
+    <string name="typing_someone">Someone</string>
+    <string name="typing_and">and</string>
+    <string name="typing_and_more">and %d more</string>
+    <string name="typing_multi_typing">are typing</string>
+    <plurals name="typing_multi_people">
+        <item quantity="one">%d person is typing</item>
+        <item quantity="other">%d people are typing</item>
+    </plurals>
+
+    <!-- Chat List Mapper -->
+    <string name="chat_mapper_photo">Photo</string>
+    <string name="chat_mapper_video">Video</string>
+    <string name="chat_mapper_voice">Voice message</string>
+    <string name="chat_mapper_sticker">Sticker</string>
+    <string name="chat_mapper_message">Message</string>
+    <string name="chat_mapper_bot">Bot</string>
+    <string name="chat_mapper_online">Online</string>
+    <string name="chat_mapper_offline">Offline</string>
+    <string name="chat_mapper_seen_just_now">Last seen just now</string>
+    <string name="chat_mapper_seen_minutes_ago">Last seen %d minute ago</string>
+    <string name="chat_mapper_seen_minutes_ago_plural">Last seen %d minutes ago</string>
+    <string name="chat_mapper_seen_at">Last seen at %s</string>
+    <string name="chat_mapper_seen_yesterday">Last seen yesterday at %s</string>
+    <string name="chat_mapper_seen_date">Last seen %s</string>
+    <string name="chat_mapper_seen_recently">Last seen recently</string>
+    <string name="chat_mapper_seen_week">Last seen within a week</string>
+    <string name="chat_mapper_seen_month">Last seen within a month</string>
+
+    <!-- Storage Mapper -->
+    <string name="storage_photos">Photos</string>
+    <string name="storage_videos">Videos</string>
+    <string name="storage_documents">Documents</string>
+    <string name="storage_stickers">Stickers</string>
+    <string name="storage_music">Music</string>
+    <string name="storage_voice_messages">Voice Messages</string>
+    <string name="storage_video_messages">Video Messages</string>
+    <string name="storage_other_files">Other Files</string>
+    <string name="storage_other_cache">Other / Cache</string>
+    <string name="storage_chat_format">Chat %d</string>
+
+    <!-- Network Mapper -->
+    <string name="network_calls">Calls</string>
+
+    <!-- Notification Service -->
+    <string name="notification_service_waiting">Waiting for new messages</string>
+    <string name="notification_service_stop">Stop</string>
+    <string name="notification_service_channel_name">Background Service</string>
+    <string name="notification_service_channel_description">Notification about app running in background</string>
 </resources>

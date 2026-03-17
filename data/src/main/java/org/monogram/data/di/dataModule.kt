@@ -24,6 +24,8 @@ import org.monogram.data.gateway.UpdateDispatcherImpl
 import org.monogram.data.infra.*
 import org.monogram.data.mapper.ChatMapper
 import org.monogram.data.mapper.MessageMapper
+import org.monogram.data.mapper.NetworkMapper
+import org.monogram.data.mapper.StorageMapper
 import org.monogram.data.repository.*
 import org.monogram.domain.repository.*
 
@@ -34,6 +36,7 @@ val dataModule = module {
 
     single<DispatcherProvider> { DefaultDispatcherProvider() }
     single<ScopeProvider> { DefaultScopeProvider(get()) }
+    single<StringProvider> { AndroidStringProvider(androidContext()) }
 
     single { ChatCache() }
     single<TelegramGateway> {
@@ -152,7 +155,15 @@ val dataModule = module {
     }
 
     single {
-        ChatMapper()
+        ChatMapper(get())
+    }
+
+    single {
+        StorageMapper(get())
+    }
+
+    single {
+        NetworkMapper(get(), get())
     }
 
     single<MessageFileApi> {
@@ -209,7 +220,8 @@ val dataModule = module {
             connectionManager = get(),
             databaseFile = androidContext().getDatabasePath("monogram_db"),
             searchHistoryDao = get(),
-            chatFolderDao = get()
+            chatFolderDao = get(),
+            stringProvider = get()
         )
     }
 
@@ -235,7 +247,10 @@ val dataModule = module {
             dispatchers = get(),
             attachBotDao = get(),
             keyValueDao = get(),
-            wallpaperDao = get()
+            wallpaperDao = get(),
+            storageMapper = get(),
+            stringProvider = get(),
+            networkMapper = get()
         )
     }
     single<PollRepository> {

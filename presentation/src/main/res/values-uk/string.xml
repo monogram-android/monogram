@@ -1184,4 +1184,9 @@
     <string name="common_back">Назад</string>
     <string name="common_clear">Очистити</string>
     <string name="common_recent">Нещодавні</string>
+
+    <!-- QR Code -->
+    <string name="qr_saved_to_gallery">Збережено до галереї</string>
+    <string name="qr_share_title">Поділитися QR</string>
+    <string name="qr_share_error">Помилка при надсиланні: %1$s</string>
 </resources>

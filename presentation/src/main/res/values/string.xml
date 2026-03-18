@@ -1216,4 +1216,9 @@
     <string name="common_back">Back</string>
     <string name="common_clear">Clear</string>
     <string name="common_recent">Recent</string>
+
+    <!-- QR Code -->
+    <string name="qr_saved_to_gallery">Saved to Gallery</string>
+    <string name="qr_share_title">Share QR</string>
+    <string name="qr_share_error">Error while sending: %1$s</string>
 </resources>

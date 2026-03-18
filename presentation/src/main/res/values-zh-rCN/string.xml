@@ -1174,4 +1174,9 @@
     <string name="common_back">返回</string>
     <string name="common_clear">清除</string>
     <string name="common_recent">最近</string>
+
+    <!-- QR Code -->
+    <string name="qr_saved_to_gallery">已保存到相册</string>
+    <string name="qr_share_title">分享二维码</string>
+    <string name="qr_share_error">发送时出错：%1$s</string>
 </resources>

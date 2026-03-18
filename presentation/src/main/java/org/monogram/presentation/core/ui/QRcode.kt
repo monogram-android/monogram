@@ -29,6 +29,7 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import java.io.File
 import java.io.FileOutputStream
 import androidx.compose.foundation.Canvas as ComposeCanvas
+import org.monogram.presentation.R
 
 @Composable
 fun StyledQRCode(content: String, modifier: Modifier, primaryColor: Color, backgroundColor: Color) {
@@ -126,7 +127,7 @@ fun saveBitmapToGallery(context: Context, bitmap: Bitmap) {
     val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
     uri?.let {
         context.contentResolver.openOutputStream(it)?.use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
-        Toast.makeText(context, "Saved to Gallery", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.qr_saved_to_gallery), Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -145,9 +146,9 @@ fun shareBitmap(context: Context, bitmap: Bitmap) {
             clipData = ClipData.newRawUri("", uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "Поделиться QR"))
+        context.startActivity(Intent.createChooser(intent, context.getString(R.string.qr_share_title)))
     } catch (e: Exception) {
         e.printStackTrace()
-        Toast.makeText(context, "Ошибка при отправке: ${e.message}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.qr_share_error, e.message), Toast.LENGTH_SHORT).show()
     }
 }

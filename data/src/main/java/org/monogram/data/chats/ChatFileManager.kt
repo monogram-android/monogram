@@ -1,17 +1,19 @@
 package org.monogram.data.chats
 
-import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.DispatcherProvider
+import org.monogram.core.ScopeProvider
 import org.monogram.data.gateway.TelegramGateway
-import java.util.Collections
+import org.monogram.data.infra.FileDownloadQueue
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 
 class ChatFileManager(
     private val gateway: TelegramGateway,
     private val dispatchers: DispatcherProvider,
+    private val fileQueue: FileDownloadQueue,
     scopeProvider: ScopeProvider,
     private val onUpdate: () -> Unit
 ) {
@@ -53,12 +55,12 @@ class ChatFileManager(
 
     fun downloadFile(fileId: Int, priority: Int, offset: Long = 0, limit: Long = 0, synchronous: Boolean = true) {
         if (fileId == 0) return
-        if (downloadingFiles.add(fileId)) {
+        fileQueue.enqueue(fileId, priority, FileDownloadQueue.DownloadType.DEFAULT, offset, limit, synchronous)
+        if (synchronous) {
             scope.launch(dispatchers.io) {
                 runCatching {
-                    gateway.execute(TdApi.DownloadFile(fileId, priority, offset, limit, synchronous))
+                    fileQueue.waitForDownload(fileId).await()
                 }
-                downloadingFiles.remove(fileId)
             }
         }
     }

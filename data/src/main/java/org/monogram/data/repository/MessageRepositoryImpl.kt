@@ -32,7 +32,7 @@ class MessageRepositoryImpl(
     private val messageMapper: MessageMapper,
     private val messageRemoteDataSource: MessageRemoteDataSource,
     private val cache: ChatCache,
-    private val fileQueue: FileDataSource,
+    private val fileDataSource: FileDataSource,
     private val dispatcherProvider: DispatcherProvider,
     scopeProvider: ScopeProvider,
     private val chatLocalDataSource: ChatLocalDataSource
@@ -298,11 +298,13 @@ class MessageRepositoryImpl(
         }
 
     override fun downloadFile(fileId: Int, priority: Int, offset: Long, limit: Long, synchronous: Boolean) {
-        messageRemoteDataSource.enqueueDownload(fileId, priority, offset = offset, limit = limit, synchronous = synchronous)
+        scope.launch {
+            fileDataSource.downloadFile(fileId, priority, offset, limit, synchronous)
+        }
     }
 
     override suspend fun cancelDownloadFile(fileId: Int) {
-        fileQueue.cancelDownload(fileId)
+        fileDataSource.cancelDownload(fileId)
     }
 
     override suspend fun sendChatAction(chatId: Long, action: MessageRepository.ChatAction, threadId: Long?) {
@@ -512,7 +514,7 @@ class MessageRepositoryImpl(
             else -> null
         }
         if (file != null && file.local.path.isEmpty()) {
-            gateway.execute(TdApi.DownloadFile(file.id, 32, 0, 0, true))
+            fileDataSource.downloadFile(file.id, 32, 0, 0, false)
         }
     }
 
@@ -575,7 +577,7 @@ class MessageRepositoryImpl(
                             val updated = cache.fileCache[file.id] ?: file
                             if (updated.local.path.isNotEmpty()) return updated.local.path
                             scope.launch {
-                                gateway.execute(TdApi.DownloadFile(updated.id, 32, 0, 0, false))
+                                fileDataSource.downloadFile(updated.id, 32, 0, 0, false)
                             }
                             return null
                         }
@@ -646,16 +648,12 @@ class MessageRepositoryImpl(
                                     val bestSize = photo.sizes.lastOrNull()
                                     val path = bestSize?.photo?.let { file ->
                                         val updated = cache.fileCache[file.id] ?: file
-                                        updated.local.path.ifEmpty {
-                                            gateway.execute(
-                                                TdApi.DownloadFile(
-                                                    updated.id,
-                                                    32,
-                                                    0,
-                                                    0,
-                                                    false
-                                                )
-                                            )
+                                        if (updated.local.path.isNotEmpty()) {
+                                            updated.local.path
+                                        } else {
+                                            scope.launch {
+                                                fileDataSource.downloadFile(updated.id, 32, 0, 0, false)
+                                            }
                                             null
                                         }
                                     }

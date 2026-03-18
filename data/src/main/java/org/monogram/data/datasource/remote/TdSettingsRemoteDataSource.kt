@@ -3,9 +3,11 @@ package org.monogram.data.datasource.remote
 import android.util.Log
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TelegramGateway
+import org.monogram.data.infra.FileDownloadQueue
 
 class TdSettingsRemoteDataSource(
-    private val gateway: TelegramGateway
+    private val gateway: TelegramGateway,
+    private val fileQueue: FileDownloadQueue
 ) : SettingsRemoteDataSource {
 
     override suspend fun getScopeNotificationSettings(
@@ -22,7 +24,7 @@ class TdSettingsRemoteDataSource(
             result.backgrounds.forEach { bg ->
                 bg.document?.thumbnail?.file?.let { file ->
                     if (file.local.path.isEmpty()) {
-                        runCatching { gateway.execute(TdApi.DownloadFile(file.id, 1, 0, 0, false)) }
+                        fileQueue.enqueue(file.id, 1, FileDownloadQueue.DownloadType.DEFAULT)
                     }
                 }
             }
@@ -118,6 +120,6 @@ class TdSettingsRemoteDataSource(
         }.getOrDefault(false)
 
     override suspend fun downloadFile(fileId: Int, priority: Int) {
-        runCatching { gateway.execute(TdApi.DownloadFile(fileId, priority, 0, 0, false)) }
+        fileQueue.enqueue(fileId, priority, FileDownloadQueue.DownloadType.DEFAULT)
     }
 }

@@ -1,17 +1,18 @@
 package org.monogram.data.repository
 
 import android.content.Context
-import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
+import android.util.Log
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.DispatcherProvider
+import org.monogram.core.ScopeProvider
 import org.monogram.data.datasource.remote.StickerRemoteSource
 import org.monogram.data.db.dao.RecentEmojiDao
 import org.monogram.data.db.dao.StickerPathDao
@@ -23,10 +24,7 @@ import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.EmojiLoader
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.infra.FileUpdateHandler
-import org.monogram.domain.models.GifModel
-import org.monogram.domain.models.RecentEmojiModel
-import org.monogram.domain.models.StickerSetModel
-import org.monogram.domain.models.StickerType
+import org.monogram.domain.models.*
 import org.monogram.domain.repository.CacheProvider
 import org.monogram.domain.repository.StickerRepository
 import java.io.File
@@ -186,23 +184,31 @@ class StickerRepositoryImpl(
 
     override suspend fun getStickerSet(setId: Long): StickerSetModel? {
         val cached = stickerSetDao.getStickerSetById(setId)?.toModel()
-        if (cached != null) return cached
+        if (cached != null) {
+            prefetchStickers(cached.stickers)
+            return cached
+        }
 
         val remoteSet = remote.getStickerSet(setId) ?: return null
         withContext(dispatchers.io) {
             stickerSetDao.insertStickerSet(remoteSet.toEntity(remoteSet.stickerType.name))
         }
+        prefetchStickers(remoteSet.stickers)
         return remoteSet
     }
 
     override suspend fun getStickerSetByName(name: String): StickerSetModel? {
         val cached = stickerSetDao.getStickerSetByName(name)?.toModel()
-        if (cached != null) return cached
+        if (cached != null) {
+            prefetchStickers(cached.stickers)
+            return cached
+        }
 
         val remoteSet = remote.getStickerSetByName(name) ?: return null
         withContext(dispatchers.io) {
             stickerSetDao.insertStickerSet(remoteSet.toEntity(remoteSet.stickerType.name))
         }
+        prefetchStickers(remoteSet.stickers)
         return remoteSet
     }
 
@@ -298,7 +304,7 @@ class StickerRepositoryImpl(
         filePathsCache[fileId]?.let { send(it); return@channelFlow }
 
         val dbPath = stickerPathDao.getPath(fileId)
-        if (dbPath != null) {
+        if (!dbPath.isNullOrEmpty()) {
             filePathsCache[fileId] = dbPath
             send(dbPath)
             return@channelFlow
@@ -308,15 +314,20 @@ class StickerRepositoryImpl(
             fileUpdateHandler.downloadCompleted
                 .filter { it.first == fileId }
                 .collect { (_, path) ->
-                    filePathsCache[fileId] = path
-                    stickerPathDao.insertPath(StickerPathEntity(fileId, path))
-                    send(path)
+                    if (path.isNotEmpty()) {
+                        filePathsCache[fileId] = path
+                        stickerPathDao.insertPath(StickerPathEntity(fileId, path))
+                        send(path)
+                    } else {
+                        Log.w("StickerRepo", "Received empty path for sticker $fileId, re-enqueuing")
+                        fileQueue.enqueue(fileId.toInt(), 32, FileDownloadQueue.DownloadType.STICKER)
+                    }
                 }
         }
 
         val cachedPath = fileUpdateHandler.downloadCompleted
             .replayCache
-            .firstOrNull { it.first == fileId }
+            .firstOrNull { it.first == fileId && it.second.isNotEmpty() }
             ?.second
 
         if (cachedPath != null) {
@@ -328,7 +339,26 @@ class StickerRepositoryImpl(
         }
 
         fileQueue.enqueue(fileId.toInt(), 32, FileDownloadQueue.DownloadType.STICKER)
+
+        launch {
+            delay(15000)
+            if (filePathsCache[fileId].isNullOrEmpty()) {
+                Log.d("StickerRepo", "Retry sticker download for $fileId (path still null/empty after 15s)")
+                fileQueue.enqueue(fileId.toInt(), 32, FileDownloadQueue.DownloadType.STICKER)
+            }
+        }
+        
         awaitClose { job.cancel() }
+    }
+
+    private fun prefetchStickers(stickers: List<StickerModel>) {
+        scope.launch(dispatchers.default) {
+            stickers.forEach { sticker ->
+                if (filePathsCache[sticker.id].isNullOrEmpty() && stickerPathDao.getPath(sticker.id).isNullOrEmpty()) {
+                    fileQueue.enqueue(sticker.id.toInt(), 16, FileDownloadQueue.DownloadType.STICKER)
+                }
+            }
+        }
     }
 
     override fun getGifFile(gif: GifModel): Flow<String?> = flow {

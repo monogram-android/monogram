@@ -14,6 +14,7 @@ import org.monogram.data.datasource.cache.UserLocalDataSource
 import org.monogram.data.datasource.remote.UserRemoteDataSource
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
+import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.mapper.user.*
 import org.monogram.domain.models.*
 import org.monogram.domain.repository.ChatMemberStatus
@@ -27,6 +28,7 @@ class UserRepositoryImpl(
     private val chatLocal: ChatLocalDataSource,
     private val gateway: TelegramGateway,
     private val updates: UpdateDispatcher,
+    private val fileQueue: FileDownloadQueue,
     scopeProvider: ScopeProvider
 ) : UserRepository {
 
@@ -122,7 +124,8 @@ class UserRepositoryImpl(
                     file.local.path
                 } else {
                     fileIdToUserIdMap[file.id] = user.id
-                    gateway.execute(TdApi.DownloadFile(file.id, 1, 0, 0, true))
+                    fileQueue.enqueue(file.id, 1, FileDownloadQueue.DownloadType.DEFAULT, synchronous = true)
+                    fileQueue.waitForDownload(file.id).await()
                     null
                 }
             } else null

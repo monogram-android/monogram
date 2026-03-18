@@ -49,7 +49,8 @@ val dataModule = module {
     }
     single<FileDataSource> {
         TdFileDataSource(
-            gateway = get()
+            gateway = get(),
+            fileDownloadQueue = get()
         )
     }
 
@@ -127,7 +128,8 @@ val dataModule = module {
             chatLocal = get(),
             updates = get(),
             scopeProvider = get(),
-            gateway = get()
+            gateway = get(),
+            fileQueue = get()
         )
     }
 
@@ -221,13 +223,15 @@ val dataModule = module {
             databaseFile = androidContext().getDatabasePath("monogram_db"),
             searchHistoryDao = get(),
             chatFolderDao = get(),
+            fileQueue = get(),
             stringProvider = get()
         )
     }
 
     factory<SettingsRemoteDataSource> {
         TdSettingsRemoteDataSource(
-            gateway = get()
+            gateway = get(),
+            fileQueue = get()
         )
     }
 
@@ -280,7 +284,7 @@ val dataModule = module {
             cache = get(),
             dispatcherProvider = get(),
             scopeProvider = get(),
-            fileQueue = get(),
+            fileDataSource = get(),
             chatLocalDataSource = get()
         )
     }
@@ -345,7 +349,7 @@ val dataModule = module {
     }
 
     single<LinkHandlerRepository> {
-        LinkHandlerRepositoryImpl(get(), get(), get())
+        LinkHandlerRepositoryImpl(get(), get(), get(), get())
     }
 
     single<StreamingRepository> {
@@ -392,5 +396,5 @@ val dataModule = module {
         )
     }
 
-    single { TdNotificationManager(androidContext(), get(), get(), get()) }
+    single { TdNotificationManager(androidContext(), get(), get(), get(), get()) }
 }

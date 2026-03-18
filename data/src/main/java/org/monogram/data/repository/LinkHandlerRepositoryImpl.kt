@@ -3,6 +3,7 @@ package org.monogram.data.repository
 import androidx.core.net.toUri
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TelegramGateway
+import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.repository.ChatsListRepository
 import org.monogram.domain.repository.LinkAction
@@ -12,7 +13,8 @@ import org.monogram.domain.repository.UserRepository
 class LinkHandlerRepositoryImpl(
     private val gateway: TelegramGateway,
     private val chatsListRepository: ChatsListRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val fileQueue: FileDownloadQueue
 ) : LinkHandlerRepository {
 
     override suspend fun handleLink(link: String): LinkAction {
@@ -51,7 +53,8 @@ class LinkHandlerRepositoryImpl(
 
                     val photo = inviteInfo.photo?.small ?: inviteInfo.photo?.big
                     if (photo != null && photo.local.path.isEmpty()) {
-                        runCatching { gateway.execute(TdApi.DownloadFile(photo.id, 1, 0, 0, true)) }
+                        fileQueue.enqueue(photo.id, 1, FileDownloadQueue.DownloadType.DEFAULT, synchronous = true)
+                        runCatching { fileQueue.waitForDownload(photo.id).await() }
                     }
 
                     LinkAction.ConfirmJoinInviteLink(

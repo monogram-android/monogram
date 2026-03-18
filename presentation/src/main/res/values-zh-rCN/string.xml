@@ -1407,4 +1407,34 @@
     <string name="folders_included_chats">包含的聊天</string>
     <string name="folders_search_chats">搜索聊天…</string>
     <string name="folders_cancel">取消</string>
+
+    <!-- Premium Screen -->
+    <string name="premium_title">Telegram Premium</string>
+    <string name="premium_back">返回</string>
+    <string name="premium_subscribe_button">以每月 %s 订阅</string>
+    <string name="premium_unlock_features">解锁专属功能</string>
+
+    <!-- Premium Features -->
+    <string name="premium_feature_doubled_limits_title">限制翻倍</string>
+    <string name="premium_feature_doubled_limits_description">最多可加入 %1$d 个频道，创建 %2$d 个聊天分组，置顶 %3$d 个聊天，%4$d 条公开链接等。</string>
+    <string name="premium_feature_voice_to_text_title">语音转文字</string>
+    <string name="premium_feature_voice_to_text_description">点击语音消息旁的按钮即可查看文字转录。</string>
+    <string name="premium_feature_faster_download_title">更快的下载速度</string>
+    <string name="premium_feature_faster_download_description">下载媒体和文档时不再有速度限制。</string>
+    <string name="premium_feature_translation_title">实时翻译</string>
+    <string name="premium_feature_translation_description">只需轻轻一点，即可实时翻译整个聊天。</string>
+    <string name="premium_feature_animated_emoji_title">动态表情符号</string>
+    <string name="premium_feature_animated_emoji_description">可在消息中使用数百个表情包中的动态表情。</string>
+    <string name="premium_feature_chat_management_title">高级对话管理</string>
+    <string name="premium_feature_chat_management_description">可设置默认收藏夹、自动归档以及对非联系人隐藏新聊天。</string>
+    <string name="premium_feature_no_ads_title">无广告</string>
+    <string name="premium_feature_no_ads_description">公共频道有时会显示广告，订阅后将不再显示。</string>
+    <string name="premium_feature_infinite_reactions_title">无限回应</string>
+    <string name="premium_feature_infinite_reactions_description">可使用数千种表情符号进行回应，每条消息最多可添加 3 个。</string>
+    <string name="premium_feature_badge_title">Premium 徽章</string>
+    <string name="premium_feature_badge_description">名字旁边会出现专属徽章，表明您已订阅 Telegram Premium。</string>
+    <string name="premium_feature_emoji_status_title">表情符号状态</string>
+    <string name="premium_feature_emoji_status_description">从数千个表情符号中选择一个显示在您的名字旁边。</string>
+    <string name="premium_feature_app_icons_title">Premium 应用图标</string>
+    <string name="premium_feature_app_icons_description">可从精选的 Telegram 图标中选择并替换主屏幕图标。</string>
 </resources>

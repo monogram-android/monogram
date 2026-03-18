@@ -55,4 +55,5 @@ interface UtilsContainer {
     fun assetsManager(): AssetsManager
     fun distrManager(): DistrManager
     fun downloadUtils(): IDownloadUtils
+    fun stringProvider(): StringProvider
 }

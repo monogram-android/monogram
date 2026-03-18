@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -52,14 +53,17 @@ fun PremiumContent(component: PremiumComponent) {
             TopAppBar(
                 title = {
                     Text(
-                        "Telegram Premium",
+                        stringResource(R.string.premium_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.premium_back)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -92,7 +96,7 @@ fun PremiumContent(component: PremiumComponent) {
                             )
                         ) {
                             Text(
-                                "Subscribe for $4.99 per month",
+                                stringResource(R.string.premium_subscribe_button, "$4.99"),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -207,7 +211,7 @@ fun PremiumStatusCard(
                     )
                 } else if (!isPremium) {
                     Text(
-                        text = "Unlock exclusive features",
+                        text = stringResource(R.string.premium_unlock_features),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -268,6 +272,8 @@ fun getIconForName(name: String): ImageVector {
         "folder" -> Icons.Rounded.Folder
         "block" -> Icons.Rounded.Block
         "heart" -> Icons.Rounded.Favorite
+        "verified" -> Icons.Rounded.Verified
+        "settings" -> Icons.Rounded.Settings
         else -> Icons.Rounded.Star
     }
 }

@@ -1420,4 +1420,34 @@
     <string name="folders_included_chats">Включённые чаты</string>
     <string name="folders_search_chats">Поиск чатов…</string>
     <string name="folders_cancel">Отмена</string>
+
+    <!-- Premium Screen -->
+    <string name="premium_title">Telegram Premium</string>
+    <string name="premium_back">Назад</string>
+    <string name="premium_subscribe_button">Подписаться за %s в месяц</string>
+    <string name="premium_unlock_features">Разблокируйте эксклюзивные функции</string>
+
+    <!-- Premium Features -->
+    <string name="premium_feature_doubled_limits_title">Удвоенные лимиты</string>
+    <string name="premium_feature_doubled_limits_description">До %1$d каналов, %2$d папок, %3$d закрепов, %4$d публичных ссылок и не только.</string>
+    <string name="premium_feature_voice_to_text_title">Расшифровка голоса</string>
+    <string name="premium_feature_voice_to_text_description">Читайте текстовую версию любого голосового сообщения одним нажатием.</string>
+    <string name="premium_feature_faster_download_title">Ускоренная загрузка</string>
+    <string name="premium_feature_faster_download_description">Снятие ограничений на скорость загрузки фото, видео и документов.</string>
+    <string name="premium_feature_translation_title">Перевод в реальном времени</string>
+    <string name="premium_feature_translation_description">Мгновенный перевод целых чатов одним касанием.</string>
+    <string name="premium_feature_animated_emoji_title">Анимированные эмодзи</string>
+    <string name="premium_feature_animated_emoji_description">Использование авторских анимированных эмодзи в сообщениях.</string>
+    <string name="premium_feature_chat_management_title">Управление чатами</string>
+    <string name="premium_feature_chat_management_description">Выбор папки по умолчанию, автоархивация и скрытие новых чатов.</string>
+    <string name="premium_feature_no_ads_title">Отключение рекламы</string>
+    <string name="premium_feature_no_ads_description">Рекламные сообщения в каналах больше не будут отображаться.</string>
+    <string name="premium_feature_infinite_reactions_title">Активные реакции</string>
+    <string name="premium_feature_infinite_reactions_description">Тысячи эмодзи для реакций и до 3 реакций на одно сообщение.</string>
+    <string name="premium_feature_badge_title">Значок подписчика</string>
+    <string name="premium_feature_badge_description">Особый значок рядом с Вашим именем, подтверждающий подписку.</string>
+    <string name="premium_feature_emoji_status_title">Эмодзи-статусы</string>
+    <string name="premium_feature_emoji_status_description">Установка любого эмодзи в качестве статуса рядом с именем.</string>
+    <string name="premium_feature_app_icons_title">Иконки приложения</string>
+    <string name="premium_feature_app_icons_description">Эксклюзивные иконки для приложения Telegram на главном экране.</string>
 </resources>

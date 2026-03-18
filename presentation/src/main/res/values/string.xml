@@ -1450,4 +1450,34 @@
     <string name="folders_included_chats">Included Chats</string>
     <string name="folders_search_chats">Search chats…</string>
     <string name="folders_cancel">Cancel</string>
+
+    <!-- Premium Screen -->
+    <string name="premium_title">Telegram Premium</string>
+    <string name="premium_back">Back</string>
+    <string name="premium_subscribe_button">Subscribe for %s per month</string>
+    <string name="premium_unlock_features">Unlock exclusive features</string>
+
+    <!-- Premium Features -->
+    <string name="premium_feature_doubled_limits_title">Doubled Limits</string>
+    <string name="premium_feature_doubled_limits_description">Up to %1$d channels, %2$d chat folders, %3$d pins, %4$d public links and more.</string>
+    <string name="premium_feature_voice_to_text_title">Voice-to-Text Conversion</string>
+    <string name="premium_feature_voice_to_text_description">Read the transcript of any voice message by tapping the button next to it.</string>
+    <string name="premium_feature_faster_download_title">Faster Download Speed</string>
+    <string name="premium_feature_faster_download_description">No more limits on the speed with which media and documents are downloaded.</string>
+    <string name="premium_feature_translation_title">Real-Time Translation</string>
+    <string name="premium_feature_translation_description">Translate entire chats in real time with a single tap.</string>
+    <string name="premium_feature_animated_emoji_title">Animated Emojis</string>
+    <string name="premium_feature_animated_emoji_description">Include animated emojis from hundreds of packs in your messages.</string>
+    <string name="premium_feature_chat_management_title">Advanced Chat Management</string>
+    <string name="premium_feature_chat_management_description">Tools to set default folder, auto-archive and hide new chats from non-contacts.</string>
+    <string name="premium_feature_no_ads_title">No Ads</string>
+    <string name="premium_feature_no_ads_description">Public channels sometimes show ads, but they will no longer appear for you.</string>
+    <string name="premium_feature_infinite_reactions_title">Infinite Reactions</string>
+    <string name="premium_feature_infinite_reactions_description">React with thousands of emojis — using up to 3 per message.</string>
+    <string name="premium_feature_badge_title">Premium Badge</string>
+    <string name="premium_feature_badge_description">A special badge next to your name showing that you subscribe to Telegram Premium.</string>
+    <string name="premium_feature_emoji_status_title">Emoji Statuses</string>
+    <string name="premium_feature_emoji_status_description">Choose from thousands of emojis to show next to your name.</string>
+    <string name="premium_feature_app_icons_title">Premium App Icons</string>
+    <string name="premium_feature_app_icons_description">Choose from a selection of Telegram app icons for your home screen.</string>
 </resources>

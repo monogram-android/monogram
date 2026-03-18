@@ -58,4 +58,5 @@ class KoinUtilsContainer(private val koin: Koin) : UtilsContainer {
     override fun distrManager(): DistrManager = koin.get()
 
     override fun downloadUtils(): IDownloadUtils = koin.get()
+    override fun stringProvider(): StringProvider = koin.get()
 }

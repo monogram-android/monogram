@@ -39,6 +39,7 @@ class DefaultPremiumComponent(
 ) : PremiumComponent, AppComponentContext by context {
 
     private val userRepository: UserRepository = container.repositories.userRepository
+    private val stringProvider = container.utils.stringProvider()
     private val scope = componentScope
 
     private val _state = MutableValue(PremiumComponent.State())
@@ -84,79 +85,85 @@ class DefaultPremiumComponent(
                 val publicLinks = userRepository.getPremiumLimit(PremiumLimitType.CREATED_PUBLIC_CHAT_COUNT)
                 PremiumComponent.PremiumFeature(
                     icon = "star",
-                    title = "Doubled Limits",
-                    description = "Up to $channels channels, $folders chat folders, $pins pins, $publicLinks public links and more.",
+                    title = stringProvider.getString("premium_feature_doubled_limits_title"),
+                    description = stringProvider.getString(
+                        "premium_feature_doubled_limits_description",
+                        channels,
+                        folders,
+                        pins,
+                        publicLinks
+                    ),
                     color = 0xFFAF52DE
                 )
             }
 
             PremiumFeatureType.VOICE_TO_TEXT -> PremiumComponent.PremiumFeature(
                 icon = "mic",
-                title = "Voice-to-Text Conversion",
-                description = "Read the transcript of any voice message by tapping the button next to it.",
+                title = stringProvider.getString("premium_feature_voice_to_text_title"),
+                description = stringProvider.getString("premium_feature_voice_to_text_description"),
                 color = 0xFF4285F4
             )
 
             PremiumFeatureType.FASTER_DOWNLOAD -> PremiumComponent.PremiumFeature(
                 icon = "download",
-                title = "Faster Download Speed",
-                description = "No more limits on the speed with which media and documents are downloaded.",
+                title = stringProvider.getString("premium_feature_faster_download_title"),
+                description = stringProvider.getString("premium_feature_faster_download_description"),
                 color = 0xFF34A853
             )
 
             PremiumFeatureType.TRANSLATION -> PremiumComponent.PremiumFeature(
                 icon = "translate",
-                title = "Real-Time Translation",
-                description = "Translate entire chats in real time with a single tap.",
+                title = stringProvider.getString("premium_feature_translation_title"),
+                description = stringProvider.getString("premium_feature_translation_description"),
                 color = 0xFFF9AB00
             )
 
             PremiumFeatureType.ANIMATED_EMOJI -> PremiumComponent.PremiumFeature(
                 icon = "face",
-                title = "Animated Emojis",
-                description = "Include animated emojis from hundreds of packs in your messages.",
+                title = stringProvider.getString("premium_feature_animated_emoji_title"),
+                description = stringProvider.getString("premium_feature_animated_emoji_description"),
                 color = 0xFFFF6D66
             )
 
             PremiumFeatureType.ADVANCED_CHAT_MANAGEMENT -> PremiumComponent.PremiumFeature(
                 icon = "folder",
-                title = "Advanced Chat Management",
-                description = "Tools to set default folder, auto-archive and hide new chats from non-contacts.",
+                title = stringProvider.getString("premium_feature_chat_management_title"),
+                description = stringProvider.getString("premium_feature_chat_management_description"),
                 color = 0xFF536DFE
             )
 
             PremiumFeatureType.NO_ADS -> PremiumComponent.PremiumFeature(
                 icon = "block",
-                title = "No Ads",
-                description = "Public channels sometimes show ads, but they will no longer appear for you.",
+                title = stringProvider.getString("premium_feature_no_ads_title"),
+                description = stringProvider.getString("premium_feature_no_ads_description"),
                 color = 0xFF00BFA5
             )
 
             PremiumFeatureType.INFINITE_REACTIONS -> PremiumComponent.PremiumFeature(
                 icon = "heart",
-                title = "Infinite Reactions",
-                description = "React with thousands of emojis — using up to 3 per message.",
+                title = stringProvider.getString("premium_feature_infinite_reactions_title"),
+                description = stringProvider.getString("premium_feature_infinite_reactions_description"),
                 color = 0xFFFF6D66
             )
 
             PremiumFeatureType.BADGE -> PremiumComponent.PremiumFeature(
                 icon = "verified",
-                title = "Premium Badge",
-                description = "A special badge next to your name showing that you subscribe to Telegram Premium.",
+                title = stringProvider.getString("premium_feature_badge_title"),
+                description = stringProvider.getString("premium_feature_badge_description"),
                 color = 0xFF24A1DE
             )
 
             PremiumFeatureType.PROFILE_BADGE -> PremiumComponent.PremiumFeature(
                 icon = "face",
-                title = "Emoji Statuses",
-                description = "Choose from thousands of emojis to show next to your name.",
+                title = stringProvider.getString("premium_feature_emoji_status_title"),
+                description = stringProvider.getString("premium_feature_emoji_status_description"),
                 color = 0xFFF9AB00
             )
 
             PremiumFeatureType.APP_ICONS -> PremiumComponent.PremiumFeature(
                 icon = "settings",
-                title = "Premium App Icons",
-                description = "Choose from a selection of Telegram app icons for your home screen.",
+                title = stringProvider.getString("premium_feature_app_icons_title"),
+                description = stringProvider.getString("premium_feature_app_icons_description"),
                 color = 0xFF673AB7
             )
 

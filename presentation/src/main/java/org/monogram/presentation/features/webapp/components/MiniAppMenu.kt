@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -66,7 +67,7 @@ fun MiniAppMenu(
             ViewerSettingsDropdown {
                 MenuOptionRow(
                     icon = Icons.Rounded.Refresh,
-                    title = "Reload",
+                    title = stringResource(R.string.mini_app_menu_reload),
                     onClick = {
                         onReload()
                         onDismiss()
@@ -74,7 +75,7 @@ fun MiniAppMenu(
                 )
                 MenuOptionRow(
                     icon = Icons.Rounded.ContentCopy,
-                    title = "Copy link",
+                    title = stringResource(R.string.mini_app_menu_copy_link),
                     onClick = {
                         clipboardManager.setText(AnnotatedString(url))
                         onDismiss()
@@ -82,7 +83,7 @@ fun MiniAppMenu(
                 )
                 MenuOptionRow(
                     icon = Icons.AutoMirrored.Rounded.OpenInNew,
-                    title = "Open in browser",
+                    title = stringResource(R.string.mini_app_menu_open_in_browser),
                     onClick = {
                         runCatching {
                             context.startActivity(
@@ -97,7 +98,7 @@ fun MiniAppMenu(
                 )
                 MenuOptionRow(
                     icon = Icons.Rounded.AddToHomeScreen,
-                    title = "Add to Home Screen",
+                    title = stringResource(R.string.mini_app_menu_add_to_home),
                     onClick = {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             val shortcutManager = context.getSystemService(ShortcutManager::class.java)

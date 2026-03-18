@@ -1450,4 +1450,23 @@
     <string name="premium_feature_emoji_status_description">Установка любого эмодзи в качестве статуса рядом с именем.</string>
     <string name="premium_feature_app_icons_title">Иконки приложения</string>
     <string name="premium_feature_app_icons_description">Эксклюзивные иконки для приложения Telegram на главном экране.</string>
+
+    <!-- Mini App Menu -->
+    <string name="mini_app_menu_reload">Обновить</string>
+    <string name="mini_app_menu_copy_link">Копировать ссылку</string>
+    <string name="mini_app_menu_open_in_browser">Открыть в браузере</string>
+    <string name="mini_app_menu_add_to_home">На главный экран</string>
+
+    <!-- Mini App Dialogs -->
+    <string name="mini_app_close_confirmation_title">Закрыть приложение?</string>
+    <string name="mini_app_close_confirmation_text">У Вас есть несохранённые изменения. Вы уверены, что хотите закрыть мини-приложение?</string>
+    <string name="mini_app_close">Закрыть</string>
+    <string name="mini_app_cancel">Отмена</string>
+    <string name="mini_app_permission_request">Запрос разрешения</string>
+    <string name="mini_app_allow">Разрешить</string>
+    <string name="mini_app_deny">Отклонить</string>
+    <string name="mini_app_bot_permissions">Разрешения бота</string>
+    <string name="mini_app_tos_title">Условия использования</string>
+    <string name="mini_app_tos_text">Запуская это мини-приложение, Вы принимаете Условия использования и Политику конфиденциальности. Бот получит доступ к данным Вашего профиля.</string>
+    <string name="mini_app_tos_accept">Принять и запустить</string>
 </resources>

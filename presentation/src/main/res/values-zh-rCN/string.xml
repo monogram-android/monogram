@@ -1437,4 +1437,23 @@
     <string name="premium_feature_emoji_status_description">从数千个表情符号中选择一个显示在您的名字旁边。</string>
     <string name="premium_feature_app_icons_title">Premium 应用图标</string>
     <string name="premium_feature_app_icons_description">可从精选的 Telegram 图标中选择并替换主屏幕图标。</string>
+
+    <!-- Mini App Menu -->
+    <string name="mini_app_menu_reload">重新加载</string>
+    <string name="mini_app_menu_copy_link">复制链接</string>
+    <string name="mini_app_menu_open_in_browser">在浏览器中打开</string>
+    <string name="mini_app_menu_add_to_home">添加到主屏幕</string>
+
+    <!-- Mini App Dialogs -->
+    <string name="mini_app_close_confirmation_title">关闭小程序？</string>
+    <string name="mini_app_close_confirmation_text">您有未保存的更改。确定要关闭吗？</string>
+    <string name="mini_app_close">关闭</string>
+    <string name="mini_app_cancel">取消</string>
+    <string name="mini_app_permission_request">权限请求</string>
+    <string name="mini_app_allow">允许</string>
+    <string name="mini_app_deny">拒绝</string>
+    <string name="mini_app_bot_permissions">机器人权限</string>
+    <string name="mini_app_tos_title">服务条款</string>
+    <string name="mini_app_tos_text">启动此小程序即表示您同意其服务条款和隐私政策。该机器人将能够访问您的基本个人资料信息。</string>
+    <string name="mini_app_tos_accept">接受并启动</string>
 </resources>

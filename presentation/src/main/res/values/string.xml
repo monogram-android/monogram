@@ -1480,4 +1480,23 @@
     <string name="premium_feature_emoji_status_description">Choose from thousands of emojis to show next to your name.</string>
     <string name="premium_feature_app_icons_title">Premium App Icons</string>
     <string name="premium_feature_app_icons_description">Choose from a selection of Telegram app icons for your home screen.</string>
+
+    <!-- Mini App Menu -->
+    <string name="mini_app_menu_reload">Reload</string>
+    <string name="mini_app_menu_copy_link">Copy link</string>
+    <string name="mini_app_menu_open_in_browser">Open in browser</string>
+    <string name="mini_app_menu_add_to_home">Add to Home Screen</string>
+
+    <!-- Mini App Dialogs -->
+    <string name="mini_app_close_confirmation_title">Close Mini App?</string>
+    <string name="mini_app_close_confirmation_text">You have unsaved changes. Are you sure you want to close?</string>
+    <string name="mini_app_close">Close</string>
+    <string name="mini_app_cancel">Cancel</string>
+    <string name="mini_app_permission_request">Permission Request</string>
+    <string name="mini_app_allow">Allow</string>
+    <string name="mini_app_deny">Deny</string>
+    <string name="mini_app_bot_permissions">Bot Permissions</string>
+    <string name="mini_app_tos_title">Terms of Service</string>
+    <string name="mini_app_tos_text">By launching this Mini App, you agree to the Terms of Service and Privacy Policy. The bot will be able to access your basic profile information.</string>
+    <string name="mini_app_tos_accept">Accept and Launch</string>
 </resources>

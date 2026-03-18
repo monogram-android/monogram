@@ -1450,4 +1450,23 @@
     <string name="premium_feature_emoji_status_description">Вибирайте з тисяч емодзі, щоб відобразити їх поруч із вашим ім’ям.</string>
     <string name="premium_feature_app_icons_title">Іконки додатка</string>
     <string name="premium_feature_app_icons_description">Виберіть одну з ексклюзивних іконок Telegram для головного екрана.</string>
+
+    <!-- Mini App Menu -->
+    <string name="mini_app_menu_reload">Оновити</string>
+    <string name="mini_app_menu_copy_link">Копіювати посилання</string>
+    <string name="mini_app_menu_open_in_browser">Відкрити у браузері</string>
+    <string name="mini_app_menu_add_to_home">На головний екран</string>
+
+    <!-- Mini App Dialogs -->
+    <string name="mini_app_close_confirmation_title">Закрити застосунок?</string>
+    <string name="mini_app_close_confirmation_text">У вас є незбережені зміни. Ви впевнені, що хочете закрити мінідодаток?</string>
+    <string name="mini_app_close">Закрити</string>
+    <string name="mini_app_cancel">Скасувати</string>
+    <string name="mini_app_permission_request">Запит на дозвіл</string>
+    <string name="mini_app_allow">Дозволити</string>
+    <string name="mini_app_deny">Відхилити</string>
+    <string name="mini_app_bot_permissions">Дозволи бота</string>
+    <string name="mini_app_tos_title">Умови використання</string>
+    <string name="mini_app_tos_text">Запускаючи цей мінідодаток, ви погоджуєтеся з Умовами надання послуг та Політикою конфіденційності. Бот отримає доступ до основної інформації вашого профілю.</string>
+    <string name="mini_app_tos_accept">Прийняти та запустити</string>
 </resources>

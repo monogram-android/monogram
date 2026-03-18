@@ -7,10 +7,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 import org.monogram.presentation.features.webapp.CustomMethodRequest
 import org.monogram.presentation.features.webapp.PermissionRequest
 import org.monogram.presentation.features.webapp.PopupState
@@ -36,13 +38,13 @@ fun MiniAppClosingConfirmationDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Close Mini App?",
+                text = stringResource(R.string.mini_app_close_confirmation_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "You have unsaved changes. Are you sure you want to close?",
+                text = stringResource(R.string.mini_app_close_confirmation_text),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -56,7 +58,7 @@ fun MiniAppClosingConfirmationDialog(
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) {
-                Text("Close", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.mini_app_close), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(12.dp))
             OutlinedButton(
@@ -66,7 +68,7 @@ fun MiniAppClosingConfirmationDialog(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.mini_app_cancel), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -172,7 +174,7 @@ fun MiniAppPermissionDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Permission Request",
+                text = stringResource(R.string.mini_app_permission_request),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -194,7 +196,7 @@ fun MiniAppPermissionDialog(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Allow", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.mini_app_allow), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(12.dp))
             OutlinedButton(
@@ -207,7 +209,7 @@ fun MiniAppPermissionDialog(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Deny", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.mini_app_deny), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -259,7 +261,7 @@ fun MiniAppCustomMethodDialog(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Allow", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.mini_app_allow), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(12.dp))
             OutlinedButton(
@@ -272,7 +274,7 @@ fun MiniAppCustomMethodDialog(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Deny", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.mini_app_deny), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -299,7 +301,7 @@ fun MiniAppPermissionsBottomSheet(
                     .padding(bottom = 24.dp)
             ) {
                 Text(
-                    text = "Bot Permissions",
+                    text = stringResource(R.string.mini_app_bot_permissions),
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
@@ -344,7 +346,7 @@ fun MiniAppPermissionsBottomSheet(
                         .padding(horizontal = 16.dp)
                         .height(48.dp)
                 ) {
-                    Text("Close", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.mini_app_close), fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -374,13 +376,13 @@ fun MiniAppTOSBottomSheet(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Terms of Service",
+                    text = stringResource(R.string.mini_app_tos_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "By launching this Mini App, you agree to the Terms of Service and Privacy Policy. The bot will be able to access your basic profile information.",
+                    text = stringResource(R.string.mini_app_tos_text),
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -393,7 +395,7 @@ fun MiniAppTOSBottomSheet(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Accept and Launch", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.mini_app_tos_accept), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedButton(
@@ -403,7 +405,7 @@ fun MiniAppTOSBottomSheet(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Cancel", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.mini_app_cancel), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

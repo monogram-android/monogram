@@ -1221,4 +1221,61 @@
     <string name="qr_saved_to_gallery">Saved to Gallery</string>
     <string name="qr_share_title">Share QR</string>
     <string name="qr_share_error">Error while sending: %1$s</string>
+
+    <!-- Chat Edit (ChatEditContent.kt) -->
+    <string name="edit_channel">Edit Channel</string>
+    <string name="edit_group">Edit Group</string>
+    <string name="channel_name">Channel Name</string>
+    <string name="group_name">Group Name</string>
+    <string name="description">Description</string>
+    <string name="settings">Settings</string>
+    <string name="public_channel">Public Channel</string>
+    <string name="public_group">Public Group</string>
+    <string name="auto_translate">Auto-Translate</string>
+    <string name="topics">Topics</string>
+    <string name="management">Management</string>
+    <string name="delete_channel">Delete Channel</string>
+    <string name="delete_group">Delete Group</string>
+
+    <!-- Member List (MemberListContent.kt) -->
+    <string name="search_hint">Search...</string>
+    <string name="administrators">Administrators</string>
+    <string name="subscribers">Subscribers</string>
+    <string name="members">Members</string>
+    <string name="blacklist">Blacklist</string>
+    <string name="no_results_found">No results found</string>
+    <string name="no_members_yet">No members yet</string>
+
+    <!-- Admin Management (AdminManageContent.kt) -->
+    <string name="admin_rights">Admin Rights</string>
+    <string name="custom_title">Custom Title</string>
+    <string name="custom_title_description">This title will be visible to all members in the chat</string>
+    <string name="what_can_this_admin_do">What can this admin do?</string>
+    <string name="permission_manage_chat">Manage Chat</string>
+    <string name="permission_post_messages">Post Messages</string>
+    <string name="permission_edit_messages">Edit Messages</string>
+    <string name="permission_delete_messages">Delete Messages</string>
+    <string name="permission_restrict_members">Restrict Members</string>
+    <string name="permission_invite_users">Invite Users</string>
+    <string name="permission_manage_topics">Manage Topics</string>
+    <string name="permission_manage_video_chats">Manage Video Chats</string>
+    <string name="permission_post_stories">Post Stories</string>
+    <string name="permission_edit_stories">Edit Stories</string>
+    <string name="permission_delete_stories">Delete Stories</string>
+    <string name="permission_add_new_admins">Add New Admins</string>
+    <string name="permission_remain_anonymous">Remain Anonymous</string>
+
+    <!-- Group Permissions (ChatPermissionsContent.kt) -->
+    <string name="permissions">Permissions</string>
+    <string name="what_can_members_do">What can members of this group do?</string>
+    <string name="permission_add_members">Add Members</string>
+
+    <!-- Common UI / Content Descriptions -->
+    <string name="back">Back</string>
+    <string name="save">Save</string>
+    <string name="clear">Clear</string>
+    <string name="search">Search</string>
+    <string name="add">Add</string>
+    <string name="edit">Edit</string>
+    <string name="username">Username</string>
 </resources>

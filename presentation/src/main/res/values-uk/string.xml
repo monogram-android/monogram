@@ -1189,4 +1189,61 @@
     <string name="qr_saved_to_gallery">Збережено до галереї</string>
     <string name="qr_share_title">Поділитися QR</string>
     <string name="qr_share_error">Помилка при надсиланні: %1$s</string>
+
+    <!-- Chat Edit (ChatEditContent.kt) -->
+    <string name="edit_channel">Редагувати канал</string>
+    <string name="edit_group">Редагувати групу</string>
+    <string name="channel_name">Назва каналу</string>
+    <string name="group_name">Назва групи</string>
+    <string name="description">Опис</string>
+    <string name="settings">Налаштування</string>
+    <string name="public_channel">Публічний канал</string>
+    <string name="public_group">Публічна група</string>
+    <string name="auto_translate">Автопереклад</string>
+    <string name="topics">Теми</string>
+    <string name="management">Керування</string>
+    <string name="delete_channel">Видалити канал</string>
+    <string name="delete_group">Видалити групу</string>
+
+    <!-- Member List (MemberListContent.kt) -->
+    <string name="search_hint">Пошук...</string>
+    <string name="administrators">Адміністратори</string>
+    <string name="subscribers">Підписники</string>
+    <string name="members">Учасники</string>
+    <string name="blacklist">Чорний список</string>
+    <string name="no_results_found">Нічого не знайдено</string>
+    <string name="no_members_yet">Учасників поки немає</string>
+
+    <!-- Admin Management (AdminManageContent.kt) -->
+    <string name="admin_rights">Права адміна</string>
+    <string name="custom_title">Посада</string>
+    <string name="custom_title_description">Цей підпис бачитимуть усі учасники в чаті</string>
+    <string name="what_can_this_admin_do">Що може робити цей адмін?</string>
+    <string name="permission_manage_chat">Керування чатом</string>
+    <string name="permission_post_messages">Надсилання повідомлень</string>
+    <string name="permission_edit_messages">Редагування повідомлень</string>
+    <string name="permission_delete_messages">Видалення повідомлень</string>
+    <string name="permission_restrict_members">Блокування учасників</string>
+    <string name="permission_invite_users">Додавання учасників</string>
+    <string name="permission_manage_topics">Керування темами</string>
+    <string name="permission_manage_video_chats">Керування відеочатами</string>
+    <string name="permission_post_stories">Публікація розповідей</string>
+    <string name="permission_edit_stories">Редагування розповідей</string>
+    <string name="permission_delete_stories">Видалення розповідей</string>
+    <string name="permission_add_new_admins">Призначення адміністраторів</string>
+    <string name="permission_remain_anonymous">Анонімність</string>
+
+    <!-- Group Permissions (ChatPermissionsContent.kt) -->
+    <string name="permissions">Дозволи</string>
+    <string name="what_can_members_do">Що можуть робити учасники цієї групи?</string>
+    <string name="permission_add_members">Додавання учасників</string>
+
+    <!-- Common UI / Content Descriptions -->
+    <string name="back">Назад</string>
+    <string name="save">Зберегти</string>
+    <string name="clear">Очистити</string>
+    <string name="search">Пошук</string>
+    <string name="add">Додати</string>
+    <string name="edit">Редагувати</string>
+    <string name="username">Ім’я користувача</string>
 </resources>

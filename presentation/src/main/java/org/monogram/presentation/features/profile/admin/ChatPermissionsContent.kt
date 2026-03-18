@@ -14,10 +14,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
 
@@ -34,7 +36,7 @@ fun ChatPermissionsContent(component: ChatPermissionsComponent) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Permissions",
+                        text = stringResource(R.string.permissions),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -42,14 +44,14 @@ fun ChatPermissionsContent(component: ChatPermissionsComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = component::onSave) {
                         Icon(
                             Icons.Rounded.Check,
-                            contentDescription = "Save",
+                            contentDescription = stringResource(R.string.save),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -70,11 +72,11 @@ fun ChatPermissionsContent(component: ChatPermissionsComponent) {
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp)
         ) {
             item {
-                SectionHeader("What can members of this group do?")
+                SectionHeader(stringResource(R.string.what_can_members_do))
             }
             item {
                 PermissionItem(
-                    "Send Messages",
+                    stringResource(R.string.permission_send_messages),
                     Icons.AutoMirrored.Rounded.Chat,
                     permissions.canSendBasicMessages,
                     { component.onTogglePermission(ChatPermissionsComponent.Permission.SEND_MESSAGES) },
@@ -83,7 +85,7 @@ fun ChatPermissionsContent(component: ChatPermissionsComponent) {
             }
             item {
                 PermissionItem(
-                    "Send Media",
+                    stringResource(R.string.permission_send_media),
                     Icons.Rounded.Image,
                     permissions.canSendPhotos,
                     { component.onTogglePermission(ChatPermissionsComponent.Permission.SEND_MEDIA) },
@@ -92,7 +94,7 @@ fun ChatPermissionsContent(component: ChatPermissionsComponent) {
             }
             item {
                 PermissionItem(
-                    "Send Stickers & GIFs",
+                    stringResource(R.string.permission_send_stickers_gifs),
                     Icons.Rounded.EmojiEmotions,
                     permissions.canSendOtherMessages,
                     { component.onTogglePermission(ChatPermissionsComponent.Permission.SEND_STICKERS) },
@@ -101,7 +103,7 @@ fun ChatPermissionsContent(component: ChatPermissionsComponent) {
             }
             item {
                 PermissionItem(
-                    "Send Polls",
+                    stringResource(R.string.permission_send_polls),
                     Icons.Rounded.Poll,
                     permissions.canSendPolls,
                     { component.onTogglePermission(ChatPermissionsComponent.Permission.SEND_POLLS) },
@@ -110,7 +112,7 @@ fun ChatPermissionsContent(component: ChatPermissionsComponent) {
             }
             item {
                 PermissionItem(
-                    "Embed Links",
+                    stringResource(R.string.permission_embed_links),
                     Icons.Rounded.Link,
                     permissions.canAddLinkPreviews,
                     { component.onTogglePermission(ChatPermissionsComponent.Permission.EMBED_LINKS) },
@@ -119,7 +121,7 @@ fun ChatPermissionsContent(component: ChatPermissionsComponent) {
             }
             item {
                 PermissionItem(
-                    "Add Members",
+                    stringResource(R.string.permission_add_members),
                     Icons.Rounded.PersonAdd,
                     permissions.canInviteUsers,
                     { component.onTogglePermission(ChatPermissionsComponent.Permission.ADD_MEMBERS) },
@@ -128,7 +130,7 @@ fun ChatPermissionsContent(component: ChatPermissionsComponent) {
             }
             item {
                 PermissionItem(
-                    "Pin Messages",
+                    stringResource(R.string.permission_pin_messages),
                     Icons.Rounded.PushPin,
                     permissions.canPinMessages,
                     { component.onTogglePermission(ChatPermissionsComponent.Permission.PIN_MESSAGES) },
@@ -137,7 +139,7 @@ fun ChatPermissionsContent(component: ChatPermissionsComponent) {
             }
             item {
                 PermissionItem(
-                    "Change Chat Info",
+                    stringResource(R.string.permission_change_chat_info),
                     Icons.Rounded.Info,
                     permissions.canChangeInfo,
                     { component.onTogglePermission(ChatPermissionsComponent.Permission.CHANGE_INFO) },

@@ -1189,4 +1189,61 @@
     <string name="qr_saved_to_gallery">Saved to Gallery</string>
     <string name="qr_share_title">Поделиться QR</string>
     <string name="qr_share_error">Ошибка при отправке: %1$s</string>
+
+    <!-- Chat Edit (ChatEditContent.kt) -->
+    <string name="edit_channel">Изм. канал</string>
+    <string name="edit_group">Изм. группу</string>
+    <string name="channel_name">Название канала</string>
+    <string name="group_name">Название группы</string>
+    <string name="description">Описание</string>
+    <string name="settings">Настройки</string>
+    <string name="public_channel">Публичный канал</string>
+    <string name="public_group">Публичная группа</string>
+    <string name="auto_translate">Автоперевод</string>
+    <string name="topics">Темы</string>
+    <string name="management">Управление</string>
+    <string name="delete_channel">Удалить канал</string>
+    <string name="delete_group">Удалить группу</string>
+
+    <!-- Member List (MemberListContent.kt) -->
+    <string name="search_hint">Поиск...</string>
+    <string name="administrators">Администраторы</string>
+    <string name="subscribers">Подписчики</string>
+    <string name="members">Участники</string>
+    <string name="blacklist">Чёрный список</string>
+    <string name="no_results_found">Ничего не найдено</string>
+    <string name="no_members_yet">Участников пока нет</string>
+
+    <!-- Admin Management (AdminManageContent.kt) -->
+    <string name="admin_rights">Права админа</string>
+    <string name="custom_title">Должность</string>
+    <string name="custom_title_description">Эта подпись будет видна всем участникам в чате</string>
+    <string name="what_can_this_admin_do">Что может делать этот админ?</string>
+    <string name="permission_manage_chat">Управление чатом</string>
+    <string name="permission_post_messages">Публикация сообщений</string>
+    <string name="permission_edit_messages">Изменение сообщений</string>
+    <string name="permission_delete_messages">Удаление сообщений</string>
+    <string name="permission_restrict_members">Блокировка участников</string>
+    <string name="permission_invite_users">Добавление участников</string>
+    <string name="permission_manage_topics">Управление темами</string>
+    <string name="permission_manage_video_chats">Управление видеочатами</string>
+    <string name="permission_post_stories">Публикация историй</string>
+    <string name="permission_edit_stories">Редактирование историй</string>
+    <string name="permission_delete_stories">Удаление историй</string>
+    <string name="permission_add_new_admins">Добавление администраторов</string>
+    <string name="permission_remain_anonymous">Анонимность</string>
+
+    <!-- Group Permissions (ChatPermissionsContent.kt) -->
+    <string name="permissions">Разрешения</string>
+    <string name="what_can_members_do">Что могут делать участники группы?</string>
+    <string name="permission_add_members">Добавление участников</string>
+
+    <!-- Common UI / Content Descriptions -->
+    <string name="back">Назад</string>
+    <string name="save">Сохранить</string>
+    <string name="clear">Очистить</string>
+    <string name="search">Поиск</string>
+    <string name="add">Добавить</string>
+    <string name="edit">Изм.</string>
+    <string name="username">Имя пользователя</string>
 </resources>

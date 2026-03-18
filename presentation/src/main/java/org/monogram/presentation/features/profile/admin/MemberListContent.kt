@@ -27,11 +27,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,7 +70,7 @@ fun MemberListContent(component: MemberListComponent) {
                             ) {
                                 if (state.searchQuery.isEmpty()) {
                                     Text(
-                                        text = "Search...",
+                                        text = stringResource(R.string.search_hint),
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -91,9 +93,9 @@ fun MemberListContent(component: MemberListComponent) {
                         } else {
                             Text(
                                 text = when (state.type) {
-                                    MemberListComponent.MemberListType.ADMINS -> "Administrators"
-                                    MemberListComponent.MemberListType.MEMBERS -> "Subscribers"
-                                    MemberListComponent.MemberListType.BLACKLIST -> "Blacklist"
+                                    MemberListComponent.MemberListType.ADMINS -> stringResource(R.string.administrators)
+                                    MemberListComponent.MemberListType.MEMBERS -> stringResource(R.string.subscribers)
+                                    MemberListComponent.MemberListType.BLACKLIST -> stringResource(R.string.blacklist)
                                 },
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
@@ -104,21 +106,21 @@ fun MemberListContent(component: MemberListComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     if (state.isSearchActive) {
                         IconButton(onClick = { component.onSearch("") }) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.clear))
                         }
                     } else {
                         IconButton(onClick = component::onToggleSearch) {
-                            Icon(Icons.Rounded.Search, contentDescription = "Search")
+                            Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.search))
                         }
                         if (state.type != MemberListComponent.MemberListType.BLACKLIST) {
                             IconButton(onClick = component::onAddMember) {
-                                Icon(Icons.Rounded.Add, contentDescription = "Add")
+                                Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.add))
                             }
                         }
                     }
@@ -175,7 +177,7 @@ fun MemberListContent(component: MemberListComponent) {
                                 IconButton(onClick = { component.onMemberClick(member) }) {
                                     Icon(
                                         imageVector = Icons.Rounded.Edit,
-                                        contentDescription = "Edit",
+                                        contentDescription = stringResource(R.string.edit),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -209,7 +211,7 @@ fun MemberListContent(component: MemberListComponent) {
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (state.isSearchActive) "No results found" else "No members yet",
+                                text = if (state.isSearchActive) stringResource(R.string.no_results_found) else stringResource(R.string.no_members_yet),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

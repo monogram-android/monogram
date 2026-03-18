@@ -1179,4 +1179,61 @@
     <string name="qr_saved_to_gallery">已保存到相册</string>
     <string name="qr_share_title">分享二维码</string>
     <string name="qr_share_error">发送时出错：%1$s</string>
+
+    <!-- Chat Edit (ChatEditContent.kt) -->
+    <string name="edit_channel">编辑频道</string>
+    <string name="edit_group">编辑群组</string>
+    <string name="channel_name">频道名称</string>
+    <string name="group_name">群组名称</string>
+    <string name="description">简介</string>
+    <string name="settings">设置</string>
+    <string name="public_channel">公开频道</string>
+    <string name="public_group">公开群组</string>
+    <string name="auto_translate">自动翻译</string>
+    <string name="topics">话题</string>
+    <string name="management">管理</string>
+    <string name="delete_channel">删除频道</string>
+    <string name="delete_group">删除群组</string>
+
+    <!-- Member List (MemberListContent.kt) -->
+    <string name="search_hint">搜索...</string>
+    <string name="administrators">管理员</string>
+    <string name="subscribers">订阅者</string>
+    <string name="members">成员</string>
+    <string name="blacklist">黑名单</string>
+    <string name="no_results_found">未找到相关结果</string>
+    <string name="no_members_yet">暂无成员</string>
+
+    <!-- Admin Management (AdminManageContent.kt) -->
+    <string name="admin_rights">管理员权限</string>
+    <string name="custom_title">自定义头衔</string>
+    <string name="custom_title_description">此头衔将对聊天中的所有成员可见</string>
+    <string name="what_can_this_admin_do">该管理员拥有哪些权限？</string>
+    <string name="permission_manage_chat">管理聊天</string>
+    <string name="permission_post_messages">发布消息</string>
+    <string name="permission_edit_messages">编辑消息</string>
+    <string name="permission_delete_messages">删除消息</string>
+    <string name="permission_restrict_members">封禁成员</string>
+    <string name="permission_invite_users">邀请用户</string>
+    <string name="permission_manage_topics">管理话题</string>
+    <string name="permission_manage_video_chats">管理视频聊天</string>
+    <string name="permission_post_stories">发布故事</string>
+    <string name="permission_edit_stories">编辑故事</string>
+    <string name="permission_delete_stories">删除故事</string>
+    <string name="permission_add_new_admins">添加新管理员</string>
+    <string name="permission_remain_anonymous">保持匿名</string>
+
+    <!-- Group Permissions (ChatPermissionsContent.kt) -->
+    <string name="permissions">权限</string>
+    <string name="what_can_members_do">此群组的成员可以做什么？</string>
+    <string name="permission_add_members">添加成员</string>
+
+    <!-- Common UI / Content Descriptions -->
+    <string name="back">返回</string>
+    <string name="save">保存</string>
+    <string name="clear">清除</string>
+    <string name="search">搜索</string>
+    <string name="add">添加</string>
+    <string name="edit">编辑</string>
+    <string name="username">用户名</string>
 </resources>

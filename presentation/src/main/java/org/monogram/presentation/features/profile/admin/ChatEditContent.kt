@@ -20,10 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.FileUtils
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
@@ -53,7 +55,7 @@ fun ChatEditContent(component: ChatEditComponent) {
             TopAppBar(
                 title = {
                     Text(
-                        text = if (isChannel) "Edit Channel" else "Edit Group",
+                        text = if (isChannel) stringResource(R.string.edit_channel) else stringResource(R.string.edit_group),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -61,14 +63,14 @@ fun ChatEditContent(component: ChatEditComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = component::onSave, enabled = !state.isLoading) {
                         Icon(
                             Icons.Rounded.Check,
-                            contentDescription = "Save",
+                            contentDescription = stringResource(R.string.save),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -127,14 +129,14 @@ fun ChatEditContent(component: ChatEditComponent) {
                 SettingsTextField(
                     value = state.title,
                     onValueChange = component::onUpdateTitle,
-                    placeholder = if (isChannel) "Channel Name" else "Group Name",
+                    placeholder = if (isChannel) stringResource(R.string.channel_name) else stringResource(R.string.group_name),
                     icon = Icons.Rounded.Title,
                     position = ItemPosition.TOP
                 )
                 SettingsTextField(
                     value = state.description,
                     onValueChange = component::onUpdateDescription,
-                    placeholder = "Description",
+                    placeholder = stringResource(R.string.description),
                     icon = Icons.Rounded.Description,
                     position = ItemPosition.BOTTOM,
                     singleLine = false
@@ -142,9 +144,9 @@ fun ChatEditContent(component: ChatEditComponent) {
             }
 
             item {
-                SectionHeader("Settings")
+                SectionHeader(stringResource(R.string.settings))
                 SettingsSwitchTile(
-                    title = if (isChannel) "Public Channel" else "Public Group",
+                    title = if (isChannel) stringResource(R.string.public_channel) else stringResource(R.string.public_group),
                     icon = Icons.Rounded.Public,
                     checked = state.isPublic,
                     onCheckedChange = component::onTogglePublic,
@@ -155,7 +157,7 @@ fun ChatEditContent(component: ChatEditComponent) {
                     SettingsTextField(
                         value = state.username,
                         onValueChange = component::onUpdateUsername,
-                        placeholder = "Username",
+                        placeholder = stringResource(R.string.username),
                         icon = Icons.Rounded.AlternateEmail,
                         position = ItemPosition.MIDDLE
                     )
@@ -177,7 +179,7 @@ fun ChatEditContent(component: ChatEditComponent) {
 
                 if (isChannel) {
                     SettingsSwitchTile(
-                        title = "Auto-Translate",
+                        title = stringResource(R.string.auto_translate),
                         icon = Icons.Rounded.Translate,
                         checked = state.isTranslatable,
                         onCheckedChange = component::onToggleAutoTranslate,
@@ -186,7 +188,7 @@ fun ChatEditContent(component: ChatEditComponent) {
                     )
                 } else {
                     SettingsSwitchTile(
-                        title = "Topics",
+                        title = stringResource(R.string.topics),
                         icon = Icons.Rounded.Topic,
                         checked = state.isForum,
                         onCheckedChange = component::onToggleTopics,
@@ -197,30 +199,30 @@ fun ChatEditContent(component: ChatEditComponent) {
             }
 
             item {
-                SectionHeader("Management")
+                SectionHeader(stringResource(R.string.management))
                 SettingsTile(
-                    title = "Administrators",
+                    title = stringResource(R.string.administrators),
                     icon = Icons.Rounded.AdminPanelSettings,
                     iconColor = MaterialTheme.colorScheme.primary,
                     position = ItemPosition.TOP,
                     onClick = component::onManageAdmins
                 )
                 SettingsTile(
-                    title = if (isChannel) "Subscribers" else "Members",
+                    title = if (isChannel) stringResource(R.string.subscribers) else stringResource(R.string.members),
                     icon = Icons.Rounded.Groups,
                     iconColor = MaterialTheme.colorScheme.primary,
                     position = ItemPosition.MIDDLE,
                     onClick = component::onManageMembers
                 )
                 SettingsTile(
-                    title = "Permissions",
+                    title = stringResource(R.string.permissions),
                     icon = Icons.Rounded.Lock,
                     iconColor = MaterialTheme.colorScheme.primary,
                     position = ItemPosition.MIDDLE,
                     onClick = component::onManagePermissions
                 )
                 SettingsTile(
-                    title = "Blacklist",
+                    title = stringResource(R.string.blacklist),
                     icon = Icons.Rounded.Block,
                     iconColor = MaterialTheme.colorScheme.error,
                     position = ItemPosition.BOTTOM,
@@ -243,7 +245,7 @@ fun ChatEditContent(component: ChatEditComponent) {
                     Icon(Icons.Rounded.Delete, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        if (isChannel) "Delete Channel" else "Delete Group",
+                        if (isChannel) stringResource(R.string.delete_channel) else stringResource(R.string.delete_group),
                         fontWeight = FontWeight.Bold
                     )
                 }

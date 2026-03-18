@@ -12,11 +12,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.repository.ChatMemberStatus
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
 import org.monogram.presentation.core.ui.ItemPosition
@@ -33,7 +35,7 @@ fun AdminManageContent(component: AdminManageComponent) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Admin Rights",
+                        text = stringResource(R.string.admin_rights),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -41,7 +43,7 @@ fun AdminManageContent(component: AdminManageComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -51,7 +53,7 @@ fun AdminManageContent(component: AdminManageComponent) {
                     ) {
                         Icon(
                             Icons.Rounded.Check,
-                            contentDescription = "Save",
+                            contentDescription = stringResource(R.string.save),
                             tint = if (state.isLoading) {
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                             } else {
@@ -113,7 +115,7 @@ fun AdminManageContent(component: AdminManageComponent) {
                                 IconButton(onClick = { /* TODO: Edit rank or user */ }) {
                                     Icon(
                                         imageVector = Icons.Rounded.Edit,
-                                        contentDescription = "Edit",
+                                        contentDescription = stringResource(R.string.edit),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -123,18 +125,18 @@ fun AdminManageContent(component: AdminManageComponent) {
                 }
 
                 item {
-                    SectionHeader("Custom Title")
+                    SectionHeader(stringResource(R.string.custom_title))
                     SettingsTextField(
                         value = status?.customTitle ?: "",
                         onValueChange = component::onUpdateCustomTitle,
-                        placeholder = "Custom Title",
+                        placeholder = stringResource(R.string.custom_title),
                         icon = Icons.Rounded.Badge,
                         position = ItemPosition.STANDALONE,
                         singleLine = true
                     )
 
                     Text(
-                        text = "This title will be visible to all members in the chat",
+                        text = stringResource(R.string.custom_title_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 16.dp)
@@ -142,16 +144,16 @@ fun AdminManageContent(component: AdminManageComponent) {
                 }
 
                 item {
-                    SectionHeader("What can this admin do?")
+                    SectionHeader(stringResource(R.string.what_can_this_admin_do))
                     PermissionSwitch(
-                        title = "Manage Chat",
+                        title = stringResource(R.string.permission_manage_chat),
                         icon = Icons.Rounded.Settings,
                         checked = status?.canManageChat == true,
                         onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.MANAGE_CHAT) },
                         position = ItemPosition.TOP
                     )
                     PermissionSwitch(
-                        title = "Change Chat Info",
+                        title = stringResource(R.string.permission_change_chat_info),
                         icon = Icons.Rounded.Info,
                         checked = status?.canChangeInfo == true,
                         onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.CHANGE_INFO) },
@@ -159,14 +161,14 @@ fun AdminManageContent(component: AdminManageComponent) {
                     )
                     if (state.isChannel) {
                         PermissionSwitch(
-                            title = "Post Messages",
+                            title = stringResource(R.string.permission_post_messages),
                             icon = Icons.Rounded.Edit,
                             checked = status?.canPostMessages == true,
                             onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.POST_MESSAGES) },
                             position = ItemPosition.MIDDLE
                         )
                         PermissionSwitch(
-                            title = "Edit Messages",
+                            title = stringResource(R.string.permission_edit_messages),
                             icon = Icons.Rounded.EditNote,
                             checked = status?.canEditMessages == true,
                             onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.EDIT_MESSAGES) },
@@ -174,7 +176,7 @@ fun AdminManageContent(component: AdminManageComponent) {
                         )
                     }
                     PermissionSwitch(
-                        title = "Delete Messages",
+                        title = stringResource(R.string.permission_delete_messages),
                         icon = Icons.Rounded.Delete,
                         checked = status?.canDeleteMessages == true,
                         onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.DELETE_MESSAGES) },
@@ -182,7 +184,7 @@ fun AdminManageContent(component: AdminManageComponent) {
                     )
                     if (!state.isChannel) {
                         PermissionSwitch(
-                            title = "Restrict Members",
+                            title = stringResource(R.string.permission_restrict_members),
                             icon = Icons.Rounded.Block,
                             checked = status?.canRestrictMembers == true,
                             onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.RESTRICT_MEMBERS) },
@@ -190,7 +192,7 @@ fun AdminManageContent(component: AdminManageComponent) {
                         )
                     }
                     PermissionSwitch(
-                        title = "Invite Users",
+                        title = stringResource(R.string.permission_invite_users),
                         icon = Icons.Rounded.PersonAdd,
                         checked = status?.canInviteUsers == true,
                         onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.INVITE_USERS) },
@@ -198,14 +200,14 @@ fun AdminManageContent(component: AdminManageComponent) {
                     )
                     if (!state.isChannel) {
                         PermissionSwitch(
-                            title = "Pin Messages",
+                            title = stringResource(R.string.permission_pin_messages),
                             icon = Icons.Rounded.PushPin,
                             checked = status?.canPinMessages == true,
                             onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.PIN_MESSAGES) },
                             position = ItemPosition.MIDDLE
                         )
                         PermissionSwitch(
-                            title = "Manage Topics",
+                            title = stringResource(R.string.permission_manage_topics),
                             icon = Icons.Rounded.Topic,
                             checked = status?.canManageTopics == true,
                             onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.MANAGE_TOPICS) },
@@ -213,42 +215,42 @@ fun AdminManageContent(component: AdminManageComponent) {
                         )
                     }
                     PermissionSwitch(
-                        title = "Manage Video Chats",
+                        title = stringResource(R.string.permission_manage_video_chats),
                         icon = Icons.Rounded.Videocam,
                         checked = status?.canManageVideoChats == true,
                         onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.MANAGE_VIDEO_CHATS) },
                         position = ItemPosition.MIDDLE
                     )
                     PermissionSwitch(
-                        title = "Post Stories",
+                        title = stringResource(R.string.permission_post_stories),
                         icon = Icons.Rounded.AddPhotoAlternate,
                         checked = status?.canPostStories == true,
                         onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.POST_STORIES) },
                         position = ItemPosition.MIDDLE
                     )
                     PermissionSwitch(
-                        title = "Edit Stories",
+                        title = stringResource(R.string.permission_edit_stories),
                         icon = Icons.Rounded.AutoFixHigh,
                         checked = status?.canEditStories == true,
                         onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.EDIT_STORIES) },
                         position = ItemPosition.MIDDLE
                     )
                     PermissionSwitch(
-                        title = "Delete Stories",
+                        title = stringResource(R.string.permission_delete_stories),
                         icon = Icons.Rounded.DeleteForever,
                         checked = status?.canDeleteStories == true,
                         onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.DELETE_STORIES) },
                         position = ItemPosition.MIDDLE
                     )
                     PermissionSwitch(
-                        title = "Add New Admins",
+                        title = stringResource(R.string.permission_add_new_admins),
                         icon = Icons.Rounded.AddModerator,
                         checked = status?.canPromoteMembers == true,
                         onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.PROMOTE_MEMBERS) },
                         position = ItemPosition.MIDDLE
                     )
                     PermissionSwitch(
-                        title = "Remain Anonymous",
+                        title = stringResource(R.string.permission_remain_anonymous),
                         icon = Icons.Rounded.VisibilityOff,
                         checked = status?.isAnonymous == true,
                         onCheckedChange = { component.onTogglePermission(AdminManageComponent.Permission.ANONYMOUS) },

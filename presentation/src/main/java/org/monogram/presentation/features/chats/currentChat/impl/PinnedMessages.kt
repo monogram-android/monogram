@@ -32,12 +32,29 @@ internal fun DefaultChatComponent.loadPinnedMessage() {
     }
 }
 
+internal fun DefaultChatComponent.loadAllPinnedMessages() {
+    scope.launch {
+        val threadId = _state.value.currentTopicId
+        try {
+            val pinnedMessages = repositoryMessage.getAllPinnedMessages(chatId, threadId)
+            _state.update {
+                it.copy(allPinnedMessages = pinnedMessages)
+            }
+        } catch (e: Exception) {
+            Log.e("DefaultChatComponent", "Error loading all pinned messages", e)
+        }
+    }
+}
+
 internal fun DefaultChatComponent.setupPinnedMessageCollector() {
     repositoryMessage.pinnedMessageFlow
         .onEach { cId ->
             if (cId == chatId) {
                 Log.d("DefaultChatComponent", "pinnedMessageFlow triggered for chatId=$chatId")
                 loadPinnedMessage()
+                if (_state.value.showPinnedMessagesList) {
+                    loadAllPinnedMessages()
+                }
             }
         }
         .launchIn(scope)

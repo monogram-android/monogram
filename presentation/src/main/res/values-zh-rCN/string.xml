@@ -935,4 +935,41 @@
     <string name="photo_editor_discard_title">放弃更改？</string>
     <string name="photo_editor_discard_message">更改尚未保存，确定要放弃吗？</string>
     <string name="photo_editor_discard_button">放弃</string>
+
+    <!-- Video Editor Common -->
+    <string name="video_editor_apply">应用</string>
+    <string name="video_editor_done">完成</string>
+    <string name="video_editor_cancel">取消</string>
+    <string name="video_editor_low">低</string>
+
+    <!-- Video Editor Tools -->
+    <string name="video_tool_view">预览</string>
+    <string name="video_tool_trim">裁剪</string>
+    <string name="video_tool_filters">滤镜</string>
+    <string name="video_tool_text">文字</string>
+    <string name="video_tool_compress">压缩</string>
+
+    <!-- Video Editor Actions/Controls -->
+    <string name="video_action_unmute">取消静音</string>
+    <string name="video_action_mute">静音</string>
+    <string name="video_action_add_text">添加文字</string>
+    <string name="video_quality_label">视频质量</string>
+    <string name="video_estimated_bitrate">预计码率: %1$d kbps</string>
+
+    <!-- Video Editor Filters -->
+    <string name="video_filter_original">原图</string>
+    <string name="video_filter_bw">黑白</string>
+    <string name="video_filter_sepia">怀旧</string>
+    <string name="video_filter_vintage">复古</string>
+    <string name="video_filter_cool">冷色</string>
+    <string name="video_filter_warm">暖色</string>
+    <string name="video_filter_polaroid">拍立得</string>
+    <string name="video_filter_invert">反色</string>
+
+    <!-- Video Editor Dialogs & Toasts -->
+    <string name="video_error_file_not_found">未找到文件</string>
+    <string name="video_error_file_missing">视频文件丢失</string>
+    <string name="video_discard_title">放弃更改？</string>
+    <string name="video_discard_text">您有未保存的更改。确定要放弃这些更改吗？</string>
+    <string name="video_discard_confirm">放弃</string>
 </resources>

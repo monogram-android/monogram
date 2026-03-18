@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.monogram.presentation.features.chats.currentChat.editor.video.VideoFilter
@@ -33,12 +34,13 @@ fun VideoFilterControls(
         verticalAlignment = Alignment.CenterVertically
     ) {
         items(filters) { filter ->
-            val isSelected = (selectedFilter?.name ?: "Original") == filter.name
+            val isSelected = (selectedFilter?.nameRes ?: filters.first().nameRes) == filter.nameRes
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.width(72.dp)
             ) {
+                val filterName = stringResource(filter.nameRes)
                 Box(
                     modifier = Modifier
                         .size(64.dp)
@@ -55,7 +57,7 @@ fun VideoFilterControls(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = filter.name.take(1),
+                        text = filterName.take(1),
                         style = MaterialTheme.typography.titleLarge,
                         color = if (isSelected) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant
@@ -65,7 +67,7 @@ fun VideoFilterControls(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = filter.name,
+                    text = filterName,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,

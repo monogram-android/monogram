@@ -945,4 +945,41 @@
     <string name="photo_editor_discard_title">Відхилити зміни?</string>
     <string name="photo_editor_discard_message">У вас є незбережені зміни. Ви впевнені, що хочете їх видалити?</string>
     <string name="photo_editor_discard_button">Відхилити</string>
+
+    <!-- Video Editor Common -->
+    <string name="video_editor_apply">Застосувати</string>
+    <string name="video_editor_done">Готово</string>
+    <string name="video_editor_cancel">Скасувати</string>
+    <string name="video_editor_low">Низька</string>
+
+    <!-- Video Editor Tools -->
+    <string name="video_tool_view">Перегляд</string>
+    <string name="video_tool_trim">Обрізка</string>
+    <string name="video_tool_filters">Фільтри</string>
+    <string name="video_tool_text">Текст</string>
+    <string name="video_tool_compress">Стиснення</string>
+
+    <!-- Video Editor Actions/Controls -->
+    <string name="video_action_unmute">Увімкнути звук</string>
+    <string name="video_action_mute">Вимкнути звук</string>
+    <string name="video_action_add_text">Додати текст</string>
+    <string name="video_quality_label">Якість відео</string>
+    <string name="video_estimated_bitrate">Очікуваний бітрейт: %1$d кбіт/с</string>
+
+    <!-- Video Editor Filters -->
+    <string name="video_filter_original">Оригінал</string>
+    <string name="video_filter_bw">Ч/Б</string>
+    <string name="video_filter_sepia">Сепія</string>
+    <string name="video_filter_vintage">Вінтаж</string>
+    <string name="video_filter_cool">Холодний</string>
+    <string name="video_filter_warm">Теплий</string>
+    <string name="video_filter_polaroid">Полароїд</string>
+    <string name="video_filter_invert">Інверсія</string>
+
+    <!-- Video Editor Dialogs & Toasts -->
+    <string name="video_error_file_not_found">Файл не знайдено</string>
+    <string name="video_error_file_missing">Відеофайл відсутній</string>
+    <string name="video_discard_title">Відхилити зміни?</string>
+    <string name="video_discard_text">Ви маєте незбережені зміни. Ви впевнені, що хочете їх відхилити?</string>
+    <string name="video_discard_confirm">Відхилити</string>
 </resources>

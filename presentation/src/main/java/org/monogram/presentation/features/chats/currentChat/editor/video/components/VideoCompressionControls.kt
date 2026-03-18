@@ -7,8 +7,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.editor.video.VideoQuality
 
 @Composable
@@ -28,7 +30,7 @@ fun VideoCompressionControls(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Video Quality",
+                text = stringResource(R.string.video_quality_label),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -42,7 +44,7 @@ fun VideoCompressionControls(
 
         if (quality != VideoQuality.ORIGINAL) {
             Text(
-                text = "Estimated Bitrate: ${quality.bitrate / 1000} kbps",
+                text = stringResource(R.string.video_estimated_bitrate, quality.bitrate / 1000),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.Start)
@@ -66,12 +68,12 @@ fun VideoCompressionControls(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                "Low",
+                stringResource(R.string.video_editor_low),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                "Original",
+                stringResource(R.string.video_filter_original),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

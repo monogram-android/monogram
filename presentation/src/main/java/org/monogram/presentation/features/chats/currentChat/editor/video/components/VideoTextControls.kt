@@ -10,7 +10,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.monogram.presentation.R
 
 @Composable
 fun VideoTextControls(
@@ -28,7 +30,7 @@ fun VideoTextControls(
         ) {
             Icon(Icons.Rounded.Add, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("Add Text Overlay")
+            Text(stringResource(R.string.video_action_add_text))
         }
     }
 }

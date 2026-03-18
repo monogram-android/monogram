@@ -3,6 +3,7 @@ package org.monogram.presentation.features.chats.currentChat.editor.video
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +25,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -35,6 +37,7 @@ import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.mp4.Mp4Extractor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.getMimeType
 import org.monogram.presentation.features.chats.currentChat.components.VideoGLTextureView
 import org.monogram.presentation.features.chats.currentChat.editor.photo.components.EditorTopBar
@@ -46,12 +49,12 @@ import org.monogram.presentation.features.chats.currentChat.editor.video.compone
 import java.io.File
 import java.io.FileNotFoundException
 
-enum class VideoEditorTool(val label: String, val icon: ImageVector) {
-    NONE("View", Icons.Rounded.Visibility),
-    TRIM("Trim", Icons.Rounded.ContentCut),
-    FILTER("Filters", Icons.Rounded.AutoAwesome),
-    TEXT("Text", Icons.Rounded.TextFields),
-    COMPRESS("Compress", Icons.Rounded.Compress)
+enum class VideoEditorTool(@StringRes val labelRes: Int, val icon: ImageVector) {
+    NONE(R.string.video_tool_view, Icons.Rounded.Visibility),
+    TRIM(R.string.video_tool_trim, Icons.Rounded.ContentCut),
+    FILTER(R.string.video_tool_filters, Icons.Rounded.AutoAwesome),
+    TEXT(R.string.video_tool_text, Icons.Rounded.TextFields),
+    COMPRESS(R.string.video_tool_compress, Icons.Rounded.Compress)
 }
 
 @OptIn(UnstableApi::class)
@@ -65,7 +68,7 @@ fun VideoEditorScreen(
     val scope = rememberCoroutineScope()
     val exoPlayer = remember {
         if (!File(videoPath).exists()) {
-            Toast.makeText(context, "File not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.video_error_file_not_found), Toast.LENGTH_SHORT).show()
             onClose()
         }
 
@@ -147,7 +150,7 @@ fun VideoEditorScreen(
 
             override fun onPlayerError(error: PlaybackException) {
                 if (error.cause is FileNotFoundException) {
-                    Toast.makeText(context, "Video file missing", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.video_error_file_missing), Toast.LENGTH_SHORT).show()
                     onClose()
                 }
             }
@@ -244,7 +247,7 @@ fun VideoEditorScreen(
                                             }
                                         )
                                         TextButton(onClick = { currentTool = VideoEditorTool.NONE }) {
-                                            Text("Apply")
+                                            Text(stringResource(R.string.video_editor_apply))
                                         }
                                     }
                                 }
@@ -259,7 +262,7 @@ fun VideoEditorScreen(
                                             onFilterSelect = { selectedFilter = it }
                                         )
                                         TextButton(onClick = { currentTool = VideoEditorTool.NONE }) {
-                                            Text("Apply")
+                                            Text(stringResource(R.string.video_editor_apply))
                                         }
                                     }
                                 }
@@ -274,7 +277,7 @@ fun VideoEditorScreen(
                                             showTextDialog = true
                                         })
                                         TextButton(onClick = { currentTool = VideoEditorTool.NONE }) {
-                                            Text("Done")
+                                            Text(stringResource(R.string.video_editor_done))
                                         }
                                     }
                                 }
@@ -289,7 +292,7 @@ fun VideoEditorScreen(
                                             onQualityChange = { videoQuality = it }
                                         )
                                         TextButton(onClick = { currentTool = VideoEditorTool.NONE }) {
-                                            Text("Apply")
+                                            Text(stringResource(R.string.video_editor_apply))
                                         }
                                     }
                                 }
@@ -327,7 +330,7 @@ fun VideoEditorScreen(
                                         ) {
                                             Icon(
                                                 if (isMuted) Icons.Rounded.VolumeOff else Icons.Rounded.VolumeUp,
-                                                contentDescription = if (isMuted) "Unmute" else "Mute",
+                                                contentDescription = if (isMuted) stringResource(R.string.video_action_unmute) else stringResource(R.string.video_action_mute),
                                                 tint = if (isMuted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                                             )
                                         }
@@ -345,8 +348,8 @@ fun VideoEditorScreen(
                             NavigationBarItem(
                                 selected = currentTool == tool,
                                 onClick = { currentTool = tool },
-                                icon = { Icon(tool.icon, contentDescription = tool.label) },
-                                label = { Text(tool.label) },
+                                icon = { Icon(tool.icon, contentDescription = stringResource(tool.labelRes)) },
+                                label = { Text(stringResource(tool.labelRes)) },
                                 colors = NavigationBarItemDefaults.colors(
                                     indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                                     selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -469,16 +472,16 @@ fun VideoEditorScreen(
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
-            title = { Text("Discard changes?") },
-            text = { Text("You have unsaved changes. Are you sure you want to discard them?") },
+            title = { Text(stringResource(R.string.video_discard_title)) },
+            text = { Text(stringResource(R.string.video_discard_text)) },
             confirmButton = {
                 TextButton(onClick = onClose) {
-                    Text("Discard", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.video_discard_confirm), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.video_editor_cancel))
                 }
             }
         )

@@ -977,4 +977,41 @@
     <string name="photo_editor_discard_title">Discard changes?</string>
     <string name="photo_editor_discard_message">You have unsaved changes. Are you sure you want to discard them?</string>
     <string name="photo_editor_discard_button">Discard</string>
+
+    <!-- Video Editor Common -->
+    <string name="video_editor_apply">Apply</string>
+    <string name="video_editor_done">Done</string>
+    <string name="video_editor_cancel">Cancel</string>
+    <string name="video_editor_low">Low</string>
+
+    <!-- Video Editor Tools -->
+    <string name="video_tool_view">View</string>
+    <string name="video_tool_trim">Trim</string>
+    <string name="video_tool_filters">Filters</string>
+    <string name="video_tool_text">Text</string>
+    <string name="video_tool_compress">Compress</string>
+
+    <!-- Video Editor Actions/Controls -->
+    <string name="video_action_unmute">Unmute</string>
+    <string name="video_action_mute">Mute</string>
+    <string name="video_action_add_text">Add Text Overlay</string>
+    <string name="video_quality_label">Video Quality</string>
+    <string name="video_estimated_bitrate">Estimated Bitrate: %1$d kbps</string>
+
+    <!-- Video Editor Filters -->
+    <string name="video_filter_original">Original</string>
+    <string name="video_filter_bw">B&amp;W</string>
+    <string name="video_filter_sepia">Sepia</string>
+    <string name="video_filter_vintage">Vintage</string>
+    <string name="video_filter_cool">Cool</string>
+    <string name="video_filter_warm">Warm</string>
+    <string name="video_filter_polaroid">Polaroid</string>
+    <string name="video_filter_invert">Invert</string>
+
+    <!-- Video Editor Dialogs & Toasts -->
+    <string name="video_error_file_not_found">File not found</string>
+    <string name="video_error_file_missing">Video file missing</string>
+    <string name="video_discard_title">Discard changes?</string>
+    <string name="video_discard_text">You have unsaved changes. Are you sure you want to discard them?</string>
+    <string name="video_discard_confirm">Discard</string>
 </resources>

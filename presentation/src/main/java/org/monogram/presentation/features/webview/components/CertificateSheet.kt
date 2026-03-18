@@ -14,8 +14,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.monogram.presentation.R
 
 @Composable
 fun CertificateSheet(
@@ -23,6 +25,7 @@ fun CertificateSheet(
     sslCertificate: SslCertificate?,
     onDismiss: () -> Unit
 ) {
+    val unknownText = stringResource(R.string.webview_cert_unknown)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -41,7 +44,7 @@ fun CertificateSheet(
             )
             Spacer(modifier = Modifier.width(16.dp))
             Text(
-                text = if (isSecure) "Security Information" else "Insecure Connection",
+                text = if (isSecure) stringResource(R.string.webview_security_info_title) else stringResource(R.string.webview_insecure_connection_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -60,7 +63,7 @@ fun CertificateSheet(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            "The connection to this site is encrypted and secure.",
+                            stringResource(R.string.webview_secure_connection_desc),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -69,9 +72,9 @@ fun CertificateSheet(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                CertificateInfoItem("Issued to", sslCertificate.issuedTo?.dName ?: "Unknown")
-                CertificateInfoItem("Issued by", sslCertificate.issuedBy?.dName ?: "Unknown")
-                CertificateInfoItem("Valid until", sslCertificate.validNotAfterDate?.toString() ?: "Unknown")
+                CertificateInfoItem(stringResource(R.string.webview_cert_issued_to), sslCertificate.issuedTo?.dName ?: unknownText)
+                CertificateInfoItem(stringResource(R.string.webview_cert_issued_by), sslCertificate.issuedBy?.dName ?: unknownText)
+                CertificateInfoItem(stringResource(R.string.webview_cert_valid_until), sslCertificate.validNotAfterDate?.toString() ?: unknownText)
             } else {
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,
@@ -86,7 +89,7 @@ fun CertificateSheet(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            "The connection to this site is not secure. You should not enter any sensitive information (such as passwords or credit cards) because it could be stolen by attackers.",
+                            stringResource(R.string.webview_insecure_connection_desc),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -102,7 +105,7 @@ fun CertificateSheet(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Text("Close")
+            Text(stringResource(R.string.webview_close))
         }
     }
 }

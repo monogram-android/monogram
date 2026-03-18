@@ -12,7 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
 
@@ -31,7 +33,7 @@ fun FindInPageBar(
             SettingsTextField(
                 value = query,
                 onValueChange = onQueryChange,
-                placeholder = "Find in page...",
+                placeholder = stringResource(R.string.webview_find_placeholder),
                 icon = Icons.Rounded.Search,
                 position = ItemPosition.STANDALONE,
                 singleLine = true,
@@ -45,10 +47,10 @@ fun FindInPageBar(
                             )
                         }
                         IconButton(onClick = { webView?.findNext(false) }) {
-                            Icon(Icons.Rounded.KeyboardArrowUp, "Previous")
+                            Icon(Icons.Rounded.KeyboardArrowUp, stringResource(R.string.webview_find_previous))
                         }
                         IconButton(onClick = { webView?.findNext(true) }) {
-                            Icon(Icons.Rounded.KeyboardArrowDown, "Next")
+                            Icon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.webview_find_next))
                         }
                     }
                 }
@@ -56,7 +58,7 @@ fun FindInPageBar(
         },
         navigationIcon = {
             IconButton(onClick = onClose) {
-                Icon(Icons.Rounded.Close, "Close Find")
+                Icon(Icons.Rounded.Close, stringResource(R.string.webview_find_close))
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

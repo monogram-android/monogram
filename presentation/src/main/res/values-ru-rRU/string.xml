@@ -982,4 +982,45 @@
     <string name="video_discard_title">Сбросить изменения?</string>
     <string name="video_discard_text">У вас есть несохранённые изменения. Вы уверены, что хотите их сбросить?</string>
     <string name="video_discard_confirm">Сбросить</string>
+
+    <!-- Web View General -->
+    <string name="webview_loading">Загрузка…</string>
+    <string name="webview_default_title">Веб-просмотр</string>
+    <string name="webview_close">Закрыть</string>
+    <string name="webview_more_options">Ещё</string>
+
+    <!-- Web View Options Sheet -->
+    <string name="webview_options_title">Опции</string>
+    <string name="webview_back">Назад</string>
+    <string name="webview_forward">Вперед</string>
+    <string name="webview_refresh">Обновить</string>
+    <string name="webview_section_actions">Действия</string>
+    <string name="webview_section_settings">Настройки</string>
+    <string name="webview_copy_link">Копировать</string>
+    <string name="webview_link_copied">Ссылка скопирована</string>
+    <string name="webview_share">Поделиться</string>
+    <string name="webview_share_chooser_title">Поделиться через</string>
+    <string name="webview_open_in_browser">Браузер</string>
+    <string name="webview_find_in_page">Поиск</string>
+    <string name="webview_desktop_site">Версия для ПК</string>
+    <string name="webview_block_ads">Блок рекламы</string>
+    <string name="webview_text_size">Размер текста: %1$d%%</string>
+
+    <!-- Web View Security/Certificate -->
+    <string name="webview_secure">Безопасно</string>
+    <string name="webview_insecure">Небезопасно</string>
+    <string name="webview_security_info_title">Безопасность</string>
+    <string name="webview_insecure_connection_title">Незащищенное соединение</string>
+    <string name="webview_secure_connection_desc">Подключение к этому сайту зашифровано и защищено.</string>
+    <string name="webview_insecure_connection_desc">Подключение к этому сайту не защищено. Не вводите личные данные (пароли или карты), так как они могут быть украдены.</string>
+    <string name="webview_cert_issued_to">Кому выдан</string>
+    <string name="webview_cert_issued_by">Кем выдан</string>
+    <string name="webview_cert_valid_until">Действителен до</string>
+    <string name="webview_cert_unknown">Неизвестно</string>
+
+    <!-- Web View Find In Page Bar -->
+    <string name="webview_find_placeholder">Поиск на странице…</string>
+    <string name="webview_find_previous">Пред.</string>
+    <string name="webview_find_next">След.</string>
+    <string name="webview_find_close">Закрыть поиск</string>
 </resources>

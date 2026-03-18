@@ -24,9 +24,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
+import org.monogram.presentation.R
 import org.monogram.presentation.features.webview.components.CertificateSheet
 import org.monogram.presentation.features.webview.components.FindInPageBar
 import org.monogram.presentation.features.webview.components.OptionsSheet
@@ -42,8 +44,11 @@ fun InternalWebView(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    val loadingText = stringResource(R.string.webview_loading)
+    val defaultTitle = stringResource(R.string.webview_default_title)
+
     var webView by remember { mutableStateOf<WebView?>(null) }
-    var title by remember { mutableStateOf("Loading...") }
+    var title by remember { mutableStateOf(loadingText) }
     var currentUrl by remember { mutableStateOf(url) }
     var canGoBack by remember { mutableStateOf(false) }
     var canGoForward by remember { mutableStateOf(false) }
@@ -370,7 +375,7 @@ fun InternalWebView(
                             }
 
                             override fun onReceivedTitle(view: WebView?, webTitle: String?) {
-                                title = webTitle ?: "Web View"
+                                title = webTitle ?: defaultTitle
                             }
                         }
                         loadUrl(url)

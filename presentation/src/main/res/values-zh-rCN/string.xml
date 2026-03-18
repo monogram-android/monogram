@@ -972,4 +972,45 @@
     <string name="video_discard_title">放弃更改？</string>
     <string name="video_discard_text">您有未保存的更改。确定要放弃这些更改吗？</string>
     <string name="video_discard_confirm">放弃</string>
+
+    <!-- Web View General -->
+    <string name="webview_loading">加载中…</string>
+    <string name="webview_default_title">网页视图</string>
+    <string name="webview_close">关闭</string>
+    <string name="webview_more_options">更多</string>
+
+    <!-- Web View Options Sheet -->
+    <string name="webview_options_title">选项</string>
+    <string name="webview_back">后退</string>
+    <string name="webview_forward">前进</string>
+    <string name="webview_refresh">刷新</string>
+    <string name="webview_section_actions">操作</string>
+    <string name="webview_section_settings">设置</string>
+    <string name="webview_copy_link">复制</string>
+    <string name="webview_link_copied">链接已复制</string>
+    <string name="webview_share">分享</string>
+    <string name="webview_share_chooser_title">分享至</string>
+    <string name="webview_open_in_browser">浏览器</string>
+    <string name="webview_find_in_page">查找</string>
+    <string name="webview_desktop_site">桌面版网站</string>
+    <string name="webview_block_ads">广告拦截</string>
+    <string name="webview_text_size">字体大小: %1$d%%</string>
+
+    <!-- Web View Security/Certificate -->
+    <string name="webview_secure">安全</string>
+    <string name="webview_insecure">不安全</string>
+    <string name="webview_security_info_title">安全信息</string>
+    <string name="webview_insecure_connection_title">连接不安全</string>
+    <string name="webview_secure_connection_desc">与此网站的连接已加密且安全。</string>
+    <string name="webview_insecure_connection_desc">与此网站的连接不安全。请勿输入任何敏感信息（如密码或信用卡号），因为这些信息可能会被攻击者窃取。</string>
+    <string name="webview_cert_issued_to">颁发给</string>
+    <string name="webview_cert_issued_by">颁发者</string>
+    <string name="webview_cert_valid_until">有效期至</string>
+    <string name="webview_cert_unknown">未知</string>
+
+    <!-- Web View Find In Page Bar -->
+    <string name="webview_find_placeholder">在页面中查找…</string>
+    <string name="webview_find_previous">上一个</string>
+    <string name="webview_find_next">下一个</string>
+    <string name="webview_find_close">关闭查找</string>
 </resources>

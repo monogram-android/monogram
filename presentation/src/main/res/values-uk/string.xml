@@ -982,4 +982,45 @@
     <string name="video_discard_title">Відхилити зміни?</string>
     <string name="video_discard_text">Ви маєте незбережені зміни. Ви впевнені, що хочете їх відхилити?</string>
     <string name="video_discard_confirm">Відхилити</string>
+
+    <!-- Web View General -->
+    <string name="webview_loading">Завантаження…</string>
+    <string name="webview_default_title">Веб-перегляд</string>
+    <string name="webview_close">Закрити</string>
+    <string name="webview_more_options">Більше</string>
+
+    <!-- Web View Options Sheet -->
+    <string name="webview_options_title">Опції</string>
+    <string name="webview_back">Назад</string>
+    <string name="webview_forward">Вперед</string>
+    <string name="webview_refresh">Оновити</string>
+    <string name="webview_section_actions">Дії</string>
+    <string name="webview_section_settings">Налаштування</string>
+    <string name="webview_copy_link">Копіювати</string>
+    <string name="webview_link_copied">Посилання скопійовано</string>
+    <string name="webview_share">Поділитися</string>
+    <string name="webview_share_chooser_title">Поділитися через</string>
+    <string name="webview_open_in_browser">Браузер</string>
+    <string name="webview_find_in_page">Пошук</string>
+    <string name="webview_desktop_site">Версія для ПК</string>
+    <string name="webview_block_ads">Блок реклами</string>
+    <string name="webview_text_size">Розмір тексту: %1$d%%</string>
+
+    <!-- Web View Security/Certificate -->
+    <string name="webview_secure">Безпечно</string>
+    <string name="webview_insecure">Небезпечно</string>
+    <string name="webview_security_info_title">Безпека</string>
+    <string name="webview_insecure_connection_title">Незахищене з’єднання</string>
+    <string name="webview_secure_connection_desc">З’єднання з цим сайтом зашифроване та безпечне.</string>
+    <string name="webview_insecure_connection_desc">З’єднання з цим сайтом не є безпечним. Вам не слід вводити конфіденційну інформацію (паролі чи картки), оскільки її можуть викрасти зловмисники.</string>
+    <string name="webview_cert_issued_to">Кому виданий</string>
+    <string name="webview_cert_issued_by">Ким виданий</string>
+    <string name="webview_cert_valid_until">Дійсний до</string>
+    <string name="webview_cert_unknown">Невідомо</string>
+
+    <!-- Web View Find In Page Bar -->
+    <string name="webview_find_placeholder">Пошук на сторінці…</string>
+    <string name="webview_find_previous">Попер.</string>
+    <string name="webview_find_next">Наст.</string>
+    <string name="webview_find_close">Закрити пошук</string>
 </resources>

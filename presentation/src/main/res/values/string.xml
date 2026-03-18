@@ -1014,4 +1014,45 @@
     <string name="video_discard_title">Discard changes?</string>
     <string name="video_discard_text">You have unsaved changes. Are you sure you want to discard them?</string>
     <string name="video_discard_confirm">Discard</string>
+
+    <!-- Web View General -->
+    <string name="webview_loading">Loading…</string>
+    <string name="webview_default_title">Web View</string>
+    <string name="webview_close">Close</string>
+    <string name="webview_more_options">More options</string>
+
+    <!-- Web View Options Sheet -->
+    <string name="webview_options_title">Options</string>
+    <string name="webview_back">Back</string>
+    <string name="webview_forward">Forward</string>
+    <string name="webview_refresh">Refresh</string>
+    <string name="webview_section_actions">Actions</string>
+    <string name="webview_section_settings">Settings</string>
+    <string name="webview_copy_link">Copy</string>
+    <string name="webview_link_copied">Link copied</string>
+    <string name="webview_share">Share</string>
+    <string name="webview_share_chooser_title">Share link via</string>
+    <string name="webview_open_in_browser">Browser</string>
+    <string name="webview_find_in_page">Find</string>
+    <string name="webview_desktop_site">Desktop Site</string>
+    <string name="webview_block_ads">Block Ads</string>
+    <string name="webview_text_size">Text Size: %1$d%%</string>
+
+    <!-- Web View Security/Certificate -->
+    <string name="webview_secure">Secure</string>
+    <string name="webview_insecure">Insecure</string>
+    <string name="webview_security_info_title">Security Information</string>
+    <string name="webview_insecure_connection_title">Insecure Connection</string>
+    <string name="webview_secure_connection_desc">The connection to this site is encrypted and secure.</string>
+    <string name="webview_insecure_connection_desc">The connection to this site is not secure. You should not enter any sensitive information (such as passwords or credit cards) because it could be stolen by attackers.</string>
+    <string name="webview_cert_issued_to">Issued to</string>
+    <string name="webview_cert_issued_by">Issued by</string>
+    <string name="webview_cert_valid_until">Valid until</string>
+    <string name="webview_cert_unknown">Unknown</string>
+
+    <!-- Web View Find In Page Bar -->
+    <string name="webview_find_placeholder">Find in page…</string>
+    <string name="webview_find_previous">Previous</string>
+    <string name="webview_find_next">Next</string>
+    <string name="webview_find_close">Close Find</string>
 </resources>

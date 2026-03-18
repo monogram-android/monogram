@@ -23,9 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.settings.sessions.SectionHeader
@@ -56,7 +58,7 @@ fun OptionsSheet(
             .padding(bottom = 48.dp)
     ) {
         Text(
-            text = "Options",
+            text = stringResource(R.string.webview_options_title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -75,19 +77,19 @@ fun OptionsSheet(
             ) {
                 NavigationItem(
                     icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                    label = "Back",
+                    label = stringResource(R.string.webview_back),
                     enabled = canGoBack,
                     onClick = { webView?.goBack() }
                 )
                 NavigationItem(
                     icon = Icons.AutoMirrored.Rounded.ArrowForward,
-                    label = "Forward",
+                    label = stringResource(R.string.webview_forward),
                     enabled = canGoForward,
                     onClick = { webView?.goForward() }
                 )
                 NavigationItem(
                     icon = Icons.Rounded.Refresh,
-                    label = "Refresh",
+                    label = stringResource(R.string.webview_refresh),
                     onClick = {
                         webView?.reload()
                         onDismiss()
@@ -96,7 +98,7 @@ fun OptionsSheet(
             }
         }
 
-        SectionHeader("Actions")
+        SectionHeader(stringResource(R.string.webview_section_actions))
 
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainer,
@@ -109,36 +111,36 @@ fun OptionsSheet(
                     .padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ActionItem(Icons.Rounded.ContentCopy, "Copy") {
+                ActionItem(Icons.Rounded.ContentCopy, stringResource(R.string.webview_copy_link)) {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clipboard.setPrimaryClip(ClipData.newPlainText("URL", currentUrl))
-                    Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.webview_link_copied), Toast.LENGTH_SHORT).show()
                     onDismiss()
                 }
-                ActionItem(Icons.Rounded.Share, "Share") {
+                ActionItem(Icons.Rounded.Share, stringResource(R.string.webview_share)) {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, currentUrl)
                     }
-                    context.startActivity(Intent.createChooser(shareIntent, "Share link via"))
+                    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.webview_share_chooser_title)))
                     onDismiss()
                 }
-                ActionItem(Icons.AutoMirrored.Rounded.OpenInNew, "Browser") {
+                ActionItem(Icons.AutoMirrored.Rounded.OpenInNew, stringResource(R.string.webview_open_in_browser)) {
                     uriHandler.openUri(currentUrl)
                     onDismiss()
                 }
-                ActionItem(Icons.Rounded.Search, "Find") {
+                ActionItem(Icons.Rounded.Search, stringResource(R.string.webview_find_in_page)) {
                     onDismiss()
                     onFindInPage()
                 }
             }
         }
 
-        SectionHeader("Settings")
+        SectionHeader(stringResource(R.string.webview_section_settings))
 
         SettingsSwitchTile(
             icon = Icons.Rounded.DesktopWindows,
-            title = "Desktop Site",
+            title = stringResource(R.string.webview_desktop_site),
             checked = isDesktopMode,
             iconColor = MaterialTheme.colorScheme.primary,
             position = ItemPosition.TOP,
@@ -147,7 +149,7 @@ fun OptionsSheet(
 
         SettingsSwitchTile(
             icon = Icons.Rounded.Block,
-            title = "Block Ads",
+            title = stringResource(R.string.webview_block_ads),
             checked = isAdBlockEnabled,
             iconColor = MaterialTheme.colorScheme.primary,
             position = ItemPosition.MIDDLE,
@@ -179,7 +181,7 @@ fun OptionsSheet(
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Text(
-                        "Text Size: $textZoom%",
+                        stringResource(R.string.webview_text_size, textZoom),
                         style = MaterialTheme.typography.titleMedium,
                         fontSize = 18.sp
                     )

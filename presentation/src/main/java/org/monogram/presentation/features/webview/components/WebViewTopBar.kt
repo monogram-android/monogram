@@ -12,8 +12,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.monogram.presentation.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +42,7 @@ fun WebViewTopBar(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = if (isSecure) Icons.Rounded.Lock else Icons.Rounded.Public,
-                        contentDescription = if (isSecure) "Secure" else "Insecure",
+                        contentDescription = stringResource(if (isSecure) R.string.webview_secure else R.string.webview_insecure),
                         modifier = Modifier.size(12.dp),
                         tint = if (isSecure) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
                     )
@@ -57,12 +59,12 @@ fun WebViewTopBar(
         },
         navigationIcon = {
             IconButton(onClick = onDismiss) {
-                Icon(Icons.Rounded.Close, contentDescription = "Close")
+                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.webview_close))
             }
         },
         actions = {
             IconButton(onClick = onMoreOptions) {
-                Icon(Icons.Rounded.MoreVert, contentDescription = "More options")
+                Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.webview_more_options))
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

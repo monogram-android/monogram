@@ -17,12 +17,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.BotCommandModel
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.StickerModel
+import org.monogram.presentation.R
 
 @Composable
 fun InputTextFieldContainer(
@@ -125,7 +127,7 @@ private fun BotInputActions(
             ) {
                 Icon(
                     imageVector = Icons.Default.Menu,
-                    contentDescription = "Commands",
+                    contentDescription = stringResource(R.string.bot_commands),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }

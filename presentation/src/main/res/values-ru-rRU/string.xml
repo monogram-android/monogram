@@ -843,4 +843,38 @@
 
     <string name="subscribers_count_format">%1$d подписчиков</string>
     <string name="thread_title">Ветка</string>
+
+    <!-- Recording UI -->
+    <string name="recording_delete">Удалить запись</string>
+    <string name="recording_slide_to_cancel">&lt; Проведите для отмены</string>
+    <string name="recording_send">Отправить запись</string>
+    <string name="recording_lock">Заблокировать запись</string>
+    <string name="recording_swipe_up">Проведите вверх</string>
+
+    <!-- Input Bar -->
+    <string name="input_placeholder_caption">Добавить подпись…</string>
+    <string name="input_placeholder_message">Сообщение</string>
+    <string name="input_error_not_allowed">Отправка сообщений запрещена</string>
+
+    <!-- Media Types -->
+    <string name="media_type_photo">Фото</string>
+    <string name="media_type_video">Видео</string>
+    <string name="media_type_sticker">Стикер</string>
+    <string name="media_type_voice">Голосовое сообщение</string>
+    <string name="media_type_video_note">Видеосообщение</string>
+    <string name="media_type_gif">GIF</string>
+    <string name="media_type_location">Геопозиция</string>
+    <string name="media_type_message">Сообщение</string>
+
+    <!-- Actions -->
+    <string name="action_cancel_reply">Отменить ответ</string>
+    <string name="action_edit_message">Изменить сообщение</string>
+    <string name="action_cancel_edit">Отменить редактирование</string>
+    <string name="action_send_items_count">Отправить %1$d объектов</string>
+    <string name="action_send_media">Отправить медиа</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_remove">Удалить</string>
+
+    <!-- Bot -->
+    <string name="bot_commands">Команды</string>
 </resources>

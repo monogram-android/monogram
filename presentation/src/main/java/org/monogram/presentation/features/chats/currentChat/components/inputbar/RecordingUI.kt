@@ -28,10 +28,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 
 @Composable
 fun RecordingUI(
@@ -101,7 +103,7 @@ fun RecordingUI(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete Recording",
+                        contentDescription = stringResource(R.string.recording_delete),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -140,7 +142,7 @@ fun RecordingUI(
         ) {
             if (!voiceRecorderState.isLocked) {
                 Text(
-                    text = "< Slide to cancel",
+                    text = stringResource(R.string.recording_slide_to_cancel),
                     modifier = Modifier
                         .alpha(slideToCancelAlpha)
                         .fillMaxWidth(),
@@ -176,7 +178,7 @@ fun RecordingUI(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Send,
-                        contentDescription = "Send Recording",
+                        contentDescription = stringResource(R.string.recording_send),
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(20.dp)
                     )
@@ -199,12 +201,12 @@ fun RecordingUI(
                     )
                     Icon(
                         imageVector = Icons.Default.Lock,
-                        contentDescription = "Lock Recording",
+                        contentDescription = stringResource(R.string.recording_lock),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "Swipe up",
+                        text = stringResource(R.string.recording_swipe_up),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,

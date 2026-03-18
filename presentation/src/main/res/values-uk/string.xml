@@ -843,4 +843,38 @@
 
     <string name="subscribers_count_format">%1$d підписників</string>
     <string name="thread_title">Гілка</string>
+
+    <!-- Recording UI -->
+    <string name="recording_delete">Видалити запис</string>
+    <string name="recording_slide_to_cancel">&lt; Проведіть для скасування</string>
+    <string name="recording_send">Надіслати запис</string>
+    <string name="recording_lock">Заблокувати запис</string>
+    <string name="recording_swipe_up">Проведіть вгору</string>
+
+    <!-- Input Bar -->
+    <string name="input_placeholder_caption">Додати підпис…</string>
+    <string name="input_placeholder_message">Повідомлення</string>
+    <string name="input_error_not_allowed">Надсилання повідомлень заборонено</string>
+
+    <!-- Media Types -->
+    <string name="media_type_photo">Фото</string>
+    <string name="media_type_video">Відео</string>
+    <string name="media_type_sticker">Наліпка</string>
+    <string name="media_type_voice">Голосове повідомлення</string>
+    <string name="media_type_video_note">Відеоповідомлення</string>
+    <string name="media_type_gif">GIF</string>
+    <string name="media_type_location">Локація</string>
+    <string name="media_type_message">Повідомлення</string>
+
+    <!-- Actions -->
+    <string name="action_cancel_reply">Скасувати відповідь</string>
+    <string name="action_edit_message">Редагувати повідомлення</string>
+    <string name="action_cancel_edit">Скасувати редагування</string>
+    <string name="action_send_items_count">Надіслати %1$d об’єктів</string>
+    <string name="action_send_media">Надіслати медіа</string>
+    <string name="action_cancel">Скасувати</string>
+    <string name="action_remove">Видалити</string>
+
+    <!-- Bot -->
+    <string name="bot_commands">Команди</string>
 </resources>

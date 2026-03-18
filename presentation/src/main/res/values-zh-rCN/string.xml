@@ -836,4 +836,38 @@
 
     <string name="subscribers_count_format">%1$d 位订阅者</string>
     <string name="thread_title">回复</string>
+
+    <!-- Recording UI -->
+    <string name="recording_delete">删除录音</string>
+    <string name="recording_slide_to_cancel">&lt; 左滑取消</string>
+    <string name="recording_send">发送录音</string>
+    <string name="recording_lock">锁定录音</string>
+    <string name="recording_swipe_up">向上滑动</string>
+
+    <!-- Input Bar -->
+    <string name="input_placeholder_caption">添加说明…</string>
+    <string name="input_placeholder_message">消息</string>
+    <string name="input_error_not_allowed">不允许发送消息</string>
+
+    <!-- Media Types -->
+    <string name="media_type_photo">照片</string>
+    <string name="media_type_video">视频</string>
+    <string name="media_type_sticker">贴纸</string>
+    <string name="media_type_voice">语音消息</string>
+    <string name="media_type_video_note">视频消息</string>
+    <string name="media_type_gif">GIF</string>
+    <string name="media_type_location">位置</string>
+    <string name="media_type_message">消息</string>
+
+    <!-- Actions -->
+    <string name="action_cancel_reply">取消回复</string>
+    <string name="action_edit_message">编辑消息</string>
+    <string name="action_cancel_edit">取消编辑</string>
+    <string name="action_send_items_count">发送 %1$d 个项目</string>
+    <string name="action_send_media">发送媒体</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_remove">移除</string>
+
+    <!-- Bot -->
+    <string name="bot_commands">指令</string>
 </resources>

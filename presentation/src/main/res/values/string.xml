@@ -877,4 +877,38 @@
 
     <string name="subscribers_count_format">%1$d subscribers</string>
     <string name="thread_title">Thread</string>
+
+    <!-- Recording UI -->
+    <string name="recording_delete">Delete Recording</string>
+    <string name="recording_slide_to_cancel">&lt; Slide to cancel</string>
+    <string name="recording_send">Send Recording</string>
+    <string name="recording_lock">Lock Recording</string>
+    <string name="recording_swipe_up">Swipe up</string>
+
+    <!-- Input Bar -->
+    <string name="input_placeholder_caption">Add a caption…</string>
+    <string name="input_placeholder_message">Message</string>
+    <string name="input_error_not_allowed">Sending messages is not allowed</string>
+
+    <!-- Media Types -->
+    <string name="media_type_photo">Photo</string>
+    <string name="media_type_video">Video</string>
+    <string name="media_type_sticker">Sticker</string>
+    <string name="media_type_voice">Voice message</string>
+    <string name="media_type_video_note">Video message</string>
+    <string name="media_type_gif">GIF</string>
+    <string name="media_type_location">Location</string>
+    <string name="media_type_message">Message</string>
+
+    <!-- Actions -->
+    <string name="action_cancel_reply">Cancel reply</string>
+    <string name="action_edit_message">Edit Message</string>
+    <string name="action_cancel_edit">Cancel edit</string>
+    <string name="action_send_items_count">Send %1$d items</string>
+    <string name="action_send_media">Send media</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_remove">Remove</string>
+
+    <!-- Bot -->
+    <string name="bot_commands">Commands</string>
 </resources>

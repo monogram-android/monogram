@@ -32,12 +32,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 import java.io.File
 import java.util.*
 
@@ -143,15 +145,15 @@ private fun ReplyPreview(
             Text(
                 text = when (val content = message.content) {
                     is MessageContent.Text -> content.text
-                    is MessageContent.Photo -> "Photo"
-                    is MessageContent.Video -> "Video"
-                    is MessageContent.Sticker -> "Sticker"
-                    is MessageContent.Voice -> "Voice message"
-                    is MessageContent.VideoNote -> "Video message"
-                    is MessageContent.Gif -> "GIF"
-                    is MessageContent.Location -> "Location"
+                    is MessageContent.Photo -> stringResource(R.string.media_type_photo)
+                    is MessageContent.Video -> stringResource(R.string.media_type_video)
+                    is MessageContent.Sticker -> stringResource(R.string.media_type_sticker)
+                    is MessageContent.Voice -> stringResource(R.string.media_type_voice)
+                    is MessageContent.VideoNote -> stringResource(R.string.media_type_video_note)
+                    is MessageContent.Gif -> stringResource(R.string.media_type_gif)
+                    is MessageContent.Location -> stringResource(R.string.media_type_location)
                     is MessageContent.Venue -> content.title
-                    else -> "Message"
+                    else -> stringResource(R.string.media_type_message)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -163,7 +165,7 @@ private fun ReplyPreview(
         IconButton(onClick = onCancel) {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Cancel reply",
+                contentDescription = stringResource(R.string.action_cancel_reply),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -201,7 +203,7 @@ private fun EditPreview(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Edit Message",
+                text = stringResource(R.string.action_edit_message),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
@@ -210,7 +212,7 @@ private fun EditPreview(
             Text(
                 text = when (val content = message.content) {
                     is MessageContent.Text -> content.text
-                    else -> "Message"
+                    else -> stringResource(R.string.media_type_message)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -222,7 +224,7 @@ private fun EditPreview(
         IconButton(onClick = onCancel) {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Cancel edit",
+                contentDescription = stringResource(R.string.action_cancel_edit),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -256,7 +258,7 @@ private fun MediaPreview(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = if (paths.size > 1) "Send ${paths.size} items" else "Send media",
+                text = if (paths.size > 1) stringResource(R.string.action_send_items_count, paths.size) else stringResource(R.string.action_send_media),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 4.dp)
@@ -264,7 +266,7 @@ private fun MediaPreview(
             IconButton(onClick = onCancel, modifier = Modifier.size(24.dp)) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Cancel",
+                    contentDescription = stringResource(R.string.action_cancel),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
                 )
@@ -358,7 +360,7 @@ private fun MediaPreview(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Remove",
+                            contentDescription = stringResource(R.string.action_remove),
                             tint = Color.White,
                             modifier = Modifier.size(12.dp)
                         )

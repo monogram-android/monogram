@@ -19,6 +19,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.models.StickerModel
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.components.chats.addEmojiStyle
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
@@ -157,7 +159,7 @@ fun InputTextField(
                         }
                         if (textValue.text.isEmpty()) {
                             Text(
-                                text = if (pendingMediaPaths.isNotEmpty()) "Add a caption..." else "Message",
+                                text = if (pendingMediaPaths.isNotEmpty()) stringResource(R.string.input_placeholder_caption) else stringResource(R.string.input_placeholder_message),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -168,7 +170,7 @@ fun InputTextField(
             )
         } else {
             Text(
-                text = "Sending messages is not allowed",
+                text = stringResource(R.string.input_error_not_allowed),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier

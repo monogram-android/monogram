@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,7 @@ import coil3.request.crossfade
 import org.monogram.domain.models.InlineQueryResultModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.repository.InlineBotResultsModel
+import org.monogram.presentation.R
 
 private const val TAG = "InlineBotResults"
 
@@ -277,7 +279,7 @@ private fun InlineBotMediaItem(
                     .padding(horizontal = 4.dp, vertical = 2.dp)
             ) {
                 Text(
-                    text = if (type.contains("gif") || type.contains("animation")) "GIF" else "VIDEO",
+                    text = if (type.contains("gif") || type.contains("animation")) stringResource(R.string.media_type_gif) else stringResource(R.string.media_type_video),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White,
                     fontSize = 10.sp,

@@ -1246,4 +1246,106 @@
     <string name="add">Додати</string>
     <string name="edit">Редагувати</string>
     <string name="username">Ім’я користувача</string>
+    <string name="filters">Фільтри</string>
+
+    <!-- Profile Logs / Recent Actions -->
+    <string name="logs_title">Недавні дії</string>
+    <string name="logs_events_count">Завантажено подій: %d</string>
+    <string name="logs_empty_title">Дій не знайдено</string>
+    <string name="logs_empty_subtitle">Спробуйте змінити фільтри</string>
+    <string name="logs_not_implemented">Не реалізовано</string>
+    <string name="logs_user_id_copied">ID користувача скопійовано</string>
+
+    <!-- Logs Filters -->
+    <string name="logs_filter_title">Фільтри</string>
+    <string name="logs_filter_reset">Скинути</string>
+    <string name="logs_filter_apply">Застосувати</string>
+    <string name="logs_filter_section_types">Типи дій</string>
+    <string name="logs_filter_section_users">За учасниками</string>
+    <string name="logs_filter_search_placeholder">Пошук…</string>
+    <string name="logs_filter_no_users">Користувачів не знайдено</string>
+    <string name="logs_filter_no_results">Немає результатів за запитом «%s»</string>
+
+    <!-- Action Types -->
+    <string name="logs_action_edits">Правки</string>
+    <string name="logs_action_deletions">Видалення</string>
+    <string name="logs_action_pins">Закріплення</string>
+    <string name="logs_action_joins">Входи</string>
+    <string name="logs_action_leaves">Виходи</string>
+    <string name="logs_action_invites">Запрошення</string>
+    <string name="logs_action_promotions">Підвищення</string>
+    <string name="logs_action_restrictions">Обмеження</string>
+    <string name="logs_action_info">Інфо</string>
+    <string name="logs_action_settings">Налаштування</string>
+    <string name="logs_action_links">Посилання</string>
+    <string name="logs_action_video">Відео</string>
+
+    <!-- Action Descriptions -->
+    <string name="logs_action_edited">відредагував(ла) повідомлення</string>
+    <string name="logs_action_deleted">видалив(ла) повідомлення</string>
+    <string name="logs_action_pinned">закріпив(ла) повідомлення</string>
+    <string name="logs_action_unpinned">відкріпив(ла) повідомлення</string>
+    <string name="logs_action_joined">приєднався(лася) до чату</string>
+    <string name="logs_action_left">покинув(ла) чат</string>
+    <string name="logs_action_invited">запросив(ла) %s</string>
+    <string name="logs_action_permissions_changed">змінив(ла) дозволи для %s</string>
+    <string name="logs_action_restrictions_changed">змінив(ла) обмеження для %s</string>
+    <string name="logs_action_title_changed">змінив(ла) назву чату на «%s»</string>
+    <string name="logs_action_description_changed">змінив(ла) опис чату</string>
+    <string name="logs_action_username_changed">змінив(ла) ім\'я користувача на @%s</string>
+    <string name="logs_action_photo_changed">змінив(ла) фото чату</string>
+    <string name="logs_action_link_edited">змінив(ла) посилання для запрошення</string>
+    <string name="logs_action_link_revoked">відкликав(ла) посилання для запрошення</string>
+    <string name="logs_action_link_deleted">видалив(ла) посилання для запрошення</string>
+    <string name="logs_action_video_started">розпочав(ла) відеочат</string>
+    <string name="logs_action_video_ended">завершив(ла) відеочат</string>
+    <string name="logs_action_unknown">виконав(ла) дію: %s</string>
+
+    <!-- Details and Previews -->
+    <string name="logs_original_message">Старе повідомлення:</string>
+    <string name="logs_new_message">Нове повідомлення:</string>
+    <string name="logs_deleted_message">Видалене повідомлення:</string>
+    <string name="logs_pinned_message">Закріплене повідомлення:</string>
+    <string name="logs_unpinned_message">Відкріплене повідомлення:</string>
+    <string name="logs_restricted_until">До: %s</string>
+    <string name="logs_restricted_permanently">Обмежено назавжди</string>
+    <string name="logs_photo_old">Було</string>
+    <string name="logs_photo_new">Стало</string>
+    <string name="logs_photo_old_desc">Старе фото чату</string>
+    <string name="logs_photo_new_desc">Нове фото чату</string>
+    <string name="logs_status_from">З</string>
+    <string name="logs_status_to">На</string>
+    <string name="logs_permissions_changes">Зміни дозволів:</string>
+    <string name="logs_permissions_current">Поточні дозволи:</string>
+
+    <!-- Permissions / Roles -->
+    <string name="logs_perm_messages">Повідомлення</string>
+    <string name="logs_perm_media">Медіа</string>
+    <string name="logs_perm_stickers">Стікери</string>
+    <string name="logs_perm_links">Посилання</string>
+    <string name="logs_perm_polls">Опитування</string>
+    <string name="logs_perm_invite">Запрошення</string>
+    <string name="logs_perm_pin">Закріплення</string>
+    <string name="logs_perm_info">Дані</string>
+
+    <string name="logs_role_admin">Адмін</string>
+    <string name="logs_role_owner">Власник</string>
+    <string name="logs_role_restricted">Обмежений</string>
+    <string name="logs_role_banned">Забанений</string>
+    <string name="logs_role_member">Учасник</string>
+
+    <!-- Media Types -->
+    <string name="logs_media_photo">Фото</string>
+    <string name="logs_media_video">Відео</string>
+    <string name="logs_media_gif">GIF</string>
+    <string name="logs_media_sticker">Стікер</string>
+    <string name="logs_media_document">Файл</string>
+    <string name="logs_media_audio">Аудіо</string>
+    <string name="logs_media_voice">Голосове повідомлення</string>
+    <string name="logs_media_video_note">Відеоповідомлення</string>
+    <string name="logs_media_contact">Контакт</string>
+    <string name="logs_media_poll">Опитування</string>
+    <string name="logs_media_location">Геопозиція</string>
+    <string name="logs_media_venue">Місце</string>
+    <string name="logs_media_unsupported">Непідтримуване повідомлення</string>
 </resources>

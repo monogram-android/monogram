@@ -1236,4 +1236,106 @@
     <string name="add">添加</string>
     <string name="edit">编辑</string>
     <string name="username">用户名</string>
+    <string name="filters">过滤器</string>
+    
+    <!-- Profile Logs / Recent Actions -->
+    <string name="logs_title">近期操作</string>
+    <string name="logs_events_count">已加载 %d 条记录</string>
+    <string name="logs_empty_title">未发现近期操作</string>
+    <string name="logs_empty_subtitle">尝试更改过滤器</string>
+    <string name="logs_not_implemented">未实现</string>
+    <string name="logs_user_id_copied">用户 ID 已复制</string>
+
+    <!-- Logs Filters -->
+    <string name="logs_filter_title">筛选操作</string>
+    <string name="logs_filter_reset">重置</string>
+    <string name="logs_filter_apply">应用</string>
+    <string name="logs_filter_section_types">操作类型</string>
+    <string name="logs_filter_section_users">按用户</string>
+    <string name="logs_filter_search_placeholder">搜索…</string>
+    <string name="logs_filter_no_users">未找到用户</string>
+    <string name="logs_filter_no_results">未找到关于“%s”的结果</string>
+
+    <!-- Action Types -->
+    <string name="logs_action_edits">编辑</string>
+    <string name="logs_action_deletions">删除</string>
+    <string name="logs_action_pins">置顶</string>
+    <string name="logs_action_joins">加入</string>
+    <string name="logs_action_leaves">离开</string>
+    <string name="logs_action_invites">邀请</string>
+    <string name="logs_action_promotions">提拔</string>
+    <string name="logs_action_restrictions">限制</string>
+    <string name="logs_action_info">信息</string>
+    <string name="logs_action_settings">设置</string>
+    <string name="logs_action_links">链接</string>
+    <string name="logs_action_video">视频</string>
+
+    <!-- Action Descriptions -->
+    <string name="logs_action_edited">编辑了消息</string>
+    <string name="logs_action_deleted">删删了消息</string>
+    <string name="logs_action_pinned">置顶了消息</string>
+    <string name="logs_action_unpinned">取消了置顶</string>
+    <string name="logs_action_joined">加入了群聊</string>
+    <string name="logs_action_left">退出了群聊</string>
+    <string name="logs_action_invited">邀请了 %s</string>
+    <string name="logs_action_permissions_changed">更改了 %s 的权限</string>
+    <string name="logs_action_restrictions_changed">更改了 %s 的限制</string>
+    <string name="logs_action_title_changed">将群名称更改为“%s”</string>
+    <string name="logs_action_description_changed">更改了群简介</string>
+    <string name="logs_action_username_changed">将用户名更改为 @%s</string>
+    <string name="logs_action_photo_changed">更改了群头像</string>
+    <string name="logs_action_link_edited">编辑了邀请链接</string>
+    <string name="logs_action_link_revoked">撤销了邀请链接</string>
+    <string name="logs_action_link_deleted">删除了邀请链接</string>
+    <string name="logs_action_video_started">开启了视频聊天</string>
+    <string name="logs_action_video_ended">结束了视频聊天</string>
+    <string name="logs_action_unknown">执行了操作：%s</string>
+
+    <!-- Details and Previews -->
+    <string name="logs_original_message">原消息：</string>
+    <string name="logs_new_message">新消息：</string>
+    <string name="logs_deleted_message">已删除的消息：</string>
+    <string name="logs_pinned_message">已置顶的消息：</string>
+    <string name="logs_unpinned_message">已取消置顶的消息：</string>
+    <string name="logs_restricted_until">直到：%s</string>
+    <string name="logs_restricted_permanently">永久限制</string>
+    <string name="logs_photo_old">旧</string>
+    <string name="logs_photo_new">新</string>
+    <string name="logs_photo_old_desc">旧群头像</string>
+    <string name="logs_photo_new_desc">新群头像</string>
+    <string name="logs_status_from">自</string>
+    <string name="logs_status_to">至</string>
+    <string name="logs_permissions_changes">权限更改：</string>
+    <string name="logs_permissions_current">当前权限：</string>
+
+    <!-- Permissions / Roles -->
+    <string name="logs_perm_messages">消息</string>
+    <string name="logs_perm_media">媒体</string>
+    <string name="logs_perm_stickers">贴纸</string>
+    <string name="logs_perm_links">链接</string>
+    <string name="logs_perm_polls">投票</string>
+    <string name="logs_perm_invite">邀请</string>
+    <string name="logs_perm_pin">置顶</string>
+    <string name="logs_perm_info">详情</string>
+
+    <string name="logs_role_admin">管理员</string>
+    <string name="logs_role_owner">群主</string>
+    <string name="logs_role_restricted">受限</string>
+    <string name="logs_role_banned">已封禁</string>
+    <string name="logs_role_member">成员</string>
+
+    <!-- Media Types -->
+    <string name="logs_media_photo">照片</string>
+    <string name="logs_media_video">视频</string>
+    <string name="logs_media_gif">GIF</string>
+    <string name="logs_media_sticker">贴纸</string>
+    <string name="logs_media_document">文件</string>
+    <string name="logs_media_audio">音频</string>
+    <string name="logs_media_voice">语音消息</string>
+    <string name="logs_media_video_note">视频消息</string>
+    <string name="logs_media_contact">联系人</string>
+    <string name="logs_media_poll">投票</string>
+    <string name="logs_media_location">位置</string>
+    <string name="logs_media_venue">地点</string>
+    <string name="logs_media_unsupported">不支持的消息</string>
 </resources>

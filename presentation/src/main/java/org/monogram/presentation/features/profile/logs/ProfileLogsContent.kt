@@ -18,10 +18,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.MessageSenderModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.features.chats.chatList.components.SectionHeader
@@ -60,10 +62,10 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Recent Actions", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.logs_title), style = MaterialTheme.typography.titleMedium)
                         if (state.logs.isNotEmpty()) {
                             Text(
-                                text = "${state.logs.size} events loaded",
+                                text = stringResource(R.string.logs_events_count, state.logs.size),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -72,12 +74,12 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = component::onShowFilters) {
-                        Icon(Icons.Rounded.FilterList, contentDescription = "Filters")
+                        Icon(Icons.Rounded.FilterList, contentDescription = stringResource(R.string.filters))
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -103,13 +105,13 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "No recent actions found",
+                            text = stringResource(R.string.logs_empty_title),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Try changing filters",
+                            text = stringResource(R.string.logs_empty_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -178,10 +180,10 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                     onDismiss = component::onDismissViewer,
                     autoDownload = true,
                     onPageChanged = {},
-                    onForward = { Toast.makeText(context, "Not implemented", Toast.LENGTH_SHORT).show() },
-                    onDelete = { Toast.makeText(context, "Not implemented", Toast.LENGTH_SHORT).show() },
-                    onCopyLink = { Toast.makeText(context, "Not implemented", Toast.LENGTH_SHORT).show() },
-                    onCopyText = { Toast.makeText(context, "Not implemented", Toast.LENGTH_SHORT).show() },
+                    onForward = { Toast.makeText(context, context.getString(R.string.logs_not_implemented), Toast.LENGTH_SHORT).show() },
+                    onDelete = { Toast.makeText(context, context.getString(R.string.logs_not_implemented), Toast.LENGTH_SHORT).show() },
+                    onCopyLink = { Toast.makeText(context, context.getString(R.string.logs_not_implemented), Toast.LENGTH_SHORT).show() },
+                    onCopyText = { Toast.makeText(context, context.getString(R.string.logs_not_implemented), Toast.LENGTH_SHORT).show() },
                     captions = listOfNotNull(state.fullScreenPhotoCaption),
                     downloadUtils = component.downloadUtils
                 )
@@ -201,10 +203,10 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                     isDoubleTapSeekEnabled = true,
                     seekDuration = 10,
                     isZoomEnabled = true,
-                    onForward = { Toast.makeText(context, "Not implemented", Toast.LENGTH_SHORT).show() },
-                    onDelete = { Toast.makeText(context, "Not implemented", Toast.LENGTH_SHORT).show() },
-                    onCopyLink = { Toast.makeText(context, "Not implemented", Toast.LENGTH_SHORT).show() },
-                    onCopyText = { Toast.makeText(context, "Not implemented", Toast.LENGTH_SHORT).show() },
+                    onForward = { Toast.makeText(context, context.getString(R.string.logs_not_implemented), Toast.LENGTH_SHORT).show() },
+                    onDelete = { Toast.makeText(context, context.getString(R.string.logs_not_implemented), Toast.LENGTH_SHORT).show() },
+                    onCopyLink = { Toast.makeText(context, context.getString(R.string.logs_not_implemented), Toast.LENGTH_SHORT).show() },
+                    onCopyText = { Toast.makeText(context, context.getString(R.string.logs_not_implemented), Toast.LENGTH_SHORT).show() },
                     caption = state.fullScreenVideoCaption,
                     fileId = state.fullScreenVideoFileId,
                     supportsStreaming = state.fullScreenVideoSupportsStreaming,
@@ -237,7 +239,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Filter Actions",
+                        text = stringResource(R.string.logs_filter_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -246,33 +248,33 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                             component.onResetFilters()
                             searchQuery = ""
                         }) {
-                            Text("Reset")
+                            Text(stringResource(R.string.logs_filter_reset))
                         }
                         Button(onClick = component::onApplyFilters) {
-                            Text("Apply")
+                            Text(stringResource(R.string.logs_filter_apply))
                         }
                     }
                 }
 
                 val filterItems = remember {
                     listOf(
-                        ProfileLogsComponent.FilterType.MESSAGE_EDITS to "Edits",
-                        ProfileLogsComponent.FilterType.MESSAGE_DELETIONS to "Deletions",
-                        ProfileLogsComponent.FilterType.MESSAGE_PINS to "Pins",
-                        ProfileLogsComponent.FilterType.MEMBER_JOINS to "Joins",
-                        ProfileLogsComponent.FilterType.MEMBER_LEAVES to "Leaves",
-                        ProfileLogsComponent.FilterType.MEMBER_INVITES to "Invites",
-                        ProfileLogsComponent.FilterType.MEMBER_PROMOTIONS to "Promotions",
-                        ProfileLogsComponent.FilterType.MEMBER_RESTRICTIONS to "Restrictions",
-                        ProfileLogsComponent.FilterType.INFO_CHANGES to "Info",
-                        ProfileLogsComponent.FilterType.SETTING_CHANGES to "Settings",
-                        ProfileLogsComponent.FilterType.INVITE_LINK_CHANGES to "Links",
-                        ProfileLogsComponent.FilterType.VIDEO_CHAT_CHANGES to "Video"
+                        ProfileLogsComponent.FilterType.MESSAGE_EDITS to R.string.logs_action_edits,
+                        ProfileLogsComponent.FilterType.MESSAGE_DELETIONS to R.string.logs_action_deletions,
+                        ProfileLogsComponent.FilterType.MESSAGE_PINS to R.string.logs_action_pins,
+                        ProfileLogsComponent.FilterType.MEMBER_JOINS to R.string.logs_action_joins,
+                        ProfileLogsComponent.FilterType.MEMBER_LEAVES to R.string.logs_action_leaves,
+                        ProfileLogsComponent.FilterType.MEMBER_INVITES to R.string.logs_action_invites,
+                        ProfileLogsComponent.FilterType.MEMBER_PROMOTIONS to R.string.logs_action_promotions,
+                        ProfileLogsComponent.FilterType.MEMBER_RESTRICTIONS to R.string.logs_action_restrictions,
+                        ProfileLogsComponent.FilterType.INFO_CHANGES to R.string.logs_action_info,
+                        ProfileLogsComponent.FilterType.SETTING_CHANGES to R.string.logs_action_settings,
+                        ProfileLogsComponent.FilterType.INVITE_LINK_CHANGES to R.string.logs_action_links,
+                        ProfileLogsComponent.FilterType.VIDEO_CHAT_CHANGES to R.string.logs_action_video
                     )
                 }
 
                 val filteredFilterItems = remember(searchQuery) {
-                    filterItems.filter { it.second.contains(searchQuery, ignoreCase = true) }
+                    filterItems
                 }
 
                 val filteredSenderInfo = remember(searchQuery, state.senderInfo) {
@@ -280,7 +282,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                 }
 
                 if (filteredFilterItems.isNotEmpty()) {
-                    SectionHeader("Action Types")
+                    SectionHeader(stringResource(R.string.logs_filter_section_types))
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainer,
                         shape = RoundedCornerShape(24.dp),
@@ -292,7 +294,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                                 .padding(vertical = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            items(filteredFilterItems) { (type, label) ->
+                            items(filteredFilterItems) { (type, labelRes) ->
                                 val isChecked = when (type) {
                                     ProfileLogsComponent.FilterType.MESSAGE_EDITS -> state.pendingFilters.messageEdits
                                     ProfileLogsComponent.FilterType.MESSAGE_DELETIONS -> state.pendingFilters.messageDeletions
@@ -309,7 +311,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                                     else -> false
                                 }
                                 FilterChipCompact(
-                                    label = label,
+                                    label = stringResource(labelRes),
                                     selected = isChecked,
                                     onClick = { component.onToggleFilter(type) }
                                 )
@@ -318,19 +320,19 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                     }
                 }
 
-                SectionHeader("By Users")
+                SectionHeader(stringResource(R.string.logs_filter_section_users))
 
                 SettingsTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = "Search...",
+                    placeholder = stringResource(R.string.logs_filter_search_placeholder),
                     icon = if (searchQuery.isEmpty()) Icons.Rounded.Search else Icons.Rounded.Close,
                     position = ItemPosition.TOP,
                     singleLine = true,
                     trailingIcon = if (searchQuery.isNotEmpty()) {
                         {
                             IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.clear))
                             }
                         }
                     } else null
@@ -356,7 +358,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = if (searchQuery.isEmpty()) "No users found" else "No results for \"$searchQuery\"",
+                                        text = if (searchQuery.isEmpty()) stringResource(R.string.logs_filter_no_users) else stringResource(R.string.logs_filter_no_results, searchQuery),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

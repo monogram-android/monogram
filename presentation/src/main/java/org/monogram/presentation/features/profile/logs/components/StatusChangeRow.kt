@@ -6,21 +6,30 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import org.monogram.presentation.R
 
 @Composable
 fun StatusChangeRow(label: String, status: String) {
+    val restrictedStr = stringResource(R.string.logs_role_restricted)
+    val memberStr = stringResource(R.string.logs_role_member)
+    val adminStr = stringResource(R.string.logs_role_admin)
+    val ownerStr = stringResource(R.string.logs_role_owner)
+    val bannedStr = stringResource(R.string.logs_role_banned)
+    val unknownStr = "Unknown"
+
     val formattedStatus = remember(status) {
         val name = status.substringBefore("{").trim()
         if (name.isEmpty() || name.length > 30) {
             when {
-                status.contains("Restricted", ignoreCase = true) -> "Restricted"
-                status.contains("Member", ignoreCase = true) -> "Member"
-                status.contains("Administrator", ignoreCase = true) -> "Admin"
-                status.contains("Creator", ignoreCase = true) -> "Owner"
-                status.contains("Banned", ignoreCase = true) -> "Banned"
+                status.contains("Restricted", ignoreCase = true) -> restrictedStr
+                status.contains("Member", ignoreCase = true) -> memberStr
+                status.contains("Administrator", ignoreCase = true) -> adminStr
+                status.contains("Creator", ignoreCase = true) -> ownerStr
+                status.contains("Banned", ignoreCase = true) -> bannedStr
                 status.contains("Left", ignoreCase = true) -> "Left"
-                else -> "Unknown"
+                else -> unknownStr
             }
         } else {
             name.replace("ChatMemberStatus", "")
@@ -38,8 +47,8 @@ fun StatusChangeRow(label: String, status: String) {
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
             color = when (formattedStatus) {
-                "Restricted", "Banned" -> MaterialTheme.colorScheme.error
-                "Admin", "Owner", "Administrator", "Creator" -> MaterialTheme.colorScheme.primary
+                restrictedStr, bannedStr -> MaterialTheme.colorScheme.error
+                adminStr, ownerStr, "Administrator", "Creator" -> MaterialTheme.colorScheme.primary
                 else -> MaterialTheme.colorScheme.onSurface
             }
         )

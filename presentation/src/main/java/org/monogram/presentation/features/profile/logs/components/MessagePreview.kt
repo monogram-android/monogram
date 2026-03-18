@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -22,6 +23,7 @@ import coil3.compose.AsyncImage
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.components.chats.MessageText
 import org.monogram.presentation.features.chats.currentChat.components.chats.buildAnnotatedMessageTextWithEmoji
 import org.monogram.presentation.features.chats.currentChat.components.chats.rememberMessageInlineContent
@@ -122,33 +124,33 @@ fun MessagePreview(
 
                     is MessageContent.Photo -> {
                         val oldCaption = (oldContent as? MessageContent.Photo)?.caption
-                        MediaPreviewText("Photo", content.caption, content.entities, oldCaption)
+                        MediaPreviewText(stringResource(R.string.logs_media_photo), content.caption, content.entities, oldCaption)
                     }
 
                     is MessageContent.Video -> {
                         val oldCaption = (oldContent as? MessageContent.Video)?.caption
-                        MediaPreviewText("Video", content.caption, content.entities, oldCaption)
+                        MediaPreviewText(stringResource(R.string.logs_media_video), content.caption, content.entities, oldCaption)
                     }
 
                     is MessageContent.Document -> {
                         val oldDoc = oldContent as? MessageContent.Document
                         val oldText = oldDoc?.caption?.ifEmpty { oldDoc.fileName }
                         val newText = content.caption.ifEmpty { content.fileName }
-                        MediaPreviewText("Document", newText, content.entities, oldText)
+                        MediaPreviewText(stringResource(R.string.logs_media_document), newText, content.entities, oldText)
                     }
 
                     is MessageContent.Audio -> {
                         val oldAudio = oldContent as? MessageContent.Audio
                         val oldText = oldAudio?.caption?.ifEmpty { oldAudio.title.ifEmpty { oldAudio.fileName } }
                         val newText = content.caption.ifEmpty { content.title.ifEmpty { content.fileName } }
-                        MediaPreviewText("Audio", newText, content.entities, oldText)
+                        MediaPreviewText(stringResource(R.string.logs_media_audio), newText, content.entities, oldText)
                     }
 
                     is MessageContent.Sticker -> {
                         Text(
                             text = buildAnnotatedString {
                                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                    append("Sticker")
+                                    append(stringResource(R.string.logs_media_sticker))
                                 }
                                 append(" ${content.emoji}")
                             },
@@ -160,7 +162,7 @@ fun MessagePreview(
                         Text(
                             text = buildAnnotatedString {
                                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                    append("Voice message")
+                                    append(stringResource(R.string.logs_media_voice))
                                 }
                             },
                             style = MaterialTheme.typography.bodyMedium
@@ -171,7 +173,7 @@ fun MessagePreview(
                         Text(
                             text = buildAnnotatedString {
                                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                    append("Video message")
+                                    append(stringResource(R.string.logs_media_video_note))
                                 }
                             },
                             style = MaterialTheme.typography.bodyMedium
@@ -180,14 +182,14 @@ fun MessagePreview(
 
                     is MessageContent.Gif -> {
                         val oldCaption = (oldContent as? MessageContent.Gif)?.caption
-                        MediaPreviewText("GIF", content.caption, content.entities, oldCaption)
+                        MediaPreviewText(stringResource(R.string.logs_media_gif), content.caption, content.entities, oldCaption)
                     }
 
                     is MessageContent.Contact -> {
                         Text(
                             text = buildAnnotatedString {
                                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                    append("Contact")
+                                    append(stringResource(R.string.logs_media_contact))
                                 }
                                 append(": ${content.firstName} ${content.lastName}".trim())
                             },
@@ -199,7 +201,7 @@ fun MessagePreview(
                         Text(
                             text = buildAnnotatedString {
                                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                    append("Poll")
+                                    append(stringResource(R.string.logs_media_poll))
                                 }
                                 append(": ${content.question}")
                             },
@@ -211,7 +213,7 @@ fun MessagePreview(
                         Text(
                             text = buildAnnotatedString {
                                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                    append("Location")
+                                    append(stringResource(R.string.logs_media_location))
                                 }
                             },
                             style = MaterialTheme.typography.bodyMedium
@@ -222,7 +224,7 @@ fun MessagePreview(
                         Text(
                             text = buildAnnotatedString {
                                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                    append("Venue")
+                                    append(stringResource(R.string.logs_media_venue))
                                 }
                                 append(": ${content.title}")
                             },
@@ -240,7 +242,7 @@ fun MessagePreview(
 
                     MessageContent.Unsupported -> {
                         Text(
-                            "Unsupported message",
+                            stringResource(R.string.logs_media_unsupported),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }

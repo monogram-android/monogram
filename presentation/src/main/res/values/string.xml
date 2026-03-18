@@ -1278,4 +1278,106 @@
     <string name="add">Add</string>
     <string name="edit">Edit</string>
     <string name="username">Username</string>
+    <string name="filters">Filters</string>
+
+    <!-- Profile Logs / Recent Actions -->
+    <string name="logs_title">Recent Actions</string>
+    <string name="logs_events_count">%d events loaded</string>
+    <string name="logs_empty_title">No recent actions found</string>
+    <string name="logs_empty_subtitle">Try changing filters</string>
+    <string name="logs_not_implemented">Not implemented</string>
+    <string name="logs_user_id_copied">User ID copied</string>
+
+    <!-- Logs Filters -->
+    <string name="logs_filter_title">Filter Actions</string>
+    <string name="logs_filter_reset">Reset</string>
+    <string name="logs_filter_apply">Apply</string>
+    <string name="logs_filter_section_types">Action Types</string>
+    <string name="logs_filter_section_users">By Users</string>
+    <string name="logs_filter_search_placeholder">Search…</string>
+    <string name="logs_filter_no_users">No users found</string>
+    <string name="logs_filter_no_results">No results for \"%s\"</string>
+
+    <!-- Action Types -->
+    <string name="logs_action_edits">Edits</string>
+    <string name="logs_action_deletions">Deletions</string>
+    <string name="logs_action_pins">Pins</string>
+    <string name="logs_action_joins">Joins</string>
+    <string name="logs_action_leaves">Leaves</string>
+    <string name="logs_action_invites">Invites</string>
+    <string name="logs_action_promotions">Promotions</string>
+    <string name="logs_action_restrictions">Restrictions</string>
+    <string name="logs_action_info">Info</string>
+    <string name="logs_action_settings">Settings</string>
+    <string name="logs_action_links">Links</string>
+    <string name="logs_action_video">Video</string>
+
+    <!-- Action Descriptions -->
+    <string name="logs_action_edited">edited a message</string>
+    <string name="logs_action_deleted">deleted a message</string>
+    <string name="logs_action_pinned">pinned a message</string>
+    <string name="logs_action_unpinned">unpinned a message</string>
+    <string name="logs_action_joined">joined the chat</string>
+    <string name="logs_action_left">left the chat</string>
+    <string name="logs_action_invited">invited %s</string>
+    <string name="logs_action_permissions_changed">changed permissions for %s</string>
+    <string name="logs_action_restrictions_changed">changed restrictions for %s</string>
+    <string name="logs_action_title_changed">changed chat title to \"%s\"</string>
+    <string name="logs_action_description_changed">changed chat description</string>
+    <string name="logs_action_username_changed">changed username to @%s</string>
+    <string name="logs_action_photo_changed">changed chat photo</string>
+    <string name="logs_action_link_edited">edited invite link</string>
+    <string name="logs_action_link_revoked">revoked invite link</string>
+    <string name="logs_action_link_deleted">deleted invite link</string>
+    <string name="logs_action_video_started">started a video chat</string>
+    <string name="logs_action_video_ended">ended video chat</string>
+    <string name="logs_action_unknown">performed an action: %s</string>
+
+    <!-- Details and Previews -->
+    <string name="logs_original_message">Original message:</string>
+    <string name="logs_new_message">New message:</string>
+    <string name="logs_deleted_message">Deleted message:</string>
+    <string name="logs_pinned_message">Pinned message:</string>
+    <string name="logs_unpinned_message">Unpinned message:</string>
+    <string name="logs_restricted_until">Until: %s</string>
+    <string name="logs_restricted_permanently">Restricted permanently</string>
+    <string name="logs_photo_old">Old</string>
+    <string name="logs_photo_new">New</string>
+    <string name="logs_photo_old_desc">Old chat photo</string>
+    <string name="logs_photo_new_desc">New chat photo</string>
+    <string name="logs_status_from">From</string>
+    <string name="logs_status_to">To</string>
+    <string name="logs_permissions_changes">Permission changes:</string>
+    <string name="logs_permissions_current">Current permissions:</string>
+
+    <!-- Permissions / Roles -->
+    <string name="logs_perm_messages">Messages</string>
+    <string name="logs_perm_media">Media</string>
+    <string name="logs_perm_stickers">Stickers</string>
+    <string name="logs_perm_links">Links</string>
+    <string name="logs_perm_polls">Polls</string>
+    <string name="logs_perm_invite">Invite</string>
+    <string name="logs_perm_pin">Pin</string>
+    <string name="logs_perm_info">Info</string>
+
+    <string name="logs_role_admin">Admin</string>
+    <string name="logs_role_owner">Owner</string>
+    <string name="logs_role_restricted">Restricted</string>
+    <string name="logs_role_banned">Banned</string>
+    <string name="logs_role_member">Member</string>
+
+    <!-- Media Types -->
+    <string name="logs_media_photo">Photo</string>
+    <string name="logs_media_video">Video</string>
+    <string name="logs_media_gif">GIF</string>
+    <string name="logs_media_sticker">Sticker</string>
+    <string name="logs_media_document">Document</string>
+    <string name="logs_media_audio">Audio</string>
+    <string name="logs_media_voice">Voice message</string>
+    <string name="logs_media_video_note">Video message</string>
+    <string name="logs_media_contact">Contact</string>
+    <string name="logs_media_poll">Poll</string>
+    <string name="logs_media_location">Location</string>
+    <string name="logs_media_venue">Venue</string>
+    <string name="logs_media_unsupported">Unsupported message</string>
 </resources>

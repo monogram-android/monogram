@@ -16,11 +16,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.ChatEventActionModel
 import org.monogram.domain.models.ChatEventModel
 import org.monogram.domain.models.MessageSenderModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.profile.logs.ProfileLogsComponent
 import java.text.SimpleDateFormat
@@ -40,37 +42,37 @@ fun LogBubble(
     LocalContext.current
 
     val actionText = when (val action = event.action) {
-        is ChatEventActionModel.MessageEdited -> "edited a message"
-        is ChatEventActionModel.MessageDeleted -> "deleted a message"
-        is ChatEventActionModel.MessagePinned -> "pinned a message"
-        is ChatEventActionModel.MessageUnpinned -> "unpinned a message"
-        is ChatEventActionModel.MemberJoined -> "joined the chat"
-        is ChatEventActionModel.MemberLeft -> "left the chat"
+        is ChatEventActionModel.MessageEdited -> stringResource(R.string.logs_action_edited)
+        is ChatEventActionModel.MessageDeleted -> stringResource(R.string.logs_action_deleted)
+        is ChatEventActionModel.MessagePinned -> stringResource(R.string.logs_action_pinned)
+        is ChatEventActionModel.MessageUnpinned -> stringResource(R.string.logs_action_unpinned)
+        is ChatEventActionModel.MemberJoined -> stringResource(R.string.logs_action_joined)
+        is ChatEventActionModel.MemberLeft -> stringResource(R.string.logs_action_left)
         is ChatEventActionModel.MemberInvited -> {
             val targetName = allSenderInfo[action.userId]?.name ?: "User ${action.userId}"
-            "invited $targetName"
+            stringResource(R.string.logs_action_invited, targetName)
         }
 
         is ChatEventActionModel.MemberPromoted -> {
             val targetName = allSenderInfo[action.userId]?.name ?: "User ${action.userId}"
-            "changed permissions for $targetName"
+            stringResource(R.string.logs_action_permissions_changed, targetName)
         }
 
         is ChatEventActionModel.MemberRestricted -> {
             val targetName = allSenderInfo[action.userId]?.name ?: "User ${action.userId}"
-            "changed restrictions for $targetName"
+            stringResource(R.string.logs_action_restrictions_changed, targetName)
         }
 
-        is ChatEventActionModel.TitleChanged -> "changed chat title to \"${action.newTitle}\""
-        is ChatEventActionModel.DescriptionChanged -> "changed chat description"
-        is ChatEventActionModel.UsernameChanged -> "changed username to @${action.newUsername}"
-        is ChatEventActionModel.PhotoChanged -> "changed chat photo"
-        is ChatEventActionModel.InviteLinkEdited -> "edited invite link"
-        is ChatEventActionModel.InviteLinkRevoked -> "revoked invite link"
-        is ChatEventActionModel.InviteLinkDeleted -> "deleted invite link"
-        is ChatEventActionModel.VideoChatCreated -> "started a video chat"
-        is ChatEventActionModel.VideoChatEnded -> "ended video chat"
-        is ChatEventActionModel.Unknown -> "performed an action: ${action.type}"
+        is ChatEventActionModel.TitleChanged -> stringResource(R.string.logs_action_title_changed, action.newTitle)
+        is ChatEventActionModel.DescriptionChanged -> stringResource(R.string.logs_action_description_changed)
+        is ChatEventActionModel.UsernameChanged -> stringResource(R.string.logs_action_username_changed, action.newUsername)
+        is ChatEventActionModel.PhotoChanged -> stringResource(R.string.logs_action_photo_changed)
+        is ChatEventActionModel.InviteLinkEdited -> stringResource(R.string.logs_action_link_edited)
+        is ChatEventActionModel.InviteLinkRevoked -> stringResource(R.string.logs_action_link_revoked)
+        is ChatEventActionModel.InviteLinkDeleted -> stringResource(R.string.logs_action_link_deleted)
+        is ChatEventActionModel.VideoChatCreated -> stringResource(R.string.logs_action_video_started)
+        is ChatEventActionModel.VideoChatEnded -> stringResource(R.string.logs_action_video_ended)
+        is ChatEventActionModel.Unknown -> stringResource(R.string.logs_action_unknown, action.type)
     }
 
     val senderName = senderInfo?.name ?: when (val sender = event.memberId) {

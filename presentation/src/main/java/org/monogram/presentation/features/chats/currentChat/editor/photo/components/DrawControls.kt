@@ -12,7 +12,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.monogram.presentation.R
 
 @Composable
 fun DrawControls(
@@ -37,7 +39,7 @@ fun DrawControls(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = if (isEraser) "Eraser" else "Size",
+                text = stringResource(if (isEraser) R.string.photo_editor_tool_eraser else R.string.photo_editor_label_size),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.width(48.dp)

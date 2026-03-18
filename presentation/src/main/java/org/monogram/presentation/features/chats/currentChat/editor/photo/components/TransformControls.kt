@@ -9,7 +9,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.monogram.presentation.R
 
 @Composable
 fun TransformControls(
@@ -31,7 +33,10 @@ fun TransformControls(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             FilledTonalIconButton(onClick = { onRotationChange(rotation - 90f) }) {
-                Icon(Icons.Rounded.RotateLeft, contentDescription = "Rotate Left")
+                Icon(
+                    Icons.Rounded.RotateLeft,
+                    contentDescription = stringResource(R.string.photo_editor_action_rotate_left)
+                )
             }
 
             OutlinedButton(
@@ -40,11 +45,14 @@ fun TransformControls(
             ) {
                 Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Reset")
+                Text(stringResource(R.string.photo_editor_action_reset))
             }
 
             FilledTonalIconButton(onClick = { onRotationChange(rotation + 90f) }) {
-                Icon(Icons.Rounded.RotateRight, contentDescription = "Rotate Right")
+                Icon(
+                    Icons.Rounded.RotateRight,
+                    contentDescription = stringResource(R.string.photo_editor_action_rotate_right)
+                )
             }
         }
 
@@ -55,7 +63,7 @@ fun TransformControls(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Zoom",
+                stringResource(R.string.photo_editor_label_zoom),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.width(48.dp)

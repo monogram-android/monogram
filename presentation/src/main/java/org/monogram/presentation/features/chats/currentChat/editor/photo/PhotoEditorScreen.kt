@@ -29,21 +29,23 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import kotlinx.coroutines.launch
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.editor.photo.components.*
 import java.io.File
 
-enum class EditorTool(val label: String, val icon: ImageVector) {
-    NONE("View", Icons.Rounded.Visibility),
-    TRANSFORM("Crop", Icons.Rounded.Crop),
-    FILTER("Filters", Icons.Rounded.AutoAwesome),
-    DRAW("Draw", Icons.Rounded.Brush),
-    TEXT("Text", Icons.Rounded.TextFields),
-    ERASER("Eraser", Icons.Rounded.CleaningServices)
+enum class EditorTool(val labelRes: Int, val icon: ImageVector) {
+    NONE(R.string.photo_editor_tool_view, Icons.Rounded.Visibility),
+    TRANSFORM(R.string.photo_editor_tool_crop, Icons.Rounded.Crop),
+    FILTER(R.string.photo_editor_tool_filters, Icons.Rounded.AutoAwesome),
+    DRAW(R.string.photo_editor_tool_draw, Icons.Rounded.Brush),
+    TEXT(R.string.photo_editor_tool_text, Icons.Rounded.TextFields),
+    ERASER(R.string.photo_editor_tool_eraser, Icons.Rounded.CleaningServices)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -204,13 +206,13 @@ fun PhotoEditorScreen(
                                     ) {
                                         Icon(Icons.Rounded.Add, contentDescription = null)
                                         Spacer(Modifier.width(8.dp))
-                                        Text("Add Text")
+                                        Text(stringResource(R.string.photo_editor_action_add_text))
                                     }
                                 }
 
                                 else -> {
                                     Text(
-                                        "Select a tool to start editing",
+                                        stringResource(R.string.photo_editor_label_select_tool),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -224,11 +226,12 @@ fun PhotoEditorScreen(
                         tonalElevation = 0.dp
                     ) {
                         EditorTool.entries.forEach { tool ->
+                            val label = stringResource(tool.labelRes)
                             NavigationBarItem(
                                 selected = currentTool == tool,
                                 onClick = { currentTool = tool },
-                                icon = { Icon(tool.icon, contentDescription = tool.label) },
-                                label = { Text(tool.label) },
+                                icon = { Icon(tool.icon, contentDescription = label) },
+                                label = { Text(label) },
                                 colors = NavigationBarItemDefaults.colors(
                                     indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                                     selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -442,16 +445,16 @@ fun PhotoEditorScreen(
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
-            title = { Text("Discard changes?") },
-            text = { Text("You have unsaved changes. Are you sure you want to discard them?") },
+            title = { Text(stringResource(R.string.photo_editor_discard_title)) },
+            text = { Text(stringResource(R.string.photo_editor_discard_message)) },
             confirmButton = {
                 TextButton(onClick = onClose) {
-                    Text("Discard", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.photo_editor_discard_button), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.photo_editor_action_cancel))
                 }
             }
         )

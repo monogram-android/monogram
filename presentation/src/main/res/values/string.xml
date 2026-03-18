@@ -934,4 +934,47 @@
     <string name="message_type_document">Document</string>
     <string name="message_type_poll_format">Poll: %s</string>
     <string name="message_type_sticker_format">Sticker %s</string>
+
+    <!-- Photo Editor Tools -->
+    <string name="photo_editor_tool_view">View</string>
+    <string name="photo_editor_tool_crop">Crop</string>
+    <string name="photo_editor_tool_filters">Filters</string>
+    <string name="photo_editor_tool_draw">Draw</string>
+    <string name="photo_editor_tool_text">Text</string>
+    <string name="photo_editor_tool_eraser">Eraser</string>
+
+    <!-- Photo Editor Filters -->
+    <string name="photo_editor_filter_original">Original</string>
+    <string name="photo_editor_filter_bw">B&amp;W</string>
+    <string name="photo_editor_filter_sepia">Sepia</string>
+    <string name="photo_editor_filter_vintage">Vintage</string>
+    <string name="photo_editor_filter_cool">Cool</string>
+    <string name="photo_editor_filter_warm">Warm</string>
+    <string name="photo_editor_filter_polaroid">Polaroid</string>
+    <string name="photo_editor_filter_invert">Invert</string>
+
+    <!-- Photo Editor Actions -->
+    <string name="photo_editor_action_save">Save</string>
+    <string name="photo_editor_action_cancel">Cancel</string>
+    <string name="photo_editor_action_undo">Undo</string>
+    <string name="photo_editor_action_redo">Redo</string>
+    <string name="photo_editor_action_close">Close</string>
+    <string name="photo_editor_action_reset">Reset</string>
+    <string name="photo_editor_action_rotate_left">Rotate Left</string>
+    <string name="photo_editor_action_rotate_right">Rotate Right</string>
+    <string name="photo_editor_action_add_text">Add Text</string>
+    <string name="photo_editor_action_edit_text">Edit Text</string>
+    <string name="photo_editor_action_apply">Apply</string>
+    <string name="photo_editor_action_delete">Delete</string>
+
+    <!-- Photo Editor Labels -->
+    <string name="photo_editor_label_size">Size</string>
+    <string name="photo_editor_label_zoom">Zoom</string>
+    <string name="photo_editor_label_placeholder_text">Type something...</string>
+    <string name="photo_editor_label_select_tool">Select a tool to start editing</string>
+
+    <!-- Photo Editor Discard Dialog -->
+    <string name="photo_editor_discard_title">Discard changes?</string>
+    <string name="photo_editor_discard_message">You have unsaved changes. Are you sure you want to discard them?</string>
+    <string name="photo_editor_discard_button">Discard</string>
 </resources>

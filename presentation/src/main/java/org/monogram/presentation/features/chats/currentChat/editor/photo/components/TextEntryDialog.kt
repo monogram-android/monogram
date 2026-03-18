@@ -9,12 +9,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import org.monogram.presentation.R
 
 @Composable
 fun TextEntryDialog(
@@ -49,14 +51,14 @@ fun TextEntryDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (initialText.isEmpty()) "Add Text" else "Edit Text",
+                        text = stringResource(if (initialText.isEmpty()) R.string.photo_editor_action_add_text else R.string.photo_editor_action_edit_text),
                         style = MaterialTheme.typography.headlineSmall
                     )
                     if (initialText.isNotEmpty()) {
                         IconButton(onClick = onDelete) {
                             Icon(
                                 Icons.Rounded.Delete,
-                                contentDescription = "Delete",
+                                contentDescription = stringResource(R.string.photo_editor_action_delete),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -74,7 +76,7 @@ fun TextEntryDialog(
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     ),
-                    placeholder = { Text("Type something...") },
+                    placeholder = { Text(stringResource(R.string.photo_editor_label_placeholder_text)) },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -99,13 +101,13 @@ fun TextEntryDialog(
                         onClick = onDismiss,
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.photo_editor_action_cancel))
                     }
                     Button(
                         onClick = { if (text.isNotBlank()) onConfirm(text, color) },
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Apply")
+                        Text(stringResource(R.string.photo_editor_action_apply))
                     }
                 }
             }

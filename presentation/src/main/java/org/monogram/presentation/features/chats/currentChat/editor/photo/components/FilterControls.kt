@@ -15,9 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.editor.photo.ImageFilter
 import org.monogram.presentation.features.chats.currentChat.editor.photo.getPresetFilters
 import java.io.File
@@ -38,7 +40,7 @@ fun FilterControls(
         item {
             FilterPreviewItem(
                 imagePath = imagePath,
-                name = "Original",
+                name = stringResource(R.string.photo_editor_filter_original),
                 filter = null,
                 isSelected = currentFilter == null,
                 onClick = { onFilterSelect(null) }
@@ -47,9 +49,9 @@ fun FilterControls(
         items(filters) { filter ->
             FilterPreviewItem(
                 imagePath = imagePath,
-                name = filter.name,
+                name = stringResource(filter.nameRes),
                 filter = filter,
-                isSelected = currentFilter?.name == filter.name,
+                isSelected = currentFilter?.nameRes == filter.nameRes,
                 onClick = { onFilterSelect(filter) }
             )
         }

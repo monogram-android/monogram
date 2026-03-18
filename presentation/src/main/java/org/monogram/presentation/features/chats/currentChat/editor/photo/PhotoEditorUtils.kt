@@ -2,6 +2,7 @@ package org.monogram.presentation.features.chats.currentChat.editor.photo
 
 import android.content.Context
 import android.graphics.*
+import androidx.annotation.StringRes
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.Color
@@ -10,6 +11,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.monogram.presentation.R
 import java.io.File
 import java.io.FileOutputStream
 import java.util.*
@@ -34,16 +36,16 @@ data class TextElement(
 )
 
 data class ImageFilter(
-    val name: String,
+    @StringRes val nameRes: Int,
     val colorMatrix: ColorMatrix
 )
 
 fun getPresetFilters(): List<ImageFilter> {
     return listOf(
-        ImageFilter("Original", ColorMatrix()),
-        ImageFilter("B&W", ColorMatrix().apply { setToSaturation(0f) }),
+        ImageFilter(R.string.photo_editor_filter_original, ColorMatrix()),
+        ImageFilter(R.string.photo_editor_filter_bw, ColorMatrix().apply { setToSaturation(0f) }),
         ImageFilter(
-            "Sepia", ColorMatrix(
+            R.string.photo_editor_filter_sepia, ColorMatrix(
                 floatArrayOf(
                     0.393f, 0.769f, 0.189f, 0f, 0f,
                     0.349f, 0.686f, 0.168f, 0f, 0f,
@@ -53,7 +55,7 @@ fun getPresetFilters(): List<ImageFilter> {
             )
         ),
         ImageFilter(
-            "Vintage", ColorMatrix(
+            R.string.photo_editor_filter_vintage, ColorMatrix(
                 floatArrayOf(
                     0.9f, 0f, 0f, 0f, 0f,
                     0f, 0.7f, 0f, 0f, 0f,
@@ -63,7 +65,7 @@ fun getPresetFilters(): List<ImageFilter> {
             )
         ),
         ImageFilter(
-            "Cool", ColorMatrix(
+            R.string.photo_editor_filter_cool, ColorMatrix(
                 floatArrayOf(
                     1f, 0f, 0f, 0f, 0f,
                     0f, 1f, 0.5f, 0f, 0f,
@@ -73,7 +75,7 @@ fun getPresetFilters(): List<ImageFilter> {
             )
         ),
         ImageFilter(
-            "Warm", ColorMatrix(
+            R.string.photo_editor_filter_warm, ColorMatrix(
                 floatArrayOf(
                     1.2f, 0f, 0f, 0f, 0f,
                     0f, 1f, 0f, 0f, 0f,
@@ -83,7 +85,7 @@ fun getPresetFilters(): List<ImageFilter> {
             )
         ),
         ImageFilter(
-            "Polaroid", ColorMatrix(
+            R.string.photo_editor_filter_polaroid, ColorMatrix(
                 floatArrayOf(
                     1.438f, -0.062f, -0.062f, 0f, 0f,
                     -0.122f, 1.378f, -0.122f, 0f, 0f,
@@ -93,7 +95,7 @@ fun getPresetFilters(): List<ImageFilter> {
             )
         ),
         ImageFilter(
-            "Invert", ColorMatrix(
+            R.string.photo_editor_filter_invert, ColorMatrix(
                 floatArrayOf(
             -1f, 0f, 0f, 0f, 255f,
             0f, -1f, 0f, 0f, 255f,

@@ -902,4 +902,47 @@
     <string name="message_type_document">Документ</string>
     <string name="message_type_poll_format">Опитування: %s</string>
     <string name="message_type_sticker_format">Стікер %s</string>
+
+    <!-- Photo Editor Tools -->
+    <string name="photo_editor_tool_view">Перегляд</string>
+    <string name="photo_editor_tool_crop">Обрізка</string>
+    <string name="photo_editor_tool_filters">Фільтри</string>
+    <string name="photo_editor_tool_draw">Малювання</string>
+    <string name="photo_editor_tool_text">Текст</string>
+    <string name="photo_editor_tool_eraser">Ластик</string>
+
+    <!-- Photo Editor Filters -->
+    <string name="photo_editor_filter_original">Оригінал</string>
+    <string name="photo_editor_filter_bw">Ч/Б</string>
+    <string name="photo_editor_filter_sepia">Сепія</string>
+    <string name="photo_editor_filter_vintage">Вінтаж</string>
+    <string name="photo_editor_filter_cool">Холодний</string>
+    <string name="photo_editor_filter_warm">Теплий</string>
+    <string name="photo_editor_filter_polaroid">Полароїд</string>
+    <string name="photo_editor_filter_invert">Інверсія</string>
+
+    <!-- Photo Editor Actions -->
+    <string name="photo_editor_action_save">Зберегти</string>
+    <string name="photo_editor_action_cancel">Скасувати</string>
+    <string name="photo_editor_action_undo">Відмінити</string>
+    <string name="photo_editor_action_redo">Повторити</string>
+    <string name="photo_editor_action_close">Закрити</string>
+    <string name="photo_editor_action_reset">Скинути</string>
+    <string name="photo_editor_action_rotate_left">Поворот ліворуч</string>
+    <string name="photo_editor_action_rotate_right">Поворот праворуч</string>
+    <string name="photo_editor_action_add_text">Додати текст</string>
+    <string name="photo_editor_action_edit_text">Змінити текст</string>
+    <string name="photo_editor_action_apply">Застосувати</string>
+    <string name="photo_editor_action_delete">Видалити</string>
+
+    <!-- Photo Editor Labels -->
+    <string name="photo_editor_label_size">Розмір</string>
+    <string name="photo_editor_label_zoom">Масштаб</string>
+    <string name="photo_editor_label_placeholder_text">Введіть текст...</string>
+    <string name="photo_editor_label_select_tool">Оберіть інструмент для редагування</string>
+
+    <!-- Photo Editor Discard Dialog -->
+    <string name="photo_editor_discard_title">Відхилити зміни?</string>
+    <string name="photo_editor_discard_message">У вас є незбережені зміни. Ви впевнені, що хочете їх видалити?</string>
+    <string name="photo_editor_discard_button">Відхилити</string>
 </resources>

@@ -892,4 +892,47 @@
     <string name="message_type_document">文档</string>
     <string name="message_type_poll_format">投票：%s</string>
     <string name="message_type_sticker_format">贴纸 %s</string>
+
+    <!-- Photo Editor Tools -->
+    <string name="photo_editor_tool_view">预览</string>
+    <string name="photo_editor_tool_crop">裁剪</string>
+    <string name="photo_editor_tool_filters">滤镜</string>
+    <string name="photo_editor_tool_draw">绘制</string>
+    <string name="photo_editor_tool_text">文字</string>
+    <string name="photo_editor_tool_eraser">橡皮擦</string>
+
+    <!-- Photo Editor Filters -->
+    <string name="photo_editor_filter_original">原图</string>
+    <string name="photo_editor_filter_bw">黑白</string>
+    <string name="photo_editor_filter_sepia">棕褐色</string>
+    <string name="photo_editor_filter_vintage">复古</string>
+    <string name="photo_editor_filter_cool">冷色</string>
+    <string name="photo_editor_filter_warm">暖色</string>
+    <string name="photo_editor_filter_polaroid">拍立得</string>
+    <string name="photo_editor_filter_invert">反色</string>
+
+    <!-- Photo Editor Actions -->
+    <string name="photo_editor_action_save">保存</string>
+    <string name="photo_editor_action_cancel">取消</string>
+    <string name="photo_editor_action_undo">撤销</string>
+    <string name="photo_editor_action_redo">重做</string>
+    <string name="photo_editor_action_close">关闭</string>
+    <string name="photo_editor_action_reset">重置</string>
+    <string name="photo_editor_action_rotate_left">向左旋转</string>
+    <string name="photo_editor_action_rotate_right">向右旋转</string>
+    <string name="photo_editor_action_add_text">添加文字</string>
+    <string name="photo_editor_action_edit_text">编辑文字</string>
+    <string name="photo_editor_action_apply">应用</string>
+    <string name="photo_editor_action_delete">删除</string>
+
+    <!-- Photo Editor Labels -->
+    <string name="photo_editor_label_size">大小</string>
+    <string name="photo_editor_label_zoom">缩放</string>
+    <string name="photo_editor_label_placeholder_text">输入文字...</string>
+    <string name="photo_editor_label_select_tool">选择工具开始编辑</string>
+
+    <!-- Photo Editor Discard Dialog -->
+    <string name="photo_editor_discard_title">放弃更改？</string>
+    <string name="photo_editor_discard_message">更改尚未保存，确定要放弃吗？</string>
+    <string name="photo_editor_discard_button">放弃</string>
 </resources>

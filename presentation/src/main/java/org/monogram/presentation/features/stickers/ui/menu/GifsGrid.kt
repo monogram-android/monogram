@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
@@ -33,6 +34,7 @@ import coil3.request.crossfade
 import kotlinx.coroutines.delay
 import org.monogram.domain.models.GifModel
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
@@ -114,7 +116,7 @@ fun GifsView(
             exit = fadeOut() + shrinkVertically()
         ) {
             Text(
-                text = "Recent & Saved GIFs",
+                text = stringResource(R.string.gifs_header_recent_saved),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
@@ -133,7 +135,7 @@ fun GifsView(
         } else {
             if (gifsToShow.isEmpty() && searchQuery.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No GIFs found", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.gifs_no_results), style = MaterialTheme.typography.bodyMedium)
                 }
             } else {
                 LazyVerticalGrid(
@@ -219,7 +221,7 @@ fun GifSearchBar(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.common_back),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp)
                 )
@@ -234,7 +236,7 @@ fun GifSearchBar(
                 .weight(1f)
                 .height(48.dp)
                 .onFocusChanged { onSearchFocused(it.isFocused) },
-            placeholder = { Text("Search GIFs", style = MaterialTheme.typography.bodyMedium) },
+            placeholder = { Text(stringResource(R.string.gifs_search_placeholder), style = MaterialTheme.typography.bodyMedium) },
             leadingIcon = if (!isSearchMode) {
                 {
                     Icon(
@@ -250,7 +252,7 @@ fun GifSearchBar(
                     IconButton(onClick = onClearQuery) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "Clear",
+                            contentDescription = stringResource(R.string.common_clear),
                             modifier = Modifier.size(20.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )

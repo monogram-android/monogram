@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -31,6 +32,7 @@ import org.koin.compose.koinInject
 import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
 import org.monogram.presentation.features.stickers.ui.view.StickerItem
 import org.monogram.presentation.features.stickers.ui.view.StickerSkeleton
@@ -161,7 +163,7 @@ fun StickersView(
                     if (searchQuery.isNotEmpty()) {
                         if (searchResultsStickers.isNotEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                PackHeader("Stickers")
+                                PackHeader(stringResource(R.string.stickers_header_all))
                             }
                             items(searchResultsStickers, key = { "search_sticker_${it.id}" }) { sticker ->
                                 StickerGridItem(sticker, onStickerSelected, {
@@ -203,7 +205,7 @@ fun StickersView(
                     } else {
                         if (recentStickers.isNotEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                PackHeader("Recent Stickers")
+                                PackHeader(stringResource(R.string.stickers_header_recent))
                             }
                             items(recentStickers, key = { "recent_${it.id}" }) { sticker ->
                                 StickerGridItem(sticker, onStickerSelected, {
@@ -316,7 +318,7 @@ fun StickerSearchBar(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.common_back),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp)
                 )
@@ -331,7 +333,7 @@ fun StickerSearchBar(
                 .weight(1f)
                 .height(48.dp)
                 .onFocusChanged { onFocusChanged(it.isFocused) },
-            placeholder = { Text("Search stickers", style = MaterialTheme.typography.bodyMedium) },
+            placeholder = { Text(stringResource(R.string.stickers_search_placeholder), style = MaterialTheme.typography.bodyMedium) },
             leadingIcon = if (!isSearchMode) {
                 {
                     Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -342,7 +344,7 @@ fun StickerSearchBar(
                     IconButton(onClick = {
                         onQueryChange("")
                     }) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_clear), modifier = Modifier.size(20.dp))
                     }
                 }
             } else null,
@@ -435,7 +437,7 @@ fun StickerSetsRow(
                     icon = {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.StickyNote2,
-                            contentDescription = "Recent",
+                            contentDescription = stringResource(R.string.common_recent),
                             tint = if (selectedSetId == -1L) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )

@@ -1147,4 +1147,31 @@
     <string name="pip_pause">暂停</string>
     <string name="pip_rewind">后退</string>
     <string name="pip_forward">前进</string>
+
+    <!-- Sticker & Emoji Menu -->
+    <string name="sticker_menu_tab_stickers">贴纸</string>
+    <string name="sticker_menu_tab_emojis">表情</string>
+    <string name="sticker_menu_tab_gifs">GIF</string>
+
+    <!-- Stickers View -->
+    <string name="stickers_header_recent">最近贴纸</string>
+    <string name="stickers_header_all">贴纸</string>
+    <string name="stickers_search_placeholder">搜索贴纸</string>
+
+    <!-- Emojis View -->
+    <string name="emojis_header_recent">最近表情</string>
+    <string name="emojis_header_standard">标准表情</string>
+    <string name="emojis_header_custom">自定义表情</string>
+    <string name="emojis_header_all">表情</string>
+    <string name="emojis_search_placeholder">搜索表情</string>
+
+    <!-- GIFs View -->
+    <string name="gifs_header_recent_saved">最近与已保存</string>
+    <string name="gifs_no_results">未找到 GIF</string>
+    <string name="gifs_search_placeholder">搜索 GIF</string>
+
+    <!-- Common/Accessibility -->
+    <string name="common_back">返回</string>
+    <string name="common_clear">清除</string>
+    <string name="common_recent">最近</string>
 </resources>

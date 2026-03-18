@@ -24,6 +24,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,6 +36,7 @@ import org.monogram.domain.models.RecentEmojiModel
 import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
 import org.monogram.presentation.features.chats.currentChat.components.chats.getEmojiFontFamily
@@ -182,7 +184,7 @@ fun EmojisGrid(
                     if (searchQuery.isNotEmpty()) {
                         if (searchResultsEmojis.isNotEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                PackHeader("Emojis")
+                                PackHeader(stringResource(R.string.emojis_header_all))
                             }
                             items(searchResultsEmojis) { emoji ->
                                 EmojiGridItem(emoji, emojiFontFamily) {
@@ -194,7 +196,7 @@ fun EmojisGrid(
 
                         if (searchResultsCustomEmojis.isNotEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                PackHeader("Custom Emojis")
+                                PackHeader(stringResource(R.string.emojis_header_custom))
                             }
                             items(searchResultsCustomEmojis) { sticker ->
                                 Box(
@@ -226,7 +228,7 @@ fun EmojisGrid(
                         // Recent Emojis
                         if (recentEmojis.isNotEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                PackHeader("Recent Emojis")
+                                PackHeader(stringResource(R.string.emojis_header_recent))
                             }
                             items(recentEmojis) { item ->
                                 Box(
@@ -260,7 +262,7 @@ fun EmojisGrid(
                         // Standard Emojis
                         if (standardEmojis.isNotEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                PackHeader("Standard Emojis")
+                                PackHeader(stringResource(R.string.emojis_header_standard))
                             }
                             items(standardEmojis) { emoji ->
                                 EmojiGridItem(emoji, emojiFontFamily) {
@@ -353,7 +355,7 @@ fun EmojiSearchBar(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.common_back),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(20.dp)
                 )
@@ -368,7 +370,7 @@ fun EmojiSearchBar(
                 .weight(1f)
                 .height(48.dp)
                 .onFocusChanged { onFocusChanged(it.isFocused) },
-            placeholder = { Text("Search emojis", style = MaterialTheme.typography.bodyMedium) },
+            placeholder = { Text(stringResource(R.string.emojis_search_placeholder), style = MaterialTheme.typography.bodyMedium) },
             leadingIcon = if (!isSearchMode) {
                 {
                     Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -379,7 +381,7 @@ fun EmojiSearchBar(
                     IconButton(onClick = {
                         onQueryChange("")
                     }) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.common_clear), modifier = Modifier.size(20.dp))
                     }
                 }
             } else null,
@@ -432,7 +434,7 @@ fun EmojiSetsRow(
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.EmojiEmotions,
-                        contentDescription = "Recent",
+                        contentDescription = stringResource(R.string.common_recent),
                         tint = if (selectedSetId == -1L) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp)
                     )

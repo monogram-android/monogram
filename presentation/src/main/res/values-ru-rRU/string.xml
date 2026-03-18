@@ -1157,4 +1157,31 @@
     <string name="pip_pause">Пауза</string>
     <string name="pip_rewind">Назад</string>
     <string name="pip_forward">Вперёд</string>
+
+    <!-- Sticker & Emoji Menu -->
+    <string name="sticker_menu_tab_stickers">Стикеры</string>
+    <string name="sticker_menu_tab_emojis">Эмодзи</string>
+    <string name="sticker_menu_tab_gifs">GIF</string>
+
+    <!-- Stickers View -->
+    <string name="stickers_header_recent">Недавние стикеры</string>
+    <string name="stickers_header_all">Стикеры</string>
+    <string name="stickers_search_placeholder">Найти стикеры</string>
+
+    <!-- Emojis View -->
+    <string name="emojis_header_recent">Недавние эмодзи</string>
+    <string name="emojis_header_standard">Стандартные эмодзи</string>
+    <string name="emojis_header_custom">Пользовательские эмодзи</string>
+    <string name="emojis_header_all">Эмодзи</string>
+    <string name="emojis_search_placeholder">Найти эмодзи</string>
+
+    <!-- GIFs View -->
+    <string name="gifs_header_recent_saved">Недавние и сохранённые</string>
+    <string name="gifs_no_results">GIF не найдены</string>
+    <string name="gifs_search_placeholder">Найти GIF</string>
+
+    <!-- Common/Accessibility -->
+    <string name="common_back">Назад</string>
+    <string name="common_clear">Очистить</string>
+    <string name="common_recent">Недавние</string>
 </resources>

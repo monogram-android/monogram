@@ -14,10 +14,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.GifModel
 import org.monogram.domain.models.StickerModel
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,9 +35,9 @@ fun StickerEmojiMenu(
     var selectedTab by remember { mutableIntStateOf(0) }
     var isSearchMode by remember { mutableStateOf(false) }
     val tabs = listOf(
-        Triple("Stickers", Icons.AutoMirrored.Outlined.StickyNote2, 0),
-        Triple("Emojis", Icons.Outlined.EmojiEmotions, 1),
-        Triple("GIFs", Icons.Outlined.Gif, 2)
+        Triple(stringResource(R.string.sticker_menu_tab_stickers), Icons.AutoMirrored.Outlined.StickyNote2, 0),
+        Triple(stringResource(R.string.sticker_menu_tab_emojis), Icons.Outlined.EmojiEmotions, 1),
+        Triple(stringResource(R.string.sticker_menu_tab_gifs), Icons.Outlined.Gif, 2)
     )
 
     Surface(

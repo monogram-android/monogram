@@ -1189,4 +1189,31 @@
     <string name="pip_pause">Pause</string>
     <string name="pip_rewind">Rewind</string>
     <string name="pip_forward">Forward</string>
+
+    <!-- Sticker & Emoji Menu -->
+    <string name="sticker_menu_tab_stickers">Stickers</string>
+    <string name="sticker_menu_tab_emojis">Emojis</string>
+    <string name="sticker_menu_tab_gifs">GIFs</string>
+
+    <!-- Stickers View -->
+    <string name="stickers_header_recent">Recent Stickers</string>
+    <string name="stickers_header_all">Stickers</string>
+    <string name="stickers_search_placeholder">Search stickers</string>
+
+    <!-- Emojis View -->
+    <string name="emojis_header_recent">Recent Emojis</string>
+    <string name="emojis_header_standard">Standard Emojis</string>
+    <string name="emojis_header_custom">Custom Emojis</string>
+    <string name="emojis_header_all">Emojis</string>
+    <string name="emojis_search_placeholder">Search emojis</string>
+
+    <!-- GIFs View -->
+    <string name="gifs_header_recent_saved">Recent &amp; Saved GIFs</string>
+    <string name="gifs_no_results">No GIFs found</string>
+    <string name="gifs_search_placeholder">Search GIFs</string>
+
+    <!-- Common/Accessibility -->
+    <string name="common_back">Back</string>
+    <string name="common_clear">Clear</string>
+    <string name="common_recent">Recent</string>
 </resources>

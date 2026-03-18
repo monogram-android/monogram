@@ -1348,4 +1348,18 @@
     <string name="logs_media_location">Геопозиція</string>
     <string name="logs_media_venue">Місце</string>
     <string name="logs_media_unsupported">Непідтримуване повідомлення</string>
+
+    <!-- Date and Formats -->
+    <string name="format_time">HH:mm</string>
+    <string name="format_duration">%1$02d:%2$02d</string>
+
+    <!-- Views Count -->
+    <string name="views_k">%1$.1fK</string>
+    <string name="views_m">%1$.1fM</string>
+
+    <!-- Comments -->
+    <string name="comment_leave">Залишити коментар</string>
+    <string name="comment_count">%1$d коментарів</string>
+    <string name="comment_count_k">%1$.1fK коментарів</string>
+    <string name="comment_count_m">%1$.1fM коментарів</string>
 </resources>

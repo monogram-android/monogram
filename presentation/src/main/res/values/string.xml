@@ -1380,4 +1380,18 @@
     <string name="logs_media_location">Location</string>
     <string name="logs_media_venue">Venue</string>
     <string name="logs_media_unsupported">Unsupported message</string>
+
+    <!-- Date and Formats -->
+    <string name="format_time">HH:mm</string>
+    <string name="format_duration">%1$02d:%2$02d</string>
+
+    <!-- Views Count -->
+    <string name="views_k">%1$.1fK</string>
+    <string name="views_m">%1$.1fM</string>
+
+    <!-- Comments -->
+    <string name="comment_leave">Leave a comment</string>
+    <string name="comment_count">%1$d comments</string>
+    <string name="comment_count_k">%1$.1fK comments</string>
+    <string name="comment_count_m">%1$.1fM comments</string>
 </resources>

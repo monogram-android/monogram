@@ -32,6 +32,7 @@ import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.presentation.core.util.EmojiStyle
+import org.monogram.presentation.features.chats.currentChat.components.channels.formatDuration
 import org.monogram.presentation.features.chats.currentChat.components.channels.formatViews
 import java.io.File
 import java.text.BreakIterator
@@ -200,6 +201,7 @@ fun MessageMetadata(
     isOutgoing: Boolean,
     contentColor: Color
 ) {
+    val context = LocalContext.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -213,7 +215,7 @@ fun MessageMetadata(
                 tint = contentColor
             )
             Text(
-                text = formatViews(views),
+                text = formatViews(context, views),
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                 color = contentColor
             )

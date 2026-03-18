@@ -240,9 +240,9 @@ fun ChannelVideoMessageBubble(
                             ) {
                                 Text(
                                     text = if ((hasPath || content.supportsStreaming) && autoplayVideos) {
-                                        "${formatDuration((currentPosition / 1000).toInt())} / ${formatDuration(content.duration)}"
+                                        "${formatDuration(context, (currentPosition / 1000).toInt())} / ${formatDuration(context, content.duration)}"
                                     } else {
-                                        formatDuration(content.duration)
+                                        formatDuration(context, content.duration)
                                     },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.White

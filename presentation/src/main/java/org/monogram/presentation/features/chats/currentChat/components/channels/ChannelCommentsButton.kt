@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -24,6 +25,7 @@ fun ChannelCommentsButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     Surface(
         modifier = modifier,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -51,7 +53,7 @@ fun ChannelCommentsButton(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = formatCommentsCount(replyCount),
+                    text = formatCommentsCount(context, replyCount),
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.primary,

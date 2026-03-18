@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,6 +61,7 @@ fun ChannelAlbumMessageBubble(
 ) {
     if (messages.isEmpty()) return
 
+    val context = LocalContext.current
     val uniqueMessages = remember(messages) { messages.distinct() }
     val isDocumentAlbum = remember(uniqueMessages) { uniqueMessages.all { it.content is MessageContent.Document } }
     val isAudioAlbum = remember(uniqueMessages) { uniqueMessages.all { it.content is MessageContent.Audio } }
@@ -155,7 +157,7 @@ fun ChannelAlbumMessageBubble(
         }
     }
 
-    val formattedTime = remember(lastMsg.date) { formatTime(lastMsg.date) }
+    val formattedTime = remember(lastMsg.date) { formatTime(context, lastMsg.date) }
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
 

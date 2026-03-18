@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.MessageContent
@@ -48,6 +49,7 @@ fun ChannelTextMessageBubble(
     toProfile: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val cornerRadius = bubbleRadius.dp
     val smallCorner = (bubbleRadius / 4f).coerceAtLeast(4f).dp
     val tailCorner = 2.dp
@@ -145,7 +147,7 @@ fun ChannelTextMessageBubble(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = formatViews(viewsCount),
+                                text = formatViews(context, viewsCount),
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
                             )
@@ -154,7 +156,7 @@ fun ChannelTextMessageBubble(
                     }
 
                     Text(
-                        text = formatTime(msg.date),
+                        text = formatTime(context, msg.date),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
                     )

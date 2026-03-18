@@ -22,6 +22,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
@@ -63,6 +64,7 @@ fun ChannelGifMessageBubble(
     videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
+    val context = LocalContext.current
     val cornerRadius = bubbleRadius.dp
     val smallCorner = (bubbleRadius / 4f).coerceAtLeast(4f).dp
     val tailCorner = 2.dp
@@ -263,7 +265,7 @@ fun ChannelGifMessageBubble(
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = formatViews(viewsCount),
+                                            text = formatViews(context, viewsCount),
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                             color = Color.White
                                         )
@@ -271,7 +273,7 @@ fun ChannelGifMessageBubble(
                                     }
                                 }
                                 Text(
-                                    text = formatTime(msg.date),
+                                    text = formatTime(context, msg.date),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                     color = Color.White
                                 )
@@ -335,7 +337,7 @@ fun ChannelGifMessageBubble(
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = formatViews(viewsCount),
+                                            text = formatViews(context, viewsCount),
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
                                         )
@@ -343,7 +345,7 @@ fun ChannelGifMessageBubble(
                                     }
                                 }
                                 Text(
-                                    text = formatTime(msg.date),
+                                    text = formatTime(context, msg.date),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
                                 )

@@ -1348,4 +1348,18 @@
     <string name="logs_media_location">Геопозиция</string>
     <string name="logs_media_venue">Место</string>
     <string name="logs_media_unsupported">Неподдерживаемое сообщение</string>
+
+    <!-- Date and Formats -->
+    <string name="format_time">HH:mm</string>
+    <string name="format_duration">%1$02d:%2$02d</string>
+
+    <!-- Views Count -->
+    <string name="views_k">%1$.1fK</string>
+    <string name="views_m">%1$.1fM</string>
+
+    <!-- Comments -->
+    <string name="comment_leave">Прокомментировать</string>
+    <string name="comment_count">%1$d комментариев</string>
+    <string name="comment_count_k">%1$.1fK комментариев</string>
+    <string name="comment_count_m">%1$.1fM комментариев</string>
 </resources>

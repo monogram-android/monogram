@@ -27,6 +27,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
@@ -34,6 +35,7 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.features.chats.currentChat.components.channels.formatDuration
 import org.monogram.presentation.features.chats.currentChat.components.channels.formatViews
 import org.monogram.presentation.features.chats.currentChat.components.chats.ChatTimestampInfo
 import org.monogram.presentation.features.chats.currentChat.components.chats.SpoilerWrapper
@@ -508,8 +510,9 @@ fun VideoItem(
                         .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
+                    val context = LocalContext.current
                     Text(
-                        text = formatDuration(video.duration),
+                        text = formatDuration(context, video.duration),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         color = Color.White
                     )
@@ -672,8 +675,9 @@ fun VideoNoteItem(
                         .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
+                    val context = LocalContext.current
                     Text(
-                        text = formatDuration(videoNote.duration),
+                        text = formatDuration(context, videoNote.duration),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         color = Color.White
                     )
@@ -898,6 +902,7 @@ fun TimestampPill(
     sendingState: MessageSendingState? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     Box(
         modifier = modifier
             .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
@@ -915,7 +920,7 @@ fun TimestampPill(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = formatViews(viewsCount),
+                            text = formatViews(context, viewsCount),
                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                             color = Color.White
                         )

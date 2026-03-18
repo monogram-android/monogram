@@ -1106,4 +1106,55 @@
     <string name="statistics_vs_previous"> порівняно з минулим пер.</string>
     <string name="statistics_unknown_type">Невідомий тип статистики</string>
     <string name="statistics_data_class_format">Клас даних: %1$s</string>
+
+    <!-- Selection: Viewer Common -->
+    <string name="viewer_back">Назад</string>
+    <string name="viewer_options">Опції</string>
+    <string name="viewer_seek_rewind_cd">Перемотати на 10 секунд назад</string>
+    <string name="viewer_seek_forward_cd">Перемотати на 10 секунд вперед</string>
+    <string name="viewer_seek_rewind_format">-%1$ds</string>
+    <string name="viewer_seek_forward_format">+%1$ds</string>
+    <string name="viewer_thumbnail_cd">Мініатюра %1$d</string>
+    <string name="viewer_page_indicator">%1$d із %2$d</string>
+
+    <!-- Selection: Viewer Actions -->
+    <string name="action_download">Завантажити</string>
+    <string name="action_download_video">Завантажити відео</string>
+    <string name="action_copy_image">Копіювати зображення</string>
+    <string name="action_copy_text">Копіювати текст</string>
+    <string name="action_copy_link">Копіювати посилання</string>
+    <string name="action_copy_link_time">Копіювати посилання з часом</string>
+    <string name="action_forward">Переслати</string>
+    <string name="action_save_gifs">Зберегти у GIF</string>
+    <string name="action_save_gallery">У галерею</string>
+    <string name="action_copy_clipboard">У буфер обміну</string>
+    <string name="action_restart">Почати спочатку</string>
+    <string name="action_pause">Пауза</string>
+    <string name="action_play">Відтворити</string>
+    <string name="action_unlock">Розблокувати</string>
+
+    <!-- Selection: Viewer Settings -->
+    <string name="settings_title">Налаштування</string>
+    <string name="settings_playback_speed">Швидкість відтворення</string>
+    <string name="settings_scale_mode">Режим масштабування</string>
+    <string name="settings_scale_fit">Вписати</string>
+    <string name="settings_scale_zoom">Заповнити</string>
+    <string name="settings_rotate_screen">Поворот екрана</string>
+    <string name="settings_pip">Картинка в картинці</string>
+    <string name="settings_screenshot">Скріншот</string>
+    <string name="settings_loop_video">Зациклити відео</string>
+    <string name="settings_mute_audio">Вимкнути звук</string>
+    <string name="settings_subtitles">Субтитри</string>
+    <string name="settings_lock_controls">Заблокувати керування</string>
+    <string name="settings_quality">Якість</string>
+    <string name="settings_video_quality">Якість відео</string>
+    <string name="settings_quality_auto">Авто</string>
+    <string name="settings_quality_high_res">Висока</string>
+    <string name="settings_speed_normal">Звичайна</string>
+
+    <!-- Selection: Picture-in-Picture -->
+    <string name="pip_play">Грати</string>
+    <string name="pip_pause">Пауза</string>
+    <string name="pip_rewind">Назад</string>
+    <string name="pip_forward">Вперед</string>
 </resources>

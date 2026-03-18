@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -47,6 +48,7 @@ import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import org.monogram.domain.repository.PlayerDataSourceFactory
 import org.monogram.domain.repository.StreamingRepository
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.getMimeType
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
@@ -379,7 +381,7 @@ fun VideoPage(
                                 .windowInsetsPadding(WindowInsets.statusBars)
                                 .padding(16.dp)
                                 .background(MaterialTheme.colorScheme.surfaceContainer, CircleShape)
-                        ) { Icon(Icons.Rounded.Lock, "Unlock", tint = MaterialTheme.colorScheme.onSurface) }
+                        ) { Icon(Icons.Rounded.Lock, stringResource(R.string.action_unlock), tint = MaterialTheme.colorScheme.onSurface) }
                     }
                 }
             } else {
@@ -558,7 +560,7 @@ fun VideoPlayerControls(
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(48.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onRewind, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Rounded.Replay10, "-10s", tint = Color.White, modifier = Modifier.fillMaxSize())
+                    Icon(Icons.Rounded.Replay10, stringResource(R.string.viewer_seek_rewind_cd), tint = Color.White, modifier = Modifier.fillMaxSize())
                 }
 
                 val interactionSource = remember { MutableInteractionSource() }
@@ -581,9 +583,9 @@ fun VideoPlayerControls(
                             else -> Icons.Rounded.PlayArrow
                         },
                         contentDescription = when {
-                            isEnded -> "Restart"
-                            isPlaying -> "Pause"
-                            else -> "Play"
+                            isEnded -> stringResource(R.string.action_restart)
+                            isPlaying -> stringResource(R.string.action_pause)
+                            else -> stringResource(R.string.action_play)
                         },
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(48.dp)
@@ -591,7 +593,7 @@ fun VideoPlayerControls(
                 }
 
                 IconButton(onClick = onForward, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Rounded.Forward10, "+10s", tint = Color.White, modifier = Modifier.fillMaxSize())
+                    Icon(Icons.Rounded.Forward10, stringResource(R.string.viewer_seek_forward_cd), tint = Color.White, modifier = Modifier.fillMaxSize())
                 }
             }
         }
@@ -725,7 +727,7 @@ fun VideoSettingsMenu(
                 SettingsScreen.MAIN -> {
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
                         Text(
-                            text = "Settings",
+                            text = stringResource(R.string.settings_title),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -736,7 +738,7 @@ fun VideoSettingsMenu(
                         )
                         MenuOptionRow(
                             icon = Icons.Rounded.Speed,
-                            title = "Playback Speed",
+                            title = stringResource(R.string.settings_playback_speed),
                             value = "${playbackSpeed}x",
                             onClick = { currentScreen = SettingsScreen.SPEED },
                             trailingIcon = Icons.AutoMirrored.Rounded.KeyboardArrowRight
@@ -744,25 +746,25 @@ fun VideoSettingsMenu(
                         if (isZoomEnabled) {
                             MenuOptionRow(
                                 icon = if (resizeMode == AspectRatioFrameLayout.RESIZE_MODE_FIT) Icons.Rounded.AspectRatio else Icons.Rounded.FitScreen,
-                                title = "Scale Mode",
-                                value = if (resizeMode == AspectRatioFrameLayout.RESIZE_MODE_FIT) "Fit" else "Zoom",
+                                title = stringResource(R.string.settings_scale_mode),
+                                value = if (resizeMode == AspectRatioFrameLayout.RESIZE_MODE_FIT) stringResource(R.string.settings_scale_fit) else stringResource(R.string.settings_scale_zoom),
                                 onClick = onResizeToggle
                             )
                         }
                         MenuOptionRow(
                             icon = Icons.Rounded.ScreenRotation,
-                            title = "Rotate Screen",
+                            title = stringResource(R.string.settings_rotate_screen),
                             onClick = onRotationToggle
                         )
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             MenuOptionRow(
                                 icon = Icons.Rounded.PictureInPicture,
-                                title = "Picture in Picture",
+                                title = stringResource(R.string.settings_pip),
                                 onClick = onEnterPip
                             )
                             MenuOptionRow(
                                 icon = Icons.Rounded.Camera,
-                                title = "Screenshot",
+                                title = stringResource(R.string.settings_screenshot),
                                 onClick = { currentScreen = SettingsScreen.SCREENSHOT },
                                 trailingIcon = Icons.AutoMirrored.Rounded.KeyboardArrowRight
                             )
@@ -773,38 +775,38 @@ fun VideoSettingsMenu(
                         )
                         MenuToggleRow(
                             icon = if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
-                            title = "Loop Video",
+                            title = stringResource(R.string.settings_loop_video),
                             isChecked = repeatMode == Player.REPEAT_MODE_ONE,
                             onCheckedChange = { onRepeatToggle() })
                         MenuToggleRow(
                             icon = if (isMuted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
-                            title = "Mute Audio",
+                            title = stringResource(R.string.settings_mute_audio),
                             isChecked = isMuted,
                             onCheckedChange = { onMuteToggle() })
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                         )
-                        MenuOptionRow(icon = Icons.Rounded.Download, title = "Download Video", onClick = onDownload)
+                        MenuOptionRow(icon = Icons.Rounded.Download, title = stringResource(R.string.action_download_video), onClick = onDownload)
                         if (onSaveGif != null) MenuOptionRow(
                             icon = Icons.Rounded.Gif,
-                            title = "Save to GIFs",
+                            title = stringResource(R.string.action_save_gifs),
                             onClick = onSaveGif
                         )
                         if (onCopyText != null) MenuOptionRow(
                             icon = Icons.Rounded.ContentCopy,
-                            title = "Copy Text",
+                            title = stringResource(R.string.action_copy_text),
                             onClick = onCopyText
                         )
                         if (onCopyLink != null) MenuOptionRow(
                             icon = Icons.Rounded.Link,
-                            title = "Copy Link",
+                            title = stringResource(R.string.action_copy_link),
                             onClick = onCopyLink
                         )
-                        MenuOptionRow(icon = Icons.AutoMirrored.Rounded.Forward, title = "Forward", onClick = onForward)
+                        MenuOptionRow(icon = Icons.AutoMirrored.Rounded.Forward, title = stringResource(R.string.action_forward), onClick = onForward)
                         MenuOptionRow(
                             icon = Icons.Rounded.Lock,
-                            title = "Lock Controls",
+                            title = stringResource(R.string.settings_lock_controls),
                             onClick = onLockToggle,
                             iconTint = MaterialTheme.colorScheme.primary,
                             textColor = MaterialTheme.colorScheme.primary
@@ -816,7 +818,7 @@ fun VideoSettingsMenu(
                             )
                             MenuOptionRow(
                                 icon = Icons.Rounded.Delete,
-                                title = "Delete",
+                                title = stringResource(R.string.action_delete),
                                 onClick = onDelete,
                                 iconTint = MaterialTheme.colorScheme.error,
                                 textColor = MaterialTheme.colorScheme.error
@@ -835,13 +837,13 @@ fun VideoSettingsMenu(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Rounded.ArrowBack,
-                                "Back",
+                                stringResource(R.string.viewer_back),
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(
-                                "Playback Speed",
+                                stringResource(R.string.settings_playback_speed),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -866,13 +868,13 @@ fun VideoSettingsMenu(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Rounded.ArrowBack,
-                                "Back",
+                                stringResource(R.string.viewer_back),
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(
-                                "Screenshot",
+                                stringResource(R.string.settings_screenshot),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -880,11 +882,11 @@ fun VideoSettingsMenu(
                         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                         MenuOptionRow(
                             icon = Icons.Rounded.Download,
-                            title = "Save to Gallery",
+                            title = stringResource(R.string.action_save_gallery),
                             onClick = { onScreenshot(false); currentScreen = SettingsScreen.MAIN })
                         MenuOptionRow(
                             icon = Icons.Rounded.ContentPaste,
-                            title = "Copy to Clipboard",
+                            title = stringResource(R.string.action_copy_clipboard),
                             onClick = { onScreenshot(true); currentScreen = SettingsScreen.MAIN })
                     }
                 }
@@ -904,7 +906,7 @@ fun SpeedSelectionRow(speed: Float, isSelected: Boolean, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = if (speed == 1f) "Normal" else "${speed}x",
+            text = if (speed == 1f) stringResource(R.string.settings_speed_normal) else "${speed}x",
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface

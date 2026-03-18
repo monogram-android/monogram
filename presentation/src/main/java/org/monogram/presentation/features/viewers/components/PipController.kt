@@ -78,20 +78,20 @@ fun PipController(
             val actions = mutableListOf<RemoteAction>()
 
             // Rewind
-            createRemoteAction(CONTROL_TYPE_REWIND, R.drawable.ic_replay_10, "Rewind")?.let {
+            createRemoteAction(CONTROL_TYPE_REWIND, R.drawable.ic_replay_10, context.getString(R.string.pip_rewind))?.let {
                 actions.add(it)
             }
 
             // Play/Pause
             val playPauseAction = if (isPlaying) {
-                createRemoteAction(CONTROL_TYPE_PAUSE, R.drawable.ic_pause, "Pause")
+                createRemoteAction(CONTROL_TYPE_PAUSE, R.drawable.ic_pause, context.getString(R.string.pip_pause))
             } else {
-                createRemoteAction(CONTROL_TYPE_PLAY, R.drawable.ic_play, "Play")
+                createRemoteAction(CONTROL_TYPE_PLAY, R.drawable.ic_play, context.getString(R.string.pip_play))
             }
             playPauseAction?.let { actions.add(it) }
 
             // Forward
-            createRemoteAction(CONTROL_TYPE_FORWARD, R.drawable.ic_forward_10, "Forward")?.let {
+            createRemoteAction(CONTROL_TYPE_FORWARD, R.drawable.ic_forward_10, context.getString(R.string.pip_forward))?.let {
                 actions.add(it)
             }
 
@@ -209,18 +209,18 @@ fun enterPipMode(context: Context, isPlaying: Boolean, videoAspectRatio: Float, 
         }
 
         // Rewind
-        actions.add(createAction(CONTROL_TYPE_REWIND, R.drawable.ic_replay_10, "Rewind"))
+        actions.add(createAction(CONTROL_TYPE_REWIND, R.drawable.ic_replay_10, context.getString(R.string.pip_rewind)))
 
         // Play/Pause
         val playPauseAction = if (isPlaying) {
-            createAction(CONTROL_TYPE_PAUSE, R.drawable.ic_pause, "Pause")
+            createAction(CONTROL_TYPE_PAUSE, R.drawable.ic_pause, context.getString(R.string.pip_pause))
         } else {
-            createAction(CONTROL_TYPE_PLAY, R.drawable.ic_play, "Play")
+            createAction(CONTROL_TYPE_PLAY, R.drawable.ic_play, context.getString(R.string.pip_play))
         }
         actions.add(playPauseAction)
 
         // Forward
-        actions.add(createAction(CONTROL_TYPE_FORWARD, R.drawable.ic_forward_10, "Forward"))
+        actions.add(createAction(CONTROL_TYPE_FORWARD, R.drawable.ic_forward_10, context.getString(R.string.pip_forward)))
 
         params.setActions(actions)
 

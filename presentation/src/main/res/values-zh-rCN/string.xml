@@ -1096,4 +1096,55 @@
     <string name="statistics_vs_previous"> 与前期相比</string>
     <string name="statistics_unknown_type">未知统计类型</string>
     <string name="statistics_data_class_format">数据类: %1$s</string>
+
+    <!-- Selection: Viewer Common -->
+    <string name="viewer_back">返回</string>
+    <string name="viewer_options">选项</string>
+    <string name="viewer_seek_rewind_cd">后退 10 秒</string>
+    <string name="viewer_seek_forward_cd">前进 10 秒</string>
+    <string name="viewer_seek_rewind_format">-%1$ds</string>
+    <string name="viewer_seek_forward_format">+%1$ds</string>
+    <string name="viewer_thumbnail_cd">缩略图 %1$d</string>
+    <string name="viewer_page_indicator">%1$d / %2$d</string>
+
+    <!-- Selection: Viewer Actions -->
+    <string name="action_download">下载</string>
+    <string name="action_download_video">下载视频</string>
+    <string name="action_copy_image">复制图片</string>
+    <string name="action_copy_text">复制文本</string>
+    <string name="action_copy_link">复制链接</string>
+    <string name="action_copy_link_time">复制当前时间链接</string>
+    <string name="action_forward">转发</string>
+    <string name="action_save_gifs">保存至 GIF</string>
+    <string name="action_save_gallery">保存到相册</string>
+    <string name="action_copy_clipboard">复制到剪贴板</string>
+    <string name="action_restart">重新开始</string>
+    <string name="action_pause">暂停</string>
+    <string name="action_play">播放</string>
+    <string name="action_unlock">解锁</string>
+
+    <!-- Selection: Viewer Settings -->
+    <string name="settings_title">设置</string>
+    <string name="settings_playback_speed">播放速度</string>
+    <string name="settings_scale_mode">缩放模式</string>
+    <string name="settings_scale_fit">适应屏幕</string>
+    <string name="settings_scale_zoom">裁剪填充</string>
+    <string name="settings_rotate_screen">旋转屏幕</string>
+    <string name="settings_pip">画中画</string>
+    <string name="settings_screenshot">屏幕截图</string>
+    <string name="settings_loop_video">循环播放</string>
+    <string name="settings_mute_audio">静音</string>
+    <string name="settings_subtitles">字幕</string>
+    <string name="settings_lock_controls">锁定控制</string>
+    <string name="settings_quality">清晰度</string>
+    <string name="settings_video_quality">视频质量</string>
+    <string name="settings_quality_auto">自动</string>
+    <string name="settings_quality_high_res">高画质</string>
+    <string name="settings_speed_normal">正常</string>
+
+    <!-- Selection: Picture-in-Picture -->
+    <string name="pip_play">播放</string>
+    <string name="pip_pause">暂停</string>
+    <string name="pip_rewind">后退</string>
+    <string name="pip_forward">前进</string>
 </resources>

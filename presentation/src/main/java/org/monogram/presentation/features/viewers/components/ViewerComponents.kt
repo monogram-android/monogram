@@ -23,10 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 import java.util.*
 
 @Composable
@@ -60,7 +62,7 @@ fun ViewerTopBar(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.viewer_back),
                     tint = Color.White
                 )
             }
@@ -74,7 +76,7 @@ fun ViewerTopBar(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.MoreVert,
-                    contentDescription = "Options"
+                    contentDescription = stringResource(R.string.viewer_options)
                 )
             }
         }
@@ -173,7 +175,11 @@ fun SeekFeedback(visible: Boolean, isRewind: Boolean, seekDuration: Int, modifie
                 modifier = Modifier.size(56.dp)
             )
             Text(
-                if (isRewind) "-${seekDuration}s" else "+${seekDuration}s",
+                text = if (isRewind) {
+                    stringResource(R.string.viewer_seek_rewind_format, seekDuration)
+                } else {
+                    stringResource(R.string.viewer_seek_forward_format, seekDuration)
+                },
                 color = Color.White.copy(alpha = 0.9f),
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp

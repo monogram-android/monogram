@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -104,7 +105,7 @@ fun YouTubePlayerControlsUI(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onRewind, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Rounded.Replay10, "-10s", tint = Color.White, modifier = Modifier.fillMaxSize())
+                    Icon(Icons.Rounded.Replay10, stringResource(R.string.viewer_seek_rewind_cd), tint = Color.White, modifier = Modifier.fillMaxSize())
                 }
 
                 val interactionSource = remember { MutableInteractionSource() }
@@ -122,14 +123,14 @@ fun YouTubePlayerControlsUI(
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        contentDescription = if (isPlaying) stringResource(R.string.action_pause) else stringResource(R.string.action_play),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(48.dp)
                     )
                 }
 
                 IconButton(onClick = onForward, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Rounded.Forward10, "+10s", tint = Color.White, modifier = Modifier.fillMaxSize())
+                    Icon(Icons.Rounded.Forward10, stringResource(R.string.viewer_seek_forward_cd), tint = Color.White, modifier = Modifier.fillMaxSize())
                 }
             }
         }
@@ -262,7 +263,7 @@ fun YouTubeSettingsMenu(
                 YouTubeSettingsScreen.MAIN -> {
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
                         Text(
-                            text = "Settings",
+                            text = stringResource(R.string.settings_title),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -274,7 +275,7 @@ fun YouTubeSettingsMenu(
 
                         MenuOptionRow(
                             icon = Icons.Rounded.HighQuality,
-                            title = "Quality",
+                            title = stringResource(R.string.settings_quality),
                             value = formatQualityLabel(currentQuality),
                             onClick = { currentScreen = YouTubeSettingsScreen.QUALITY },
                             trailingIcon = Icons.AutoMirrored.Rounded.KeyboardArrowRight
@@ -282,7 +283,7 @@ fun YouTubeSettingsMenu(
 
                         MenuOptionRow(
                             icon = Icons.Rounded.Speed,
-                            title = "Playback Speed",
+                            title = stringResource(R.string.settings_playback_speed),
                             value = "${playbackSpeed}x",
                             onClick = { currentScreen = YouTubeSettingsScreen.SPEED },
                             trailingIcon = Icons.AutoMirrored.Rounded.KeyboardArrowRight
@@ -290,14 +291,14 @@ fun YouTubeSettingsMenu(
 
                         MenuOptionRow(
                             icon = Icons.Rounded.ScreenRotation,
-                            title = "Rotate Screen",
+                            title = stringResource(R.string.settings_rotate_screen),
                             onClick = onRotationToggle
                         )
 
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && onEnterPip != null) {
                             MenuOptionRow(
                                 icon = Icons.Rounded.PictureInPicture,
-                                title = "Picture in Picture",
+                                title = stringResource(R.string.settings_pip),
                                 onClick = onEnterPip
                             )
                         }
@@ -309,21 +310,21 @@ fun YouTubeSettingsMenu(
 
                         MenuToggleRow(
                             icon = if (isMuted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
-                            title = "Mute Audio",
+                            title = stringResource(R.string.settings_mute_audio),
                             isChecked = isMuted,
                             onCheckedChange = { onMuteToggle() }
                         )
 
                         MenuToggleRow(
                             icon = Icons.Rounded.Repeat,
-                            title = "Loop Video",
+                            title = stringResource(R.string.settings_loop_video),
                             isChecked = isLooping,
                             onCheckedChange = { onLoopToggle() }
                         )
 
                         MenuToggleRow(
                             icon = Icons.Rounded.ClosedCaption,
-                            title = "Subtitles",
+                            title = stringResource(R.string.settings_subtitles),
                             isChecked = isCaptionsEnabled,
                             onCheckedChange = { onCaptionsToggle() }
                         )
@@ -336,32 +337,32 @@ fun YouTubeSettingsMenu(
                         if (onCopyText != null) {
                             MenuOptionRow(
                                 icon = Icons.Rounded.ContentCopy,
-                                title = "Copy Text",
+                                title = stringResource(R.string.action_copy_text),
                                 onClick = onCopyText
                             )
                         }
 
                         MenuOptionRow(
                             icon = Icons.Rounded.Link,
-                            title = "Copy Link",
+                            title = stringResource(R.string.action_copy_link),
                             onClick = onCopyLink
                         )
 
                         MenuOptionRow(
                             icon = Icons.Rounded.Schedule,
-                            title = "Copy Link with Time",
+                            title = stringResource(R.string.action_copy_link_time),
                             onClick = onCopyLinkWithTime
                         )
 
                         MenuOptionRow(
                             icon = Icons.AutoMirrored.Rounded.Forward,
-                            title = "Forward",
+                            title = stringResource(R.string.action_forward),
                             onClick = onForward
                         )
 
                         MenuOptionRow(
                             icon = Icons.Rounded.Lock,
-                            title = "Lock Controls",
+                            title = stringResource(R.string.settings_lock_controls),
                             onClick = onLockToggle,
                             iconTint = MaterialTheme.colorScheme.primary,
                             textColor = MaterialTheme.colorScheme.primary
@@ -380,13 +381,13 @@ fun YouTubeSettingsMenu(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Rounded.ArrowBack,
-                                "Back",
+                                stringResource(R.string.viewer_back),
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(
-                                "Playback Speed",
+                                stringResource(R.string.settings_playback_speed),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -413,13 +414,13 @@ fun YouTubeSettingsMenu(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Rounded.ArrowBack,
-                                "Back",
+                                stringResource(R.string.viewer_back),
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(
-                                "Video Quality",
+                                stringResource(R.string.settings_video_quality),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -460,6 +461,7 @@ fun YouTubeSettingsMenu(
     }
 }
 
+@Composable
 private fun formatQualityLabel(quality: String): String {
     return when (quality.lowercase()) {
         "hd4320" -> "4320p"
@@ -472,8 +474,8 @@ private fun formatQualityLabel(quality: String): String {
         "medium" -> "360p"
         "small" -> "240p"
         "tiny" -> "144p"
-        "auto" -> "Auto"
-        "highres" -> "High Res"
+        "auto" -> stringResource(R.string.settings_quality_auto)
+        "highres" -> stringResource(R.string.settings_quality_high_res)
         else -> quality.replaceFirstChar { it.uppercase() }
     }
 }

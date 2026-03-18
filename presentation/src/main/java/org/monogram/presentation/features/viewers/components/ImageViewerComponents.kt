@@ -34,6 +34,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -45,6 +46,7 @@ import coil3.size.Precision
 import coil3.size.Size
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 
@@ -251,31 +253,31 @@ fun ImageSettingsMenu(
     ViewerSettingsDropdown {
         MenuOptionRow(
             icon = Icons.Rounded.Download,
-            title = "Download",
+            title = stringResource(R.string.action_download),
             onClick = onDownload
         )
         MenuOptionRow(
             icon = Icons.Rounded.ContentCopy,
-            title = "Copy Image",
+            title = stringResource(R.string.action_copy_image),
             onClick = onCopyImage
         )
         if (onCopyText != null) {
             MenuOptionRow(
                 icon = Icons.Rounded.ContentCopy,
-                title = "Copy Text",
+                title = stringResource(R.string.action_copy_text),
                 onClick = onCopyText
             )
         }
         if (onCopyLink != null) {
             MenuOptionRow(
                 icon = Icons.Rounded.Link,
-                title = "Copy Link",
+                title = stringResource(R.string.action_copy_link),
                 onClick = onCopyLink
             )
         }
         MenuOptionRow(
             icon = Icons.AutoMirrored.Rounded.Forward,
-            title = "Forward",
+            title = stringResource(R.string.action_forward),
             onClick = onForward
         )
         if (onDelete != null) {
@@ -285,7 +287,7 @@ fun ImageSettingsMenu(
             )
             MenuOptionRow(
                 icon = Icons.Rounded.Delete,
-                title = "Delete",
+                title = stringResource(R.string.action_delete),
                 onClick = onDelete,
                 iconTint = MaterialTheme.colorScheme.error,
                 textColor = MaterialTheme.colorScheme.error
@@ -371,7 +373,7 @@ fun ThumbnailStrip(
             ) {
                 AsyncImage(
                     model = request,
-                    contentDescription = "Thumbnail $index",
+                    contentDescription = stringResource(R.string.viewer_thumbnail_cd, index),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -397,7 +399,7 @@ fun PageIndicator(modifier: Modifier = Modifier, current: Int, total: Int) {
         shape = CircleShape
     ) {
         Text(
-            text = "$current / $total",
+            text = stringResource(R.string.viewer_page_indicator, current, total),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             style = MaterialTheme.typography.labelLarge
         )

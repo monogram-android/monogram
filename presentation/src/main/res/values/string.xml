@@ -1138,4 +1138,55 @@
     <string name="statistics_vs_previous"> vs previous</string>
     <string name="statistics_unknown_type">Unknown Statistics Type</string>
     <string name="statistics_data_class_format">Data class: %1$s</string>
+
+    <!-- Selection: Viewer Common -->
+    <string name="viewer_back">Back</string>
+    <string name="viewer_options">Options</string>
+    <string name="viewer_seek_rewind_cd">Rewind 10 seconds</string>
+    <string name="viewer_seek_forward_cd">Forward 10 seconds</string>
+    <string name="viewer_seek_rewind_format">-%1$ds</string>
+    <string name="viewer_seek_forward_format">+%1$ds</string>
+    <string name="viewer_thumbnail_cd">Thumbnail %1$d</string>
+    <string name="viewer_page_indicator">%1$d / %2$d</string>
+
+    <!-- Selection: Viewer Actions -->
+    <string name="action_download">Download</string>
+    <string name="action_download_video">Download Video</string>
+    <string name="action_copy_image">Copy Image</string>
+    <string name="action_copy_text">Copy Text</string>
+    <string name="action_copy_link">Copy Link</string>
+    <string name="action_copy_link_time">Copy Link with Time</string>
+    <string name="action_forward">Forward</string>
+    <string name="action_save_gifs">Save to GIFs</string>
+    <string name="action_save_gallery">Save to Gallery</string>
+    <string name="action_copy_clipboard">Copy to Clipboard</string>
+    <string name="action_restart">Restart</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_play">Play</string>
+    <string name="action_unlock">Unlock</string>
+
+    <!-- Selection: Viewer Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_playback_speed">Playback Speed</string>
+    <string name="settings_scale_mode">Scale Mode</string>
+    <string name="settings_scale_fit">Fit</string>
+    <string name="settings_scale_zoom">Zoom</string>
+    <string name="settings_rotate_screen">Rotate Screen</string>
+    <string name="settings_pip">Picture in Picture</string>
+    <string name="settings_screenshot">Screenshot</string>
+    <string name="settings_loop_video">Loop Video</string>
+    <string name="settings_mute_audio">Mute Audio</string>
+    <string name="settings_subtitles">Subtitles</string>
+    <string name="settings_lock_controls">Lock Controls</string>
+    <string name="settings_quality">Quality</string>
+    <string name="settings_video_quality">Video Quality</string>
+    <string name="settings_quality_auto">Auto</string>
+    <string name="settings_quality_high_res">High Res</string>
+    <string name="settings_speed_normal">Normal</string>
+
+    <!-- Selection: Picture-in-Picture -->
+    <string name="pip_play">Play</string>
+    <string name="pip_pause">Pause</string>
+    <string name="pip_rewind">Rewind</string>
+    <string name="pip_forward">Forward</string>
 </resources>

@@ -1388,4 +1388,13 @@
     <string name="poll_voters_title">Проголосували</string>
     <string name="poll_no_voters">Ще ніхто не проголосував</string>
     <string name="action_close">Закрити</string>
+
+    <!-- Reply Content -->
+    <string name="reply_content_photo">Фотографія</string>
+    <string name="reply_content_video">Відео</string>
+    <string name="reply_content_sticker">Стікер</string>
+    <string name="reply_content_voice_message">Голосове повідомлення</string>
+    <string name="reply_content_video_message">Відеоповідомлення</string>
+    <string name="reply_content_gif">GIF</string>
+    <string name="reply_content_message">Повідомлення</string>
 </resources>

@@ -1418,4 +1418,13 @@
     <string name="poll_voters_title">Poll Voters</string>
     <string name="poll_no_voters">No voters yet</string>
     <string name="action_close">Close</string>
+
+    <!-- Reply Content -->
+    <string name="reply_content_photo">Photo</string>
+    <string name="reply_content_video">Video</string>
+    <string name="reply_content_sticker">Sticker</string>
+    <string name="reply_content_voice_message">Voice message</string>
+    <string name="reply_content_video_message">Video message</string>
+    <string name="reply_content_gif">GIF</string>
+    <string name="reply_content_message">Message</string>
 </resources>

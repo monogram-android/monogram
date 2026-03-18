@@ -1375,4 +1375,13 @@
     <string name="poll_voters_title">投票者</string>
     <string name="poll_no_voters">尚无投票者</string>
     <string name="action_close">关闭</string>
+
+    <!-- Reply Content -->
+    <string name="reply_content_photo">图片</string>
+    <string name="reply_content_video">视频</string>
+    <string name="reply_content_sticker">贴纸</string>
+    <string name="reply_content_voice_message">语音消息</string>
+    <string name="reply_content_video_message">视频消息</string>
+    <string name="reply_content_gif">GIF</string>
+    <string name="reply_content_message">消息</string>
 </resources>

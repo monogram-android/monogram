@@ -9,10 +9,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 
 @Composable
 fun ReplyContent(
@@ -57,14 +59,14 @@ fun ReplyContent(
 
             val (rawText, entities) = when (val content = replyToMsg.content) {
                 is MessageContent.Text -> content.text to content.entities
-                is MessageContent.Photo -> content.caption.ifEmpty { "Photo" } to content.entities
-                is MessageContent.Video -> content.caption.ifEmpty { "Video" } to content.entities
-                is MessageContent.Sticker -> "Sticker" to emptyList()
-                is MessageContent.Voice -> "Voice message" to emptyList()
-                is MessageContent.VideoNote -> "Video message" to emptyList()
-                is MessageContent.Gif -> content.caption.ifEmpty { "GIF" } to content.entities
+                is MessageContent.Photo -> content.caption.ifEmpty { stringResource(R.string.reply_content_photo) } to content.entities
+                is MessageContent.Video -> content.caption.ifEmpty { stringResource(R.string.reply_content_video) } to content.entities
+                is MessageContent.Sticker -> stringResource(R.string.reply_content_sticker) to emptyList()
+                is MessageContent.Voice -> stringResource(R.string.reply_content_voice_message) to emptyList()
+                is MessageContent.VideoNote -> stringResource(R.string.reply_content_video_message) to emptyList()
+                is MessageContent.Gif -> content.caption.ifEmpty { stringResource(R.string.reply_content_gif) } to content.entities
                 is MessageContent.Document -> (content.caption.ifEmpty { content.fileName }) to content.entities
-                else -> "Message" to emptyList()
+                else -> stringResource(R.string.reply_content_message) to emptyList()
             }
 
             val annotatedText = buildAnnotatedMessageTextWithEmoji(

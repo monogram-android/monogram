@@ -873,8 +873,33 @@
     <string name="action_send_items_count">Отправить %1$d объектов</string>
     <string name="action_send_media">Отправить медиа</string>
     <string name="action_cancel">Отмена</string>
-    <string name="action_remove">Удалить</string>
 
     <!-- Bot -->
     <string name="bot_commands">Команды</string>
+
+    <!-- Chat Mapper / Media Types -->
+    <string name="chat_mapper_photo">Фото</string>
+    <string name="chat_mapper_video">Видео</string>
+    <string name="chat_mapper_voice">Голосовое сообщение</string>
+    <string name="chat_mapper_message">Сообщение</string>
+
+    <!-- Pinned Messages -->
+    <string name="pinned_messages">Закреплённые сообщения</string>
+    <string name="pinned_message">Закреплённое сообщение</string>
+    <string name="pinned_show_all">Показать все закреплённые</string>
+    <string name="pinned_unpin">Открепить</string>
+    <string name="pinned_close">Закрыть</string>
+    <plurals name="pinned_count">
+        <item quantity="one">%d сообщение</item>
+        <item quantity="few">%d сообщения</item>
+        <item quantity="many">%d сообщений</item>
+        <item quantity="other">%d сообщений</item>
+    </plurals>
+
+    <!-- Message Types -->
+    <string name="message_type_video_message">Видеосообщение</string>
+    <string name="message_type_gif">GIF</string>
+    <string name="message_type_document">Документ</string>
+    <string name="message_type_poll_format">Опрос: %s</string>
+    <string name="message_type_sticker_format">Стикер %s</string>
 </resources>

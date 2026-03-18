@@ -866,8 +866,30 @@
     <string name="action_send_items_count">发送 %1$d 个项目</string>
     <string name="action_send_media">发送媒体</string>
     <string name="action_cancel">取消</string>
-    <string name="action_remove">移除</string>
 
     <!-- Bot -->
     <string name="bot_commands">指令</string>
+
+    <!-- Chat Mapper / Media Types -->
+    <string name="chat_mapper_photo">图片</string>
+    <string name="chat_mapper_video">视频</string>
+    <string name="chat_mapper_voice">语音消息</string>
+    <string name="chat_mapper_message">消息</string>
+
+    <!-- Pinned Messages -->
+    <string name="pinned_messages">置顶消息</string>
+    <string name="pinned_message">置顶消息</string>
+    <string name="pinned_show_all">显示所有置顶</string>
+    <string name="pinned_unpin">取消置顶</string>
+    <string name="pinned_close">关闭</string>
+    <plurals name="pinned_count">
+        <item quantity="other">%d 条消息</item>
+    </plurals>
+
+    <!-- Message Types -->
+    <string name="message_type_video_message">视频消息</string>
+    <string name="message_type_gif">GIF</string>
+    <string name="message_type_document">文档</string>
+    <string name="message_type_poll_format">投票：%s</string>
+    <string name="message_type_sticker_format">贴纸 %s</string>
 </resources>

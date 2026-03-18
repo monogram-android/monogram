@@ -17,12 +17,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 
 @Composable
 fun PinnedMessageBar(
@@ -71,7 +73,7 @@ fun PinnedMessageBar(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (count > 1) "Pinned Messages" else "Pinned Message",
+                        text = if (count > 1) stringResource(R.string.pinned_messages) else stringResource(R.string.pinned_message),
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.primary,
@@ -108,15 +110,15 @@ fun PinnedMessageBar(
                 ) { msg ->
                     val text = when (val content = msg.content) {
                         is MessageContent.Text -> content.text
-                        is MessageContent.Photo -> content.caption.ifEmpty { "Photo" }
-                        is MessageContent.Sticker -> "Sticker ${content.emoji}"
-                        is MessageContent.Video -> content.caption.ifEmpty { "Video" }
-                        is MessageContent.VideoNote -> "Video message"
-                        is MessageContent.Voice -> "Voice message"
-                        is MessageContent.Gif -> content.caption.ifEmpty { "GIF" }
-                        is MessageContent.Document -> content.caption.ifEmpty { "Document" }
-                        is MessageContent.Poll -> "Poll: ${content.question}"
-                        else -> "Message"
+                        is MessageContent.Photo -> content.caption.ifEmpty { stringResource(R.string.chat_mapper_photo) }
+                        is MessageContent.Sticker -> stringResource(R.string.message_type_sticker_format, content.emoji)
+                        is MessageContent.Video -> content.caption.ifEmpty { stringResource(R.string.chat_mapper_video) }
+                        is MessageContent.VideoNote -> stringResource(R.string.message_type_video_message)
+                        is MessageContent.Voice -> stringResource(R.string.chat_mapper_voice)
+                        is MessageContent.Gif -> content.caption.ifEmpty { stringResource(R.string.message_type_gif) }
+                        is MessageContent.Document -> content.caption.ifEmpty { stringResource(R.string.message_type_document) }
+                        is MessageContent.Poll -> stringResource(R.string.message_type_poll_format, content.question)
+                        else -> stringResource(R.string.chat_mapper_message)
                     }
 
                     Text(
@@ -139,7 +141,7 @@ fun PinnedMessageBar(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.FormatListBulleted,
-                            contentDescription = "Show all pinned",
+                            contentDescription = stringResource(R.string.pinned_show_all),
                             modifier = Modifier.size(22.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -152,7 +154,7 @@ fun PinnedMessageBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Unpin",
+                        contentDescription = stringResource(R.string.pinned_unpin),
                         modifier = Modifier.size(22.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

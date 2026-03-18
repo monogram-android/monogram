@@ -286,12 +286,20 @@ fun ProfileInfoSection(
 
         business.openingHours?.let { hours ->
             items.add { pos ->
-                val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                val days = listOf(
+                    stringResource(R.string.monday_short),
+                    stringResource(R.string.tuesday_short),
+                    stringResource(R.string.wednesday_short),
+                    stringResource(R.string.thursday_short),
+                    stringResource(R.string.friday_short),
+                    stringResource(R.string.saturday_short),
+                    stringResource(R.string.sunday_short)
+                )
                 val intervalsByDay = hours.intervals.groupBy { it.startMinute / (24 * 60) }
                 val formattedHours = days.mapIndexed { index, day ->
                     val dayIntervals = intervalsByDay[index]
                     if (dayIntervals.isNullOrEmpty()) {
-                        "$day: Closed"
+                        "$day: ${stringResource(R.string.opening_hours_closed)}"
                     } else {
                         val times = dayIntervals.joinToString(", ") { interval ->
                             val startHour = (interval.startMinute % (24 * 60)) / 60
@@ -389,7 +397,7 @@ fun ProfileInfoSection(
             SettingsTile(
                 icon = Icons.Rounded.Numbers,
                 title = id.toString(),
-                subtitle = "ID",
+                subtitle = stringResource(R.string.label_id),
                 iconColor = MaterialTheme.colorScheme.outline,
                 position = pos,
                 onClick = { clipboardManager.setText(AnnotatedString(id.toString())) }

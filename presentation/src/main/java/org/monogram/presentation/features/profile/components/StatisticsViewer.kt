@@ -23,9 +23,11 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.*
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.chatList.components.SectionHeader
 import java.text.SimpleDateFormat
 import java.util.*
@@ -85,7 +87,7 @@ fun StatisticsViewer(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                "Analyzing Statistics...",
+                                stringResource(R.string.statistics_analyzing),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -121,12 +123,12 @@ fun StatisticsViewer(
 
 @Composable
 fun SupergroupStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Unit) {
-    SectionHeader("Overview")
+    SectionHeader(stringResource(R.string.statistics_overview))
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatCard(
                 modifier = Modifier.weight(1f),
-                title = "Members",
+                title = stringResource(R.string.statistics_members),
                 current = stats.memberCount.value,
                 previous = stats.memberCount.previousValue,
                 icon = Icons.Rounded.Groups,
@@ -135,7 +137,7 @@ fun SupergroupStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Un
             stats.messageCount?.let {
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Messages",
+                    title = stringResource(R.string.statistics_messages),
                     current = it.value,
                     previous = it.previousValue,
                     icon = Icons.AutoMirrored.Rounded.Chat,
@@ -147,7 +149,7 @@ fun SupergroupStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Un
             stats.viewerCount?.let {
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Viewers",
+                    title = stringResource(R.string.statistics_viewers),
                     current = it.value,
                     previous = it.previousValue,
                     icon = Icons.Rounded.Visibility,
@@ -157,7 +159,7 @@ fun SupergroupStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Un
             stats.senderCount?.let {
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Active Senders",
+                    title = stringResource(R.string.statistics_active_senders),
                     current = it.value,
                     previous = it.previousValue,
                     icon = Icons.Rounded.Person,
@@ -167,21 +169,21 @@ fun SupergroupStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Un
         }
     }
 
-    stats.memberCountGraph?.let { GraphSection("Member Growth", it, Color(0xFF4285F4), onLoadGraph) }
-    stats.joinGraph?.let { GraphSection("New Members", it, Color(0xFF34A853), onLoadGraph) }
-    stats.muteGraph?.let { GraphSection("Notifications", it, Color(0xFFEA4335), onLoadGraph) }
-    stats.messageContentGraph?.let { GraphSection("Message Content", it, Color(0xFF673AB7), onLoadGraph) }
-    stats.actionGraph?.let { GraphSection("Actions", it, Color(0xFFFBBC04), onLoadGraph) }
-    stats.dayGraph?.let { GraphSection("Activity by Day", it, Color(0xFF00BCD4), onLoadGraph) }
-    stats.weekGraph?.let { GraphSection("Activity by Week", it, Color(0xFF3F51B5), onLoadGraph) }
-    stats.topHoursGraph?.let { GraphSection("Top Hours", it, Color(0xFFFF9800), onLoadGraph) }
-    stats.viewCountBySourceGraph?.let { GraphSection("Views by Source", it, Color(0xFF00BCD4), onLoadGraph) }
-    stats.joinBySourceGraph?.let { GraphSection("New Members by Source", it, Color(0xFF3F51B5), onLoadGraph) }
-    stats.languageGraph?.let { GraphSection("Languages", it, Color(0xFF673AB7), onLoadGraph) }
+    stats.memberCountGraph?.let { GraphSection(stringResource(R.string.statistics_member_growth), it, Color(0xFF4285F4), onLoadGraph) }
+    stats.joinGraph?.let { GraphSection(stringResource(R.string.statistics_new_members), it, Color(0xFF34A853), onLoadGraph) }
+    stats.muteGraph?.let { GraphSection(stringResource(R.string.notifications_title), it, Color(0xFFEA4335), onLoadGraph) }
+    stats.messageContentGraph?.let { GraphSection(stringResource(R.string.statistics_message_content), it, Color(0xFF673AB7), onLoadGraph) }
+    stats.actionGraph?.let { GraphSection(stringResource(R.string.statistics_actions), it, Color(0xFFFBBC04), onLoadGraph) }
+    stats.dayGraph?.let { GraphSection(stringResource(R.string.statistics_activity_day), it, Color(0xFF00BCD4), onLoadGraph) }
+    stats.weekGraph?.let { GraphSection(stringResource(R.string.statistics_activity_week), it, Color(0xFF3F51B5), onLoadGraph) }
+    stats.topHoursGraph?.let { GraphSection(stringResource(R.string.statistics_top_hours), it, Color(0xFFFF9800), onLoadGraph) }
+    stats.viewCountBySourceGraph?.let { GraphSection(stringResource(R.string.statistics_views_source), it, Color(0xFF00BCD4), onLoadGraph) }
+    stats.joinBySourceGraph?.let { GraphSection(stringResource(R.string.statistics_new_members_source), it, Color(0xFF3F51B5), onLoadGraph) }
+    stats.languageGraph?.let { GraphSection(stringResource(R.string.statistics_languages), it, Color(0xFF673AB7), onLoadGraph) }
 
     if (stats.topSenders.isNotEmpty()) {
         ExpandableListSection(
-            title = "Top Senders",
+            title = stringResource(R.string.statistics_top_senders),
             icon = Icons.Rounded.Leaderboard,
             items = stats.topSenders,
             initialCount = 5
@@ -190,8 +192,8 @@ fun SupergroupStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Un
             UserBarChartItem(
                 userId = sender.userId.toString(),
                 primaryValue = sender.sentMessageCount.toString(),
-                primaryLabel = "msgs",
-                secondaryValue = "Avg chars: ${sender.averageCharacterCount}",
+                primaryLabel = stringResource(R.string.statistics_msgs_label),
+                secondaryValue = stringResource(R.string.statistics_avg_chars_format, sender.averageCharacterCount),
                 progress = sender.sentMessageCount / maxSent,
                 barColor = Color(0xFF34A853)
             )
@@ -200,7 +202,7 @@ fun SupergroupStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Un
 
     if (stats.topAdministrators.isNotEmpty()) {
         ExpandableListSection(
-            title = "Top Administrators",
+            title = stringResource(R.string.statistics_top_admins),
             icon = Icons.Rounded.AdminPanelSettings,
             items = stats.topAdministrators,
             initialCount = 5
@@ -211,8 +213,8 @@ fun SupergroupStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Un
             UserBarChartItem(
                 userId = admin.userId.toString(),
                 primaryValue = totalActions.toString(),
-                primaryLabel = "actions",
-                secondaryValue = "Del: ${admin.deletedMessageCount} | Ban: ${admin.bannedUserCount}",
+                primaryLabel = stringResource(R.string.statistics_actions_label),
+                secondaryValue = stringResource(R.string.statistics_admin_actions_format, admin.deletedMessageCount, admin.bannedUserCount),
                 progress = totalActions / maxActions,
                 barColor = Color(0xFFEA4335)
             )
@@ -221,7 +223,7 @@ fun SupergroupStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Un
 
     if (stats.topInviters.isNotEmpty()) {
         ExpandableListSection(
-            title = "Top Inviters",
+            title = stringResource(R.string.statistics_top_inviters),
             icon = Icons.Rounded.PersonAdd,
             items = stats.topInviters,
             initialCount = 5
@@ -230,8 +232,8 @@ fun SupergroupStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Un
             UserBarChartItem(
                 userId = inviter.userId.toString(),
                 primaryValue = inviter.addedMemberCount.toString(),
-                primaryLabel = "invites",
-                secondaryValue = "Added members",
+                primaryLabel = stringResource(R.string.statistics_invites_label),
+                secondaryValue = stringResource(R.string.statistics_added_members_label),
                 progress = inviter.addedMemberCount / maxInvites,
                 barColor = Color(0xFFFBBC04)
             )
@@ -241,11 +243,11 @@ fun SupergroupStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Un
 
 @Composable
 fun ChannelStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Unit) {
-    SectionHeader("Overview")
+    SectionHeader(stringResource(R.string.statistics_overview))
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         StatCard(
             modifier = Modifier.fillMaxWidth(),
-            title = "Subscribers",
+            title = stringResource(R.string.statistics_subscribers),
             current = stats.memberCount.value,
             previous = stats.memberCount.previousValue,
             icon = Icons.Rounded.Groups,
@@ -255,7 +257,7 @@ fun ChannelStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Unit)
         stats.enabledNotificationsPercentage?.let {
             StatCard(
                 modifier = Modifier.fillMaxWidth(),
-                title = "Notifications Enabled",
+                title = stringResource(R.string.statistics_notifications_enabled),
                 current = it,
                 previous = it,
                 isPercentage = true,
@@ -268,7 +270,7 @@ fun ChannelStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Unit)
             stats.meanViewCount?.let {
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Avg Msg Views",
+                    title = stringResource(R.string.statistics_avg_msg_views),
                     current = it.value,
                     previous = it.previousValue,
                     icon = Icons.Rounded.RemoveRedEye,
@@ -278,7 +280,7 @@ fun ChannelStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Unit)
             stats.meanShareCount?.let {
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Avg Msg Shares",
+                    title = stringResource(R.string.statistics_avg_msg_shares),
                     current = it.value,
                     previous = it.previousValue,
                     icon = Icons.Rounded.Share,
@@ -291,7 +293,7 @@ fun ChannelStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Unit)
             stats.meanReactionCount?.let {
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Avg Reactions",
+                    title = stringResource(R.string.statistics_avg_reactions),
                     current = it.value,
                     previous = it.previousValue,
                     icon = Icons.Rounded.EmojiEmotions,
@@ -301,20 +303,20 @@ fun ChannelStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Unit)
         }
     }
 
-    stats.memberCountGraph?.let { GraphSection("Growth", it, Color(0xFF4285F4), onLoadGraph) }
-    stats.joinGraph?.let { GraphSection("New Subscribers", it, Color(0xFF34A853), onLoadGraph) }
-    stats.muteGraph?.let { GraphSection("Notifications", it, Color(0xFFEA4335), onLoadGraph) }
-    stats.viewCountByHourGraph?.let { GraphSection("Views by Hour", it, Color(0xFFFBBC04), onLoadGraph) }
-    stats.viewCountBySourceGraph?.let { GraphSection("Views by Source", it, Color(0xFF00BCD4), onLoadGraph) }
-    stats.joinBySourceGraph?.let { GraphSection("New Subscribers by Source", it, Color(0xFF3F51B5), onLoadGraph) }
-    stats.languageGraph?.let { GraphSection("Languages", it, Color(0xFF673AB7), onLoadGraph) }
-    stats.messageContentGraph?.let { GraphSection("Message Interactions", it, Color(0xFF4CAF50), onLoadGraph) }
-    stats.actionGraph?.let { GraphSection("Instant View Interactions", it, Color(0xFFFF9800), onLoadGraph) }
-    stats.messageReactionGraph?.let { GraphSection("Message Reactions", it, Color(0xFF9C27B0), onLoadGraph) }
+    stats.memberCountGraph?.let { GraphSection(stringResource(R.string.statistics_growth), it, Color(0xFF4285F4), onLoadGraph) }
+    stats.joinGraph?.let { GraphSection(stringResource(R.string.statistics_new_subscribers), it, Color(0xFF34A853), onLoadGraph) }
+    stats.muteGraph?.let { GraphSection(stringResource(R.string.notifications_title), it, Color(0xFFEA4335), onLoadGraph) }
+    stats.viewCountByHourGraph?.let { GraphSection(stringResource(R.string.statistics_views_hour), it, Color(0xFFFBBC04), onLoadGraph) }
+    stats.viewCountBySourceGraph?.let { GraphSection(stringResource(R.string.statistics_views_source), it, Color(0xFF00BCD4), onLoadGraph) }
+    stats.joinBySourceGraph?.let { GraphSection(stringResource(R.string.statistics_new_members_source), it, Color(0xFF3F51B5), onLoadGraph) }
+    stats.languageGraph?.let { GraphSection(stringResource(R.string.statistics_languages), it, Color(0xFF673AB7), onLoadGraph) }
+    stats.messageContentGraph?.let { GraphSection(stringResource(R.string.statistics_msg_interactions), it, Color(0xFF4CAF50), onLoadGraph) }
+    stats.actionGraph?.let { GraphSection(stringResource(R.string.statistics_iv_interactions), it, Color(0xFFFF9800), onLoadGraph) }
+    stats.messageReactionGraph?.let { GraphSection(stringResource(R.string.statistics_msg_reactions), it, Color(0xFF9C27B0), onLoadGraph) }
 
     if (stats.recentInteractions.isNotEmpty()) {
         ExpandableListSection(
-            title = "Recent Interactions",
+            title = stringResource(R.string.statistics_recent_interactions),
             icon = Icons.Rounded.DynamicFeed,
             items = stats.recentInteractions,
             initialCount = 5
@@ -367,7 +369,7 @@ fun InteractionItem(interaction: ChatInteractionInfoModel) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (interaction.type == ChatInteractionType.MESSAGE) "Message" else "Story",
+                            text = if (interaction.type == ChatInteractionType.MESSAGE) stringResource(R.string.statistics_interaction_message) else stringResource(R.string.statistics_interaction_story),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -401,7 +403,7 @@ fun InteractionItem(interaction: ChatInteractionInfoModel) {
                     ) {
                         Column {
                             Text(
-                                "Post ID",
+                                stringResource(R.string.statistics_post_id),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -483,7 +485,7 @@ fun <T> ExpandableListSection(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer
                         )
                     ) {
-                        Text(if (isExpanded) "Show Less" else "Show All (${items.size})", fontWeight = FontWeight.Bold)
+                        Text(if (isExpanded) stringResource(R.string.statistics_show_less) else stringResource(R.string.statistics_show_all_format, items.size), fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
@@ -498,7 +500,7 @@ fun <T> ExpandableListSection(
 
 @Composable
 fun RevenueStatistics(stats: ChatRevenueStatisticsModel, onLoadGraph: (String) -> Unit) {
-    SectionHeader("Revenue")
+    SectionHeader(stringResource(R.string.statistics_revenue_header))
 
     val animatedBalance by animateFloatAsState(
         targetValue = stats.revenueAmount.availableBalance.toFloat(),
@@ -535,7 +537,7 @@ fun RevenueStatistics(stats: ChatRevenueStatisticsModel, onLoadGraph: (String) -
                     shape = CircleShape
                 ) {
                     Text(
-                        "Available Balance",
+                        stringResource(R.string.statistics_available_balance),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -564,7 +566,7 @@ fun RevenueStatistics(stats: ChatRevenueStatisticsModel, onLoadGraph: (String) -
                 ) {
                     Column {
                         Text(
-                            "Total Balance",
+                            stringResource(R.string.statistics_total_balance),
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.alpha(0.7f)
                         )
@@ -576,7 +578,7 @@ fun RevenueStatistics(stats: ChatRevenueStatisticsModel, onLoadGraph: (String) -
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            "Exchange Rate",
+                            stringResource(R.string.statistics_exchange_rate),
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.alpha(0.7f)
                         )
@@ -592,8 +594,8 @@ fun RevenueStatistics(stats: ChatRevenueStatisticsModel, onLoadGraph: (String) -
     }
 
     Spacer(modifier = Modifier.height(24.dp))
-    GraphSection("Revenue Growth", stats.revenueGraph, Color(0xFF34A853), onLoadGraph)
-    GraphSection("Hourly Revenue", stats.revenueByHourGraph, Color(0xFFFBBC04), onLoadGraph)
+    GraphSection(stringResource(R.string.statistics_revenue_growth), stats.revenueGraph, Color(0xFF34A853), onLoadGraph)
+    GraphSection(stringResource(R.string.statistics_hourly_revenue), stats.revenueByHourGraph, Color(0xFFFBBC04), onLoadGraph)
 }
 
 @Composable
@@ -618,7 +620,7 @@ fun GraphSection(title: String, graph: StatisticsGraphModel, color: Color, onLoa
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "Insights Loaded",
+                                stringResource(R.string.statistics_insights_loaded),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = color,
                                 fontWeight = FontWeight.Bold
@@ -641,7 +643,7 @@ fun GraphSection(title: String, graph: StatisticsGraphModel, color: Color, onLoa
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            "Zoom In",
+                                            stringResource(R.string.statistics_zoom_in),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = color,
                                             fontWeight = FontWeight.Bold
@@ -674,7 +676,7 @@ fun GraphSection(title: String, graph: StatisticsGraphModel, color: Color, onLoa
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                "Rendering Chart...",
+                                stringResource(R.string.statistics_rendering_chart),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Medium
@@ -796,14 +798,15 @@ fun StatCard(
                         text = when {
                             diff > 0 -> "+${diff.toInt()}"
                             diff < 0 -> "${diff.toInt()}"
-                            else -> "No change"
+                            else -> stringResource(R.string.statistics_no_change)
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = deltaColor,
                         fontWeight = FontWeight.Bold
                     )
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = " vs previous",
+                        text = stringResource(R.string.statistics_vs_previous),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -855,7 +858,7 @@ fun UserBarChartItem(
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text("User ID: $userId", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text("${stringResource(R.string.label_id)}: $userId", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Text(
                         secondaryValue,
                         style = MaterialTheme.typography.bodySmall,
@@ -975,7 +978,7 @@ fun DateRangeHeader(period: DateRangeModel) {
                 shape = CircleShape
             ) {
                 Text(
-                    text = "$days days",
+                    text = stringResource(R.string.days_count_format, days),
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -1011,14 +1014,14 @@ fun FallbackView(data: Any) {
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Unknown Statistics Type",
+                    text = stringResource(R.string.statistics_unknown_type),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.error
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Text(text = "Data class: ${data::class.simpleName}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = stringResource(R.string.statistics_data_class_format, data::class.simpleName ?: "Unknown"), style = MaterialTheme.typography.bodyMedium)
             Spacer(modifier = Modifier.height(16.dp))
             SelectionContainer {
                 Text(

@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -78,7 +79,7 @@ fun LocationViewer(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Location",
+                text = stringResource(R.string.location_label),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -149,7 +150,7 @@ fun LocationViewer(
                 ) {
                     Icon(Icons.Rounded.Map, null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Open Maps")
+                    Text(stringResource(R.string.action_open_maps))
                 }
 
                 FilledTonalButton(
@@ -164,7 +165,7 @@ fun LocationViewer(
                 ) {
                     Icon(Icons.Rounded.Directions, null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Directions")
+                    Text(stringResource(R.string.action_directions))
                 }
             }
         }
@@ -305,7 +306,7 @@ private fun MapsSelectionDialog(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                text = if (isNavigation) "Navigate with" else "Open with",
+                text = stringResource(if (isNavigation) R.string.navigate_with else R.string.open_with),
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
@@ -359,7 +360,7 @@ private fun MapsSelectionDialog(
                     }
 
                     ListItem(
-                        headlineContent = { Text("Browser / Other", style = MaterialTheme.typography.bodyLarge) },
+                        headlineContent = { Text(stringResource(R.string.browser_other), style = MaterialTheme.typography.bodyLarge) },
                         modifier = Modifier.clickable {
                             val uri = if (isNavigation) {
                                 "google.navigation:q=${location.latitude},${location.longitude}".toUri()

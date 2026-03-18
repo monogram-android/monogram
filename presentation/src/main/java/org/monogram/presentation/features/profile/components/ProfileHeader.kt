@@ -16,9 +16,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
@@ -95,7 +97,7 @@ fun ProfileHeader(
                 Spacer(Modifier.width(6.dp))
                 Icon(
                     imageVector = Icons.Rounded.Verified,
-                    contentDescription = "Verified",
+                    contentDescription = stringResource(R.string.cd_verified),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp)
                 )
@@ -115,7 +117,7 @@ fun ProfileHeader(
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text(
-                        text = "BOT",
+                        text = stringResource(R.string.label_bot_badge),
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                         color = MaterialTheme.colorScheme.onTertiaryContainer

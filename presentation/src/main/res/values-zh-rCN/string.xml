@@ -1456,4 +1456,25 @@
     <string name="mini_app_tos_title">服务条款</string>
     <string name="mini_app_tos_text">启动此小程序即表示您同意其服务条款和隐私政策。该机器人将能够访问您的基本个人资料信息。</string>
     <string name="mini_app_tos_accept">接受并启动</string>
+
+    <!-- Instant View -->
+    <string name="instant_view_search_placeholder">在文章中搜索…</string>
+    <string name="instant_view_back">返回</string>
+    <string name="instant_view_clear">清除</string>
+    <string name="instant_view_title">即时预览</string>
+    <string name="instant_view_more">更多</string>
+    <string name="instant_view_views_count">%d 次查看</string>
+    <string name="instant_view_copy_link">复制链接</string>
+    <string name="instant_view_open_in_browser">在浏览器中打开</string>
+    <string name="instant_view_search">搜索</string>
+    <string name="instant_view_text_size">文字大小</string>
+    <string name="instant_view_play_video">播放视频</string>
+    <string name="instant_view_play_animation">播放动画</string>
+    <string name="instant_view_audio">音频</string>
+    <string name="instant_view_unknown_artist">未知艺术家</string>
+    <string name="instant_view_play">播放</string>
+    <string name="instant_view_open">打开</string>
+    <string name="instant_view_collapse">折叠</string>
+    <string name="instant_view_expand">展开</string>
+    <string name="instant_view_map_prefix">地图: %1$s, %2$s</string>
 </resources>

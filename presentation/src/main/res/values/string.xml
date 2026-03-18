@@ -1499,4 +1499,25 @@
     <string name="mini_app_tos_title">Terms of Service</string>
     <string name="mini_app_tos_text">By launching this Mini App, you agree to the Terms of Service and Privacy Policy. The bot will be able to access your basic profile information.</string>
     <string name="mini_app_tos_accept">Accept and Launch</string>
+
+    <!-- Instant View -->
+    <string name="instant_view_search_placeholder">Search in article…</string>
+    <string name="instant_view_back">Back</string>
+    <string name="instant_view_clear">Clear</string>
+    <string name="instant_view_title">Instant View</string>
+    <string name="instant_view_more">More</string>
+    <string name="instant_view_views_count">%d views</string>
+    <string name="instant_view_copy_link">Copy Link</string>
+    <string name="instant_view_open_in_browser">Open in Browser</string>
+    <string name="instant_view_search">Search</string>
+    <string name="instant_view_text_size">Text Size</string>
+    <string name="instant_view_play_video">Play Video</string>
+    <string name="instant_view_play_animation">Play Animation</string>
+    <string name="instant_view_audio">Audio</string>
+    <string name="instant_view_unknown_artist">Unknown Artist</string>
+    <string name="instant_view_play">Play</string>
+    <string name="instant_view_open">Open</string>
+    <string name="instant_view_collapse">Collapse</string>
+    <string name="instant_view_expand">Expand</string>
+    <string name="instant_view_map_prefix">Map: %1$s, %2$s</string>
 </resources>

@@ -1469,4 +1469,25 @@
     <string name="mini_app_tos_title">Условия использования</string>
     <string name="mini_app_tos_text">Запуская это мини-приложение, Вы принимаете Условия использования и Политику конфиденциальности. Бот получит доступ к данным Вашего профиля.</string>
     <string name="mini_app_tos_accept">Принять и запустить</string>
+
+    <!-- Instant View -->
+    <string name="instant_view_search_placeholder">Поиск в статье…</string>
+    <string name="instant_view_back">Назад</string>
+    <string name="instant_view_clear">Очистить</string>
+    <string name="instant_view_title">Быстрый просмотр</string>
+    <string name="instant_view_more">Ещё</string>
+    <string name="instant_view_views_count">%d просмотров</string>
+    <string name="instant_view_copy_link">Копировать ссылку</string>
+    <string name="instant_view_open_in_browser">Открыть в браузере</string>
+    <string name="instant_view_search">Поиск</string>
+    <string name="instant_view_text_size">Размер текста</string>
+    <string name="instant_view_play_video">Воспроизвести видео</string>
+    <string name="instant_view_play_animation">Воспроизвести анимацию</string>
+    <string name="instant_view_audio">Аудио</string>
+    <string name="instant_view_unknown_artist">Неизвестный исполнитель</string>
+    <string name="instant_view_play">Воспроизвести</string>
+    <string name="instant_view_open">Открыть</string>
+    <string name="instant_view_collapse">Свернуть</string>
+    <string name="instant_view_expand">Развернуть</string>
+    <string name="instant_view_map_prefix">Карта: %1$s, %2$s</string>
 </resources>

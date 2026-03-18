@@ -29,6 +29,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -40,6 +41,7 @@ import org.monogram.domain.models.webapp.InstantViewModel
 import org.monogram.domain.models.webapp.PageBlock
 import org.monogram.domain.models.webapp.RichText
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.chats.normalizeUrl
 import org.monogram.presentation.features.instantview.components.*
@@ -143,19 +145,19 @@ fun InstantViewer(
                                             onSearch = {},
                                             expanded = false,
                                             onExpandedChange = {},
-                                            placeholder = { Text("Search in article...") },
+                                            placeholder = { Text(stringResource(R.string.instant_view_search_placeholder)) },
                                             leadingIcon = {
                                                 IconButton(onClick = { isSearching = false; searchQuery = "" }) {
                                                     Icon(
                                                         Icons.AutoMirrored.Rounded.ArrowBack,
-                                                        contentDescription = "Back"
+                                                        contentDescription = stringResource(R.string.instant_view_back)
                                                     )
                                                 }
                                             },
                                             trailingIcon = {
                                                 if (searchQuery.isNotEmpty()) {
                                                     IconButton(onClick = { searchQuery = "" }) {
-                                                        Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                                                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.instant_view_clear))
                                                     }
                                                 }
                                             }
@@ -181,7 +183,7 @@ fun InstantViewer(
                                         Text(
                                             text = instantView?.pageBlocks?.filterIsInstance<PageBlock.Title>()
                                                 ?.firstOrNull()?.title?.let { renderRichText(it).text }
-                                                ?: "Instant View",
+                                                ?: stringResource(R.string.instant_view_title),
                                             style = MaterialTheme.typography.titleMedium,
                                             maxLines = 1,
                                             modifier = Modifier.basicMarquee()
@@ -204,12 +206,12 @@ fun InstantViewer(
                                             onDismiss()
                                         }
                                     }) {
-                                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.instant_view_back))
                                     }
                                 },
                                 actions = {
                                     IconButton(onClick = { showSettingsMenu = !showSettingsMenu }) {
-                                        Icon(Icons.Rounded.MoreVert, contentDescription = "More")
+                                        Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.instant_view_more))
                                     }
                                 },
                                 colors = TopAppBarDefaults.topAppBarColors(
@@ -263,7 +265,7 @@ fun InstantViewer(
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
-                                                text = "${instantView!!.viewCount} views",
+                                                text = stringResource(R.string.instant_view_views_count, instantView!!.viewCount),
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -317,7 +319,7 @@ fun InstantViewer(
                     ViewerSettingsDropdown {
                         MenuOptionRow(
                             icon = Icons.Rounded.ContentCopy,
-                            title = "Copy Link",
+                            title = stringResource(R.string.instant_view_copy_link),
                             onClick = {
                                 clipboardManager.setText(AnnotatedString(currentUrl))
                                 showSettingsMenu = false
@@ -325,7 +327,7 @@ fun InstantViewer(
                         )
                         MenuOptionRow(
                             icon = Icons.AutoMirrored.Rounded.OpenInNew,
-                            title = "Open in Browser",
+                            title = stringResource(R.string.instant_view_open_in_browser),
                             onClick = {
                                 onOpenWebView(normalizeUrl(currentUrl))
                                 showSettingsMenu = false
@@ -333,7 +335,7 @@ fun InstantViewer(
                         )
                         MenuOptionRow(
                             icon = Icons.Rounded.Search,
-                            title = "Search",
+                            title = stringResource(R.string.instant_view_search),
                             onClick = {
                                 isSearching = true
                                 showSettingsMenu = false
@@ -345,7 +347,7 @@ fun InstantViewer(
                         )
                         MenuOptionRow(
                             icon = Icons.Rounded.TextFormat,
-                            title = "Text Size",
+                            title = stringResource(R.string.instant_view_text_size),
                             value = "${(textSizeMultiplier * 100).toInt()}%",
                             onClick = {
                                 textSizeMultiplier = when (textSizeMultiplier) {
@@ -516,7 +518,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
                     } else {
                         Icon(
                             imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = "Play Video",
+                            contentDescription = stringResource(R.string.instant_view_play_video),
                             modifier = Modifier
                                 .size(64.dp)
                                 .background(Color.Black.copy(alpha = 0.4f), CircleShape)
@@ -553,7 +555,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
                     } else {
                         Icon(
                             imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = "Play Animation",
+                            contentDescription = stringResource(R.string.instant_view_play_animation),
                             modifier = Modifier
                                 .size(48.dp)
                                 .background(Color.Black.copy(alpha = 0.4f), CircleShape)
@@ -576,10 +578,10 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
                 Column {
                     ListItem(
                         headlineContent = {
-                            Text(block.audio.title ?: "Audio", fontWeight = FontWeight.SemiBold)
+                            Text(block.audio.title ?: stringResource(R.string.instant_view_audio), fontWeight = FontWeight.SemiBold)
                         },
                         supportingContent = {
-                            Text(block.audio.performer ?: "Unknown Artist")
+                            Text(block.audio.performer ?: stringResource(R.string.instant_view_unknown_artist))
                         },
                         leadingContent = {
                             IconButton(
@@ -589,7 +591,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
                                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             ) {
-                                Icon(Icons.Rounded.PlayArrow, contentDescription = "Play")
+                                Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.instant_view_play))
                             }
                         },
                         trailingContent = {
@@ -632,7 +634,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
                     }
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
-                        contentDescription = "Open",
+                        contentDescription = stringResource(R.string.instant_view_open),
                         modifier = Modifier
                             .size(48.dp)
                             .background(Color.Black.copy(alpha = 0.4f), CircleShape)
@@ -797,7 +799,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
                         }
                         Icon(
                             imageVector = if (isOpen) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                            contentDescription = if (isOpen) "Collapse" else "Expand",
+                            contentDescription = if (isOpen) stringResource(R.string.instant_view_collapse) else stringResource(R.string.instant_view_expand),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -951,7 +953,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Map: ${block.location.latitude}, ${block.location.longitude}")
+                    Text(stringResource(R.string.instant_view_map_prefix, block.location.latitude, block.location.longitude))
                 }
                 PageBlockCaptionView(block.caption, textSizeMultiplier, modifier = Modifier.padding(top = 8.dp))
             }

@@ -1469,4 +1469,25 @@
     <string name="mini_app_tos_title">Умови використання</string>
     <string name="mini_app_tos_text">Запускаючи цей мінідодаток, ви погоджуєтеся з Умовами надання послуг та Політикою конфіденційності. Бот отримає доступ до основної інформації вашого профілю.</string>
     <string name="mini_app_tos_accept">Прийняти та запустити</string>
+
+    <!-- Instant View -->
+    <string name="instant_view_search_placeholder">Пошук у статті…</string>
+    <string name="instant_view_back">Назад</string>
+    <string name="instant_view_clear">Очистити</string>
+    <string name="instant_view_title">Швидкий перегляд</string>
+    <string name="instant_view_more">Ще</string>
+    <string name="instant_view_views_count">%d переглядів</string>
+    <string name="instant_view_copy_link">Копіювати посилання</string>
+    <string name="instant_view_open_in_browser">Відкрити у браузері</string>
+    <string name="instant_view_search">Пошук</string>
+    <string name="instant_view_text_size">Розмір тексту</string>
+    <string name="instant_view_play_video">Відтворити відео</string>
+    <string name="instant_view_play_animation">Відтворити анімацію</string>
+    <string name="instant_view_audio">Аудіо</string>
+    <string name="instant_view_unknown_artist">Невідомий виконавець</string>
+    <string name="instant_view_play">Відтворити</string>
+    <string name="instant_view_open">Відкрити</string>
+    <string name="instant_view_collapse">Згорнути</string>
+    <string name="instant_view_expand">Розгорнути</string>
+    <string name="instant_view_map_prefix">Мапа: %1$s, %2$s</string>
 </resources>

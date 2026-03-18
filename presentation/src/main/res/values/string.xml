@@ -1394,4 +1394,28 @@
     <string name="comment_count">%1$d comments</string>
     <string name="comment_count_k">%1$.1fK comments</string>
     <string name="comment_count_m">%1$.1fM comments</string>
+
+    <!-- Poll Message -->
+    <string name="poll_final_results">Final Results</string>
+    <string name="poll_anonymous">Anonymous</string>
+    <string name="poll_public">Public</string>
+    <string name="poll_type_quiz">Quiz</string>
+    <string name="poll_type_poll">Poll</string>
+    <string name="poll_multiple_choice"> • Multiple Choice</string>
+    <string name="poll_retract_vote">Retract Vote</string>
+    <string name="poll_close_poll">Close Poll</string>
+    <plurals name="poll_votes_count">
+        <item quantity="one">%d vote</item>
+        <item quantity="other">%d votes</item>
+    </plurals>
+
+    <!-- Accessibility Content Descriptions -->
+    <string name="cd_more">More</string>
+    <string name="cd_vote">Vote</string>
+    <string name="cd_explanation">Explanation</string>
+
+    <!-- Poll Voters Sheet -->
+    <string name="poll_voters_title">Poll Voters</string>
+    <string name="poll_no_voters">No voters yet</string>
+    <string name="action_close">Close</string>
 </resources>

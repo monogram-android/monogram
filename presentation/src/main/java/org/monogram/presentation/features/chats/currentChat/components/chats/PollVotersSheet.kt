@@ -10,10 +10,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.UserModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
@@ -38,7 +40,7 @@ fun PollVotersSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Poll Voters",
+                text = stringResource(R.string.poll_voters_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
@@ -61,7 +63,7 @@ fun PollVotersSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No voters yet",
+                        text = stringResource(R.string.poll_no_voters),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -101,7 +103,11 @@ fun PollVotersSheet(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Close", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -135,7 +141,7 @@ private fun VoterItem(user: UserModel, videoPlayerPool: VideoPlayerPool) {
                     Spacer(Modifier.width(4.dp))
                     Icon(
                         imageVector = Icons.Rounded.Verified,
-                        contentDescription = "Verified",
+                        contentDescription = stringResource(R.string.cd_verified),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )

@@ -1362,4 +1362,30 @@
     <string name="comment_count">%1$d коментарів</string>
     <string name="comment_count_k">%1$.1fK коментарів</string>
     <string name="comment_count_m">%1$.1fM коментарів</string>
+
+    <!-- Poll Message -->
+    <string name="poll_final_results">Остаточні результати</string>
+    <string name="poll_anonymous">Анонімне опитування</string>
+    <string name="poll_public">Публічне опитування</string>
+    <string name="poll_type_quiz">Вікторина</string>
+    <string name="poll_type_poll">Опитування</string>
+    <string name="poll_multiple_choice"> • Вибір кількох варіантів</string>
+    <string name="poll_retract_vote">Скасувати голос</string>
+    <string name="poll_close_poll">Зупинити опитування</string>
+    <plurals name="poll_votes_count">
+        <item quantity="one">%d голос</item>
+        <item quantity="few">%d голоси</item>
+        <item quantity="many">%d голосів</item>
+        <item quantity="other">%d голосу</item>
+    </plurals>
+
+    <!-- Accessibility Content Descriptions -->
+    <string name="cd_more">Більше</string>
+    <string name="cd_vote">Голосувати</string>
+    <string name="cd_explanation">Пояснення</string>
+
+    <!-- Poll Voters Sheet -->
+    <string name="poll_voters_title">Проголосували</string>
+    <string name="poll_no_voters">Ще ніхто не проголосував</string>
+    <string name="action_close">Закрити</string>
 </resources>

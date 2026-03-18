@@ -1352,4 +1352,27 @@
     <string name="comment_count">%1$d 条评论</string>
     <string name="comment_count_k">%1$.1fK 条评论</string>
     <string name="comment_count_m">%1$.1fM 条评论</string>
+
+    <!-- Poll Message -->
+    <string name="poll_final_results">最终结果</string>
+    <string name="poll_anonymous">匿名投票</string>
+    <string name="poll_public">公开投票</string>
+    <string name="poll_type_quiz">知识竞赛</string>
+    <string name="poll_type_poll">投票</string>
+    <string name="poll_multiple_choice"> • 多选</string>
+    <string name="poll_retract_vote">撤销投票</string>
+    <string name="poll_close_poll">停止投票</string>
+    <plurals name="poll_votes_count">
+        <item quantity="other">%d 票</item>
+    </plurals>
+
+    <!-- Accessibility Content Descriptions -->
+    <string name="cd_more">更多</string>
+    <string name="cd_vote">投票</string>
+    <string name="cd_explanation">解释</string>
+
+    <!-- Poll Voters Sheet -->
+    <string name="poll_voters_title">投票者</string>
+    <string name="poll_no_voters">尚无投票者</string>
+    <string name="action_close">关闭</string>
 </resources>

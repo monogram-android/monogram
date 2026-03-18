@@ -1362,4 +1362,30 @@
     <string name="comment_count">%1$d комментариев</string>
     <string name="comment_count_k">%1$.1fK комментариев</string>
     <string name="comment_count_m">%1$.1fM комментариев</string>
+
+    <!-- Poll Message -->
+    <string name="poll_final_results">Финальные результаты</string>
+    <string name="poll_anonymous">Анонимный опрос</string>
+    <string name="poll_public">Публичный опрос</string>
+    <string name="poll_type_quiz">Викторина</string>
+    <string name="poll_type_poll">Опрос</string>
+    <string name="poll_multiple_choice"> • Выбор нескольких вариантов</string>
+    <string name="poll_retract_vote">Отменить голос</string>
+    <string name="poll_close_poll">Остановить опрос</string>
+    <plurals name="poll_votes_count">
+        <item quantity="one">%d голос</item>
+        <item quantity="few">%d голоса</item>
+        <item quantity="many">%d голосов</item>
+        <item quantity="other">%d голоса</item>
+    </plurals>
+
+    <!-- Accessibility Content Descriptions -->
+    <string name="cd_more">Ещё</string>
+    <string name="cd_vote">Голосовать</string>
+    <string name="cd_explanation">Объяснение</string>
+
+    <!-- Poll Voters Sheet -->
+    <string name="poll_voters_title">Проголосовавшие</string>
+    <string name="poll_no_voters">Никто ещё не проголосовал</string>
+    <string name="action_close">Закрыть</string>
 </resources>

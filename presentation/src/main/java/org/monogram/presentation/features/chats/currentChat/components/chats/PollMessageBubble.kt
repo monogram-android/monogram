@@ -22,11 +22,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.*
+import org.monogram.presentation.R
 
 @Composable
 fun PollMessageBubble(
@@ -182,12 +185,13 @@ private fun PollHeader(
             val isMultiChoice = (pollType as? PollType.Regular)?.allowMultipleAnswers == true
 
             val label = if (isClosed) {
-                "Final Results"
+                stringResource(R.string.poll_final_results)
             } else {
                 buildString {
-                    append(if (isAnonymous) "Anonymous" else "Public")
-                    append(if (isQuiz) " Quiz" else " Poll")
-                    if (isMultiChoice) append(" • Multiple Choice")
+                    append(if (isAnonymous) stringResource(R.string.poll_anonymous) else stringResource(R.string.poll_public))
+                    append(" ")
+                    append(if (isQuiz) stringResource(R.string.poll_type_quiz) else stringResource(R.string.poll_type_poll))
+                    if (isMultiChoice) append(stringResource(R.string.poll_multiple_choice))
                 }
             }
 
@@ -207,7 +211,7 @@ private fun PollHeader(
                     ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = "More",
+                            contentDescription = stringResource(R.string.cd_more),
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -217,7 +221,7 @@ private fun PollHeader(
                     ) {
                         if (hasVoted) {
                             DropdownMenuItem(
-                                text = { Text("Retract Vote") },
+                                text = { Text(stringResource(R.string.poll_retract_vote)) },
                                 onClick = {
                                     showMenu = false
                                     onRetractVote()
@@ -232,7 +236,7 @@ private fun PollHeader(
                         }
                         if (isOutgoing) {
                             DropdownMenuItem(
-                                text = { Text("Close Poll") },
+                                text = { Text(stringResource(R.string.poll_close_poll)) },
                                 onClick = {
                                     showMenu = false
                                     onClosePoll()
@@ -353,7 +357,7 @@ private fun PollOptionItem(
                         if (isMultiChoice) Icons.Rounded.CheckBoxOutlineBlank else Icons.Outlined.RadioButtonUnchecked
                     Icon(
                         imageVector = unselectedIcon,
-                        contentDescription = "Vote",
+                        contentDescription = stringResource(R.string.cd_vote),
                         tint = MaterialTheme.colorScheme.outline,
                         modifier = Modifier.size(20.dp)
                     )
@@ -403,7 +407,7 @@ private fun QuizExplanationBox(
             ) {
                 Icon(
                     imageVector = Icons.Default.Lightbulb,
-                    contentDescription = "Explanation",
+                    contentDescription = stringResource(R.string.cd_explanation),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .size(16.dp)
@@ -440,7 +444,7 @@ private fun PollFooter(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "$totalVotes votes",
+                text = pluralStringResource(R.plurals.poll_votes_count, totalVotes, totalVotes),
                 style = MaterialTheme.typography.labelSmall,
                 color = metaColor
             )

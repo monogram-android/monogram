@@ -1397,4 +1397,27 @@
     <string name="reply_content_video_message">Видеосообщение</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">Сообщение</string>
+
+    <!-- Chat Folders -->
+    <string name="folders_title">Папки с чатами</string>
+    <string name="folders_back">Назад</string>
+    <string name="folders_new_folder">Новая папка</string>
+    <string name="folders_create">Создать</string>
+    <string name="folders_edit_folder">Изм. папку</string>
+    <string name="folders_save">Сохранить</string>
+    <string name="folders_default_section">Стандартные папки</string>
+    <string name="folders_custom_section">Личные папки</string>
+    <string name="folders_delete">Удалить</string>
+    <string name="folders_header_description">Создавайте папки для разных групп чатов и быстро переключайтесь между ними.</string>
+    <string name="folders_empty_title">У Вас нет папок</string>
+    <string name="folders_empty_subtitle">Нажмите на кнопку «+», чтобы создать</string>
+    <string name="folders_system_all_chats">Все чаты</string>
+    <string name="folders_user_chats_count">%1$d чатов</string>
+    <string name="folders_move_up">Переместить вверх</string>
+    <string name="folders_move_down">Переместить вниз</string>
+    <string name="folders_name_placeholder">Название папки</string>
+    <string name="folders_choose_icon">Выбрать иконку</string>
+    <string name="folders_included_chats">Включённые чаты</string>
+    <string name="folders_search_chats">Поиск чатов…</string>
+    <string name="folders_cancel">Отмена</string>
 </resources>

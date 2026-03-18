@@ -1397,4 +1397,27 @@
     <string name="reply_content_video_message">Відеоповідомлення</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">Повідомлення</string>
+
+    <!-- Chat Folders -->
+    <string name="folders_title">Папки з чатами</string>
+    <string name="folders_back">Назад</string>
+    <string name="folders_new_folder">Нова папка</string>
+    <string name="folders_create">Створити</string>
+    <string name="folders_edit_folder">Редагувати папку</string>
+    <string name="folders_save">Зберегти</string>
+    <string name="folders_default_section">Стандартні папки</string>
+    <string name="folders_custom_section">Власні папки</string>
+    <string name="folders_delete">Видалити</string>
+    <string name="folders_header_description">Створюйте папки для різних груп чатів і швидко перемикайтеся між ними.</string>
+    <string name="folders_empty_title">У Вас немає папок</string>
+    <string name="folders_empty_subtitle">Натисніть на «+», щоб створити нову</string>
+    <string name="folders_system_all_chats">Усі чати</string>
+    <string name="folders_user_chats_count">%1$d чатів</string>
+    <string name="folders_move_up">Перемістити вгору</string>
+    <string name="folders_move_down">Перемістити вниз</string>
+    <string name="folders_name_placeholder">Назва папки</string>
+    <string name="folders_choose_icon">Вибрати іконку</string>
+    <string name="folders_included_chats">Додані чати</string>
+    <string name="folders_search_chats">Пошук чатів…</string>
+    <string name="folders_cancel">Скасувати</string>
 </resources>

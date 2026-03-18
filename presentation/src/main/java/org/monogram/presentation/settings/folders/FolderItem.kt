@@ -14,9 +14,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.FolderModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 
 @Composable
@@ -85,7 +87,11 @@ fun FolderItem(
                     fontSize = 18.sp
                 )
                 Text(
-                    text = if (isSystem) "All chats" else "${folder.includedChatIds.size} chats",
+                    text = if (isSystem) {
+                        stringResource(R.string.folders_system_all_chats)
+                    } else {
+                        stringResource(R.string.folders_user_chats_count, folder.includedChatIds.size)
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -96,7 +102,7 @@ fun FolderItem(
                         IconButton(onClick = onMoveUp) {
                             Icon(
                                 imageVector = Icons.Rounded.KeyboardArrowUp,
-                                contentDescription = "Move Up",
+                                contentDescription = stringResource(R.string.folders_move_up),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -105,7 +111,7 @@ fun FolderItem(
                         IconButton(onClick = onMoveDown) {
                             Icon(
                                 imageVector = Icons.Rounded.KeyboardArrowDown,
-                                contentDescription = "Move Down",
+                                contentDescription = stringResource(R.string.folders_move_down),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }

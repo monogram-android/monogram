@@ -1427,4 +1427,27 @@
     <string name="reply_content_video_message">Video message</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">Message</string>
+
+    <!-- Chat Folders -->
+    <string name="folders_title">Chat Folders</string>
+    <string name="folders_back">Back</string>
+    <string name="folders_new_folder">New Folder</string>
+    <string name="folders_create">Create</string>
+    <string name="folders_edit_folder">Edit Folder</string>
+    <string name="folders_save">Save</string>
+    <string name="folders_default_section">Default Folders</string>
+    <string name="folders_custom_section">Custom Folders</string>
+    <string name="folders_delete">Delete</string>
+    <string name="folders_header_description">Create folders for different groups of chats and quickly switch between them.</string>
+    <string name="folders_empty_title">No custom folders</string>
+    <string name="folders_empty_subtitle">Tap the + button to create one</string>
+    <string name="folders_system_all_chats">All chats</string>
+    <string name="folders_user_chats_count">%1$d chats</string>
+    <string name="folders_move_up">Move Up</string>
+    <string name="folders_move_down">Move Down</string>
+    <string name="folders_name_placeholder">Folder Name</string>
+    <string name="folders_choose_icon">Choose Icon</string>
+    <string name="folders_included_chats">Included Chats</string>
+    <string name="folders_search_chats">Search chats…</string>
+    <string name="folders_cancel">Cancel</string>
 </resources>

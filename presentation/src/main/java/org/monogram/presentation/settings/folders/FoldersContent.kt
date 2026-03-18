@@ -21,12 +21,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.FolderModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,7 +43,7 @@ fun FoldersContent(component: FoldersComponent) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Chat Folders",
+                        text = stringResource(R.string.folders_title),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -49,7 +51,10 @@ fun FoldersContent(component: FoldersComponent) {
                 },
                 navigationIcon = {
                     IconButton(onClick = component::onBackClicked) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.folders_back)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -62,7 +67,7 @@ fun FoldersContent(component: FoldersComponent) {
             ExtendedFloatingActionButton(
                 onClick = component::onCreateFolderClicked,
                 icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-                text = { Text("New Folder") },
+                text = { Text(stringResource(R.string.folders_new_folder)) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 expanded = true
@@ -105,10 +110,10 @@ fun FoldersContent(component: FoldersComponent) {
 
     if (state.showAddFolderDialog) {
         FolderDialog(
-            title = "New Folder",
+            title = stringResource(R.string.folders_new_folder),
             initialText = "",
             availableChats = state.availableChats,
-            confirmButtonText = "Create",
+            confirmButtonText = stringResource(R.string.folders_create),
             onDismiss = { defaultComponent?.dismissDialog() },
             onConfirm = component::onAddFolder,
             onSearchChats = component::onSearchChats,
@@ -118,12 +123,12 @@ fun FoldersContent(component: FoldersComponent) {
 
     if (state.showEditFolderDialog && state.selectedFolder != null) {
         FolderDialog(
-            title = "Edit Folder",
+            title = stringResource(R.string.folders_edit_folder),
             initialText = state.selectedFolder!!.title,
             initialIcon = state.selectedFolder!!.iconName,
             initialSelectedChatIds = state.selectedChatIds,
             availableChats = state.availableChats,
-            confirmButtonText = "Save",
+            confirmButtonText = stringResource(R.string.folders_save),
             isEditMode = true,
             onDismiss = { defaultComponent?.dismissDialog() },
             onConfirm = { title, icon, chatIds ->
@@ -165,7 +170,7 @@ fun FolderList(
 
         if (systemFolders.isNotEmpty()) {
             item {
-                SectionHeader("Default Folders")
+                SectionHeader(stringResource(R.string.folders_default_section))
             }
             itemsIndexed(systemFolders, key = { _, folder -> "sys_${folder.id}" }) { index, folder ->
                 val position = when {
@@ -186,7 +191,7 @@ fun FolderList(
 
         if (userFolders.isNotEmpty()) {
             item {
-                SectionHeader("Custom Folders")
+                SectionHeader(stringResource(R.string.folders_custom_section))
             }
             itemsIndexed(userFolders, key = { _, folder -> folder.id }) { index, folder ->
                 val position = when {
@@ -264,7 +269,7 @@ fun SwipeToDeleteContainer(
                 if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart) {
                     Icon(
                         Icons.Rounded.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = stringResource(R.string.folders_delete),
                         tint = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
@@ -298,7 +303,7 @@ fun FolderHeaderDescription() {
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Create folders for different groups of chats and quickly switch between them.",
+            text = stringResource(R.string.folders_header_description),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -316,13 +321,13 @@ fun EmptyFoldersState() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "No custom folders",
+            text = stringResource(R.string.folders_empty_title),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Tap the + button to create one",
+            text = stringResource(R.string.folders_empty_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

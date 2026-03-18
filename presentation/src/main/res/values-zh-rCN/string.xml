@@ -1384,4 +1384,27 @@
     <string name="reply_content_video_message">视频消息</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">消息</string>
+
+    <!-- Chat Folders -->
+    <string name="folders_title">聊天分組</string>
+    <string name="folders_back">返回</string>
+    <string name="folders_new_folder">新建分組</string>
+    <string name="folders_create">創建</string>
+    <string name="folders_edit_folder">編輯分組</string>
+    <string name="folders_save">保存</string>
+    <string name="folders_default_section">默認分組</string>
+    <string name="folders_custom_section">自定義分組</string>
+    <string name="folders_delete">刪除</string>
+    <string name="folders_header_description">為不同類型的聊天創建分組，並在它們之間快速切換。</string>
+    <string name="folders_empty_title">尚無自定義分組</string>
+    <string name="folders_empty_subtitle">點擊 + 按鈕創建一個</string>
+    <string name="folders_system_all_chats">所有聊天</string>
+    <string name="folders_user_chats_count">%1$d 個聊天</string>
+    <string name="folders_move_up">上移</string>
+    <string name="folders_move_down">下移</string>
+    <string name="folders_name_placeholder">分組名稱</string>
+    <string name="folders_choose_icon">選擇圖標</string>
+    <string name="folders_included_chats">包含的聊天</string>
+    <string name="folders_search_chats">搜索聊天…</string>
+    <string name="folders_cancel">取消</string>
 </resources>

@@ -133,7 +133,7 @@ fun PhotoMessageBubble(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 320.dp)
+                        .heightIn(min = 160.dp, max = 320.dp)
                         .aspectRatio(
                             if (content.width > 0 && content.height > 0)
                                 (content.width.toFloat() / content.height.toFloat()).coerceIn(0.5f, 2f)
@@ -165,7 +165,7 @@ fun PhotoMessageBubble(
                                 painter = rememberAsyncImagePainter(path),
                                 contentDescription = content.caption,
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                                contentScale = ContentScale.Fit
                             )
                         } else {
                             Box(
@@ -181,7 +181,7 @@ fun PhotoMessageBubble(
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .blur(10.dp),
-                                        contentScale = ContentScale.Crop
+                                        contentScale = ContentScale.Fit
                                     )
                                 }
 

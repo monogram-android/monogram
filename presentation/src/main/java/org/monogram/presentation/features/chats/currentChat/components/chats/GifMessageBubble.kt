@@ -162,7 +162,7 @@ fun GifMessageBubble(
                                     path = path,
                                     type = VideoType.Gif,
                                     modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop,
+                                    contentScale = ContentScale.Fit,
                                     animate = !isAnyViewerOpen,
                                     videoPlayerPool = videoPlayerPool
                                 )
@@ -171,7 +171,7 @@ fun GifMessageBubble(
                                     painter = rememberAsyncImagePainter(path),
                                     contentDescription = content.caption,
                                     modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
+                                    contentScale = ContentScale.Fit
                                 )
 
                                 Box(
@@ -217,7 +217,7 @@ fun GifMessageBubble(
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .blur(10.dp),
-                                        contentScale = ContentScale.Crop
+                                        contentScale = ContentScale.Fit
                                     )
                                 }
 

@@ -149,7 +149,7 @@ fun VideoMessageBubble(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 500.dp)
+                        .heightIn(min = 160.dp, max = 500.dp)
                         .aspectRatio(ratio)
                         .onGloballyPositioned { videoPosition = it.positionInWindow() }
                         .pointerInput(Unit) {
@@ -179,7 +179,7 @@ fun VideoMessageBubble(
                                     path = videoPath,
                                     type = VideoType.Gif,
                                     modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop,
+                                    contentScale = ContentScale.Fit,
                                     animate = isVisible && !isAnyViewerOpen,
                                     volume = if (isMuted) 0f else 1f,
                                     onProgressUpdate = { pos -> currentPosition = pos },
@@ -214,7 +214,7 @@ fun VideoMessageBubble(
                                         ),
                                         contentDescription = content.caption,
                                         modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
+                                        contentScale = ContentScale.Fit
                                     )
                                 } else {
                                     if (content.minithumbnail != null) {
@@ -224,7 +224,7 @@ fun VideoMessageBubble(
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .blur(10.dp),
-                                            contentScale = ContentScale.Crop
+                                            contentScale = ContentScale.Fit
                                         )
                                     }
                                 }
@@ -263,7 +263,7 @@ fun VideoMessageBubble(
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .blur(14.dp),
-                                        contentScale = ContentScale.Crop
+                                        contentScale = ContentScale.Fit
                                     )
                                 }
 

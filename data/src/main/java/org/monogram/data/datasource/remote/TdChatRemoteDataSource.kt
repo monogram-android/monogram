@@ -128,6 +128,7 @@ class TdChatRemoteSource(
                     user.usernames?.activeUsernames?.firstOrNull()?.let { "https://t.me/$it" }
                 }
                 is TdApi.ChatTypeSupergroup -> {
+                    if (type.supergroupId == 0L) return@runCatching null
                     val sg = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
                     sg.usernames?.activeUsernames?.firstOrNull()?.let { "https://t.me/$it" }
                 }

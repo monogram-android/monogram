@@ -60,7 +60,7 @@ interface ChatComponent {
     fun onHighlightConsumed()
     fun onTyping()
     fun onSendReaction(messageId: Long, reaction: String)
-    suspend fun getMessageReadDate(chatId: Long, messageId: Long): Int
+    suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int
     fun toProfile(id: Long)
     fun onToggleMessageSelection(messageId: Long)
     fun onClearSelection()

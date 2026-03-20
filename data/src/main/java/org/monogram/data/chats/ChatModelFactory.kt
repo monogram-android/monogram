@@ -55,6 +55,7 @@ class ChatModelFactory(
                     isAdmin = it.status is TdApi.ChatMemberStatusAdministrator ||
                             it.status is TdApi.ChatMemberStatusCreator
                 } ?: lazyLoad(cache.pendingBasicGroups, type.basicGroupId) {
+                    if (type.basicGroupId == 0L) return@lazyLoad
                     val result = gateway.execute(TdApi.GetBasicGroup(type.basicGroupId))
                     cache.basicGroups[result.id] = result
                     triggerUpdate(chat.id)
@@ -65,6 +66,7 @@ class ChatModelFactory(
                     inviteLink = fullInfo.inviteLink?.inviteLink
                     personalAvatarPath = resolvePhotoPath(fullInfo.photo?.sizes?.lastOrNull()?.photo, chat.id)
                 } ?: lazyLoad(cache.pendingBasicGroupFullInfo, type.basicGroupId) {
+                    if (type.basicGroupId == 0L) return@lazyLoad
                     val result = gateway.execute(TdApi.GetBasicGroupFullInfo(type.basicGroupId))
                     cache.basicGroupFullInfoCache[type.basicGroupId] = result
                     triggerUpdate(chat.id)
@@ -85,6 +87,7 @@ class ChatModelFactory(
                     usernames = it.usernames?.toDomain()
                     hasAutomaticTranslation = it.hasAutomaticTranslation
                 } ?: lazyLoad(cache.pendingSupergroups, type.supergroupId) {
+                    if (type.supergroupId == 0L) return@lazyLoad
                     val result = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
                     cache.supergroups[result.id] = result
                     triggerUpdate(chat.id)
@@ -95,6 +98,7 @@ class ChatModelFactory(
                     inviteLink = fullInfo.inviteLink?.inviteLink
                     personalAvatarPath = resolvePhotoPath(fullInfo.photo?.sizes?.lastOrNull()?.photo, chat.id)
                 } ?: lazyLoad(cache.pendingSupergroupFullInfo, type.supergroupId) {
+                    if (type.supergroupId == 0L) return@lazyLoad
                     val result = gateway.execute(TdApi.GetSupergroupFullInfo(type.supergroupId))
                     cache.supergroupFullInfoCache[type.supergroupId] = result
                     triggerUpdate(chat.id)

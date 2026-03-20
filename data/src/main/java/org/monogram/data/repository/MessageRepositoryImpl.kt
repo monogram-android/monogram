@@ -321,8 +321,8 @@ class MessageRepositoryImpl(
         messageRemoteDataSource.sendChatAction(chatId, threadId?: 0L, tdAction)
     }
 
-    override suspend fun getMessageReadDate(chatId: Long, messageId: Long): Int = withContext(dispatcherProvider.io) {
-        messageMapper.getMessageReadDate(chatId, messageId)
+    override suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int = withContext(dispatcherProvider.io) {
+        messageMapper.getMessageReadDate(chatId, messageId, messageDate)
     }
 
     override suspend fun addMessageReaction(chatId: Long, messageId: Long, reaction: String) {

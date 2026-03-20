@@ -364,8 +364,8 @@ class DefaultChatComponent(
     override fun onSendReaction(messageId: Long, reaction: String) =
         store.accept(ChatStore.Intent.SendReaction(messageId, reaction))
 
-    override suspend fun getMessageReadDate(chatId: Long, messageId: Long): Int {
-        return repositoryMessage.getMessageReadDate(chatId, messageId)
+    override suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int {
+        return repositoryMessage.getMessageReadDate(chatId, messageId, messageDate)
     }
 
     override fun toProfile(id: Long) = toProfiles(id)

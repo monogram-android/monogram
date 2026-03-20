@@ -57,7 +57,7 @@ fun ChatMessageOptionsMenu(
     LaunchedEffect(selectedMessage) {
         if (selectedMessage.isOutgoing && selectedMessage.readDate == 0) {
             scope.launch {
-                val readDate = component.getMessageReadDate(selectedMessage.chatId, selectedMessage.id)
+                val readDate = component.getMessageReadDate(selectedMessage.chatId, selectedMessage.id, selectedMessage.date)
                 if (readDate > 0) {
                     messageWithReadDate = selectedMessage.copy(readDate = readDate)
                 }

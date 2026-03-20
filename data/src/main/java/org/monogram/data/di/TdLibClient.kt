@@ -71,12 +71,17 @@ class TdLibClient(private val context: Context) {
             client.send(function) { result ->
                 if (cont.isActive) {
                     if (result is TdApi.Error) {
-                        if (result.code != 404) {
-                            Log.e(TAG, "Error in sendSuspend $function: ${result.code} ${result.message}")
+                        if (result.code == 404 && function is TdApi.GetChatPinnedMessage) {
+                            @Suppress("UNCHECKED_CAST")
+                            cont.resume(null as T)
                         } else {
-                            Log.w(TAG, "Not found in sendSuspend $function: ${result.message}")
+                            if (result.code != 404) {
+                                Log.e(TAG, "Error in sendSuspend $function: ${result.code} ${result.message}")
+                            } else {
+                                Log.w(TAG, "Not found in sendSuspend $function: ${result.message}")
+                            }
+                            cont.resumeWithException(TdLibException(result))
                         }
-                        cont.resumeWithException(TdLibException(result))
                     } else {
                         @Suppress("UNCHECKED_CAST")
                         cont.resume(result as T)

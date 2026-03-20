@@ -149,14 +149,16 @@ class TdMessageRemoteDataSource(
         safeExecute(TdApi.GetChatPinnedMessage(chatId))
 
     override suspend fun getPinnedMessageModel(chatId: Long, threadId: Long?): MessageModel? {
+        val chat = getChat(chatId) ?: return null
+
         if (threadId != null) {
-            val chat = getChat(chatId)
-            if (chat != null && chat.viewAsTopics) {
+            if (chat.viewAsTopics) {
                 val topic = safeExecute(TdApi.GetForumTopic(chatId, threadId.toInt()))
                 if (topic != null) return searchPinnedMessage(chatId, threadId.toInt())
                 return null
             }
         }
+
         val result = getChatPinnedMessage(chatId)
         return if (result != null) {
             cache.putMessage(result)
@@ -1100,7 +1102,7 @@ class TdMessageRemoteDataSource(
         } else {
             messageMapper.mapMessageToModel(message, isChatOpen = true)
         }
-        val readDate = if (message.isOutgoing && model.isRead) messageMapper.getMessageReadDate(message.chatId, message.id) else 0
+        val readDate = if (message.isOutgoing && model.isRead) messageMapper.getMessageReadDate(message.chatId, message.id, message.date) else 0
         return model.copy(readDate = readDate)
     }
 

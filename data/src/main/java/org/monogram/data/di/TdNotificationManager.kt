@@ -337,6 +337,10 @@ class TdNotificationManager(
         when (val type = chat.type) {
             is TdApi.ChatTypePrivate -> callback(true)
             is TdApi.ChatTypeBasicGroup -> {
+                if (type.basicGroupId == 0L) {
+                    callback(true)
+                    return
+                }
                 tdLibClient.send(TdApi.GetBasicGroup(type.basicGroupId)) { result ->
                     if (result is TdApi.BasicGroup) {
                         callback(result.status is TdApi.ChatMemberStatusMember || result.status is TdApi.ChatMemberStatusCreator || result.status is TdApi.ChatMemberStatusAdministrator)
@@ -346,6 +350,10 @@ class TdNotificationManager(
                 }
             }
             is TdApi.ChatTypeSupergroup -> {
+                if (type.supergroupId == 0L) {
+                    callback(true)
+                    return
+                }
                 tdLibClient.send(TdApi.GetSupergroup(type.supergroupId)) { result ->
                     if (result is TdApi.Supergroup) {
                         callback(result.status is TdApi.ChatMemberStatusMember || result.status is TdApi.ChatMemberStatusCreator || result.status is TdApi.ChatMemberStatusAdministrator)

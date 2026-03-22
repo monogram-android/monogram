@@ -907,6 +907,9 @@
     <string name="action_send_items_count">Send %1$d items</string>
     <string name="action_send_media">Send media</string>
     <string name="action_cancel">Cancel</string>
+    <string name="attachment_options_title">Attachment Options</string>
+    <string name="attachment_option_gallery">Gallery</string>
+    <string name="attachment_option_camera">Camera</string>
 
     <!-- Bot -->
     <string name="bot_commands">Commands</string>

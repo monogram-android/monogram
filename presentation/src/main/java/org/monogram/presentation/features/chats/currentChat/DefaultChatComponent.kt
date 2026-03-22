@@ -148,6 +148,15 @@ class DefaultChatComponent(
         observeUserUpdates()
         observeCurrentUser()
         observeFileDownloads()
+        cacheProvider.attachBots
+            .onEach { bots ->
+                _state.update {
+                    it.copy(
+                        attachMenuBots = bots
+                    )
+                }
+            }
+            .launchIn(scope)
 
         appPreferences.adBlockWhitelistedChannels
             .onEach { channels ->
@@ -487,6 +496,19 @@ class DefaultChatComponent(
 
     override fun onLoadMoreInlineResults(offset: String) = store.accept(ChatStore.Intent.LoadMoreInlineResults(offset))
     override fun onSendInlineResult(resultId: String) = store.accept(ChatStore.Intent.SendInlineResult(resultId))
+    override fun onOpenAttachBot(botUserId: Long, fallbackName: String) {
+        scope.launch {
+            val botInfo = userRepository.getBotInfo(botUserId)
+            val menuButton = botInfo?.menuButton
+            if (menuButton is BotMenuButtonModel.WebApp) {
+                onOpenMiniApp(
+                    menuButton.url,
+                    menuButton.text.ifBlank { fallbackName },
+                    botUserId
+                )
+            }
+        }
+    }
 
     override fun onClosePoll(messageId: Long) = store.accept(ChatStore.Intent.ClosePoll(messageId))
 }

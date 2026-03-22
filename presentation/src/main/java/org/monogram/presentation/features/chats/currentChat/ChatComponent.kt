@@ -142,6 +142,7 @@ interface ChatComponent {
     fun onInlineQueryChange(botUsername: String, query: String)
     fun onLoadMoreInlineResults(offset: String)
     fun onSendInlineResult(resultId: String)
+    fun onOpenAttachBot(botUserId: Long, fallbackName: String)
 
     @Stable
     data class State(
@@ -251,6 +252,7 @@ interface ChatComponent {
         val currentInlineBotId: Long? = null,
         val currentInlineQuery: String? = null,
         val isInlineBotLoading: Boolean = false,
-        val isInstalledFromGooglePlay: Boolean = true
+        val isInstalledFromGooglePlay: Boolean = true,
+        val attachMenuBots: List<AttachMenuBotModel> = emptyList()
     )
 }

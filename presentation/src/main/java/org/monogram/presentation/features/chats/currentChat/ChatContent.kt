@@ -59,6 +59,9 @@ import org.monogram.presentation.features.chats.currentChat.components.pins.Pinn
 import org.monogram.presentation.features.chats.currentChat.editor.photo.PhotoEditorScreen
 import org.monogram.presentation.features.chats.currentChat.editor.video.VideoEditorScreen
 import org.monogram.presentation.root.RootComponent
+import org.monogram.presentation.features.chats.currentChat.components.ChatInputBar
+import org.monogram.presentation.features.chats.currentChat.components.ChatInputBarActions
+import org.monogram.presentation.features.chats.currentChat.components.ChatInputBarState
 import java.io.File
 import java.io.FileOutputStream
 
@@ -470,7 +473,8 @@ fun ChatContent(
                                     replyMarkup = state.messages.firstOrNull { it.replyMarkup is ReplyMarkupModel.ShowKeyboard }?.replyMarkup,
                                     mentionSuggestions = state.mentionSuggestions,
                                     inlineBotResults = state.inlineBotResults,
-                                    isInlineBotLoading = state.isInlineBotLoading
+                                    isInlineBotLoading = state.isInlineBotLoading,
+                                    attachBots = state.attachMenuBots
                                 )
                             }
 
@@ -534,7 +538,10 @@ fun ChatContent(
                                     onLoadMoreInlineResults = { offset ->
                                         component.onLoadMoreInlineResults(offset)
                                     },
-                                    onSendInlineResult = { resultId -> component.onSendInlineResult(resultId) }
+                                    onSendInlineResult = { resultId -> component.onSendInlineResult(resultId) },
+                                    onAttachBotClick = { bot ->
+                                        component.onOpenAttachBot(bot.botUserId, bot.name)
+                                    }
                                 )
                             }
 

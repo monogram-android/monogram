@@ -428,7 +428,7 @@ class UserRepositoryImpl(
         if (userLocal is RoomUserLocalDataSource) {
             scope.launch { userLocal.clearDatabase() }
         }
-        scope.launch { chatLocal.clearAllChats() }
+        scope.launch { chatLocal.clearAll() }
     }
 
     override suspend fun setName(firstName: String, lastName: String) =
@@ -480,6 +480,17 @@ class UserRepositoryImpl(
     private fun TdApi.Chat.toEntity(): org.monogram.data.db.model.ChatEntity {
         val isChannel = (type as? TdApi.ChatTypeSupergroup)?.isChannel ?: false
         val isArchived = positions.any { it.list is TdApi.ChatListArchive }
+        val permissions = permissions ?: TdApi.ChatPermissions()
+        val cachedCounts = parseCachedCounts(clientData)
+        val senderId = when (val sender = messageSenderId) {
+            is TdApi.MessageSenderUser -> sender.userId
+            is TdApi.MessageSenderChat -> sender.chatId
+            else -> null
+        }
+        val privateUserId = (type as? TdApi.ChatTypePrivate)?.userId ?: 0L
+        val basicGroupId = (type as? TdApi.ChatTypeBasicGroup)?.basicGroupId ?: 0L
+        val supergroupId = (type as? TdApi.ChatTypeSupergroup)?.supergroupId ?: 0L
+        val secretChatId = (type as? TdApi.ChatTypeSecret)?.secretChatId ?: 0
         return org.monogram.data.db.model.ChatEntity(
             id = id,
             title = title,
@@ -487,8 +498,8 @@ class UserRepositoryImpl(
             avatarPath = photo?.small?.local?.path,
             lastMessageText = (lastMessage?.content as? TdApi.MessageText)?.text?.text ?: "",
             lastMessageTime = (lastMessage?.date?.toLong() ?: 0L).toString(),
-            order = 0L,
-            isPinned = false,
+            order = positions.firstOrNull()?.order ?: 0L,
+            isPinned = positions.firstOrNull()?.isPinned ?: false,
             isMuted = notificationSettings.muteFor > 0,
             isChannel = isChannel,
             isGroup = type is TdApi.ChatTypeBasicGroup || (type is TdApi.ChatTypeSupergroup && !isChannel),
@@ -499,9 +510,63 @@ class UserRepositoryImpl(
                 is TdApi.ChatTypeSecret -> "SECRET"
                 else -> "PRIVATE"
             },
+            privateUserId = privateUserId,
+            basicGroupId = basicGroupId,
+            supergroupId = supergroupId,
+            secretChatId = secretChatId,
             isArchived = isArchived,
-            memberCount = 0,
-            onlineCount = 0,
+            memberCount = cachedCounts.first,
+            onlineCount = cachedCounts.second,
+            unreadMentionCount = unreadMentionCount,
+            unreadReactionCount = unreadReactionCount,
+            isMarkedAsUnread = isMarkedAsUnread,
+            hasProtectedContent = hasProtectedContent,
+            isTranslatable = isTranslatable,
+            hasAutomaticTranslation = false,
+            messageAutoDeleteTime = messageAutoDeleteTime,
+            canBeDeletedOnlyForSelf = canBeDeletedOnlyForSelf,
+            canBeDeletedForAllUsers = canBeDeletedForAllUsers,
+            canBeReported = canBeReported,
+            lastReadInboxMessageId = lastReadInboxMessageId,
+            lastReadOutboxMessageId = lastReadOutboxMessageId,
+            lastMessageId = lastMessage?.id ?: 0L,
+            isLastMessageOutgoing = lastMessage?.isOutgoing ?: false,
+            replyMarkupMessageId = replyMarkupMessageId,
+            messageSenderId = senderId,
+            blockList = blockList != null,
+            emojiStatusId = (emojiStatus?.type as? TdApi.EmojiStatusTypeCustomEmoji)?.customEmojiId,
+            accentColorId = accentColorId,
+            profileAccentColorId = profileAccentColorId,
+            backgroundCustomEmojiId = backgroundCustomEmojiId,
+            photoId = photo?.small?.id ?: 0,
+            isSupergroup = type is TdApi.ChatTypeSupergroup,
+            isAdmin = false,
+            isOnline = false,
+            typingAction = null,
+            draftMessage = (draftMessage?.inputMessageText as? TdApi.InputMessageText)?.text?.text,
+            isVerified = false,
+            viewAsTopics = viewAsTopics,
+            isForum = false,
+            isBot = false,
+            isMember = true,
+            username = null,
+            description = null,
+            inviteLink = null,
+            permissionCanSendBasicMessages = permissions.canSendBasicMessages,
+            permissionCanSendAudios = permissions.canSendAudios,
+            permissionCanSendDocuments = permissions.canSendDocuments,
+            permissionCanSendPhotos = permissions.canSendPhotos,
+            permissionCanSendVideos = permissions.canSendVideos,
+            permissionCanSendVideoNotes = permissions.canSendVideoNotes,
+            permissionCanSendVoiceNotes = permissions.canSendVoiceNotes,
+            permissionCanSendPolls = permissions.canSendPolls,
+            permissionCanSendOtherMessages = permissions.canSendOtherMessages,
+            permissionCanAddLinkPreviews = permissions.canAddLinkPreviews,
+            permissionCanEditTag = permissions.canEditTag,
+            permissionCanChangeInfo = permissions.canChangeInfo,
+            permissionCanInviteUsers = permissions.canInviteUsers,
+            permissionCanPinMessages = permissions.canPinMessages,
+            permissionCanCreateTopics = permissions.canCreateTopics,
             createdAt = System.currentTimeMillis()
         )
     }
@@ -519,5 +584,12 @@ class UserRepositoryImpl(
             lastSeen = (status as? TdApi.UserStatusOffline)?.wasOnline?.toLong() ?: 0L,
             createdAt = System.currentTimeMillis()
         )
+    }
+
+    private fun parseCachedCounts(clientData: String?): Pair<Int, Int> {
+        if (clientData.isNullOrBlank()) return 0 to 0
+        val memberCount = Regex("""mc:(\d+)""").find(clientData)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+        val onlineCount = Regex("""oc:(\d+)""").find(clientData)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+        return memberCount to onlineCount
     }
 }

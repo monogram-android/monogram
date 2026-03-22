@@ -4,15 +4,15 @@ import androidx.media3.datasource.DataSource
 import org.monogram.core.ScopeProvider
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
+import org.monogram.data.datasource.FileDataSource
 import kotlinx.coroutines.launch
 import org.monogram.data.datasource.TelegramStreamingDataSource
-import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.domain.repository.PlayerDataSourceFactory
 import org.monogram.domain.repository.StreamingRepository
 
 class StreamingRepositoryImpl(
-    private val gateway: TelegramGateway,
+    private val fileDataSource: FileDataSource,
     private val updates: UpdateDispatcher,
     scopeProvider: ScopeProvider
 ) : StreamingRepository, PlayerDataSourceFactory {
@@ -38,7 +38,7 @@ class StreamingRepositoryImpl(
     }
 
     override fun createPayload(fileId: Int): DataSource.Factory {
-        return TelegramStreamingDataSource.Factory(gateway, fileId)
+        return TelegramStreamingDataSource.Factory(fileDataSource, fileId)
     }
 
     override fun getDownloadProgress(fileId: Int): Flow<Float> {

@@ -42,10 +42,8 @@ class FileUpdateHandler(
         val uploadDone = file.remote?.isUploadingCompleted == true
 
         if (downloadDone) queue.notifyDownloadComplete(file.id)
-        else if (!downloading) queue.notifyDownloadCancelled(file.id)
 
         if (uploadDone) queue.notifyUploadComplete(file.id)
-        else if (!uploading) queue.notifyUploadCancelled(file.id)
 
         val entries = registry.getMessages(file.id)
         if (entries.isNotEmpty()) {

@@ -29,14 +29,17 @@ class FileDownloadQueue(
         val offset: Long = 0,
         val limit: Long = 0,
         val synchronous: Boolean = false,
-        val timestamp: Long = System.currentTimeMillis(),
+        val createdAt: Long = System.currentTimeMillis(),
+        val availableAt: Long = System.currentTimeMillis(),
         val isManual: Boolean = false,
         val retryCount: Int = 0
     ) : Comparable<DownloadRequest> {
         override fun compareTo(other: DownloadRequest): Int {
             if (this.isManual != other.isManual) return if (this.isManual) -1 else 1
             val p = other.priority.compareTo(priority)
-            return if (p != 0) p else timestamp.compareTo(other.timestamp)
+            if (p != 0) return p
+            val a = availableAt.compareTo(other.availableAt)
+            return if (a != 0) a else createdAt.compareTo(other.createdAt)
         }
     }
 
@@ -56,6 +59,14 @@ class FileDownloadQueue(
 
     @Volatile
     private var activeChatId: Long = 0L
+    @Volatile
+    private var lastTaskStartAt: Long = 0L
+
+    private val startGapMs = 160L
+    private val maxTotalParallelDownloads = 5
+    private val maxVideoParallelDownloads = 2
+    private val maxGifParallelDownloads = 2
+    private val maxDefaultParallelDownloads = 3
 
     private val trigger = Channel<Unit>(Channel.CONFLATED)
 
@@ -77,6 +88,7 @@ class FileDownloadQueue(
 
     private suspend fun dispatchTasks() {
         val tasksToStart = mutableListOf<DownloadRequest>()
+        val now = System.currentTimeMillis()
 
         stateMutex.withLock {
             var vCount =
@@ -84,26 +96,31 @@ class FileDownloadQueue(
             var gCount = activeRequests.values.count { it.type == DownloadType.GIF }
             var dCount =
                 activeRequests.values.count { it.type == DownloadType.DEFAULT || it.type == DownloadType.STICKER }
+            var totalCount = activeRequests.size
 
-            val candidates = pendingRequests.values.sorted()
+            val candidates = pendingRequests.values
+                .filter { it.availableAt <= now }
+                .sorted()
 
             for (req in candidates) {
+                if (totalCount >= maxTotalParallelDownloads) break
                 var canStart = false
                 when (req.type) {
-                    DownloadType.VIDEO, DownloadType.VIDEO_NOTE -> if (vCount < 4) {
+                    DownloadType.VIDEO, DownloadType.VIDEO_NOTE -> if (vCount < maxVideoParallelDownloads) {
                         vCount++; canStart = true
                     }
 
-                    DownloadType.GIF -> if (gCount < 4) {
+                    DownloadType.GIF -> if (gCount < maxGifParallelDownloads) {
                         gCount++; canStart = true
                     }
 
-                    DownloadType.DEFAULT, DownloadType.STICKER -> if (dCount < 8) {
+                    DownloadType.DEFAULT, DownloadType.STICKER -> if (dCount < maxDefaultParallelDownloads) {
                         dCount++; canStart = true
                     }
                 }
 
                 if (canStart) {
+                    totalCount++
                     pendingRequests.remove(req.fileId)
                     activeRequests[req.fileId] = req
                     tasksToStart.add(req)
@@ -112,10 +129,18 @@ class FileDownloadQueue(
         }
 
         for (task in tasksToStart) {
+            throttleTaskStart()
             scope.appScope.launch(dispatcherProvider.io) {
                 processDownload(task)
             }
         }
+    }
+
+    private suspend fun throttleTaskStart() {
+        val now = System.currentTimeMillis()
+        val waitMs = (lastTaskStartAt + startGapMs - now).coerceAtLeast(0L)
+        if (waitMs > 0) delay(waitMs)
+        lastTaskStartAt = System.currentTimeMillis()
     }
 
     private suspend fun processDownload(req: DownloadRequest) {
@@ -199,7 +224,6 @@ class FileDownloadQueue(
                 handleDownloadFailure(req)
             }
         } finally {
-            downloadWaiters.remove(fileId)
             finishTask(fileId)
 
             try {
@@ -207,29 +231,42 @@ class FileDownloadQueue(
                 if (finalFile != null) {
                     cache.fileCache[fileId] = finalFile
                     if (finalFile.local.isDownloadingCompleted) {
-                        deferred.complete(Unit)
-                    } else if (!finalFile.local.isDownloadingActive) {
-                        deferred.cancel()
+                        notifyDownloadComplete(fileId)
+                    } else if (!finalFile.local.isDownloadingActive && !hasPendingOrActiveRequest(fileId)) {
+                        notifyDownloadCancelled(fileId)
                     }
-                } else {
-                    deferred.cancel()
+                } else if (!hasPendingOrActiveRequest(fileId)) {
+                    notifyDownloadCancelled(fileId)
                 }
             } catch (_: Exception) {
-                deferred.cancel()
+                if (!hasPendingOrActiveRequest(fileId)) {
+                    notifyDownloadCancelled(fileId)
+                }
             }
+        }
+    }
+
+    private suspend fun hasPendingOrActiveRequest(fileId: Int): Boolean {
+        return stateMutex.withLock {
+            pendingRequests.containsKey(fileId) || activeRequests.containsKey(fileId)
         }
     }
 
     private suspend fun handleDownloadFailure(req: DownloadRequest) {
         if (req.retryCount < 3) {
+            val backoffMs = (req.retryCount + 1) * 5000L
             val nextReq = req.copy(
                 retryCount = req.retryCount + 1,
-                timestamp = System.currentTimeMillis() + (req.retryCount + 1) * 5000 // Backoff
+                availableAt = System.currentTimeMillis() + backoffMs
             )
             stateMutex.withLock {
                 pendingRequests[req.fileId] = nextReq
             }
             trigger.trySend(Unit)
+            scope.appScope.launch(dispatcherProvider.default) {
+                delay(backoffMs)
+                trigger.trySend(Unit)
+            }
         } else {
             failedRequests[req.fileId] = req
             downloadWaiters.remove(req.fileId)?.cancel()
@@ -263,14 +300,11 @@ class FileDownloadQueue(
             }
             notifyDownloadComplete(file.id)
         } else if (oldFile?.local?.isDownloadingActive == true && !file.local.isDownloadingActive) {
-            notifyDownloadCancelled(file.id)
             manualDownloadIds.remove(file.id)
         }
 
         if (file.remote.isUploadingCompleted) {
             notifyUploadComplete(file.id)
-        } else if (oldFile?.remote?.isUploadingActive == true && !file.remote.isUploadingActive) {
-            notifyUploadCancelled(file.id)
         }
     }
 
@@ -334,7 +368,17 @@ class FileDownloadQueue(
 
             val prio = calculatePriority(fileId).coerceAtLeast(priority)
             val isManual = manualDownloadIds.contains(fileId)
-            val req = DownloadRequest(fileId, prio, type, finalOffset, finalLimit, synchronous, isManual = isManual)
+            val req = DownloadRequest(
+                fileId = fileId,
+                priority = prio,
+                type = type,
+                offset = finalOffset,
+                limit = finalLimit,
+                synchronous = synchronous,
+                createdAt = System.currentTimeMillis(),
+                availableAt = System.currentTimeMillis(),
+                isManual = isManual
+            )
 
             stateMutex.withLock {
                 val active = activeRequests[fileId]
@@ -371,8 +415,8 @@ class FileDownloadQueue(
         }
     }
 
-    fun cancelDownload(fileId: Int) {
-        if (manualDownloadIds.contains(fileId)) return
+    fun cancelDownload(fileId: Int, force: Boolean = false) {
+        if (!force && manualDownloadIds.contains(fileId)) return
 
         scope.appScope.launch(dispatcherProvider.io) {
             try {
@@ -382,6 +426,8 @@ class FileDownloadQueue(
 
             stateMutex.withLock {
                 pendingRequests.remove(fileId)
+                activeRequests.remove(fileId)
+                failedRequests.remove(fileId)
             }
             notifyDownloadCancelled(fileId)
         }
@@ -464,7 +510,13 @@ class FileDownloadQueue(
         val end = if (curEnd == Long.MAX_VALUE || newEnd == Long.MAX_VALUE) Long.MAX_VALUE else maxOf(curEnd, newEnd)
         val limit = if (end == Long.MAX_VALUE) 0L else end - start
 
-        return old.copy(priority = p, isManual = isManual, offset = start, limit = limit)
+        return old.copy(
+            priority = p,
+            isManual = isManual,
+            offset = start,
+            limit = limit,
+            availableAt = minOf(old.availableAt, new.availableAt)
+        )
     }
 
     private fun cancelIrrelevantDownloads() {
@@ -478,7 +530,7 @@ class FileDownloadQueue(
                 if (!isStillRelevant(fileId)) toCancel.add(fileId)
             }
 
-            toCancel.forEach { fileId -> cancelDownload(fileId) }
+            toCancel.forEach { fileId -> cancelDownload(fileId, force = false) }
         }
     }
 }

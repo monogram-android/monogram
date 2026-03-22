@@ -18,7 +18,7 @@ class TdFileDataSource(
     }
 
     override suspend fun cancelDownload(fileId: Int): TdApi.Ok? {
-        fileDownloadQueue.cancelDownload(fileId)
+        fileDownloadQueue.cancelDownload(fileId, force = true)
         val result = gateway.execute(TdApi.CancelDownloadFile(fileId, true))
         return if (result is TdApi.Ok) result else null
     }
@@ -28,14 +28,12 @@ class TdFileDataSource(
         return if (result is TdApi.File) result else null
     }
 
-    override suspend fun getFileDownloadedPrefixSize(fileId: Int, offset: Long): TdApi.Count? {
-        val result = gateway.execute(TdApi.GetFileDownloadedPrefixSize(fileId, offset))
-        return result as? TdApi.Count
+    override suspend fun getFileDownloadedPrefixSize(fileId: Int, offset: Long): TdApi.FileDownloadedPrefixSize? {
+        return runCatching { gateway.execute(TdApi.GetFileDownloadedPrefixSize(fileId, offset)) }.getOrNull()
     }
 
-    override suspend fun readFilePart(fileId: Int, offset: Long, count: Long): TdApi.ReadFilePart? {
-        val result = gateway.execute(TdApi.ReadFilePart(fileId, offset, count))
-        return result as? TdApi.ReadFilePart
+    override suspend fun readFilePart(fileId: Int, offset: Long, count: Long): TdApi.Data? {
+        return runCatching { gateway.execute(TdApi.ReadFilePart(fileId, offset, count)) }.getOrNull()
     }
 
     override fun waitForUpload(fileId: Int): CompletableDeferred<Unit> {

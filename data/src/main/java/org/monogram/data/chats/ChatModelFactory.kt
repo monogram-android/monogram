@@ -25,12 +25,13 @@ class ChatModelFactory(
     private val scope = scopeProvider.appScope
 
     fun mapChatToModel(chat: TdApi.Chat, order: Long, isPinned: Boolean): ChatModel {
+        val cachedCounts = parseCachedCounts(chat.clientData)
         var smallPhoto = chat.photo?.small
         var photoId = smallPhoto?.id ?: 0
         var isSupergroup = false
         var isChannel = false
-        var memberCount = 0
-        var onlineCount = cache.onlineMemberCount[chat.id] ?: 0
+        var memberCount = cachedCounts?.first ?: 0
+        var onlineCount = cache.onlineMemberCount[chat.id] ?: cachedCounts?.second ?: 0
         var isOnline = false
         var userStatus = ""
         var isVerified = false
@@ -241,4 +242,12 @@ class ChatModelFactory(
         disabledUsernames = disabledUsernames.toList(),
         collectibleUsernames = collectibleUsernames.toList()
     )
+
+    private fun parseCachedCounts(clientData: String?): Pair<Int, Int>? {
+        if (clientData.isNullOrBlank()) return null
+        val memberCount = Regex("""mc:(\d+)""").find(clientData)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        val onlineCount = Regex("""oc:(\d+)""").find(clientData)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        if (memberCount == null && onlineCount == null) return null
+        return (memberCount ?: 0) to (onlineCount ?: 0)
+    }
 }

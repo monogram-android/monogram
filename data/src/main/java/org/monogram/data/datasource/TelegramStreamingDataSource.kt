@@ -9,21 +9,20 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import kotlinx.coroutines.runBlocking
 import org.drinkless.tdlib.TdApi
-import org.monogram.data.gateway.TelegramGateway
 import java.io.IOException
 
 @OptIn(UnstableApi::class)
 class TelegramStreamingDataSource(
-    private val gateway: TelegramGateway,
+    private val fileDataSource: FileDataSource,
     private val fileId: Int
 ) : BaseDataSource(true) {
 
     class Factory(
-        private val gateway: TelegramGateway,
+        private val fileDataSource: FileDataSource,
         private val fileId: Int
     ) : DataSource.Factory {
         override fun createDataSource(): DataSource =
-            TelegramStreamingDataSource(gateway, fileId)
+            TelegramStreamingDataSource(fileDataSource, fileId)
     }
 
     private var dataSpec: DataSpec? = null
@@ -44,10 +43,10 @@ class TelegramStreamingDataSource(
 
         transferInitializing(dataSpec)
 
-        file = runBlocking { gateway.execute(TdApi.GetFile(fileId)) }
+        file = runBlocking { fileDataSource.getFile(fileId) }
         val f = file ?: throw IOException("File not found for fileId: $fileId")
 
-        val totalSize = kotlin.math.max(f.size.toLong(), f.expectedSize.toLong())
+        val totalSize = kotlin.math.max(f.size, f.expectedSize)
         if (totalSize <= 0) {
             throw IOException("Failed to get file size for fileId: $fileId")
         }
@@ -56,6 +55,18 @@ class TelegramStreamingDataSource(
             dataSpec.length
         } else {
             totalSize - dataSpec.position
+        }
+
+        if (bytesRemaining > 0) {
+            runBlocking {
+                fileDataSource.downloadFile(
+                    fileId = fileId,
+                    priority = 16,
+                    offset = position,
+                    limit = kotlin.math.min(PREFETCH_SIZE, bytesRemaining),
+                    synchronous = false
+                )
+            }
         }
 
         opened = true
@@ -72,23 +83,35 @@ class TelegramStreamingDataSource(
 
             runBlocking {
                 try {
-                    gateway.execute(
-                        TdApi.DownloadFile(
-                            fileId,
-                            32,
-                            0,
-                            0,
-                            true
-                        )
-                    )
+                    val targetSize = bytesToFetch.toLong()
+                    val prefix = fileDataSource.getFileDownloadedPrefixSize(fileId, position)
+                    val downloadedPrefix = prefix?.size ?: 0L
+                    val availableFromPosition = (downloadedPrefix - position).coerceAtLeast(0L)
 
-                    val filePart = gateway.execute(
-                        TdApi.ReadFilePart(fileId, position, bytesToFetch.toLong())
-                    )
+                    if (availableFromPosition < targetSize) {
+                        fileDataSource.downloadFile(fileId, 24, position, targetSize, synchronous = false)
+                        if (availableFromPosition == 0L) {
+                            fileDataSource.downloadFile(fileId, 32, position, targetSize, synchronous = true)
+                        }
+                    }
 
-                    internalBuffer = filePart.data
+                    var filePart = fileDataSource.readFilePart(fileId, position, targetSize)
+                    if (filePart?.data?.isEmpty() != false) {
+                        fileDataSource.downloadFile(fileId, 32, position, targetSize, synchronous = true)
+                        filePart = fileDataSource.readFilePart(fileId, position, targetSize)
+                    }
+
+                    internalBuffer = filePart?.data
                     bufferOffset = 0
                     bufferLength = internalBuffer?.size ?: 0
+
+                    if (bufferLength > 0 && bytesRemaining > bufferLength) {
+                        val nextOffset = position + bufferLength
+                        val nextLimit = kotlin.math.min(PREFETCH_SIZE, bytesRemaining - bufferLength)
+                        if (nextLimit > 0) {
+                            fileDataSource.downloadFile(fileId, 16, nextOffset, nextLimit, synchronous = false)
+                        }
+                    }
                 } catch (e: Exception) {
                     throw IOException("Error reading file part: ${e.message}", e)
                 }

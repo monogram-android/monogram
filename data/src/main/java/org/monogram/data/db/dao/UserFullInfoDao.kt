@@ -17,6 +17,9 @@ interface UserFullInfoDao {
     @Query("DELETE FROM user_full_info WHERE userId = :userId")
     suspend fun deleteUserFullInfo(userId: Long)
 
+    @Query("DELETE FROM user_full_info")
+    suspend fun clearAll()
+
     @Query("DELETE FROM user_full_info WHERE createdAt < :timestamp")
     suspend fun deleteExpired(timestamp: Long)
 }

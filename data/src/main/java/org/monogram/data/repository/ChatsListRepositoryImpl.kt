@@ -183,13 +183,7 @@ class ChatsListRepositoryImpl(
 
     private suspend fun rebuildAndEmit() {
         runCatching {
-            val excludedChatIds = if (activeChatList is TdApi.ChatListMain) {
-                _foldersFlow.value.flatMap { it.pinnedChatIds }.distinct()
-            } else {
-                emptyList()
-            }
-
-            val newList = listManager.rebuildChatList(currentLimit, excludedChatIds) { chat, order, isPinned ->
+            val newList = listManager.rebuildChatList(currentLimit, emptyList()) { chat, order, isPinned ->
                 val cached = modelCache[chat.id]
                 if (cached != null && cached.order == order && cached.isPinned == isPinned && !invalidatedModels.contains(
                         chat.id
@@ -207,7 +201,11 @@ class ChatsListRepositoryImpl(
                 _chatListFlow.value = newList
                 lastList = newList
 
-                val toSave = newList.map { chatMapper.mapToEntity(it) }
+                val toSave = newList.map { model ->
+                    val chat = cache.getChat(model.id)
+                    if (chat != null) chatMapper.mapToEntity(chat, model)
+                    else chatMapper.mapToEntity(model)
+                }
                     .filter { entity ->
                         val last = lastSavedEntities[entity.id]
                         if (last == null || isEntityChanged(last, entity)) {
@@ -338,10 +336,14 @@ class ChatsListRepositoryImpl(
                 triggerUpdate()
             }
             is TdApi.UpdateSupergroup -> {
-                cache.putSupergroup(update.supergroup); triggerUpdate()
+                cache.putSupergroup(update.supergroup)
+                saveChatsBySupergroupId(update.supergroup.id)
+                triggerUpdate()
             }
             is TdApi.UpdateBasicGroup -> {
-                cache.putBasicGroup(update.basicGroup); triggerUpdate()
+                cache.putBasicGroup(update.basicGroup)
+                saveChatsByBasicGroupId(update.basicGroup.id)
+                triggerUpdate()
             }
             is TdApi.UpdateSupergroupFullInfo -> {
                 cache.putSupergroupFullInfo(update.supergroupId, update.supergroupFullInfo)
@@ -399,6 +401,7 @@ class ChatsListRepositoryImpl(
             }
             is TdApi.UpdateChatOnlineMemberCount -> {
                 cache.putOnlineMemberCount(update.chatId, update.onlineMemberCount)
+                saveChatToDb(update.chatId)
                 triggerUpdate(update.chatId)
             }
             is TdApi.UpdateAuthorizationState -> {
@@ -410,7 +413,7 @@ class ChatsListRepositoryImpl(
                     modelCache.clear()
                     invalidatedModels.clear()
                     lastSavedEntities.clear()
-                    scope.launch { chatLocalDataSource.clearAllChats() }
+                    scope.launch { chatLocalDataSource.clearAll() }
                 }
             }
             else -> {}
@@ -427,7 +430,7 @@ class ChatsListRepositoryImpl(
                 ?: chat.positions.firstOrNull()
             
             val model = modelFactory.mapChatToModel(chat, position?.order ?: 0L, position?.isPinned ?: false)
-            val entity = chatMapper.mapToEntity(model)
+            val entity = chatMapper.mapToEntity(chat, model)
 
             val last = lastSavedEntities[chatId]
             if (last == null || isEntityChanged(last, entity)) {
@@ -441,18 +444,80 @@ class ChatsListRepositoryImpl(
     private fun isEntityChanged(old: ChatEntity, new: ChatEntity): Boolean {
         return old.title != new.title ||
                 old.unreadCount != new.unreadCount ||
+                old.unreadMentionCount != new.unreadMentionCount ||
+                old.unreadReactionCount != new.unreadReactionCount ||
                 old.avatarPath != new.avatarPath ||
                 old.lastMessageText != new.lastMessageText ||
                 old.lastMessageTime != new.lastMessageTime ||
                 old.order != new.order ||
                 old.isPinned != new.isPinned ||
+                old.isMuted != new.isMuted ||
+                old.isChannel != new.isChannel ||
+                old.isGroup != new.isGroup ||
+                old.type != new.type ||
+                old.privateUserId != new.privateUserId ||
+                old.basicGroupId != new.basicGroupId ||
+                old.supergroupId != new.supergroupId ||
+                old.secretChatId != new.secretChatId ||
                 old.isArchived != new.isArchived ||
                 old.memberCount != new.memberCount ||
-                old.onlineCount != new.onlineCount
+                old.onlineCount != new.onlineCount ||
+                old.isMarkedAsUnread != new.isMarkedAsUnread ||
+                old.hasProtectedContent != new.hasProtectedContent ||
+                old.isTranslatable != new.isTranslatable ||
+                old.hasAutomaticTranslation != new.hasAutomaticTranslation ||
+                old.messageAutoDeleteTime != new.messageAutoDeleteTime ||
+                old.canBeDeletedOnlyForSelf != new.canBeDeletedOnlyForSelf ||
+                old.canBeDeletedForAllUsers != new.canBeDeletedForAllUsers ||
+                old.canBeReported != new.canBeReported ||
+                old.lastReadInboxMessageId != new.lastReadInboxMessageId ||
+                old.lastReadOutboxMessageId != new.lastReadOutboxMessageId ||
+                old.lastMessageId != new.lastMessageId ||
+                old.isLastMessageOutgoing != new.isLastMessageOutgoing ||
+                old.replyMarkupMessageId != new.replyMarkupMessageId ||
+                old.messageSenderId != new.messageSenderId ||
+                old.blockList != new.blockList ||
+                old.emojiStatusId != new.emojiStatusId ||
+                old.accentColorId != new.accentColorId ||
+                old.profileAccentColorId != new.profileAccentColorId ||
+                old.backgroundCustomEmojiId != new.backgroundCustomEmojiId ||
+                old.photoId != new.photoId ||
+                old.isSupergroup != new.isSupergroup ||
+                old.isAdmin != new.isAdmin ||
+                old.isOnline != new.isOnline ||
+                old.typingAction != new.typingAction ||
+                old.draftMessage != new.draftMessage ||
+                old.isVerified != new.isVerified ||
+                old.viewAsTopics != new.viewAsTopics ||
+                old.isForum != new.isForum ||
+                old.isBot != new.isBot ||
+                old.isMember != new.isMember ||
+                old.username != new.username ||
+                old.description != new.description ||
+                old.inviteLink != new.inviteLink ||
+                old.permissionCanSendBasicMessages != new.permissionCanSendBasicMessages ||
+                old.permissionCanSendAudios != new.permissionCanSendAudios ||
+                old.permissionCanSendDocuments != new.permissionCanSendDocuments ||
+                old.permissionCanSendPhotos != new.permissionCanSendPhotos ||
+                old.permissionCanSendVideos != new.permissionCanSendVideos ||
+                old.permissionCanSendVideoNotes != new.permissionCanSendVideoNotes ||
+                old.permissionCanSendVoiceNotes != new.permissionCanSendVoiceNotes ||
+                old.permissionCanSendPolls != new.permissionCanSendPolls ||
+                old.permissionCanSendOtherMessages != new.permissionCanSendOtherMessages ||
+                old.permissionCanAddLinkPreviews != new.permissionCanAddLinkPreviews ||
+                old.permissionCanEditTag != new.permissionCanEditTag ||
+                old.permissionCanChangeInfo != new.permissionCanChangeInfo ||
+                old.permissionCanInviteUsers != new.permissionCanInviteUsers ||
+                old.permissionCanPinMessages != new.permissionCanPinMessages ||
+                old.permissionCanCreateTopics != new.permissionCanCreateTopics
     }
 
     private fun triggerUpdate(chatId: Long? = null) {
-        chatId?.let { invalidatedModels.add(it) }
+        if (chatId == null) {
+            invalidatedModels.addAll(cache.activeListPositions.keys)
+        } else {
+            invalidatedModels.add(chatId)
+        }
         updateChannel.trySend(Unit)
     }
 
@@ -750,5 +815,21 @@ class ChatsListRepositoryImpl(
         listManager.updateActiveListPositions(chatObj.id, chatObj.positions, activeChatList)
         saveChatToDb(chatObj.id)
         triggerUpdate(chatObj.id)
+    }
+
+    private fun saveChatsBySupergroupId(supergroupId: Long) {
+        cache.allChats.values
+            .asSequence()
+            .filter { (it.type as? TdApi.ChatTypeSupergroup)?.supergroupId == supergroupId }
+            .map { it.id }
+            .forEach { saveChatToDb(it) }
+    }
+
+    private fun saveChatsByBasicGroupId(basicGroupId: Long) {
+        cache.allChats.values
+            .asSequence()
+            .filter { (it.type as? TdApi.ChatTypeBasicGroup)?.basicGroupId == basicGroupId }
+            .map { it.id }
+            .forEach { saveChatToDb(it) }
     }
 }

@@ -150,7 +150,59 @@ class ChatMapper(private val stringProvider: StringProvider) {
             type = ChatType.valueOf(entity.type),
             isArchived = entity.isArchived,
             memberCount = entity.memberCount,
-            onlineCount = entity.onlineCount
+            onlineCount = entity.onlineCount,
+            unreadMentionCount = entity.unreadMentionCount,
+            unreadReactionCount = entity.unreadReactionCount,
+            isMarkedAsUnread = entity.isMarkedAsUnread,
+            hasProtectedContent = entity.hasProtectedContent,
+            isTranslatable = entity.isTranslatable,
+            hasAutomaticTranslation = entity.hasAutomaticTranslation,
+            messageAutoDeleteTime = entity.messageAutoDeleteTime,
+            canBeDeletedOnlyForSelf = entity.canBeDeletedOnlyForSelf,
+            canBeDeletedForAllUsers = entity.canBeDeletedForAllUsers,
+            canBeReported = entity.canBeReported,
+            lastReadInboxMessageId = entity.lastReadInboxMessageId,
+            lastReadOutboxMessageId = entity.lastReadOutboxMessageId,
+            lastMessageId = entity.lastMessageId,
+            isLastMessageOutgoing = entity.isLastMessageOutgoing,
+            replyMarkupMessageId = entity.replyMarkupMessageId,
+            messageSenderId = entity.messageSenderId,
+            blockList = entity.blockList,
+            emojiStatusId = entity.emojiStatusId,
+            accentColorId = entity.accentColorId,
+            profileAccentColorId = entity.profileAccentColorId,
+            backgroundCustomEmojiId = entity.backgroundCustomEmojiId,
+            photoId = entity.photoId,
+            isSupergroup = entity.isSupergroup,
+            isAdmin = entity.isAdmin,
+            isOnline = entity.isOnline,
+            typingAction = entity.typingAction,
+            draftMessage = entity.draftMessage,
+            isVerified = entity.isVerified,
+            viewAsTopics = entity.viewAsTopics,
+            isForum = entity.isForum,
+            isBot = entity.isBot,
+            isMember = entity.isMember,
+            username = entity.username,
+            description = entity.description,
+            inviteLink = entity.inviteLink,
+            permissions = ChatPermissionsModel(
+                canSendBasicMessages = entity.permissionCanSendBasicMessages,
+                canSendAudios = entity.permissionCanSendAudios,
+                canSendDocuments = entity.permissionCanSendDocuments,
+                canSendPhotos = entity.permissionCanSendPhotos,
+                canSendVideos = entity.permissionCanSendVideos,
+                canSendVideoNotes = entity.permissionCanSendVideoNotes,
+                canSendVoiceNotes = entity.permissionCanSendVoiceNotes,
+                canSendPolls = entity.permissionCanSendPolls,
+                canSendOtherMessages = entity.permissionCanSendOtherMessages,
+                canAddLinkPreviews = entity.permissionCanAddLinkPreviews,
+                canEditTag = entity.permissionCanEditTag,
+                canChangeInfo = entity.permissionCanChangeInfo,
+                canInviteUsers = entity.permissionCanInviteUsers,
+                canPinMessages = entity.permissionCanPinMessages,
+                canCreateTopics = entity.permissionCanCreateTopics
+            )
         )
     }
 
@@ -168,10 +220,109 @@ class ChatMapper(private val stringProvider: StringProvider) {
             isChannel = domain.isChannel,
             isGroup = domain.isGroup,
             type = domain.type.name,
+            privateUserId = 0L,
+            basicGroupId = 0L,
+            supergroupId = 0L,
+            secretChatId = 0,
             isArchived = domain.isArchived,
             memberCount = domain.memberCount,
             onlineCount = domain.onlineCount,
+            unreadMentionCount = domain.unreadMentionCount,
+            unreadReactionCount = domain.unreadReactionCount,
+            isMarkedAsUnread = domain.isMarkedAsUnread,
+            hasProtectedContent = domain.hasProtectedContent,
+            isTranslatable = domain.isTranslatable,
+            hasAutomaticTranslation = domain.hasAutomaticTranslation,
+            messageAutoDeleteTime = domain.messageAutoDeleteTime,
+            canBeDeletedOnlyForSelf = domain.canBeDeletedOnlyForSelf,
+            canBeDeletedForAllUsers = domain.canBeDeletedForAllUsers,
+            canBeReported = domain.canBeReported,
+            lastReadInboxMessageId = domain.lastReadInboxMessageId,
+            lastReadOutboxMessageId = domain.lastReadOutboxMessageId,
+            lastMessageId = domain.lastMessageId,
+            isLastMessageOutgoing = domain.isLastMessageOutgoing,
+            replyMarkupMessageId = domain.replyMarkupMessageId,
+            messageSenderId = domain.messageSenderId,
+            blockList = domain.blockList,
+            emojiStatusId = domain.emojiStatusId,
+            accentColorId = domain.accentColorId,
+            profileAccentColorId = domain.profileAccentColorId,
+            backgroundCustomEmojiId = domain.backgroundCustomEmojiId,
+            photoId = domain.photoId,
+            isSupergroup = domain.isSupergroup,
+            isAdmin = domain.isAdmin,
+            isOnline = domain.isOnline,
+            typingAction = domain.typingAction,
+            draftMessage = domain.draftMessage,
+            isVerified = domain.isVerified,
+            viewAsTopics = domain.viewAsTopics,
+            isForum = domain.isForum,
+            isBot = domain.isBot,
+            isMember = domain.isMember,
+            username = domain.username,
+            description = domain.description,
+            inviteLink = domain.inviteLink,
+            permissionCanSendBasicMessages = domain.permissions.canSendBasicMessages,
+            permissionCanSendAudios = domain.permissions.canSendAudios,
+            permissionCanSendDocuments = domain.permissions.canSendDocuments,
+            permissionCanSendPhotos = domain.permissions.canSendPhotos,
+            permissionCanSendVideos = domain.permissions.canSendVideos,
+            permissionCanSendVideoNotes = domain.permissions.canSendVideoNotes,
+            permissionCanSendVoiceNotes = domain.permissions.canSendVoiceNotes,
+            permissionCanSendPolls = domain.permissions.canSendPolls,
+            permissionCanSendOtherMessages = domain.permissions.canSendOtherMessages,
+            permissionCanAddLinkPreviews = domain.permissions.canAddLinkPreviews,
+            permissionCanEditTag = domain.permissions.canEditTag,
+            permissionCanChangeInfo = domain.permissions.canChangeInfo,
+            permissionCanInviteUsers = domain.permissions.canInviteUsers,
+            permissionCanPinMessages = domain.permissions.canPinMessages,
+            permissionCanCreateTopics = domain.permissions.canCreateTopics,
             createdAt = System.currentTimeMillis()
+        )
+    }
+
+    fun mapToEntity(chat: TdApi.Chat, domain: ChatModel): ChatEntity {
+        val privateUserId: Long
+        val basicGroupId: Long
+        val supergroupId: Long
+        val secretChatId: Int
+        when (val t = chat.type) {
+            is TdApi.ChatTypePrivate -> {
+                privateUserId = t.userId
+                basicGroupId = 0L
+                supergroupId = 0L
+                secretChatId = 0
+            }
+            is TdApi.ChatTypeBasicGroup -> {
+                privateUserId = 0L
+                basicGroupId = t.basicGroupId
+                supergroupId = 0L
+                secretChatId = 0
+            }
+            is TdApi.ChatTypeSupergroup -> {
+                privateUserId = 0L
+                basicGroupId = 0L
+                supergroupId = t.supergroupId
+                secretChatId = 0
+            }
+            is TdApi.ChatTypeSecret -> {
+                privateUserId = 0L
+                basicGroupId = 0L
+                supergroupId = 0L
+                secretChatId = t.secretChatId
+            }
+            else -> {
+                privateUserId = 0L
+                basicGroupId = 0L
+                supergroupId = 0L
+                secretChatId = 0
+            }
+        }
+        return mapToEntity(domain).copy(
+            privateUserId = privateUserId,
+            basicGroupId = basicGroupId,
+            supergroupId = supergroupId,
+            secretChatId = secretChatId
         )
     }
 

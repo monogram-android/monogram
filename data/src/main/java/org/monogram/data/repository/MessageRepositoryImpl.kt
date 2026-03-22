@@ -943,7 +943,7 @@ class MessageRepositoryImpl(
     override fun clearAllCache() {
         cache.clearAll()
         scope.launch(dispatcherProvider.io) {
-            chatLocalDataSource.clearAllChats()
+            chatLocalDataSource.clearAll()
         }
     }
 }

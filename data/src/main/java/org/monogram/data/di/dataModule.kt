@@ -62,7 +62,7 @@ val dataModule = module {
 
     factory<PlayerDataSourceFactory> {
         PlayerDataSourceFactoryImpl(
-            gateway = get()
+            fileDataSource = get()
         )
     }
 
@@ -87,7 +87,7 @@ val dataModule = module {
             androidContext(),
             MonogramDatabase::class.java,
             "monogram_db"
-        ).fallbackToDestructiveMigration(true).build()
+        ).addMigrations(MonogramDatabase.MIGRATION_14_15, MonogramDatabase.MIGRATION_15_16).build()
     }
     single { get<MonogramDatabase>().chatDao() }
     single { get<MonogramDatabase>().messageDao() }
@@ -354,7 +354,7 @@ val dataModule = module {
 
     single<StreamingRepository> {
         StreamingRepositoryImpl(
-            gateway = get(),
+            fileDataSource = get(),
             updates = get(),
             scopeProvider = get()
         )

@@ -105,7 +105,7 @@ class UpdateRepositoryImpl(
 
     override fun cancelDownload() {
         val info = currentUpdateInfo ?: return
-        fileQueue.cancelDownload(info.fileId)
+        fileQueue.cancelDownload(info.fileId, force = true)
         _updateState.value = UpdateState.UpdateAvailable(info)
     }
 

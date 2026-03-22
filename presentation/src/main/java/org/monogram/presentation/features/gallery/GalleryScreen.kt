@@ -4,79 +4,44 @@ import android.content.ContentUris
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.PermMedia
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.domain.models.AttachMenuBotModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GalleryScreen(
     onMediaSelected: (List<Uri>) -> Unit,
@@ -93,26 +58,7 @@ fun GalleryScreen(
     val selectedMedia = remember { mutableStateListOf<Uri>() }
     var filter by remember { mutableStateOf(GalleryFilter.All) }
     var bucketFilter by remember { mutableStateOf<BucketFilter>(BucketFilter.All) }
-    var isOpen by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val sheetProgress by animateFloatAsState(
-        targetValue = if (isOpen) 1f else 0f,
-        animationSpec = tween(220),
-        label = "gallerySheetProgress"
-    )
-
-    val dismiss: () -> Unit = {
-        if (isOpen) {
-            isOpen = false
-            scope.launch {
-                delay(180)
-                onDismiss()
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) { isOpen = true }
 
     LaunchedEffect(hasMediaAccess) {
         if (!hasMediaAccess) {
@@ -131,82 +77,116 @@ fun GalleryScreen(
         isLoading = false
     }
 
-    val buckets = remember(mediaList) {
-        val known = mutableListOf<BucketFilter>(BucketFilter.All, BucketFilter.Camera, BucketFilter.Screenshots)
-        val dynamic = mediaList
+    val buckets = buildList {
+        add(BucketFilter.All)
+        add(BucketFilter.Camera)
+        add(BucketFilter.Screenshots)
+
+        mediaList
             .map { it.bucketName }
             .filter { it.isNotBlank() }
+            .filterNot { it.equals("Camera", ignoreCase = true) || it.equals("Screenshots", ignoreCase = true) }
             .distinct()
             .sorted()
-            .map { BucketFilter.Custom(it) }
-        known + dynamic
+            .mapTo(this) { BucketFilter.Custom(it) }
     }
 
-    val filteredMedia = remember(mediaList, filter, bucketFilter) {
-        mediaList.filter { item ->
-            val byType = when (filter) {
-                GalleryFilter.All -> true
-                GalleryFilter.Photos -> !item.isVideo
-                GalleryFilter.Videos -> item.isVideo
-            }
-            val byBucket = if (filter == GalleryFilter.Photos) {
-                when (bucketFilter) {
-                    BucketFilter.All -> true
-                    BucketFilter.Camera -> item.isCamera
-                    BucketFilter.Screenshots -> item.isScreenshot
-                    is BucketFilter.Custom -> item.bucketName.equals((bucketFilter as BucketFilter.Custom).name, ignoreCase = true)
-                }
-            } else {
-                true
-            }
-            byType && byBucket
+    val filteredMedia = mediaList.filter { item ->
+        val byType = when (filter) {
+            GalleryFilter.All -> true
+            GalleryFilter.Photos -> !item.isVideo
+            GalleryFilter.Videos -> item.isVideo
         }
+        val byBucket = if (filter == GalleryFilter.Photos) {
+            when (val selectedBucket = bucketFilter) {
+                BucketFilter.All -> true
+                BucketFilter.Camera -> item.isCamera
+                BucketFilter.Screenshots -> item.isScreenshot
+                is BucketFilter.Custom -> item.bucketName.equals(selectedBucket.name, ignoreCase = true)
+            }
+        } else {
+            true
+        }
+        byType && byBucket
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        Box(
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Attachments",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Filled.Close, contentDescription = "Close")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onPickFromOtherSources) {
+                        Icon(Icons.Filled.Extension, contentDescription = "Other sources")
+                    }
+                    IconButton(onClick = onCameraClick) {
+                        Icon(Icons.Filled.PhotoCamera, contentDescription = "Camera")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            AttachBotsSection(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .windowInsetsPadding(WindowInsets.navigationBars),
+                bots = attachBots.filter { it.showInAttachMenu && it.name.isNotBlank() },
+                selectedCount = selectedMedia.size,
+                onSendSelected = { onMediaSelected(selectedMedia.toList()) },
+                onAttachBotClick = onAttachBotClick
+            )
+        }
+    ) { padding ->
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.44f * sheetProgress))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = dismiss
+                .padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = padding.calculateTopPadding(),
+                    bottom = padding.calculateBottomPadding()
                 )
-        )
-
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.9f)
-                .windowInsetsPadding(WindowInsets.navigationBars)
-                .graphicsLayer {
-                    translationY = (1f - sheetProgress) * 120f
-                    alpha = 0.75f + 0.25f * sheetProgress
-                }
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {}
-                ),
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            tonalElevation = 8.dp
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Handle()
-                Header(
+            AnimatedVisibility(visible = selectedMedia.isNotEmpty()) {
+                SelectedCountCard(
                     selectedCount = selectedMedia.size,
-                    onClose = dismiss,
-                    onOpenCamera = onCameraClick,
-                    onOpenOtherSources = onPickFromOtherSources
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 10.dp)
                 )
+            }
 
-                if (!hasMediaAccess) {
-                    PermissionCard(onRequestMediaAccess)
-                } else {
+            if (!hasMediaAccess) {
+                SectionHeader("Permissions")
+                PermissionCard(onRequestMediaAccess)
+                return@Column
+            }
+
+            SectionHeader("Media")
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
                     GalleryTabs(
                         filter = filter,
                         onFilterChange = { newFilter ->
@@ -230,146 +210,175 @@ fun GalleryScreen(
                         modifier = Modifier.weight(1f)
                     )
                 }
-
-                AttachBotsSection(
-                    bots = attachBots.filter { it.showInAttachMenu && it.name.isNotBlank() },
-                    selectedCount = selectedMedia.size,
-                    onSendSelected = { onMediaSelected(selectedMedia.toList()) },
-                    onAttachBotClick = onAttachBotClick
-                )
             }
         }
     }
 }
 
 @Composable
-private fun Handle() {
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Box(
-            modifier = Modifier
-                .padding(top = 10.dp, bottom = 6.dp)
-                .size(width = 40.dp, height = 4.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-        )
-    }
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.padding(start = 12.dp, bottom = 8.dp, top = 16.dp),
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.Bold
+    )
 }
 
 @Composable
-private fun Header(
+private fun SelectedCountCard(
     selectedCount: Int,
-    onClose: () -> Unit,
-    onOpenCamera: () -> Unit,
-    onOpenOtherSources: () -> Unit
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+    val suffix = if (selectedCount == 1) "" else "s"
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        shape = RoundedCornerShape(18.dp)
     ) {
-        IconButton(onClick = onClose) {
-            Icon(Icons.Filled.Close, contentDescription = "Close")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(Modifier.size(10.dp))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "$selectedCount item$suffix selected",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Ready to send",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
+                )
+            }
         }
-        Text(
-            text = "Attachments",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.weight(1f)
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            AssistChip(
-                onClick = onOpenOtherSources,
-                label = { Text("Other") },
-                leadingIcon = { Icon(Icons.Filled.Extension, contentDescription = null) }
-            )
-            AssistChip(
-                onClick = onOpenCamera,
-                label = { Text("Camera") },
-                leadingIcon = { Icon(Icons.Filled.PhotoCamera, contentDescription = null) }
-            )
-        }
-    }
-    AnimatedVisibility(visible = selectedCount > 0) {
-        Text(
-            text = "$selectedCount selected",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
-        )
     }
 }
 
 @Composable
 private fun PermissionCard(onRequestMediaAccess: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        contentAlignment = Alignment.Center
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.PermMedia,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(42.dp)
-                )
-                Text("Allow Media Access", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Grant access to photos and videos to attach files in chat.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Button(onClick = onRequestMediaAccess) {
-                    Icon(Icons.Filled.AddPhotoAlternate, contentDescription = null)
-                    Spacer(Modifier.size(6.dp))
-                    Text("Grant access")
-                }
+            Icon(
+                imageVector = Icons.Filled.PermMedia,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(42.dp)
+            )
+            Text("Allow Media Access", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Grant access to photos and videos to attach files in chat.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Button(onClick = onRequestMediaAccess) {
+                Icon(Icons.Filled.AddPhotoAlternate, contentDescription = null)
+                Spacer(Modifier.size(6.dp))
+                Text("Grant access")
             }
         }
     }
 }
+
+private data class GalleryTabSpec(
+    val filter: GalleryFilter,
+    val icon: ImageVector
+)
 
 @Composable
 private fun GalleryTabs(
     filter: GalleryFilter,
     onFilterChange: (GalleryFilter) -> Unit
 ) {
-    val tabs = GalleryFilter.entries
-    val selectedIndex = tabs.indexOf(filter).coerceAtLeast(0)
-    ScrollableTabRow(
-        selectedTabIndex = selectedIndex,
-        modifier = Modifier
+    val tabs = listOf(
+        GalleryTabSpec(GalleryFilter.All, Icons.Filled.PermMedia),
+        GalleryTabSpec(GalleryFilter.Photos, Icons.Filled.Image),
+        GalleryTabSpec(GalleryFilter.Videos, Icons.Filled.Videocam)
+    )
+
+    Row(
+        Modifier
+            .padding(horizontal = 12.dp, vertical = 10.dp)
             .fillMaxWidth()
-            .padding(top = 2.dp, bottom = 4.dp),
-        edgePadding = 12.dp,
-        contentColor = MaterialTheme.colorScheme.primary,
-        divider = {}
+            .height(48.dp)
+            .background(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+                CircleShape
+            )
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        tabs.forEach { item ->
-            val selected = item == filter
-            Tab(
-                selected = selected,
-                onClick = { onFilterChange(item) },
-                selectedContentColor = MaterialTheme.colorScheme.primary,
-                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        tabs.forEach { tab ->
+            val selected = filter == tab.filter
+            val backgroundColor by animateColorAsState(
+                targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                animationSpec = tween(durationMillis = 200),
+                label = "tabBackground"
+            )
+            val contentColor by animateColorAsState(
+                targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                animationSpec = tween(durationMillis = 200),
+                label = "tabContent"
+            )
+
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(backgroundColor)
+                    .selectable(
+                        selected = selected,
+                        onClick = { onFilterChange(tab.filter) },
+                        role = Role.Tab
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    maxLines = 1
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = tab.icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = contentColor
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        text = tab.filter.title,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = contentColor,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                    )
+                }
             }
         }
     }
@@ -488,6 +497,7 @@ private fun GalleryGrid(
 
 @Composable
 private fun AttachBotsSection(
+    modifier: Modifier = Modifier,
     bots: List<AttachMenuBotModel>,
     selectedCount: Int,
     onSendSelected: () -> Unit,
@@ -495,34 +505,37 @@ private fun AttachBotsSection(
 ) {
     if (bots.isEmpty() && selectedCount == 0) return
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer
     ) {
         if (selectedCount > 0) {
-            Row(
+            val suffix = if (selectedCount == 1) "" else "s"
+            Button(
+                onClick = onSendSelected,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End
+                    .height(72.dp)
+                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Button(onClick = onSendSelected) {
-                    Icon(Icons.Filled.Send, contentDescription = null)
-                    Spacer(Modifier.size(6.dp))
-                    Text("Send selected ($selectedCount)")
-                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.size(10.dp))
+                Text(
+                    text = "Send $selectedCount item$suffix",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
             }
-            return@Card
+            return@Surface
         }
+
         if (bots.isNotEmpty()) {
-            Text(
-                text = "Attach Bots",
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-            )
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)

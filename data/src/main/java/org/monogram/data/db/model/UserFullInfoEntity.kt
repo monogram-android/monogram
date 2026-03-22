@@ -16,6 +16,7 @@ data class UserFullInfoEntity(
     val hasPrivateForwards: Boolean,
     val hasRestrictedVoiceAndVideoNoteMessages: Boolean = false,
     val hasPostedToProfileStories: Boolean = false,
+    val setChatBackground: Boolean = false,
     val canGetRevenueStatistics: Boolean = false,
     val incomingPaidMessageStarCount: Long = 0L,
     val outgoingPaidMessageStarCount: Long = 0L,

@@ -270,6 +270,9 @@ class TdMessageRemoteDataSource(
     override suspend fun getPollVoters(chatId: Long, messageId: Long, optionId: Int, offset: Int, limit: Int): TdApi.PollVoters? =
         safeExecute(TdApi.GetPollVoters(chatId, messageId, optionId, offset, limit))
 
+    override suspend fun getMessageViewers(chatId: Long, messageId: Long): TdApi.MessageViewers? =
+        safeExecute(TdApi.GetMessageViewers(chatId, messageId))
+
     override suspend fun getPollVotersModels(chatId: Long, messageId: Long, optionId: Int, offset: Int, limit: Int): List<UserModel> {
         val result = getPollVoters(chatId, messageId, optionId, offset, limit) ?: return emptyList()
         return result.voters.mapNotNull { pollVoter ->
@@ -287,6 +290,17 @@ class TdMessageRemoteDataSource(
                 }
                 else -> null
             }
+        }
+    }
+
+    override suspend fun getMessageViewersModels(chatId: Long, messageId: Long): List<MessageViewerModel> {
+        val result = getMessageViewers(chatId, messageId) ?: return emptyList()
+        return result.viewers.mapNotNull { viewer ->
+            val user = userRepository.getUser(viewer.userId) ?: return@mapNotNull null
+            MessageViewerModel(
+                user = user,
+                viewedDate = viewer.viewDate
+            )
         }
     }
 

@@ -61,6 +61,7 @@ interface ChatComponent {
     fun onTyping()
     fun onSendReaction(messageId: Long, reaction: String)
     suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int
+    suspend fun getMessageViewers(chatId: Long, messageId: Long): List<MessageViewerModel>
     fun toProfile(id: Long)
     fun onToggleMessageSelection(messageId: Long)
     fun onClearSelection()

@@ -2,12 +2,9 @@ package org.monogram.presentation.features.stickers.ui.menu
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -42,11 +39,14 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageViewerModel
 import org.monogram.domain.models.RecentEmojiModel
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
+import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.features.chats.currentChat.chatContent.DeleteMessagesSheet
+import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.chats.getEmojiFontFamily
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import java.text.SimpleDateFormat
@@ -64,6 +64,14 @@ fun MessageOptionsMenu(
     isSameSenderAbove: Boolean = false,
     isSameSenderBelow: Boolean = false,
     isMessageOutgoing: Boolean = message.isOutgoing,
+    showReadInfo: Boolean = true,
+    showViewsInfo: Boolean = true,
+    showViewersList: Boolean = false,
+    viewers: List<MessageViewerModel> = emptyList(),
+    isLoadingViewers: Boolean = false,
+    onReloadViewers: () -> Unit = {},
+    onViewerClick: (Long) -> Unit = {},
+    videoPlayerPool: VideoPlayerPool,
     bubbleRadius: Float = 18f,
     splitOffset: Int? = null,
     onReply: () -> Unit,
@@ -178,7 +186,7 @@ fun MessageOptionsMenu(
     }
 
     var showDeleteSheet by remember { mutableStateOf(false) }
-    var showMoreOptions by remember { mutableStateOf(false) }
+    var menuPage by remember { mutableStateOf(MenuPage.Main) }
 
     if (showDeleteSheet) {
         DeleteMessagesSheet(
@@ -309,11 +317,12 @@ fun MessageOptionsMenu(
             shape = RoundedCornerShape(16.dp)
         ) {
             AnimatedContent(
-                targetState = showMoreOptions,
+                targetState = menuPage,
                 transitionSpec = {
                     val duration = 300
                     val easing = FastOutSlowInEasing
-                    if (targetState) {
+                    val forward = targetState.ordinal > initialState.ordinal
+                    if (forward) {
                         (slideInHorizontally(animationSpec = tween(duration, easing = easing)) { width -> width / 2 } +
                                 fadeIn(animationSpec = tween(duration, easing = easing)))
                             .togetherWith(
@@ -348,12 +357,13 @@ fun MessageOptionsMenu(
                     )
                 },
                 label = "MenuTransition"
-            ) { isMore ->
-                val contentModifier = if (isMore && firstScreenWidth != null) {
+            ) { page ->
+                val isSubPage = page != MenuPage.Main
+                val contentModifier = if (isSubPage && firstScreenWidth != null) {
                     Modifier.width(with(density) { firstScreenWidth!!.toDp() })
                 } else {
                     Modifier.onGloballyPositioned { coords ->
-                        if (!isMore) {
+                        if (page == MenuPage.Main) {
                             firstScreenWidth = coords.size.width
                         }
                     }
@@ -363,7 +373,7 @@ fun MessageOptionsMenu(
                     modifier = contentModifier
                         .padding(vertical = 4.dp)
                 ) {
-                    if (!isMore) {
+                    if (page == MenuPage.Main) {
                         ReactionsRow(
                             message = message,
                             onReaction = { reaction ->
@@ -371,7 +381,38 @@ fun MessageOptionsMenu(
                             }
                         )
 
-                        InternalMenuHeaderInfo(message)
+                        InternalMenuHeaderInfo(
+                            message = message,
+                            showReadInfo = showReadInfo,
+                            showViewsInfo = showViewsInfo
+                        )
+
+                        if (showViewersList) {
+                            InternalMenuOptionItem(
+                                icon = Icons.Rounded.Visibility,
+                                text = "${viewers.size} ${stringResource(R.string.info_views)}",
+                                trailingContent = {
+                                    if (isLoadingViewers) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Rounded.ChevronRight,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onReloadViewers()
+                                    menuPage = MenuPage.Viewers
+                                }
+                            )
+                        }
 
                         InternalMenuOptionItem(
                             icon = Icons.AutoMirrored.Rounded.Reply,
@@ -420,7 +461,7 @@ fun MessageOptionsMenu(
                             trailingIcon = Icons.Rounded.ChevronRight,
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                showMoreOptions = true
+                                menuPage = MenuPage.More
                             }
                         )
 
@@ -437,7 +478,7 @@ fun MessageOptionsMenu(
                                 onClick = { showDeleteSheet = true }
                             )
                         }
-                    } else {
+                    } else if (page == MenuPage.More) {
                         InternalMenuOptionItem(
                             icon = Icons.AutoMirrored.Rounded.ArrowBack,
                             text = stringResource(R.string.cd_back),
@@ -445,7 +486,7 @@ fun MessageOptionsMenu(
                             textColor = MaterialTheme.colorScheme.primary,
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                showMoreOptions = false
+                                menuPage = MenuPage.Main
                             }
                         )
 
@@ -498,11 +539,80 @@ fun MessageOptionsMenu(
                                 onClick = { animateOutAndDismiss(onRestrict) }
                             )
                         }
+                    } else {
+                        InternalMenuOptionItem(
+                            icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                            text = stringResource(R.string.viewer_back),
+                            iconTint = MaterialTheme.colorScheme.primary,
+                            textColor = MaterialTheme.colorScheme.primary,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                menuPage = MenuPage.Main
+                            }
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        when {
+                            isLoadingViewers -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+
+                            viewers.isEmpty() -> {
+                                Text(
+                                    text = stringResource(R.string.info_views),
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            else -> {
+                                val viewerDateFormat =
+                                    remember { SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()) }
+                                val scrollState = rememberScrollState()
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 260.dp)
+                                        .verticalScroll(scrollState)
+                                ) {
+                                    viewers.forEach { viewer ->
+                                        ViewerRow(
+                                            viewer = viewer,
+                                            dateFormat = viewerDateFormat,
+                                            videoPlayerPool = videoPlayerPool,
+                                            onClick = {
+                                                animateOutAndDismiss {
+                                                    onViewerClick(viewer.user.id)
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
+}
+
+private enum class MenuPage {
+    Main,
+    More,
+    Viewers
 }
 
 @Composable
@@ -598,13 +708,72 @@ private fun ReactionsRow(
 }
 
 @Composable
-private fun InternalMenuHeaderInfo(message: MessageModel) {
+private fun ViewerRow(
+    viewer: MessageViewerModel,
+    dateFormat: SimpleDateFormat,
+    videoPlayerPool: VideoPlayerPool,
+    onClick: () -> Unit
+) {
+    val fullName = remember(viewer.user.firstName, viewer.user.lastName) {
+        listOfNotNull(viewer.user.firstName, viewer.user.lastName)
+            .joinToString(" ")
+            .ifBlank { "Unknown" }
+    }
+    val subtitle = remember(viewer.viewedDate) {
+        if (viewer.viewedDate > 0) {
+            dateFormat.format(Date(viewer.viewedDate.toLong() * 1000))
+        } else {
+            ""
+        }
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Avatar(
+            path = viewer.user.avatarPath ?: viewer.user.personalAvatarPath,
+            name = fullName,
+            size = 32.dp,
+            videoPlayerPool = videoPlayerPool,
+            fontSize = 12,
+            onClick = onClick
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = fullName,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (subtitle.isNotEmpty()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InternalMenuHeaderInfo(
+    message: MessageModel,
+    showReadInfo: Boolean,
+    showViewsInfo: Boolean
+) {
     val dateFormat = remember { SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()) }
 
     val editDate = if (message.editDate > 0) dateFormat.format(Date(message.editDate.toLong() * 1000)) else null
-    val readDate =
+    val readDate = if (showReadInfo)
         if (message.isOutgoing && message.readDate > 0) dateFormat.format(Date(message.readDate.toLong() * 1000)) else null
-    val views = if (message.views != null && message.views!! > 0) message.views.toString() else null
+    else null
+    val views = if (showViewsInfo && message.views != null && message.views!! > 0) message.views.toString() else null
 
     val hasHeader = editDate != null || readDate != null || views != null
 
@@ -688,7 +857,8 @@ private fun InternalMenuOptionItem(
     onClick: () -> Unit,
     textColor: Color = MaterialTheme.colorScheme.onSurface,
     iconTint: Color = MaterialTheme.colorScheme.onSurface,
-    trailingIcon: ImageVector? = null
+    trailingIcon: ImageVector? = null,
+    trailingContent: (@Composable () -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -710,7 +880,9 @@ private fun InternalMenuOptionItem(
             color = textColor,
             modifier = Modifier.weight(1f)
         )
-        if (trailingIcon != null) {
+        if (trailingContent != null) {
+            trailingContent()
+        } else if (trailingIcon != null) {
             Icon(
                 imageVector = trailingIcon,
                 contentDescription = null,

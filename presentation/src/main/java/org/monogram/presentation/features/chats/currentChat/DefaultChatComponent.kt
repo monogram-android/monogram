@@ -377,6 +377,10 @@ class DefaultChatComponent(
         return repositoryMessage.getMessageReadDate(chatId, messageId, messageDate)
     }
 
+    override suspend fun getMessageViewers(chatId: Long, messageId: Long): List<MessageViewerModel> {
+        return repositoryMessage.getMessageViewers(chatId, messageId)
+    }
+
     override fun toProfile(id: Long) = toProfiles(id)
     override fun onToggleMessageSelection(messageId: Long) =
         store.accept(ChatStore.Intent.ToggleMessageSelection(messageId))

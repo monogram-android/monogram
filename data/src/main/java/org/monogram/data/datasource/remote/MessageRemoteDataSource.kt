@@ -5,6 +5,7 @@ import org.drinkless.tdlib.TdApi
 import org.monogram.data.datasource.remote.TdMessageRemoteDataSource.DownloadType
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageViewerModel
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
@@ -35,6 +36,7 @@ interface MessageRemoteDataSource {
     suspend fun searchChatMessages(chatId: Long, query: String, fromMessageId: Long, limit: Int, filter: TdApi.SearchMessagesFilter, threadId: Long?): TdApi.FoundChatMessages?
     suspend fun getChatPinnedMessage(chatId: Long): TdApi.Message?
     suspend fun getPollVoters(chatId: Long, messageId: Long, optionId: Int, offset: Int, limit: Int): TdApi.PollVoters?
+    suspend fun getMessageViewers(chatId: Long, messageId: Long): TdApi.MessageViewers?
     suspend fun sendMessage(chatId: Long, text: String, replyToMsgId: Long?, entities: List<MessageEntity>, threadId: Long?): TdApi.Message?
     suspend fun sendPhoto(chatId: Long, photoPath: String, caption: String, replyToMsgId: Long?, threadId: Long?): TdApi.Message?
     suspend fun sendVideo(chatId: Long, videoPath: String, caption: String, replyToMsgId: Long?, threadId: Long?): TdApi.Message?
@@ -90,6 +92,7 @@ interface MessageRemoteDataSource {
         offset: Int,
         limit: Int
     ): List<UserModel>
+    suspend fun getMessageViewersModels(chatId: Long, messageId: Long): List<MessageViewerModel>
 
     suspend fun getMessagesOlder(
         chatId: Long,

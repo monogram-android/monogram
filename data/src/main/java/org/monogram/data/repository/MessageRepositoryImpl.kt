@@ -325,6 +325,11 @@ class MessageRepositoryImpl(
         messageMapper.getMessageReadDate(chatId, messageId, messageDate)
     }
 
+    override suspend fun getMessageViewers(chatId: Long, messageId: Long): List<MessageViewerModel> =
+        withContext(dispatcherProvider.io) {
+            messageRemoteDataSource.getMessageViewersModels(chatId, messageId)
+        }
+
     override suspend fun addMessageReaction(chatId: Long, messageId: Long, reaction: String) {
         messageRemoteDataSource.addMessageReaction(chatId, messageId, reaction)
     }

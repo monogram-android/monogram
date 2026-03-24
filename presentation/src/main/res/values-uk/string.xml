@@ -569,6 +569,14 @@
     <string name="remove_emoji_pack_title">Видалити набір емодзі</string>
     <string name="remove_pack_confirmation_format">Видалити набір «%1$s»?</string>
     <string name="remove_pack_description">Завантажений набір емодзі буде видалено з пристрою. Його можна буде завантажити знову.</string>
+    <string name="chat_settings_edit_custom_theme">Змінити свою тему</string>
+    <string name="chat_settings_selected">Вибрано</string>
+    <string name="emoji_style_apple">Apple</string>
+    <string name="emoji_style_twitter">Twitter</string>
+    <string name="emoji_style_windows">Windows</string>
+    <string name="emoji_style_catmoji">Catmoji</string>
+    <string name="emoji_style_noto">Noto</string>
+    <string name="emoji_style_system">Системні</string>
 
     <!-- Data and Storage -->
     <string name="data_storage_title_header">Дані та пам\'ять</string>
@@ -1496,4 +1504,110 @@
     <string name="share_profile_subtitle">Поділитися посиланням на ваш профіль у Monogram</string>
     <string name="copy_link_title">Копіювати посилання</string>
     <string name="copy_link_subtitle">Копіювати посилання на профіль Monogram у буфер обміну</string>
+
+    <!-- Chat Theme Editor -->
+    <string name="chat_theme_editor_title">Редактор тем</string>
+    <string name="chat_theme_editor_palette_mode">Режим палітри</string>
+    <string name="chat_theme_editor_light">Світла</string>
+    <string name="chat_theme_editor_dark">Темна</string>
+    <string name="chat_theme_editor_accent">Акцент</string>
+    <string name="chat_theme_editor_hex_accent">Hex-акцент</string>
+    <string name="chat_theme_editor_apply">Застосувати</string>
+    <string name="chat_theme_editor_cancel">Скасувати</string>
+    <string name="chat_theme_editor_pick">Вибрати</string>
+    <string name="chat_theme_editor_save">Зберегти</string>
+    <string name="chat_theme_editor_load">Завантажити</string>
+    <string name="chat_theme_editor_both">Обидві</string>
+    <string name="chat_theme_editor_hex">Hex</string>
+    <string name="chat_theme_editor_theme_file_name">monogram-theme.json</string>
+
+    <string name="chat_theme_editor_theme_file_saved">Файл теми збережено</string>
+    <string name="chat_theme_editor_save_failed">Помилка збереження</string>
+    <string name="chat_theme_editor_theme_loaded">Тему завантажено</string>
+    <string name="chat_theme_editor_invalid_file">Некоректний файл</string>
+    <string name="chat_theme_editor_load_failed">Помилка завантаження</string>
+
+    <string name="chat_theme_editor_theme_source_title">Джерело теми</string>
+    <string name="chat_theme_editor_theme_source_description">Виберіть одне джерело кольорів. «Своя тема» використовує ваші палітри, «Monet» — динамічні кольори Android. «AMOLED» впливає лише на темний режим.</string>
+    <string name="chat_theme_editor_custom_theme">Своя тема</string>
+    <string name="chat_theme_editor_custom_theme_description">Використовуйте власні палітри, акценти, пресети та ручне налаштування ролей.</string>
+    <string name="chat_theme_editor_monet">Monet</string>
+    <string name="chat_theme_editor_monet_description">Кольори Material You на основі шпалер системи (Android 12+).</string>
+    <string name="chat_theme_editor_amoled_dark">AMOLED (чорний)</string>
+    <string name="chat_theme_editor_amoled_dark_description">Чистий чорний колір для зменшення світіння та економії заряду на OLED-екранах.</string>
+
+    <string name="chat_theme_editor_preset_themes">Готові теми</string>
+    <string name="chat_theme_editor_preset_themes_description">Кожен пресет має світлий та темний варіанти. Натисніть «Світла», «Темна» або «Обидві», щоб застосувати їх.</string>
+    <string name="chat_theme_editor_manual_colors_title">Ручні кольори (%1$s)</string>
+    <string name="chat_theme_editor_preview_title">Перегляд: %1$s</string>
+    <string name="chat_theme_editor_preview_summary_text">Приклад тексту</string>
+    <string name="chat_theme_editor_preview_action">Дія</string>
+    <string name="chat_theme_editor_pick_title">Вибір: %1$s</string>
+    <string name="chat_theme_editor_hue_format">Відтінок %1$d°</string>
+    <string name="chat_theme_editor_saturation_format">Насиченість %1$d%%</string>
+    <string name="chat_theme_editor_brightness_format">Яскравість %1$d%%</string>
+    <string name="chat_theme_editor_alpha_format">Прозорість %1$d%%</string>
+
+    <string name="chat_theme_editor_role_primary">Основний</string>
+    <string name="chat_theme_editor_role_secondary">Вторинний</string>
+    <string name="chat_theme_editor_role_tertiary">Третинний</string>
+    <string name="chat_theme_editor_role_background">Фон</string>
+    <string name="chat_theme_editor_role_surface">Поверхня</string>
+    <string name="chat_theme_editor_role_primary_container">Контейнер осн.</string>
+    <string name="chat_theme_editor_role_surface_variant">Варіант пов.</string>
+    <string name="chat_theme_editor_role_outline">Контур</string>
+
+    <string name="chat_theme_editor_chip_light_primary">С О</string>
+    <string name="chat_theme_editor_chip_light_container">С К</string>
+    <string name="chat_theme_editor_chip_light_background">С Ф</string>
+    <string name="chat_theme_editor_chip_dark_primary">Т О</string>
+    <string name="chat_theme_editor_chip_dark_container">Т К</string>
+    <string name="chat_theme_editor_chip_dark_background">Т Ф</string>
+
+    <string name="chat_theme_editor_accent_blue">Синій</string>
+    <string name="chat_theme_editor_accent_green">Зелений</string>
+    <string name="chat_theme_editor_accent_orange">Помаранчевий</string>
+    <string name="chat_theme_editor_accent_rose">Рожевий</string>
+    <string name="chat_theme_editor_accent_indigo">Індиго</string>
+    <string name="chat_theme_editor_accent_cyan">Блакитний</string>
+
+    <string name="chat_theme_editor_preset_classic_name">Класика</string>
+    <string name="chat_theme_editor_preset_classic_description">Збалансований синій з високою читабельністю та нейтральним фоном.</string>
+    <string name="chat_theme_editor_preset_classic_tag">Щоденна</string>
+
+    <string name="chat_theme_editor_preset_forest_name">Ліс</string>
+    <string name="chat_theme_editor_preset_forest_description">Натуральні зелені тони зі спокійним контрастом.</string>
+    <string name="chat_theme_editor_preset_forest_tag">Спокійна</string>
+
+    <string name="chat_theme_editor_preset_ocean_name">Океан</string>
+    <string name="chat_theme_editor_preset_ocean_description">Свіжий синьо-блакитний градієнт з глибоким темним режимом.</string>
+    <string name="chat_theme_editor_preset_ocean_tag">Свіжа</string>
+
+    <string name="chat_theme_editor_preset_sunset_name">Захід сонця</string>
+    <string name="chat_theme_editor_preset_sunset_description">Теплі помаранчеві та коралові акценти з чітким текстом.</string>
+    <string name="chat_theme_editor_preset_sunset_tag">Тепла</string>
+
+    <string name="chat_theme_editor_preset_graphite_name">Графіт</string>
+    <string name="chat_theme_editor_preset_graphite_description">Нейтральна сіра база з синьо-сірими акцентами. Строгий стиль.</string>
+    <string name="chat_theme_editor_preset_graphite_tag">Профі</string>
+
+    <string name="chat_theme_editor_preset_mint_name">М’ята</string>
+    <string name="chat_theme_editor_preset_mint_description">Поєднання м’яти та морської хвилі з м’якими переходами.</string>
+    <string name="chat_theme_editor_preset_mint_tag">М’яка</string>
+
+    <string name="chat_theme_editor_preset_ruby_name">Рубін</string>
+    <string name="chat_theme_editor_preset_ruby_description">Глибокі червоні акценти для фокусу на важливих діях.</string>
+    <string name="chat_theme_editor_preset_ruby_tag">Смілива</string>
+
+    <string name="chat_theme_editor_preset_lavender_gray_name">Лаванда</string>
+    <string name="chat_theme_editor_preset_lavender_gray_description">Приглушений фіолетово-сірий стиль з чистим контрастом.</string>
+    <string name="chat_theme_editor_preset_lavender_gray_tag">Тиха</string>
+
+    <string name="chat_theme_editor_preset_sand_name">Пісок</string>
+    <string name="chat_theme_editor_preset_sand_description">Бежева та бурштинова палітра для мінімальної напруги очей.</string>
+    <string name="chat_theme_editor_preset_sand_tag">Затишна</string>
+
+    <string name="chat_theme_editor_preset_arctic_name">Арктика</string>
+    <string name="chat_theme_editor_preset_arctic_description">Крижаний синьо-білий стиль з дуже чіткими межами.</string>
+    <string name="chat_theme_editor_preset_arctic_tag">Чиста</string>
 </resources>

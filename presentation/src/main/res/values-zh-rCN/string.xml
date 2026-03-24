@@ -569,7 +569,15 @@
     <string name="remove_emoji_pack_title">移除表情包</string>
     <string name="remove_pack_confirmation_format">移除 %1$s 表情包？</string>
     <string name="remove_pack_description">这将从您的设备中删除已下载的表情包。您可以稍后再次下载。</string>
-
+    <string name="chat_settings_edit_custom_theme">编辑自定义主题</string>
+    <string name="chat_settings_selected">已选中</string>
+    <string name="emoji_style_apple">Apple</string>
+    <string name="emoji_style_twitter">Twitter</string>
+    <string name="emoji_style_windows">Windows</string>
+    <string name="emoji_style_catmoji">Catmoji</string>
+    <string name="emoji_style_noto">Noto</string>
+    <string name="emoji_style_system">系统默认</string>
+    
     <!-- Data and Storage -->
     <string name="data_storage_title_header">数据和存储</string>
     <string name="disk_network_usage_header">磁盘和网络使用情况</string>
@@ -1483,4 +1491,110 @@
     <string name="share_profile_subtitle">分享您的 Monogram 个人资料链接</string>
     <string name="copy_link_title">复制链接</string>
     <string name="copy_link_subtitle">将您的 Monogram 个人资料链接复制到剪贴板</string>
+
+    <!-- Chat Theme Editor -->
+    <string name="chat_theme_editor_title">主题编辑器</string>
+    <string name="chat_theme_editor_palette_mode">调色板模式</string>
+    <string name="chat_theme_editor_light">浅色</string>
+    <string name="chat_theme_editor_dark">深色</string>
+    <string name="chat_theme_editor_accent">强调色</string>
+    <string name="chat_theme_editor_hex_accent">Hex 强调色</string>
+    <string name="chat_theme_editor_apply">应用</string>
+    <string name="chat_theme_editor_cancel">取消</string>
+    <string name="chat_theme_editor_pick">选择</string>
+    <string name="chat_theme_editor_save">保存</string>
+    <string name="chat_theme_editor_load">加载</string>
+    <string name="chat_theme_editor_both">全部应用</string>
+    <string name="chat_theme_editor_hex">Hex</string>
+    <string name="chat_theme_editor_theme_file_name">monogram-theme.json</string>
+
+    <string name="chat_theme_editor_theme_file_saved">主题文件已保存</string>
+    <string name="chat_theme_editor_save_failed">保存失败</string>
+    <string name="chat_theme_editor_theme_loaded">主题已加载</string>
+    <string name="chat_theme_editor_invalid_file">无效文件</string>
+    <string name="chat_theme_editor_load_failed">加载失败</string>
+
+    <string name="chat_theme_editor_theme_source_title">主题来源</string>
+    <string name="chat_theme_editor_theme_source_description">选择一种应用色彩来源。“自定义”使用可编辑的调色板，“Monet”使用 Android 动态色彩。“AMOLED”仅影响深色背景。</string>
+    <string name="chat_theme_editor_custom_theme">自定义主题</string>
+    <string name="chat_theme_editor_custom_theme_description">使用您自己的浅色/深色调色板、强调色、预设和手动角色色彩。</string>
+    <string name="chat_theme_editor_monet">Monet</string>
+    <string name="chat_theme_editor_monet_description">根据壁纸生成的 Material You 色彩 (Android 12+)。</string>
+    <string name="chat_theme_editor_amoled_dark">AMOLED 纯黑</string>
+    <string name="chat_theme_editor_amoled_dark_description">在深色模式下强制使用纯黑色，以减少屏幕光晕并节省 OLED 屏幕电量。</string>
+
+    <string name="chat_theme_editor_preset_themes">预设主题</string>
+    <string name="chat_theme_editor_preset_themes_description">每个预设都有浅色和深色版本。点击浅色、深色或全部应用即可生效。</string>
+    <string name="chat_theme_editor_manual_colors_title">手动调色 (%1$s)</string>
+    <string name="chat_theme_editor_preview_title">%1$s 预览</string>
+    <string name="chat_theme_editor_preview_summary_text">摘要文本</string>
+    <string name="chat_theme_editor_preview_action">操作</string>
+    <string name="chat_theme_editor_pick_title">选择 %1$s</string>
+    <string name="chat_theme_editor_hue_format">色相 %1$d°</string>
+    <string name="chat_theme_editor_saturation_format">饱和度 %1$d%%</string>
+    <string name="chat_theme_editor_brightness_format">亮度 %1$d%%</string>
+    <string name="chat_theme_editor_alpha_format">不透明度 %1$d%%</string>
+
+    <string name="chat_theme_editor_role_primary">主要</string>
+    <string name="chat_theme_editor_role_secondary">次要</string>
+    <string name="chat_theme_editor_role_tertiary">第三色</string>
+    <string name="chat_theme_editor_role_background">背景</string>
+    <string name="chat_theme_editor_role_surface">表面</string>
+    <string name="chat_theme_editor_role_primary_container">主要容器</string>
+    <string name="chat_theme_editor_role_surface_variant">表面变体</string>
+    <string name="chat_theme_editor_role_outline">轮廓</string>
+
+    <string name="chat_theme_editor_chip_light_primary">L P</string>
+    <string name="chat_theme_editor_chip_light_container">L C</string>
+    <string name="chat_theme_editor_chip_light_background">L BG</string>
+    <string name="chat_theme_editor_chip_dark_primary">D P</string>
+    <string name="chat_theme_editor_chip_dark_container">D C</string>
+    <string name="chat_theme_editor_chip_dark_background">D BG</string>
+
+    <string name="chat_theme_editor_accent_blue">蓝色</string>
+    <string name="chat_theme_editor_accent_green">绿色</string>
+    <string name="chat_theme_editor_accent_orange">橙色</string>
+    <string name="chat_theme_editor_accent_rose">玫瑰红</string>
+    <string name="chat_theme_editor_accent_indigo">靛蓝色</string>
+    <string name="chat_theme_editor_accent_cyan">青色</string>
+
+    <string name="chat_theme_editor_preset_classic_name">经典</string>
+    <string name="chat_theme_editor_preset_classic_description">均衡的蓝色，具有清晰的易读性和中性的表面色。</string>
+    <string name="chat_theme_editor_preset_classic_tag">日常</string>
+
+    <string name="chat_theme_editor_preset_forest_name">森林</string>
+    <string name="chat_theme_editor_preset_forest_description">具有冷静对比度和柔和容器色调的自然绿色。</string>
+    <string name="chat_theme_editor_preset_forest_tag">冷静</string>
+
+    <string name="chat_theme_editor_preset_ocean_name">海洋</string>
+    <string name="chat_theme_editor_preset_ocean_description">清爽的青蓝色渐变，包含清新的浅色和深邃的深色模式。</string>
+    <string name="chat_theme_editor_preset_ocean_tag">清新</string>
+
+    <string name="chat_theme_editor_preset_sunset_name">日落</string>
+    <string name="chat_theme_editor_preset_sunset_description">温暖的橙色和珊瑚色调，具有极高的前景色清晰度。</string>
+    <string name="chat_theme_editor_preset_sunset_tag">温暖</string>
+
+    <string name="chat_theme_editor_preset_graphite_name">石墨</string>
+    <string name="chat_theme_editor_preset_graphite_description">中性灰阶基调，配以蓝灰色点缀，结构感强。</string>
+    <string name="chat_theme_editor_preset_graphite_tag">专业</string>
+
+    <string name="chat_theme_editor_preset_mint_name">薄荷</string>
+    <string name="chat_theme_editor_preset_mint_description">清新的薄荷色与鸭绿色的组合，容器色调温和。</string>
+    <string name="chat_theme_editor_preset_mint_tag">柔和</string>
+
+    <string name="chat_theme_editor_preset_ruby_name">红宝石</string>
+    <string name="chat_theme_editor_preset_ruby_description">深红色调配以中性容器，强调行动视觉焦点。</string>
+    <string name="chat_theme_editor_preset_ruby_tag">大胆</string>
+
+    <string name="chat_theme_editor_preset_lavender_gray_name">薰衣草灰</string>
+    <string name="chat_theme_editor_preset_lavender_gray_description">柔和的紫灰色调，具有受控的饱和度和洁净的对比度。</string>
+    <string name="chat_theme_editor_preset_lavender_gray_tag">沉静</string>
+
+    <string name="chat_theme_editor_preset_sand_name">沙滩</string>
+    <string name="chat_theme_editor_preset_sand_description">米色和琥珀色调，专为极柔和的视觉效果而设计。</string>
+    <string name="chat_theme_editor_preset_sand_tag">舒适</string>
+
+    <string name="chat_theme_editor_preset_arctic_name">极地</string>
+    <string name="chat_theme_editor_preset_arctic_description">冰蓝色与白色的观感，具有极佳的可读性和清晰的边界。</string>
+    <string name="chat_theme_editor_preset_arctic_tag">纯净</string>
 </resources>

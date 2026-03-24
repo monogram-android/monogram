@@ -1,5 +1,7 @@
 package org.monogram.presentation.settings.chatSettings
 
+import android.graphics.Color.colorToHSV
+import android.graphics.Color.HSVToColor
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
@@ -16,6 +18,7 @@ import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.*
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
+import org.json.JSONObject
 import java.io.File
 import java.net.URL
 
@@ -44,6 +47,31 @@ interface ChatSettingsComponent {
     fun onShowLinkPreviewsChanged(enabled: Boolean)
     fun onNightModeChanged(mode: NightMode)
     fun onDynamicColorsChanged(enabled: Boolean)
+    fun onAmoledThemeChanged(enabled: Boolean)
+    fun onCustomThemeEnabledChanged(enabled: Boolean)
+    fun onThemePrimaryColorChanged(color: Int)
+    fun onThemeSecondaryColorChanged(color: Int)
+    fun onThemeTertiaryColorChanged(color: Int)
+    fun onThemeBackgroundColorChanged(color: Int)
+    fun onThemeSurfaceColorChanged(color: Int)
+    fun onThemePrimaryContainerColorChanged(color: Int)
+    fun onThemeSecondaryContainerColorChanged(color: Int)
+    fun onThemeTertiaryContainerColorChanged(color: Int)
+    fun onThemeSurfaceVariantColorChanged(color: Int)
+    fun onThemeOutlineColorChanged(color: Int)
+    fun onThemeDarkPrimaryColorChanged(color: Int)
+    fun onThemeDarkSecondaryColorChanged(color: Int)
+    fun onThemeDarkTertiaryColorChanged(color: Int)
+    fun onThemeDarkBackgroundColorChanged(color: Int)
+    fun onThemeDarkSurfaceColorChanged(color: Int)
+    fun onThemeDarkPrimaryContainerColorChanged(color: Int)
+    fun onThemeDarkSecondaryContainerColorChanged(color: Int)
+    fun onThemeDarkTertiaryContainerColorChanged(color: Int)
+    fun onThemeDarkSurfaceVariantColorChanged(color: Int)
+    fun onThemeDarkOutlineColorChanged(color: Int)
+    fun onApplyThemeAccent(color: Int, darkPalette: Boolean)
+    fun exportCustomThemeJson(): String
+    fun importCustomThemeJson(json: String): Boolean
     fun onNightModeStartTimeChanged(time: String)
     fun onNightModeEndTimeChanged(time: String)
     fun onNightModeBrightnessThresholdChanged(threshold: Float)
@@ -78,6 +106,28 @@ interface ChatSettingsComponent {
         val showLinkPreviews: Boolean = true,
         val nightMode: NightMode = NightMode.SYSTEM,
         val isDynamicColorsEnabled: Boolean = true,
+        val isAmoledThemeEnabled: Boolean = false,
+        val isCustomThemeEnabled: Boolean = false,
+        val themePrimaryColor: Int = 0xFF3390EC.toInt(),
+        val themeSecondaryColor: Int = 0xFF4C7599.toInt(),
+        val themeTertiaryColor: Int = 0xFF00ACC1.toInt(),
+        val themeBackgroundColor: Int = 0xFFFFFBFE.toInt(),
+        val themeSurfaceColor: Int = 0xFFFFFBFE.toInt(),
+        val themePrimaryContainerColor: Int = 0xFFD4E3FF.toInt(),
+        val themeSecondaryContainerColor: Int = 0xFFD0E4F7.toInt(),
+        val themeTertiaryContainerColor: Int = 0xFFC4EEF4.toInt(),
+        val themeSurfaceVariantColor: Int = 0xFFE1E2EC.toInt(),
+        val themeOutlineColor: Int = 0xFF757680.toInt(),
+        val themeDarkPrimaryColor: Int = 0xFF64B5F6.toInt(),
+        val themeDarkSecondaryColor: Int = 0xFF81A9CA.toInt(),
+        val themeDarkTertiaryColor: Int = 0xFF4DD0E1.toInt(),
+        val themeDarkBackgroundColor: Int = 0xFF121212.toInt(),
+        val themeDarkSurfaceColor: Int = 0xFF121212.toInt(),
+        val themeDarkPrimaryContainerColor: Int = 0xFF224A77.toInt(),
+        val themeDarkSecondaryContainerColor: Int = 0xFF334F65.toInt(),
+        val themeDarkTertiaryContainerColor: Int = 0xFF1E636F.toInt(),
+        val themeDarkSurfaceVariantColor: Int = 0xFF44474F.toInt(),
+        val themeDarkOutlineColor: Int = 0xFF8E9099.toInt(),
         val nightModeStartTime: String = "22:00",
         val nightModeEndTime: String = "07:00",
         val nightModeBrightnessThreshold: Float = 0.2f,
@@ -135,6 +185,28 @@ class DefaultChatSettingsComponent(
             showLinkPreviews = appPreferences.showLinkPreviews.value,
             nightMode = appPreferences.nightMode.value,
             isDynamicColorsEnabled = appPreferences.isDynamicColorsEnabled.value,
+            isAmoledThemeEnabled = appPreferences.isAmoledThemeEnabled.value,
+            isCustomThemeEnabled = appPreferences.isCustomThemeEnabled.value,
+            themePrimaryColor = appPreferences.themePrimaryColor.value,
+            themeSecondaryColor = appPreferences.themeSecondaryColor.value,
+            themeTertiaryColor = appPreferences.themeTertiaryColor.value,
+            themeBackgroundColor = appPreferences.themeBackgroundColor.value,
+            themeSurfaceColor = appPreferences.themeSurfaceColor.value,
+            themePrimaryContainerColor = appPreferences.themePrimaryContainerColor.value,
+            themeSecondaryContainerColor = appPreferences.themeSecondaryContainerColor.value,
+            themeTertiaryContainerColor = appPreferences.themeTertiaryContainerColor.value,
+            themeSurfaceVariantColor = appPreferences.themeSurfaceVariantColor.value,
+            themeOutlineColor = appPreferences.themeOutlineColor.value,
+            themeDarkPrimaryColor = appPreferences.themeDarkPrimaryColor.value,
+            themeDarkSecondaryColor = appPreferences.themeDarkSecondaryColor.value,
+            themeDarkTertiaryColor = appPreferences.themeDarkTertiaryColor.value,
+            themeDarkBackgroundColor = appPreferences.themeDarkBackgroundColor.value,
+            themeDarkSurfaceColor = appPreferences.themeDarkSurfaceColor.value,
+            themeDarkPrimaryContainerColor = appPreferences.themeDarkPrimaryContainerColor.value,
+            themeDarkSecondaryContainerColor = appPreferences.themeDarkSecondaryContainerColor.value,
+            themeDarkTertiaryContainerColor = appPreferences.themeDarkTertiaryContainerColor.value,
+            themeDarkSurfaceVariantColor = appPreferences.themeDarkSurfaceVariantColor.value,
+            themeDarkOutlineColor = appPreferences.themeDarkOutlineColor.value,
             nightModeStartTime = appPreferences.nightModeStartTime.value,
             nightModeEndTime = appPreferences.nightModeEndTime.value,
             nightModeBrightnessThreshold = appPreferences.nightModeBrightnessThreshold.value,
@@ -255,6 +327,138 @@ class DefaultChatSettingsComponent(
         appPreferences.isDynamicColorsEnabled
             .onEach { enabled ->
                 _state.update { it.copy(isDynamicColorsEnabled = enabled) }
+            }
+            .launchIn(scope)
+
+        appPreferences.isAmoledThemeEnabled
+            .onEach { enabled ->
+                _state.update { it.copy(isAmoledThemeEnabled = enabled) }
+            }
+            .launchIn(scope)
+
+        appPreferences.isCustomThemeEnabled
+            .onEach { enabled ->
+                _state.update { it.copy(isCustomThemeEnabled = enabled) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themePrimaryColor
+            .onEach { color ->
+                _state.update { it.copy(themePrimaryColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeSecondaryColor
+            .onEach { color ->
+                _state.update { it.copy(themeSecondaryColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeTertiaryColor
+            .onEach { color ->
+                _state.update { it.copy(themeTertiaryColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeBackgroundColor
+            .onEach { color ->
+                _state.update { it.copy(themeBackgroundColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeSurfaceColor
+            .onEach { color ->
+                _state.update { it.copy(themeSurfaceColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themePrimaryContainerColor
+            .onEach { color ->
+                _state.update { it.copy(themePrimaryContainerColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeSecondaryContainerColor
+            .onEach { color ->
+                _state.update { it.copy(themeSecondaryContainerColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeTertiaryContainerColor
+            .onEach { color ->
+                _state.update { it.copy(themeTertiaryContainerColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeSurfaceVariantColor
+            .onEach { color ->
+                _state.update { it.copy(themeSurfaceVariantColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeOutlineColor
+            .onEach { color ->
+                _state.update { it.copy(themeOutlineColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeDarkPrimaryColor
+            .onEach { color ->
+                _state.update { it.copy(themeDarkPrimaryColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeDarkSecondaryColor
+            .onEach { color ->
+                _state.update { it.copy(themeDarkSecondaryColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeDarkTertiaryColor
+            .onEach { color ->
+                _state.update { it.copy(themeDarkTertiaryColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeDarkBackgroundColor
+            .onEach { color ->
+                _state.update { it.copy(themeDarkBackgroundColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeDarkSurfaceColor
+            .onEach { color ->
+                _state.update { it.copy(themeDarkSurfaceColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeDarkPrimaryContainerColor
+            .onEach { color ->
+                _state.update { it.copy(themeDarkPrimaryContainerColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeDarkSecondaryContainerColor
+            .onEach { color ->
+                _state.update { it.copy(themeDarkSecondaryContainerColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeDarkTertiaryContainerColor
+            .onEach { color ->
+                _state.update { it.copy(themeDarkTertiaryContainerColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeDarkSurfaceVariantColor
+            .onEach { color ->
+                _state.update { it.copy(themeDarkSurfaceVariantColor = color) }
+            }
+            .launchIn(scope)
+
+        appPreferences.themeDarkOutlineColor
+            .onEach { color ->
+                _state.update { it.copy(themeDarkOutlineColor = color) }
             }
             .launchIn(scope)
 
@@ -495,6 +699,209 @@ class DefaultChatSettingsComponent(
         appPreferences.setDynamicColorsEnabled(enabled)
     }
 
+    override fun onAmoledThemeChanged(enabled: Boolean) {
+        appPreferences.setAmoledThemeEnabled(enabled)
+    }
+
+    override fun onCustomThemeEnabledChanged(enabled: Boolean) {
+        appPreferences.setCustomThemeEnabled(enabled)
+    }
+
+    override fun onThemePrimaryColorChanged(color: Int) {
+        appPreferences.setThemePrimaryColor(color)
+    }
+
+    override fun onThemeSecondaryColorChanged(color: Int) {
+        appPreferences.setThemeSecondaryColor(color)
+    }
+
+    override fun onThemeTertiaryColorChanged(color: Int) {
+        appPreferences.setThemeTertiaryColor(color)
+    }
+
+    override fun onThemeBackgroundColorChanged(color: Int) {
+        appPreferences.setThemeBackgroundColor(color)
+    }
+
+    override fun onThemeSurfaceColorChanged(color: Int) {
+        appPreferences.setThemeSurfaceColor(color)
+    }
+
+    override fun onThemePrimaryContainerColorChanged(color: Int) {
+        appPreferences.setThemePrimaryContainerColor(color)
+    }
+
+    override fun onThemeSecondaryContainerColorChanged(color: Int) {
+        appPreferences.setThemeSecondaryContainerColor(color)
+    }
+
+    override fun onThemeTertiaryContainerColorChanged(color: Int) {
+        appPreferences.setThemeTertiaryContainerColor(color)
+    }
+
+    override fun onThemeSurfaceVariantColorChanged(color: Int) {
+        appPreferences.setThemeSurfaceVariantColor(color)
+    }
+
+    override fun onThemeOutlineColorChanged(color: Int) {
+        appPreferences.setThemeOutlineColor(color)
+    }
+
+    override fun onThemeDarkPrimaryColorChanged(color: Int) {
+        appPreferences.setThemeDarkPrimaryColor(color)
+    }
+
+    override fun onThemeDarkSecondaryColorChanged(color: Int) {
+        appPreferences.setThemeDarkSecondaryColor(color)
+    }
+
+    override fun onThemeDarkTertiaryColorChanged(color: Int) {
+        appPreferences.setThemeDarkTertiaryColor(color)
+    }
+
+    override fun onThemeDarkBackgroundColorChanged(color: Int) {
+        appPreferences.setThemeDarkBackgroundColor(color)
+    }
+
+    override fun onThemeDarkSurfaceColorChanged(color: Int) {
+        appPreferences.setThemeDarkSurfaceColor(color)
+    }
+
+    override fun onThemeDarkPrimaryContainerColorChanged(color: Int) {
+        appPreferences.setThemeDarkPrimaryContainerColor(color)
+    }
+
+    override fun onThemeDarkSecondaryContainerColorChanged(color: Int) {
+        appPreferences.setThemeDarkSecondaryContainerColor(color)
+    }
+
+    override fun onThemeDarkTertiaryContainerColorChanged(color: Int) {
+        appPreferences.setThemeDarkTertiaryContainerColor(color)
+    }
+
+    override fun onThemeDarkSurfaceVariantColorChanged(color: Int) {
+        appPreferences.setThemeDarkSurfaceVariantColor(color)
+    }
+
+    override fun onThemeDarkOutlineColorChanged(color: Int) {
+        appPreferences.setThemeDarkOutlineColor(color)
+    }
+
+    override fun onApplyThemeAccent(color: Int, darkPalette: Boolean) {
+        val secondary = shiftHue(color, 18f)
+        val tertiary = shiftHue(color, 36f)
+        val primaryContainer = shiftSaturationAndValue(color, saturationScale = 0.45f, valueScale = if (darkPalette) 0.65f else 1.15f)
+        val secondaryContainer = shiftSaturationAndValue(secondary, saturationScale = 0.45f, valueScale = if (darkPalette) 0.65f else 1.15f)
+        val tertiaryContainer = shiftSaturationAndValue(tertiary, saturationScale = 0.45f, valueScale = if (darkPalette) 0.65f else 1.15f)
+        if (darkPalette) {
+            appPreferences.setThemeDarkPrimaryColor(color)
+            appPreferences.setThemeDarkSecondaryColor(secondary)
+            appPreferences.setThemeDarkTertiaryColor(tertiary)
+            appPreferences.setThemeDarkPrimaryContainerColor(primaryContainer)
+            appPreferences.setThemeDarkSecondaryContainerColor(secondaryContainer)
+            appPreferences.setThemeDarkTertiaryContainerColor(tertiaryContainer)
+        } else {
+            appPreferences.setThemePrimaryColor(color)
+            appPreferences.setThemeSecondaryColor(secondary)
+            appPreferences.setThemeTertiaryColor(tertiary)
+            appPreferences.setThemePrimaryContainerColor(primaryContainer)
+            appPreferences.setThemeSecondaryContainerColor(secondaryContainer)
+            appPreferences.setThemeTertiaryContainerColor(tertiaryContainer)
+        }
+    }
+
+    override fun exportCustomThemeJson(): String {
+        return JSONObject()
+            .put(
+                "lightPalette",
+                JSONObject()
+                    .put("primaryColor", state.value.themePrimaryColor)
+                    .put("secondaryColor", state.value.themeSecondaryColor)
+                    .put("tertiaryColor", state.value.themeTertiaryColor)
+                    .put("backgroundColor", state.value.themeBackgroundColor)
+                    .put("surfaceColor", state.value.themeSurfaceColor)
+                    .put("primaryContainerColor", state.value.themePrimaryContainerColor)
+                    .put("secondaryContainerColor", state.value.themeSecondaryContainerColor)
+                    .put("tertiaryContainerColor", state.value.themeTertiaryContainerColor)
+                    .put("surfaceVariantColor", state.value.themeSurfaceVariantColor)
+                    .put("outlineColor", state.value.themeOutlineColor)
+            )
+            .put(
+                "darkPalette",
+                JSONObject()
+                    .put("primaryColor", state.value.themeDarkPrimaryColor)
+                    .put("secondaryColor", state.value.themeDarkSecondaryColor)
+                    .put("tertiaryColor", state.value.themeDarkTertiaryColor)
+                    .put("backgroundColor", state.value.themeDarkBackgroundColor)
+                    .put("surfaceColor", state.value.themeDarkSurfaceColor)
+                    .put("primaryContainerColor", state.value.themeDarkPrimaryContainerColor)
+                    .put("secondaryContainerColor", state.value.themeDarkSecondaryContainerColor)
+                    .put("tertiaryContainerColor", state.value.themeDarkTertiaryContainerColor)
+                    .put("surfaceVariantColor", state.value.themeDarkSurfaceVariantColor)
+                    .put("outlineColor", state.value.themeDarkOutlineColor)
+            )
+            .put("amoledEnabled", state.value.isAmoledThemeEnabled)
+            .put("customThemeEnabled", state.value.isCustomThemeEnabled)
+            .put("dynamicColorsEnabled", state.value.isDynamicColorsEnabled)
+            .toString(2)
+    }
+
+    override fun importCustomThemeJson(json: String): Boolean {
+        return runCatching {
+            val data = JSONObject(json)
+            val light = data.optJSONObject("lightPalette") ?: data
+            val dark = data.optJSONObject("darkPalette") ?: data
+
+            val primary = light.getInt("primaryColor")
+            val secondary = light.getInt("secondaryColor")
+            val tertiary = light.getInt("tertiaryColor")
+            val background = light.getInt("backgroundColor")
+            val surface = light.getInt("surfaceColor")
+            val darkPrimary = dark.optInt("primaryColor", primary)
+            val darkSecondary = dark.optInt("secondaryColor", secondary)
+            val darkTertiary = dark.optInt("tertiaryColor", tertiary)
+            val darkBackground = dark.optInt("backgroundColor", 0xFF121212.toInt())
+            val darkSurface = dark.optInt("surfaceColor", 0xFF121212.toInt())
+            val primaryContainer = light.optInt("primaryContainerColor", shiftSaturationAndValue(primary, 0.45f, 1.15f))
+            val secondaryContainer = light.optInt("secondaryContainerColor", shiftSaturationAndValue(secondary, 0.45f, 1.15f))
+            val tertiaryContainer = light.optInt("tertiaryContainerColor", shiftSaturationAndValue(tertiary, 0.45f, 1.15f))
+            val surfaceVariant = light.optInt("surfaceVariantColor", 0xFFE1E2EC.toInt())
+            val outline = light.optInt("outlineColor", 0xFF757680.toInt())
+            val darkPrimaryContainer = dark.optInt("primaryContainerColor", shiftSaturationAndValue(darkPrimary, 0.45f, 0.65f))
+            val darkSecondaryContainer = dark.optInt("secondaryContainerColor", shiftSaturationAndValue(darkSecondary, 0.45f, 0.65f))
+            val darkTertiaryContainer = dark.optInt("tertiaryContainerColor", shiftSaturationAndValue(darkTertiary, 0.45f, 0.65f))
+            val darkSurfaceVariant = dark.optInt("surfaceVariantColor", 0xFF44474F.toInt())
+            val darkOutline = dark.optInt("outlineColor", 0xFF8E9099.toInt())
+            val amoled = data.optBoolean("amoledEnabled", false)
+            val customEnabled = data.optBoolean("customThemeEnabled", true)
+            val dynamicEnabled = data.optBoolean("dynamicColorsEnabled", true)
+
+            appPreferences.setThemePrimaryColor(primary)
+            appPreferences.setThemeSecondaryColor(secondary)
+            appPreferences.setThemeTertiaryColor(tertiary)
+            appPreferences.setThemeBackgroundColor(background)
+            appPreferences.setThemeSurfaceColor(surface)
+            appPreferences.setThemePrimaryContainerColor(primaryContainer)
+            appPreferences.setThemeSecondaryContainerColor(secondaryContainer)
+            appPreferences.setThemeTertiaryContainerColor(tertiaryContainer)
+            appPreferences.setThemeSurfaceVariantColor(surfaceVariant)
+            appPreferences.setThemeOutlineColor(outline)
+            appPreferences.setThemeDarkPrimaryColor(darkPrimary)
+            appPreferences.setThemeDarkSecondaryColor(darkSecondary)
+            appPreferences.setThemeDarkTertiaryColor(darkTertiary)
+            appPreferences.setThemeDarkBackgroundColor(darkBackground)
+            appPreferences.setThemeDarkSurfaceColor(darkSurface)
+            appPreferences.setThemeDarkPrimaryContainerColor(darkPrimaryContainer)
+            appPreferences.setThemeDarkSecondaryContainerColor(darkSecondaryContainer)
+            appPreferences.setThemeDarkTertiaryContainerColor(darkTertiaryContainer)
+            appPreferences.setThemeDarkSurfaceVariantColor(darkSurfaceVariant)
+            appPreferences.setThemeDarkOutlineColor(darkOutline)
+            appPreferences.setAmoledThemeEnabled(amoled)
+            appPreferences.setCustomThemeEnabled(customEnabled)
+            appPreferences.setDynamicColorsEnabled(dynamicEnabled)
+        }.isSuccess
+    }
+
     override fun onNightModeStartTimeChanged(time: String) {
         appPreferences.setNightModeStartTime(time)
     }
@@ -688,5 +1095,20 @@ class DefaultChatSettingsComponent(
 
     override fun onShowChatListPhotosChanged(enabled: Boolean) {
         appPreferences.setShowChatListPhotos(enabled)
+    }
+
+    private fun shiftHue(color: Int, delta: Float): Int {
+        val hsv = FloatArray(3)
+        colorToHSV(color, hsv)
+        hsv[0] = (hsv[0] + delta + 360f) % 360f
+        return HSVToColor(hsv)
+    }
+
+    private fun shiftSaturationAndValue(color: Int, saturationScale: Float, valueScale: Float): Int {
+        val hsv = FloatArray(3)
+        colorToHSV(color, hsv)
+        hsv[1] = (hsv[1] * saturationScale).coerceIn(0f, 1f)
+        hsv[2] = (hsv[2] * valueScale).coerceIn(0f, 1f)
+        return HSVToColor(hsv)
     }
 }

@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -48,7 +47,6 @@ import org.monogram.presentation.core.ui.SettingsTile
 @Composable
 fun ChatSettingsContent(component: ChatSettingsComponent) {
     val state by component.state.subscribeAsState()
-    val context = LocalContext.current
 
     val blueColor = Color(0xFF4285F4)
     val greenColor = Color(0xFF34A853)
@@ -60,6 +58,16 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
 
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
+    var showThemeEditor by remember { mutableStateOf(false) }
+
+    if (showThemeEditor) {
+        ChatThemeEditorScreen(
+            state = state,
+            component = component,
+            onBack = { showThemeEditor = false }
+        )
+        return
+    }
 
     Scaffold(
         topBar = {
@@ -499,21 +507,26 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                                 else -> Spacer(modifier = Modifier.height(0.dp))
                             }
                         }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        FilledTonalButton(
+                            onClick = { showThemeEditor = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Palette,
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Edit custom theme")
+                        }
                     }
                 }
-            }
-
-            item {
-                SectionHeader(stringResource(R.string.dynamic_colors_header))
-                SettingsSwitchTile(
-                    icon = Icons.Rounded.Palette,
-                    title = stringResource(R.string.dynamic_colors_title),
-                    subtitle = stringResource(R.string.dynamic_colors_subtitle),
-                    checked = state.isDynamicColorsEnabled,
-                    iconColor = purpleColor,
-                    position = ItemPosition.STANDALONE,
-                    onCheckedChange = component::onDynamicColorsChanged
-                )
             }
 
             item {

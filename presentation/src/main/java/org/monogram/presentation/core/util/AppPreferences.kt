@@ -81,6 +81,88 @@ class AppPreferences(
     private val _isDynamicColorsEnabled = MutableStateFlow(prefs.getBoolean(KEY_DYNAMIC_COLORS, true))
     val isDynamicColorsEnabled: StateFlow<Boolean> = _isDynamicColorsEnabled
 
+    private val _isAmoledThemeEnabled = MutableStateFlow(prefs.getBoolean(KEY_AMOLED_THEME, false))
+    val isAmoledThemeEnabled: StateFlow<Boolean> = _isAmoledThemeEnabled
+
+    private val _isCustomThemeEnabled = MutableStateFlow(prefs.getBoolean(KEY_CUSTOM_THEME_ENABLED, false))
+    val isCustomThemeEnabled: StateFlow<Boolean> = _isCustomThemeEnabled
+
+    private val _themePrimaryColor = MutableStateFlow(prefs.getInt(KEY_THEME_PRIMARY_COLOR, 0xFF3390EC.toInt()))
+    val themePrimaryColor: StateFlow<Int> = _themePrimaryColor
+
+    private val _themeSecondaryColor = MutableStateFlow(prefs.getInt(KEY_THEME_SECONDARY_COLOR, 0xFF4C7599.toInt()))
+    val themeSecondaryColor: StateFlow<Int> = _themeSecondaryColor
+
+    private val _themeTertiaryColor = MutableStateFlow(prefs.getInt(KEY_THEME_TERTIARY_COLOR, 0xFF00ACC1.toInt()))
+    val themeTertiaryColor: StateFlow<Int> = _themeTertiaryColor
+
+    private val _themeBackgroundColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_BACKGROUND_COLOR, 0xFFFFFBFE.toInt()))
+    val themeBackgroundColor: StateFlow<Int> = _themeBackgroundColor
+
+    private val _themeSurfaceColor = MutableStateFlow(prefs.getInt(KEY_THEME_SURFACE_COLOR, 0xFFFFFBFE.toInt()))
+    val themeSurfaceColor: StateFlow<Int> = _themeSurfaceColor
+
+    private val _themePrimaryContainerColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_PRIMARY_CONTAINER_COLOR, 0xFFD4E3FF.toInt()))
+    val themePrimaryContainerColor: StateFlow<Int> = _themePrimaryContainerColor
+
+    private val _themeSecondaryContainerColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_SECONDARY_CONTAINER_COLOR, 0xFFD0E4F7.toInt()))
+    val themeSecondaryContainerColor: StateFlow<Int> = _themeSecondaryContainerColor
+
+    private val _themeTertiaryContainerColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_TERTIARY_CONTAINER_COLOR, 0xFFC4EEF4.toInt()))
+    val themeTertiaryContainerColor: StateFlow<Int> = _themeTertiaryContainerColor
+
+    private val _themeSurfaceVariantColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_SURFACE_VARIANT_COLOR, 0xFFE1E2EC.toInt()))
+    val themeSurfaceVariantColor: StateFlow<Int> = _themeSurfaceVariantColor
+
+    private val _themeOutlineColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_OUTLINE_COLOR, 0xFF757680.toInt()))
+    val themeOutlineColor: StateFlow<Int> = _themeOutlineColor
+
+    private val _themeDarkPrimaryColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_DARK_PRIMARY_COLOR, 0xFF64B5F6.toInt()))
+    val themeDarkPrimaryColor: StateFlow<Int> = _themeDarkPrimaryColor
+
+    private val _themeDarkSecondaryColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_DARK_SECONDARY_COLOR, 0xFF81A9CA.toInt()))
+    val themeDarkSecondaryColor: StateFlow<Int> = _themeDarkSecondaryColor
+
+    private val _themeDarkTertiaryColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_DARK_TERTIARY_COLOR, 0xFF4DD0E1.toInt()))
+    val themeDarkTertiaryColor: StateFlow<Int> = _themeDarkTertiaryColor
+
+    private val _themeDarkBackgroundColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_DARK_BACKGROUND_COLOR, 0xFF121212.toInt()))
+    val themeDarkBackgroundColor: StateFlow<Int> = _themeDarkBackgroundColor
+
+    private val _themeDarkSurfaceColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_DARK_SURFACE_COLOR, 0xFF121212.toInt()))
+    val themeDarkSurfaceColor: StateFlow<Int> = _themeDarkSurfaceColor
+
+    private val _themeDarkPrimaryContainerColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_DARK_PRIMARY_CONTAINER_COLOR, 0xFF224A77.toInt()))
+    val themeDarkPrimaryContainerColor: StateFlow<Int> = _themeDarkPrimaryContainerColor
+
+    private val _themeDarkSecondaryContainerColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_DARK_SECONDARY_CONTAINER_COLOR, 0xFF334F65.toInt()))
+    val themeDarkSecondaryContainerColor: StateFlow<Int> = _themeDarkSecondaryContainerColor
+
+    private val _themeDarkTertiaryContainerColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_DARK_TERTIARY_CONTAINER_COLOR, 0xFF1E636F.toInt()))
+    val themeDarkTertiaryContainerColor: StateFlow<Int> = _themeDarkTertiaryContainerColor
+
+    private val _themeDarkSurfaceVariantColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_DARK_SURFACE_VARIANT_COLOR, 0xFF44474F.toInt()))
+    val themeDarkSurfaceVariantColor: StateFlow<Int> = _themeDarkSurfaceVariantColor
+
+    private val _themeDarkOutlineColor =
+        MutableStateFlow(prefs.getInt(KEY_THEME_DARK_OUTLINE_COLOR, 0xFF8E9099.toInt()))
+    val themeDarkOutlineColor: StateFlow<Int> = _themeDarkOutlineColor
+
     private val _nightModeStartTime = MutableStateFlow(prefs.getString(KEY_NIGHT_MODE_START, "22:00") ?: "22:00")
     val nightModeStartTime: StateFlow<String> = _nightModeStartTime
 
@@ -356,6 +438,116 @@ class AppPreferences(
     fun setDynamicColorsEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_DYNAMIC_COLORS, enabled).apply()
         _isDynamicColorsEnabled.value = enabled
+    }
+
+    fun setAmoledThemeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AMOLED_THEME, enabled).apply()
+        _isAmoledThemeEnabled.value = enabled
+    }
+
+    fun setCustomThemeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CUSTOM_THEME_ENABLED, enabled).apply()
+        _isCustomThemeEnabled.value = enabled
+    }
+
+    fun setThemePrimaryColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_PRIMARY_COLOR, color).apply()
+        _themePrimaryColor.value = color
+    }
+
+    fun setThemeSecondaryColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_SECONDARY_COLOR, color).apply()
+        _themeSecondaryColor.value = color
+    }
+
+    fun setThemeTertiaryColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_TERTIARY_COLOR, color).apply()
+        _themeTertiaryColor.value = color
+    }
+
+    fun setThemeBackgroundColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_BACKGROUND_COLOR, color).apply()
+        _themeBackgroundColor.value = color
+    }
+
+    fun setThemeSurfaceColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_SURFACE_COLOR, color).apply()
+        _themeSurfaceColor.value = color
+    }
+
+    fun setThemePrimaryContainerColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_PRIMARY_CONTAINER_COLOR, color).apply()
+        _themePrimaryContainerColor.value = color
+    }
+
+    fun setThemeSecondaryContainerColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_SECONDARY_CONTAINER_COLOR, color).apply()
+        _themeSecondaryContainerColor.value = color
+    }
+
+    fun setThemeTertiaryContainerColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_TERTIARY_CONTAINER_COLOR, color).apply()
+        _themeTertiaryContainerColor.value = color
+    }
+
+    fun setThemeSurfaceVariantColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_SURFACE_VARIANT_COLOR, color).apply()
+        _themeSurfaceVariantColor.value = color
+    }
+
+    fun setThemeOutlineColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_OUTLINE_COLOR, color).apply()
+        _themeOutlineColor.value = color
+    }
+
+    fun setThemeDarkPrimaryColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_DARK_PRIMARY_COLOR, color).apply()
+        _themeDarkPrimaryColor.value = color
+    }
+
+    fun setThemeDarkSecondaryColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_DARK_SECONDARY_COLOR, color).apply()
+        _themeDarkSecondaryColor.value = color
+    }
+
+    fun setThemeDarkTertiaryColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_DARK_TERTIARY_COLOR, color).apply()
+        _themeDarkTertiaryColor.value = color
+    }
+
+    fun setThemeDarkBackgroundColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_DARK_BACKGROUND_COLOR, color).apply()
+        _themeDarkBackgroundColor.value = color
+    }
+
+    fun setThemeDarkSurfaceColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_DARK_SURFACE_COLOR, color).apply()
+        _themeDarkSurfaceColor.value = color
+    }
+
+    fun setThemeDarkPrimaryContainerColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_DARK_PRIMARY_CONTAINER_COLOR, color).apply()
+        _themeDarkPrimaryContainerColor.value = color
+    }
+
+    fun setThemeDarkSecondaryContainerColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_DARK_SECONDARY_CONTAINER_COLOR, color).apply()
+        _themeDarkSecondaryContainerColor.value = color
+    }
+
+    fun setThemeDarkTertiaryContainerColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_DARK_TERTIARY_CONTAINER_COLOR, color).apply()
+        _themeDarkTertiaryContainerColor.value = color
+    }
+
+    fun setThemeDarkSurfaceVariantColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_DARK_SURFACE_VARIANT_COLOR, color).apply()
+        _themeDarkSurfaceVariantColor.value = color
+    }
+
+    fun setThemeDarkOutlineColor(color: Int) {
+        prefs.edit().putInt(KEY_THEME_DARK_OUTLINE_COLOR, color).apply()
+        _themeDarkOutlineColor.value = color
     }
 
     fun setNightModeStartTime(time: String) {
@@ -672,6 +864,28 @@ class AppPreferences(
         _isPlayerZoomEnabled.value = true
         _nightMode.value = NightMode.SYSTEM
         _isDynamicColorsEnabled.value = true
+        _isAmoledThemeEnabled.value = false
+        _isCustomThemeEnabled.value = false
+        _themePrimaryColor.value = 0xFF3390EC.toInt()
+        _themeSecondaryColor.value = 0xFF4C7599.toInt()
+        _themeTertiaryColor.value = 0xFF00ACC1.toInt()
+        _themeBackgroundColor.value = 0xFFFFFBFE.toInt()
+        _themeSurfaceColor.value = 0xFFFFFBFE.toInt()
+        _themePrimaryContainerColor.value = 0xFFD4E3FF.toInt()
+        _themeSecondaryContainerColor.value = 0xFFD0E4F7.toInt()
+        _themeTertiaryContainerColor.value = 0xFFC4EEF4.toInt()
+        _themeSurfaceVariantColor.value = 0xFFE1E2EC.toInt()
+        _themeOutlineColor.value = 0xFF757680.toInt()
+        _themeDarkPrimaryColor.value = 0xFF64B5F6.toInt()
+        _themeDarkSecondaryColor.value = 0xFF81A9CA.toInt()
+        _themeDarkTertiaryColor.value = 0xFF4DD0E1.toInt()
+        _themeDarkBackgroundColor.value = 0xFF121212.toInt()
+        _themeDarkSurfaceColor.value = 0xFF121212.toInt()
+        _themeDarkPrimaryContainerColor.value = 0xFF224A77.toInt()
+        _themeDarkSecondaryContainerColor.value = 0xFF334F65.toInt()
+        _themeDarkTertiaryContainerColor.value = 0xFF1E636F.toInt()
+        _themeDarkSurfaceVariantColor.value = 0xFF44474F.toInt()
+        _themeDarkOutlineColor.value = 0xFF8E9099.toInt()
         _nightModeStartTime.value = "22:00"
         _nightModeEndTime.value = "07:00"
         _nightModeBrightnessThreshold.value = 0.2f
@@ -756,6 +970,28 @@ class AppPreferences(
         private const val KEY_PLAYER_ZOOM_ENABLED = "player_zoom_enabled"
         private const val KEY_NIGHT_MODE = "night_mode"
         private const val KEY_DYNAMIC_COLORS = "dynamic_colors"
+        private const val KEY_AMOLED_THEME = "amoled_theme"
+        private const val KEY_CUSTOM_THEME_ENABLED = "custom_theme_enabled"
+        private const val KEY_THEME_PRIMARY_COLOR = "theme_primary_color"
+        private const val KEY_THEME_SECONDARY_COLOR = "theme_secondary_color"
+        private const val KEY_THEME_TERTIARY_COLOR = "theme_tertiary_color"
+        private const val KEY_THEME_BACKGROUND_COLOR = "theme_background_color"
+        private const val KEY_THEME_SURFACE_COLOR = "theme_surface_color"
+        private const val KEY_THEME_PRIMARY_CONTAINER_COLOR = "theme_primary_container_color"
+        private const val KEY_THEME_SECONDARY_CONTAINER_COLOR = "theme_secondary_container_color"
+        private const val KEY_THEME_TERTIARY_CONTAINER_COLOR = "theme_tertiary_container_color"
+        private const val KEY_THEME_SURFACE_VARIANT_COLOR = "theme_surface_variant_color"
+        private const val KEY_THEME_OUTLINE_COLOR = "theme_outline_color"
+        private const val KEY_THEME_DARK_PRIMARY_COLOR = "theme_dark_primary_color"
+        private const val KEY_THEME_DARK_SECONDARY_COLOR = "theme_dark_secondary_color"
+        private const val KEY_THEME_DARK_TERTIARY_COLOR = "theme_dark_tertiary_color"
+        private const val KEY_THEME_DARK_BACKGROUND_COLOR = "theme_dark_background_color"
+        private const val KEY_THEME_DARK_SURFACE_COLOR = "theme_dark_surface_color"
+        private const val KEY_THEME_DARK_PRIMARY_CONTAINER_COLOR = "theme_dark_primary_container_color"
+        private const val KEY_THEME_DARK_SECONDARY_CONTAINER_COLOR = "theme_dark_secondary_container_color"
+        private const val KEY_THEME_DARK_TERTIARY_CONTAINER_COLOR = "theme_dark_tertiary_container_color"
+        private const val KEY_THEME_DARK_SURFACE_VARIANT_COLOR = "theme_dark_surface_variant_color"
+        private const val KEY_THEME_DARK_OUTLINE_COLOR = "theme_dark_outline_color"
         private const val KEY_NIGHT_MODE_START = "night_mode_start"
         private const val KEY_NIGHT_MODE_END = "night_mode_end"
         private const val KEY_NIGHT_MODE_BRIGHTNESS = "night_mode_brightness"

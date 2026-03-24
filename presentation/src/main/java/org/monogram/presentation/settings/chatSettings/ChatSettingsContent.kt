@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -48,7 +47,6 @@ import org.monogram.presentation.core.ui.SettingsTile
 @Composable
 fun ChatSettingsContent(component: ChatSettingsComponent) {
     val state by component.state.subscribeAsState()
-    val context = LocalContext.current
 
     val blueColor = Color(0xFF4285F4)
     val greenColor = Color(0xFF34A853)
@@ -60,6 +58,16 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
 
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
+    var showThemeEditor by remember { mutableStateOf(false) }
+
+    if (showThemeEditor) {
+        ChatThemeEditorScreen(
+            state = state,
+            component = component,
+            onBack = { showThemeEditor = false }
+        )
+        return
+    }
 
     Scaffold(
         topBar = {
@@ -239,7 +247,7 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Rounded.Check,
-                                                contentDescription = "Selected",
+                                                contentDescription = stringResource(R.string.chat_settings_selected),
                                                 tint = MaterialTheme.colorScheme.onPrimary,
                                                 modifier = Modifier.size(20.dp)
                                             )
@@ -499,21 +507,26 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                                 else -> Spacer(modifier = Modifier.height(0.dp))
                             }
                         }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        FilledTonalButton(
+                            onClick = { showThemeEditor = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Palette,
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.chat_settings_edit_custom_theme))
+                        }
                     }
                 }
-            }
-
-            item {
-                SectionHeader(stringResource(R.string.dynamic_colors_header))
-                SettingsSwitchTile(
-                    icon = Icons.Rounded.Palette,
-                    title = stringResource(R.string.dynamic_colors_title),
-                    subtitle = stringResource(R.string.dynamic_colors_subtitle),
-                    checked = state.isDynamicColorsEnabled,
-                    iconColor = purpleColor,
-                    position = ItemPosition.STANDALONE,
-                    onCheckedChange = component::onDynamicColorsChanged
-                )
             }
 
             item {
@@ -757,11 +770,11 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
     if (state.emojiPackToRemove != null) {
         val style = state.emojiPackToRemove!!
         val label = when (style) {
-            EmojiStyle.APPLE -> "Apple"
-            EmojiStyle.TWITTER -> "Twitter"
-            EmojiStyle.WINDOWS -> "Windows"
-            EmojiStyle.CATMOJI -> "Catmoji"
-            EmojiStyle.NOTO -> "Noto"
+            EmojiStyle.APPLE -> stringResource(R.string.emoji_style_apple)
+            EmojiStyle.TWITTER -> stringResource(R.string.emoji_style_twitter)
+            EmojiStyle.WINDOWS -> stringResource(R.string.emoji_style_windows)
+            EmojiStyle.CATMOJI -> stringResource(R.string.emoji_style_catmoji)
+            EmojiStyle.NOTO -> stringResource(R.string.emoji_style_noto)
             else -> ""
         }
 
@@ -1037,12 +1050,12 @@ private fun EmojiStyleItem(
     onLongClick: () -> Unit
 ) {
     val label = when (style) {
-        EmojiStyle.APPLE -> "Apple"
-        EmojiStyle.TWITTER -> "Twitter"
-        EmojiStyle.WINDOWS -> "Windows"
-        EmojiStyle.CATMOJI -> "Catmoji"
-        EmojiStyle.NOTO -> "Noto"
-        EmojiStyle.SYSTEM -> "System"
+        EmojiStyle.APPLE -> stringResource(R.string.emoji_style_apple)
+        EmojiStyle.TWITTER -> stringResource(R.string.emoji_style_twitter)
+        EmojiStyle.WINDOWS -> stringResource(R.string.emoji_style_windows)
+        EmojiStyle.CATMOJI -> stringResource(R.string.emoji_style_catmoji)
+        EmojiStyle.NOTO -> stringResource(R.string.emoji_style_noto)
+        EmojiStyle.SYSTEM -> stringResource(R.string.emoji_style_system)
     }
 
     val emojiFontFamily = if (isDownloaded) {
@@ -1122,7 +1135,7 @@ private fun EmojiStyleItem(
                     } else {
                         Icon(
                             imageVector = Icons.Rounded.Download,
-                            contentDescription = "Download",
+                            contentDescription = stringResource(R.string.action_download),
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
                         )
@@ -1186,12 +1199,12 @@ private fun TimePickerDialogWrapper(
         onDismissRequest = onDismissRequest,
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("OK")
+                Text(stringResource(R.string.ok_button))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismissRequest) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel_button))
             }
         },
         text = {

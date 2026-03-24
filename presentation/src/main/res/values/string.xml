@@ -591,6 +591,14 @@
     <string name="remove_pack_description">This will delete the downloaded emoji pack from your device. You can download
         it again later.
     </string>
+    <string name="chat_settings_edit_custom_theme">Edit custom theme</string>
+    <string name="chat_settings_selected">Selected</string>
+    <string name="emoji_style_apple">Apple</string>
+    <string name="emoji_style_twitter">Twitter</string>
+    <string name="emoji_style_windows">Windows</string>
+    <string name="emoji_style_catmoji">Catmoji</string>
+    <string name="emoji_style_noto">Noto</string>
+    <string name="emoji_style_system">System</string>
 
     <!-- Data and Storage -->
     <string name="data_storage_title_header">Data and Storage</string>
@@ -1529,4 +1537,110 @@
     <string name="share_profile_subtitle">Share your Monogram profile link</string>
     <string name="copy_link_title">Copy Link</string>
     <string name="copy_link_subtitle">Copy your Monogram profile link to clipboard</string>
+
+    <!-- Chat Theme Editor -->
+    <string name="chat_theme_editor_title">Theme Editor</string>
+    <string name="chat_theme_editor_palette_mode">Palette Mode</string>
+    <string name="chat_theme_editor_light">Light</string>
+    <string name="chat_theme_editor_dark">Dark</string>
+    <string name="chat_theme_editor_accent">Accent</string>
+    <string name="chat_theme_editor_hex_accent">Hex accent</string>
+    <string name="chat_theme_editor_apply">Apply</string>
+    <string name="chat_theme_editor_cancel">Cancel</string>
+    <string name="chat_theme_editor_pick">Pick</string>
+    <string name="chat_theme_editor_save">Save</string>
+    <string name="chat_theme_editor_load">Load</string>
+    <string name="chat_theme_editor_both">Both</string>
+    <string name="chat_theme_editor_hex">Hex</string>
+    <string name="chat_theme_editor_theme_file_name">monogram-theme.json</string>
+
+    <string name="chat_theme_editor_theme_file_saved">Theme file saved</string>
+    <string name="chat_theme_editor_save_failed">Save failed</string>
+    <string name="chat_theme_editor_theme_loaded">Theme loaded</string>
+    <string name="chat_theme_editor_invalid_file">Invalid file</string>
+    <string name="chat_theme_editor_load_failed">Load failed</string>
+
+    <string name="chat_theme_editor_theme_source_title">Theme Source</string>
+    <string name="chat_theme_editor_theme_source_description">Choose exactly one source for your app colors. Custom uses your editable palettes, Monet uses Android dynamic color. AMOLED only affects dark backgrounds.</string>
+    <string name="chat_theme_editor_custom_theme">Custom theme</string>
+    <string name="chat_theme_editor_custom_theme_description">Use your own Light/Dark palettes, accents, presets, and manual role colors.</string>
+    <string name="chat_theme_editor_monet">Monet</string>
+    <string name="chat_theme_editor_monet_description">Use system-generated Material You colors based on wallpaper (Android 12+).</string>
+    <string name="chat_theme_editor_amoled_dark">AMOLED dark</string>
+    <string name="chat_theme_editor_amoled_dark_description">Force pure black for dark surfaces to reduce glow and save power on OLED screens.</string>
+
+    <string name="chat_theme_editor_preset_themes">Preset Themes</string>
+    <string name="chat_theme_editor_preset_themes_description">Each preset has ready Light and Dark variants. Tap Light, Dark, or Both to apply instantly.</string>
+    <string name="chat_theme_editor_manual_colors_title">Manual Colors (%1$s)</string>
+    <string name="chat_theme_editor_preview_title">%1$s preview</string>
+    <string name="chat_theme_editor_preview_summary_text">Summary text</string>
+    <string name="chat_theme_editor_preview_action">Action</string>
+    <string name="chat_theme_editor_pick_title">Pick %1$s</string>
+    <string name="chat_theme_editor_hue_format">Hue %1$d°</string>
+    <string name="chat_theme_editor_saturation_format">Saturation %1$d%%</string>
+    <string name="chat_theme_editor_brightness_format">Brightness %1$d%%</string>
+    <string name="chat_theme_editor_alpha_format">Alpha %1$d%%</string>
+
+    <string name="chat_theme_editor_role_primary">Primary</string>
+    <string name="chat_theme_editor_role_secondary">Secondary</string>
+    <string name="chat_theme_editor_role_tertiary">Tertiary</string>
+    <string name="chat_theme_editor_role_background">Background</string>
+    <string name="chat_theme_editor_role_surface">Surface</string>
+    <string name="chat_theme_editor_role_primary_container">Primary Container</string>
+    <string name="chat_theme_editor_role_surface_variant">Surface Variant</string>
+    <string name="chat_theme_editor_role_outline">Outline</string>
+
+    <string name="chat_theme_editor_chip_light_primary">L P</string>
+    <string name="chat_theme_editor_chip_light_container">L C</string>
+    <string name="chat_theme_editor_chip_light_background">L BG</string>
+    <string name="chat_theme_editor_chip_dark_primary">D P</string>
+    <string name="chat_theme_editor_chip_dark_container">D C</string>
+    <string name="chat_theme_editor_chip_dark_background">D BG</string>
+
+    <string name="chat_theme_editor_accent_blue">Blue</string>
+    <string name="chat_theme_editor_accent_green">Green</string>
+    <string name="chat_theme_editor_accent_orange">Orange</string>
+    <string name="chat_theme_editor_accent_rose">Rose</string>
+    <string name="chat_theme_editor_accent_indigo">Indigo</string>
+    <string name="chat_theme_editor_accent_cyan">Cyan</string>
+
+    <string name="chat_theme_editor_preset_classic_name">Classic</string>
+    <string name="chat_theme_editor_preset_classic_description">Balanced blue with clear readability and neutral surfaces.</string>
+    <string name="chat_theme_editor_preset_classic_tag">Daily</string>
+
+    <string name="chat_theme_editor_preset_forest_name">Forest</string>
+    <string name="chat_theme_editor_preset_forest_description">Natural greens with calm contrast and soft container tones.</string>
+    <string name="chat_theme_editor_preset_forest_tag">Calm</string>
+
+    <string name="chat_theme_editor_preset_ocean_name">Ocean</string>
+    <string name="chat_theme_editor_preset_ocean_description">Cool cyan-blue gradient feeling with fresh light and deep dark mode.</string>
+    <string name="chat_theme_editor_preset_ocean_tag">Fresh</string>
+
+    <string name="chat_theme_editor_preset_sunset_name">Sunset</string>
+    <string name="chat_theme_editor_preset_sunset_description">Warm orange and coral accent set with high foreground clarity.</string>
+    <string name="chat_theme_editor_preset_sunset_tag">Warm</string>
+
+    <string name="chat_theme_editor_preset_graphite_name">Graphite</string>
+    <string name="chat_theme_editor_preset_graphite_description">Neutral grayscale base with blue-gray accents and strong structure.</string>
+    <string name="chat_theme_editor_preset_graphite_tag">Pro</string>
+
+    <string name="chat_theme_editor_preset_mint_name">Mint</string>
+    <string name="chat_theme_editor_preset_mint_description">Fresh mint and teal combination with gentle containers.</string>
+    <string name="chat_theme_editor_preset_mint_tag">Soft</string>
+
+    <string name="chat_theme_editor_preset_ruby_name">Ruby</string>
+    <string name="chat_theme_editor_preset_ruby_description">Deep red accent with neutral containers for strong action focus.</string>
+    <string name="chat_theme_editor_preset_ruby_tag">Bold</string>
+
+    <string name="chat_theme_editor_preset_lavender_gray_name">Lavender Gray</string>
+    <string name="chat_theme_editor_preset_lavender_gray_description">Muted violet-gray scheme with controlled saturation and clean contrast.</string>
+    <string name="chat_theme_editor_preset_lavender_gray_tag">Muted</string>
+
+    <string name="chat_theme_editor_preset_sand_name">Sand</string>
+    <string name="chat_theme_editor_preset_sand_description">Beige and amber palette tuned for very soft visual noise.</string>
+    <string name="chat_theme_editor_preset_sand_tag">Comfort</string>
+
+    <string name="chat_theme_editor_preset_arctic_name">Arctic</string>
+    <string name="chat_theme_editor_preset_arctic_description">Icy blue-white feel with high legibility and crisp boundaries.</string>
+    <string name="chat_theme_editor_preset_arctic_tag">Clean</string>
 </resources>

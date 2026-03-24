@@ -1,17 +1,9 @@
 package org.monogram.presentation.settings.chatSettings
 
-import android.graphics.Color.HSVToColor
-import android.graphics.Color.colorToHSV
-import android.graphics.Color.parseColor
+import android.graphics.Color.*
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -36,7 +27,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 
 private enum class PaletteMode { LIGHT, DARK }
 
@@ -93,6 +83,11 @@ fun ChatThemeEditorScreen(
     }
     LaunchedEffect(palette.primary) { accentText = argbToHex(palette.primary) }
 
+    fun enableCustomThemeSource() {
+        component.onCustomThemeEnabledChanged(true)
+        if (state.isDynamicColorsEnabled) component.onDynamicColorsChanged(false)
+    }
+
     fun applyPalette(p: ThemePalette, dark: Boolean) {
         if (dark) {
             component.onThemeDarkPrimaryColorChanged(p.primary); component.onThemeDarkSecondaryColorChanged(p.secondary); component.onThemeDarkTertiaryColorChanged(p.tertiary)
@@ -107,7 +102,7 @@ fun ChatThemeEditorScreen(
             component.onThemeTertiaryContainerColorChanged(p.tertiaryContainer); component.onThemeSurfaceVariantColorChanged(p.surfaceVariant)
             component.onThemeOutlineColorChanged(p.outline)
         }
-        component.onCustomThemeEnabledChanged(true)
+        enableCustomThemeSource()
     }
 
     val accents = remember {
@@ -198,7 +193,11 @@ fun ChatThemeEditorScreen(
             title = pickerTarget!!.label,
             initialColor = pickerTarget!!.color,
             onDismiss = { pickerTarget = null },
-            onApply = { pickerTarget!!.onApply(it); pickerTarget = null }
+            onApply = {
+                pickerTarget!!.onApply(it)
+                enableCustomThemeSource()
+                pickerTarget = null
+            }
         )
     }
 
@@ -230,32 +229,45 @@ fun ChatThemeEditorScreen(
             contentPadding = PaddingValues(16.dp, padding.calculateTopPadding() + 8.dp, 16.dp, padding.calculateBottomPadding() + 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item { AnimatedSection(0) { EditorHeader(state, component) } }
+            item { EditorHeader(state, component) }
             item {
-                AnimatedSection(1) {
+
                     Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text("Palette Mode", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Button(onClick = { mode = PaletteMode.LIGHT }, enabled = isDark, modifier = Modifier.weight(1f).height(48.dp)) { Text("Light") }
-                                Button(onClick = { mode = PaletteMode.DARK }, enabled = !isDark, modifier = Modifier.weight(1f).height(48.dp)) { Text("Dark") }
+                                Button(
+                                    onClick = { mode = PaletteMode.LIGHT }, enabled = isDark, modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)
+                                ) { Text("Light") }
+                                Button(
+                                    onClick = { mode = PaletteMode.DARK }, enabled = !isDark, modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)
+                                ) { Text("Dark") }
                             }
                         }
                     }
-                }
+
             }
             item {
-                AnimatedSection(2) {
+
                     Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text("Accent", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(accents) { a ->
                                     Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.clickable {
-                                        component.onApplyThemeAccent(a.color, isDark); component.onCustomThemeEnabledChanged(true)
+                                        component.onApplyThemeAccent(a.color, isDark)
+                                        enableCustomThemeSource()
                                     }) {
                                         Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Box(Modifier.size(14.dp).background(Color(a.color), CircleShape))
+                                            Box(
+                                                Modifier
+                                                    .size(14.dp)
+                                                    .background(Color(a.color), CircleShape)
+                                            )
                                             Text(a.name, style = MaterialTheme.typography.labelLarge)
                                         }
                                     }
@@ -263,14 +275,18 @@ fun ChatThemeEditorScreen(
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 OutlinedTextField(value = accentText, onValueChange = { accentText = it }, label = { Text("Hex accent") }, singleLine = true, modifier = Modifier.weight(1f))
-                                Button(onClick = { parseThemeColor(accentText)?.let { component.onApplyThemeAccent(it, isDark) } }) { Text("Apply") }
+                                Button(onClick = {
+                                    parseThemeColor(accentText)?.let {
+                                        component.onApplyThemeAccent(it, isDark)
+                                        enableCustomThemeSource()
+                                    }
+                                }) { Text("Apply") }
                             }
                         }
+
                     }
-                }
             }
             item {
-                AnimatedSection(3) {
                     Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text("Preset Themes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -283,34 +299,41 @@ fun ChatThemeEditorScreen(
                                 items(presets) { p -> PresetCard(p, { applyPalette(p.light, false) }, { applyPalette(p.dark, true) }, { applyPalette(p.light, false); applyPalette(p.dark, true) }) }
                             }
                         }
+
                     }
-                }
             }
             item {
-                AnimatedSection(4) {
                     Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Manual Colors (${if (isDark) "Dark" else "Light"})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             roles.forEach { role ->
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Box(Modifier.size(24.dp).background(Color(role.color), CircleShape).border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape))
+                                    Box(
+                                        Modifier
+                                            .size(24.dp)
+                                            .background(Color(role.color), CircleShape)
+                                            .border(
+                                                1.dp,
+                                                MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                                CircleShape
+                                            )
+                                    )
                                     Column(Modifier.weight(1f)) { Text(role.label); Text(argbToHex(role.color), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                                     OutlinedButton(onClick = { pickerTarget = role }) { Text("Pick") }
                                 }
                             }
                         }
                     }
-                }
+
             }
-            item { AnimatedSection(5) { ThemePreview(palette, isDark, state.isAmoledThemeEnabled) } }
+            item { ThemePreview(palette, isDark, state.isAmoledThemeEnabled) }
             item {
-                AnimatedSection(6) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(onClick = { saveLauncher.launch("monogram-theme.json") }, modifier = Modifier.weight(1f)) { Icon(Icons.Rounded.Download, null); Spacer(Modifier.size(6.dp)); Text("Save") }
                         Button(onClick = { loadLauncher.launch(arrayOf("application/json", "text/*")) }, modifier = Modifier.weight(1f)) { Icon(Icons.Rounded.Upload, null); Spacer(Modifier.size(6.dp)); Text("Load") }
                     }
                 }
-            }
+
         }
     }
 }
@@ -357,7 +380,9 @@ private fun ToggleRow(text: String, description: String, value: Boolean, onChang
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -396,11 +421,15 @@ private fun PresetCard(p: ThemePreset, onLight: () -> Unit, onDark: () -> Unit, 
                 onClick = {},
                 label = { Text(p.tag) },
                 enabled = false,
-                modifier = Modifier.padding(horizontal = 10.dp).height(28.dp)
+                modifier = Modifier
+                    .padding(horizontal = 10.dp)
+                    .height(28.dp)
             )
             Spacer(Modifier.height(4.dp))
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 ColorInfoChip("L P", p.light.primary)
@@ -409,18 +438,28 @@ private fun PresetCard(p: ThemePreset, onLight: () -> Unit, onDark: () -> Unit, 
             }
             Spacer(Modifier.height(4.dp))
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 ColorInfoChip("D P", p.dark.primary)
                 ColorInfoChip("D C", p.dark.primaryContainer)
                 ColorInfoChip("D BG", p.dark.background)
             }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 OutlinedButton(onClick = onLight, modifier = Modifier.weight(1f), contentPadding = PaddingValues(0.dp)) { Text("Light") }
                 Button(onClick = onDark, modifier = Modifier.weight(1f), contentPadding = PaddingValues(0.dp)) { Text("Dark") }
             }
-            OutlinedButton(onClick = onBoth, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), contentPadding = PaddingValues(0.dp)) { Text("Both") }
+            OutlinedButton(
+                onClick = onBoth, modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp), contentPadding = PaddingValues(0.dp)
+            ) { Text("Both") }
         }
     }
 }
@@ -442,12 +481,31 @@ private fun ColorInfoChip(label: String, color: Int) {
 @Composable
 private fun MiniPalette(label: String, p: ThemePalette, modifier: Modifier = Modifier) {
     val bg = Color(p.background); val textColor = if (bg.luminance() > 0.5f) Color.Black else Color.White
-    Column(modifier.background(bg).padding(8.dp), verticalArrangement = Arrangement.SpaceBetween) {
+    Column(
+        modifier
+            .background(bg)
+            .padding(8.dp), verticalArrangement = Arrangement.SpaceBetween
+    ) {
         Text(label, color = textColor, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Box(Modifier.size(9.dp).background(Color(p.primary), CircleShape).border(1.dp, textColor.copy(alpha = 0.3f), CircleShape))
-            Box(Modifier.size(9.dp).background(Color(p.secondary), CircleShape).border(1.dp, textColor.copy(alpha = 0.3f), CircleShape))
-            Box(Modifier.size(9.dp).background(Color(p.tertiary), CircleShape).border(1.dp, textColor.copy(alpha = 0.3f), CircleShape))
+            Box(
+                Modifier
+                    .size(9.dp)
+                    .background(Color(p.primary), CircleShape)
+                    .border(1.dp, textColor.copy(alpha = 0.3f), CircleShape)
+            )
+            Box(
+                Modifier
+                    .size(9.dp)
+                    .background(Color(p.secondary), CircleShape)
+                    .border(1.dp, textColor.copy(alpha = 0.3f), CircleShape)
+            )
+            Box(
+                Modifier
+                    .size(9.dp)
+                    .background(Color(p.tertiary), CircleShape)
+                    .border(1.dp, textColor.copy(alpha = 0.3f), CircleShape)
+            )
         }
     }
 }
@@ -473,17 +531,6 @@ private fun ThemePreview(p: ThemePalette, dark: Boolean, amoled: Boolean) {
 }
 
 @Composable
-private fun AnimatedSection(index: Int, content: @Composable () -> Unit) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { delay((index * 40L).coerceAtMost(240L)); visible = true }
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(220)) + slideInVertically(tween(280), initialOffsetY = { it / 6 }),
-        exit = fadeOut(tween(120)) + slideOutVertically(tween(160), targetOffsetY = { it / 8 })
-    ) { content() }
-}
-
-@Composable
 private fun Material3ColorPickerDialog(
     title: String,
     initialColor: Int,
@@ -503,7 +550,13 @@ private fun Material3ColorPickerDialog(
         title = { Text("Pick $title") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.fillMaxWidth().height(42.dp).background(Color(current), RoundedCornerShape(10.dp)).border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp)))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .background(Color(current), RoundedCornerShape(10.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
+                )
                 OutlinedTextField(
                     value = hex,
                     onValueChange = {

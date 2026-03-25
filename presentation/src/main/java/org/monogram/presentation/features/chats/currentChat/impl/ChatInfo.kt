@@ -172,7 +172,11 @@ internal fun DefaultChatComponent.handleJoinChat() {
 
 internal fun DefaultChatComponent.handleBlockUser(userId: Long) {
     scope.launch {
-        privacyRepository.blockUser(userId)
+        if (_state.value.isGroup || _state.value.isChannel) {
+            userRepository.setChatMemberStatus(chatId, userId, ChatMemberStatus.Banned())
+        } else {
+            privacyRepository.blockUser(userId)
+        }
     }
 }
 

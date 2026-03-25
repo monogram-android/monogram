@@ -56,6 +56,7 @@ import java.util.*
 fun MessageOptionsMenu(
     message: MessageModel,
     canWrite: Boolean,
+    canPinMessages: Boolean,
     isPinned: Boolean,
     messageOffset: Offset,
     messageSize: IntSize,
@@ -67,6 +68,10 @@ fun MessageOptionsMenu(
     showReadInfo: Boolean = true,
     showViewsInfo: Boolean = true,
     showViewersList: Boolean = false,
+    canReport: Boolean = true,
+    canBlock: Boolean = false,
+    canRestrict: Boolean = false,
+    canCopyLink: Boolean = true,
     viewers: List<MessageViewerModel> = emptyList(),
     isLoadingViewers: Boolean = false,
     onReloadViewers: () -> Unit = {},
@@ -467,25 +472,28 @@ fun MessageOptionsMenu(
                             )
                         }
 
-                        InternalMenuOptionItem(
-                            icon = Icons.AutoMirrored.Rounded.Reply,
-                            text = stringResource(R.string.menu_reply),
-                            onClick = { animateOutAndDismiss(onReply) }
-                        )
-
                         if (canWrite) {
+                            InternalMenuOptionItem(
+                                icon = Icons.AutoMirrored.Rounded.Reply,
+                                text = stringResource(R.string.menu_reply),
+                                onClick = { animateOutAndDismiss(onReply) }
+                            )
+                        }
+
+                        if (canPinMessages) {
                             InternalMenuOptionItem(
                                 icon = Icons.Rounded.PushPin,
                                 text = if (isPinned) stringResource(R.string.menu_unpin) else stringResource(R.string.menu_pin),
                                 onClick = { animateOutAndDismiss(onPin) }
                             )
-                            if (message.canBeEdited) {
-                                InternalMenuOptionItem(
-                                    icon = Icons.Rounded.Edit,
-                                    text = stringResource(R.string.menu_edit),
-                                    onClick = { animateOutAndDismiss(onEdit) }
-                                )
-                            }
+                        }
+
+                        if (message.canBeEdited) {
+                            InternalMenuOptionItem(
+                                icon = Icons.Rounded.Edit,
+                                text = stringResource(R.string.menu_edit),
+                                onClick = { animateOutAndDismiss(onEdit) }
+                            )
                         }
 
                         if (shouldShowCopy(message)) {
@@ -496,11 +504,13 @@ fun MessageOptionsMenu(
                             )
                         }
 
-                        InternalMenuOptionItem(
-                            icon = Icons.AutoMirrored.Rounded.Forward,
-                            text = stringResource(R.string.menu_forward),
-                            onClick = { animateOutAndDismiss(onForward) }
-                        )
+                        if (message.canBeForwarded) {
+                            InternalMenuOptionItem(
+                                icon = Icons.AutoMirrored.Rounded.Forward,
+                                text = stringResource(R.string.menu_forward),
+                                onClick = { animateOutAndDismiss(onForward) }
+                            )
+                        }
 
                         InternalMenuOptionItem(
                             icon = Icons.Rounded.CheckCircle,
@@ -559,11 +569,13 @@ fun MessageOptionsMenu(
                             )
                         }
 
-                        InternalMenuOptionItem(
-                            icon = Icons.Rounded.Link,
-                            text = stringResource(R.string.menu_copy_link),
-                            onClick = { animateOutAndDismiss(onCopyLink) }
-                        )
+                        if (canCopyLink) {
+                            InternalMenuOptionItem(
+                                icon = Icons.Rounded.Link,
+                                text = stringResource(R.string.menu_copy_link),
+                                onClick = { animateOutAndDismiss(onCopyLink) }
+                            )
+                        }
 
                         if (shouldShowDownload(message)) {
                             InternalMenuOptionItem(
@@ -573,13 +585,15 @@ fun MessageOptionsMenu(
                             )
                         }
 
-                        InternalMenuOptionItem(
-                            icon = Icons.Rounded.Report,
-                            text = stringResource(R.string.menu_report),
-                            onClick = { animateOutAndDismiss(onReport) }
-                        )
+                        if (canReport) {
+                            InternalMenuOptionItem(
+                                icon = Icons.Rounded.Report,
+                                text = stringResource(R.string.menu_report),
+                                onClick = { animateOutAndDismiss(onReport) }
+                            )
+                        }
 
-                        if (!message.isOutgoing) {
+                        if (canBlock) {
                             InternalMenuOptionItem(
                                 icon = Icons.Rounded.Block,
                                 text = stringResource(R.string.menu_block_user),
@@ -587,13 +601,15 @@ fun MessageOptionsMenu(
                                 iconTint = MaterialTheme.colorScheme.error,
                                 onClick = { animateOutAndDismiss(onBlock) }
                             )
-                            InternalMenuOptionItem(
-                                icon = Icons.Rounded.Gavel,
-                                text = stringResource(R.string.menu_restrict_user),
-                                textColor = MaterialTheme.colorScheme.error,
-                                iconTint = MaterialTheme.colorScheme.error,
-                                onClick = { animateOutAndDismiss(onRestrict) }
-                            )
+                            if (canRestrict) {
+                                InternalMenuOptionItem(
+                                    icon = Icons.Rounded.Gavel,
+                                    text = stringResource(R.string.menu_restrict_user),
+                                    textColor = MaterialTheme.colorScheme.error,
+                                    iconTint = MaterialTheme.colorScheme.error,
+                                    onClick = { animateOutAndDismiss(onRestrict) }
+                                )
+                            }
                         }
                     } else {
                         InternalMenuOptionItem(
@@ -1003,6 +1019,7 @@ private fun shouldShowCopy(message: MessageModel): Boolean {
 }
 
 private fun shouldShowDownload(message: MessageModel): Boolean {
+    if (!message.canBeSaved) return false
     return when (val content = message.content) {
         is MessageContent.Photo -> content.path != null
         is MessageContent.Video -> content.path != null

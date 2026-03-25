@@ -178,9 +178,23 @@ fun ChatMessageOptionsMenu(
         }
     }
 
+    val senderIsUser = selectedMessage.senderId > 0L
+    val canModerateInChat = (state.isGroup || state.isChannel) && state.isAdmin
+    val canBlockUser = !selectedMessage.isOutgoing && senderIsUser &&
+            (canModerateInChat || (!state.isGroup && !state.isChannel))
+    val canRestrictUser = canBlockUser && (state.isGroup || state.isChannel) && state.isAdmin
+    val isOtherUserDialog = state.otherUser?.id?.let { it != state.currentUser?.id } == true
+    val canReportMessage = !selectedMessage.isOutgoing && (
+            state.isGroup || state.isChannel ||
+                    isOtherUserDialog
+            )
+    val canCopyLink = state.isGroup || state.isChannel
+    val canPinMessages = state.isAdmin || state.permissions.canPinMessages
+
     MessageOptionsMenu(
         message = messageWithReadDate,
         canWrite = state.canWrite,
+        canPinMessages = canPinMessages,
         isPinned = selectedMessage.id == state.pinnedMessage?.id,
         messageOffset = menuOffset,
         messageSize = menuMessageSize,
@@ -197,6 +211,10 @@ fun ChatMessageOptionsMenu(
         showReadInfo = canCheckViewersList,
         showViewsInfo = shouldShowViewsInfo,
         showViewersList = canShowViewersList,
+        canReport = canReportMessage,
+        canBlock = canBlockUser,
+        canRestrict = canRestrictUser,
+        canCopyLink = canCopyLink,
         viewers = messageViewers,
         isLoadingViewers = isLoadingViewers,
         onReloadViewers = {
@@ -282,11 +300,15 @@ fun ChatMessageOptionsMenu(
             onDismiss()
         },
         onBlock = {
-            component.onBlockUser(selectedMessage.senderId)
+            if (selectedMessage.senderId > 0L) {
+                component.onBlockUser(selectedMessage.senderId)
+            }
             onDismiss()
         },
         onRestrict = {
-            component.onRestrictUser(selectedMessage.senderId, ChatPermissionsModel())
+            if (selectedMessage.senderId > 0L) {
+                component.onRestrictUser(selectedMessage.senderId, ChatPermissionsModel())
+            }
             onDismiss()
         },
         onDismiss = onDismiss

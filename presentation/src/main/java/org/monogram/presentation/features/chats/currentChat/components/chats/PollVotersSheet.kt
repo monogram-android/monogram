@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.*
@@ -26,6 +27,7 @@ fun PollVotersSheet(
     voters: List<UserModel>,
     isLoading: Boolean,
     videoPlayerPool: VideoPlayerPool,
+    onUserClick: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -80,7 +82,11 @@ fun PollVotersSheet(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         itemsIndexed(voters) { index, user ->
-                            VoterItem(user, videoPlayerPool)
+                            VoterItem(
+                                user = user,
+                                videoPlayerPool = videoPlayerPool,
+                                onClick = { onUserClick(user.id) }
+                            )
                             if (index < voters.size - 1) {
                                 HorizontalDivider(
                                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -115,10 +121,15 @@ fun PollVotersSheet(
 }
 
 @Composable
-private fun VoterItem(user: UserModel, videoPlayerPool: VideoPlayerPool) {
+private fun VoterItem(
+    user: UserModel,
+    videoPlayerPool: VideoPlayerPool,
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

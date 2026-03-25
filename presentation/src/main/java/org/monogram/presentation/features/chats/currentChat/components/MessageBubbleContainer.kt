@@ -560,7 +560,8 @@ private fun MessageContentSelector(
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     onShowVoters = { onShowVoters(msg.id, it) },
-                    onClosePoll = { onClosePoll(msg.id) }
+                    onClosePoll = { onClosePoll(msg.id) },
+                    toProfile = toProfile
                 )
             }
 

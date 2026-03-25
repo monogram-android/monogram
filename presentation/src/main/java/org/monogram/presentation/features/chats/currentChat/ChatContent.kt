@@ -846,6 +846,10 @@ fun ChatContent(
                 PollVotersSheet(
                     voters = state.pollVoters,
                     isLoading = state.isPollVotersLoading,
+                    onUserClick = {
+                        component.onDismissVoters()
+                        component.toProfile(it)
+                    },
                     onDismiss = { component.onDismissVoters() },
                     videoPlayerPool = component.videoPlayerPool
                 )

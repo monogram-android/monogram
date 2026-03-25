@@ -527,6 +527,8 @@
     <string name="night_mode_dark">深色</string>
     <string name="night_mode_scheduled">定时计划</string>
     <string name="night_mode_brightness">自动</string>
+    <string name="night_mode_current_label">当前模式</string>
+    <string name="night_mode_current_format">当前使用：%1$s</string>
     <string name="brightness_threshold_format">亮度阈值: %1$d%%</string>
     <string name="brightness_threshold_description">当屏幕亮度低于此水平时切换到深色主题。</string>
     <string name="dynamic_colors_header">动态色彩</string>
@@ -1506,9 +1508,13 @@
     <!-- Chat Theme Editor -->
     <string name="chat_theme_editor_title">主题编辑器</string>
     <string name="chat_theme_editor_palette_mode">调色板模式</string>
+    <string name="chat_theme_editor_palette_mode_description">选择要编辑的调色板。编辑器会默认打开当前在应用中生效的调色板。</string>
     <string name="chat_theme_editor_light">浅色</string>
     <string name="chat_theme_editor_dark">深色</string>
+    <string name="chat_theme_editor_editing_palette">正在编辑：%1$s 调色板</string>
+    <string name="chat_theme_editor_active_palette">当前应用生效：%1$s</string>
     <string name="chat_theme_editor_accent">强调色</string>
+    <string name="chat_theme_editor_accent_description">强调色只会更新 %1$s 调色板。</string>
     <string name="chat_theme_editor_hex_accent">Hex 强调色</string>
     <string name="chat_theme_editor_apply">应用</string>
     <string name="chat_theme_editor_cancel">取消</string>
@@ -1552,6 +1558,8 @@
     <string name="chat_theme_editor_role_background">背景</string>
     <string name="chat_theme_editor_role_surface">表面</string>
     <string name="chat_theme_editor_role_primary_container">主要容器</string>
+    <string name="chat_theme_editor_role_secondary_container">次要容器</string>
+    <string name="chat_theme_editor_role_tertiary_container">第三容器</string>
     <string name="chat_theme_editor_role_surface_variant">表面变体</string>
     <string name="chat_theme_editor_role_outline">轮廓</string>
 

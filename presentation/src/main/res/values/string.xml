@@ -541,11 +541,19 @@
     <string name="emoji_style_header">Emoji Style</string>
     <string name="theme_header">Theme</string>
     <string name="night_mode_title">Night Mode</string>
+    <string name="night_mode_description">Choose how Monogram switches between light and dark appearance.</string>
     <string name="night_mode_system">System</string>
     <string name="night_mode_light">Light</string>
     <string name="night_mode_dark">Dark</string>
     <string name="night_mode_scheduled">Schedule</string>
     <string name="night_mode_brightness">Auto</string>
+    <string name="night_mode_current_label">Current behavior</string>
+    <string name="night_mode_current_format">Using: %1$s</string>
+    <string name="night_mode_system_description">Follow device theme</string>
+    <string name="night_mode_light_description">Always light mode</string>
+    <string name="night_mode_dark_description">Always dark mode</string>
+    <string name="night_mode_scheduled_description">Switch by time range</string>
+    <string name="night_mode_brightness_description">Switch by screen brightness</string>
     <string name="brightness_threshold_format">Brightness threshold: %1$d%%</string>
     <string name="brightness_threshold_description">Switch to dark theme when screen brightness is below this level.
     </string>
@@ -1552,9 +1560,13 @@
     <!-- Chat Theme Editor -->
     <string name="chat_theme_editor_title">Theme Editor</string>
     <string name="chat_theme_editor_palette_mode">Palette Mode</string>
+    <string name="chat_theme_editor_palette_mode_description">Choose which palette you are editing. The editor opens on the palette currently active in the app.</string>
     <string name="chat_theme_editor_light">Light</string>
     <string name="chat_theme_editor_dark">Dark</string>
+    <string name="chat_theme_editor_editing_palette">Editing: %1$s palette</string>
+    <string name="chat_theme_editor_active_palette">Currently active in app: %1$s</string>
     <string name="chat_theme_editor_accent">Accent</string>
+    <string name="chat_theme_editor_accent_description">Accent updates only the %1$s palette.</string>
     <string name="chat_theme_editor_hex_accent">Hex accent</string>
     <string name="chat_theme_editor_apply">Apply</string>
     <string name="chat_theme_editor_cancel">Cancel</string>
@@ -1598,6 +1610,8 @@
     <string name="chat_theme_editor_role_background">Background</string>
     <string name="chat_theme_editor_role_surface">Surface</string>
     <string name="chat_theme_editor_role_primary_container">Primary Container</string>
+    <string name="chat_theme_editor_role_secondary_container">Secondary Container</string>
+    <string name="chat_theme_editor_role_tertiary_container">Tertiary Container</string>
     <string name="chat_theme_editor_role_surface_variant">Surface Variant</string>
     <string name="chat_theme_editor_role_outline">Outline</string>
 

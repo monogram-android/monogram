@@ -365,21 +365,64 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                             color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.SemiBold
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            NightMode.entries.forEach { mode ->
-                                Box(modifier = Modifier.weight(1f)) {
-                                    ThemeModeItem(
-                                        mode = mode,
-                                        selected = state.nightMode == mode,
-                                        onClick = { component.onNightModeChanged(mode) }
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .background(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                            CircleShape
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Tune,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
+                                Column {
+                                    Text(
+                                        text = stringResource(R.string.night_mode_current_label),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = stringResource(
+                                            R.string.night_mode_current_format,
+                                            nightModeLabel(state.nightMode)
+                                        ),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(NightMode.entries.toList()) { mode ->
+                                ThemeModeItem(
+                                    mode = mode,
+                                    selected = state.nightMode == mode,
+                                    onClick = { component.onNightModeChanged(mode) },
+                                    modifier = Modifier.widthIn(min = 164.dp)
+                                )
                             }
                         }
 
@@ -969,7 +1012,8 @@ private fun AppearanceSliderItem(
 private fun ThemeModeItem(
     mode: NightMode,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val icon = when (mode) {
         NightMode.SYSTEM -> Icons.Rounded.BrightnessAuto
@@ -979,13 +1023,7 @@ private fun ThemeModeItem(
         NightMode.BRIGHTNESS -> Icons.Rounded.Brightness4
     }
 
-    val label = when (mode) {
-        NightMode.SYSTEM -> stringResource(R.string.night_mode_system)
-        NightMode.LIGHT -> stringResource(R.string.night_mode_light)
-        NightMode.DARK -> stringResource(R.string.night_mode_dark)
-        NightMode.SCHEDULED -> stringResource(R.string.night_mode_scheduled)
-        NightMode.BRIGHTNESS -> stringResource(R.string.night_mode_brightness)
-    }
+    val label = nightModeLabel(mode)
 
     val containerColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
@@ -1005,38 +1043,66 @@ private fun ThemeModeItem(
 
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         color = containerColor,
         border = if (selected) BorderStroke(
             2.dp,
             MaterialTheme.colorScheme.primary.copy(alpha = borderAlpha)
         ) else null,
         modifier = Modifier
-            .height(80.dp)
+            .height(84.dp)
             .fillMaxWidth()
+            .then(modifier)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(4.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = contentColor,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .background(contentColor.copy(alpha = if (selected) 0.16f else 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = contentColor,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Rounded.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun nightModeLabel(mode: NightMode): String = when (mode) {
+    NightMode.SYSTEM -> stringResource(R.string.night_mode_system)
+    NightMode.LIGHT -> stringResource(R.string.night_mode_light)
+    NightMode.DARK -> stringResource(R.string.night_mode_dark)
+    NightMode.SCHEDULED -> stringResource(R.string.night_mode_scheduled)
+    NightMode.BRIGHTNESS -> stringResource(R.string.night_mode_brightness)
 }
 
 @OptIn(ExperimentalFoundationApi::class)

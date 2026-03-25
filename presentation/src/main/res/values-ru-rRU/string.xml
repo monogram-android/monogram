@@ -527,6 +527,8 @@
     <string name="night_mode_dark">Тёмная</string>
     <string name="night_mode_scheduled">По расписанию</string>
     <string name="night_mode_brightness">Автоматически</string>
+    <string name="night_mode_current_label">Текущий режим</string>
+    <string name="night_mode_current_format">Сейчас: %1$s</string>
     <string name="brightness_threshold_format">Порог яркости: %1$d%%</string>
     <string name="brightness_threshold_description">Переключение на тёмную тему при яркости ниже этого уровня.</string>
     <string name="dynamic_colors_header">Динамические цвета</string>
@@ -1519,9 +1521,13 @@
     <!-- Chat Theme Editor -->
     <string name="chat_theme_editor_title">Редактор тем</string>
     <string name="chat_theme_editor_palette_mode">Режим палитры</string>
+    <string name="chat_theme_editor_palette_mode_description">Выберите палитру для редактирования. По умолчанию открывается палитра, которая сейчас активна в приложении.</string>
     <string name="chat_theme_editor_light">Светлая</string>
     <string name="chat_theme_editor_dark">Тёмная</string>
+    <string name="chat_theme_editor_editing_palette">Редактируется: палитра %1$s</string>
+    <string name="chat_theme_editor_active_palette">Сейчас активна в приложении: %1$s</string>
     <string name="chat_theme_editor_accent">Акцент</string>
+    <string name="chat_theme_editor_accent_description">Акцент изменяет только палитру %1$s.</string>
     <string name="chat_theme_editor_hex_accent">Hex-акцент</string>
     <string name="chat_theme_editor_apply">Применить</string>
     <string name="chat_theme_editor_cancel">Отмена</string>
@@ -1565,6 +1571,8 @@
     <string name="chat_theme_editor_role_background">Фон</string>
     <string name="chat_theme_editor_role_surface">Поверхность</string>
     <string name="chat_theme_editor_role_primary_container">Контейнер осн.</string>
+    <string name="chat_theme_editor_role_secondary_container">Контейнер втор.</string>
+    <string name="chat_theme_editor_role_tertiary_container">Контейнер трет.</string>
     <string name="chat_theme_editor_role_surface_variant">Вариант пов.</string>
     <string name="chat_theme_editor_role_outline">Контур</string>
 

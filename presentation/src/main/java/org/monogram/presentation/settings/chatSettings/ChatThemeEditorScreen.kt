@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,6 +31,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.NightMode
+import java.util.Calendar
 
 private enum class PaletteMode { LIGHT, DARK }
 
@@ -63,11 +67,14 @@ fun ChatThemeEditorScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    var mode by remember { mutableStateOf(PaletteMode.LIGHT) }
+    val systemDark = isSystemInDarkTheme()
+    val activePaletteMode = resolveActivePaletteMode(state, systemDark)
+    var mode by rememberSaveable(activePaletteMode) { mutableStateOf(activePaletteMode) }
     val isDark = mode == PaletteMode.DARK
     var accentText by remember { mutableStateOf("#FF3390EC") }
     var pickerTarget by remember { mutableStateOf<ColorRole?>(null) }
     val modeLabel = if (isDark) stringResource(R.string.chat_theme_editor_dark) else stringResource(R.string.chat_theme_editor_light)
+    val activeModeLabel = if (activePaletteMode == PaletteMode.DARK) stringResource(R.string.chat_theme_editor_dark) else stringResource(R.string.chat_theme_editor_light)
     val themeFileName = stringResource(R.string.chat_theme_editor_theme_file_name)
 
     val palette = if (isDark) {
@@ -188,6 +195,8 @@ fun ChatThemeEditorScreen(
         ColorRole(R.string.chat_theme_editor_role_background, palette.background) { if (isDark) component.onThemeDarkBackgroundColorChanged(it) else component.onThemeBackgroundColorChanged(it) },
         ColorRole(R.string.chat_theme_editor_role_surface, palette.surface) { if (isDark) component.onThemeDarkSurfaceColorChanged(it) else component.onThemeSurfaceColorChanged(it) },
         ColorRole(R.string.chat_theme_editor_role_primary_container, palette.primaryContainer) { if (isDark) component.onThemeDarkPrimaryContainerColorChanged(it) else component.onThemePrimaryContainerColorChanged(it) },
+        ColorRole(R.string.chat_theme_editor_role_secondary_container, palette.secondaryContainer) { if (isDark) component.onThemeDarkSecondaryContainerColorChanged(it) else component.onThemeSecondaryContainerColorChanged(it) },
+        ColorRole(R.string.chat_theme_editor_role_tertiary_container, palette.tertiaryContainer) { if (isDark) component.onThemeDarkTertiaryContainerColorChanged(it) else component.onThemeTertiaryContainerColorChanged(it) },
         ColorRole(R.string.chat_theme_editor_role_surface_variant, palette.surfaceVariant) { if (isDark) component.onThemeDarkSurfaceVariantColorChanged(it) else component.onThemeSurfaceVariantColorChanged(it) },
         ColorRole(R.string.chat_theme_editor_role_outline, palette.outline) { if (isDark) component.onThemeDarkOutlineColorChanged(it) else component.onThemeOutlineColorChanged(it) }
     )
@@ -246,17 +255,42 @@ fun ChatThemeEditorScreen(
                     Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(stringResource(R.string.chat_theme_editor_palette_mode), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                stringResource(R.string.chat_theme_editor_palette_mode_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Button(
-                                    onClick = { mode = PaletteMode.LIGHT }, enabled = isDark, modifier = Modifier
-                                        .weight(1f)
-                                        .height(48.dp)
-                                ) { Text(stringResource(R.string.chat_theme_editor_light)) }
-                                Button(
-                                    onClick = { mode = PaletteMode.DARK }, enabled = !isDark, modifier = Modifier
-                                        .weight(1f)
-                                        .height(48.dp)
-                                ) { Text(stringResource(R.string.chat_theme_editor_dark)) }
+                                FilterChip(
+                                    selected = !isDark,
+                                    onClick = { mode = PaletteMode.LIGHT },
+                                    label = { Text(stringResource(R.string.chat_theme_editor_light)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FilterChip(
+                                    selected = isDark,
+                                    onClick = { mode = PaletteMode.DARK },
+                                    label = { Text(stringResource(R.string.chat_theme_editor_dark)) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        stringResource(R.string.chat_theme_editor_editing_palette, modeLabel),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        stringResource(R.string.chat_theme_editor_active_palette, activeModeLabel),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
@@ -267,6 +301,11 @@ fun ChatThemeEditorScreen(
                     Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(stringResource(R.string.chat_theme_editor_accent), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                stringResource(R.string.chat_theme_editor_accent_description, modeLabel),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(accents) { a ->
                                     Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.clickable {
@@ -596,3 +635,28 @@ private fun parseThemeColor(value: String): Int? {
 private fun toHsv(color: Int): FloatArray = FloatArray(3).also { colorToHSV(color, it) }
 private fun fromHsv(h: Float, s: Float, v: Float, a: Float): Int =
     HSVToColor((a * 255f).toInt().coerceIn(0, 255), floatArrayOf(h, s, v))
+
+private fun resolveActivePaletteMode(state: ChatSettingsComponent.State, systemDark: Boolean): PaletteMode {
+    return when (state.nightMode) {
+        NightMode.SYSTEM -> if (systemDark) PaletteMode.DARK else PaletteMode.LIGHT
+        NightMode.LIGHT -> PaletteMode.LIGHT
+        NightMode.DARK -> PaletteMode.DARK
+        NightMode.SCHEDULED -> {
+            val now = Calendar.getInstance().let { it.get(Calendar.HOUR_OF_DAY) * 60 + it.get(Calendar.MINUTE) }
+            val start = parseTimeToMinutes(state.nightModeStartTime, fallbackHour = 22)
+            val end = parseTimeToMinutes(state.nightModeEndTime, fallbackHour = 7)
+            val isDarkNow = if (start < end) now in start until end else now >= start || now < end
+            if (isDarkNow) PaletteMode.DARK else PaletteMode.LIGHT
+        }
+
+        NightMode.BRIGHTNESS -> if (systemDark) PaletteMode.DARK else PaletteMode.LIGHT
+    }
+}
+
+private fun parseTimeToMinutes(value: String, fallbackHour: Int): Int {
+    val parts = value.split(":")
+    if (parts.size != 2) return fallbackHour * 60
+    val hour = parts[0].toIntOrNull() ?: return fallbackHour * 60
+    val minute = parts[1].toIntOrNull() ?: return fallbackHour * 60
+    return (hour.coerceIn(0, 23) * 60) + minute.coerceIn(0, 59)
+}

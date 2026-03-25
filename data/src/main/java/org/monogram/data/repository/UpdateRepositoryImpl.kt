@@ -117,32 +117,37 @@ class UpdateRepositoryImpl(
             try {
                 val packageInstaller = context.packageManager.packageInstaller
                 val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-                    .apply { setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED) }
+                    .apply {
+                        setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                    }
 
                 val sessionId = packageInstaller.createSession(params)
                 val session = packageInstaller.openSession(sessionId)
 
                 FileInputStream(file).use { input ->
-                    session.openWrite("package", 0, -1).use { output -> input.copyTo(output) }
+                    session.openWrite("package", 0, file.length()).use { output ->
+                        input.copyTo(output)
+                        session.fsync(output)
+                    }
                 }
 
                 val intent = Intent(context, UpdateInstallReceiver::class.java)
                 val pendingIntent = PendingIntent.getBroadcast(
                     context, 0, intent,
-                    PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                 )
                 session.commit(pendingIntent.intentSender)
                 session.close()
                 return
             } catch (e: Exception) {
-                // fallback to standard installation
+                Log.e("UpdateRepository", "PackageInstaller flow failed, using fallback", e)
             }
         }
 
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
         context.startActivity(
-            Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
+            Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+                data = uri
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }

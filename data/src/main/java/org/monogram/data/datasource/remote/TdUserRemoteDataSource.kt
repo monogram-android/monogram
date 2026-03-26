@@ -60,19 +60,31 @@ class TdUserRemoteDataSource(
     override suspend fun getChatMember(chatId: Long, userId: Long): TdApi.ChatMember? =
         runCatching {
             val chat = gateway.execute(TdApi.GetChat(chatId))
+            val me = gateway.execute(TdApi.GetMe())
+            val requestingOtherUser = userId != me.id
             val type = chat.type
+            if (requestingOtherUser && type is TdApi.ChatTypeBasicGroup) {
+                if (type.basicGroupId == 0L) return@runCatching null
+                val basicGroup = gateway.execute(TdApi.GetBasicGroup(type.basicGroupId))
+                val canGetOthers = basicGroup.status is TdApi.ChatMemberStatusAdministrator ||
+                        basicGroup.status is TdApi.ChatMemberStatusCreator
+                if (!canGetOthers) return@runCatching null
+            }
             if (type is TdApi.ChatTypeSupergroup) {
                 if (type.supergroupId == 0L) return@runCatching null
                 val supergroup = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
-                if (supergroup.isChannel) {
-                    val me = gateway.execute(TdApi.GetMe())
-                    if (userId != me.id) {
-                        val status = supergroup.status
-                        val canGetOthers = status is TdApi.ChatMemberStatusAdministrator ||
-                                status is TdApi.ChatMemberStatusCreator
-                        if (!canGetOthers) return null
-                    }
+                val isMember = supergroup.status !is TdApi.ChatMemberStatusLeft &&
+                        supergroup.status !is TdApi.ChatMemberStatusBanned
+                if (!isMember) return@runCatching null
+
+                if (!requestingOtherUser) {
+                    return@runCatching gateway.execute(TdApi.GetChatMember(chatId, TdApi.MessageSenderUser(userId)))
                 }
+
+                val status = supergroup.status
+                val canGetOthers = status is TdApi.ChatMemberStatusAdministrator ||
+                        status is TdApi.ChatMemberStatusCreator
+                if (!canGetOthers) return@runCatching null
             }
             gateway.execute(TdApi.GetChatMember(chatId, TdApi.MessageSenderUser(userId)))
         }.getOrElse { e ->

@@ -77,7 +77,8 @@ class ChatModelFactory(
             is TdApi.ChatTypeSupergroup -> {
                 isSupergroup = true
                 isChannel = type.isChannel
-                cache.supergroups[type.supergroupId]?.let {
+                val supergroup = cache.supergroups[type.supergroupId]
+                supergroup?.let {
                     memberCount = it.memberCount
                     isVerified = it.verificationStatus?.isVerified ?: false
                     isForum = it.isForum
@@ -94,15 +95,21 @@ class ChatModelFactory(
                     triggerUpdate(chat.id)
                 }
 
-                cache.supergroupFullInfoCache[type.supergroupId]?.let { fullInfo ->
-                    description = fullInfo.description
-                    inviteLink = fullInfo.inviteLink?.inviteLink
-                    personalAvatarPath = resolvePhotoPath(fullInfo.photo, chat.id)
-                } ?: lazyLoad(cache.pendingSupergroupFullInfo, type.supergroupId) {
-                    if (type.supergroupId == 0L) return@lazyLoad
-                    val result = gateway.execute(TdApi.GetSupergroupFullInfo(type.supergroupId))
-                    cache.supergroupFullInfoCache[type.supergroupId] = result
-                    triggerUpdate(chat.id)
+                val canLoadSupergroupFullInfo = supergroup?.status?.let {
+                    it !is TdApi.ChatMemberStatusLeft && it !is TdApi.ChatMemberStatusBanned
+                } == true
+
+                if (canLoadSupergroupFullInfo) {
+                    cache.supergroupFullInfoCache[type.supergroupId]?.let { fullInfo ->
+                        description = fullInfo.description
+                        inviteLink = fullInfo.inviteLink?.inviteLink
+                        personalAvatarPath = resolvePhotoPath(fullInfo.photo, chat.id)
+                    } ?: lazyLoad(cache.pendingSupergroupFullInfo, type.supergroupId) {
+                        if (type.supergroupId == 0L) return@lazyLoad
+                        val result = gateway.execute(TdApi.GetSupergroupFullInfo(type.supergroupId))
+                        cache.supergroupFullInfoCache[type.supergroupId] = result
+                        triggerUpdate(chat.id)
+                    }
                 }
             }
 
@@ -232,7 +239,7 @@ class ChatModelFactory(
         fileManager.registerChatPhoto(photoFile.id, chatId)
         val path = photoFile.local.path.ifEmpty { fileManager.getFilePath(photoFile.id) ?: "" }
         return path.ifEmpty {
-            fileManager.downloadFile(photoFile.id, 1, offset = 0, limit = 0, synchronous = false)
+            fileManager.downloadFile(photoFile.id, 24, offset = 0, limit = 0, synchronous = false)
             null
         }
     }

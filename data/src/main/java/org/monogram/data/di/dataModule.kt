@@ -400,5 +400,5 @@ val dataModule = module {
         )
     }
 
-    single { TdNotificationManager(androidContext(), get(), get(), get(), get()) }
+    single { TdNotificationManager(androidContext(), get(), get(), get(), get(), get()) }
 }

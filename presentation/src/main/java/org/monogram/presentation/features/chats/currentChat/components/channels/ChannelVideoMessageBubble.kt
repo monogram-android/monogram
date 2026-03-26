@@ -87,7 +87,7 @@ fun ChannelVideoMessageBubble(
 
     var videoPosition by remember { mutableStateOf(Offset.Zero) }
     var isMuted by remember { mutableStateOf(true) }
-    var currentPosition by remember { mutableLongStateOf(0L) }
+    var currentPositionSeconds by remember { mutableIntStateOf(0) }
     var isVisible by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -188,9 +188,16 @@ fun ChannelVideoMessageBubble(
                                     contentScale = ContentScale.Fit,
                                     animate = isVisible && !isAnyViewerOpen,
                                     volume = if (isMuted) 0f else 1f,
-                                    onProgressUpdate = { currentPosition = it },
+                                    reportProgress = true,
+                                    onProgressUpdate = {
+                                        val seconds = (it / 1000).toInt()
+                                        if (seconds != currentPositionSeconds) {
+                                            currentPositionSeconds = seconds
+                                        }
+                                    },
                                     videoPlayerPool = videoPlayerPool,
-                                    fileId = if (!hasPath && content.supportsStreaming) content.fileId else 0
+                                    fileId = if (!hasPath && content.supportsStreaming) content.fileId else 0,
+                                    thumbnailData = content.minithumbnail
                                 )
 
                                 // Volume Toggle
@@ -256,7 +263,7 @@ fun ChannelVideoMessageBubble(
                             ) {
                                 Text(
                                     text = if ((hasPath || content.supportsStreaming) && autoplayVideos) {
-                                        "${formatDuration(context, (currentPosition / 1000).toInt())} / ${formatDuration(context, content.duration)}"
+                                        "${formatDuration(context, currentPositionSeconds)} / ${formatDuration(context, content.duration)}"
                                     } else {
                                         formatDuration(context, content.duration)
                                     },

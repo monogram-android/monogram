@@ -2,6 +2,7 @@ package org.monogram.data.di
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.drinkless.tdlib.Client
 import org.drinkless.tdlib.TdApi
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -16,6 +18,7 @@ class TdLibException(val error: TdApi.Error) : Exception(error.message)
 
 class TdLibClient(private val context: Context) {
     private val TAG = "TdLibClient"
+    private val globalRetryAfterUntilMs = AtomicLong(0L)
 
     private val _isAuthenticated = MutableStateFlow(false)
     val isAuthenticated = _isAuthenticated.asStateFlow()
@@ -66,29 +69,69 @@ class TdLibClient(private val context: Context) {
         }
     }
 
-    suspend fun <T : TdApi.Object> sendSuspend(function: TdApi.Function<T>): T =
+    suspend fun <T : TdApi.Object> sendSuspend(function: TdApi.Function<T>): T {
+        var retries = 0
+        while (true) {
+            waitForGlobalRetryWindow()
+            val result = awaitResult(function)
+
+            if (result !is TdApi.Error) {
+                @Suppress("UNCHECKED_CAST")
+                return result as T
+            }
+
+            if (result.code == 404 && function is TdApi.GetChatPinnedMessage) {
+                @Suppress("UNCHECKED_CAST", "CAST_NEVER_SUCCEEDS")
+                return null as T
+            }
+
+            if (result.code == 429 && retries < 3) {
+                retries++
+                val retryAfterMs = parseRetryAfterMs(result.message)
+                updateGlobalRetryWindow(retryAfterMs)
+                Log.w(TAG, "Rate limited for $function, retrying in ${retryAfterMs}ms (attempt $retries)")
+                continue
+            }
+
+            if (result.code != 404) {
+                Log.e(TAG, "Error in sendSuspend $function: ${result.code} ${result.message}")
+            } else {
+                Log.w(TAG, "Not found in sendSuspend $function: ${result.message}")
+            }
+            throw TdLibException(result)
+        }
+    }
+
+    private suspend fun <T : TdApi.Object> awaitResult(function: TdApi.Function<T>): TdApi.Object =
         suspendCancellableCoroutine { cont ->
             client.send(function) { result ->
-                if (cont.isActive) {
-                    if (result is TdApi.Error) {
-                        if (result.code == 404 && function is TdApi.GetChatPinnedMessage) {
-                            @Suppress("UNCHECKED_CAST")
-                            cont.resume(null as T)
-                        } else {
-                            if (result.code != 404) {
-                                Log.e(TAG, "Error in sendSuspend $function: ${result.code} ${result.message}")
-                            } else {
-                                Log.w(TAG, "Not found in sendSuspend $function: ${result.message}")
-                            }
-                            cont.resumeWithException(TdLibException(result))
-                        }
-                    } else {
-                        @Suppress("UNCHECKED_CAST")
-                        cont.resume(result as T)
-                    }
-                }
+                if (cont.isActive) cont.resume(result)
             }
         }
+
+    private suspend fun waitForGlobalRetryWindow() {
+        val waitMs = (globalRetryAfterUntilMs.get() - System.currentTimeMillis()).coerceAtLeast(0L)
+        if (waitMs > 0L) delay(waitMs)
+    }
+
+    private fun updateGlobalRetryWindow(retryAfterMs: Long) {
+        val target = System.currentTimeMillis() + retryAfterMs
+        while (true) {
+            val current = globalRetryAfterUntilMs.get()
+            if (target <= current) return
+            if (globalRetryAfterUntilMs.compareAndSet(current, target)) return
+        }
+    }
+
+    private fun parseRetryAfterMs(message: String?): Long {
+        val seconds = Regex("retry after\\s+(\\d+)", RegexOption.IGNORE_CASE)
+            .find(message.orEmpty())
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toLongOrNull()
+            ?: 1L
+        return (seconds * 1000L).coerceAtMost(60_000L)
+    }
 
     fun getContext() = context
 }

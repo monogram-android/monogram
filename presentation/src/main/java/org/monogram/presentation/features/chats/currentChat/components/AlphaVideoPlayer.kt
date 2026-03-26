@@ -91,8 +91,9 @@ fun VideoStickerPlayer(
     volume: Float = 0f,
     contentScale: ContentScale = ContentScale.Fit,
     onProgressUpdate: (Long) -> Unit = {},
+    reportProgress: Boolean = false,
     fileId: Int = 0,
-    thumbnailPath: String? = null
+    thumbnailData: Any? = null
 ) {
     if (LocalInspectionMode.current) {
         Box(modifier = modifier)
@@ -106,18 +107,11 @@ fun VideoStickerPlayer(
     var shouldLoadPlayer by remember { mutableStateOf(false) }
     var isVideoFrameReady by remember { mutableStateOf(false) }
 
-    LaunchedEffect(currentPath) {
+    LaunchedEffect(animate, currentPath) {
         shouldLoadPlayer = false
         isVideoFrameReady = false
         if (animate) {
-            delay(120)
-            if (isActive) shouldLoadPlayer = true
-        }
-    }
-
-    LaunchedEffect(animate, currentPath) {
-        if (animate && !shouldLoadPlayer) {
-            delay(120)
+            delay(80)
             if (isActive) shouldLoadPlayer = true
         }
     }
@@ -136,12 +130,14 @@ fun VideoStickerPlayer(
                 if (animate) exoPlayer.play() else exoPlayer.pause()
             }
 
-            LaunchedEffect(exoPlayer) {
+            LaunchedEffect(exoPlayer, reportProgress) {
+                if (!reportProgress) return@LaunchedEffect
+
                 while (isActive && !isDisposed.get()) {
                     if (exoPlayer.isPlaying) {
                         onProgressUpdate(exoPlayer.currentPosition)
                     }
-                    delay(500)
+                    delay(1000)
                 }
             }
 
@@ -255,16 +251,16 @@ fun VideoStickerPlayer(
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
-                    .data(thumbnailPath ?: currentPath)
+                    .data(thumbnailData ?: currentPath)
                     .apply {
-                        if (thumbnailPath == null) {
+                        if (thumbnailData == null) {
                             decoderFactory(VideoFrameDecoder.Factory())
                             videoFrameMillis(0)
+                            memoryCacheKey(currentPath)
+                            diskCacheKey(currentPath)
                         }
                     }
-                    .memoryCacheKey(thumbnailPath ?: currentPath)
-                    .diskCacheKey(thumbnailPath ?: currentPath)
-                    .crossfade(true)
+                    .crossfade(false)
                     .build(),
                 contentDescription = null,
                 contentScale = contentScale,

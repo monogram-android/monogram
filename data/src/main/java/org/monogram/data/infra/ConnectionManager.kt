@@ -13,6 +13,7 @@ import org.monogram.data.datasource.remote.ProxyRemoteDataSource
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.ConnectionStatus
+import kotlin.random.Random
 
 class ConnectionManager(
     private val chatRemoteSource: ChatRemoteSource,
@@ -30,6 +31,11 @@ class ConnectionManager(
 
     private var retryJob: Job? = null
     private var proxyJob: Job? = null
+    private var reconnectAttempts = 0
+    private var lastRetryAtMs = 0L
+
+    private val minRetryIntervalMs = 1_200L
+    private val maxRetryDelayMs = 60_000L
 
     init {
         scope.launch {
@@ -53,22 +59,76 @@ class ConnectionManager(
         Log.d(TAG, "Connection state changed: $status")
         _connectionStateFlow.value = status
 
-        retryJob?.cancel()
-        if (status is ConnectionStatus.WaitingForNetwork) {
-            retryJob = scope.launch {
-                delay(5000)
-                while (isActive) {
-                    retryConnection()
-                    delay(10000)
-                }
+        when (status) {
+            is ConnectionStatus.Connected -> {
+                reconnectAttempts = 0
+                retryJob?.cancel()
+                retryJob = null
             }
+
+            is ConnectionStatus.Connecting,
+            is ConnectionStatus.Updating,
+            is ConnectionStatus.WaitingForNetwork,
+            is ConnectionStatus.ConnectingToProxy -> startRetryLoop()
         }
     }
 
     fun retryConnection() {
-        scope.launch(dispatchers.io) {
-            chatRemoteSource.setNetworkType()
+        scope.launch(dispatchers.default) {
+            runReconnectAttempt("manual")
         }
+    }
+
+    private fun startRetryLoop() {
+        if (retryJob?.isActive == true) return
+        retryJob = scope.launch(dispatchers.default) {
+            runReconnectAttempt("state_change")
+            while (isActive && _connectionStateFlow.value !is ConnectionStatus.Connected) {
+                delay(calculateRetryDelayMs(_connectionStateFlow.value, reconnectAttempts))
+                if (!isActive || _connectionStateFlow.value is ConnectionStatus.Connected) break
+                runReconnectAttempt("scheduled")
+            }
+        }
+    }
+
+    private suspend fun runReconnectAttempt(reason: String) {
+        val now = System.currentTimeMillis()
+        if (now - lastRetryAtMs < minRetryIntervalMs) return
+        lastRetryAtMs = now
+        reconnectAttempts++
+
+        Log.d(TAG, "Reconnect attempt #$reconnectAttempts ($reason), state=${_connectionStateFlow.value}")
+        runCatching {
+            withContext(dispatchers.io) {
+                chatRemoteSource.setNetworkType()
+            }
+        }.onFailure { error ->
+            Log.e(TAG, "Reconnect attempt failed", error)
+        }
+
+        maybeAdjustProxyOnFailures()
+    }
+
+    private suspend fun maybeAdjustProxyOnFailures() {
+        if (!appPreferences.isAutoBestProxyEnabled.value) return
+        if (reconnectAttempts < 4) return
+        if (reconnectAttempts % 3 != 0) return
+
+        runCatching { selectBestProxy() }
+            .onFailure { Log.e(TAG, "Proxy fallback failed during reconnect", it) }
+    }
+
+    private fun calculateRetryDelayMs(status: ConnectionStatus, attempts: Int): Long {
+        val base = when (status) {
+            is ConnectionStatus.WaitingForNetwork -> 2_500L
+            is ConnectionStatus.ConnectingToProxy -> 3_500L
+            is ConnectionStatus.Updating -> 2_000L
+            is ConnectionStatus.Connecting -> 1_500L
+            is ConnectionStatus.Connected -> 1_000L
+        }
+        val backoff = (base * (1L shl attempts.coerceAtMost(5))).coerceAtMost(maxRetryDelayMs)
+        val jitter = Random.nextLong(200L, 1_200L)
+        return backoff + jitter
     }
 
     private fun startProxyManagement() {

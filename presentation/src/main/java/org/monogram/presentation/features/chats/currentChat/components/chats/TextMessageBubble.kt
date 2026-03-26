@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -116,7 +117,14 @@ fun TextMessageBubble(
                 AnimatedContent(
                     targetState = finalAnnotatedString,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                        (fadeIn(animationSpec = tween(240, easing = FastOutSlowInEasing)) +
+                                scaleIn(initialScale = 0.97f, animationSpec = tween(240, easing = FastOutSlowInEasing)) +
+                                slideInVertically(initialOffsetY = { it / 8 }, animationSpec = tween(240, easing = FastOutSlowInEasing)))
+                            .togetherWith(
+                                fadeOut(animationSpec = tween(180)) +
+                                        scaleOut(targetScale = 0.99f, animationSpec = tween(180)) +
+                                        slideOutVertically(targetOffsetY = { -it / 10 }, animationSpec = tween(180))
+                            )
                     },
                     label = "TextEditAnimation"
                 ) { targetText ->

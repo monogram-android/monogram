@@ -56,6 +56,7 @@ class FileDownloadQueue(
     private val downloadWaiters = ConcurrentHashMap<Int, CompletableDeferred<Unit>>()
     private val uploadWaiters = ConcurrentHashMap<Int, CompletableDeferred<Unit>>()
     private val lastProgressAt = ConcurrentHashMap<Int, Long>()
+    private val stalledRecoveryAt = ConcurrentHashMap<Int, Long>()
 
     private val openChatIds = ConcurrentHashMap.newKeySet<Long>()
     private val visibleMessageIds = ConcurrentHashMap<Long, Set<Long>>()
@@ -75,6 +76,7 @@ class FileDownloadQueue(
     private val maxStickerParallelDownloads = 6
     private val stickerStallMs = 20_000L
     private val defaultStallMs = 35_000L
+    private val stalledRecoveryCooldownMs = 12_000L
 
     private val trigger = Channel<Unit>(Channel.CONFLATED)
 
@@ -82,21 +84,24 @@ class FileDownloadQueue(
         scope.appScope.launch(dispatcherProvider.default) {
             while (isActive) {
                 trigger.receive()
-                dispatchTasks()
+                runCatching { dispatchTasks() }
+                    .onFailure { Log.e("FileDownloadQueue", "dispatchTasks failed", it) }
             }
         }
 
         scope.appScope.launch(dispatcherProvider.default) {
             while (isActive) {
                 delay(TimeUnit.MINUTES.toMillis(1))
-                retryFailedStickers()
+                runCatching { retryFailedStickers() }
+                    .onFailure { Log.e("FileDownloadQueue", "retryFailedStickers failed", it) }
             }
         }
 
         scope.appScope.launch(dispatcherProvider.default) {
             while (isActive) {
                 delay(15_000)
-                recoverStalledDownloads()
+                runCatching { recoverStalledDownloads() }
+                    .onFailure { Log.e("FileDownloadQueue", "recoverStalledDownloads failed", it) }
             }
         }
     }
@@ -373,14 +378,37 @@ class FileDownloadQueue(
             }
             val lastProgress = lastProgressAt[req.fileId] ?: req.createdAt
             if (now - lastProgress >= timeoutMs) {
-                enqueue(
-                    fileId = req.fileId,
-                    priority = if (req.type == DownloadType.STICKER) maxOf(req.priority, 32) else req.priority,
-                    type = req.type,
-                    offset = req.offset,
-                    limit = req.limit,
-                    synchronous = req.synchronous
-                )
+                val recoveredAt = stalledRecoveryAt[req.fileId] ?: 0L
+                if (now - recoveredAt < stalledRecoveryCooldownMs) return@forEach
+                stalledRecoveryAt[req.fileId] = now
+
+                scope.appScope.launch(dispatcherProvider.default) {
+                    val recovered = stateMutex.withLock {
+                        val active = activeRequests[req.fileId] ?: return@withLock false
+                        if (active.createdAt != req.createdAt || active.availableAt != req.availableAt) return@withLock false
+
+                        activeRequests.remove(req.fileId)
+                        pendingRequests[req.fileId] = mergeRequests(
+                            pendingRequests[req.fileId] ?: req,
+                            req.copy(
+                                priority = if (req.type == DownloadType.STICKER) maxOf(req.priority, 32) else maxOf(req.priority, 16),
+                                availableAt = System.currentTimeMillis() + 250L,
+                                createdAt = System.currentTimeMillis()
+                            )
+                        )
+                        true
+                    }
+
+                    if (recovered) {
+                        runCatching {
+                            withContext(dispatcherProvider.io) {
+                                gateway.execute(TdApi.CancelDownloadFile(req.fileId, false))
+                            }
+                        }
+                        lastProgressAt[req.fileId] = System.currentTimeMillis()
+                        trigger.trySend(Unit)
+                    }
+                }
             }
         }
     }
@@ -389,6 +417,7 @@ class FileDownloadQueue(
         stateMutex.withLock {
             activeRequests.remove(fileId)
         }
+        stalledRecoveryAt.remove(fileId)
         trigger.trySend(Unit)
     }
 
@@ -407,6 +436,7 @@ class FileDownloadQueue(
         if (file.local.isDownloadingCompleted) {
             manualDownloadIds.remove(file.id)
             failedRequests.remove(file.id)
+            stalledRecoveryAt.remove(file.id)
             lastProgressAt.remove(file.id)
             scope.appScope.launch {
                 stateMutex.withLock { pendingRequests.remove(file.id) }

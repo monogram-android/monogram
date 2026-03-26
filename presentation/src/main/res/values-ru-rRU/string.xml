@@ -232,6 +232,11 @@
     <string name="menu_delete">Удалить</string>
     <string name="menu_view_comments">Посмотреть комментарии</string>
     <string name="menu_save_to_downloads">Сохранить в загрузки</string>
+    <string name="menu_cocoon">Cocoon</string>
+    <string name="menu_telegram_summary">Сводка</string>
+    <string name="menu_telegram_translate">Перевести</string>
+    <string name="telegram_cocoon_attribution">Создано с помощью Telegram Cocoon</string>
+    <string name="menu_restore_original_text">Вернуть исходный текст</string>
     <string name="menu_restrict_user">Ограничить</string>
     <string name="info_edited">изменено</string>
     <string name="info_read">прочитано</string>

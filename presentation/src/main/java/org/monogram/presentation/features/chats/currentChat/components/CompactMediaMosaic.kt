@@ -454,7 +454,8 @@ fun VideoItem(
                         animate = !isAnyViewerOpen,
                         contentScale = contentScale,
                         videoPlayerPool = videoPlayerPool,
-                        fileId = if (video.path == null) video.fileId else 0
+                        fileId = if (video.path == null) video.fileId else 0,
+                        thumbnailData = video.minithumbnail
                     )
                 } else {
                     if (hasPath) {
@@ -634,7 +635,8 @@ fun VideoNoteItem(
                             },
                         animate = !isAnyViewerOpen,
                         contentScale = contentScale,
-                        videoPlayerPool = videoPlayerPool
+                        videoPlayerPool = videoPlayerPool,
+                        thumbnailData = videoNote.thumbnail
                     )
                 } else {
                     val model = videoNote.thumbnail ?: path
@@ -797,7 +799,8 @@ fun GifItem(
                         },
                     animate = autoplayGifs && !isAnyViewerOpen,
                     contentScale = contentScale,
-                    videoPlayerPool = videoPlayerPool
+                    videoPlayerPool = videoPlayerPool,
+                    thumbnailData = gif.minithumbnail
                 )
 
                 if (!autoplayGifs) {

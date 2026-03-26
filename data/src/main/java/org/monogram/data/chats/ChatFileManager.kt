@@ -25,6 +25,7 @@ class ChatFileManager(
     private val emojiPathsCache = ConcurrentHashMap<Long, String>()
     private val fileIdToEmojiId = ConcurrentHashMap<Int, Long>()
     private val chatPhotoIds = ConcurrentHashMap<Int, Long>()
+    private val trackedFileIds = Collections.newSetFromMap(ConcurrentHashMap<Int, Boolean>())
 
     fun getFilePath(fileId: Int): String? = filePaths[fileId]
     fun getEmojiPath(emojiId: Long): String? = emojiPathsCache[emojiId]
@@ -32,6 +33,10 @@ class ChatFileManager(
 
     fun registerChatPhoto(fileId: Int, chatId: Long) {
         chatPhotoIds[fileId] = chatId
+    }
+
+    fun registerTrackedFile(fileId: Int) {
+        if (fileId != 0) trackedFileIds.add(fileId)
     }
 
     fun handleFileUpdate(file: TdApi.File): Boolean {
@@ -50,12 +55,14 @@ class ChatFileManager(
             updated = true
         }
         if (chatPhotoIds.containsKey(fileId)) updated = true
+        if (trackedFileIds.remove(fileId)) updated = true
         return updated
     }
 
     fun downloadFile(fileId: Int, priority: Int, offset: Long = 0, limit: Long = 0, synchronous: Boolean = true) {
         if (fileId == 0) return
-        fileQueue.enqueue(fileId, priority, FileDownloadQueue.DownloadType.DEFAULT, offset, limit, synchronous)
+        val effectivePriority = if (priority <= 1) 16 else priority
+        fileQueue.enqueue(fileId, effectivePriority, FileDownloadQueue.DownloadType.DEFAULT, offset, limit, synchronous)
         if (synchronous) {
             scope.launch(dispatchers.io) {
                 runCatching {

@@ -116,6 +116,8 @@ interface MessageRepository {
     suspend fun sendChatAction(chatId: Long, action: ChatAction, threadId: Long? = null)
     suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int
     suspend fun getMessageViewers(chatId: Long, messageId: Long): List<MessageViewerModel>
+    suspend fun summarizeMessage(chatId: Long, messageId: Long, toLanguageCode: String = ""): String?
+    suspend fun translateMessage(chatId: Long, messageId: Long, toLanguageCode: String): String?
     suspend fun addMessageReaction(chatId: Long, messageId: Long, reaction: String)
     suspend fun removeMessageReaction(chatId: Long, messageId: Long, reaction: String)
     suspend fun setPollAnswer(chatId: Long, messageId: Long, optionIds: List<Int>)

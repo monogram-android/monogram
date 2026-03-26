@@ -1,21 +1,30 @@
 package org.monogram.presentation.features.chats.currentChat.chatContent
 
+import android.util.Log
 import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.repository.MessageRepository
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.ChatComponent
 import org.monogram.presentation.features.stickers.ui.menu.MessageOptionsMenu
+import java.util.Locale
 
 @Composable
 fun ChatMessageOptionsMenu(
@@ -29,8 +38,12 @@ fun ChatMessageOptionsMenu(
     groupedMessages: List<GroupedMessageItem>,
     downloadUtils: IDownloadUtils,
     clipboardManager: ClipboardManager,
+    canRestoreOriginalText: Boolean,
+    onApplyTransformedText: (String) -> Unit,
+    onRestoreOriginalText: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val messageRepository: MessageRepository = koinInject()
     val canCheckViewersList = remember(state.isChannel, state.isGroup, state.memberCount) {
         !state.isChannel && (!state.isGroup || state.memberCount in 1 until 100)
     }
@@ -190,7 +203,10 @@ fun ChatMessageOptionsMenu(
             )
     val canCopyLink = state.isGroup || state.isChannel
     val canPinMessages = state.isAdmin || state.permissions.canPinMessages
-
+    val isPremiumUser = state.currentUser?.isPremium == true
+    val canUseTelegramSummary = isPremiumUser && canSummarize(selectedMessage)
+    val canUseTelegramTranslator = isPremiumUser && canTranslate(selectedMessage)
+    val cocoonAttribution = stringResource(R.string.telegram_cocoon_attribution)
     MessageOptionsMenu(
         message = messageWithReadDate,
         canWrite = state.canWrite,
@@ -215,6 +231,9 @@ fun ChatMessageOptionsMenu(
         canBlock = canBlockUser,
         canRestrict = canRestrictUser,
         canCopyLink = canCopyLink,
+        showTelegramSummary = canUseTelegramSummary,
+        showTelegramTranslator = canUseTelegramTranslator,
+        showRestoreOriginalText = canRestoreOriginalText,
         viewers = messageViewers,
         isLoadingViewers = isLoadingViewers,
         onReloadViewers = {
@@ -295,6 +314,79 @@ fun ChatMessageOptionsMenu(
             component.onCommentsClick(selectedMessage.id)
             onDismiss()
         },
+        onTelegramSummary = {
+            telegramAiScope.launch {
+                runCatching {
+                    messageRepository.summarizeMessage(
+                        chatId = selectedMessage.chatId,
+                        messageId = selectedMessage.id
+                    )
+                }.onSuccess { summary ->
+                    if (!summary.isNullOrBlank()) {
+                        val transformed = summary.withCocoonAttribution(cocoonAttribution)
+                        Log.d(
+                            TELEGRAM_AI_LOG_TAG,
+                            "summary_applied chatId=${selectedMessage.chatId} messageId=${selectedMessage.id} resultLength=${transformed.length}"
+                        )
+                        onApplyTransformedText(transformed)
+                        onDismiss()
+                    } else {
+                        Log.d(
+                            TELEGRAM_AI_LOG_TAG,
+                            "summary_empty chatId=${selectedMessage.chatId} messageId=${selectedMessage.id}"
+                        )
+                    }
+                }.onFailure { error ->
+                    Log.e(
+                        TELEGRAM_AI_LOG_TAG,
+                        "summary_failed chatId=${selectedMessage.chatId} messageId=${selectedMessage.id}",
+                        error
+                    )
+                }
+            }
+        },
+        onTelegramTranslator = {
+            telegramAiScope.launch {
+                val languageCode = state.currentUser?.languageCode?.takeIf { it.isNotBlank() }
+                    ?: Locale.getDefault().language
+                runCatching {
+                    messageRepository.translateMessage(
+                        chatId = selectedMessage.chatId,
+                        messageId = selectedMessage.id,
+                        toLanguageCode = languageCode
+                    )
+                }.onSuccess { translation ->
+                    if (!translation.isNullOrBlank()) {
+                        val transformed = translation.withCocoonAttribution(cocoonAttribution)
+                        Log.d(
+                            TELEGRAM_AI_LOG_TAG,
+                            "translation_applied chatId=${selectedMessage.chatId} messageId=${selectedMessage.id} language=$languageCode resultLength=${transformed.length}"
+                        )
+                        onApplyTransformedText(transformed)
+                        onDismiss()
+                    } else {
+                        Log.d(
+                            TELEGRAM_AI_LOG_TAG,
+                            "translation_empty chatId=${selectedMessage.chatId} messageId=${selectedMessage.id} language=$languageCode"
+                        )
+                    }
+                }.onFailure { error ->
+                    Log.e(
+                        TELEGRAM_AI_LOG_TAG,
+                        "translation_failed chatId=${selectedMessage.chatId} messageId=${selectedMessage.id} language=$languageCode",
+                        error
+                    )
+                }
+            }
+        },
+        onRestoreOriginalText = {
+            Log.d(
+                TELEGRAM_AI_LOG_TAG,
+                "restore_original chatId=${selectedMessage.chatId} messageId=${selectedMessage.id}"
+            )
+            onRestoreOriginalText()
+            onDismiss()
+        },
         onReport = {
             component.onReportMessage(selectedMessage)
             onDismiss()
@@ -313,4 +405,36 @@ fun ChatMessageOptionsMenu(
         },
         onDismiss = onDismiss
     )
+}
+
+private fun String.withCocoonAttribution(attribution: String): String {
+    val cleanText = trim()
+    return "$cleanText\n\n$attribution"
+}
+
+private const val TELEGRAM_AI_LOG_TAG = "TelegramAiActions"
+private val telegramAiScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+private fun canTranslate(message: MessageModel): Boolean {
+    return when (val content = message.content) {
+        is MessageContent.Text -> content.text.isNotBlank()
+        is MessageContent.Photo -> content.caption.isNotBlank()
+        is MessageContent.Video -> content.caption.isNotBlank()
+        is MessageContent.Gif -> content.caption.isNotBlank()
+        is MessageContent.Document -> content.caption.isNotBlank()
+        is MessageContent.Audio -> content.caption.isNotBlank()
+        else -> false
+    }
+}
+
+private fun canSummarize(message: MessageModel): Boolean {
+    return when (val content = message.content) {
+        is MessageContent.Text -> content.text.isNotBlank()
+        is MessageContent.Photo -> content.caption.isNotBlank()
+        is MessageContent.Video -> content.caption.isNotBlank()
+        is MessageContent.Gif -> content.caption.isNotBlank()
+        is MessageContent.Document -> content.caption.isNotBlank()
+        is MessageContent.Audio -> content.caption.isNotBlank()
+        else -> false
+    }
 }

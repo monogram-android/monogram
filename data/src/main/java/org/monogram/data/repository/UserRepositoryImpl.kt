@@ -39,6 +39,8 @@ class UserRepositoryImpl(
 
     private val emojiPathCache = ConcurrentHashMap<Long, String>()
     private val fileIdToUserIdMap = ConcurrentHashMap<Int, Long>()
+    private val avatarDownloadPriority = 24
+    private val avatarFallbackPriority = 16
 
     private val _currentUserFlow = MutableStateFlow<UserModel?>(null)
     override val currentUserFlow = _currentUserFlow.asStateFlow()
@@ -146,8 +148,8 @@ class UserRepositoryImpl(
 
     private suspend fun refreshCurrentUser() {
         val user = userLocal.getUser(currentUserId) ?: return
-        val path = resolveEmojiPath(user)
-        _currentUserFlow.update { user.toDomain(userLocal.getUserFullInfo(currentUserId), path) }
+        val model = mapUserModel(user, userLocal.getUserFullInfo(currentUserId))
+        _currentUserFlow.value = model
     }
 
     override suspend fun getMe(): UserModel {
@@ -157,8 +159,7 @@ class UserRepositoryImpl(
         if (userLocal is RoomUserLocalDataSource) {
             userLocal.saveUser(user.toEntity())
         }
-        val path = resolveEmojiPath(user)
-        val model = user.toDomain(userLocal.getUserFullInfo(user.id), path)
+        val model = mapUserModel(user, userLocal.getUserFullInfo(user.id))
         _currentUserFlow.update { model }
         return model
     }
@@ -166,14 +167,14 @@ class UserRepositoryImpl(
     override suspend fun getUser(userId: Long): UserModel? {
         if (userId <= 0) return null
         userLocal.getUser(userId)?.let {
-            return it.toDomain(userLocal.getUserFullInfo(userId), resolveEmojiPath(it))
+            return mapUserModel(it, userLocal.getUserFullInfo(userId))
         }
 
         if (userLocal is RoomUserLocalDataSource) {
             userLocal.loadUser(userId)?.let { entity ->
                 val user = entity.toTdApi()
                 userLocal.putUser(user)
-                return user.toDomain(userLocal.getUserFullInfo(userId), resolveEmojiPath(user))
+                return mapUserModel(user, userLocal.getUserFullInfo(userId))
             }
         }
 
@@ -189,7 +190,7 @@ class UserRepositoryImpl(
         }
         return try {
             deferred.await()?.let { user ->
-                user.toDomain(userLocal.getUserFullInfo(userId), resolveEmojiPath(user))
+                mapUserModel(user, userLocal.getUserFullInfo(userId))
             }
         } finally {
             userRequests.remove(userId)
@@ -206,13 +207,13 @@ class UserRepositoryImpl(
         } ?: return null
 
         val cachedFullInfo = userLocal.getUserFullInfo(userId)
-        if (cachedFullInfo != null) return user.toDomain(cachedFullInfo, resolveEmojiPath(user))
+        if (cachedFullInfo != null) return mapUserModel(user, cachedFullInfo)
 
         val dbFullInfo = userLocal.getFullInfoEntity(userId)
         if (dbFullInfo != null) {
             val fullInfo = dbFullInfo.toTdApi()
             userLocal.putUserFullInfo(userId, fullInfo)
-            return user.toDomain(fullInfo, resolveEmojiPath(user))
+            return mapUserModel(user, fullInfo)
         }
 
         val deferred = fullInfoRequests.getOrPut(userId) {
@@ -225,10 +226,45 @@ class UserRepositoryImpl(
         }
         return try {
             val fullInfo = deferred.await()
-            user.toDomain(fullInfo, resolveEmojiPath(user))
+            mapUserModel(user, fullInfo)
         } finally {
             fullInfoRequests.remove(userId)
         }
+    }
+
+    private suspend fun mapUserModel(user: TdApi.User, fullInfo: TdApi.UserFullInfo?): UserModel {
+        val emojiPath = resolveEmojiPath(user)
+        val avatarPath = resolveAvatarPath(user)
+        val model = user.toDomain(fullInfo, emojiPath)
+        return if (avatarPath == null || avatarPath == model.avatarPath) model else model.copy(avatarPath = avatarPath)
+    }
+
+    private suspend fun resolveAvatarPath(user: TdApi.User): String? {
+        val bigPhoto = user.profilePhoto?.big
+        val smallPhoto = user.profilePhoto?.small
+        val directPath = bigPhoto?.local?.path?.ifEmpty { null } ?: smallPhoto?.local?.path?.ifEmpty { null }
+        if (directPath != null) return directPath
+
+        val resolvedSmallPath = resolveDownloadedFilePath(smallPhoto?.id)
+        if (resolvedSmallPath != null) return resolvedSmallPath
+
+        val resolvedBigPath = resolveDownloadedFilePath(bigPhoto?.id)
+        if (resolvedBigPath != null) return resolvedBigPath
+
+        smallPhoto?.id?.takeIf { it != 0 }?.let {
+            fileQueue.enqueue(it, avatarDownloadPriority, FileDownloadQueue.DownloadType.DEFAULT, synchronous = false)
+        }
+        bigPhoto?.id?.takeIf { it != 0 }?.let {
+            fileQueue.enqueue(it, avatarFallbackPriority, FileDownloadQueue.DownloadType.DEFAULT, synchronous = false)
+        }
+
+        return null
+    }
+
+    private suspend fun resolveDownloadedFilePath(fileId: Int?): String? {
+        if (fileId == null || fileId == 0) return null
+        val file = runCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull() ?: return null
+        return if (file.local.isDownloadingCompleted) file.local.path.ifEmpty { null } else null
     }
 
     override fun getUserFlow(userId: Long): Flow<UserModel?> = flow {

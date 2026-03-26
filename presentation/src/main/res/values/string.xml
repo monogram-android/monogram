@@ -233,6 +233,11 @@
     <string name="menu_delete">Delete</string>
     <string name="menu_view_comments">View Comments</string>
     <string name="menu_save_to_downloads">Save to Downloads</string>
+    <string name="menu_cocoon">Cocoon</string>
+    <string name="menu_telegram_summary">Summary</string>
+    <string name="menu_telegram_translate">Translate</string>
+    <string name="telegram_cocoon_attribution">Generated with Telegram Cocoon</string>
+    <string name="menu_restore_original_text">Restore Original Text</string>
     <string name="menu_restrict_user">Restrict User</string>
     <string name="info_edited">Edited</string>
     <string name="info_read">Read</string>

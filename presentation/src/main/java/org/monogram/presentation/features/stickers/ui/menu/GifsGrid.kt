@@ -333,7 +333,7 @@ fun GifItem(
                         contentScale = ContentScale.Crop,
                         videoPlayerPool = videoPlayerPool,
                         animate = animate,
-                        thumbnailPath = thumbPath
+                        thumbnailData = thumbPath
                     )
                 }
                 GifState.Thumbnail -> {

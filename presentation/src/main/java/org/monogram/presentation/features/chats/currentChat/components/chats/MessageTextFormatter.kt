@@ -72,18 +72,22 @@ fun buildAnnotatedMessageTextWithEmoji(
             val indexMapping = mutableMapOf<Int, Int>()
 
             emojiEntities.forEachIndexed { index, entity ->
-                if (entity.offset > currentPos) {
-                    val segment = text.substring(currentPos, entity.offset)
+                val safeStart = entity.offset.coerceIn(0, text.length)
+                val safeEnd = (entity.offset + entity.length).coerceIn(safeStart, text.length)
+
+                if (safeStart > currentPos) {
+                    val segment = text.substring(currentPos, safeStart)
                     segment.forEachIndexed { i, _ ->
                         indexMapping[currentPos + i] = this.length
                         append(segment[i])
                     }
                 }
 
-                indexMapping[entity.offset] = this.length
-                appendInlineContent("emoji_$index", "[emoji]")
-
-                currentPos = entity.offset + entity.length
+                if (safeStart >= currentPos) {
+                    indexMapping[safeStart] = this.length
+                    appendInlineContent("emoji_$index", "[emoji]")
+                    currentPos = safeEnd
+                }
             }
 
             if (currentPos < text.length) {
@@ -100,8 +104,10 @@ fun buildAnnotatedMessageTextWithEmoji(
             }
 
             otherEntities.forEachIndexed { index, entity ->
-                val start = indexMapping[entity.offset] ?: return@forEachIndexed
-                val end = indexMapping[entity.offset + entity.length] ?: indexMapping[text.length] ?: return@forEachIndexed
+                val safeStart = entity.offset.coerceIn(0, text.length)
+                val safeEnd = (entity.offset + entity.length).coerceIn(safeStart, text.length)
+                val start = indexMapping[safeStart] ?: return@forEachIndexed
+                val end = indexMapping[safeEnd] ?: indexMapping[text.length] ?: return@forEachIndexed
                 if (start >= end) return@forEachIndexed
 
                 when (val type = entity.type) {
@@ -145,7 +151,7 @@ fun buildAnnotatedMessageTextWithEmoji(
                         )
                         addStringAnnotation(
                             "COPY",
-                            text.substring(entity.offset, entity.offset + entity.length),
+                            text.safeSubstring(safeStart, safeEnd),
                             start,
                             end
                         )
@@ -161,7 +167,7 @@ fun buildAnnotatedMessageTextWithEmoji(
                         )
                         addStringAnnotation(
                             "COPY",
-                            text.substring(entity.offset, entity.offset + entity.length),
+                            text.safeSubstring(safeStart, safeEnd),
                             start,
                             end
                         )
@@ -174,14 +180,14 @@ fun buildAnnotatedMessageTextWithEmoji(
 
                     is MessageEntityType.Url -> {
                         addStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline), start, end)
-                        addStringAnnotation("URL", text.substring(entity.offset, entity.offset + entity.length), start, end)
+                        addStringAnnotation("URL", text.safeSubstring(safeStart, safeEnd), start, end)
                     }
 
                     is MessageEntityType.Mention -> {
                         addStyle(SpanStyle(color = linkColor), start, end)
                         addStringAnnotation(
                             "MENTION",
-                            text.substring(entity.offset, entity.offset + entity.length),
+                            text.safeSubstring(safeStart, safeEnd),
                             start,
                             end
                         )
@@ -201,7 +207,7 @@ fun buildAnnotatedMessageTextWithEmoji(
                         addStyle(SpanStyle(color = linkColor), start, end)
                         addStringAnnotation(
                             "HASHTAG",
-                            text.substring(entity.offset, entity.offset + entity.length),
+                            text.safeSubstring(safeStart, safeEnd),
                             start,
                             end
                         )
@@ -212,4 +218,11 @@ fun buildAnnotatedMessageTextWithEmoji(
             }
         }
     }
+}
+
+private fun String.safeSubstring(start: Int, end: Int): String {
+    if (isEmpty()) return ""
+    val safeStart = start.coerceIn(0, length)
+    val safeEnd = end.coerceIn(safeStart, length)
+    return substring(safeStart, safeEnd)
 }

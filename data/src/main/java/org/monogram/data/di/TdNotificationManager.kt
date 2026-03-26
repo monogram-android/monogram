@@ -33,6 +33,8 @@ import org.monogram.data.service.NotificationReadReceiver
 import org.monogram.data.service.NotificationReplyReceiver
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.PushProvider
+import org.monogram.domain.repository.SettingsRepository
+import org.monogram.domain.repository.SettingsRepository.TdNotificationScope
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.min
 
@@ -40,6 +42,7 @@ class TdNotificationManager(
     private val context: Context,
     private val tdLibClient: TdLibClient,
     private val appPreferences: AppPreferencesProvider,
+    private val settingsRepository: SettingsRepository,
     private val notificationSettingDao: NotificationSettingDao,
     private val fileQueue: FileDownloadQueue
 ) {
@@ -57,6 +60,14 @@ class TdNotificationManager(
     }
     private val activeDownloads = ConcurrentHashMap<Int, MutableList<(Bitmap?) -> Unit>>()
     private val notificationSettingsCache = ConcurrentHashMap<Long, NotificationSettingEntity>()
+    private val scopeNotificationsEnabled = ConcurrentHashMap<NotificationScopeKey, Boolean>()
+    private val loadedScopeSettings = ConcurrentHashMap.newKeySet<NotificationScopeKey>()
+
+    private enum class NotificationScopeKey {
+        PRIVATE,
+        GROUPS,
+        CHANNELS
+    }
 
     companion object {
         private const val TAG = "TdNotificationManager"
@@ -91,6 +102,9 @@ class TdNotificationManager(
         scope.launch {
             tdLibClient.isAuthenticated.collect { authenticated ->
                 if (authenticated) {
+                    loadedScopeSettings.clear()
+                    scopeNotificationsEnabled.clear()
+                    fetchScopeNotificationSettings()
                     fetchInitialExceptions()
                     updatePushRegistration()
                 }
@@ -219,25 +233,51 @@ class TdNotificationManager(
         }
     }
 
+    private suspend fun fetchScopeNotificationSettings() {
+        if (!tdLibClient.isAuthenticated.value) return
+
+        val scopes = listOf(
+            NotificationScopeKey.PRIVATE to TdNotificationScope.PRIVATE_CHATS,
+            NotificationScopeKey.GROUPS to TdNotificationScope.GROUPS,
+            NotificationScopeKey.CHANNELS to TdNotificationScope.CHANNELS
+        )
+
+        scopes.forEach { (key, scope) ->
+            val enabled = runCatching { settingsRepository.getNotificationSettings(scope) }
+                .getOrDefault(false)
+
+            scopeNotificationsEnabled[key] = enabled
+            loadedScopeSettings.add(key)
+
+            when (key) {
+                NotificationScopeKey.PRIVATE -> appPreferences.setPrivateChatsNotifications(enabled)
+                NotificationScopeKey.GROUPS -> appPreferences.setGroupsNotifications(enabled)
+                NotificationScopeKey.CHANNELS -> appPreferences.setChannelsNotifications(enabled)
+            }
+        }
+    }
+
     fun isChatMuted(chat: TdApi.Chat): Boolean {
         val cached = notificationSettingsCache[chat.id]
         val muteFor = cached?.muteFor ?: chat.notificationSettings.muteFor
         val useDefault = cached?.useDefault ?: chat.notificationSettings.useDefaultMuteFor
 
         return if (useDefault) {
-            val globalEnabled = when (chat.type) {
-                is TdApi.ChatTypePrivate -> appPreferences.privateChatsNotifications.value
-                is TdApi.ChatTypeBasicGroup, is TdApi.ChatTypeSupergroup -> {
-                    val supergroup = chat.type as? TdApi.ChatTypeSupergroup
-                    if (supergroup?.isChannel == true) {
-                        appPreferences.channelsNotifications.value
-                    } else {
-                        appPreferences.groupsNotifications.value
-                    }
+            val scopeKey = when (chat.type) {
+                is TdApi.ChatTypePrivate -> NotificationScopeKey.PRIVATE
+                is TdApi.ChatTypeBasicGroup -> NotificationScopeKey.GROUPS
+                is TdApi.ChatTypeSupergroup -> {
+                    if ((chat.type as TdApi.ChatTypeSupergroup).isChannel) NotificationScopeKey.CHANNELS else NotificationScopeKey.GROUPS
                 }
 
-                else -> false
+                else -> null
             }
+
+            if (scopeKey == null || !loadedScopeSettings.contains(scopeKey)) {
+                return true
+            }
+
+            val globalEnabled = scopeNotificationsEnabled[scopeKey] ?: false
             !globalEnabled
         } else {
             muteFor > 0

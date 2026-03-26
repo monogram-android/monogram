@@ -232,6 +232,11 @@
     <string name="menu_delete">删除</string>
     <string name="menu_view_comments">查看评论</string>
     <string name="menu_save_to_downloads">保存到下载</string>
+    <string name="menu_cocoon">Cocoon</string>
+    <string name="menu_telegram_summary">摘要</string>
+    <string name="menu_telegram_translate">翻译</string>
+    <string name="telegram_cocoon_attribution">由 Telegram Cocoon 生成</string>
+    <string name="menu_restore_original_text">恢复原始文本</string>
     <string name="menu_restrict_user">限制用户</string>
     <string name="info_edited">已编辑</string>
     <string name="info_read">已读</string>

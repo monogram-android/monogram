@@ -9,15 +9,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
 import org.monogram.presentation.core.util.generateColorFromHash
 import org.monogram.presentation.features.chats.currentChat.components.AvatarPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
@@ -34,6 +37,7 @@ fun AvatarTopAppBar(
     fontSize: Int = 14,
     isOnline: Boolean = false
 ) {
+    val context = LocalContext.current
     val combinedModifier = modifier
         .size(size)
         .clip(CircleShape)
@@ -42,16 +46,25 @@ fun AvatarTopAppBar(
         val resolvedPath = resolveAvatarPath(path, fallbackPath)
         val avatarFile = resolvedPath?.let { File(it) }
         if (avatarFile != null && avatarFile.exists()) {
+            val avatarVersion = "${avatarFile.absolutePath}:${avatarFile.lastModified()}:${avatarFile.length()}"
             if (resolvedPath.endsWith(".mp4", ignoreCase = true)) {
-                AvatarPlayer(
-                    path = resolvedPath,
-                    modifier = combinedModifier,
-                    contentScale = ContentScale.Crop,
-                    videoPlayerPool = videoPlayerPool
-                )
+                key(avatarVersion) {
+                    AvatarPlayer(
+                        path = resolvedPath,
+                        modifier = combinedModifier,
+                        contentScale = ContentScale.Crop,
+                        videoPlayerPool = videoPlayerPool
+                    )
+                }
             } else {
                 Image(
-                    painter = rememberAsyncImagePainter(avatarFile),
+                    painter = rememberAsyncImagePainter(
+                        model = ImageRequest.Builder(context)
+                            .data(avatarFile)
+                            .memoryCacheKey(avatarVersion)
+                            .diskCacheKey(avatarVersion)
+                            .build()
+                    ),
                     contentDescription = null,
                     modifier = combinedModifier,
                     contentScale = ContentScale.Crop

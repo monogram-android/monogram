@@ -82,12 +82,15 @@ fun ChatContentList(
         scrollState,
         groupedMessages.size,
         state.isLoading,
+        state.isLoadingOlder,
+        state.isLoadingNewer,
         state.isLatestLoaded,
         state.isOldestLoaded,
-        state.isAtBottom
+        state.isAtBottom,
+        isComments
     ) {
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
-            .filter { it.isNotEmpty() }
+            .filter { it.isNotEmpty() && groupedMessages.isNotEmpty() }
             .map { visibleItems ->
                 val firstIndex = visibleItems.first().index
                 val lastIndex = visibleItems.last().index
@@ -95,20 +98,23 @@ fun ChatContentList(
             }
             .distinctUntilChanged()
             .collect { (firstVisibleIndex, lastVisibleIndex) ->
+                if (state.isLoading || state.isLoadingOlder || state.isLoadingNewer) return@collect
+
+                val nearStart = firstVisibleIndex <= 2
+                val nearEnd = lastVisibleIndex >= (groupedMessages.size - 3).coerceAtLeast(0)
+
                 if (isComments) {
-                    if (lastVisibleIndex >= groupedMessages.size - 5 && !state.isLoading && !state.isLatestLoaded) {
+                    if (!scrollState.isScrollInProgress) return@collect
+
+                    if (nearStart && !state.isOldestLoaded) {
+                        component.loadMore()
+                    } else if (nearEnd && !state.isLatestLoaded) {
                         component.loadNewer()
                     }
-
-                    if (firstVisibleIndex < 5 && !state.isLoading && !state.isOldestLoaded) {
-                        component.loadMore()
-                    }
                 } else {
-                    if (lastVisibleIndex >= groupedMessages.size - 5 && !state.isLoading) {
+                    if (nearEnd && !state.isOldestLoaded) {
                         component.loadMore()
-                    }
-
-                    if (firstVisibleIndex < 5 && !state.isAtBottom && !state.isLoading) {
+                    } else if (nearStart && !state.isAtBottom && !state.isLatestLoaded) {
                         component.loadNewer()
                     }
                 }
@@ -133,6 +139,18 @@ fun ChatContentList(
         reverseLayout = !isComments,
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
+        if (isComments && state.isLoadingOlder && groupedMessages.isNotEmpty()) {
+            item(key = "loading_older_top") {
+                PagingLoadingIndicator()
+            }
+        }
+
+        if (!isComments && state.isLoadingNewer && !state.isAtBottom && groupedMessages.isNotEmpty()) {
+            item(key = "loading_newer_bottom") {
+                PagingLoadingIndicator()
+            }
+        }
+
         if (isComments) {
             if (state.rootMessage != null) {
                 item(key = "root_header") {
@@ -259,15 +277,53 @@ fun ChatContentList(
             }
         }
 
-        if (state.isLoading && groupedMessages.isNotEmpty()) {
+        if (isComments && state.isLoadingNewer && groupedMessages.isNotEmpty()) {
+            item(key = "loading_newer_bottom") {
+                PagingLoadingIndicator()
+            }
+        }
+
+        if (!isComments && state.isLoadingOlder && groupedMessages.isNotEmpty()) {
+            item(key = "loading_older_top") {
+                PagingLoadingIndicator()
+            }
+        }
+
+        if (state.isLoading && groupedMessages.isNotEmpty() && !state.isLoadingOlder && !state.isLoadingNewer) {
             item(key = "loading_indicator") {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp), contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                }
+                PagingLoadingIndicator()
+            }
+        }
+    }
+}
+
+@Composable
+private fun PagingLoadingIndicator() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 1.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp),
+                    strokeWidth = 2.dp
+                )
+                Text(
+                    text = "Loading...",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

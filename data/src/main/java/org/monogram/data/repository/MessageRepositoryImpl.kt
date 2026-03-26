@@ -330,6 +330,22 @@ class MessageRepositoryImpl(
             messageRemoteDataSource.getMessageViewersModels(chatId, messageId)
         }
 
+    override suspend fun summarizeMessage(chatId: Long, messageId: Long, toLanguageCode: String): String? =
+        withContext(dispatcherProvider.io) {
+            when (val result = gateway.execute(TdApi.SummarizeMessage(chatId, messageId, toLanguageCode))) {
+                is TdApi.FormattedText -> result.text
+                else -> null
+            }
+        }
+
+    override suspend fun translateMessage(chatId: Long, messageId: Long, toLanguageCode: String): String? =
+        withContext(dispatcherProvider.io) {
+            when (val result = gateway.execute(TdApi.TranslateMessageText(chatId, messageId, toLanguageCode))) {
+                is TdApi.FormattedText -> result.text
+                else -> null
+            }
+        }
+
     override suspend fun addMessageReaction(chatId: Long, messageId: Long, reaction: String) {
         messageRemoteDataSource.addMessageReaction(chatId, messageId, reaction)
     }

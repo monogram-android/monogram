@@ -346,6 +346,7 @@ class ChatsListRepositoryImpl(
                 cache.putUser(update.user)
                 if (update.user.id == myUserId) myUserId = update.user.id
                 triggerUpdate()
+                refreshActiveForumTopics()
             }
             is TdApi.UpdateSupergroup -> {
                 cache.putSupergroup(update.supergroup)
@@ -709,18 +710,22 @@ class ChatsListRepositoryImpl(
             var senderName: String? = null
             var senderAvatar: String? = null
             when (val senderId = topic.lastMessage?.senderId) {
-                is TdApi.MessageSenderUser -> cache.usersCache[senderId.userId]?.let { user ->
-                    senderName = user.firstName
-                    user.profilePhoto?.small?.let { small ->
-                        senderAvatar = small.local.path.ifEmpty { fileManager.getFilePath(small.id) }
-                        if (senderAvatar.isNullOrEmpty()) fileManager.downloadFile(small.id, 1, synchronous = false)
-                    }
+                is TdApi.MessageSenderUser -> {
+                    cache.usersCache[senderId.userId]?.let { user ->
+                        senderName = user.firstName
+                        user.profilePhoto?.small?.let { small ->
+                            fileManager.registerTrackedFile(small.id)
+                            senderAvatar = small.local.path.ifEmpty { fileManager.getFilePath(small.id) }
+                            if (senderAvatar.isNullOrEmpty()) fileManager.downloadFile(small.id, 24, synchronous = false)
+                        }
+                    } ?: fetchUser(senderId.userId)
                 }
                 is TdApi.MessageSenderChat -> cache.getChat(senderId.chatId)?.let { chat ->
                     senderName = chat.title
                     chat.photo?.small?.let { small ->
+                        fileManager.registerTrackedFile(small.id)
                         senderAvatar = small.local.path.ifEmpty { fileManager.getFilePath(small.id) }
-                        if (senderAvatar.isNullOrEmpty()) fileManager.downloadFile(small.id, 1, synchronous = false)
+                        if (senderAvatar.isNullOrEmpty()) fileManager.downloadFile(small.id, 24, synchronous = false)
                     }
                 }
                 else -> {}

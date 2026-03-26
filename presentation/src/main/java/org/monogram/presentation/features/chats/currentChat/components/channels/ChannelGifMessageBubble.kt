@@ -174,7 +174,8 @@ fun ChannelGifMessageBubble(
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Fit,
                                         animate = !isAnyViewerOpen,
-                                        videoPlayerPool = videoPlayerPool
+                                        videoPlayerPool = videoPlayerPool,
+                                        thumbnailData = content.minithumbnail
                                     )
                                 }
                             } else {

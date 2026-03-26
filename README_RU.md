@@ -6,6 +6,7 @@
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-4285F4?logo=android)
 ![TDLib](https://img.shields.io/badge/TDLib-1.8.62-blue)
 ![Status](https://img.shields.io/badge/Status-Active_Development-orange)
+![Boosty](https://img.shields.io/badge/Boosty-Support_the_project-ff6f61?logo=boosty&logoColor=white)
 
 **Monogram** — это современный, молниеносный и элегантный неофициальный клиент Telegram для Android. Созданный с
 использованием **Jetpack Compose** и **Material Design 3**, он стремится обеспечить нативный и плавный опыт
@@ -13,6 +14,8 @@
 
 > **Примечание:** Monogram находится в стадии **активной разработки**. Ожидайте частых обновлений, архитектурных
 > изменений и возможных ошибок.
+
+Поддержать проект на [Boosty](https://boosty.to/monogram).
 
 ---
 

@@ -147,7 +147,7 @@ fun ChatListContent(component: ChatListComponent) {
     val currentFolder = state.folders.getOrNull(pagerState.currentPage)
     val isMainFolder = currentFolder?.id == -1
 
-    val isArchivePersistent = state.isArchiveAlwaysVisible || (state.isArchivePinned && isMainFolder)
+    val isArchivePersistent = state.isArchivePinned && (state.isArchiveAlwaysVisible || isMainFolder)
     val canShowArchive = isArchivePersistent || isMainFolder
 
     val lastArchivePersistent = remember { mutableStateOf(isArchivePersistent) }

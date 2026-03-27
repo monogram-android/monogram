@@ -1694,4 +1694,16 @@
 
     <string name="chat_theme_editor_preset_nord_name">Норд</string>
     <string name="chat_theme_editor_preset_nord_description">Прохолодні північні сині відтінки зі спокійним професійним балансом.</string>
+    <!-- Circular recorder -->
+    <string name="recorder_permissions_required">Потрібні дозволи на камеру та мікрофон</string>
+    <string name="recorder_processing">Обробка...</string>
+    <string name="recorder_processing_error">Помилка обробки: %1$s</string>
+    <string name="recorder_close_cd">Закрити запис</string>
+    <string name="recorder_switch_cd">Перемкнути камеру</string>
+    <string name="recorder_done_cd">Завершити запис</string>
+    <string name="recorder_rec_label">REC</string>
+    <string name="recorder_ready_label">ГОТОВО</string>
+    <string name="recorder_time_format">Час: %1$s</string>
+    <string name="recorder_zoom_format">Зум: %1$.1fx (діапазон %2$.1fx - %3$.1fx)</string>
+    <string name="recorder_cancel">Скасувати</string>
 </resources>

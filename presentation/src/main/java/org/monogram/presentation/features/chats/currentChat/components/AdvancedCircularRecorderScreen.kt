@@ -25,6 +25,8 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.*
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -34,30 +36,37 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.monogram.presentation.R
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
+import java.util.*
 
 private const val EGL_RECORDABLE_ANDROID = 0x3142
 
@@ -85,11 +94,27 @@ fun AdvancedCircularRecorderScreen(
         }
     }
 
-    if (hasPermissions) {
-        NativeCircularCameraContent(onClose, onVideoRecorded)
-    } else {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Permissions required")
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            if (hasPermissions) {
+                NativeCircularCameraContent(onClose, onVideoRecorded)
+            } else {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.recorder_permissions_required))
+                }
+            }
         }
     }
 }
@@ -112,13 +137,49 @@ fun NativeCircularCameraContent(
 
     var isSwitchingCamera by remember { mutableStateOf(false) }
     var pendingResume by remember { mutableStateOf(false) }
+    var shouldDiscardAll by remember { mutableStateOf(false) }
+    var recordingStartMs by remember { mutableLongStateOf(0L) }
+    var elapsedSeconds by remember { mutableLongStateOf(0L) }
 
     var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
     var camera by remember { mutableStateOf<Camera?>(null) }
     var currentZoomRatio by remember { mutableFloatStateOf(1f) }
     var minZoom by remember { mutableFloatStateOf(1f) }
     var maxZoom by remember { mutableFloatStateOf(1f) }
+    val zoomRounded = ((currentZoomRatio * 10f).toInt() / 10f)
+    val minZoomRounded = ((minZoom * 10f).toInt() / 10f)
+    val maxZoomRounded = ((maxZoom * 10f).toInt() / 10f)
 
+    val pulseTransition = rememberInfiniteTransition(label = "rec_pulse")
+    val recDotScale by pulseTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 700, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "rec_dot_scale"
+    )
+    val recDotAlpha by pulseTransition.animateFloat(
+        initialValue = 0.55f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 700, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "rec_dot_alpha"
+    )
+
+    val recordInnerSize by animateDpAsState(
+        targetValue = if (isRecording) 34.dp else 72.dp,
+        animationSpec = tween(durationMillis = 220),
+        label = "record_inner_size"
+    )
+    val recordInnerColor by animateColorAsState(
+        targetValue = if (isRecording) Color(0xFFFF3B30) else Color.White,
+        animationSpec = tween(durationMillis = 220),
+        label = "record_inner_color"
+    )
     val preview = remember { Preview.Builder().build() }
     val previewView = remember {
         PreviewView(context).apply {
@@ -157,11 +218,15 @@ fun NativeCircularCameraContent(
         if (recordedSegments.isEmpty()) {
             isRecording = false
             recording = null
+            recordingStartMs = 0L
+            elapsedSeconds = 0L
             return
         }
         isProcessing = true
         isRecording = false
         recording = null
+        recordingStartMs = 0L
+        elapsedSeconds = 0L
         try {
             val cameraProvider = ProcessCameraProvider.getInstance(context).get()
             cameraProvider.unbindAll()
@@ -182,12 +247,72 @@ fun NativeCircularCameraContent(
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Ошибка обработки: ${e.message}", Toast.LENGTH_SHORT).show()
+                    val message = context.getString(
+                        R.string.recorder_processing_error,
+                        e.message ?: ""
+                    )
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                 }
             } finally {
                 recordedSegments.clear()
                 isProcessing = false
             }
+        }
+    }
+
+    LaunchedEffect(isRecording, recordingStartMs) {
+        if (isRecording && recordingStartMs > 0L) {
+            while (isRecording) {
+                elapsedSeconds = ((System.currentTimeMillis() - recordingStartMs) / 1000L).coerceAtLeast(0L)
+                delay(250)
+            }
+        } else {
+            elapsedSeconds = 0L
+        }
+    }
+
+    fun cancelAndClose() {
+        shouldDiscardAll = true
+        isSwitchingCamera = false
+        pendingResume = false
+
+        if (isRecording) {
+            recording?.stop()
+            return
+        }
+
+        recordedSegments.forEach { it.delete() }
+        recordedSegments.clear()
+        recording = null
+        recordingStartMs = 0L
+        elapsedSeconds = 0L
+        shouldDiscardAll = false
+        onClose()
+    }
+
+    fun handleSegmentSaved(file: File) {
+        if (shouldDiscardAll) {
+            file.delete()
+            recordedSegments.forEach { it.delete() }
+            recordedSegments.clear()
+            isRecording = false
+            recording = null
+            recordingStartMs = 0L
+            elapsedSeconds = 0L
+            shouldDiscardAll = false
+            onClose()
+            return
+        }
+
+        recordedSegments.add(file)
+        if (isSwitchingCamera) {
+            lensFacing = if (lensFacing == CameraSelector.LENS_FACING_FRONT) {
+                CameraSelector.LENS_FACING_BACK
+            } else {
+                CameraSelector.LENS_FACING_FRONT
+            }
+        } else {
+            finishRecording()
         }
     }
 
@@ -213,118 +338,266 @@ fun NativeCircularCameraContent(
                     context,
                     videoCapture,
                     onStart = { rec -> recording = rec },
-                    onSegmentSaved = { file ->
-                        recordedSegments.add(file)
-                        if (isSwitchingCamera) {
-                            lensFacing = if (lensFacing == CameraSelector.LENS_FACING_FRONT)
-                                CameraSelector.LENS_FACING_BACK else CameraSelector.LENS_FACING_FRONT
-                        } else {
-                            finishRecording()
-                        }
-                    }
+                    onSegmentSaved = ::handleSegmentSaved
                 )
             }
         } catch (e: Exception) { e.printStackTrace() }
     }
 
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .background(Color.Black)
-        .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp, start = 16.dp)) {
-                IconButton(onClick = onClose, enabled = !isRecording && !isProcessing) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, _, zoom, _ ->
+                        camera?.let { cam ->
+                            val newZoom = (currentZoomRatio * zoom).coerceIn(minZoom, maxZoom)
+                            cam.cameraControl.setZoomRatio(newZoom)
+                        }
+                    }
                 }
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
+                .pointerInput(Unit) {
+                    detectTapGestures { offset ->
+                        camera?.let { cam ->
+                            val point = previewView.meteringPointFactory.createPoint(offset.x, offset.y)
+                            cam.cameraControl.startFocusAndMetering(FocusMeteringAction.Builder(point).build())
+                        }
+                    }
+                }
+        ) {
+            AndroidView(factory = { previewView }, modifier = Modifier.matchParentSize())
 
             Box(
                 modifier = Modifier
-                    .size(320.dp)
+                    .matchParentSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.6f)
+                            )
+                        )
+                    )
+            )
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(390.dp)
                     .clip(CircleShape)
-                    .border(4.dp, if (isRecording) Color.Red else Color.White, CircleShape)
-                    .pointerInput(Unit) {
-                        detectTransformGestures { _, _, zoom, _ ->
-                            camera?.let { cam ->
-                                val newZoom = (currentZoomRatio * zoom).coerceIn(minZoom, maxZoom)
-                                cam.cameraControl.setZoomRatio(newZoom)
-                            }
-                        }
-                    }
-                    .pointerInput(Unit) {
-                        detectTapGestures { offset ->
-                            camera?.let { cam ->
-                                val point = previewView.meteringPointFactory.createPoint(offset.x, offset.y)
-                                cam.cameraControl.startFocusAndMetering(FocusMeteringAction.Builder(point).build())
-                            }
-                        }
-                    }
+                    .border(2.dp, Color.White.copy(alpha = 0.9f), CircleShape)
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
             ) {
-                AndroidView(factory = { previewView }, modifier = Modifier.matchParentSize())
+                IconButton(onClick = onClose, enabled = !isRecording && !isProcessing) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = stringResource(R.string.recorder_close_cd),
+                        tint = Color.White
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                IconButton(
-                    onClick = {
-                        if (isRecording) {
-                            isSwitchingCamera = true
-                            pendingResume = true
-                            recording?.stop()
-                        } else {
-                            lensFacing = if (lensFacing == CameraSelector.LENS_FACING_FRONT) CameraSelector.LENS_FACING_BACK else CameraSelector.LENS_FACING_FRONT
-                        }
-                    },
-                    enabled = !isProcessing && !isSwitchingCamera
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Cameraswitch, "Switch", tint = Color.White, modifier = Modifier.size(32.dp))
-                }
-
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(if (isRecording) Color.Red else Color.White)
-                        .pointerInput(Unit) {
-                            detectTapGestures(onTap = {
-                                if (isProcessing || isSwitchingCamera) return@detectTapGestures
-                                if (!isRecording) {
-                                    isRecording = true
-                                    startNativeSegment(
-                                        context,
-                                        videoCapture,
-                                        onStart = { r -> recording = r },
-                                        onSegmentSaved = { file ->
-                                            recordedSegments.add(file)
-                                            if (isSwitchingCamera) {
-                                                lensFacing = if (lensFacing == CameraSelector.LENS_FACING_FRONT)
-                                                    CameraSelector.LENS_FACING_BACK else CameraSelector.LENS_FACING_FRONT
-                                            } else {
-                                                finishRecording()
-                                            }
-                                        }
-                                    )
-                                } else {
-                                    recording?.stop()
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(Color.Black.copy(alpha = 0.45f))
+                            .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(999.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .graphicsLayer {
+                                    scaleX = if (isRecording) recDotScale else 1f
+                                    scaleY = if (isRecording) recDotScale else 1f
+                                    alpha = if (isRecording) recDotAlpha else 0.5f
                                 }
-                            })
-                        }
-                ) {
-                    if (isRecording) Icon(Icons.Default.Stop, null, tint = Color.White)
+                                .clip(CircleShape)
+                                .background(if (isRecording) Color(0xFFFF453A) else Color(0xFF8E8E93))
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isRecording) {
+                                stringResource(R.string.recorder_rec_label)
+                            } else {
+                                stringResource(R.string.recorder_ready_label)
+                            },
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Text(
+                        text = stringResource(
+                            R.string.recorder_time_format,
+                            formatElapsedTime(elapsedSeconds)
+                        ),
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
-                Box(modifier = Modifier.size(32.dp))
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = stringResource(
+                        R.string.recorder_zoom_format,
+                        zoomRounded,
+                        minZoomRounded,
+                        maxZoomRounded
+                    ),
+                    color = Color.White.copy(alpha = 0.88f),
+                    fontWeight = FontWeight.Medium
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            if (isRecording) {
+                                isSwitchingCamera = true
+                                pendingResume = true
+                                recording?.stop()
+                            } else {
+                                lensFacing = if (lensFacing == CameraSelector.LENS_FACING_FRONT) {
+                                    CameraSelector.LENS_FACING_BACK
+                                } else {
+                                    CameraSelector.LENS_FACING_FRONT
+                                }
+                            }
+                        },
+                        enabled = !isProcessing && !isSwitchingCamera,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.45f))
+                    ) {
+                        Icon(
+                            Icons.Default.Cameraswitch,
+                            contentDescription = stringResource(R.string.recorder_switch_cd),
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(94.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.5f))
+                            .border(3.dp, Color.White.copy(alpha = 0.85f), CircleShape)
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = {
+                                    if (isProcessing || isSwitchingCamera) return@detectTapGestures
+                                    if (!isRecording) {
+                                        isRecording = true
+                                        recordingStartMs = System.currentTimeMillis()
+                                        startNativeSegment(
+                                            context,
+                                            videoCapture,
+                                            onStart = { r -> recording = r },
+                                            onSegmentSaved = ::handleSegmentSaved
+                                        )
+                                    } else {
+                                        recording?.stop()
+                                    }
+                                })
+                            }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(recordInnerSize)
+                                .clip(if (isRecording) RoundedCornerShape(8.dp) else CircleShape)
+                                .background(recordInnerColor)
+                        )
+                        if (isRecording) {
+                            Icon(
+                                Icons.Default.Stop,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = {
+                            if (isRecording) {
+                                recording?.stop()
+                            } else {
+                                finishRecording()
+                            }
+                        },
+                        enabled = !isProcessing,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.45f))
+                    ) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = stringResource(R.string.recorder_done_cd),
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                TextButton(
+                    onClick = ::cancelAndClose,
+                    enabled = !isProcessing,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color.Black.copy(alpha = 0.35f))
+                ) {
+                    Text(
+                        text = stringResource(R.string.recorder_cancel),
+                        color = Color.White.copy(alpha = 0.95f),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
             }
-            Spacer(modifier = Modifier.weight(1f))
         }
 
         if (isProcessing) {
@@ -333,11 +606,22 @@ fun NativeCircularCameraContent(
                 .background(Color.Black.copy(alpha = 0.8f)), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = Color.White)
-                    Text("Обработка...", color = Color.White, modifier = Modifier.padding(top = 16.dp))
+                    Text(
+                        stringResource(R.string.recorder_processing),
+                        color = Color.White,
+                        modifier = Modifier.padding(top = 16.dp)
+                    )
                 }
             }
         }
     }
+}
+
+private fun formatElapsedTime(totalSeconds: Long): String {
+    val safeSeconds = totalSeconds.coerceAtLeast(0L)
+    val minutes = safeSeconds / 60
+    val seconds = safeSeconds % 60
+    return String.format(Locale.US, "%02d:%02d", minutes, seconds)
 }
 
 @SuppressLint("MissingPermission")

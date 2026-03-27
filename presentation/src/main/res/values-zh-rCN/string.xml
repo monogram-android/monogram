@@ -1681,4 +1681,16 @@
 
     <string name="chat_theme_editor_preset_nord_name">北境</string>
     <string name="chat_theme_editor_preset_nord_description">冷调北欧蓝色风格，整体观感沉稳且专业。</string>
+    <!-- Circular recorder -->
+    <string name="recorder_permissions_required">需要相机和麦克风权限</string>
+    <string name="recorder_processing">处理中...</string>
+    <string name="recorder_processing_error">处理错误: %1$s</string>
+    <string name="recorder_close_cd">关闭录制器</string>
+    <string name="recorder_switch_cd">切换摄像头</string>
+    <string name="recorder_done_cd">完成录制</string>
+    <string name="recorder_rec_label">录制中</string>
+    <string name="recorder_ready_label">就绪</string>
+    <string name="recorder_time_format">时长: %1$s</string>
+    <string name="recorder_zoom_format">变焦: %1$.1fx (范围 %2$.1fx - %3$.1fx)</string>
+    <string name="recorder_cancel">取消</string>
 </resources>

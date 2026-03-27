@@ -945,6 +945,7 @@
     <string name="rich_text_pre">Моноширинный</string>
     <string name="rich_text_link">Ссылка</string>
     <string name="rich_text_mention">Упомянуть</string>
+    <string name="rich_text_emoji">Эмодзи</string>
     <string name="rich_text_clear">Очистить</string>
     <string name="rich_text_link_title">Добавить ссылку</string>
     <string name="rich_text_link_hint">URL</string>

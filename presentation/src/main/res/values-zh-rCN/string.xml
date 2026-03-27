@@ -938,6 +938,7 @@
     <string name="rich_text_pre">等宽</string>
     <string name="rich_text_link">链接</string>
     <string name="rich_text_mention">提及</string>
+    <string name="rich_text_emoji">表情</string>
     <string name="rich_text_clear">清除</string>
     <string name="rich_text_link_title">添加链接</string>
     <string name="rich_text_link_hint">URL</string>

@@ -213,7 +213,7 @@ fun InputTextField(
                                         }
                                     }
                                     .appendTextContextMenuComponents {
-                                        if (!textValue.selection.collapsed) {
+                                        if (hasFormattableSelection(textValue)) {
                                             separator()
                                             item(RichMenuActionBold, richTextBold) {
                                                 onRichTextValueChange(
@@ -676,6 +676,9 @@ private fun applyRichEntity(textValue: TextFieldValue, type: MessageEntityType, 
     val selection = textValue.selection.normalized()
     if (selection.collapsed) return textValue
 
+    val applicableSelectionRanges = getFormattableSelectionRanges(textValue, selection)
+    if (applicableSelectionRanges.isEmpty()) return textValue
+
     val targetKey = richEntityToAnnotation(type) ?: return textValue
     val oldText = textValue.annotatedString
     val richAnnotations = oldText.getStringAnnotations(RICH_ENTITY_TAG, 0, oldText.length)
@@ -685,10 +688,12 @@ private fun applyRichEntity(textValue: TextFieldValue, type: MessageEntityType, 
         .map { Interval(it.start, it.end) }
 
     val fullyCovered = if (toggle) {
-        isSelectionFullyCovered(
-            selection = selection,
-            intervals = sameTypeIntervals
-        )
+        applicableSelectionRanges.all { range ->
+            isSelectionFullyCovered(
+                selection = TextRange(range.start, range.end),
+                intervals = sameTypeIntervals
+            )
+        }
     } else {
         false
     }
@@ -700,12 +705,9 @@ private fun applyRichEntity(textValue: TextFieldValue, type: MessageEntityType, 
         val end = annotation.end
         if (start >= end) return@forEach
 
-        if (annotation.item == targetKey && overlaps(start, end, selection.start, selection.end)) {
-            if (start < selection.start) {
-                builder.addStringAnnotation(RICH_ENTITY_TAG, annotation.item, start, selection.start)
-            }
-            if (end > selection.end) {
-                builder.addStringAnnotation(RICH_ENTITY_TAG, annotation.item, selection.end, end)
+        if (annotation.item == targetKey && overlapsAny(start, end, applicableSelectionRanges)) {
+            subtractRanges(Interval(start, end), applicableSelectionRanges).forEach { segment ->
+                builder.addStringAnnotation(RICH_ENTITY_TAG, annotation.item, segment.start, segment.end)
             }
         } else {
             builder.addStringAnnotation(RICH_ENTITY_TAG, annotation.item, start, end)
@@ -719,7 +721,9 @@ private fun applyRichEntity(textValue: TextFieldValue, type: MessageEntityType, 
         }
 
     if (!fullyCovered) {
-        builder.addStringAnnotation(RICH_ENTITY_TAG, targetKey, selection.start, selection.end)
+        applicableSelectionRanges.forEach { range ->
+            builder.addStringAnnotation(RICH_ENTITY_TAG, targetKey, range.start, range.end)
+        }
     }
 
     return textValue.copy(annotatedString = builder.toAnnotatedString(), selection = selection)
@@ -766,6 +770,90 @@ internal fun applyPreEntity(textValue: TextFieldValue, language: String): TextFi
     val entityType =
         if (normalizedLanguage.isEmpty()) MessageEntityType.Pre() else MessageEntityType.Pre(normalizedLanguage)
     return applyRichEntity(textValue, entityType, toggle = false)
+}
+
+internal fun hasFormattableSelection(textValue: TextFieldValue): Boolean {
+    val selection = textValue.selection.normalized()
+    if (selection.collapsed) return false
+    return getFormattableSelectionRanges(textValue, selection).isNotEmpty()
+}
+
+private fun getFormattableSelectionRanges(textValue: TextFieldValue, selection: TextRange): List<Interval> {
+    val normalized = selection.normalized()
+    if (normalized.collapsed) return emptyList()
+
+    val blocked = mutableListOf<Interval>()
+
+    textValue.annotatedString.getStringAnnotations(CUSTOM_EMOJI_TAG, 0, textValue.annotatedString.length)
+        .forEach { annotation ->
+            if (annotation.start < annotation.end) {
+                blocked += Interval(annotation.start, annotation.end)
+            }
+        }
+
+    blocked += detectEmojiIntervals(textValue.text)
+
+    return subtractRanges(Interval(normalized.start, normalized.end), blocked)
+}
+
+private fun detectEmojiIntervals(text: String): List<Interval> {
+    if (text.isEmpty()) return emptyList()
+
+    val intervals = mutableListOf<Interval>()
+    var index = 0
+    while (index < text.length) {
+        val cp = Character.codePointAt(text, index)
+        val cpLength = Character.charCount(cp)
+        val nextIndex = index + cpLength
+        if (isEmojiCodePoint(cp)) {
+            intervals += Interval(index, nextIndex)
+        }
+        index = nextIndex
+    }
+    return intervals
+}
+
+private fun isEmojiCodePoint(codePoint: Int): Boolean {
+    return codePoint in 0x1F1E6..0x1F1FF ||
+            codePoint in 0x1F300..0x1FAFF ||
+            codePoint in 0x2600..0x27BF ||
+            codePoint in 0xFE00..0xFE0F ||
+            codePoint in 0x1F3FB..0x1F3FF ||
+            codePoint == 0x200D ||
+            codePoint == 0x20E3
+}
+
+private fun overlapsAny(start: Int, end: Int, ranges: List<Interval>): Boolean {
+    return ranges.any { overlaps(start, end, it.start, it.end) }
+}
+
+private fun subtractRanges(source: Interval, blockedRanges: List<Interval>): List<Interval> {
+    if (source.start >= source.end) return emptyList()
+    if (blockedRanges.isEmpty()) return listOf(source)
+
+    val relevant = blockedRanges
+        .filter { overlaps(source.start, source.end, it.start, it.end) }
+        .sortedBy { it.start }
+
+    if (relevant.isEmpty()) return listOf(source)
+
+    var cursor = source.start
+    val result = mutableListOf<Interval>()
+
+    relevant.forEach { blocked ->
+        val cutStart = blocked.start.coerceIn(source.start, source.end)
+        val cutEnd = blocked.end.coerceIn(source.start, source.end)
+        if (cutStart > cursor) {
+            result += Interval(cursor, cutStart)
+        }
+        cursor = maxOf(cursor, cutEnd)
+    }
+
+    if (cursor < source.end) {
+        result += Interval(cursor, source.end)
+    }
+
+    return result
 }
 
 private fun isSelectionFullyCovered(selection: TextRange, intervals: List<Interval>): Boolean {

@@ -985,6 +985,7 @@
     <string name="rich_text_pre">Monospace</string>
     <string name="rich_text_link">Link</string>
     <string name="rich_text_mention">Mention</string>
+    <string name="rich_text_emoji">Emoji</string>
     <string name="rich_text_clear">Clear</string>
     <string name="rich_text_link_title">Add link</string>
     <string name="rich_text_link_hint">URL</string>

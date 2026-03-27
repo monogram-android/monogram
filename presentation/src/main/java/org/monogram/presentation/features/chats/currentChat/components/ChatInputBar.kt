@@ -155,6 +155,7 @@ fun ChatInputBar(
     var showGallery by remember { mutableStateOf(false) } // New state for gallery visibility
     var showCamera by remember { mutableStateOf(false) } // New state for camera visibility
     var showFullScreenEditor by remember { mutableStateOf(false) }
+    var showFullScreenEmojiPicker by remember { mutableStateOf(false) }
     var showFullScreenLinkDialog by remember { mutableStateOf(false) }
     var fullScreenLinkValue by remember { mutableStateOf("https://") }
     var showFullScreenLanguageDialog by remember { mutableStateOf(false) }
@@ -290,6 +291,7 @@ fun ChatInputBar(
                             if (type.path != null) {
                                 knownCustomEmojis[type.emojiId] = StickerModel(
                                     id = type.emojiId,
+                                    customEmojiId = type.emojiId,
                                     width = 0,
                                     height = 0,
                                     emoji = "",
@@ -351,11 +353,13 @@ fun ChatInputBar(
         }
     }
 
-    BackHandler(enabled = isStickerMenuVisible || state.pendingMediaPaths.isNotEmpty() || showGallery || showCamera || showFullScreenEditor || showSendOptionsSheet || showScheduledMessagesSheet) {
+    BackHandler(enabled = isStickerMenuVisible || state.pendingMediaPaths.isNotEmpty() || showGallery || showCamera || showFullScreenEditor || showSendOptionsSheet || showScheduledMessagesSheet || showFullScreenEmojiPicker) {
         if (isGifSearchFocused) {
             focusManager.clearFocus()
         } else if (isStickerMenuVisible) {
             isStickerMenuVisible = false
+        } else if (showFullScreenEmojiPicker) {
+            showFullScreenEmojiPicker = false
         } else if (showSendOptionsSheet) {
             showSendOptionsSheet = false
         } else if (showScheduledMessagesSheet) {
@@ -708,28 +712,11 @@ fun ChatInputBar(
                                 actions.onStickerClick(sticker)
                             },
                             onEmojiSelected = { emoji, sticker ->
-                                val currentText = textValue.annotatedString
-                                val selection = textValue.selection
-
-                                val emojiAnnotated = if (sticker != null) {
-                                    knownCustomEmojis[sticker.id] = sticker
-                                    buildAnnotatedString {
-                                        append(emoji)
-                                        addStringAnnotation(CUSTOM_EMOJI_TAG, sticker.id.toString(), 0, emoji.length)
-                                    }
-                                } else {
-                                    AnnotatedString(emoji)
-                                }
-
-                                val newText = buildAnnotatedString {
-                                    append(currentText.subSequence(0, selection.start))
-                                    append(emojiAnnotated)
-                                    append(currentText.subSequence(selection.end, currentText.length))
-                                }
-
-                                textValue = textValue.copy(
-                                    annotatedString = newText,
-                                    selection = TextRange(selection.start + emojiAnnotated.length)
+                                textValue = insertEmojiAtSelection(
+                                    value = textValue,
+                                    emoji = emoji,
+                                    sticker = sticker,
+                                    knownCustomEmojis = knownCustomEmojis
                                 )
                             },
                             onGifSelected = { gif ->
@@ -796,6 +783,7 @@ fun ChatInputBar(
                 val selectedTextLength = remember(textValue.selection, textValue.text.length) {
                     (textValue.selection.end - textValue.selection.start).coerceAtLeast(0)
                 }
+                val hasFormattableSelectionInEditor = hasFormattableSelection(textValue)
 
                 ModalBottomSheet(
                     onDismissRequest = { showFullScreenEditor = false },
@@ -886,12 +874,19 @@ fun ChatInputBar(
                                 ) {
                                     FilterChip(
                                         selected = false,
+                                        onClick = { showFullScreenEmojiPicker = true },
+                                        label = { Text(text = stringResource(R.string.rich_text_emoji)) }
+                                    )
+                                    FilterChip(
+                                        selected = false,
                                         onClick = { textValue = toggleRichEntity(textValue, MessageEntityType.Bold) },
+                                        enabled = hasFormattableSelectionInEditor,
                                         label = { Text(text = stringResource(R.string.rich_text_bold)) }
                                     )
                                     FilterChip(
                                         selected = false,
                                         onClick = { textValue = toggleRichEntity(textValue, MessageEntityType.Italic) },
+                                        enabled = hasFormattableSelectionInEditor,
                                         label = { Text(text = stringResource(R.string.rich_text_italic)) }
                                     )
                                     FilterChip(
@@ -899,6 +894,7 @@ fun ChatInputBar(
                                         onClick = {
                                             textValue = toggleRichEntity(textValue, MessageEntityType.Underline)
                                         },
+                                        enabled = hasFormattableSelectionInEditor,
                                         label = { Text(text = stringResource(R.string.rich_text_underline)) }
                                     )
                                     FilterChip(
@@ -906,6 +902,7 @@ fun ChatInputBar(
                                         onClick = {
                                             textValue = toggleRichEntity(textValue, MessageEntityType.Strikethrough)
                                         },
+                                        enabled = hasFormattableSelectionInEditor,
                                         label = { Text(text = stringResource(R.string.rich_text_strikethrough)) }
                                     )
                                     FilterChip(
@@ -913,11 +910,13 @@ fun ChatInputBar(
                                         onClick = {
                                             textValue = toggleRichEntity(textValue, MessageEntityType.Spoiler)
                                         },
+                                        enabled = hasFormattableSelectionInEditor,
                                         label = { Text(text = stringResource(R.string.rich_text_spoiler)) }
                                     )
                                     FilterChip(
                                         selected = false,
                                         onClick = { textValue = toggleRichEntity(textValue, MessageEntityType.Code) },
+                                        enabled = hasFormattableSelectionInEditor,
                                         label = { Text(text = stringResource(R.string.rich_text_code)) }
                                     )
                                     FilterChip(
@@ -942,7 +941,7 @@ fun ChatInputBar(
                                                 showFullScreenLanguageDialog = true
                                             }
                                         },
-                                        enabled = selectedTextLength > 0,
+                                        enabled = hasFormattableSelectionInEditor,
                                         label = { Text(text = stringResource(R.string.rich_text_pre)) }
                                     )
                                     FilterChip(
@@ -968,7 +967,7 @@ fun ChatInputBar(
                                                 showFullScreenLinkDialog = true
                                             }
                                         },
-                                        enabled = selectedTextLength > 0,
+                                        enabled = hasFormattableSelectionInEditor,
                                         label = { Text(text = stringResource(R.string.rich_text_link)) }
                                     )
                                     FilterChip(
@@ -981,6 +980,7 @@ fun ChatInputBar(
                                     FilterChip(
                                         selected = false,
                                         onClick = { textValue = clearRichFormatting(textValue) },
+                                        enabled = hasFormattableSelectionInEditor,
                                         label = { Text(text = stringResource(R.string.rich_text_clear)) }
                                     )
                                 }
@@ -1117,6 +1117,29 @@ fun ChatInputBar(
                             }
                         }
                     )
+                }
+
+                if (showFullScreenEmojiPicker) {
+                    ModalBottomSheet(
+                        onDismissRequest = { showFullScreenEmojiPicker = false },
+                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    ) {
+                        StickerEmojiMenu(
+                            onStickerSelected = {},
+                            onEmojiSelected = { emoji, sticker ->
+                                textValue = insertEmojiAtSelection(
+                                    value = textValue,
+                                    emoji = emoji,
+                                    sticker = sticker,
+                                    knownCustomEmojis = knownCustomEmojis
+                                )
+                            },
+                            onGifSelected = {},
+                            onSearchFocused = {},
+                            videoPlayerPool = videoPlayerPool,
+                            stickerRepository = stickerRepository
+                        )
+                    }
                 }
             }
 
@@ -1650,6 +1673,39 @@ private fun insertMentionAtSelection(value: TextFieldValue): TextFieldValue {
 
     val newCursor = selection.start + insertion.length
     return value.copy(annotatedString = newAnnotated, selection = TextRange(newCursor, newCursor))
+}
+
+private fun insertEmojiAtSelection(
+    value: TextFieldValue,
+    emoji: String,
+    sticker: StickerModel?,
+    knownCustomEmojis: MutableMap<Long, StickerModel>
+): TextFieldValue {
+    val currentText = value.annotatedString
+    val selection = value.selection
+
+    val emojiAnnotated = if (sticker != null) {
+        val customEmojiEntityId = sticker.customEmojiId ?: sticker.id
+        knownCustomEmojis[customEmojiEntityId] = sticker
+        val symbol = emoji.ifBlank { sticker.emoji.ifBlank { "\uD83D\uDE42" } }
+        buildAnnotatedString {
+            append(symbol)
+            addStringAnnotation(CUSTOM_EMOJI_TAG, customEmojiEntityId.toString(), 0, symbol.length)
+        }
+    } else {
+        AnnotatedString(emoji.ifBlank { "\uD83D\uDE42" })
+    }
+
+    val newText = buildAnnotatedString {
+        append(currentText.subSequence(0, selection.start))
+        append(emojiAnnotated)
+        append(currentText.subSequence(selection.end, currentText.length))
+    }
+
+    return value.copy(
+        annotatedString = newText,
+        selection = TextRange(selection.start + emojiAnnotated.length)
+    )
 }
 
 private fun Context.hasAllPermissions(permissions: List<String>): Boolean {

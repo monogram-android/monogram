@@ -945,6 +945,7 @@
     <string name="rich_text_pre">Моноширинний</string>
     <string name="rich_text_link">Посилання</string>
     <string name="rich_text_mention">Згадати</string>
+    <string name="rich_text_emoji">Емодзі</string>
     <string name="rich_text_clear">Очистити</string>
     <string name="rich_text_link_title">Додати посилання</string>
     <string name="rich_text_link_hint">URL</string>

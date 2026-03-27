@@ -145,6 +145,7 @@ fun ProfileContent(component: ProfileComponent) {
                     userModel = user,
                     chatModel = chat,
                     isVerified = user?.isVerified == true || chat?.isVerified == true,
+                    isSponsor = user?.isSponsor == true,
                     canSearch = false,
                     canShare = canShareTopBar,
                     canEdit = canEditTopBar,
@@ -202,6 +203,7 @@ fun ProfileContent(component: ProfileComponent) {
                             avatarCornerPercent = cornerPercent,
                             isOnline = isOnline,
                             isVerified = user?.isVerified == true || chat?.isVerified == true,
+                            isSponsor = user?.isSponsor == true,
                             statusEmojiPath = user?.statusEmojiPath,
                             progress = progress,
                             contentPadding = PaddingValues(

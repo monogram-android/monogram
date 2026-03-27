@@ -321,6 +321,9 @@
     <string name="qr_code_title">QR-код</string>
     <string name="action_share">Поделиться</string>
     <string name="support_monogram_description">MonoGram — бесплатный проект с открытым исходным кодом. Ваша поддержка помогает нам развивать приложение и добавлять новые функции.</string>
+    <string name="sponsor_sheet_description">Бейдж спонсора с сердцем выдаётся с уровня поддержки Advanced или при
+        эквивалентной поддержке от 150 ₽ (примерно $1.70).
+    </string>
     <string name="action_support_boosty">Поддержать на Boosty</string>
     <string name="action_maybe_later">Может быть позже</string>
     <string name="cd_edit_profile">Изменить профиль</string>
@@ -353,9 +356,15 @@
     <string name="telegram_premium_title">Telegram Premium</string>
     <string name="telegram_premium_subtitle">Эксклюзивные функции</string>
     <string name="support_monogram_subtitle_settings">Помощь в развитии проекта</string>
+    <string name="sponsor_profile_title">Поддержал MonoGram</string>
+    <string name="sponsor_profile_subtitle">Этот пользователь поддерживает проект и помогает нам развиваться</string>
     <string name="about_subtitle_settings">Версия и информация о MonoGram</string>
     <string name="debug_title">Отладка</string>
     <string name="debug_subtitle">Параметры для разработчиков</string>
+    <string name="debug_sponsor_sheet_title">Показать окно спонсора</string>
+    <string name="debug_sponsor_sheet_subtitle">Открыть нижнюю панель с информацией о спонсоре</string>
+    <string name="debug_force_sponsor_sync_title">Принудительная синхронизация спонсоров</string>
+    <string name="debug_force_sponsor_sync_subtitle">Сейчас загрузить ID спонсоров из канала</string>
     <string name="log_out_title">Выйти</string>
     <string name="log_out_subtitle">Завершить сеанс</string>
 

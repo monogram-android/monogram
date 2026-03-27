@@ -288,6 +288,15 @@ private fun LazyGridScope.membersList(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
+                        if (user.isSponsor) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Rounded.Favorite,
+                                contentDescription = stringResource(R.string.cd_sponsor),
+                                modifier = Modifier.size(18.dp),
+                                tint = Color(0xFFE53935)
+                            )
+                        }
 
                         if (!user.statusEmojiPath.isNullOrEmpty()) {
                             Spacer(modifier = Modifier.width(4.dp))

@@ -162,6 +162,7 @@
     <string name="action_clear">Clear</string>
     <string name="cd_muted">Muted</string>
     <string name="cd_verified">Verified</string>
+    <string name="cd_sponsor">Sponsor</string>
     <string name="menu_unmute">Unmute</string>
     <string name="menu_mute">Mute</string>
     <string name="menu_filter_ads">Filter Ads</string>
@@ -326,6 +327,9 @@
     <string name="support_monogram_description">MonoGram is a free and open-source project. Your support helps us to
         keep it alive and develop new features.
     </string>
+    <string name="sponsor_sheet_description">The sponsor badge with a heart is available from Advanced support level or
+        an equivalent contribution of 150 RUB (about $1.70).
+    </string>
     <string name="action_support_boosty">Support on Boosty</string>
     <string name="action_maybe_later">Maybe later</string>
     <string name="cd_edit_profile">Edit Profile</string>
@@ -358,9 +362,15 @@
     <string name="telegram_premium_title">Telegram Premium</string>
     <string name="telegram_premium_subtitle">Unlock exclusive features</string>
     <string name="support_monogram_subtitle_settings">Help us develop the project</string>
+    <string name="sponsor_profile_title">Supports MonoGram</string>
+    <string name="sponsor_profile_subtitle">This user supports the project and helps us keep improving it</string>
     <string name="about_subtitle_settings">MonoGram version and info</string>
     <string name="debug_title">Debug</string>
     <string name="debug_subtitle">Debug options</string>
+    <string name="debug_sponsor_sheet_title">Show sponsor sheet</string>
+    <string name="debug_sponsor_sheet_subtitle">Open sponsor info bottom sheet</string>
+    <string name="debug_force_sponsor_sync_title">Force sponsor sync</string>
+    <string name="debug_force_sponsor_sync_subtitle">Fetch sponsor IDs from channel now</string>
     <string name="log_out_title">Log Out</string>
     <string name="log_out_subtitle">Disconnect from account</string>
 

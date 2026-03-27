@@ -53,6 +53,13 @@ val dataModule = module {
             stickerRepository = get()
         )
     }
+    single(createdAtStart = true) {
+        SponsorSyncManager(
+            scopeProvider = get(),
+            gateway = get(),
+            sponsorDao = get()
+        )
+    }
 
     single { ChatCache() }
     single<TelegramGateway> {
@@ -106,7 +113,8 @@ val dataModule = module {
         )
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .addMigrations(
-                MonogramDatabase.MIGRATION_20_21
+                MonogramDatabase.MIGRATION_20_21,
+                MonogramDatabase.MIGRATION_21_22
             )
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
@@ -126,6 +134,7 @@ val dataModule = module {
     single { get<MonogramDatabase>().notificationSettingDao() }
     single { get<MonogramDatabase>().wallpaperDao() }
     single { get<MonogramDatabase>().stickerPathDao() }
+    single { get<MonogramDatabase>().sponsorDao() }
 
     single<UserLocalDataSource> {
         RoomUserLocalDataSource(
@@ -152,7 +161,8 @@ val dataModule = module {
             updates = get(),
             scopeProvider = get(),
             gateway = get(),
-            fileQueue = get()
+            fileQueue = get(),
+            sponsorSyncManager = get()
         )
     }
 

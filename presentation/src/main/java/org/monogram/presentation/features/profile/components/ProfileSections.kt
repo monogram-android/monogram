@@ -1,5 +1,7 @@
 package org.monogram.presentation.features.profile.components
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,7 +18,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +42,7 @@ import org.monogram.presentation.features.chats.currentChat.components.VideoPlay
 import org.monogram.presentation.features.profile.ProfileComponent
 import java.util.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileInfoSection(
     state: ProfileComponent.State,
@@ -65,6 +68,68 @@ fun ProfileInfoSection(
     val chat = state.chat
     val fullInfo = state.fullInfo
     val context = LocalContext.current
+    var isSponsorSheetVisible by remember { mutableStateOf(false) }
+
+    if (isSponsorSheetVisible) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { isSponsorSheetVisible = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 48.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Favorite,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = Color(0xFFFF6D66)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = stringResource(R.string.support_monogram_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.sponsor_sheet_description),
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                Button(
+                    onClick = {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse("https://boosty.to/monogram"))
+                        )
+                        isSponsorSheetVisible = false
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(stringResource(R.string.action_support_boosty))
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                TextButton(
+                    onClick = { isSponsorSheetVisible = false },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.action_maybe_later))
+                }
+            }
+        }
+    }
 
     val isGroupOrChannel = chat?.isGroup == true || chat?.isChannel == true
     val isCurrentUser = user != null && state.currentUser?.id == user.id
@@ -99,6 +164,19 @@ fun ProfileInfoSection(
     }
 
     val items = mutableListOf<@Composable (ItemPosition) -> Unit>()
+
+    if (user?.isSponsor == true) {
+        items.add { pos ->
+            SettingsTile(
+                icon = Icons.Rounded.Favorite,
+                title = stringResource(R.string.sponsor_profile_title),
+                subtitle = stringResource(R.string.sponsor_profile_subtitle),
+                iconColor = Color(0xFFFF6D66),
+                position = pos,
+                onClick = { isSponsorSheetVisible = true }
+            )
+        }
+    }
 
     if (!isCurrentUser && !isGroupOrChannel && (state.personalAvatarPath != null || chat?.personalAvatarPath != null)) {
         items.add { pos ->

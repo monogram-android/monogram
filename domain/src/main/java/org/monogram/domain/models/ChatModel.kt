@@ -50,6 +50,7 @@ data class ChatModel(
     val draftMessage: String? = null,
     val draftMessageEntities: List<MessageEntity> = emptyList(),
     val isVerified: Boolean = false,
+    val isSponsor: Boolean = false,
     val viewAsTopics: Boolean = false,
     val isForum: Boolean = false,
     val permissions: ChatPermissionsModel = ChatPermissionsModel(),

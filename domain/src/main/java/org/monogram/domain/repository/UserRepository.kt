@@ -53,6 +53,7 @@ interface UserRepository {
     suspend fun setBusinessOpeningHours(openingHours: BusinessOpeningHoursModel?)
     suspend fun toggleUsernameIsActive(username: String, isActive: Boolean)
     suspend fun reorderActiveUsernames(usernames: List<String>)
+    fun forceSponsorSync()
 }
 
 sealed class ChatMembersFilter {

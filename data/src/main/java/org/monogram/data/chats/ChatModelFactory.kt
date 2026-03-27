@@ -8,6 +8,7 @@ import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.mapper.ChatMapper
 import org.monogram.data.mapper.isForcedVerifiedChat
 import org.monogram.data.mapper.isForcedVerifiedUser
+import org.monogram.data.mapper.isSponsoredUser
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.UsernamesModel
 import org.monogram.domain.repository.AppPreferencesProvider
@@ -41,6 +42,7 @@ class ChatModelFactory(
         var isBot = false
         var isMember = true
         var isAdmin = false
+        var isSponsor = false
         var username: String? = null
         var usernames: UsernamesModel? = null
         var description: String? = null
@@ -122,6 +124,7 @@ class ChatModelFactory(
                     if (isOnline) onlineCount = 1
                     userStatus = chatMapper.formatUserStatus(user.status, isBot)
                     isVerified = (user.verificationStatus?.isVerified ?: false) || isForcedVerifiedUser(user.id)
+                    isSponsor = isSponsoredUser(user.id)
                     username = user.usernames?.activeUsernames?.firstOrNull()
                     usernames = user.usernames?.toDomain()
                     if (smallPhoto == null) {
@@ -206,6 +209,7 @@ class ChatModelFactory(
             isOnline = isOnline,
             userStatus = userStatus,
             isVerified = isVerified,
+            isSponsor = isSponsor,
             isForum = isForum,
             isBot = isBot,
             memberCount = memberCount,

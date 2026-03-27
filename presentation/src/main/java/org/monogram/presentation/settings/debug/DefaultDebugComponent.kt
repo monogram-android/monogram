@@ -10,6 +10,8 @@ class DefaultDebugComponent(
 
     private val messageDisplayer = container.utils.messageDisplayer()
     private val assetsManager = container.utils.assetsManager()
+    private val externalNavigator = container.utils.externalNavigator()
+    private val userRepository = container.repositories.userRepository
 
     override fun onBackClicked() {
         onBack()
@@ -17,6 +19,15 @@ class DefaultDebugComponent(
 
     override fun onCrashClicked() {
         throw RuntimeException("Test crash")
+    }
+
+    override fun onShowSponsorSheetClicked() {
+        externalNavigator.openUrl("https://boosty.to/monogram")
+    }
+
+    override fun onForceSponsorSyncClicked() {
+        userRepository.forceSponsorSync()
+        messageDisplayer.show("Sponsor sync started")
     }
 
     override fun onDropDatabasesClicked() {

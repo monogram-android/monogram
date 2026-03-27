@@ -11,11 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.automirrored.rounded.ExitToApp
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PhoneIphone
-import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -45,7 +41,7 @@ import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.core.util.formatMaskedGlobal
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.presentation.settings.sessions.SectionHeader
-import java.util.Locale
+import java.util.*
 
 val QrBackgroundColor = Color(0xFFEFF1E6)
 val QrDarkGreen = Color(0xFF3E4D36)
@@ -211,7 +207,7 @@ fun SettingsContent(component: SettingsComponent) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = stringResource(R.string.support_monogram_description),
+                    text = stringResource(R.string.sponsor_sheet_description),
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -323,6 +319,16 @@ fun SettingsContent(component: SettingsComponent) {
                                     contentDescription = stringResource(R.string.cd_verified),
                                     modifier = Modifier.size(22.dp),
                                     tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            if (userModel.isSponsor) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Rounded.Favorite,
+                                    contentDescription = stringResource(R.string.cd_sponsor),
+                                    modifier = Modifier.size(22.dp),
+                                    tint = Color(0xFFE53935)
                                 )
                             }
 

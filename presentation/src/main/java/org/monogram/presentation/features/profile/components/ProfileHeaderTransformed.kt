@@ -6,6 +6,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.Icon
@@ -44,6 +45,7 @@ fun ProfileHeaderTransformed(
     avatarCornerPercent: Int,
     isOnline: Boolean,
     isVerified: Boolean,
+    isSponsor: Boolean,
     statusEmojiPath: String?,
     progress: Float,
     contentPadding: PaddingValues,
@@ -138,6 +140,15 @@ fun ProfileHeaderTransformed(
                                 contentDescription = "Verified",
                                 modifier = Modifier.size(28.dp),
                                 tint = Color(0xFF31A6FD)
+                            )
+                        }
+                        if (isSponsor) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Default.Favorite,
+                                contentDescription = "Sponsor",
+                                modifier = Modifier.size(28.dp),
+                                tint = Color(0xFFE53935)
                             )
                         }
 

@@ -14,6 +14,7 @@ data class UserModel(
     val lastSeen: Long = 0L,
     val isPremium: Boolean = false,
     val isVerified: Boolean = false,
+    val isSponsor: Boolean = false,
     val isSupport: Boolean = false,
     val userStatus: UserStatusType = UserStatusType.OFFLINE,
     val statusEmojiId: Long = 0L,

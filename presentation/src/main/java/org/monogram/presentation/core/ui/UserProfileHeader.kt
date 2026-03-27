@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.Icon
@@ -103,6 +104,16 @@ fun UserProfileHeader(
                         contentDescription = "Verified",
                         modifier = Modifier.size(28.dp),
                         tint = Color(0xFF31A6FD)
+                    )
+                }
+
+                if (userModel.isSponsor) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = "Sponsor",
+                        modifier = Modifier.size(28.dp),
+                        tint = Color(0xFFE53935)
                     )
                 }
 

@@ -53,6 +53,7 @@ data class ChatEntity(
     val typingAction: String? = null,
     val draftMessage: String? = null,
     val isVerified: Boolean = false,
+    val isSponsor: Boolean = false,
     val viewAsTopics: Boolean = false,
     val isForum: Boolean = false,
     val isBot: Boolean = false,

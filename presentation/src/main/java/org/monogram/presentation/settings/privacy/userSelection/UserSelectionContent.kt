@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -23,8 +24,8 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.UserModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.core.ui.SettingsGroup
+import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -165,6 +166,15 @@ fun UserSelectionItem(
                         contentDescription = stringResource(R.string.cd_verified),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                if (user.isSponsor) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = stringResource(R.string.cd_sponsor),
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFFE53935)
                     )
                 }
             }

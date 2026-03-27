@@ -252,6 +252,7 @@ fun ChatContentTopBar(
                     statusText = statusText,
                     isOnline = state.isOnline,
                     isVerified = state.isVerified,
+                    isSponsor = state.isSponsor,
                     onBack = onBack,
                     onMenu = { },
                     onClick = { component.onProfileClicked() },

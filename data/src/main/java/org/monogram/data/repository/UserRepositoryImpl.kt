@@ -15,6 +15,7 @@ import org.monogram.data.datasource.remote.UserRemoteDataSource
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.FileDownloadQueue
+import org.monogram.data.infra.SponsorSyncManager
 import org.monogram.data.mapper.user.*
 import org.monogram.domain.models.*
 import org.monogram.domain.repository.ChatMemberStatus
@@ -29,6 +30,7 @@ class UserRepositoryImpl(
     private val gateway: TelegramGateway,
     private val updates: UpdateDispatcher,
     private val fileQueue: FileDownloadQueue,
+    private val sponsorSyncManager: SponsorSyncManager,
     scopeProvider: ScopeProvider
 ) : UserRepository {
 
@@ -523,6 +525,10 @@ class UserRepositoryImpl(
 
     override suspend fun reorderActiveUsernames(usernames: List<String>) =
         remote.reorderActiveUsernames(usernames.toTypedArray())
+
+    override fun forceSponsorSync() {
+        sponsorSyncManager.forceSync()
+    }
 
     private fun TdApi.Chat.toEntity(): org.monogram.data.db.model.ChatEntity {
         val isChannel = (type as? TdApi.ChatTypeSupergroup)?.isChannel ?: false

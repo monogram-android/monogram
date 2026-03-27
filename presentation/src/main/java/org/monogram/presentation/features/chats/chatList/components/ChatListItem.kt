@@ -240,6 +240,16 @@ private fun ChatListItemHeader(
                 )
             }
 
+            if (!isSavedMessages && chat.isSponsor) {
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Rounded.Favorite,
+                    contentDescription = stringResource(R.string.cd_sponsor),
+                    modifier = Modifier.size(16.dp),
+                    tint = Color(0xFFE53935)
+                )
+            }
+
             if (!isSavedMessages && chat.emojiStatusPath != null) {
                 Spacer(Modifier.width(4.dp))
                 StickerImage(

@@ -23,9 +23,10 @@ import org.monogram.data.db.model.*
         KeyValueEntity::class,
         NotificationSettingEntity::class,
         WallpaperEntity::class,
-        StickerPathEntity::class
+        StickerPathEntity::class,
+        SponsorEntity::class
     ],
-    version = 21,
+    version = 22,
     exportSchema = false
 )
 abstract class MonogramDatabase : RoomDatabase() {
@@ -44,11 +45,28 @@ abstract class MonogramDatabase : RoomDatabase() {
     abstract fun notificationSettingDao(): NotificationSettingDao
     abstract fun wallpaperDao(): WallpaperDao
     abstract fun stickerPathDao(): StickerPathDao
+    abstract fun sponsorDao(): SponsorDao
 
     companion object {
         val MIGRATION_20_21 = object : Migration(20, 21) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 wipeAllTablesExceptFoldersAndAttachBots(db)
+            }
+        }
+
+        val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `chats` ADD COLUMN `isSponsor` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `sponsors` (
+                        `userId` INTEGER NOT NULL,
+                        `sourceChannelId` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`userId`)
+                    )
+                    """.trimIndent()
+                )
             }
         }
 

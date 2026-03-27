@@ -43,6 +43,7 @@ internal fun DefaultChatComponent.loadChatInfo() {
                     old.avatarPath == new.avatarPath &&
                     old.personalAvatarPath == new.personalAvatarPath &&
                     old.isVerified == new.isVerified &&
+                    old.isSponsor == new.isSponsor &&
                     old.emojiStatusPath == new.emojiStatusPath &&
                     old.isMuted == new.isMuted &&
                     old.permissions == new.permissions &&
@@ -95,6 +96,7 @@ internal fun DefaultChatComponent.observeUserUpdates() {
                     it.copy(
                     isOnline = !isBot && user.userStatus == UserStatusType.ONLINE,
                     isVerified = user.isVerified,
+                        isSponsor = user.isSponsor,
                     userStatus = user.userStatus.toString(), 
                     chatPersonalAvatar = user.personalAvatarPath,
                     otherUser = user
@@ -118,6 +120,7 @@ internal fun DefaultChatComponent.updateChatState(chat: ChatModel) {
             isGroup = chat.isGroup,
             isChannel = chat.isChannel,
             isVerified = if (chat.isGroup || chat.isChannel) chat.isVerified else (chat.isVerified || currentState.isVerified),
+            isSponsor = if (chat.isGroup || chat.isChannel) false else (chat.isSponsor || currentState.isSponsor),
             canWrite = canWrite,
             isAdmin = chat.isAdmin,
             memberCount = if (!isDetailedInfoMissing) chat.memberCount else currentState.memberCount,

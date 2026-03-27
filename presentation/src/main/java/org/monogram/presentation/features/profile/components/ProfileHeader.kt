@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +36,7 @@ fun ProfileHeader(
     subtitle: String,
     isOnline: Boolean,
     isVerified: Boolean,
+    isSponsor: Boolean,
     statusEmojiPath: String?,
     isBot: Boolean,
     onAvatarClick: () -> Unit
@@ -99,6 +101,15 @@ fun ProfileHeader(
                     imageVector = Icons.Rounded.Verified,
                     contentDescription = stringResource(R.string.cd_verified),
                     tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            if (isSponsor) {
+                Spacer(Modifier.width(6.dp))
+                Icon(
+                    imageVector = Icons.Default.Favorite,
+                    contentDescription = stringResource(R.string.cd_sponsor),
+                    tint = Color(0xFFE53935),
                     modifier = Modifier.size(22.dp)
                 )
             }

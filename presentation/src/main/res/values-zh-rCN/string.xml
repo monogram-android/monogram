@@ -321,6 +321,9 @@
     <string name="qr_code_title">二维码</string>
     <string name="action_share">分享</string>
     <string name="support_monogram_description">MonoGram 是一个免费且开源的项目。您的支持有助于我们维持项目并开发新功能。</string>
+    <string name="sponsor_sheet_description">带爱心的赞助者徽章可通过 Advanced 支持等级获得，或通过等值于 150 卢布（约
+        $1.70）的支持获得。
+    </string>
     <string name="action_support_boosty">在 Boosty 上支持</string>
     <string name="action_maybe_later">稍后再说</string>
     <string name="cd_edit_profile">编辑个人资料</string>
@@ -353,9 +356,15 @@
     <string name="telegram_premium_title">Telegram Premium</string>
     <string name="telegram_premium_subtitle">解锁专属功能</string>
     <string name="support_monogram_subtitle_settings">帮助我们开发项目</string>
+    <string name="sponsor_profile_title">支持了 MonoGram</string>
+    <string name="sponsor_profile_subtitle">该用户正在支持项目，帮助我们持续改进</string>
     <string name="about_subtitle_settings">MonoGram 版本和信息</string>
     <string name="debug_title">调试</string>
     <string name="debug_subtitle">调试选项</string>
+    <string name="debug_sponsor_sheet_title">显示赞助者弹窗</string>
+    <string name="debug_sponsor_sheet_subtitle">打开赞助者信息底部弹窗</string>
+    <string name="debug_force_sponsor_sync_title">强制同步赞助者</string>
+    <string name="debug_force_sponsor_sync_subtitle">立即从频道拉取赞助者 ID</string>
     <string name="log_out_title">退出登录</string>
     <string name="log_out_subtitle">断开账号连接</string>
 

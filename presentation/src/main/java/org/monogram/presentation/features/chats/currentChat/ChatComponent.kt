@@ -187,6 +187,7 @@ interface ChatComponent {
         val isChannel: Boolean = false,
         val isOnline: Boolean = false,
         val isVerified: Boolean = false,
+        val isSponsor: Boolean = false,
         val canWrite: Boolean = false,
         val isAdmin: Boolean = false,
         val permissions: ChatPermissionsModel = ChatPermissionsModel(),

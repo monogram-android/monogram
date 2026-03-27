@@ -501,6 +501,7 @@ class ChatsListRepositoryImpl(
                 old.typingAction != new.typingAction ||
                 old.draftMessage != new.draftMessage ||
                 old.isVerified != new.isVerified ||
+                old.isSponsor != new.isSponsor ||
                 old.viewAsTopics != new.viewAsTopics ||
                 old.isForum != new.isForum ||
                 old.isBot != new.isBot ||

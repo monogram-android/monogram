@@ -45,6 +45,7 @@ fun ChatTopBar(
     videoPlayerPool: VideoPlayerPool,
     isOnline: Boolean = false,
     isVerified: Boolean = false,
+    isSponsor: Boolean = false,
     onBack: () -> Unit,
     onMenu: () -> Unit,
     onClick: () -> Unit = {},
@@ -164,6 +165,15 @@ fun ChatTopBar(
                                                 contentDescription = stringResource(R.string.cd_verified),
                                                 modifier = Modifier.size(18.dp),
                                                 tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        if (isSponsor) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(
+                                                imageVector = Icons.Rounded.Favorite,
+                                                contentDescription = stringResource(R.string.cd_sponsor),
+                                                modifier = Modifier.size(18.dp),
+                                                tint = Color(0xFFE53935)
                                             )
                                         }
                                         if (emojiStatusPath != null) {

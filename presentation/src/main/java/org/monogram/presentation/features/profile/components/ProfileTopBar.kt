@@ -42,6 +42,7 @@ fun ProfileTopBar(
     userModel: UserModel?,
     chatModel: ChatModel?,
     isVerified: Boolean,
+    isSponsor: Boolean,
     canSearch: Boolean = false,
     canShare: Boolean = false,
     canEdit: Boolean = false,
@@ -91,6 +92,15 @@ fun ProfileTopBar(
                             contentDescription = stringResource(R.string.cd_verified),
                             modifier = Modifier.size(22.dp),
                             tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    if (isSponsor) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.Favorite,
+                            contentDescription = stringResource(R.string.cd_sponsor),
+                            modifier = Modifier.size(22.dp),
+                            tint = Color(0xFFE53935)
                         )
                     }
 

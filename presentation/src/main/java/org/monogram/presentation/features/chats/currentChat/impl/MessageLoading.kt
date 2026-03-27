@@ -146,8 +146,10 @@ private suspend fun DefaultChatComponent.loadBottomMessages(threadId: Long?) {
     lastLoadedOlderId = 0L
     lastLoadedNewerId = 0L
 
+    var hasCachedPreview = false
     val cachedMessages = repositoryMessage.getCachedMessages(chatId, PAGE_SIZE)
     if (cachedMessages.isNotEmpty()) {
+        hasCachedPreview = true
         _state.update {
             it.copy(
                 isAtBottom = true,
@@ -169,7 +171,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(threadId: Long?) {
             scrollToMessageId = null
         )
     }
-    updateMessages(messages, replace = true)
+    updateMessages(messages, replace = !hasCachedPreview)
     if (!isOldestLoaded) {
         delay(100)
         loadMoreMessages()

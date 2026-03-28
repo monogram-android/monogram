@@ -86,6 +86,21 @@ class MessageMapper(
         return !path.isNullOrEmpty() && File(path).exists()
     }
 
+    private fun resolveCachedPath(fileId: Int, storedPath: String?): String? {
+        val fromCache = fileId.takeIf { it != 0 }
+            ?.let { cache.fileCache[it]?.local?.path }
+            ?.takeIf { isValidPath(it) }
+        if (fromCache != null) return fromCache
+
+        return storedPath?.takeIf { it.isNotBlank() }?.takeIf { isValidPath(it) }
+    }
+
+    private fun registerCachedFile(fileId: Int, chatId: Long, messageId: Long) {
+        if (fileId != 0) {
+            fileApi.registerFileForMessage(fileId, chatId, messageId)
+        }
+    }
+
     private fun findBestAvailablePath(mainFile: TdApi.File?, sizes: Array<TdApi.PhotoSize>? = null): String? {
         if (mainFile != null && isValidPath(mainFile.local.path)) {
             return mainFile.local.path
@@ -1394,7 +1409,11 @@ class MessageMapper(
         return when (content) {
             is TdApi.MessageText -> CachedMessageContent("text", content.text.text, null)
             is TdApi.MessagePhoto -> {
-                val best = content.photo.sizes.lastOrNull()
+                val sizes = content.photo.sizes
+                val best = sizes.find { it.type == "x" }
+                    ?: sizes.find { it.type == "m" }
+                    ?: sizes.getOrNull(sizes.size / 2)
+                    ?: sizes.lastOrNull()
                 CachedMessageContent(
                     "photo",
                     content.caption?.text.orEmpty(),
@@ -1415,6 +1434,7 @@ class MessageMapper(
                     content.video.height,
                     content.video.duration,
                     content.video.video.id,
+                    content.video.video.local?.path.orEmpty(),
                     content.video.thumbnail?.file?.local?.path.orEmpty(),
                     if (content.video.supportsStreaming) 1 else 0
                 ).joinToString("|")
@@ -1423,13 +1443,13 @@ class MessageMapper(
             is TdApi.MessageVoiceNote -> CachedMessageContent(
                 "voice",
                 content.caption?.text.orEmpty(),
-                "${content.voiceNote.duration}|${content.voiceNote.voice.id}"
+                "${content.voiceNote.duration}|${content.voiceNote.voice.id}|${content.voiceNote.voice.local?.path.orEmpty()}"
             )
 
             is TdApi.MessageVideoNote -> CachedMessageContent(
                 "video_note",
                 "",
-                "${content.videoNote.duration}|${content.videoNote.length}|${content.videoNote.video.id}|${content.videoNote.thumbnail?.file?.local?.path.orEmpty()}"
+                "${content.videoNote.duration}|${content.videoNote.length}|${content.videoNote.video.id}|${content.videoNote.video.local?.path.orEmpty()}|${content.videoNote.thumbnail?.file?.local?.path.orEmpty()}"
             )
 
             is TdApi.MessageSticker -> {
@@ -1442,26 +1462,26 @@ class MessageMapper(
                 CachedMessageContent(
                     "sticker",
                     content.sticker.emoji,
-                    "${content.sticker.setId}|${content.sticker.emoji}|${content.sticker.width}|${content.sticker.height}|${content.sticker.sticker.id}|$format"
+                    "${content.sticker.setId}|${content.sticker.emoji}|${content.sticker.width}|${content.sticker.height}|${content.sticker.sticker.id}|$format|${content.sticker.sticker.local?.path.orEmpty()}"
                 )
             }
 
             is TdApi.MessageDocument -> CachedMessageContent(
                 "document",
                 content.caption?.text.orEmpty(),
-                "${content.document.fileName}|${content.document.mimeType}|${content.document.document.size}|${content.document.document.id}"
+                "${content.document.fileName}|${content.document.mimeType}|${content.document.document.size}|${content.document.document.id}|${content.document.document.local?.path.orEmpty()}"
             )
 
             is TdApi.MessageAudio -> CachedMessageContent(
                 "audio",
                 content.caption?.text.orEmpty(),
-                "${content.audio.duration}|${content.audio.title.orEmpty()}|${content.audio.performer.orEmpty()}|${content.audio.fileName.orEmpty()}|${content.audio.audio.id}"
+                "${content.audio.duration}|${content.audio.title.orEmpty()}|${content.audio.performer.orEmpty()}|${content.audio.fileName.orEmpty()}|${content.audio.audio.id}|${content.audio.audio.local?.path.orEmpty()}"
             )
 
             is TdApi.MessageAnimation -> CachedMessageContent(
                 "gif",
                 content.caption?.text.orEmpty(),
-                "${content.animation.width}|${content.animation.height}|${content.animation.duration}|${content.animation.animation.id}|${content.animation.thumbnail?.file?.local?.path.orEmpty()}"
+                "${content.animation.width}|${content.animation.height}|${content.animation.duration}|${content.animation.animation.id}|${content.animation.animation.local?.path.orEmpty()}|${content.animation.thumbnail?.file?.local?.path.orEmpty()}"
             )
 
             is TdApi.MessagePoll -> CachedMessageContent(
@@ -1515,76 +1535,122 @@ class MessageMapper(
 
         val content: MessageContent = when (entity.contentType) {
             "text" -> MessageContent.Text(entity.content)
-            "photo" -> MessageContent.Photo(
-                path = meta.getOrNull(3)?.takeIf { it.isNotEmpty() },
-                width = meta.getOrNull(0)?.toIntOrNull() ?: 0,
-                height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
-                caption = entity.content,
-                fileId = meta.getOrNull(2)?.toIntOrNull() ?: 0
-            )
 
-            "video" -> MessageContent.Video(
-                path = null,
-                width = meta.getOrNull(0)?.toIntOrNull() ?: 0,
-                height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
-                duration = meta.getOrNull(2)?.toIntOrNull() ?: 0,
-                caption = entity.content,
-                fileId = meta.getOrNull(3)?.toIntOrNull() ?: 0,
-                supportsStreaming = (meta.getOrNull(5)?.toIntOrNull() ?: 0) == 1
-            )
+            "photo" -> {
+                val fileId = meta.getOrNull(2)?.toIntOrNull() ?: 0
+                registerCachedFile(fileId, entity.chatId, entity.id)
+                MessageContent.Photo(
+                    path = resolveCachedPath(fileId, meta.getOrNull(3)),
+                    width = meta.getOrNull(0)?.toIntOrNull() ?: 0,
+                    height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
+                    caption = entity.content,
+                    fileId = fileId
+                )
+            }
 
-            "voice" -> MessageContent.Voice(
-                path = null,
-                duration = meta.getOrNull(0)?.toIntOrNull() ?: 0,
-                fileId = meta.getOrNull(1)?.toIntOrNull() ?: 0
-            )
+            "video" -> {
+                val fileId = meta.getOrNull(3)?.toIntOrNull() ?: 0
+                val storedPath = if (meta.size >= 7) meta.getOrNull(4) else null
+                val supportsStreaming = if (meta.size >= 7) {
+                    (meta.getOrNull(6)?.toIntOrNull() ?: 0) == 1
+                } else {
+                    (meta.getOrNull(5)?.toIntOrNull() ?: 0) == 1
+                }
+                registerCachedFile(fileId, entity.chatId, entity.id)
+                MessageContent.Video(
+                    path = resolveCachedPath(fileId, storedPath),
+                    width = meta.getOrNull(0)?.toIntOrNull() ?: 0,
+                    height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
+                    duration = meta.getOrNull(2)?.toIntOrNull() ?: 0,
+                    caption = entity.content,
+                    fileId = fileId,
+                    supportsStreaming = supportsStreaming
+                )
+            }
 
-            "video_note" -> MessageContent.VideoNote(
-                path = null,
-                thumbnail = meta.getOrNull(3),
-                duration = meta.getOrNull(0)?.toIntOrNull() ?: 0,
-                length = meta.getOrNull(1)?.toIntOrNull() ?: 0,
-                fileId = meta.getOrNull(2)?.toIntOrNull() ?: 0
-            )
+            "voice" -> {
+                val fileId = meta.getOrNull(1)?.toIntOrNull() ?: 0
+                val storedPath = if (meta.size >= 3) meta.getOrNull(2) else null
+                registerCachedFile(fileId, entity.chatId, entity.id)
+                MessageContent.Voice(
+                    path = resolveCachedPath(fileId, storedPath),
+                    duration = meta.getOrNull(0)?.toIntOrNull() ?: 0,
+                    fileId = fileId
+                )
+            }
 
-            "sticker" -> MessageContent.Sticker(
-                id = 0L,
-                setId = meta.getOrNull(0)?.toLongOrNull() ?: 0L,
-                path = null,
-                width = meta.getOrNull(2)?.toIntOrNull() ?: 0,
-                height = meta.getOrNull(3)?.toIntOrNull() ?: 0,
-                emoji = entity.content,
-                fileId = meta.getOrNull(4)?.toIntOrNull() ?: 0
-            )
+            "video_note" -> {
+                val fileId = meta.getOrNull(2)?.toIntOrNull() ?: 0
+                val storedPath = if (meta.size >= 5) meta.getOrNull(3) else null
+                val storedThumbPath = if (meta.size >= 5) meta.getOrNull(4) else meta.getOrNull(3)
+                registerCachedFile(fileId, entity.chatId, entity.id)
+                MessageContent.VideoNote(
+                    path = resolveCachedPath(fileId, storedPath),
+                    thumbnail = storedThumbPath?.takeIf { isValidPath(it) },
+                    duration = meta.getOrNull(0)?.toIntOrNull() ?: 0,
+                    length = meta.getOrNull(1)?.toIntOrNull() ?: 0,
+                    fileId = fileId
+                )
+            }
 
-            "document" -> MessageContent.Document(
-                path = null,
-                fileName = meta.getOrNull(0).orEmpty(),
-                mimeType = meta.getOrNull(1).orEmpty(),
-                size = meta.getOrNull(2)?.toLongOrNull() ?: 0L,
-                caption = entity.content,
-                fileId = meta.getOrNull(3)?.toIntOrNull() ?: 0
-            )
+            "sticker" -> {
+                val fileId = meta.getOrNull(4)?.toIntOrNull() ?: 0
+                val storedPath = if (meta.size >= 7) meta.getOrNull(6) else null
+                registerCachedFile(fileId, entity.chatId, entity.id)
+                MessageContent.Sticker(
+                    id = 0L,
+                    setId = meta.getOrNull(0)?.toLongOrNull() ?: 0L,
+                    path = resolveCachedPath(fileId, storedPath),
+                    width = meta.getOrNull(2)?.toIntOrNull() ?: 0,
+                    height = meta.getOrNull(3)?.toIntOrNull() ?: 0,
+                    emoji = entity.content,
+                    fileId = fileId
+                )
+            }
 
-            "audio" -> MessageContent.Audio(
-                path = null,
-                duration = meta.getOrNull(0)?.toIntOrNull() ?: 0,
-                title = meta.getOrNull(1).orEmpty(),
-                performer = meta.getOrNull(2).orEmpty(),
-                fileName = meta.getOrNull(3).orEmpty(),
-                mimeType = "",
-                size = 0L,
-                caption = entity.content,
-                fileId = meta.getOrNull(4)?.toIntOrNull() ?: 0
-            )
+            "document" -> {
+                val fileId = meta.getOrNull(3)?.toIntOrNull() ?: 0
+                val storedPath = if (meta.size >= 5) meta.getOrNull(4) else null
+                registerCachedFile(fileId, entity.chatId, entity.id)
+                MessageContent.Document(
+                    path = resolveCachedPath(fileId, storedPath),
+                    fileName = meta.getOrNull(0).orEmpty(),
+                    mimeType = meta.getOrNull(1).orEmpty(),
+                    size = meta.getOrNull(2)?.toLongOrNull() ?: 0L,
+                    caption = entity.content,
+                    fileId = fileId
+                )
+            }
 
-            "gif" -> MessageContent.Gif(
-                path = null,
-                width = meta.getOrNull(0)?.toIntOrNull() ?: 0,
-                height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
-                caption = entity.content,
-                fileId = meta.getOrNull(3)?.toIntOrNull() ?: 0
-            )
+            "audio" -> {
+                val fileId = meta.getOrNull(4)?.toIntOrNull() ?: 0
+                val storedPath = if (meta.size >= 6) meta.getOrNull(5) else null
+                registerCachedFile(fileId, entity.chatId, entity.id)
+                MessageContent.Audio(
+                    path = resolveCachedPath(fileId, storedPath),
+                    duration = meta.getOrNull(0)?.toIntOrNull() ?: 0,
+                    title = meta.getOrNull(1).orEmpty(),
+                    performer = meta.getOrNull(2).orEmpty(),
+                    fileName = meta.getOrNull(3).orEmpty(),
+                    mimeType = "",
+                    size = 0L,
+                    caption = entity.content,
+                    fileId = fileId
+                )
+            }
+
+            "gif" -> {
+                val fileId = meta.getOrNull(3)?.toIntOrNull() ?: 0
+                val storedPath = if (meta.size >= 6) meta.getOrNull(4) else null
+                registerCachedFile(fileId, entity.chatId, entity.id)
+                MessageContent.Gif(
+                    path = resolveCachedPath(fileId, storedPath),
+                    width = meta.getOrNull(0)?.toIntOrNull() ?: 0,
+                    height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
+                    caption = entity.content,
+                    fileId = fileId
+                )
+            }
 
             "poll" -> MessageContent.Poll(
                 id = 0L,

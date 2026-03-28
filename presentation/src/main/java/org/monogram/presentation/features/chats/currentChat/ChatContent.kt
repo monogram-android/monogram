@@ -718,10 +718,21 @@ fun ChatContent(
                                     groupedMessages = groupedMessages,
                                     onPhotoClick = { msg, paths, captions, index ->
                                         val content = msg.content as? MessageContent.Photo
-                                        if (content?.path != null) {
+                                        val validPath = content?.path?.takeIf { File(it).exists() }
+                                        if (validPath != null) {
                                             keyboardController?.hide()
                                             focusManager.clearFocus()
-                                            component.onOpenImages(paths, captions, index, msg.id)
+                                            val validPairs = paths.withIndex()
+                                                .mapNotNull { (itemIndex, path) ->
+                                                    path.takeIf { it.isNotBlank() && File(it).exists() }
+                                                        ?.let { valid -> valid to captions.getOrNull(itemIndex) }
+                                                }
+                                            if (validPairs.isNotEmpty()) {
+                                                val validPaths = validPairs.map { it.first }
+                                                val validCaptions = validPairs.map { it.second }
+                                                val startIndex = validPaths.indexOf(validPath).let { if (it >= 0) it else 0 }
+                                                component.onOpenImages(validPaths, validCaptions, startIndex, msg.id)
+                                            }
                                         } else content?.let { component.onDownloadFile(it.fileId) }
                                     },
                                     onVideoClick = { msg, path, caption ->
@@ -731,11 +742,12 @@ fun ChatContent(
 
                                         val videoContent = msg.content as? MessageContent.Video
                                         val supportsStreaming = videoContent?.supportsStreaming ?: false
+                                        val validPath = path?.takeIf { File(it).exists() }
 
-                                        if (path != null || supportsStreaming) {
+                                        if (validPath != null || supportsStreaming) {
                                             keyboardController?.hide()
                                             focusManager.clearFocus()
-                                            component.onOpenVideo(path = path, messageId = msg.id, caption = caption)
+                                            component.onOpenVideo(path = validPath, messageId = msg.id, caption = caption)
                                         } else {
                                             val fileId = when (val c = msg.content) {
                                                 is MessageContent.Video -> c.fileId
@@ -747,13 +759,14 @@ fun ChatContent(
                                     },
                                     onDocumentClick = { msg ->
                                         val doc = msg.content as? MessageContent.Document ?: return@ChatContentList
-                                        if (doc.path != null) {
-                                            val path = doc.path.toString().lowercase()
+                                        val validDocPath = doc.path?.takeIf { File(it).exists() }
+                                        if (validDocPath != null) {
+                                            val path = validDocPath.lowercase()
                                             if (path.endsWith(".jpg") || path.endsWith(".png")) {
                                                 keyboardController?.hide()
                                                 focusManager.clearFocus()
                                                 component.onOpenImages(
-                                                    listOf(doc.path.toString()),
+                                                    listOf(validDocPath),
                                                     listOf(doc.caption),
                                                     0,
                                                     msg.id
@@ -762,20 +775,21 @@ fun ChatContent(
                                                 keyboardController?.hide()
                                                 focusManager.clearFocus()
                                                 component.onOpenVideo(
-                                                    path = doc.path.toString(),
+                                                    path = validDocPath,
                                                     messageId = msg.id,
                                                     caption = doc.caption
                                                 )
-                                            } else component.downloadUtils.openFile(doc.path.toString())
+                                            } else component.downloadUtils.openFile(validDocPath)
                                         } else component.onDownloadFile(doc.fileId)
                                     },
                                     onAudioClick = { msg ->
                                         val audio = msg.content as? MessageContent.Audio ?: return@ChatContentList
-                                        if (audio.path != null) {
+                                        val validAudioPath = audio.path?.takeIf { File(it).exists() }
+                                        if (validAudioPath != null) {
                                             keyboardController?.hide()
                                             focusManager.clearFocus()
                                             component.onOpenVideo(
-                                                path = audio.path.toString(),
+                                                path = validAudioPath,
                                                 messageId = msg.id,
                                                 caption = audio.caption
                                             )

@@ -51,6 +51,7 @@ import org.monogram.presentation.features.chats.currentChat.ChatComponent
 import org.monogram.presentation.features.chats.currentChat.components.*
 import org.monogram.presentation.features.chats.currentChat.components.channels.ChannelMessageBubbleContainer
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
+import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -887,7 +888,8 @@ private fun handlePhotoClick(
     onPhotoClick: (MessageModel, List<String>, List<String?>, Int) -> Unit
 ) {
     (msg.content as? MessageContent.Photo)?.let { content ->
-        onPhotoClick(msg, listOf(content.path ?: ""), listOf(content.caption), 0)
+        val path = content.path?.takeIf { it.isNotBlank() && File(it).exists() } ?: return
+        onPhotoClick(msg, listOf(path), listOf(content.caption), 0)
     }
 }
 
@@ -904,30 +906,16 @@ private fun handleAlbumPhotoClick(
     messages: List<MessageModel>,
     onPhotoClick: (MessageModel, List<String>, List<String?>, Int) -> Unit
 ) {
-    val paths = messages.map {
-        when (val content = it.content) {
-            is MessageContent.Photo -> content.path ?: ""
-            is MessageContent.Video -> content.path ?: ""
-            is MessageContent.Gif -> content.path ?: ""
-            else -> ""
-        }
-    }
-    val captions = messages.map {
-        when (val content = it.content) {
-            is MessageContent.Photo -> content.caption
-            is MessageContent.Video -> content.caption
-            is MessageContent.Gif -> content.caption
-            else -> null
-        }
-    }
-    val clickedPath = when (val content = clickedMsg.content) {
-        is MessageContent.Photo -> content.path ?: ""
-        is MessageContent.Video -> content.path ?: ""
-        is MessageContent.Gif -> content.path ?: ""
-        else -> ""
-    }
-    val index = paths.indexOf(clickedPath).coerceAtLeast(0)
-    onPhotoClick(clickedMsg, paths, captions, index)
+    val entries = buildAlbumMediaEntries(messages)
+    if (entries.isEmpty()) return
+
+    val index = entries.indexOfFirst { it.message.id == clickedMsg.id }.let { if (it >= 0) it else 0 }
+    onPhotoClick(
+        clickedMsg,
+        entries.map { it.path },
+        entries.map { it.caption },
+        index
+    )
 }
 
 private fun handleAlbumVideoClick(
@@ -939,34 +927,62 @@ private fun handleAlbumVideoClick(
     val videoContent = clickedMsg.content as? MessageContent.Video
     val gifContent = clickedMsg.content as? MessageContent.Gif
     val supportsStreaming = videoContent?.supportsStreaming ?: false
-    val path = videoContent?.path ?: gifContent?.path
+    val path = (videoContent?.path ?: gifContent?.path)?.takeIf { it.isNotBlank() && File(it).exists() }
+    val clickedCaption = when (val content = clickedMsg.content) {
+        is MessageContent.Photo -> content.caption
+        is MessageContent.Video -> content.caption
+        is MessageContent.Gif -> content.caption
+        else -> null
+    }
 
     if (path == null && !supportsStreaming) return
-
-    val paths = messages.map {
-        when (val content = it.content) {
-            is MessageContent.Photo -> content.path ?: ""
-            is MessageContent.Video -> content.path ?: ""
-            is MessageContent.Gif -> content.path ?: ""
-            else -> ""
-        }
+    if (path == null && supportsStreaming) {
+        onVideoClick(clickedMsg, null, clickedCaption)
+        return
     }
-    val captions = messages.map {
-        when (val content = it.content) {
+
+    val entries = buildAlbumMediaEntries(messages)
+    if (entries.isEmpty()) {
+        onVideoClick(clickedMsg, path, clickedCaption)
+        return
+    }
+
+    val index = entries.indexOfFirst { it.message.id == clickedMsg.id }.let { if (it >= 0) it else 0 }
+    onPhotoClick(
+        clickedMsg,
+        entries.map { it.path },
+        entries.map { it.caption },
+        index
+    )
+
+    if (supportsStreaming) {
+        onVideoClick(clickedMsg, path, entries.getOrNull(index)?.caption)
+    }
+}
+
+private data class AlbumMediaEntry(
+    val message: MessageModel,
+    val path: String,
+    val caption: String?
+)
+
+private fun buildAlbumMediaEntries(messages: List<MessageModel>): List<AlbumMediaEntry> {
+    return messages.mapNotNull { msg ->
+        val path = when (val content = msg.content) {
+            is MessageContent.Photo -> content.path
+            is MessageContent.Video -> content.path
+            is MessageContent.Gif -> content.path
+            else -> null
+        }?.takeIf { it.isNotBlank() && File(it).exists() } ?: return@mapNotNull null
+
+        val caption = when (val content = msg.content) {
             is MessageContent.Photo -> content.caption
             is MessageContent.Video -> content.caption
             is MessageContent.Gif -> content.caption
             else -> null
         }
-    }
 
-    val clickedPath = path ?: ""
-    val index = paths.indexOf(clickedPath).coerceAtLeast(0)
-
-    onPhotoClick(clickedMsg, paths, captions, index)
-
-    if (supportsStreaming) {
-        onVideoClick(clickedMsg, path, captions.getOrNull(index))
+        AlbumMediaEntry(message = msg, path = path, caption = caption)
     }
 }
 

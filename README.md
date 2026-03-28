@@ -102,7 +102,22 @@ API_HASH=your_api_hash_here
 5. Click **Run**.
 
 ---
+## Building TDLib
 
+If you need to build TDLib from source, you must first install the required dependencies on your system. For Debian/Ubuntu-based distributions, you can install them by running:
+
+```bash
+sudo apt-get update
+sudo apt-get install build-essential git curl wget php perl gperf unzip zip default-jdk cmake
+```
+
+Once the dependencies are installed, you can start the build process by executing the build script from the root of your project:
+
+```bash
+./build-tdlib.sh
+```
+
+---
 ## Contributing
 
 We welcome contributions! Whether it's fixing bugs, improving documentation, or suggesting new features.

@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.rounded.Stream
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,11 +35,13 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.components.channels.formatDuration
 import org.monogram.presentation.features.chats.currentChat.components.channels.formatViews
 import org.monogram.presentation.features.chats.currentChat.components.chats.ChatTimestampInfo
+import org.monogram.presentation.features.chats.currentChat.components.chats.MediaLoadingAction
+import org.monogram.presentation.features.chats.currentChat.components.chats.MediaLoadingBackground
 import org.monogram.presentation.features.chats.currentChat.components.chats.SpoilerWrapper
-import org.monogram.presentation.features.chats.currentChat.components.chats.formatDuration
 
 @Composable
 fun CompactMediaMosaic(
@@ -291,10 +292,23 @@ fun PhotoItem(
     contentScale: ContentScale = ContentScale.Crop,
     downloadUtils: IDownloadUtils
 ) {
-    val hasPath = !photo.path.isNullOrBlank()
+    var stablePath by remember(msg.id) { mutableStateOf(photo.path) }
+    val hasPath = !stablePath.isNullOrBlank()
+    var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
+
+    LaunchedEffect(photo.path) {
+        if (!photo.path.isNullOrBlank()) {
+            stablePath = photo.path
+            isAutoDownloadSuppressed = false
+            AutoDownloadSuppression.clear(photo.fileId)
+        }
+    }
 
     LaunchedEffect(photo.path, photo.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (!hasPath && !photo.isDownloading) {
+        if (photo.path.isNullOrBlank() && !photo.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
+                photo.fileId
+            )
+        ) {
             val shouldDownload = when {
                 downloadUtils.isWifiConnected() -> autoDownloadWifi
                 downloadUtils.isRoaming() -> autoDownloadRoaming
@@ -309,13 +323,13 @@ fun PhotoItem(
 
     Box(modifier = modifier.clipToBounds()) {
         Crossfade(
-            targetState = photo.path,
+            targetState = hasPath,
             animationSpec = tween(300),
             label = "PhotoLoading"
-        ) { path ->
-            if (!path.isNullOrBlank()) {
+        ) { resolved ->
+            if (resolved && !stablePath.isNullOrBlank()) {
                 Image(
-                    painter = rememberAsyncImagePainter(path),
+                    painter = rememberAsyncImagePainter(stablePath),
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxSize()
@@ -335,15 +349,18 @@ fun PhotoItem(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onTap = {
                                     if (!isRevealed) {
                                         isRevealed = true
                                     } else if (photo.isDownloading) {
+                                        isAutoDownloadSuppressed = true
+                                        AutoDownloadSuppression.suppress(photo.fileId)
                                         onCancelDownload(photo.fileId)
                                     } else {
+                                        isAutoDownloadSuppressed = false
+                                        AutoDownloadSuppression.clear(photo.fileId)
                                         onPhotoClick(msg)
                                     }
                                 },
@@ -352,38 +369,27 @@ fun PhotoItem(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (photo.minithumbnail != null) {
-                        Image(
-                            painter = rememberAsyncImagePainter(photo.minithumbnail),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .blur(10.dp),
-                            contentScale = contentScale
-                        )
-                    }
+                    MediaLoadingBackground(
+                        previewData = photo.minithumbnail,
+                        contentScale = contentScale
+                    )
 
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(Color.Black.copy(alpha = 0.45f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (photo.isDownloading) {
-                            CircularProgressIndicator(
-                                progress = { photo.downloadProgress },
-                                strokeWidth = 3.dp,
-                                color = Color.White
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = "Download",
-                                modifier = Modifier.size(28.dp),
-                                tint = Color.White
-                            )
+                    MediaLoadingAction(
+                        isDownloading = photo.isDownloading,
+                        progress = photo.downloadProgress,
+                        idleIcon = Icons.Default.Download,
+                        idleContentDescription = "Download",
+                        onCancelClick = {
+                            isAutoDownloadSuppressed = true
+                            AutoDownloadSuppression.suppress(photo.fileId)
+                            onCancelDownload(photo.fileId)
+                        },
+                        onIdleClick = {
+                            isAutoDownloadSuppressed = false
+                            AutoDownloadSuppression.clear(photo.fileId)
+                            onPhotoClick(msg)
                         }
-                    }
+                    )
                 }
             }
         }
@@ -411,10 +417,23 @@ fun VideoItem(
     videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
-    val hasPath = !video.path.isNullOrBlank()
+    var stablePath by remember(msg.id) { mutableStateOf(video.path) }
+    val hasPath = !stablePath.isNullOrBlank()
+    var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
+
+    LaunchedEffect(video.path) {
+        if (!video.path.isNullOrBlank()) {
+            stablePath = video.path
+            isAutoDownloadSuppressed = false
+            AutoDownloadSuppression.clear(video.fileId)
+        }
+    }
 
     LaunchedEffect(video.path, video.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (!hasPath && !video.isDownloading && !video.supportsStreaming) {
+        if (video.path.isNullOrBlank() && !video.isDownloading && !video.supportsStreaming && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
+                video.fileId
+            )
+        ) {
             val shouldDownload = when {
                 downloadUtils.isWifiConnected() -> autoDownloadWifi
                 downloadUtils.isRoaming() -> autoDownloadRoaming
@@ -435,7 +454,7 @@ fun VideoItem(
         ) { targetHasPathOrStreaming ->
             if (targetHasPathOrStreaming) {
                 if (autoplayVideos) {
-                    val videoPath = video.path ?: "http://streaming/${video.fileId}"
+                    val videoPath = stablePath ?: "http://streaming/${video.fileId}"
                     VideoStickerPlayer(
                         path = videoPath,
                         type = VideoType.Gif,
@@ -454,13 +473,13 @@ fun VideoItem(
                         animate = !isAnyViewerOpen,
                         contentScale = contentScale,
                         videoPlayerPool = videoPlayerPool,
-                        fileId = if (video.path == null) video.fileId else 0,
+                        fileId = if (stablePath == null) video.fileId else 0,
                         thumbnailData = video.minithumbnail
                     )
                 } else {
                     if (hasPath) {
                         Image(
-                            painter = rememberAsyncImagePainter(video.path),
+                            painter = rememberAsyncImagePainter(stablePath),
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxSize()
@@ -523,15 +542,18 @@ fun VideoItem(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onTap = {
                                     if (!isRevealed) {
                                         isRevealed = true
                                     } else if (video.isDownloading) {
+                                        isAutoDownloadSuppressed = true
+                                        AutoDownloadSuppression.suppress(video.fileId)
                                         onCancelDownload(video.fileId)
                                     } else {
+                                        isAutoDownloadSuppressed = false
+                                        AutoDownloadSuppression.clear(video.fileId)
                                         onVideoClick(msg)
                                     }
                                 },
@@ -540,38 +562,27 @@ fun VideoItem(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (video.minithumbnail != null) {
-                        Image(
-                            painter = rememberAsyncImagePainter(video.minithumbnail),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .blur(10.dp),
-                            contentScale = contentScale
-                        )
-                    }
+                    MediaLoadingBackground(
+                        previewData = video.minithumbnail,
+                        contentScale = contentScale
+                    )
 
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(Color.Black.copy(alpha = 0.45f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (video.isDownloading) {
-                            CircularProgressIndicator(
-                                progress = { video.downloadProgress },
-                                strokeWidth = 3.dp,
-                                color = Color.White
-                            )
-                        } else {
-                            Icon(
-                                imageVector = if (video.supportsStreaming) Icons.Rounded.Stream else Icons.Default.Download,
-                                contentDescription = if (video.supportsStreaming) "Stream" else "Download",
-                                modifier = Modifier.size(28.dp),
-                                tint = Color.White
-                            )
+                    MediaLoadingAction(
+                        isDownloading = video.isDownloading,
+                        progress = video.downloadProgress,
+                        idleIcon = if (video.supportsStreaming) Icons.Rounded.Stream else Icons.Default.Download,
+                        idleContentDescription = if (video.supportsStreaming) "Stream" else "Download",
+                        onCancelClick = {
+                            isAutoDownloadSuppressed = true
+                            AutoDownloadSuppression.suppress(video.fileId)
+                            onCancelDownload(video.fileId)
+                        },
+                        onIdleClick = {
+                            isAutoDownloadSuppressed = false
+                            AutoDownloadSuppression.clear(video.fileId)
+                            onVideoClick(msg)
                         }
-                    }
+                    )
                 }
             }
         }
@@ -599,10 +610,23 @@ fun VideoNoteItem(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
-    val hasPath = !videoNote.path.isNullOrBlank()
+    var stablePath by remember(msg.id) { mutableStateOf(videoNote.path) }
+    !stablePath.isNullOrBlank()
+    var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
+
+    LaunchedEffect(videoNote.path) {
+        if (!videoNote.path.isNullOrBlank()) {
+            stablePath = videoNote.path
+            isAutoDownloadSuppressed = false
+            AutoDownloadSuppression.clear(videoNote.fileId)
+        }
+    }
 
     LaunchedEffect(videoNote.path, videoNote.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (!hasPath && !videoNote.isDownloading) {
+        if (videoNote.path.isNullOrBlank() && !videoNote.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
+                videoNote.fileId
+            )
+        ) {
             val shouldDownload = when {
                 downloadUtils.isWifiConnected() -> autoDownloadWifi
                 downloadUtils.isRoaming() -> autoDownloadRoaming
@@ -615,7 +639,7 @@ fun VideoNoteItem(
     var itemPosition by remember { mutableStateOf(Offset.Zero) }
     Box(modifier = modifier.clipToBounds()) {
         Crossfade(
-            targetState = videoNote.path,
+            targetState = stablePath,
             animationSpec = tween(300),
             label = "VideoNoteLoading"
         ) { path ->
@@ -689,13 +713,16 @@ fun VideoNoteItem(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onTap = {
                                     if (videoNote.isDownloading) {
+                                        isAutoDownloadSuppressed = true
+                                        AutoDownloadSuppression.suppress(videoNote.fileId)
                                         onCancelDownload(videoNote.fileId)
                                     } else {
+                                        isAutoDownloadSuppressed = false
+                                        AutoDownloadSuppression.clear(videoNote.fileId)
                                         onVideoClick(msg)
                                     }
                                 },
@@ -704,38 +731,27 @@ fun VideoNoteItem(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    videoNote.thumbnail?.let {
-                        Image(
-                            painter = rememberAsyncImagePainter(it),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .blur(10.dp),
-                            contentScale = contentScale
-                        )
-                    }
+                    MediaLoadingBackground(
+                        previewData = videoNote.thumbnail,
+                        contentScale = contentScale
+                    )
 
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(Color.Black.copy(alpha = 0.45f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (videoNote.isDownloading) {
-                            CircularProgressIndicator(
-                                progress = { videoNote.downloadProgress },
-                                strokeWidth = 3.dp,
-                                color = Color.White
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = "Download",
-                                modifier = Modifier.size(28.dp),
-                                tint = Color.White
-                            )
+                    MediaLoadingAction(
+                        isDownloading = videoNote.isDownloading,
+                        progress = videoNote.downloadProgress,
+                        idleIcon = Icons.Default.Download,
+                        idleContentDescription = "Download",
+                        onCancelClick = {
+                            isAutoDownloadSuppressed = true
+                            AutoDownloadSuppression.suppress(videoNote.fileId)
+                            onCancelDownload(videoNote.fileId)
+                        },
+                        onIdleClick = {
+                            isAutoDownloadSuppressed = false
+                            AutoDownloadSuppression.clear(videoNote.fileId)
+                            onVideoClick(msg)
                         }
-                    }
+                    )
                 }
             }
         }
@@ -759,10 +775,23 @@ fun GifItem(
     videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
-    val hasPath = !gif.path.isNullOrBlank()
+    var stablePath by remember(msg.id) { mutableStateOf(gif.path) }
+    !stablePath.isNullOrBlank()
+    var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
+
+    LaunchedEffect(gif.path) {
+        if (!gif.path.isNullOrBlank()) {
+            stablePath = gif.path
+            isAutoDownloadSuppressed = false
+            AutoDownloadSuppression.clear(gif.fileId)
+        }
+    }
 
     LaunchedEffect(gif.path, gif.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (!hasPath && !gif.isDownloading) {
+        if (gif.path.isNullOrBlank() && !gif.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
+                gif.fileId
+            )
+        ) {
             val shouldDownload = when {
                 downloadUtils.isWifiConnected() -> autoDownloadWifi
                 downloadUtils.isRoaming() -> autoDownloadRoaming
@@ -777,7 +806,7 @@ fun GifItem(
 
     Box(modifier = modifier.clipToBounds()) {
         Crossfade(
-            targetState = gif.path,
+            targetState = stablePath,
             animationSpec = tween(300),
             label = "GifLoading"
         ) { path ->
@@ -837,15 +866,18 @@ fun GifItem(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onTap = {
                                     if (!isRevealed) {
                                         isRevealed = true
                                     } else if (gif.isDownloading) {
+                                        isAutoDownloadSuppressed = true
+                                        AutoDownloadSuppression.suppress(gif.fileId)
                                         onCancelDownload(gif.fileId)
                                     } else {
+                                        isAutoDownloadSuppressed = false
+                                        AutoDownloadSuppression.clear(gif.fileId)
                                         onGifClick(msg)
                                     }
                                 },
@@ -854,38 +886,27 @@ fun GifItem(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (gif.minithumbnail != null) {
-                        Image(
-                            painter = rememberAsyncImagePainter(gif.minithumbnail),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .blur(10.dp),
-                            contentScale = contentScale
-                        )
-                    }
+                    MediaLoadingBackground(
+                        previewData = gif.minithumbnail,
+                        contentScale = contentScale
+                    )
 
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(Color.Black.copy(alpha = 0.45f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (gif.isDownloading) {
-                            CircularProgressIndicator(
-                                progress = { gif.downloadProgress },
-                                strokeWidth = 3.dp,
-                                color = Color.White
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = "Download",
-                                modifier = Modifier.size(28.dp),
-                                tint = Color.White
-                            )
+                    MediaLoadingAction(
+                        isDownloading = gif.isDownloading,
+                        progress = gif.downloadProgress,
+                        idleIcon = Icons.Default.Download,
+                        idleContentDescription = "Download",
+                        onCancelClick = {
+                            isAutoDownloadSuppressed = true
+                            AutoDownloadSuppression.suppress(gif.fileId)
+                            onCancelDownload(gif.fileId)
+                        },
+                        onIdleClick = {
+                            isAutoDownloadSuppressed = false
+                            AutoDownloadSuppression.clear(gif.fileId)
+                            onGifClick(msg)
                         }
-                    }
+                    )
                 }
             }
         }

@@ -53,6 +53,7 @@ class FileDownloadQueue(
 
     private val fileDownloadTypes = ConcurrentHashMap<Int, DownloadType>()
     private val manualDownloadIds = ConcurrentHashMap.newKeySet<Int>()
+    private val suppressedAutoDownloadIds = ConcurrentHashMap.newKeySet<Int>()
     private val downloadWaiters = ConcurrentHashMap<Int, CompletableDeferred<Unit>>()
     private val uploadWaiters = ConcurrentHashMap<Int, CompletableDeferred<Unit>>()
     private val lastProgressAt = ConcurrentHashMap<Int, Long>()
@@ -193,6 +194,11 @@ class FileDownloadQueue(
             }
 
             lastProgressAt[fileId] = System.currentTimeMillis()
+
+            Log.d(
+                "DownloadDebug",
+                "queue.processDownload.start: fileId=$fileId priority=${req.priority} type=${req.type} sync=${req.synchronous}"
+            )
 
             val started = withTimeoutOrNull(30000) {
                 gateway.execute(TdApi.DownloadFile(fileId, req.priority, req.offset, req.limit, req.synchronous))
@@ -491,9 +497,23 @@ class FileDownloadQueue(
         type: DownloadType = DownloadType.DEFAULT,
         offset: Long = 0,
         limit: Long = 0,
-        synchronous: Boolean = false
+        synchronous: Boolean = false,
+        ignoreSuppression: Boolean = false
     ) {
+        Log.d(
+            "DownloadDebug",
+            "queue.enqueue: fileId=$fileId priority=$priority type=$type offset=$offset limit=$limit sync=$synchronous ignoreSuppression=$ignoreSuppression suppressed=${
+                suppressedAutoDownloadIds.contains(
+                    fileId
+                )
+            }"
+        )
         scope.appScope.launch(dispatcherProvider.default) {
+            if (!ignoreSuppression && suppressedAutoDownloadIds.contains(fileId)) {
+                Log.d("DownloadDebug", "queue.enqueue.skippedBySuppression: fileId=$fileId")
+                return@launch
+            }
+
             val isManualRequest = priority >= 32
             if (isManualRequest) manualDownloadIds.add(fileId)
 
@@ -571,9 +591,12 @@ class FileDownloadQueue(
     fun cancelDownload(fileId: Int, force: Boolean = false) {
         if (!force && manualDownloadIds.contains(fileId)) return
 
+        Log.d("DownloadDebug", "queue.cancel: fileId=$fileId force=$force")
+        suppressedAutoDownloadIds.add(fileId)
+
         scope.appScope.launch(dispatcherProvider.io) {
             try {
-                gateway.execute(TdApi.CancelDownloadFile(fileId, true))
+                gateway.execute(TdApi.CancelDownloadFile(fileId, false))
             } catch (_: Exception) {
             }
 
@@ -582,7 +605,14 @@ class FileDownloadQueue(
                 activeRequests.remove(fileId)
                 failedRequests.remove(fileId)
             }
+            Log.d("DownloadDebug", "queue.cancel.cleared: fileId=$fileId")
             notifyDownloadCancelled(fileId)
+        }
+    }
+
+    fun clearSuppression(fileId: Int) {
+        if (suppressedAutoDownloadIds.remove(fileId)) {
+            Log.d("DownloadDebug", "queue.suppression.cleared: fileId=$fileId")
         }
     }
 

@@ -397,6 +397,8 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
+                    onVideoClick = onVideoClick,
+                    onCancelDownload = onCancelDownload,
                     onLongClick = { offset ->
                         onReplyClick(
                             bubblePosition,

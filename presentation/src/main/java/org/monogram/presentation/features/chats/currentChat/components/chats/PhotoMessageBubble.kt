@@ -1,28 +1,24 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -31,10 +27,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import coil3.compose.rememberAsyncImagePainter
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 
 @Composable
 fun PhotoMessageBubble(
@@ -59,15 +59,35 @@ fun PhotoMessageBubble(
     modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils
 ) {
-    LocalContext.current
+    val context = LocalContext.current
     val cornerRadius = 18.dp
     val smallCorner = 4.dp
     val tailCorner = 2.dp
 
-    val hasPath = !content.path.isNullOrBlank()
+    var stablePath by remember(msg.id) { mutableStateOf(content.path) }
+    val hasPath = !stablePath.isNullOrBlank()
+    var isFullImageReady by remember(msg.id) { mutableStateOf(false) }
+    val mediaAlpha by animateFloatAsState(
+        targetValue = if (hasPath && isFullImageReady) 1f else 0f,
+        animationSpec = tween(320),
+        label = "PhotoMediaAlpha"
+    )
+
+    LaunchedEffect(content.path) {
+        if (!content.path.isNullOrBlank()) {
+            stablePath = content.path
+            AutoDownloadSuppression.clear(content.fileId)
+        }
+    }
+
+    LaunchedEffect(hasPath) {
+        if (!hasPath) {
+            isFullImageReady = false
+        }
+    }
 
     LaunchedEffect(content.path, content.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (!hasPath && !content.isDownloading) {
+        if (content.path.isNullOrBlank() && !content.isDownloading && !AutoDownloadSuppression.isSuppressed(content.fileId)) {
             val shouldDownload = when {
                 downloadUtils.isWifiConnected() -> autoDownloadWifi
                 downloadUtils.isRoaming() -> autoDownloadRoaming
@@ -167,8 +187,10 @@ fun PhotoMessageBubble(
                                     if (content.hasSpoiler) {
                                         isMediaSpoilerRevealed = !isMediaSpoilerRevealed
                                     } else if (content.isDownloading) {
+                                        AutoDownloadSuppression.suppress(content.fileId)
                                         onCancelDownload(content.fileId)
                                     } else {
+                                        AutoDownloadSuppression.clear(content.fileId)
                                         onPhotoClick(msg)
                                     }
                                 },
@@ -176,74 +198,48 @@ fun PhotoMessageBubble(
                             )
                         }
                 ) {
-                    Crossfade(
-                        targetState = content.path,
-                        animationSpec = tween(300),
-                        label = "PhotoLoading"
-                    ) { path ->
-                        if (!path.isNullOrBlank()) {
-                            Image(
-                                painter = rememberAsyncImagePainter(path),
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        MediaLoadingBackground(
+                            previewData = content.minithumbnail,
+                            contentScale = ContentScale.Fit
+                        )
+
+                        if (hasPath) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(stablePath)
+                                    .crossfade(true)
+                                    .build(),
                                 contentDescription = content.caption,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
-                            )
-                        } else {
-                            Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (content.minithumbnail != null) {
-                                    Image(
-                                        painter = rememberAsyncImagePainter(content.minithumbnail),
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .blur(10.dp),
-                                        contentScale = ContentScale.Fit
-                                    )
+                                    .graphicsLayer { alpha = mediaAlpha },
+                                contentScale = ContentScale.Fit,
+                                onState = { state ->
+                                    isFullImageReady = state is AsyncImagePainter.State.Success
                                 }
+                            )
+                        }
 
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(Color.Black.copy(alpha = 0.45f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (content.isDownloading) {
-                                        if (content.downloadProgress > 0f) {
-                                            CircularProgressIndicator(
-                                                progress = { content.downloadProgress },
-                                                modifier = Modifier.size(36.dp),
-                                                color = Color.White,
-                                                trackColor = Color.White.copy(alpha = 0.25f),
-                                                strokeWidth = 2.5.dp
-                                            )
-                                        } else {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(36.dp),
-                                                color = Color.White,
-                                                strokeWidth = 2.5.dp
-                                            )
-                                        }
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Cancel",
-                                            modifier = Modifier.size(18.dp),
-                                            tint = Color.White
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.Default.Download,
-                                            contentDescription = "Download",
-                                            modifier = Modifier.size(28.dp),
-                                            tint = Color.White
-                                        )
-                                    }
+                        if (!hasPath || !isFullImageReady) {
+                            MediaLoadingAction(
+                                isDownloading = content.isDownloading || hasPath,
+                                progress = content.downloadProgress,
+                                idleIcon = Icons.Default.Download,
+                                idleContentDescription = "Download",
+                                showCancelOnDownload = content.isDownloading,
+                                onCancelClick = {
+                                    AutoDownloadSuppression.suppress(content.fileId)
+                                    onCancelDownload(content.fileId)
+                                },
+                                onIdleClick = {
+                                    AutoDownloadSuppression.clear(content.fileId)
+                                    onPhotoClick(msg)
                                 }
-                            }
+                            )
                         }
                     }
 

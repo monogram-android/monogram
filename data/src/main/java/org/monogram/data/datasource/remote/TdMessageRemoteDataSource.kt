@@ -17,7 +17,6 @@ import org.monogram.data.mapper.toApi
 import org.monogram.domain.models.*
 import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
-import org.monogram.domain.repository.OlderMessagesPage
 import org.monogram.domain.repository.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -47,6 +46,7 @@ class TdMessageRemoteDataSource(
     )
     override val messageUploadProgressFlow = MutableSharedFlow<Pair<Long, Float>>()
     override val messageDownloadProgressFlow = MutableSharedFlow<Pair<Long, Float>>()
+    override val messageDownloadCancelledFlow = MutableSharedFlow<Long>()
     override val messageDeletedFlow = MutableSharedFlow<Pair<Long, List<Long>>>(
         extraBufferCapacity = 100,
         onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.SUSPEND
@@ -73,6 +73,7 @@ class TdMessageRemoteDataSource(
     val fileIdToCustomEmojiId = ConcurrentHashMap<Int, Long>()
     private val messageUpdateJobs = ConcurrentHashMap<Pair<Long, Long>, Job>()
     private val lastProgressMap = ConcurrentHashMap<Int, Int>()
+    private val lastDownloadActiveMap = ConcurrentHashMap<Int, Boolean>()
 
     init {
         scope.launch {
@@ -1335,8 +1336,22 @@ class TdMessageRemoteDataSource(
         fileDownloadQueue.updateFileCache(file)
         val isDC = file.local?.isDownloadingCompleted == true
         val isD = file.local?.isDownloadingActive == true
+        val wasDownloading = lastDownloadActiveMap[file.id] == true
+        if (isD) {
+            lastDownloadActiveMap[file.id] = true
+        } else {
+            lastDownloadActiveMap.remove(file.id)
+        }
+        val isCancelled = wasDownloading && !isD && !isDC
         val isUC = file.remote?.isUploadingCompleted == true
         val isU = file.remote?.isUploadingActive == true
+
+        if (isD || isDC || isCancelled) {
+            Log.d(
+                "DownloadDebug",
+                "td.updateFile: fileId=${file.id} isD=$isD isDC=$isDC isCancelled=$isCancelled downloaded=${file.local?.downloadedSize ?: 0}/${file.size} pathEmpty=${file.local?.path.isNullOrEmpty()}"
+            )
+        }
 
         if (isDC) {
             fileDownloadQueue.notifyDownloadComplete(file.id)
@@ -1377,6 +1392,19 @@ class TdMessageRemoteDataSource(
                 } else if (fileDownloadQueue.registry.standaloneFileIds.contains(file.id)) {
                     scope.launch { messageDownloadProgressFlow.emit(file.id.toLong() to p) }
                 }
+            }
+        } else if (isCancelled) {
+            lastProgressMap.remove(file.id)
+            Log.d("DownloadDebug", "td.downloadCancelled.emit: fileId=${file.id}")
+            val entries = fileIdToMessageMap[file.id]
+            if (!entries.isNullOrEmpty()) {
+                scope.launch {
+                    entries.forEach { (_, messageId) ->
+                        messageDownloadCancelledFlow.emit(messageId)
+                    }
+                }
+            } else if (fileDownloadQueue.registry.standaloneFileIds.contains(file.id)) {
+                scope.launch { messageDownloadCancelledFlow.emit(file.id.toLong()) }
             }
         }
 

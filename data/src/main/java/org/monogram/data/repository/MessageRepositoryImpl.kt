@@ -42,6 +42,7 @@ class MessageRepositoryImpl(
     override val messageEditedFlow = messageRemoteDataSource.messageEditedFlow
     override val messageUploadProgressFlow = messageRemoteDataSource.messageUploadProgressFlow
     override val messageDownloadProgressFlow = messageRemoteDataSource.messageDownloadProgressFlow
+    override val messageDownloadCancelledFlow = messageRemoteDataSource.messageDownloadCancelledFlow
     override val messageReadFlow = messageRemoteDataSource.messageReadFlow
     override val messageDownloadCompletedFlow = messageRemoteDataSource.messageDownloadCompletedFlow
     override val messageDeletedFlow = messageRemoteDataSource.messageDeletedFlow
@@ -450,11 +451,16 @@ class MessageRepositoryImpl(
 
     override fun downloadFile(fileId: Int, priority: Int, offset: Long, limit: Long, synchronous: Boolean) {
         scope.launch {
+            Log.d(
+                "DownloadDebug",
+                "repo.downloadFile: fileId=$fileId priority=$priority offset=$offset limit=$limit sync=$synchronous"
+            )
             fileDataSource.downloadFile(fileId, priority, offset, limit, synchronous)
         }
     }
 
     override suspend fun cancelDownloadFile(fileId: Int) {
+        Log.d("DownloadDebug", "repo.cancelDownloadFile: fileId=$fileId")
         fileDataSource.cancelDownload(fileId)
     }
 

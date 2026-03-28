@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.components.channels.ChannelCommentsButton
 
 @Composable
@@ -53,6 +54,8 @@ fun DocumentMessageBubble(
     val smallCorner = 4.dp
     val tailCorner = 2.dp
 
+    var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
+
     LaunchedEffect(
         content.path,
         content.isDownloading,
@@ -61,6 +64,11 @@ fun DocumentMessageBubble(
         autoDownloadWifi,
         autoDownloadRoaming
     ) {
+        if (!content.path.isNullOrBlank()) {
+            isAutoDownloadSuppressed = false
+            AutoDownloadSuppression.clear(content.fileId)
+        }
+
         val shouldDownload = if (autoDownloadFiles) {
             when {
                 downloadUtils.isRoaming() -> autoDownloadRoaming
@@ -71,7 +79,10 @@ fun DocumentMessageBubble(
             false
         }
 
-        if (shouldDownload && content.path == null && !content.isDownloading) {
+        if (shouldDownload && content.path == null && !content.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
+                content.fileId
+            )
+        ) {
             onDocumentClick(msg)
         }
     }
@@ -137,8 +148,16 @@ fun DocumentMessageBubble(
                     msg = msg,
                     fontSize = fontSize,
                     timeColor = timeColor,
-                    onDocumentClick = onDocumentClick,
-                    onCancelDownload = onCancelDownload
+                    onDocumentClick = {
+                        isAutoDownloadSuppressed = false
+                        AutoDownloadSuppression.clear(content.fileId)
+                        onDocumentClick(it)
+                    },
+                    onCancelDownload = {
+                        isAutoDownloadSuppressed = true
+                        AutoDownloadSuppression.suppress(content.fileId)
+                        onCancelDownload(it)
+                    }
                 )
 
                 if (content.caption.isNotEmpty()) {
@@ -204,7 +223,6 @@ fun DocumentRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 4.dp)
-            .clickable { onDocumentClick(msg) }
     ) {
         Box(
             modifier = Modifier
@@ -213,8 +231,10 @@ fun DocumentRow(
                 .background(MaterialTheme.colorScheme.primary)
                 .clickable {
                     if (content.isDownloading) {
+                        AutoDownloadSuppression.suppress(content.fileId)
                         onCancelDownload(content.fileId)
                     } else {
+                        AutoDownloadSuppression.clear(content.fileId)
                         onDocumentClick(msg)
                     }
                 },

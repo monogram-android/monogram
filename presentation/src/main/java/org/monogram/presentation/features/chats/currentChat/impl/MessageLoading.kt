@@ -10,7 +10,9 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.domain.repository.ReadUpdate
+import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
+import org.monogram.presentation.features.chats.currentChat.DownloadDebug
 
 
 private const val PAGE_SIZE = 50
@@ -528,9 +530,87 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
         }
         .launchIn(scope)
 
+    repositoryMessage.messageDownloadCancelledFlow
+        .onEach { messageId ->
+            var cancelledFileId = 0
+            updateMessageContent(messageId) { message ->
+                val newContent = when (val content = message.content) {
+                    is MessageContent.Photo -> {
+                        cancelledFileId = content.fileId
+                        content.copy(
+                            isDownloading = false,
+                            downloadProgress = 0f,
+                            downloadError = false
+                        )
+                    }
+
+                    is MessageContent.Video -> {
+                        cancelledFileId = content.fileId
+                        content.copy(
+                            isDownloading = false,
+                            downloadProgress = 0f,
+                            downloadError = false
+                        )
+                    }
+
+                    is MessageContent.VideoNote -> {
+                        cancelledFileId = content.fileId
+                        content.copy(
+                            isDownloading = false,
+                            downloadProgress = 0f,
+                            downloadError = false
+                        )
+                    }
+
+                    is MessageContent.Document -> {
+                        cancelledFileId = content.fileId
+                        content.copy(
+                            isDownloading = false,
+                            downloadProgress = 0f,
+                            downloadError = false
+                        )
+                    }
+
+                    is MessageContent.Gif -> {
+                        cancelledFileId = content.fileId
+                        content.copy(
+                            isDownloading = false,
+                            downloadProgress = 0f,
+                            downloadError = false
+                        )
+                    }
+
+                    is MessageContent.Voice -> {
+                        cancelledFileId = content.fileId
+                        content.copy(
+                            isDownloading = false,
+                            downloadProgress = 0f,
+                            downloadError = false
+                        )
+                    }
+
+                    is MessageContent.Sticker -> {
+                        cancelledFileId = content.fileId
+                        content.copy(
+                            isDownloading = false,
+                            downloadProgress = 0f,
+                            downloadError = false
+                        )
+                    }
+
+                    else -> content
+                }
+                message.copy(content = newContent)
+            }
+            AutoDownloadSuppression.suppress(cancelledFileId)
+            Log.d(DownloadDebug.TAG, "downloadCancelled: messageId=$messageId fileId=$cancelledFileId chatId=$chatId")
+        }
+        .launchIn(scope)
+
     repositoryMessage.messageDownloadCompletedFlow
         .onEach { (messageId, path) ->
             var fileIdToRetry: Int? = null
+            var completedFileId = 0
 
             updateMessageContent(messageId) { message ->
                 val isError = path.isEmpty()
@@ -538,36 +618,43 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
 
                 val newContent = when (val content = message.content) {
                     is MessageContent.Photo -> {
+                        completedFileId = content.fileId
                         if (isError) fileIdToRetry = content.fileId
                         content.copy(path = finalPath, isDownloading = false, downloadError = isError)
                     }
 
                     is MessageContent.Video -> {
+                        completedFileId = content.fileId
                         if (isError) fileIdToRetry = content.fileId
                         content.copy(path = finalPath, isDownloading = false, downloadError = isError)
                     }
 
                     is MessageContent.VideoNote -> {
+                        completedFileId = content.fileId
                         if (isError) fileIdToRetry = content.fileId
                         content.copy(path = finalPath, isDownloading = false, downloadError = isError)
                     }
 
                     is MessageContent.Document -> {
+                        completedFileId = content.fileId
                         if (isError) fileIdToRetry = content.fileId
                         content.copy(path = finalPath, isDownloading = false, downloadError = isError)
                     }
 
                     is MessageContent.Gif -> {
+                        completedFileId = content.fileId
                         if (isError) fileIdToRetry = content.fileId
                         content.copy(path = finalPath, isDownloading = false, downloadError = isError)
                     }
 
                     is MessageContent.Voice -> {
+                        completedFileId = content.fileId
                         if (isError) fileIdToRetry = content.fileId
                         content.copy(path = finalPath, isDownloading = false, downloadError = isError)
                     }
 
                     is MessageContent.Sticker -> {
+                        completedFileId = content.fileId
                         if (isError) fileIdToRetry = content.fileId
                         content.copy(path = finalPath, isDownloading = false, downloadError = isError)
                     }
@@ -577,7 +664,24 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                 message.copy(content = newContent)
             }
 
-            fileIdToRetry?.let { if (it != 0) onDownloadFile(it) }
+            if (path.isNotEmpty()) {
+                AutoDownloadSuppression.clear(completedFileId)
+            }
+
+            fileIdToRetry?.let {
+                if (it != 0) {
+                    val suppressed = AutoDownloadSuppression.isSuppressed(it)
+                    Log.d(
+                        DownloadDebug.TAG,
+                        "downloadCompletedError: messageId=$messageId fileId=$it suppressed=$suppressed chatId=$chatId"
+                    )
+                    if (!suppressed) {
+                        onDownloadFile(it)
+                    } else {
+                        Log.d(DownloadDebug.TAG, "retrySkippedBySuppression: fileId=$it chatId=$chatId")
+                    }
+                }
+            }
         }
         .launchIn(scope)
 

@@ -1,5 +1,6 @@
 package org.monogram.data.datasource
 
+import android.util.Log
 import kotlinx.coroutines.CompletableDeferred
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TelegramGateway
@@ -10,7 +11,20 @@ class TdFileDataSource(
     private val fileDownloadQueue: FileDownloadQueue
 ) : FileDataSource {
     override suspend fun downloadFile(fileId: Int, priority: Int, offset: Long, limit: Long, synchronous: Boolean): TdApi.File?  {
-        fileDownloadQueue.enqueue(fileId, priority, FileDownloadQueue.DownloadType.DEFAULT, offset, limit, synchronous)
+        Log.d(
+            "DownloadDebug",
+            "tdFile.downloadFile: fileId=$fileId priority=$priority offset=$offset limit=$limit sync=$synchronous"
+        )
+        fileDownloadQueue.clearSuppression(fileId)
+        fileDownloadQueue.enqueue(
+            fileId,
+            priority,
+            FileDownloadQueue.DownloadType.DEFAULT,
+            offset,
+            limit,
+            synchronous,
+            ignoreSuppression = true
+        )
         if (synchronous) {
             runCatching { fileDownloadQueue.waitForDownload(fileId).await() }
         }
@@ -18,14 +32,15 @@ class TdFileDataSource(
     }
 
     override suspend fun cancelDownload(fileId: Int): TdApi.Ok? {
+        Log.d("DownloadDebug", "tdFile.cancelDownload: fileId=$fileId")
         fileDownloadQueue.cancelDownload(fileId, force = true)
-        val result = gateway.execute(TdApi.CancelDownloadFile(fileId, true))
+        val result = gateway.execute(TdApi.CancelDownloadFile(fileId, false))
+        Log.d("DownloadDebug", "tdFile.cancelDownload.result: fileId=$fileId ok=${result is TdApi.Ok}")
         return if (result is TdApi.Ok) result else null
     }
 
     override suspend fun getFile(fileId: Int): TdApi.File? {
-        val result = runCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull()
-        return if (result is TdApi.File) result else null
+        return runCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull()
     }
 
     override suspend fun getFileDownloadedPrefixSize(fileId: Int, offset: Long): TdApi.FileDownloadedPrefixSize? {

@@ -11,11 +11,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -32,6 +34,7 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
@@ -81,15 +84,21 @@ fun ChannelGifMessageBubble(
 
     var stablePath by remember(msg.id) { mutableStateOf(content.path) }
     val hasPath = !stablePath.isNullOrBlank()
+    var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
 
     LaunchedEffect(content.path) {
         if (!content.path.isNullOrBlank()) {
             stablePath = content.path
+            isAutoDownloadSuppressed = false
+            AutoDownloadSuppression.clear(content.fileId)
         }
     }
 
     LaunchedEffect(content.path, content.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
-        if (content.path.isNullOrBlank() && !content.isDownloading) {
+        if (content.path.isNullOrBlank() && !content.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
+                content.fileId
+            )
+        ) {
             val shouldDownload = when {
                 downloadUtils.isWifiConnected() -> autoDownloadWifi
                 downloadUtils.isRoaming() -> autoDownloadRoaming
@@ -156,8 +165,12 @@ fun ChannelGifMessageBubble(
                                 detectTapGestures(
                                     onTap = {
                                         if (content.isDownloading) {
+                                            isAutoDownloadSuppressed = true
+                                            AutoDownloadSuppression.suppress(content.fileId)
                                             onCancelDownload(content.fileId)
                                         } else {
+                                            isAutoDownloadSuppressed = false
+                                            AutoDownloadSuppression.clear(content.fileId)
                                             onGifClick(msg)
                                         }
                                     },
@@ -217,50 +230,30 @@ fun ChannelGifMessageBubble(
                             }
                         } else {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (content.minithumbnail != null) {
-                                    Image(
-                                        painter = rememberAsyncImagePainter(content.minithumbnail),
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .blur(10.dp),
-                                        contentScale = ContentScale.Fit
-                                    )
-                                }
+                                MediaLoadingBackground(
+                                    previewData = content.minithumbnail,
+                                    contentScale = ContentScale.Fit
+                                )
 
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(Color.Black.copy(alpha = 0.45f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (content.isDownloading) {
-                                        CircularProgressIndicator(
-                                            progress = { content.downloadProgress },
-                                            modifier = Modifier.size(32.dp),
-                                            color = Color.White,
-                                            strokeWidth = 3.dp
-                                        )
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Cancel",
-                                            modifier = Modifier.size(20.dp),
-                                            tint = Color.White
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = Icons.Default.Download,
-                                            contentDescription = "Download",
-                                            modifier = Modifier.size(28.dp),
-                                            tint = Color.White
-                                        )
+                                MediaLoadingAction(
+                                    isDownloading = content.isDownloading,
+                                    progress = content.downloadProgress,
+                                    idleIcon = Icons.Default.Download,
+                                    idleContentDescription = "Download",
+                                    onCancelClick = {
+                                        isAutoDownloadSuppressed = true
+                                        AutoDownloadSuppression.suppress(content.fileId)
+                                        onCancelDownload(content.fileId)
+                                    },
+                                    onIdleClick = {
+                                        isAutoDownloadSuppressed = false
+                                        AutoDownloadSuppression.clear(content.fileId)
+                                        onGifClick(msg)
                                     }
-                                }
+                                )
                             }
                     }
 

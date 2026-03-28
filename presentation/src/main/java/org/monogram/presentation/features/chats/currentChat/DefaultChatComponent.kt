@@ -459,11 +459,33 @@ class DefaultChatComponent(
 
     override fun onScrollToBottom() = store.accept(ChatStore.Intent.ScrollToBottom)
 
-    override fun onDownloadFile(fileId: Int) = store.accept(ChatStore.Intent.DownloadFile(fileId))
+    override fun onDownloadFile(fileId: Int) {
+        AutoDownloadSuppression.clear(fileId)
+        Log.d(
+            DownloadDebug.TAG,
+            "onDownloadFile requested: fileId=$fileId chatId=$chatId suppressed=${
+                AutoDownloadSuppression.isSuppressed(
+                    fileId
+                )
+            } caller=${DownloadDebug.shortStack()}"
+        )
+        store.accept(ChatStore.Intent.DownloadFile(fileId))
+    }
 
     override fun onDownloadHighRes(messageId: Long) = store.accept(ChatStore.Intent.DownloadHighRes(messageId))
 
-    override fun onCancelDownloadFile(fileId: Int) = store.accept(ChatStore.Intent.CancelDownloadFile(fileId))
+    override fun onCancelDownloadFile(fileId: Int) {
+        AutoDownloadSuppression.suppress(fileId)
+        Log.d(
+            DownloadDebug.TAG,
+            "onCancelDownloadFile requested: fileId=$fileId chatId=$chatId suppressed=${
+                AutoDownloadSuppression.isSuppressed(
+                    fileId
+                )
+            } caller=${DownloadDebug.shortStack()}"
+        )
+        store.accept(ChatStore.Intent.CancelDownloadFile(fileId))
+    }
 
     override fun updateScrollPosition(messageId: Long) {
         if (_state.value.currentTopicId == null) {

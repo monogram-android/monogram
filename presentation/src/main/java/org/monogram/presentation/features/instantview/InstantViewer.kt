@@ -70,7 +70,7 @@ fun InstantViewer(
     var showSettingsMenu by remember { mutableStateOf(false) }
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
-    val uriHandler = LocalUriHandler.current
+    LocalUriHandler.current
     val clipboardManager = LocalClipboardManager.current
 
     LaunchedEffect(url) {
@@ -281,22 +281,6 @@ fun InstantViewer(
 
             AnimatedVisibility(
                 visible = showSettingsMenu,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { showSettingsMenu = false }
-                )
-            }
-
-            // Menu Layer
-            AnimatedVisibility(
-                visible = showSettingsMenu,
                 enter = fadeIn(tween(150)) + scaleIn(
                     animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium),
                     initialScale = 0.8f,
@@ -313,7 +297,12 @@ fun InstantViewer(
                     .padding(top = 56.dp, end = 16.dp)
             ) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { showSettingsMenu = false },
                     contentAlignment = Alignment.TopEnd
                 ) {
                     ViewerSettingsDropdown {
@@ -368,7 +357,7 @@ fun InstantViewer(
 @Composable
 fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPool: VideoPlayerPool) {
     val onUrlClick = LocalOnUrlClick.current
-    val uriHandler = LocalUriHandler.current
+    LocalUriHandler.current
     when (block) {
         is PageBlock.Title -> RichTextView(
             richText = block.title,

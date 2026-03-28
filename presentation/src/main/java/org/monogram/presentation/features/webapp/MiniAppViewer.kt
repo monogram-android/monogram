@@ -388,8 +388,6 @@ fun MiniAppViewer(
                                 },
                                 onProgressChanged = { state.progress = it },
                                 onLoadingChanged = { state.isLoading = it },
-                                showMenu = state.showMenu,
-                                onHideMenu = { state.showMenu = false },
                                 modifier = Modifier.fillMaxSize()
                             )
                         }

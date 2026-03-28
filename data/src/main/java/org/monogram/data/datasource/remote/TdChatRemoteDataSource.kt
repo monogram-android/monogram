@@ -196,7 +196,7 @@ class TdChatRemoteSource(
         return runCatching { gateway.execute(TdApi.GetMe()).id }.getOrDefault(0L)
     }
 
-    override suspend fun setNetworkType() {
+    override suspend fun setNetworkType(): Boolean {
         val networkType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val activeNetwork = connectivityManager.activeNetwork
             val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
@@ -223,7 +223,26 @@ class TdChatRemoteSource(
                 else -> TdApi.NetworkTypeOther()
             }
         }
-        runCatching { gateway.execute(TdApi.SetNetworkType(networkType)) }
+        return runCatching { gateway.execute(TdApi.SetNetworkType(networkType)) }.isSuccess
+    }
+
+    override suspend fun getConnectionState(): TdApi.ConnectionState? {
+        val option = runCatching { gateway.execute(TdApi.GetOption("connection_state")) }.getOrNull() ?: return null
+
+        val normalized = when (option) {
+            is TdApi.OptionValueString -> option.value.lowercase()
+            is TdApi.OptionValueInteger -> option.value.toString()
+            else -> return null
+        }
+
+        return when {
+            normalized == "4" || normalized.contains("ready") -> TdApi.ConnectionStateReady()
+            normalized == "3" || normalized.contains("updating") -> TdApi.ConnectionStateUpdating()
+            normalized == "2" || normalized.contains("proxy") -> TdApi.ConnectionStateConnectingToProxy()
+            normalized == "1" || normalized.contains("network") -> TdApi.ConnectionStateWaitingForNetwork()
+            normalized == "0" || normalized.contains("connecting") -> TdApi.ConnectionStateConnecting()
+            else -> null
+        }
     }
 
     override suspend fun getForumTopics(

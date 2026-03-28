@@ -37,7 +37,12 @@ class DefaultChatListComponent(
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
-    private val _state = MutableStateFlow(ChatListComponent.State(isForwarding = isForwarding))
+    private val _state = MutableStateFlow(
+        ChatListComponent.State(
+            isForwarding = isForwarding,
+            isLoadingByFolder = mapOf(-1 to true)
+        )
+    )
 
     private val store = instanceKeeper.getStore {
         ChatListStoreFactory(
@@ -184,7 +189,14 @@ class DefaultChatListComponent(
         if (_state.value.selectedFolderId == id) return
 
         repositoryFolderId = id
-        _state.update { it.copy(selectedFolderId = id) }
+        _state.update {
+            val loadingByFolder = it.isLoadingByFolder.toMutableMap()
+            loadingByFolder[id] = true
+            it.copy(
+                selectedFolderId = id,
+                isLoadingByFolder = loadingByFolder
+            )
+        }
 
         scope.launch(Dispatchers.IO) {
             repository.selectFolder(id)

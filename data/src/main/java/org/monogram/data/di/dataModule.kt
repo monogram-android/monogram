@@ -234,6 +234,7 @@ val dataModule = module {
             updates = get(),
             appPreferences = get(),
             dispatchers = get(),
+            connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
             scopeProvider = get()
         )
     }

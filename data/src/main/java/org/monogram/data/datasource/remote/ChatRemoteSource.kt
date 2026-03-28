@@ -28,7 +28,8 @@ interface ChatRemoteSource {
     suspend fun clearChatHistory(chatId: Long, revoke: Boolean)
     suspend fun reportChat(chatId: Long, reason: String, messageIds: List<Long>)
     suspend fun getMyUserId(): Long
-    suspend fun setNetworkType()
+    suspend fun setNetworkType(): Boolean
+    suspend fun getConnectionState(): TdApi.ConnectionState?
     suspend fun getForumTopics(
         chatId: Long,
         query: String,

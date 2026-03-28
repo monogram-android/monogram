@@ -38,7 +38,7 @@ fun BotCommandSuggestions(
         ) {
             itemsIndexed(
                 items = commands,
-                key = { _, command -> command.command }
+                key = { index, command -> "cmd_suggest_${index}_${command.command}" }
             ) { index, command ->
                 val position = when {
                     commands.size == 1 -> ItemPosition.STANDALONE

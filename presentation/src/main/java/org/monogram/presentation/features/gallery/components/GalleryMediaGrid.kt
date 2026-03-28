@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -55,7 +56,7 @@ fun GalleryGrid(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         contentPadding = PaddingValues(bottom = 12.dp)
     ) {
-        items(media, key = { it.uri.toString() }) { item ->
+        itemsIndexed(media, key = { index, item -> "gallery_${index}_${item.uri}" }) { _, item ->
             val isSelected = selected.contains(item.uri)
             val scale by animateFloatAsState(
                 targetValue = if (isSelected) 0.96f else 1f,

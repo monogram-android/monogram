@@ -222,7 +222,7 @@ fun EmojisGrid(
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 PackHeader(stringResource(R.string.emojis_header_all))
                             }
-                            items(searchResultsEmojis, key = { "search_emoji_$it" }) { emoji ->
+                            itemsIndexed(searchResultsEmojis, key = { index, emoji -> "search_emoji_${index}_$emoji" }) { _, emoji ->
                                 EmojiGridItem(emoji, emojiFontFamily) {
                                     onEmojiSelected(emoji, null)
                                     scope.launch { stickerRepository.addRecentEmoji(RecentEmojiModel(emoji)) }
@@ -254,7 +254,7 @@ fun EmojisGrid(
                         }
 
                         if (!emojiOnlyMode && searchResultsEmojis.isEmpty() && searchResultsCustomEmojis.isEmpty()) {
-                            items(localSearchFallbackResults, key = { "search_local_$it" }) { emoji ->
+                            itemsIndexed(localSearchFallbackResults, key = { index, emoji -> "search_local_${index}_$emoji" }) { _, emoji ->
                                 EmojiGridItem(emoji, emojiFontFamily) {
                                     onEmojiSelected(emoji, null)
                                     scope.launch { stickerRepository.addRecentEmoji(RecentEmojiModel(emoji)) }

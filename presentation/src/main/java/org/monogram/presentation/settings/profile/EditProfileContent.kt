@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -164,7 +165,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                                     .padding(start = 4.dp)
                             )
                         }
-                        items(activeUsernames, key = { "active_$it" }) { username ->
+                        itemsIndexed(activeUsernames, key = { index, username -> "active_${index}_$username" }) { _, username ->
                             ListItem(
                                 headlineContent = { Text("@$username") },
                                 trailingContent = {
@@ -225,7 +226,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                                     .padding(start = 4.dp)
                             )
                         }
-                        items(disabledUsernames, key = { "disabled_$it" }) { username ->
+                        itemsIndexed(disabledUsernames, key = { index, username -> "disabled_${index}_$username" }) { _, username ->
                             ListItem(
                                 headlineContent = {
                                     Text(
@@ -257,7 +258,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                                     .padding(start = 4.dp)
                             )
                         }
-                        items(collectibleUsernames, key = { "collectible_$it" }) { username ->
+                        itemsIndexed(collectibleUsernames, key = { index, username -> "collectible_${index}_$username" }) { _, username ->
                             val isActive = activeUsernames.contains(username)
                             ListItem(
                                 headlineContent = { Text("@$username") },

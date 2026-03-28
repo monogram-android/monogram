@@ -785,7 +785,7 @@ fun ChatListContent(component: ChatListComponent) {
                                         contentPadding = PaddingValues(horizontal = 16.dp),
                                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                                     ) {
-                                        itemsIndexed(items = recentUsers, key = { _, chat -> chat.id }) { _, chat ->
+                                        itemsIndexed(items = recentUsers, key = { index, chat -> "recent_user_${chat.id}_$index" }) { _, chat ->
                                             Column(
                                                 modifier = Modifier
                                                     .width(64.dp)
@@ -865,7 +865,7 @@ fun ChatListContent(component: ChatListComponent) {
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
-                            itemsIndexed(items = state.searchResults, key = { _, chat -> chat.id }) { _, chat ->
+                            itemsIndexed(items = state.searchResults, key = { index, chat -> "search_${chat.id}_$index" }) { _, chat ->
                                 ChatListItem(
                                     modifier = Modifier.animateItem(),
                                     chat = chat,

@@ -52,7 +52,7 @@ fun BotCommandsSheet(
             ) {
                 itemsIndexed(
                     items = commands,
-                    key = { _, command -> command.command }
+                    key = { index, command -> "cmd_${index}_${command.command}" }
                 ) { index, command ->
                     val position = when {
                         commands.size == 1 -> ItemPosition.STANDALONE

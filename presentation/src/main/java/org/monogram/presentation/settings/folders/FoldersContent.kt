@@ -193,7 +193,7 @@ fun FolderList(
             item {
                 SectionHeader(stringResource(R.string.folders_custom_section))
             }
-            itemsIndexed(userFolders, key = { _, folder -> folder.id }) { index, folder ->
+            itemsIndexed(userFolders, key = { index, folder -> "user_${folder.id}_$index" }) { index, folder ->
                 val position = when {
                     userFolders.size == 1 -> ItemPosition.STANDALONE
                     index == 0 -> ItemPosition.TOP

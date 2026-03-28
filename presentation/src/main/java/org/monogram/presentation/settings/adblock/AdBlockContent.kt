@@ -147,7 +147,7 @@ fun AdBlockContent(component: AdBlockComponent) {
                         EmptyKeywordsPlaceholder()
                     }
                 } else {
-                    itemsIndexed(keywordsList, key = { _, it -> it }) { index, keyword ->
+                    itemsIndexed(keywordsList, key = { index, keyword -> "keyword_${index}_$keyword" }) { index, keyword ->
                         val position = when {
                             keywordsList.size == 1 -> ItemPosition.STANDALONE
                             index == 0 -> ItemPosition.TOP

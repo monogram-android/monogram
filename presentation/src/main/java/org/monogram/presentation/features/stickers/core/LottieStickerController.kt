@@ -1,22 +1,15 @@
 package org.monogram.presentation.features.stickers.core
 
 import android.graphics.Bitmap
-import android.graphics.Canvas
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import com.airbnb.lottie.LottieComposition
-import com.airbnb.lottie.LottieCompositionFactory
-import com.airbnb.lottie.LottieDrawable
-import com.airbnb.lottie.LottieFeatureFlag
 import kotlinx.coroutines.*
-import java.io.BufferedInputStream
 import java.io.File
-import java.io.FileInputStream
-import java.util.zip.GZIPInputStream
+import kotlin.math.max
 
 class LottieStickerController(
     private val filePath: String,
@@ -36,10 +29,13 @@ class LottieStickerController(
     private var isActiveController = true
     private var frontBitmap: Bitmap? = null
     private var backBitmap: Bitmap? = null
+    private var spareBitmap: Bitmap? = null
+    private var decoder: RLottieWrapper? = null
     
     override fun start() {
-        renderJob?.cancel()
+        val previousJob = renderJob
         renderJob = scope.launch(renderDispatcher) {
+            previousJob?.cancelAndJoin()
             loadAndRender()
         }
     }
@@ -51,13 +47,19 @@ class LottieStickerController(
     override fun release() {
         isActiveController = false
         renderJob?.cancel()
+        currentImageBitmap = null
         scope.launch(renderDispatcher) {
             renderJob?.join()
 
+            decoder?.release()
+            decoder = null
+
             frontBitmap?.let { BitmapPool.recycle(it) }
             backBitmap?.let { BitmapPool.recycle(it) }
+            spareBitmap?.let { BitmapPool.recycle(it) }
             frontBitmap = null
             backBitmap = null
+            spareBitmap = null
         }
     }
 
@@ -65,21 +67,14 @@ class LottieStickerController(
         val file = File(filePath)
         if (!file.exists()) return@withContext null
 
+        val localDecoder = RLottieWrapper()
         try {
-            val fis = FileInputStream(file)
-            val bis = BufferedInputStream(fis)
-            bis.mark(4)
-            val magic = bis.read() or (bis.read() shl 8)
-            bis.reset()
+            if (!localDecoder.open(file)) {
+                return@withContext null
+            }
 
-            val isGzip = magic == GZIPInputStream.GZIP_MAGIC
-            val inputStream = if (isGzip) GZIPInputStream(bis) else bis
-
-            val compositionResult = LottieCompositionFactory.fromJsonInputStreamSync(inputStream, filePath)
-            val composition = compositionResult.value ?: return@withContext null
-
-            val compositionWidth = composition.bounds.width().coerceAtLeast(1)
-            val compositionHeight = composition.bounds.height().coerceAtLeast(1)
+            val compositionWidth = localDecoder.getWidth().coerceAtLeast(1)
+            val compositionHeight = localDecoder.getHeight().coerceAtLeast(1)
             val extraPaddingX = minOf((compositionWidth * OVERFLOW_PADDING_RATIO).toInt(), MAX_OVERFLOW_PADDING_PX)
             val extraPaddingY = minOf((compositionHeight * OVERFLOW_PADDING_RATIO).toInt(), MAX_OVERFLOW_PADDING_PX)
             val renderWidth = maxOf(reqWidth, compositionWidth + extraPaddingX * 2)
@@ -89,19 +84,16 @@ class LottieStickerController(
 
             val bitmap = BitmapPool.obtain(renderWidth, renderHeight)
 
-            val drawable = LottieDrawable().apply {
-                enableFeatureFlag(LottieFeatureFlag.MergePathsApi19, true)
-                clipToCompositionBounds = false
-                setSafeMode(true)
-                repeatCount = 0
-            }
-            drawable.composition = composition
-            drawable.setBounds(boundsLeft, boundsTop, boundsLeft + compositionWidth, boundsTop + compositionHeight)
-            drawable.progress = 0f
-
-            val canvas = Canvas(bitmap)
             bitmap.eraseColor(0)
-            if (runCatching { drawable.draw(canvas) }.isFailure) {
+            val rendered = localDecoder.renderFrame(
+                bitmap = bitmap,
+                frameNo = 0,
+                drawLeft = boundsLeft,
+                drawTop = boundsTop,
+                drawWidth = compositionWidth,
+                drawHeight = compositionHeight
+            )
+            if (!rendered) {
                 BitmapPool.recycle(bitmap)
                 return@withContext null
             }
@@ -111,6 +103,8 @@ class LottieStickerController(
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        } finally {
+            localDecoder.release()
         }
     }
 
@@ -122,25 +116,15 @@ class LottieStickerController(
         val file = File(filePath)
         if (!file.exists()) return
 
-        val composition: LottieComposition = try {
-            val fis = FileInputStream(file)
-            val bis = BufferedInputStream(fis)
-            bis.mark(4)
-            val magic = bis.read() or (bis.read() shl 8)
-            bis.reset()
-
-            val isGzip = magic == GZIPInputStream.GZIP_MAGIC
-            val inputStream = if (isGzip) GZIPInputStream(bis) else bis
-
-            val compositionResult = LottieCompositionFactory.fromJsonInputStreamSync(inputStream, filePath)
-            compositionResult.value ?: return
-        } catch (e: Exception) {
-            e.printStackTrace()
+        val localDecoder = RLottieWrapper()
+        if (!runCatching { localDecoder.open(file) }.getOrDefault(false)) {
+            localDecoder.release()
             return
         }
+        decoder = localDecoder
 
-        val compositionWidth = composition.bounds.width().coerceAtLeast(1)
-        val compositionHeight = composition.bounds.height().coerceAtLeast(1)
+        val compositionWidth = localDecoder.getWidth().coerceAtLeast(1)
+        val compositionHeight = localDecoder.getHeight().coerceAtLeast(1)
         val extraPaddingX = minOf((compositionWidth * OVERFLOW_PADDING_RATIO).toInt(), MAX_OVERFLOW_PADDING_PX)
         val extraPaddingY = minOf((compositionHeight * OVERFLOW_PADDING_RATIO).toInt(), MAX_OVERFLOW_PADDING_PX)
         val renderWidth = maxOf(reqWidth, compositionWidth + extraPaddingX * 2)
@@ -150,39 +134,56 @@ class LottieStickerController(
 
         val fBitmap = BitmapPool.obtain(renderWidth, renderHeight)
         val bBitmap = BitmapPool.obtain(renderWidth, renderHeight)
+        val sBitmap = BitmapPool.obtain(renderWidth, renderHeight)
 
         if (!isActiveController) {
-             BitmapPool.recycle(fBitmap)
-             BitmapPool.recycle(bBitmap)
-             return
+            BitmapPool.recycle(fBitmap)
+            BitmapPool.recycle(bBitmap)
+            BitmapPool.recycle(sBitmap)
+            decoder?.release()
+            decoder = null
+            return
         }
 
         frontBitmap = fBitmap
         backBitmap = bBitmap
+        spareBitmap = sBitmap
 
-        val drawable = LottieDrawable().apply {
-            enableFeatureFlag(LottieFeatureFlag.MergePathsApi19, true)
-            clipToCompositionBounds = false
-            setSafeMode(true)
-            repeatCount = LottieDrawable.INFINITE
-        }
-        drawable.composition = composition
-        drawable.setBounds(boundsLeft, boundsTop, boundsLeft + compositionWidth, boundsTop + compositionHeight)
-
-        val frontCanvas = Canvas(fBitmap)
         fBitmap.eraseColor(0)
-        if (runCatching { drawable.draw(frontCanvas) }.isFailure) {
+        val firstFrameRendered = localDecoder.renderFrame(
+            bitmap = fBitmap,
+            frameNo = 0,
+            drawLeft = boundsLeft,
+            drawTop = boundsTop,
+            drawWidth = compositionWidth,
+            drawHeight = compositionHeight
+        )
+        if (!firstFrameRendered) {
             BitmapPool.recycle(fBitmap)
             BitmapPool.recycle(bBitmap)
+            BitmapPool.recycle(sBitmap)
             frontBitmap = null
             backBitmap = null
+            spareBitmap = null
+            decoder?.release()
+            decoder = null
             return
         }
 
         currentImageBitmap = fBitmap.asImageBitmap()
 
+        val totalFrames = localDecoder.getTotalFrames().coerceAtLeast(1)
+        val frameRate = localDecoder.getFrameRate().takeIf { it > 0.0 }
+            ?: run {
+                val durationMs = localDecoder.getDurationMs().coerceAtLeast(1L)
+                max(totalFrames / (durationMs / 1000.0), 1.0)
+            }
+        val normalizedFrameRate = frameRate.coerceIn(1.0, 120.0)
+
         var lastFrameTime = System.nanoTime()
-        val frameDurationMs = (1000f / composition.frameRate).toLong()
+        val frameDurationMs = max(1L, (1000.0 / normalizedFrameRate).toLong())
+        var frameAccumulator = 0.0
+        var frameNo = 0
 
         while (isActiveController && scope.isActive) {
             val now = System.nanoTime()
@@ -192,23 +193,36 @@ class LottieStickerController(
                 continue
             }
 
-            val dt = (now - lastFrameTime) / 1_000_000f // ms
+            val dtMs = (now - lastFrameTime) / 1_000_000.0
+            frameAccumulator += dtMs * normalizedFrameRate / 1000.0
+            val framesToAdvance = frameAccumulator.toInt()
+            if (framesToAdvance <= 0) {
+                lastFrameTime = now
+                delay(1)
+                continue
+            }
+            frameNo = (frameNo + framesToAdvance) % totalFrames
+            frameAccumulator -= framesToAdvance
 
-            val currentProgress = drawable.progress
-            val advance = dt / composition.duration
-            drawable.progress = (currentProgress + advance) % 1f
-            
             val localBackBitmap = backBitmap ?: break
 
             localBackBitmap.eraseColor(0)
-            val canvas = Canvas(localBackBitmap)
-            if (runCatching { drawable.draw(canvas) }.isFailure) {
+            val rendered = localDecoder.renderFrame(
+                bitmap = localBackBitmap,
+                frameNo = frameNo,
+                drawLeft = boundsLeft,
+                drawTop = boundsTop,
+                drawWidth = compositionWidth,
+                drawHeight = compositionHeight
+            )
+            if (!rendered) {
                 break
             }
-            
-            val temp = frontBitmap
+
+            val previousFront = frontBitmap
             frontBitmap = backBitmap
-            backBitmap = temp
+            backBitmap = spareBitmap
+            spareBitmap = previousFront
 
             val localFrontBitmap = frontBitmap
             if (localFrontBitmap != null) {
@@ -222,6 +236,18 @@ class LottieStickerController(
             val delayTime = (frameDurationMs - workTime).coerceAtLeast(0)
             delay(delayTime)
         }
+
+        decoder?.release()
+        decoder = null
+
+        currentImageBitmap = null
+
+        frontBitmap?.let { BitmapPool.recycle(it) }
+        backBitmap?.let { BitmapPool.recycle(it) }
+        spareBitmap?.let { BitmapPool.recycle(it) }
+        frontBitmap = null
+        backBitmap = null
+        spareBitmap = null
     }
     
     companion object {

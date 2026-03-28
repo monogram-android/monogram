@@ -16,12 +16,11 @@ import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.monogram.presentation.features.stickers.core.LottieStickerController
 import org.monogram.presentation.features.stickers.core.StickerController
 import org.monogram.presentation.features.stickers.core.StickerThumbnailCache
 import org.monogram.presentation.features.stickers.core.VpxStickerController
+import java.io.File
 
 @Suppress("COMPOSE_APPLIER_CALL_MISMATCH") // https://issuetracker.google.com/issues/432262806 lol
 @Composable
@@ -37,6 +36,14 @@ fun StickerPlayer(
         val renderHeight = if (heightPx != Constraints.Infinity && heightPx > 0) heightPx else 512
 
         val scope = rememberCoroutineScope()
+        val thumbnailKey = remember(path) {
+            val file = File(path)
+            if (file.exists()) {
+                "${path}:${file.length()}:${file.lastModified()}"
+            } else {
+                path
+            }
+        }
         val controller = remember(path) {
             val ctrl: StickerController = if (path.endsWith(".webm", ignoreCase = true)) {
                 VpxStickerController(path, scope)
@@ -46,18 +53,16 @@ fun StickerPlayer(
             ctrl
         }
 
-        var cachedBitmap by remember(path) {
-            mutableStateOf(StickerThumbnailCache.get(path))
+        var cachedBitmap by remember(thumbnailKey) {
+            mutableStateOf(StickerThumbnailCache.get(thumbnailKey))
         }
 
-        LaunchedEffect(path, controller) {
+        LaunchedEffect(thumbnailKey, controller) {
             if (cachedBitmap == null) {
-                scope.launch(Dispatchers.Default) {
-                    val firstFrame = controller.renderFirstFrame()
-                    if (firstFrame != null) {
-                        StickerThumbnailCache.put(path, firstFrame)
-                        cachedBitmap = firstFrame
-                    }
+                val firstFrame = controller.renderFirstFrame()
+                if (firstFrame != null) {
+                    StickerThumbnailCache.put(thumbnailKey, firstFrame)
+                    cachedBitmap = firstFrame
                 }
             }
         }

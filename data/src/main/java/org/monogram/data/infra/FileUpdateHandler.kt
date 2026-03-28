@@ -1,12 +1,11 @@
 package org.monogram.data.infra
 
-import org.monogram.core.ScopeProvider
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.ScopeProvider
 import org.monogram.data.gateway.UpdateDispatcher
 import java.util.concurrent.ConcurrentHashMap
 
@@ -21,10 +20,16 @@ class FileUpdateHandler(
 
     private val _downloadProgress = MutableSharedFlow<Pair<Long, Float>>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     private val _downloadCompleted = MutableSharedFlow<Pair<Long, String>>(extraBufferCapacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val _fileDownloadProgress =
+        MutableSharedFlow<Pair<Long, Float>>(extraBufferCapacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val _fileDownloadCompleted =
+        MutableSharedFlow<Pair<Long, String>>(extraBufferCapacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     private val _uploadProgress = MutableSharedFlow<Pair<Long, Float>>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     val downloadProgress = _downloadProgress.asSharedFlow()
     val downloadCompleted = _downloadCompleted.asSharedFlow()
+    val fileDownloadProgress = _fileDownloadProgress.asSharedFlow()
+    val fileDownloadCompleted = _fileDownloadCompleted.asSharedFlow()
     val uploadProgress = _uploadProgress.asSharedFlow()
 
     init {
@@ -50,12 +55,15 @@ class FileUpdateHandler(
             scope.appScope.launch {
                 if (downloadDone) {
                     handleCustomEmoji(file.id, file.local?.path ?: "")
+                    _fileDownloadCompleted.emit(file.id.toLong() to (file.local?.path ?: ""))
+                    _fileDownloadProgress.emit(file.id.toLong() to 1f)
                     entries.forEach { (_, msgId) ->
                         _downloadCompleted.emit(msgId to (file.local?.path ?: ""))
                         _downloadProgress.emit(msgId to 1f)
                     }
                 } else if (downloading) {
                     val progress = if (file.size > 0) file.local!!.downloadedSize.toFloat() / file.size else 0f
+                    _fileDownloadProgress.emit(file.id.toLong() to progress)
                     entries.forEach { (_, msgId) -> _downloadProgress.emit(msgId to progress) }
                 }
                 if (uploadDone) {
@@ -68,12 +76,25 @@ class FileUpdateHandler(
         } else if (registry.standaloneFileIds.contains(file.id)) {
             scope.appScope.launch {
                 if (downloadDone) {
+                    _fileDownloadCompleted.emit(file.id.toLong() to (file.local?.path ?: ""))
+                    _fileDownloadProgress.emit(file.id.toLong() to 1f)
                     _downloadCompleted.emit(file.id.toLong() to (file.local?.path ?: ""))
                     _downloadProgress.emit(file.id.toLong() to 1f)
                     registry.standaloneFileIds.remove(file.id)
                 } else if (downloading) {
                     val progress = if (file.size > 0) file.local!!.downloadedSize.toFloat() / file.size else 0f
+                    _fileDownloadProgress.emit(file.id.toLong() to progress)
                     _downloadProgress.emit(file.id.toLong() to progress)
+                }
+            }
+        } else {
+            scope.appScope.launch {
+                if (downloadDone) {
+                    _fileDownloadCompleted.emit(file.id.toLong() to (file.local?.path ?: ""))
+                    _fileDownloadProgress.emit(file.id.toLong() to 1f)
+                } else if (downloading) {
+                    val progress = if (file.size > 0) file.local!!.downloadedSize.toFloat() / file.size else 0f
+                    _fileDownloadProgress.emit(file.id.toLong() to progress)
                 }
             }
         }

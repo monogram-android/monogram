@@ -16,12 +16,12 @@ object StickerThumbnailCache {
         }
     }
 
-    fun get(path: String): ImageBitmap? {
-        return cache.get(path)
+    fun get(key: String): ImageBitmap? {
+        return cache.get(key)
     }
 
-    fun put(path: String, bitmap: ImageBitmap) {
-        cache.put(path, bitmap)
+    fun put(key: String, bitmap: ImageBitmap) {
+        cache.put(key, bitmap)
     }
 
     fun clear() {

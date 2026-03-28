@@ -13,7 +13,14 @@ add_library(
         native-lib
         SHARED
         native-lib.cpp
-        VpxDecoder.cpp)
+        VpxDecoder.cpp
+        RLottieDecoder.cpp
+        RLottieJni.cpp)
+
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(LOTTIE_MODULE OFF CACHE BOOL "" FORCE)
+set(LOTTIE_TEST OFF CACHE BOOL "" FORCE)
+add_subdirectory(third_party/rlottie)
 
 target_compile_options(native-lib PRIVATE
     -O3
@@ -50,6 +57,7 @@ target_link_libraries(
         native-lib
 
         libvpx
+        rlottie
         mediandk
         jnigraphics
 

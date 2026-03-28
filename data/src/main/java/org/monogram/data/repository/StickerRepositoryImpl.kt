@@ -357,7 +357,7 @@ class StickerRepositoryImpl(
             stickerPathDao.deletePath(fileId)
         }
 
-        val cachedPath = fileUpdateHandler.downloadCompleted
+        val cachedPath = fileUpdateHandler.fileDownloadCompleted
             .replayCache
             .firstOrNull { it.first == fileId && it.second.isNotEmpty() && File(it.second).exists() }
             ?.second
@@ -372,13 +372,13 @@ class StickerRepositoryImpl(
         fileQueue.enqueue(fileId.toInt(), 32, FileDownloadQueue.DownloadType.STICKER)
 
         val firstPath = withTimeoutOrNull(90_000L) {
-            fileUpdateHandler.downloadCompleted
+            fileUpdateHandler.fileDownloadCompleted
                 .filter { it.first == fileId }
                 .mapNotNull { (_, path) -> path.takeIf { it.isNotEmpty() && File(it).exists() } }
                 .first()
         }
 
-        val resultPath = firstPath ?: fileUpdateHandler.downloadCompleted
+        val resultPath = firstPath ?: fileUpdateHandler.fileDownloadCompleted
             .replayCache
             .firstOrNull { it.first == fileId && it.second.isNotEmpty() && File(it.second).exists() }
             ?.second
@@ -454,7 +454,7 @@ class StickerRepositoryImpl(
             stickerPathDao.deletePath(stickerId)
         }
 
-        val completedPath = fileUpdateHandler.downloadCompleted.replayCache
+        val completedPath = fileUpdateHandler.fileDownloadCompleted.replayCache
             .firstOrNull { it.first == stickerId && it.second.isNotEmpty() && File(it.second).exists() }
             ?.second
         if (!completedPath.isNullOrEmpty()) {

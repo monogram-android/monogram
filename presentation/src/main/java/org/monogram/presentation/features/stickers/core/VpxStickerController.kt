@@ -33,8 +33,9 @@ class VpxStickerController(
     private var renderJob: Job? = null
 
     override fun start() {
-        renderJob?.cancel()
+        val previousJob = renderJob
         renderJob = scope.launch(Dispatchers.IO) {
+            previousJob?.cancelAndJoin()
             initializeAndLoop()
         }
     }
@@ -144,16 +145,19 @@ class VpxStickerController(
             val sleepTime = (delayMs - workTime).coerceAtLeast(0)
             delay(sleepTime)
         }
+
+        currentImageBitmap = null
     }
 
     override fun release() {
+        isActive = false
         renderJob?.cancel()
+        currentImageBitmap = null
 
         scope.launch(Dispatchers.IO) {
             renderJob?.join()
 
             decoderMutex.withLock {
-                this@VpxStickerController.isActive = false
                 try {
                     decoder?.release()
                 } catch (e: Exception) {

@@ -33,7 +33,6 @@ koin = "4.1.1"
 
 # UI & Media
 coil = "3.4.0"
-lottie = "6.7.1"
 maplibre = "1.4.1"
 
 # Google & Firebase
@@ -125,7 +124,6 @@ play-services-mlkit-barcode-scanning = { group = "com.google.android.gms", name 
 play-services-oss-licenses = { group = "com.google.android.gms", name = "play-services-oss-licenses", version.ref = "playServices-ossLicenses" }
 
 # Others
-lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
 maplibre-compose = { module = "io.github.rallista:maplibre-compose", version.ref = "maplibre" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 

@@ -50,6 +50,7 @@ class MessageMapper(
 
     private companion object {
         private const val NO_RANK_SENTINEL = "__NO_RANK__"
+        private const val META_SEPARATOR = '\u001F'
     }
 
     private fun getCurrentNetworkType(): TdApi.NetworkType {
@@ -84,6 +85,29 @@ class MessageMapper(
 
     private fun isValidPath(path: String?): Boolean {
         return !path.isNullOrEmpty() && File(path).exists()
+    }
+
+    private fun encodeMeta(vararg parts: Any?): String {
+        return parts.joinToString(META_SEPARATOR.toString()) { it?.toString().orEmpty() }
+    }
+
+    private fun decodeMeta(raw: String?): List<String> {
+        if (raw.isNullOrBlank()) return emptyList()
+        return if (raw.contains(META_SEPARATOR)) raw.split(META_SEPARATOR) else raw.split('|')
+    }
+
+    private fun resolveLegacyMediaFromMeta(contentType: String, meta: List<String>): Pair<Int, String?> {
+        return when (contentType) {
+            "photo" -> (meta.getOrNull(2)?.toIntOrNull() ?: 0) to meta.getOrNull(3)
+            "video" -> (meta.getOrNull(3)?.toIntOrNull() ?: 0) to meta.getOrNull(4)
+            "voice" -> (meta.getOrNull(1)?.toIntOrNull() ?: 0) to meta.getOrNull(2)
+            "video_note" -> (meta.getOrNull(2)?.toIntOrNull() ?: 0) to meta.getOrNull(3)
+            "sticker" -> (meta.getOrNull(4)?.toIntOrNull() ?: 0) to meta.getOrNull(6)
+            "document" -> (meta.getOrNull(3)?.toIntOrNull() ?: 0) to meta.getOrNull(4)
+            "audio" -> (meta.getOrNull(4)?.toIntOrNull() ?: 0) to meta.getOrNull(5)
+            "gif" -> (meta.getOrNull(3)?.toIntOrNull() ?: 0) to meta.getOrNull(4)
+            else -> 0 to null
+        }
     }
 
     private fun resolveCachedPath(fileId: Int, storedPath: String?): String? {
@@ -1367,7 +1391,9 @@ class MessageMapper(
     data class CachedMessageContent(
         val type: String,
         val text: String,
-        val meta: String?
+        val meta: String?,
+        val fileId: Int = 0,
+        val path: String? = null
     )
 
     private data class CachedReplyPreview(
@@ -1407,6 +1433,8 @@ class MessageMapper(
             content = content.text,
             contentType = content.type,
             contentMeta = content.meta,
+            mediaFileId = content.fileId,
+            mediaPath = content.path,
             date = resolveMessageDate(msg),
             isOutgoing = msg.isOutgoing,
             isRead = false,
@@ -1439,42 +1467,53 @@ class MessageMapper(
                     ?: sizes.find { it.type == "m" }
                     ?: sizes.getOrNull(sizes.size / 2)
                     ?: sizes.lastOrNull()
+                val fileId = best?.photo?.id ?: 0
+                val path = best?.photo?.local?.path?.takeIf { it.isNotBlank() }
                 CachedMessageContent(
                     "photo",
                     content.caption?.text.orEmpty(),
-                    listOf(
-                        best?.width ?: 0,
-                        best?.height ?: 0,
-                        best?.photo?.id ?: 0,
-                        best?.photo?.local?.path.orEmpty()
-                    ).joinToString("|")
+                    encodeMeta(best?.width ?: 0, best?.height ?: 0),
+                    fileId = fileId,
+                    path = path
                 )
             }
 
-            is TdApi.MessageVideo -> CachedMessageContent(
-                "video",
-                content.caption?.text.orEmpty(),
-                listOf(
-                    content.video.width,
-                    content.video.height,
-                    content.video.duration,
-                    content.video.video.id,
-                    content.video.video.local?.path.orEmpty(),
-                    content.video.thumbnail?.file?.local?.path.orEmpty(),
-                    if (content.video.supportsStreaming) 1 else 0
-                ).joinToString("|")
-            )
+            is TdApi.MessageVideo -> {
+                val fileId = content.video.video.id
+                val path = content.video.video.local?.path?.takeIf { it.isNotBlank() }
+                CachedMessageContent(
+                    "video",
+                    content.caption?.text.orEmpty(),
+                    encodeMeta(
+                        content.video.width,
+                        content.video.height,
+                        content.video.duration,
+                        content.video.thumbnail?.file?.local?.path.orEmpty(),
+                        if (content.video.supportsStreaming) 1 else 0
+                    ),
+                    fileId = fileId,
+                    path = path
+                )
+            }
 
             is TdApi.MessageVoiceNote -> CachedMessageContent(
                 "voice",
                 content.caption?.text.orEmpty(),
-                "${content.voiceNote.duration}|${content.voiceNote.voice.id}|${content.voiceNote.voice.local?.path.orEmpty()}"
+                encodeMeta(content.voiceNote.duration),
+                fileId = content.voiceNote.voice.id,
+                path = content.voiceNote.voice.local?.path?.takeIf { it.isNotBlank() }
             )
 
             is TdApi.MessageVideoNote -> CachedMessageContent(
                 "video_note",
                 "",
-                "${content.videoNote.duration}|${content.videoNote.length}|${content.videoNote.video.id}|${content.videoNote.video.local?.path.orEmpty()}|${content.videoNote.thumbnail?.file?.local?.path.orEmpty()}"
+                encodeMeta(
+                    content.videoNote.duration,
+                    content.videoNote.length,
+                    content.videoNote.thumbnail?.file?.local?.path.orEmpty()
+                ),
+                fileId = content.videoNote.video.id,
+                path = content.videoNote.video.local?.path?.takeIf { it.isNotBlank() }
             )
 
             is TdApi.MessageSticker -> {
@@ -1487,45 +1526,74 @@ class MessageMapper(
                 CachedMessageContent(
                     "sticker",
                     content.sticker.emoji,
-                    "${content.sticker.setId}|${content.sticker.emoji}|${content.sticker.width}|${content.sticker.height}|${content.sticker.sticker.id}|$format|${content.sticker.sticker.local?.path.orEmpty()}"
+                    encodeMeta(
+                        content.sticker.setId,
+                        content.sticker.emoji,
+                        content.sticker.width,
+                        content.sticker.height,
+                        format
+                    ),
+                    fileId = content.sticker.sticker.id,
+                    path = content.sticker.sticker.local?.path?.takeIf { it.isNotBlank() }
                 )
             }
 
             is TdApi.MessageDocument -> CachedMessageContent(
                 "document",
                 content.caption?.text.orEmpty(),
-                "${content.document.fileName}|${content.document.mimeType}|${content.document.document.size}|${content.document.document.id}|${content.document.document.local?.path.orEmpty()}"
+                encodeMeta(content.document.fileName, content.document.mimeType, content.document.document.size),
+                fileId = content.document.document.id,
+                path = content.document.document.local?.path?.takeIf { it.isNotBlank() }
             )
 
             is TdApi.MessageAudio -> CachedMessageContent(
                 "audio",
                 content.caption?.text.orEmpty(),
-                "${content.audio.duration}|${content.audio.title.orEmpty()}|${content.audio.performer.orEmpty()}|${content.audio.fileName.orEmpty()}|${content.audio.audio.id}|${content.audio.audio.local?.path.orEmpty()}"
+                encodeMeta(
+                    content.audio.duration,
+                    content.audio.title.orEmpty(),
+                    content.audio.performer.orEmpty(),
+                    content.audio.fileName.orEmpty()
+                ),
+                fileId = content.audio.audio.id,
+                path = content.audio.audio.local?.path?.takeIf { it.isNotBlank() }
             )
 
             is TdApi.MessageAnimation -> CachedMessageContent(
                 "gif",
                 content.caption?.text.orEmpty(),
-                "${content.animation.width}|${content.animation.height}|${content.animation.duration}|${content.animation.animation.id}|${content.animation.animation.local?.path.orEmpty()}|${content.animation.thumbnail?.file?.local?.path.orEmpty()}"
+                encodeMeta(
+                    content.animation.width,
+                    content.animation.height,
+                    content.animation.duration,
+                    content.animation.thumbnail?.file?.local?.path.orEmpty()
+                ),
+                fileId = content.animation.animation.id,
+                path = content.animation.animation.local?.path?.takeIf { it.isNotBlank() }
             )
 
             is TdApi.MessagePoll -> CachedMessageContent(
                 "poll",
                 content.poll.question.text,
-                "${content.poll.options.size}|${if (content.poll.isClosed) 1 else 0}"
+                encodeMeta(content.poll.options.size, if (content.poll.isClosed) 1 else 0)
             )
 
             is TdApi.MessageContact -> CachedMessageContent(
                 "contact",
                 listOf(content.contact.firstName, content.contact.lastName).filter { it.isNotBlank() }
                     .joinToString(" "),
-                "${content.contact.phoneNumber}|${content.contact.firstName}|${content.contact.lastName}|${content.contact.userId}"
+                encodeMeta(
+                    content.contact.phoneNumber,
+                    content.contact.firstName,
+                    content.contact.lastName,
+                    content.contact.userId
+                )
             )
 
             is TdApi.MessageLocation -> CachedMessageContent(
                 "location",
                 "",
-                "${content.location.latitude}|${content.location.longitude}|${content.livePeriod}"
+                encodeMeta(content.location.latitude, content.location.longitude, content.livePeriod)
             )
 
             is TdApi.MessageCall -> CachedMessageContent("service", "Call (${content.duration}s)", null)
@@ -1540,7 +1608,15 @@ class MessageMapper(
     }
 
     fun mapEntityToModel(entity: org.monogram.data.db.model.MessageEntity): MessageModel {
-        val meta = entity.contentMeta?.split('|') ?: emptyList()
+        val meta = decodeMeta(entity.contentMeta)
+        val usesLegacyEmbeddedMedia = entity.mediaFileId == 0 && entity.mediaPath.isNullOrBlank()
+        val (legacyFileId, legacyPath) = if (usesLegacyEmbeddedMedia) {
+            resolveLegacyMediaFromMeta(entity.contentType, meta)
+        } else {
+            0 to null
+        }
+        val mediaFileId = entity.mediaFileId.takeIf { it != 0 } ?: legacyFileId
+        val mediaPath = entity.mediaPath?.takeIf { it.isNotBlank() } ?: legacyPath
         val replyToMsgId = entity.replyToMessageId.takeIf { it != 0L }
         val replyPreview = resolveReplyPreview(entity)
         val replyPreviewModel =
@@ -1588,10 +1664,10 @@ class MessageMapper(
             "text" -> MessageContent.Text(entity.content)
 
             "photo" -> {
-                val fileId = meta.getOrNull(2)?.toIntOrNull() ?: 0
+                val fileId = mediaFileId
                 registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Photo(
-                    path = resolveCachedPath(fileId, meta.getOrNull(3)),
+                    path = resolveCachedPath(fileId, mediaPath),
                     width = meta.getOrNull(0)?.toIntOrNull() ?: 0,
                     height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
                     caption = entity.content,
@@ -1600,16 +1676,15 @@ class MessageMapper(
             }
 
             "video" -> {
-                val fileId = meta.getOrNull(3)?.toIntOrNull() ?: 0
-                val storedPath = if (meta.size >= 7) meta.getOrNull(4) else null
-                val supportsStreaming = if (meta.size >= 7) {
+                val fileId = mediaFileId
+                val supportsStreaming = if (usesLegacyEmbeddedMedia) {
                     (meta.getOrNull(6)?.toIntOrNull() ?: 0) == 1
                 } else {
-                    (meta.getOrNull(5)?.toIntOrNull() ?: 0) == 1
+                    (meta.getOrNull(4)?.toIntOrNull() ?: 0) == 1
                 }
                 registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Video(
-                    path = resolveCachedPath(fileId, storedPath),
+                    path = resolveCachedPath(fileId, mediaPath),
                     width = meta.getOrNull(0)?.toIntOrNull() ?: 0,
                     height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
                     duration = meta.getOrNull(2)?.toIntOrNull() ?: 0,
@@ -1620,23 +1695,21 @@ class MessageMapper(
             }
 
             "voice" -> {
-                val fileId = meta.getOrNull(1)?.toIntOrNull() ?: 0
-                val storedPath = if (meta.size >= 3) meta.getOrNull(2) else null
+                val fileId = mediaFileId
                 registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Voice(
-                    path = resolveCachedPath(fileId, storedPath),
+                    path = resolveCachedPath(fileId, mediaPath),
                     duration = meta.getOrNull(0)?.toIntOrNull() ?: 0,
                     fileId = fileId
                 )
             }
 
             "video_note" -> {
-                val fileId = meta.getOrNull(2)?.toIntOrNull() ?: 0
-                val storedPath = if (meta.size >= 5) meta.getOrNull(3) else null
-                val storedThumbPath = if (meta.size >= 5) meta.getOrNull(4) else meta.getOrNull(3)
+                val fileId = mediaFileId
+                val storedThumbPath = if (usesLegacyEmbeddedMedia) meta.getOrNull(4) else meta.getOrNull(2)
                 registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.VideoNote(
-                    path = resolveCachedPath(fileId, storedPath),
+                    path = resolveCachedPath(fileId, mediaPath),
                     thumbnail = storedThumbPath?.takeIf { isValidPath(it) },
                     duration = meta.getOrNull(0)?.toIntOrNull() ?: 0,
                     length = meta.getOrNull(1)?.toIntOrNull() ?: 0,
@@ -1645,13 +1718,12 @@ class MessageMapper(
             }
 
             "sticker" -> {
-                val fileId = meta.getOrNull(4)?.toIntOrNull() ?: 0
-                val storedPath = if (meta.size >= 7) meta.getOrNull(6) else null
+                val fileId = mediaFileId
                 registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Sticker(
                     id = 0L,
                     setId = meta.getOrNull(0)?.toLongOrNull() ?: 0L,
-                    path = resolveCachedPath(fileId, storedPath),
+                    path = resolveCachedPath(fileId, mediaPath),
                     width = meta.getOrNull(2)?.toIntOrNull() ?: 0,
                     height = meta.getOrNull(3)?.toIntOrNull() ?: 0,
                     emoji = entity.content,
@@ -1660,11 +1732,10 @@ class MessageMapper(
             }
 
             "document" -> {
-                val fileId = meta.getOrNull(3)?.toIntOrNull() ?: 0
-                val storedPath = if (meta.size >= 5) meta.getOrNull(4) else null
+                val fileId = mediaFileId
                 registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Document(
-                    path = resolveCachedPath(fileId, storedPath),
+                    path = resolveCachedPath(fileId, mediaPath),
                     fileName = meta.getOrNull(0).orEmpty(),
                     mimeType = meta.getOrNull(1).orEmpty(),
                     size = meta.getOrNull(2)?.toLongOrNull() ?: 0L,
@@ -1674,11 +1745,10 @@ class MessageMapper(
             }
 
             "audio" -> {
-                val fileId = meta.getOrNull(4)?.toIntOrNull() ?: 0
-                val storedPath = if (meta.size >= 6) meta.getOrNull(5) else null
+                val fileId = mediaFileId
                 registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Audio(
-                    path = resolveCachedPath(fileId, storedPath),
+                    path = resolveCachedPath(fileId, mediaPath),
                     duration = meta.getOrNull(0)?.toIntOrNull() ?: 0,
                     title = meta.getOrNull(1).orEmpty(),
                     performer = meta.getOrNull(2).orEmpty(),
@@ -1691,11 +1761,10 @@ class MessageMapper(
             }
 
             "gif" -> {
-                val fileId = meta.getOrNull(3)?.toIntOrNull() ?: 0
-                val storedPath = if (meta.size >= 6) meta.getOrNull(4) else null
+                val fileId = mediaFileId
                 registerCachedFile(fileId, entity.chatId, entity.id)
                 MessageContent.Gif(
-                    path = resolveCachedPath(fileId, storedPath),
+                    path = resolveCachedPath(fileId, mediaPath),
                     width = meta.getOrNull(0)?.toIntOrNull() ?: 0,
                     height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
                     caption = entity.content,

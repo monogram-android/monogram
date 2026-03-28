@@ -24,14 +24,21 @@ interface MessageDao {
     @Query("UPDATE messages SET isRead = 1 WHERE chatId = :chatId AND id <= :upToMessageId AND isRead = 0")
     suspend fun markAsRead(chatId: Long, upToMessageId: Long)
 
-    @Query("UPDATE messages SET content = :content, contentType = :contentType, contentMeta = :contentMeta, editDate = :editDate WHERE id = :messageId")
+    @Query(
+        "UPDATE messages SET content = :content, contentType = :contentType, contentMeta = :contentMeta, mediaFileId = :mediaFileId, mediaPath = :mediaPath, editDate = :editDate WHERE id = :messageId"
+    )
     suspend fun updateContent(
         messageId: Long,
         content: String,
         contentType: String,
         contentMeta: String?,
+        mediaFileId: Int,
+        mediaPath: String?,
         editDate: Int
     )
+
+    @Query("UPDATE messages SET mediaPath = :path WHERE mediaFileId = :fileId AND mediaFileId != 0")
+    suspend fun updateMediaPath(fileId: Int, path: String)
 
     @Query("UPDATE messages SET viewCount = :viewCount, forwardCount = :forwardCount, replyCount = :replyCount WHERE id = :messageId")
     suspend fun updateInteractionInfo(messageId: Long, viewCount: Int, forwardCount: Int, replyCount: Int)

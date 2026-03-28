@@ -94,6 +94,8 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
         content: String,
         contentType: String,
         contentMeta: String?,
+        mediaFileId: Int,
+        mediaPath: String?,
         editDate: Int
     ) {
         messages.values.forEach { flow ->
@@ -103,8 +105,24 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
                     content = content,
                     contentType = contentType,
                     contentMeta = contentMeta,
+                    mediaFileId = mediaFileId,
+                    mediaPath = mediaPath,
                     editDate = editDate
                 ))
+            }
+        }
+    }
+
+    override suspend fun updateMediaPath(fileId: Int, path: String) {
+        messages.values.forEach { flow ->
+            flow.update { current ->
+                current.mapValues { (_, message) ->
+                    if (message.mediaFileId == fileId) {
+                        message.copy(mediaPath = path)
+                    } else {
+                        message
+                    }
+                }
             }
         }
     }

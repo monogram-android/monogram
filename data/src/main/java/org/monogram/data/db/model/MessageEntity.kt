@@ -20,6 +20,8 @@ data class MessageEntity(
     val content: String,
     val contentType: String = "text",
     val contentMeta: String? = null,
+    val mediaFileId: Int = 0,
+    val mediaPath: String? = null,
     val date: Int,
     val isOutgoing: Boolean,
     val isRead: Boolean,

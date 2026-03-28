@@ -27,8 +27,12 @@ interface ChatLocalDataSource {
         content: String,
         contentType: String,
         contentMeta: String?,
+        mediaFileId: Int,
+        mediaPath: String?,
         editDate: Int
     )
+
+    suspend fun updateMediaPath(fileId: Int, path: String)
 
     suspend fun updateInteractionInfo(messageId: Long, viewCount: Int, forwardCount: Int, replyCount: Int)
     suspend fun deleteMessage(messageId: Long)

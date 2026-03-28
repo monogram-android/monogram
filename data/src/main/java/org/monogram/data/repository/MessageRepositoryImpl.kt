@@ -13,6 +13,7 @@ import org.monogram.data.datasource.cache.ChatLocalDataSource
 import org.monogram.data.datasource.cache.UserLocalDataSource
 import org.monogram.data.datasource.remote.MessageRemoteDataSource
 import org.monogram.data.gateway.TelegramGateway
+import org.monogram.data.infra.FileUpdateHandler
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.map
 import org.monogram.data.mapper.toDomain
@@ -34,7 +35,8 @@ class MessageRepositoryImpl(
     private val dispatcherProvider: DispatcherProvider,
     scopeProvider: ScopeProvider,
     private val chatLocalDataSource: ChatLocalDataSource,
-    private val userLocalDataSource: UserLocalDataSource
+    private val userLocalDataSource: UserLocalDataSource,
+    private val fileUpdateHandler: FileUpdateHandler
 ) : MessageRepository {
     private val scope = scopeProvider.appScope
 
@@ -68,6 +70,8 @@ class MessageRepositoryImpl(
                                 content = extracted.text,
                                 contentType = extracted.type,
                                 contentMeta = extracted.meta,
+                                mediaFileId = extracted.fileId,
+                                mediaPath = extracted.path,
                                 editDate = 0
                             )
                         }
@@ -114,6 +118,15 @@ class MessageRepositoryImpl(
         scope.launch(dispatcherProvider.io) {
             val ninetyDaysAgo = System.currentTimeMillis() - (90L * 24 * 60 * 60 * 1000)
             chatLocalDataSource.deleteExpired(ninetyDaysAgo)
+        }
+
+        scope.launch {
+            fileUpdateHandler.fileDownloadCompleted.collect { (fileIdLong, path) ->
+                val fileId = fileIdLong.toInt()
+                if (fileId != 0 && path.isNotBlank()) {
+                    chatLocalDataSource.updateMediaPath(fileId, path)
+                }
+            }
         }
     }
 

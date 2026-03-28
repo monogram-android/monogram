@@ -59,8 +59,12 @@ class RoomChatLocalDataSource(
         content: String,
         contentType: String,
         contentMeta: String?,
+        mediaFileId: Int,
+        mediaPath: String?,
         editDate: Int
-    ) = messageDao.updateContent(messageId, content, contentType, contentMeta, editDate)
+    ) = messageDao.updateContent(messageId, content, contentType, contentMeta, mediaFileId, mediaPath, editDate)
+
+    override suspend fun updateMediaPath(fileId: Int, path: String) = messageDao.updateMediaPath(fileId, path)
 
     override suspend fun updateInteractionInfo(messageId: Long, viewCount: Int, forwardCount: Int, replyCount: Int) =
         messageDao.updateInteractionInfo(messageId, viewCount, forwardCount, replyCount)

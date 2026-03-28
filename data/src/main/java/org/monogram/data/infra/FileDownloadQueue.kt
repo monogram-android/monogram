@@ -74,6 +74,7 @@ class FileDownloadQueue(
     private val maxVideoParallelDownloads = 3
     private val maxGifParallelDownloads = 2
     private val maxDefaultParallelDownloads = 4
+    private val maxPendingDefaultAutoDownloads = 20
     private val maxStickerParallelDownloads = 5
     private val stickerStallMs = 20_000L
     private val defaultStallMs = 35_000L
@@ -463,6 +464,7 @@ class FileDownloadQueue(
     fun setChatOpened(chatId: Long) {
         openChatIds.add(chatId)
         activeChatId = chatId
+        flushIrrelevantBackgroundDownloads()
     }
 
     fun setChatClosed(chatId: Long) {
@@ -526,7 +528,9 @@ class FileDownloadQueue(
             }
 
             if (registry.getMessages(fileId).isEmpty()) registry.standaloneFileIds.add(fileId)
-            fileDownloadTypes[fileId] = type
+            if (type != DownloadType.DEFAULT || !fileDownloadTypes.containsKey(fileId)) {
+                fileDownloadTypes[fileId] = type
+            }
 
             val cached = cache.fileCache[fileId]
             if (cached?.local?.isDownloadingCompleted == true) {
@@ -535,15 +539,21 @@ class FileDownloadQueue(
                 return@launch
             }
 
-            val finalOffset = if (type == DownloadType.STICKER || type == DownloadType.VIDEO_NOTE) 0L else offset
-            val finalLimit = if (type == DownloadType.STICKER || type == DownloadType.VIDEO_NOTE) 0L else limit
+            val resolvedType = if (type == DownloadType.DEFAULT) {
+                fileDownloadTypes[fileId] ?: DownloadType.DEFAULT
+            } else {
+                type
+            }
+
+            val finalOffset = if (resolvedType == DownloadType.STICKER || resolvedType == DownloadType.VIDEO_NOTE) 0L else offset
+            val finalLimit = if (resolvedType == DownloadType.STICKER || resolvedType == DownloadType.VIDEO_NOTE) 0L else limit
 
             val prio = calculatePriority(fileId).coerceAtLeast(priority)
             val isManual = manualDownloadIds.contains(fileId)
             val req = DownloadRequest(
                 fileId = fileId,
                 priority = prio,
-                type = type,
+                type = resolvedType,
                 offset = finalOffset,
                 limit = finalLimit,
                 synchronous = synchronous,
@@ -581,6 +591,18 @@ class FileDownloadQueue(
                 if (pending != null) {
                     pendingRequests[fileId] = mergeRequests(pending, req)
                 } else {
+                    if (!isManual && resolvedType == DownloadType.DEFAULT) {
+                        val pendingDefaultCount = pendingRequests.values.count {
+                            !it.isManual && it.type == DownloadType.DEFAULT
+                        }
+                        if (pendingDefaultCount >= maxPendingDefaultAutoDownloads) {
+                            Log.d(
+                                "DownloadDebug",
+                                "queue.enqueue.skippedDefaultCap: fileId=$fileId pendingDefault=$pendingDefaultCount cap=$maxPendingDefaultAutoDownloads"
+                            )
+                            return@launch
+                        }
+                    }
                     pendingRequests[fileId] = req
                 }
             }
@@ -588,11 +610,13 @@ class FileDownloadQueue(
         }
     }
 
-    fun cancelDownload(fileId: Int, force: Boolean = false) {
+    fun cancelDownload(fileId: Int, force: Boolean = false, suppress: Boolean = true) {
         if (!force && manualDownloadIds.contains(fileId)) return
 
-        Log.d("DownloadDebug", "queue.cancel: fileId=$fileId force=$force")
-        suppressedAutoDownloadIds.add(fileId)
+        Log.d("DownloadDebug", "queue.cancel: fileId=$fileId force=$force suppress=$suppress")
+        if (suppress) {
+            suppressedAutoDownloadIds.add(fileId)
+        }
 
         scope.appScope.launch(dispatcherProvider.io) {
             try {
@@ -709,11 +733,37 @@ class FileDownloadQueue(
             for ((fileId, _) in pendingRequests) {
                 if (!isStillRelevant(fileId)) toCancel.add(fileId)
             }
-            for ((fileId, _) in activeRequests) {
-                if (!isStillRelevant(fileId)) toCancel.add(fileId)
+
+            toCancel.forEach { fileId -> cancelDownload(fileId, force = false, suppress = false) }
+        }
+    }
+
+    private fun flushIrrelevantBackgroundDownloads() {
+        scope.appScope.launch(dispatcherProvider.default) {
+            val toCancel = mutableListOf<Int>()
+
+            stateMutex.withLock {
+                val candidateIds = HashSet<Int>(pendingRequests.size + activeRequests.size)
+                candidateIds.addAll(pendingRequests.keys)
+                candidateIds.addAll(activeRequests.keys)
+
+                candidateIds.forEach { fileId ->
+                    if (manualDownloadIds.contains(fileId)) return@forEach
+
+                    val type = fileDownloadTypes[fileId]
+                    if (type == DownloadType.STICKER || type == DownloadType.VIDEO_NOTE) return@forEach
+
+                    val belongsToOpenChat = registry.getMessages(fileId).any { (chatId, _) ->
+                        openChatIds.contains(chatId)
+                    }
+
+                    if (!belongsToOpenChat) {
+                        toCancel.add(fileId)
+                    }
+                }
             }
 
-            toCancel.forEach { fileId -> cancelDownload(fileId, force = false) }
+            toCancel.forEach { fileId -> cancelDownload(fileId, force = false, suppress = false) }
         }
     }
 }

@@ -41,6 +41,7 @@ class MessageRepositoryImpl(
     private val scope = scopeProvider.appScope
 
     override val newMessageFlow = messageRemoteDataSource.newMessageFlow
+    override val senderUpdateFlow = messageMapper.senderUpdateFlow
     override val messageEditedFlow = messageRemoteDataSource.messageEditedFlow
     override val messageUploadProgressFlow = messageRemoteDataSource.messageUploadProgressFlow
     override val messageDownloadProgressFlow = messageRemoteDataSource.messageDownloadProgressFlow
@@ -470,6 +471,10 @@ class MessageRepositoryImpl(
             )
             fileDataSource.downloadFile(fileId, priority, offset, limit, synchronous)
         }
+    }
+
+    override fun invalidateSenderCache(userId: Long) {
+        messageMapper.invalidateSenderCache(userId)
     }
 
     override suspend fun cancelDownloadFile(fileId: Int) {
@@ -1242,6 +1247,11 @@ class MessageRepositoryImpl(
             ).joinToString(" ").ifBlank { model.senderName }
 
             val resolvedAvatar = resolveFilePath(cachedUser.profilePhoto?.small)
+            if (resolvedAvatar == null) {
+                cachedUser.profilePhoto?.small?.id?.takeIf { it != 0 }?.let { avatarFileId ->
+                    messageRemoteDataSource.enqueueDownload(avatarFileId, priority = 16)
+                }
+            }
             val emojiId = when (val type = cachedUser.emojiStatus?.type) {
                 is TdApi.EmojiStatusTypeCustomEmoji -> type.customEmojiId
                 is TdApi.EmojiStatusTypeUpgradedGift -> type.modelCustomEmojiId

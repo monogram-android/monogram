@@ -3,6 +3,7 @@ package org.monogram.data.mapper
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.Flow
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
@@ -47,6 +48,16 @@ class MessageMapper(
     private val senderChatSnapshotCache = ConcurrentHashMap<Long, SenderChatSnapshot>()
     private val senderRankCache = ConcurrentHashMap<String, String>()
     private val queuedAvatarDownloads = ConcurrentHashMap.newKeySet<Int>()
+
+    val senderUpdateFlow: Flow<Long>
+        get() = userRepository.anyUserUpdateFlow
+
+    fun invalidateSenderCache(userId: Long) {
+        if (userId <= 0L) return
+        senderUserSnapshotCache.remove(userId)
+        senderChatSnapshotCache.remove(userId)
+        senderRankCache.entries.removeIf { it.key.endsWith(":$userId") }
+    }
 
     private companion object {
         private const val NO_RANK_SENTINEL = "__NO_RANK__"
@@ -275,7 +286,7 @@ class MessageMapper(
                             if (senderAvatar.isNullOrEmpty() && queuedAvatarDownloads.add(photo.id)) {
                                 fileApi.enqueueDownload(
                                     photo.id,
-                                    1,
+                                    16,
                                     TdMessageRemoteDataSource.DownloadType.DEFAULT,
                                     0,
                                     0,

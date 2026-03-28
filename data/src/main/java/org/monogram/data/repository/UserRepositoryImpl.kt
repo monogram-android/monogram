@@ -53,6 +53,7 @@ class UserRepositoryImpl(
         extraBufferCapacity = 10,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+    override val anyUserUpdateFlow = _userUpdateFlow.asSharedFlow()
 
     init {
         scope.launch {

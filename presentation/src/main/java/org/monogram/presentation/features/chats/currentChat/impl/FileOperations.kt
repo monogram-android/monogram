@@ -7,7 +7,7 @@ import org.monogram.presentation.features.chats.currentChat.DownloadDebug
 
 internal fun DefaultChatComponent.handleDownloadFile(fileId: Int) {
     Log.d(DownloadDebug.TAG, "handleDownloadFile: fileId=$fileId chatId=$chatId")
-    repositoryMessage.downloadFile(fileId, priority = 1)
+    repositoryMessage.downloadFile(fileId, priority = 32)
 }
 
 internal fun DefaultChatComponent.handleCancelDownloadFile(fileId: Int) {

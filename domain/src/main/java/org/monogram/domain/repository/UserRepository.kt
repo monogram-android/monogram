@@ -6,6 +6,7 @@ import org.monogram.domain.models.*
 
 interface UserRepository {
     val currentUserFlow: StateFlow<UserModel?>
+    val anyUserUpdateFlow: Flow<Long>
     suspend fun getMe(): UserModel
     suspend fun getUser(userId: Long): UserModel?
     suspend fun getUserFullInfo(userId: Long): UserModel?

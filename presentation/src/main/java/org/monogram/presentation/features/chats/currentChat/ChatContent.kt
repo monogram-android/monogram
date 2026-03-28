@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.chats.currentChat
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -740,7 +741,13 @@ fun ChatContent(
                                                     messageIds = validMessageIds
                                                 )
                                             }
-                                        } else content?.let { component.onDownloadFile(it.fileId) }
+                                        } else content?.let {
+                                            Log.d(
+                                                DownloadDebug.TAG,
+                                                "downloadClick.photo: messageId=${msg.id} fileId=${it.fileId} chatId=${state.chatId}"
+                                            )
+                                            component.onDownloadFile(it.fileId)
+                                        }
                                     },
                                     onVideoClick = { msg, path, caption ->
                                         if (!isVisible || showInitialLoading || scrollState.isScrollInProgress) {
@@ -761,7 +768,18 @@ fun ChatContent(
                                                 is MessageContent.Gif -> c.fileId
                                                 else -> 0
                                             }
-                                            if (fileId != 0) component.onDownloadFile(fileId)
+                                            if (fileId != 0) {
+                                                val mediaType = when (msg.content) {
+                                                    is MessageContent.Video -> "video"
+                                                    is MessageContent.Gif -> "gif"
+                                                    else -> "unknown"
+                                                }
+                                                Log.d(
+                                                    DownloadDebug.TAG,
+                                                    "downloadClick.$mediaType: messageId=${msg.id} fileId=$fileId chatId=${state.chatId} supportsStreaming=$supportsStreaming"
+                                                )
+                                                component.onDownloadFile(fileId)
+                                            }
                                         }
                                     },
                                     onDocumentClick = { msg ->

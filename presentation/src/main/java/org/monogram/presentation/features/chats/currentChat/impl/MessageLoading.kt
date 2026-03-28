@@ -9,6 +9,7 @@ import kotlinx.coroutines.sync.withLock
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
+import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
@@ -179,6 +180,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(threadId: Long?) {
             )
         }
         updateMessages(cachedMessages, replace = true)
+        refreshCachedSenderProfiles(cachedMessages)
     }
 
     val olderPage = repositoryMessage.getMessagesOlder(chatId, 0, PAGE_SIZE, threadId)
@@ -738,6 +740,62 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
             }
         }
         .launchIn(scope)
+
+    observeSenderUpdates()
+}
+
+private fun DefaultChatComponent.observeSenderUpdates() {
+    repositoryMessage.senderUpdateFlow
+        .onEach { senderId ->
+            if (senderId <= 0L) return@onEach
+            val hasAffectedMessages = _state.value.messages.any { it.senderId == senderId }
+            if (!hasAffectedMessages) return@onEach
+
+            repositoryMessage.invalidateSenderCache(senderId)
+            val user = userRepository.getUser(senderId) ?: return@onEach
+            refreshMessagesForSender(senderId, user)
+        }
+        .launchIn(scope)
+}
+
+private suspend fun DefaultChatComponent.refreshCachedSenderProfiles(messages: List<MessageModel>) {
+    val senderIds = messages.asSequence()
+        .map { it.senderId }
+        .filter { it > 0L }
+        .distinct()
+        .toList()
+
+    senderIds.forEach { senderId ->
+        repositoryMessage.invalidateSenderCache(senderId)
+        val user = userRepository.getUser(senderId) ?: return@forEach
+        refreshMessagesForSender(senderId, user)
+    }
+}
+
+private fun DefaultChatComponent.refreshMessagesForSender(senderId: Long, user: UserModel) {
+    val fullName = listOfNotNull(
+        user.firstName.takeIf { it.isNotBlank() },
+        user.lastName?.takeIf { it.isNotBlank() }
+    ).joinToString(" ").ifBlank { "User" }
+
+    _state.update { currentState ->
+        val updatedMessages = currentState.messages.map { message ->
+            if (message.senderId == senderId) {
+                message.copy(
+                    senderName = fullName,
+                    senderAvatar = user.avatarPath ?: message.senderAvatar,
+                    senderPersonalAvatar = user.personalAvatarPath ?: message.senderPersonalAvatar,
+                    isSenderVerified = user.isVerified,
+                    isSenderPremium = user.isPremium,
+                    senderStatusEmojiId = user.statusEmojiId,
+                    senderStatusEmojiPath = user.statusEmojiPath ?: message.senderStatusEmojiPath
+                )
+            } else {
+                message
+            }
+        }
+        currentState.copy(messages = updatedMessages)
+    }
 }
 
 private inline fun DefaultChatComponent.updateMessageContent(

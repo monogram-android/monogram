@@ -1,17 +1,12 @@
 package org.monogram.data.repository
 
-import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.DispatcherProvider
+import org.monogram.core.ScopeProvider
 import org.monogram.data.datasource.cache.SettingsCacheDataSource
 import org.monogram.data.datasource.remote.ChatsRemoteDataSource
 import org.monogram.data.datasource.remote.SettingsRemoteDataSource
@@ -22,11 +17,7 @@ import org.monogram.data.db.model.AttachBotEntity
 import org.monogram.data.db.model.KeyValueEntity
 import org.monogram.data.db.model.WallpaperEntity
 import org.monogram.data.gateway.UpdateDispatcher
-import org.monogram.data.mapper.NetworkMapper
-import org.monogram.data.mapper.StorageMapper
-import org.monogram.data.mapper.mapBackgrounds
-import org.monogram.data.mapper.toApi
-import org.monogram.data.mapper.toDomain
+import org.monogram.data.mapper.*
 import org.monogram.data.mapper.user.toDomain
 import org.monogram.domain.models.*
 import org.monogram.domain.repository.AppPreferencesProvider
@@ -302,10 +293,10 @@ class SettingsRepositoryImpl(
 
     override suspend fun clearStorage(chatId: Long?): Boolean =
         remote.optimizeStorage(
-            size = -1,
-            ttl = -1,
-            count = -1,
-            immunityDelay = -1,
+            size = 0,
+            ttl = 0,
+            count = 0,
+            immunityDelay = 0,
             chatIds = chatId?.let { longArrayOf(it) },
             returnDeletedFileStatistics = false,
             chatLimit = 20

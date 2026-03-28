@@ -7,21 +7,24 @@ import org.monogram.domain.models.StorageUsageModel
 import org.monogram.domain.repository.StringProvider
 
 class StorageMapper(private val stringProvider: StringProvider) {
-    fun mapToDomain(statistics: TdApi.StorageStatistics, chatStats: List<ChatStorageUsageModel>): StorageUsageModel {
+    fun mapToDomain(_statistics: TdApi.StorageStatistics, chatStats: List<ChatStorageUsageModel>): StorageUsageModel {
+        val filteredChats = chatStats.filter { it.size > 0L }
         return StorageUsageModel(
-            totalSize = statistics.size,
-            fileCount = statistics.count,
-            chatStats = chatStats
+            totalSize = filteredChats.sumOf { it.size },
+            fileCount = filteredChats.sumOf { it.fileCount },
+            chatStats = filteredChats
         )
     }
 
     fun mapChatStatsToDomain(stats: TdApi.StorageStatisticsByChat, chatTitle: String): ChatStorageUsageModel {
+        val removableStats = stats.byFileType.filterNot { isNonRemovableFileType(it.fileType) }
+        val mappedFileTypes = removableStats.map { mapFileTypeStatsToDomain(it) }
         return ChatStorageUsageModel(
             chatId = stats.chatId,
             chatTitle = chatTitle,
-            size = stats.size,
-            fileCount = stats.count,
-            byFileType = stats.byFileType.map { mapFileTypeStatsToDomain(it) }
+            size = mappedFileTypes.sumOf { it.size },
+            fileCount = mappedFileTypes.sumOf { it.fileCount },
+            byFileType = mappedFileTypes
         )
     }
 
@@ -31,6 +34,17 @@ class StorageMapper(private val stringProvider: StringProvider) {
             size = stats.size,
             fileCount = stats.count
         )
+    }
+
+    private fun isNonRemovableFileType(fileType: TdApi.FileType): Boolean {
+        return when (fileType) {
+            is TdApi.FileTypeSticker,
+            is TdApi.FileTypeThumbnail,
+            is TdApi.FileTypeProfilePhoto,
+            is TdApi.FileTypeWallpaper -> true
+
+            else -> false
+        }
     }
 
     fun mapFileTypeToDomain(fileType: TdApi.FileType): String {

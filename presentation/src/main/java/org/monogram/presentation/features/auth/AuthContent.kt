@@ -135,6 +135,7 @@ fun AuthContent(component: AuthComponent) {
                             codeType = targetState.codeType,
                             nextCodeType = targetState.nextCodeType,
                             timeout = targetState.timeout,
+                            emailPattern = targetState.emailPattern,
                             onConfirm = component::onCodeEntered,
                             onResend = component::onResendCode,
                             onBack = component::onBackToPhone,

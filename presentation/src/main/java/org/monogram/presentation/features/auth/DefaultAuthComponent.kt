@@ -32,7 +32,8 @@ class DefaultAuthComponent(
                         codeLength = step.codeLength,
                         codeType = step.codeType,
                         nextCodeType = step.nextType,
-                        timeout = step.timeout
+                        timeout = step.timeout,
+                        emailPattern = step.emailPattern
                     )
                     is AuthStep.InputPassword -> AuthComponent.AuthState.InputPassword
                     else -> null

@@ -82,6 +82,7 @@
     <string name="verification_delivery_telegram">Код подтверждения был отправлен через Telegram на другое Ваше устройство.</string>
     <string name="verification_delivery_sms">Мы отправили СМС с кодом подтверждения на Ваш номер.</string>
     <string name="verification_delivery_call">Мы звоним Вам, чтобы сообщить код.</string>
+    <string name="verification_delivery_email">Мы отправили код на %1$s.</string>
     <string name="verification_delivery_default">Мы отправили код подтверждения.</string>
     <string name="confirm_button">Подтвердить</string>
     <string name="resend_code_timer">Отправить ещё раз через %1$s</string>

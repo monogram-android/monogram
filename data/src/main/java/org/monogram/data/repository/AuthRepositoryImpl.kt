@@ -84,8 +84,10 @@ class AuthRepositoryImpl(
 
     override fun sendCode(code: String) {
         scope.launch {
-            runCatching { remote.setAuthCode(code) }
-                .onFailure { emitError(it) }
+            val isEmail = (_authState.value as? AuthStep.InputCode)?.isEmailCode == true
+            runCatching {
+                if (isEmail) remote.checkEmailCode(code) else remote.setAuthCode(code)
+            }.onFailure { emitError(it) }
         }
     }
 

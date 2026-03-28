@@ -11,7 +11,9 @@ sealed class AuthStep {
         val codeType: String,
         val codeLength: Int,
         val nextType: String? = null,
-        val timeout: Int = 0
+        val timeout: Int = 0,
+        val isEmailCode: Boolean = false,
+        val emailPattern: String? = null
     ) : AuthStep()
     object InputPassword : AuthStep()
     object Ready : AuthStep()

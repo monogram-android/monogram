@@ -27,7 +27,8 @@ interface AuthComponent {
             val codeLength: Int,
             val codeType: String,
             val nextCodeType: String? = null,
-            val timeout: Int = 0
+            val timeout: Int = 0,
+            val emailPattern: String? = null
         ) : AuthState()
 
         object InputPassword : AuthState()

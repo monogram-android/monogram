@@ -45,6 +45,7 @@ fun CodeInputScreen(
     codeType: String,
     nextCodeType: String? = null,
     timeout: Int = 0,
+    emailPattern: String? = null,
     onConfirm: (String) -> Unit,
     onResend: () -> Unit,
     onBack: () -> Unit,
@@ -148,6 +149,9 @@ fun CodeInputScreen(
         Spacer(modifier = Modifier.height(if (isInputMode) 4.dp else 12.dp))
 
         val deliveryMessage = when {
+            codeType.contains("Email", ignoreCase = true) ->
+                stringResource(R.string.verification_delivery_email, emailPattern ?: "")
+
             codeType.contains(
                 "TelegramMessage",
                 ignoreCase = true

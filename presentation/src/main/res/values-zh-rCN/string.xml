@@ -82,6 +82,7 @@
     <string name="verification_delivery_telegram">我们已通过 Telegram 发送验证码到您的其他设备。</string>
     <string name="verification_delivery_sms">我们已通过短信发送验证码。</string>
     <string name="verification_delivery_call">我们正在拨打您的电话以告知验证码。</string>
+    <string name="verification_delivery_email">我们已将验证码发送至 %1$s。</string>
     <string name="verification_delivery_default">我们已发送验证码。</string>
     <string name="confirm_button">确认</string>
     <string name="resend_code_timer">%1$s 后重新发送</string>

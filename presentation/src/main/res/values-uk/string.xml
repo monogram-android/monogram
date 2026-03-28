@@ -82,6 +82,7 @@
     <string name="verification_delivery_telegram">Код підтвердження надіслано через Telegram на інший Ваш пристрій.</string>
     <string name="verification_delivery_sms">Ми надіслали СМС із кодом підтвердження на Ваш номер.</string>
     <string name="verification_delivery_call">Ми телефонуємо Вам, щоб повідомити код.</string>
+    <string name="verification_delivery_email">Ми надіслали код на %1$s.</string>
     <string name="verification_delivery_default">Ми надіслали код підтвердження.</string>
     <string name="confirm_button">Підтвердити</string>
     <string name="resend_code_timer">Надіслати ще раз через %1$s</string>

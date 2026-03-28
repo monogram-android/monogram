@@ -83,6 +83,7 @@
     </string>
     <string name="verification_delivery_sms">We\'ve sent the code via SMS.</string>
     <string name="verification_delivery_call">We\'re calling you with the code.</string>
+    <string name="verification_delivery_email">We\'ve sent the code to %1$s.</string>
     <string name="verification_delivery_default">We\'ve sent the verification code.</string>
     <string name="confirm_button">Confirm</string>
     <string name="resend_code_timer">Resend code in %1$s</string>

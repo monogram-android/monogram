@@ -28,6 +28,14 @@ fun TdApi.AuthorizationState.toDomain(): AuthStep =
                 timeout = this.codeInfo.timeout
             )
 
+        is TdApi.AuthorizationStateWaitEmailCode ->
+            AuthStep.InputCode(
+                codeType = "Email",
+                codeLength = this.codeInfo.length,
+                isEmailCode = true,
+                emailPattern = this.codeInfo.emailAddressPattern
+            )
+
         is TdApi.AuthorizationStateWaitPassword ->
             AuthStep.InputPassword
 

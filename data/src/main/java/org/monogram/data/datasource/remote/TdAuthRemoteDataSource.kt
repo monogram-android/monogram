@@ -29,6 +29,10 @@ class TdAuthRemoteDataSource(
         gateway.execute(TdApi.CheckAuthenticationCode(code))
     }
 
+    override suspend fun checkEmailCode(code: String) {
+        gateway.execute(TdApi.CheckAuthenticationEmailCode(TdApi.EmailAddressAuthenticationCode(code)))
+    }
+
     override suspend fun checkPassword(password: String) {
         gateway.execute(TdApi.CheckAuthenticationPassword(password))
     }

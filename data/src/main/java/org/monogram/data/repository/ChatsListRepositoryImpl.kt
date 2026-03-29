@@ -379,7 +379,6 @@ class ChatsListRepositoryImpl(
                 triggerUpdate(update.chatId)
             }
             is TdApi.UpdateMessageReactions -> {
-                cache.updateChat(update.chatId) { it.unreadReactionCount = update.reactions.size }
                 saveChatToDb(update.chatId)
                 triggerUpdate(update.chatId)
             }

@@ -6,10 +6,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.withLock
-import org.monogram.domain.models.MessageContent
-import org.monogram.domain.models.MessageModel
-import org.monogram.domain.models.MessageSendingState
-import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.*
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
@@ -56,6 +53,23 @@ private fun mergeSenderVisuals(previous: MessageModel, incoming: MessageModel): 
         senderCustomTitle = incoming.senderCustomTitle ?: previous.senderCustomTitle,
         senderStatusEmojiPath = incoming.senderStatusEmojiPath ?: previous.senderStatusEmojiPath
     )
+}
+
+private fun reactionsSemanticEqual(
+    current: List<MessageReactionModel>,
+    incoming: List<MessageReactionModel>
+): Boolean {
+    if (current.size != incoming.size) return false
+
+    val currentByReaction = current.associateBy { it.emoji to it.customEmojiId }
+    if (currentByReaction.size != current.size) return false
+
+    return incoming.all { reaction ->
+        val previous = currentByReaction[reaction.emoji to reaction.customEmojiId] ?: return@all false
+        previous.count == reaction.count &&
+                previous.isChosen == reaction.isChosen &&
+                previous.customEmojiPath == reaction.customEmojiPath
+    }
 }
 
 private suspend fun DefaultChatComponent.updateMessagesUnsafe(
@@ -727,6 +741,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
     repositoryMessage.messageDeletedFlow
         .onEach { (cId, messageIds) ->
             if (cId == chatId) {
+                messageIds.forEach(reactionUpdateSuppressedUntil::remove)
                 _state.update { currentState ->
                     val currentMessages = currentState.messages.toMutableList()
                     val removed = currentMessages.removeAll { messageIds.contains(it.id) }
@@ -743,7 +758,25 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
     repositoryMessage.messageEditedFlow
         .onEach { message ->
             if (message.chatId == chatId) {
-                updateMessageContent(message.id) { message }
+                val now = System.currentTimeMillis()
+                val suppressUntil = reactionUpdateSuppressedUntil[message.id]
+                val suppressReactionUpdate = suppressUntil != null && now < suppressUntil
+
+                if (!suppressReactionUpdate && suppressUntil != null) {
+                    reactionUpdateSuppressedUntil.remove(message.id, suppressUntil)
+                }
+
+                updateMessageContent(message.id) { current ->
+                    when {
+                        suppressReactionUpdate -> message.copy(reactions = current.reactions)
+                        reactionsSemanticEqual(
+                            current.reactions,
+                            message.reactions
+                        ) -> message.copy(reactions = current.reactions)
+
+                        else -> message
+                    }
+                }
             }
         }
         .launchIn(scope)
@@ -858,8 +891,14 @@ private inline fun DefaultChatComponent.updateMessageContent(
                 val currentMessages = currentState.messages.toMutableList()
                 val index = currentMessages.indexOfFirst { it.id == messageId }
                 if (index != -1) {
-                    currentMessages[index] = transform(currentMessages[index])
-                    currentState.copy(messages = currentMessages)
+                    val currentMessage = currentMessages[index]
+                    val updatedMessage = transform(currentMessage)
+                    if (updatedMessage != currentMessage) {
+                        currentMessages[index] = updatedMessage
+                        currentState.copy(messages = currentMessages)
+                    } else {
+                        currentState
+                    }
                 } else {
                     currentState
                 }

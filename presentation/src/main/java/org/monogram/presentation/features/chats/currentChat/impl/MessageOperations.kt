@@ -1,12 +1,14 @@
 package org.monogram.presentation.features.chats.currentChat.impl
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageReactionModel
 import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
+
+private const val REACTION_UPDATE_SUPPRESSION_MS = 1500L
 
 
 internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
@@ -45,6 +47,13 @@ internal fun DefaultChatComponent.handleDraftChange(text: String) {
 }
 
 internal fun DefaultChatComponent.handleSendReaction(messageId: Long, reaction: String) {
+    val suppressUntil = System.currentTimeMillis() + REACTION_UPDATE_SUPPRESSION_MS
+    reactionUpdateSuppressedUntil[messageId] = suppressUntil
+    scope.launch {
+        delay(REACTION_UPDATE_SUPPRESSION_MS)
+        reactionUpdateSuppressedUntil.remove(messageId, suppressUntil)
+    }
+
     _state.update { currentState ->
         val currentMessages = currentState.messages.toMutableList()
         val index = currentMessages.indexOfFirst { it.id == messageId }

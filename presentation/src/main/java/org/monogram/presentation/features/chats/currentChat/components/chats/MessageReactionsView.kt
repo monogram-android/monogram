@@ -1,13 +1,7 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
-import org.monogram.presentation.core.util.coRunCatching
 import androidx.compose.animation.*
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -34,6 +28,7 @@ import org.monogram.domain.models.MessageReactionModel
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.AppPreferences
+import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
@@ -84,7 +79,7 @@ fun MessageReactionsView(
                 key(reaction.emoji ?: reaction.customEmojiId) {
                     var isVisible by remember { mutableStateOf(false) }
 
-                    LaunchedEffect(reaction.emoji, reaction.customEmojiId, index) {
+                    LaunchedEffect(Unit) {
                         delay(index * 35L)
                         isVisible = true
                     }

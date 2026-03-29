@@ -23,6 +23,7 @@ import org.monogram.presentation.features.chats.currentChat.impl.*
 import org.monogram.presentation.root.AppComponentContext
 import org.monogram.presentation.settings.storage.CacheController
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 class DefaultChatComponent(
     context: AppComponentContext,
@@ -60,6 +61,7 @@ class DefaultChatComponent(
     var draftSaveJob: Job? = null
     private var autoLoadJob: Job? = null
     private var mentionJob: Job? = null
+    internal val reactionUpdateSuppressedUntil = ConcurrentHashMap<Long, Long>()
 
     internal var lastLoadedOlderId: Long = 0L
     internal var lastLoadedNewerId: Long = 0L

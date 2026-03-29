@@ -35,7 +35,7 @@ class TdMessageRemoteDataSource(
     val scope = scopeProvider.appScope
     private val chatRequests = ConcurrentHashMap<Long, Deferred<TdApi.Chat?>>()
     private val messageRequests = ConcurrentHashMap<Pair<Long, Long>, Deferred<TdApi.Message?>>()
-    private val refreshJobs = ConcurrentHashMap<Long, Job>()
+    private val refreshJobs = ConcurrentHashMap<Pair<Long, Long>, Job>()
     private val sendQueue = Channel<suspend () -> Unit>(Channel.BUFFERED)
     override val newMessageFlow = MutableSharedFlow<MessageModel>()
     override val messageEditedFlow = MutableSharedFlow<MessageModel>()
@@ -1201,7 +1201,6 @@ class TdMessageRemoteDataSource(
             }
             is TdApi.UpdateMessageReaction -> {
                 cache.removeMessage(update.chatId, update.messageId)
-                refreshMessageDebounced(update.chatId, update.messageId)
             }
             is TdApi.UpdateMessageReactions -> {
                 cache.removeMessage(update.chatId, update.messageId)
@@ -1258,7 +1257,7 @@ class TdMessageRemoteDataSource(
 
     private fun refreshMessageDebounced(chatId: Long, messageId: Long) {
         if (messageId == 0L) return
-        val key = chatId xor messageId
+        val key = chatId to messageId
         refreshJobs[key]?.cancel()
         val job = scope.launch(dispatcherProvider.io) {
             delay(200)

@@ -1,0 +1,1980 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="confirmation_title">Potvrdenie</string>
+    <string name="confirmation_message">Naozaj chcete autorizovať toto zariadenie?</string>
+    <string name="confirm_auth_action">Áno, prihlásiť sa</string>
+    <string name="cancel_action">Zrušiť</string>
+
+    <string name="scan_qr_title">Skenovať QR</string>
+    <string name="devices_title">Zariadenia</string>
+    <string name="link_device_action">Prepojiť zariadenie</string>
+
+    <string name="current_device_section">Toto zariadenie</string>
+    <string name="login_requests_section">Žiadosti o prihlásenie</string>
+    <string name="active_sessions_section">Aktívne relácie</string>
+
+    <string name="cd_navigate_back">Späť</string>
+    <string name="cd_close_scanner">Zavrieť skener</string>
+    <string name="cd_qr_icon">Ikona QR skenera</string>
+
+    <!-- Startup -->
+    <string name="startup_connecting">Pripájanie k Telegramu…</string>
+
+    <!-- About Screen -->
+    <string name="about_title">O aplikácii</string>
+    <string name="cd_back">Späť</string>
+    <string name="app_name_monogram">MonoGram</string>
+    <string name="version_format">Verzia %1$s</string>
+    <string name="terms_of_service_title">Podmienky služby</string>
+    <string name="terms_of_service_subtitle">Prečítajte si naše podmienky</string>
+    <string name="open_source_licenses_title">Open Source licencie</string>
+    <string name="open_source_licenses_subtitle">Softvér použitý v MonoGrame</string>
+    <string name="github_title">GitHub</string>
+    <string name="github_subtitle">Zobraziť zdrojový kód</string>
+    <string name="tdlib_version_title">Verzia TDLib</string>
+    <string name="tdlib_version_with_hash">%1$s (%2$s)</string>
+    <string name="community_section">Komunita</string>
+    <string name="telegram_chat_title">Telegram chat</string>
+    <string name="telegram_chat_subtitle">Pridajte sa do našej komunity a diskutujte o funkciách alebo požiadajte o
+        pomoc
+    </string>
+    <string name="telegram_channel_title">Telegram kanál</string>
+    <string name="telegram_channel_subtitle">Sledujte najnovšie správy a oznámenia</string>
+    <string name="support_monogram_title">Podporte MonoGram</string>
+    <string name="support_monogram_subtitle">Podporte vývoj a pomôžte nám udržať projekt nažive</string>
+    <string name="maintainers_section">Správcovia</string>
+    <string name="role_developer">Vývojár</string>
+    <string name="role_designer">Dizajnér ikon a loga</string>
+    <string name="monogram_description">MonoGram je neoficiálny klient Telegramu vytvorený s Material Design 3</string>
+    <string name="copyright_text">© 2026 MonoGram</string>
+
+    <!-- Updates -->
+    <string name="check_for_updates">Skontrolovať aktualizácie</string>
+    <string name="checking_updates">Kontrolujem...</string>
+    <string name="update_available_format">Dostupná aktualizácia: %1$s</string>
+    <string name="up_to_date">Máte najnovšiu verziu</string>
+    <string name="update_ready">Aktualizácia pripravená</string>
+    <string name="update_error">Chyba aktualizácie</string>
+    <string name="check_update_subtitle">Klepnutím skontrolujete novú verziu</string>
+    <string name="connecting_server_subtitle">Pripájanie k serveru</string>
+    <string name="update_available_subtitle">Je dostupná nová verzia na stiahnutie</string>
+    <string name="latest_version_subtitle">Používate najnovšiu verziu</string>
+    <string name="install_update_subtitle">Klepnutím nainštalujete aktualizáciu</string>
+    <string name="downloading_update">Sťahovanie aktualizácie...</string>
+    <string name="update_progress_format">%1$d%%</string>
+    <string name="whats_new_format">Čo je nové vo verzii %1$s</string>
+    <string name="download_update_action">Stiahnuť aktualizáciu</string>
+    <string name="cancel_button">Zrušiť</string>
+    <string name="loading_text">Načítavam...</string>
+
+    <!-- Auth -->
+    <string name="auth_title_phone">Váš telefón</string>
+    <string name="auth_title_verification">Overenie</string>
+    <string name="auth_title_password">Heslo</string>
+    <string name="cd_proxy_settings">Nastavenia proxy</string>
+    <string name="phone_input_title">Vaše telefónne číslo</string>
+    <string name="phone_input_description">Potvrďte kód krajiny a zadajte svoje telefónne číslo.</string>
+    <string name="country_label">Krajina</string>
+    <string name="code_label">Kód</string>
+    <string name="phone_number_label">Telefónne číslo</string>
+    <string name="phone_number_placeholder">000 00 00</string>
+    <string name="continue_button">Pokračovať</string>
+    <string name="select_country_title">Vybrať krajinu</string>
+    <string name="search_country_hint">Hľadať krajinu alebo kód...</string>
+    <string name="verification_delivery_telegram">Kód sme odoslali do aplikácie Telegram na vašom inom zariadení.
+    </string>
+    <string name="verification_delivery_sms">Kód sme odoslali cez SMS.</string>
+    <string name="verification_delivery_call">Voláme vám s kódom.</string>
+    <string name="verification_delivery_email">Kód sme poslali na %1$s.</string>
+    <string name="verification_delivery_default">Overovací kód bol odoslaný.</string>
+    <string name="confirm_button">Potvrdiť</string>
+    <string name="resend_code_timer">Znovu odoslať kód o %1$s</string>
+    <string name="resend_via_sms">Znovu odoslať cez SMS</string>
+    <string name="resend_via_call">Znovu odoslať hovorom</string>
+    <string name="resend_code">Znovu odoslať kód</string>
+    <string name="wrong_number">Zlé číslo?</string>
+    <string name="two_step_verification_title">Dvojstupňové overenie</string>
+    <string name="two_step_verification_description">Váš účet je chránený dodatočným heslom.</string>
+    <string name="password_label">Heslo</string>
+    <string name="unlock_button">Odomknúť</string>
+    <string name="paste_action">Vložiť</string>
+    <string name="auth_error_title">Chyba overenia</string>
+    <string name="dismiss_button">Zamietnuť</string>
+
+    <!-- Loading -->
+    <string name="loading_please_wait">Chvíľu počkajte</string>
+    <string name="loading_taking_too_long">Trvá to príliš dlho?</string>
+    <string name="loading_reset_connection">Obnoviť pripojenie</string>
+
+    <!-- Chat List -->
+    <string name="forward_to_title">Preposlať do...</string>
+    <string name="chats_selected_format">Vybraných %1$d chatov</string>
+    <string name="action_send">Odoslať</string>
+    <string name="archived_chats_title">Archivované chaty</string>
+    <string name="new_chat_fab">Nový chat</string>
+    <string name="search_recent">Nedávne</string>
+    <string name="action_clear_all">Vymazať všetko</string>
+    <string name="search_section_chats">Chaty a kontakty</string>
+    <string name="search_section_global">Globálne vyhľadávanie</string>
+    <string name="search_section_messages">Správy</string>
+    <string name="action_show_more">Zobraziť viac</string>
+    <string name="search_conversations_placeholder">Hľadať konverzácie…</string>
+    <string name="waiting_for_network">Čakám na sieť…</string>
+    <string name="connecting">Pripájam…</string>
+    <string name="updating">Aktualizujem…</string>
+    <string name="connecting_to_proxy">Pripájam sa k proxy…</string>
+    <string name="proxy_enabled">Proxy je zapnuté</string>
+    <string name="cd_proxy">Proxy</string>
+    <string name="cd_forum">Fórum</string>
+    <string name="message_spoiler">Spoiler</string>
+    <string name="message_draft_prefix">Koncept:</string>
+    <string name="no_posts_yet">Zatiaľ žiadne príspevky</string>
+    <string name="no_messages_yet">Zatiaľ žiadne správy</string>
+    <string name="cd_pinned">Pripnuté</string>
+    <string name="cd_mentions">Zmienky</string>
+    <string name="archived_chats_subtitle">Skryté z hlavného zoznamu</string>
+    <string name="no_chats_yet">Zatiaľ žiadne chaty</string>
+    <string name="start_new_conversation">Začať novú konverzáciu</string>
+    <string name="mini_app_default_name">Mini aplikácia</string>
+
+    <!-- Account Menu -->
+    <string name="app_name_dev">MonoGram Dev</string>
+    <string name="action_add_account">Pridať účet</string>
+    <string name="add_account_subtitle">Prihlásiť sa do iného účtu</string>
+    <string name="menu_my_profile">Môj profil</string>
+    <string name="menu_my_profile_subtitle">Zobraziť váš profil</string>
+    <string name="menu_saved_messages">Uložené správy</string>
+    <string name="menu_saved_messages_subtitle">Cloudové úložisko</string>
+    <string name="menu_settings">Nastavenia</string>
+    <string name="menu_settings_subtitle">Konfigurácia aplikácie</string>
+    <string name="menu_update_available">Dostupná aktualizácia</string>
+    <string name="update_available_subtitle_format">Je dostupná nová verzia %1$s</string>
+    <string name="update_downloading_subtitle_format">Sťahovanie aktualizácie... %1$d%%</string>
+    <string name="update_ready_subtitle">Aktualizácia pripravená na inštaláciu</string>
+    <string name="menu_help_feedback">Pomoc a spätná väzba</string>
+    <string name="menu_help_feedback_subtitle">FAQ a podpora</string>
+    <string name="privacy_policy">Zásady ochrany súkromia</string>
+    <string name="app_version_footer_format">MonoGram Dev pre Android v%1$s</string>
+    <string name="unknown_user">Neznámy používateľ</string>
+    <string name="no_info">Žiadne informácie</string>
+    <string name="cd_show_accounts">Zobraziť účty</string>
+
+    <!-- Current Chat -->
+    <string name="search_messages_hint">Hľadať správy...</string>
+    <string name="action_clear">Vymazať</string>
+    <string name="cd_muted">Stlmené</string>
+    <string name="cd_verified">Overené</string>
+    <string name="cd_sponsor">Sponzor</string>
+    <string name="menu_unmute">Zapnúť zvuk</string>
+    <string name="menu_mute">Stlmiť</string>
+    <string name="menu_filter_ads">Filtrovať reklamy</string>
+    <string name="menu_whitelist_channel">Pridať kanál na whitelist</string>
+    <string name="menu_copy_link">Kopírovať odkaz</string>
+    <string name="menu_clear_history">Vymazať históriu</string>
+    <string name="menu_delete_chat">Odstrániť chat</string>
+    <string name="menu_report">Nahlásiť</string>
+    <string name="action_join">PRIPOJIŤ SA</string>
+    <string name="cd_scroll_to_bottom">Prejsť na koniec</string>
+    <string name="topic_closed_bar">Táto téma je uzavretá</string>
+    <string name="cd_attach">Priložiť</string>
+
+    <!-- Current Chat Additions -->
+    <string name="delete_message_title">Odstrániť správu?</string>
+    <string name="delete_messages_title">Odstrániť %1$d správ?</string>
+    <string name="delete_message_confirmation">Naozaj chcete odstrániť túto správu?</string>
+    <string name="delete_messages_confirmation">Naozaj chcete odstrániť tieto správy?</string>
+    <string name="delete_for_everyone">Odstrániť pre všetkých</string>
+    <string name="delete_for_me">Odstrániť pre mňa</string>
+
+    <string name="report_title">Prečo to nahlasujete?</string>
+    <string name="report_description">Vaše nahlásenie je anonymné. Skontrolujeme históriu chatu, aby sme zaistili
+        bezpečnosť.
+    </string>
+    <string name="report_details_title">Podrobnosti nahlásenia</string>
+    <string name="report_details_placeholder">Opíšte problém…</string>
+    <string name="report_send">Odoslať nahlásenie</string>
+    <string name="report_reason_spam">Spam</string>
+    <string name="report_reason_spam_description">Nežiadúci komerčný obsah alebo podvody</string>
+    <string name="report_reason_violence">Násilie</string>
+    <string name="report_reason_violence_description">Vyhrážky alebo oslavovanie násilia</string>
+    <string name="report_reason_pornography">Pornografia</string>
+    <string name="report_reason_pornography_description">Nevhodné médiá alebo explicitný obsah</string>
+    <string name="report_reason_child_abuse">Bezpečnosť detí</string>
+    <string name="report_reason_child_abuse_description">Obsah zahŕňajúci ublíženie maloletým</string>
+    <string name="report_reason_copyright">Autorské práva</string>
+    <string name="report_reason_copyright_description">Použitie duševného vlastníctva inej osoby</string>
+    <string name="report_reason_fake">Vydávanie sa za inú osobu</string>
+    <string name="report_reason_fake_description">Predstieranie, že ste niekto iný, alebo bot</string>
+    <string name="report_reason_illegal_drugs">Nelegálne drogy</string>
+    <string name="report_reason_illegal_drugs_description">Propagovanie predaja alebo používania zakázaných látok
+    </string>
+    <string name="report_reason_personal_details">Porušenie súkromia</string>
+    <string name="report_reason_personal_details_description">Zdieľanie súkromných kontaktných údajov alebo adries
+    </string>
+    <string name="report_reason_unrelated_location">Nesúvisiaca poloha</string>
+    <string name="report_reason_unrelated_location_description">Obsah, ktorý nie je relevantný pre toto konkrétne
+        miesto
+    </string>
+    <string name="report_reason_other">Iné</string>
+    <string name="report_reason_other_description">Niečo iné, čo porušuje naše podmienky</string>
+
+    <string name="restrict_user_title">Obmedziť používateľa</string>
+    <string name="permission_send_messages">Odosielanie správ</string>
+    <string name="permission_send_media">Odosielanie médií</string>
+    <string name="permission_send_stickers_gifs">Odosielanie nálepiek a GIFov</string>
+    <string name="permission_send_polls">Odosielanie ankiet</string>
+    <string name="permission_embed_links">Vkladanie odkazov</string>
+    <string name="permission_pin_messages">Pripínanie správ</string>
+    <string name="permission_change_chat_info">Zmena informácií o chate</string>
+    <string name="restrict_until">Obmedziť do</string>
+    <string name="restrict_forever">Navždy</string>
+    <string name="cd_select_date">Vybrať dátum</string>
+    <string name="cd_select_time">Vybrať čas</string>
+    <string name="action_restrict">Obmedziť</string>
+
+    <string name="menu_reply">Odpovedať</string>
+    <string name="menu_copy">Kopírovať</string>
+    <string name="menu_pin">Pripnúť</string>
+    <string name="menu_unpin">Odopnúť</string>
+    <string name="menu_forward">Preposlať</string>
+    <string name="menu_select">Vybrať</string>
+    <string name="menu_more">Viac</string>
+    <string name="menu_delete">Odstrániť</string>
+    <string name="menu_view_comments">Zobraziť komentáre</string>
+    <string name="menu_save_to_downloads">Uložiť do stiahnutých</string>
+    <string name="menu_cocoon">Cocoon</string>
+    <string name="menu_telegram_summary">Zhrnutie</string>
+    <string name="menu_telegram_translate">Preložiť</string>
+    <string name="telegram_cocoon_attribution">Vygenerované pomocou Telegram Cocoon</string>
+    <string name="menu_restore_original_text">Obnoviť pôvodný text</string>
+    <string name="menu_restrict_user">Obmedziť používateľa</string>
+    <string name="info_edited">Upravené</string>
+    <string name="info_read">Prečítané</string>
+    <string name="info_views">Zobrazenia</string>
+
+    <!-- Profile -->
+    <string name="unknown_title">Neznáme</string>
+    <string name="members_count_format">%1$d členov</string>
+    <string name="members_online_count_format">%1$s, %2$d online</string>
+    <string name="not_implemented">Nie je implementované</string>
+    <string name="search_not_implemented">Vyhľadávanie nie je implementované</string>
+    <string name="share_not_implemented">Zdieľanie nie je implementované</string>
+    <string name="block_not_implemented">Blokovanie nie je implementované</string>
+    <string name="delete_not_implemented">Odstránenie nie je implementované</string>
+    <string name="statistics_title">Štatistiky</string>
+    <string name="revenue_title">Príjmy</string>
+    <string name="menu_share">Zdieľať</string>
+    <string name="menu_edit">Upraviť</string>
+    <string name="menu_block_user">Blokovať používateľa</string>
+    <string name="menu_leave">Opustiť</string>
+    <string name="action_open">Otvoriť</string>
+    <string name="action_message">Správa</string>
+    <string name="action_join_chat">Pripojiť sa</string>
+    <string name="action_report">Nahlásiť</string>
+    <string name="action_qr_code">QR kód</string>
+    <string name="action_add">Pridať</string>
+    <string name="personal_photo_title">Osobná fotografia</string>
+    <string name="personal_photo_subtitle">Táto fotografia je viditeľná iba vám</string>
+    <string name="open_mini_app">Otvoriť mini aplikáciu</string>
+    <string name="open_mini_app_subtitle">Spustiť webovú aplikáciu bota</string>
+    <string name="accept_tos">Prijať podmienky</string>
+    <string name="accept_tos_subtitle">Prečítajte a prijmite podmienky služby bota</string>
+    <string name="bot_permissions">Oprávnenia bota</string>
+    <string name="bot_permissions_subtitle">Spravovať oprávnenia pre tohto bota</string>
+    <string name="username_label">Používateľské meno</string>
+    <string name="link_label">Odkaz</string>
+    <string name="invite_link_label">Pozvánkový odkaz</string>
+    <string name="bot_info_label">Informácie o botovi</string>
+    <string name="description_label">Popis</string>
+    <string name="bio_label">Bio</string>
+    <string name="birthdate_label">Dátum narodenia</string>
+    <string name="location_label">Poloha</string>
+    <string name="opening_hours_label">Otváracie hodiny</string>
+    <string name="recent_actions_title">Nedávne akcie</string>
+    <string name="recent_actions_subtitle">Zobraziť záznam udalostí chatu</string>
+    <string name="statistics_subtitle">Zobraziť podrobné štatistiky chatu</string>
+    <string name="revenue_subtitle">Zobraziť štatistiky príjmov chatu</string>
+    <string name="contact_added_you_yes">Pridal vás do kontaktov</string>
+    <string name="contact_added_you_no">Nepridalo vás do kontaktov</string>
+    <string name="contact_saved_by_you">Uložené vo vašich kontaktoch</string>
+    <string name="contact_not_saved_by_you">Neuložené vo vašich kontaktoch</string>
+    <string name="profile_feature_stories_title">Príbehy profilu</string>
+    <string name="profile_feature_stories_subtitle">Môžete zverejňovať príbehy zo svojho profilu</string>
+    <string name="profile_feature_background_title">Pozadie chatu</string>
+    <string name="profile_feature_background_subtitle">Môžete nastaviť vlastné pozadie</string>
+    <string name="profile_feature_voice_restricted_title">Hlasové a video správy</string>
+    <string name="profile_feature_voice_restricted_subtitle">Odosielanie hlasových a video správ je obmedzené</string>
+    <string name="slow_mode_title">Pomalý režim</string>
+    <string name="slow_mode_subtitle_format">Členovia môžu odoslať jednu správu každých %1$s</string>
+    <string name="protected_content_title">Chránený obsah</string>
+    <string name="protected_content_subtitle">Preposielanie a ukladanie sú obmedzené</string>
+    <string name="private_forwards_title">Súkromné preposielanie</string>
+    <string name="private_forwards_subtitle">Preposielané správy skrývajú odkaz na profil</string>
+    <string name="chat_stats_subtitle">Štatistiky chatu</string>
+    <string name="admins_count_format">%1$d správcov</string>
+    <string name="restricted_count_format">%1$d obmedzených</string>
+    <string name="banned_count_format">%1$d zablokovaných</string>
+    <string name="info_section_header">Informácie</string>
+    <string name="notifications_title">Oznámenia</string>
+    <string name="auto_delete_subtitle">Automaticky odstrániť správy</string>
+    <string name="settings_section_header">Nastavenia</string>
+    <string name="action_save">Uložiť</string>
+    <string name="report_spam">Spam</string>
+    <string name="report_violence">Násilie</string>
+    <string name="report_pornography">Pornografia</string>
+    <string name="report_child_abuse">Zneužívanie detí</string>
+    <string name="report_copyright">Autorské práva</string>
+    <string name="report_other">Iné</string>
+    <string name="close_button">Zavrieť</string>
+    <string name="tos_dialog_description">Spustením tejto mini aplikácie súhlasíte s Podmienkami služby a Zásadami
+        ochrany súkromia. Bot bude mať prístup k základným informáciám vášho profilu.
+    </string>
+    <string name="accept_and_launch">Prijať a spustiť</string>
+
+    <!-- Settings -->
+    <string name="qr_code_title">QR kód</string>
+    <string name="action_share">Zdieľať</string>
+    <string name="support_monogram_description">MonoGram je bezplatný projekt s otvoreným zdrojovým kódom. Vaša podpora
+        nám pomáha udržať ho nažive a vyvíjať nové funkcie.
+    </string>
+    <string name="sponsor_sheet_description">Sponzorský odznak so srdiečkom je dostupný od úrovne Advanced alebo
+        ekvivalentným príspevkom 150 RUB (asi 1,70 $).
+    </string>
+    <string name="action_support_boosty">Podporiť cez Boosty</string>
+    <string name="action_maybe_later">Možno neskôr</string>
+    <string name="cd_edit_profile">Upraviť profil</string>
+    <string name="phone_subtitle_visible">Dlhým stlačením skryjete</string>
+    <string name="phone_subtitle_hidden">Podržaním zobrazíte, klepnutím skopírujete</string>
+    <string name="your_id_label">Vaše ID</string>
+    <string name="edit_profile_subtitle">Zmeniť meno, bio a profilovú fotografiu</string>
+    <string name="enable_tme_links">Povoliť odkazy t.me</string>
+    <string name="enable_tme_links_subtitle">Otvárajte Telegram odkazy priamo v aplikácii</string>
+    <string name="section_general">Všeobecné</string>
+    <string name="chat_settings_title">Nastavenia chatu</string>
+    <string name="chat_settings_subtitle">Témy, veľkosť textu, video prehrávač</string>
+    <string name="privacy_security_title">Súkromie a bezpečnosť</string>
+    <string name="privacy_security_subtitle">Kód, aktívne relácie, súkromie</string>
+    <string name="notifications_sounds_title">Oznámenia a zvuky</string>
+    <string name="notifications_sounds_subtitle">Správy, skupiny, hovory</string>
+    <string name="data_storage_title">Dáta a úložisko</string>
+    <string name="data_storage_subtitle">Spotreba siete, automatické sťahovanie</string>
+    <string name="power_saving_title">Úspora energie</string>
+    <string name="power_saving_subtitle">Nastavenia spotreby batérie</string>
+    <string name="chat_folders_title">Priečinky chatov</string>
+    <string name="chat_folders_subtitle">Usporiadajte svoje chaty</string>
+    <string name="stickers_emoji_title">Nálepky a emoji</string>
+    <string name="stickers_emoji_subtitle">Spravovať sady nálepiek a balíčky emoji</string>
+    <string name="devices_subtitle">Prepojené zariadenia</string>
+    <string name="language_title">Jazyk</string>
+    <string name="language_english">Angličtina</string>
+    <string name="proxy_settings_title">Nastavenia proxy</string>
+    <string name="proxy_settings_subtitle">MTProto, SOCKS5, HTTP</string>
+    <string name="telegram_premium_title">Telegram Premium</string>
+    <string name="telegram_premium_subtitle">Odomknúť exkluzívne funkcie</string>
+    <string name="support_monogram_subtitle_settings">Pomôžte nám rozvíjať projekt</string>
+    <string name="sponsor_profile_title">Podporuje MonoGram</string>
+    <string name="sponsor_profile_subtitle">Tento používateľ podporuje projekt a pomáha nám ho neustále zlepšovať
+    </string>
+    <string name="about_subtitle_settings">Verzia a informácie o MonoGrame</string>
+    <string name="debug_title">Ladenie</string>
+    <string name="debug_subtitle">Možnosti ladenia</string>
+    <string name="debug_sponsor_sheet_title">Zobraziť sponzorský panel</string>
+    <string name="debug_sponsor_sheet_subtitle">Otvoriť spodný panel s informáciami o sponzorovi</string>
+    <string name="debug_force_sponsor_sync_title">Vynútiť synchronizáciu sponzorov</string>
+    <string name="debug_force_sponsor_sync_subtitle">Načítať ID sponzorov z kanála teraz</string>
+    <string name="log_out_title">Odhlásiť sa</string>
+    <string name="log_out_subtitle">Odpojiť sa od účtu</string>
+
+    <!-- Edit Profile -->
+    <string name="usernames_title">Používateľské mená</string>
+    <string name="retry_after_format">Skúsiť znova za %1$ds</string>
+    <string name="active_usernames_title">Aktívne používateľské mená</string>
+    <string name="disabled_usernames_title">Deaktivované používateľské mená</string>
+    <string name="collectible_usernames_title">Zberateľské používateľské mená</string>
+    <string name="done_button">Hotovo</string>
+    <string name="ok_button">OK</string>
+    <string name="select_start_time">Vybrať čas začiatku</string>
+    <string name="select_end_time">Vybrať čas konca</string>
+    <string name="work_hours_title">Pracovné hodiny</string>
+    <string name="working_days_title">Pracovné dni</string>
+    <string name="time_range_title">Časové rozmedzie</string>
+    <string name="from_label">Od</string>
+    <string name="to_label">Do</string>
+    <string name="business_location_title">Firemná poloha</string>
+    <string name="address_label">Adresa</string>
+    <string name="confirm_location_button">Potvrdiť polohu</string>
+    <string name="edit_profile_title">Upraviť profil</string>
+    <string name="first_name_placeholder">Meno (povinné)</string>
+    <string name="last_name_placeholder">Priezvisko (voliteľné)</string>
+    <string name="bio_placeholder">Bio</string>
+    <string name="bio_description">Ľubovoľné údaje, ako vek, povolanie alebo mesto. Príklad: 23-ročný dizajnér zo San
+        Francisca.
+    </string>
+    <string name="username_title">Používateľské meno</string>
+    <string name="username_description">Na Telegrame si môžete zvoliť používateľské meno. Ak tak urobíte, ľudia vás budú
+        môcť nájsť podľa neho a kontaktovať vás bez potreby poznať vaše telefónne číslo.
+    </string>
+    <string name="birthday_title">Vaše narodeniny</string>
+    <string name="birthday_placeholder">Narodeniny</string>
+    <string name="telegram_business_title">Telegram Business</string>
+    <string name="linked_channel_id_placeholder">ID prepojeného kanála</string>
+    <string name="business_bio_placeholder">Firemné bio</string>
+    <string name="business_address_placeholder">Firemná adresa</string>
+    <string name="location_geo_placeholder">Geografická poloha</string>
+    <string name="opening_hours_placeholder">Otváracie hodiny</string>
+    <string name="premium_business_description">Ako používateľ Premium môžete prepojiť kanál a nastaviť firemné údaje vo
+        svojom profile
+    </string>
+    <string name="not_set">Nenastavené</string>
+    <string name="days_count_format">(%1$d dní)</string>
+    <string name="monday_short">P</string>
+    <string name="tuesday_short">U</string>
+    <string name="wednesday_short">S</string>
+    <string name="thursday_short">Š</string>
+    <string name="friday_short">P</string>
+    <string name="saturday_short">S</string>
+    <string name="sunday_short">N</string>
+
+    <!-- Privacy and Security -->
+    <string name="privacy_security_header">Súkromie a bezpečnosť</string>
+    <string name="privacy_section_header">Súkromie</string>
+    <string name="blocked_users_title">Zablokovaní používatelia</string>
+    <string name="blocked_users_count_format">%1$d používateľov</string>
+    <string name="none_label">Žiadne</string>
+    <string name="phone_number_title">Telefónne číslo</string>
+    <string name="last_seen_title">Posledná aktivita a online stav</string>
+    <string name="profile_photos_title">Fotografie profilu</string>
+    <string name="forwarded_messages_title">Preposielané správy</string>
+    <string name="calls_title">Hovory</string>
+    <string name="groups_channels_title">Skupiny a kanály</string>
+    <string name="security_section_header">Bezpečnosť</string>
+    <string name="passcode_lock_title">Zámok kódom</string>
+    <string name="on_label">Zapnuté</string>
+    <string name="off_label">Vypnuté</string>
+    <string name="biometric_unlock_title">Odomknúť biometriou</string>
+    <string name="biometric_unlock_subtitle">Použiť odtlačok prsta alebo tvár na odomknutie</string>
+    <string name="active_sessions_title">Aktívne relácie</string>
+    <string name="active_sessions_subtitle">Spravovať prihlásené zariadenia</string>
+    <string name="sensitive_content_header">Citlivý obsah</string>
+    <string name="disable_filtering_title">Vypnúť filtrovanie</string>
+    <string name="disable_filtering_subtitle">Zobrazovať citlivé médiá vo verejných kanáloch na všetkých vašich
+        zariadeniach.
+    </string>
+    <string name="advanced_section_header">Rozšírené</string>
+    <string name="delete_my_account_title">Odstrániť môj účet</string>
+    <string name="delete_my_account_subtitle">Ak som neaktívny počas %1$s</string>
+    <string name="delete_account_now_title">Odstrániť účet teraz</string>
+    <string name="delete_account_now_subtitle">Natrvalo odstrániť váš účet a všetky dáta</string>
+    <string name="self_destruct_title">Samozničenie pri neaktivite počas...</string>
+    <string name="delete_account_confirmation_title">Odstrániť účet</string>
+    <string name="delete_account_confirmation_message">Naozaj chcete odstrániť váš účet? Táto akcia je trvalá a nedá sa
+        vrátiť späť.
+    </string>
+    <string name="privacy_everybody">Všetci</string>
+    <string name="privacy_my_contacts">Moje kontakty</string>
+    <string name="privacy_nobody">Nikto</string>
+    <string name="ttl_1_month">1 mesiac</string>
+    <string name="ttl_3_months">3 mesiace</string>
+    <string name="ttl_6_months">6 mesiacov</string>
+    <string name="ttl_1_year">1 rok</string>
+    <string name="ttl_18_months">18 mesiacov</string>
+    <string name="ttl_2_years">2 roky</string>
+    <string name="ttl_months_format">%1$d mesiacov</string>
+    <string name="ttl_days_format">%1$d dní</string>
+    <string name="privacy_deletion_reason_user">Používateľ požiadal o odstránenie</string>
+
+    <!-- Proxy Settings -->
+    <string name="proxy_settings_header">Nastavenia proxy</string>
+    <string name="refresh_pings_cd">Obnoviť pingy</string>
+    <string name="add_proxy_button">Pridať proxy</string>
+    <string name="connection_section_header">Pripojenie</string>
+    <string name="smart_switching_title">Inteligentné prepínanie</string>
+    <string name="smart_switching_subtitle">Automaticky použiť najrýchlejšie proxy</string>
+    <string name="prefer_ipv6_title">Uprednostniť IPv6</string>
+    <string name="prefer_ipv6_subtitle">Použiť IPv6, keď je dostupné</string>
+    <string name="disable_proxy_title">Vypnúť proxy</string>
+    <string name="connected_directly_subtitle">Pripojené priamo</string>
+    <string name="switch_to_direct_subtitle">Prepnúť na priame pripojenie</string>
+    <string name="telega_proxy_header">Telega Proxy</string>
+    <string name="telega_proxy_subtitle">Proxy od komunity. Používajte na vlastné riziko. Viac info: t.me/telegaru
+    </string>
+    <string name="enable_telega_proxy_title">Povoliť Telega Proxy</string>
+    <string name="enable_telega_proxy_subtitle">Automaticky načítať a prepnúť na najlepšie</string>
+    <string name="refresh_list_title">Obnoviť zoznam</string>
+    <string name="refresh_list_subtitle">Načítať najnovšie proxy od komunity</string>
+    <string name="your_proxies_header">Vaše proxy</string>
+    <string name="clear_offline_cd">Odstrániť offline</string>
+    <string name="remove_all_cd">Odstrániť všetky</string>
+    <string name="no_proxies_label">Žiadne proxy nie sú pridané</string>
+    <string name="delete_proxy_title">Odstrániť proxy</string>
+    <string name="delete_proxy_confirmation_format">Naozaj chcete odstrániť proxy %1$s?</string>
+    <string name="new_proxy_title">Nové proxy</string>
+    <string name="edit_proxy_title">Upraviť proxy</string>
+    <string name="server_address_placeholder">Adresa servera</string>
+    <string name="port_placeholder">Port</string>
+    <string name="secret_hex_placeholder">Tajný kľúč (Hex)</string>
+    <string name="username_optional_placeholder">Používateľské meno (voliteľné)</string>
+    <string name="password_optional_placeholder">Heslo (voliteľné)</string>
+    <string name="save_changes_button">Uložiť zmeny</string>
+    <string name="action_delete">Odstrániť</string>
+    <string name="proxy_checking">Kontrolujem...</string>
+    <string name="proxy_offline">Offline</string>
+    <string name="proxy_ping_format">%1$d ms</string>
+
+    <!-- Settings General -->
+    <string name="your_usernames_header">Vaše používateľské mená</string>
+    <string name="more_options_cd">Viac možností</string>
+
+    <!-- Notifications and Sounds -->
+    <string name="notifications_sounds_header">Oznámenia a zvuky</string>
+    <string name="message_notifications_header">Oznámenia správ</string>
+    <string name="private_chats_title">Súkromné chaty</string>
+    <string name="groups_title">Skupiny</string>
+    <string name="channels_title">Kanály</string>
+    <string name="notification_settings_header">Nastavenia oznámení</string>
+    <string name="vibration_title">Vibrácie</string>
+    <string name="priority_title">Priorita</string>
+    <string name="repeat_notifications_title">Opakovanie oznámení</string>
+    <string name="show_sender_only_title">Zobraziť iba odosielateľa</string>
+    <string name="show_sender_only_subtitle">Skryť obsah správy v oznámeniach</string>
+    <string name="push_service_header">Služba push</string>
+    <string name="push_provider_title">Poskytovateľ push</string>
+    <string name="keep_alive_service_title">Služba keep-alive</string>
+    <string name="keep_alive_service_subtitle">Udržiavať aplikáciu bežiacu na pozadí pre spoľahlivé oznámenia
+    </string>
+    <string name="hide_foreground_notification_title">Skryť oznámenie popredia</string>
+    <string name="hide_foreground_notification_subtitle">Skryť oznámenie služby po spustení. Môže viesť k ukončeniu
+        služby systémom
+    </string>
+    <string name="in_app_notifications_header">Oznámenia v aplikácii</string>
+    <string name="in_app_sounds_title">Zvuky v aplikácii</string>
+    <string name="in_app_vibrate_title">Vibrácie v aplikácii</string>
+    <string name="in_app_preview_title">Náhľad v aplikácii</string>
+    <string name="events_header">Udalosti</string>
+    <string name="contact_joined_telegram_title">Kontakt sa pripojil k Telegramu</string>
+    <string name="pinned_messages_title">Pripnuté správy</string>
+    <string name="reset_all_notifications_title">Obnoviť všetky oznámenia</string>
+    <string name="reset_all_notifications_subtitle">Vrátiť všetky vlastné nastavenia oznámení pre všetky kontakty a
+        skupiny
+    </string>
+    <string name="vibration_pattern_title">Vzor vibrácií</string>
+    <string name="notification_priority_title">Priorita oznámenia</string>
+    <string name="exceptions_count_format">%1$s, %2$d výnimiek</string>
+    <string name="vibration_pattern_default">Predvolené</string>
+    <string name="vibration_pattern_short">Krátke</string>
+    <string name="vibration_pattern_long">Dlhé</string>
+    <string name="vibration_pattern_disabled">Vypnuté</string>
+    <string name="priority_low">Nízka</string>
+    <string name="priority_default">Predvolená</string>
+    <string name="priority_high">Vysoká</string>
+    <string name="repeat_never">Nikdy</string>
+    <string name="repeat_minutes_format">Každých %1$d minút</string>
+    <string name="repeat_hour_format">Každú 1 hodinu</string>
+    <string name="repeat_hours_format">Každých %1$d hodín</string>
+    <string name="push_provider_fcm">Firebase Cloud Messaging</string>
+    <string name="push_provider_gms_less">Bez GMS (služba na pozadí)</string>
+
+    <!-- Chat Settings -->
+    <string name="chat_settings_header">Nastavenia chatu</string>
+    <string name="appearance_header">Vzhľad</string>
+    <string name="message_text_size_title">Veľkosť textu správy</string>
+    <string name="bubble_rounding_title">Zaoblenie bublín</string>
+    <string name="reset_button">Obnoviť</string>
+    <string name="chat_wallpaper_header">Tapeta chatu</string>
+    <string name="reset_wallpaper_cd">Obnoviť tapetu</string>
+    <string name="emoji_style_header">Štýl emoji</string>
+    <string name="theme_header">Téma</string>
+    <string name="night_mode_title">Nočný režim</string>
+    <string name="night_mode_system">Systém</string>
+    <string name="night_mode_light">Svetlý</string>
+    <string name="night_mode_dark">Tmavý</string>
+    <string name="night_mode_scheduled">Plán</string>
+    <string name="night_mode_brightness">Automaticky</string>
+    <string name="night_mode_current_label">Aktuálne správanie</string>
+    <string name="night_mode_current_format">Použité: %1$s</string>
+    <string name="brightness_threshold_format">Prah jasu: %1$d%%</string>
+    <string name="brightness_threshold_description">Prepnúť na tmavú tému, keď jas obrazovky klesne pod túto úroveň.
+    </string>
+    <string name="dynamic_colors_header">Dynamické farby</string>
+    <string name="dynamic_colors_title">Dynamické farby</string>
+    <string name="dynamic_colors_subtitle">Použiť systémové farby pre tému aplikácie</string>
+    <string name="data_storage_header">Dáta a úložisko</string>
+    <string name="compress_photos_title">Komprimovať fotografie</string>
+    <string name="compress_photos_subtitle">Zmenšiť veľkosť fotografie pred odoslaním</string>
+    <string name="compress_videos_title">Komprimovať videá</string>
+    <string name="compress_videos_subtitle">Zmenšiť veľkosť videa pred odoslaním</string>
+    <string name="video_player_header">Video prehrávač</string>
+    <string name="enable_gestures_title">Povoliť gestá</string>
+    <string name="enable_gestures_subtitle">Potiahnutím ovládať hlasitosť a jas</string>
+    <string name="double_tap_seek_title">Dvojité klepnutie na presun</string>
+    <string name="double_tap_seek_subtitle">Dvojitým klepnutím na okraje videa preskočiť</string>
+    <string name="seek_duration_title">Dĺžka preskočenia</string>
+    <string name="enable_zoom_title">Povoliť priblíženie</string>
+    <string name="enable_zoom_subtitle">Priblížiť stiahnutím prstov vo video prehrávači</string>
+    <string name="chat_list_header">Zoznam chatov</string>
+    <string name="pin_archived_chats_title">Pripnúť archivované chaty</string>
+    <string name="pin_archived_chats_subtitle">Udržiavať archivované chaty navrchu zoznamu</string>
+    <string name="always_show_pinned_archive_title">Vždy zobraziť pripnutý archív</string>
+    <string name="always_show_pinned_archive_subtitle">Udržiavať pripnutý archív viditeľný aj pri posúvaní</string>
+    <string name="show_link_previews_title">Zobraziť náhľady odkazov</string>
+    <string name="show_link_previews_subtitle">Zobrazovať náhľady odkazov v správach</string>
+    <string name="drag_to_back_title">Potiahnutím späť</string>
+    <string name="drag_to_back_subtitle">Potiahnutím z ľavého okraja sa vrátiť späť</string>
+    <string name="two_line_label">Dvojriadkové</string>
+    <string name="three_line_label">Trojriadkové</string>
+    <string name="show_photos_title">Zobraziť fotografie</string>
+    <string name="show_photos_subtitle">Zobrazovať profilové fotografie v zozname chatov</string>
+    <string name="experimental_header">Experimentálne</string>
+    <string name="adblock_channels_title">AdBlock pre kanály</string>
+    <string name="adblock_channels_subtitle">Skryť sponzorované príspevky v kanáloch</string>
+    <string name="recent_media_header">Nedávne médiá</string>
+    <string name="clear_recent_stickers_title">Vymazať nedávne nálepky</string>
+    <string name="clear_recent_stickers_subtitle">Odstrániť všetky naposledy použité nálepky</string>
+    <string name="clear_recent_emojis_title">Vymazať nedávne emoji</string>
+    <string name="clear_recent_emojis_subtitle">Odstrániť všetky naposledy použité emoji</string>
+    <string name="remove_emoji_pack_title">Odstrániť balíček emoji</string>
+    <string name="remove_pack_confirmation_format">Odstrániť balíček %1$s?</string>
+    <string name="remove_pack_description">Tým sa zo zariadenia odstráni stiahnutý balíček emoji. Neskôr si ho môžete
+        znova stiahnuť.
+    </string>
+    <string name="chat_settings_edit_custom_theme">Upraviť vlastnú tému</string>
+    <string name="chat_settings_selected">Vybrané</string>
+    <string name="emoji_style_apple">Apple</string>
+    <string name="emoji_style_twitter">Twitter</string>
+    <string name="emoji_style_windows">Windows</string>
+    <string name="emoji_style_catmoji">Catmoji</string>
+    <string name="emoji_style_noto">Noto</string>
+    <string name="emoji_style_system">Systémové</string>
+
+    <!-- Data and Storage -->
+    <string name="data_storage_title_header">Dáta a úložisko</string>
+    <string name="disk_network_usage_header">Spotreba disku a siete</string>
+    <string name="storage_usage_title">Využitie úložiska</string>
+    <string name="storage_usage_subtitle">Spravovať lokálnu vyrovnávaciu pamäť</string>
+    <string name="network_usage_title">Spotreba siete</string>
+    <string name="network_usage_subtitle">Zobraziť odoslané a prijaté dáta</string>
+    <string name="automatic_media_download_header">Automatické sťahovanie médií</string>
+    <string name="when_using_mobile_data_title">Pri použití mobilných dát</string>
+    <string name="when_connected_on_wifi_title">Pri pripojení na Wi-Fi</string>
+    <string name="when_roaming_title">Pri roamingu</string>
+    <string name="auto_download_files_title">Automatické sťahovanie súborov</string>
+    <string name="auto_download_files_subtitle">Automaticky sťahovať prichádzajúce súbory</string>
+    <string name="auto_download_stickers_title">Automatické sťahovanie nálepiek</string>
+    <string name="auto_download_stickers_subtitle">Automaticky sťahovať nálepky</string>
+    <string name="auto_download_video_notes_title">Automatické sťahovanie video správ</string>
+    <string name="auto_download_video_notes_subtitle">Automaticky sťahovať video správy</string>
+    <string name="autoplay_media_header">Automatické prehrávanie médií</string>
+    <string name="gifs_title">GIFy</string>
+    <string name="gifs_autoplay_subtitle">Automaticky prehrávať GIFy v zozname chatov a chatoch</string>
+    <string name="videos_title">Videá</string>
+    <string name="videos_autoplay_subtitle">Automaticky prehrávať videá v chatoch</string>
+    <string name="enabled_label">Zapnuté</string>
+    <string name="disabled_label">Vypnuté</string>
+
+    <!-- Power Saving -->
+    <string name="power_saving_header">Úspora energie</string>
+    <string name="battery_header">Batéria</string>
+    <string name="power_saving_mode_title">Režim úspory energie</string>
+    <string name="power_saving_mode_subtitle">Znižuje aktivitu na pozadí a animácie na šetrenie batérie</string>
+    <string name="optimize_battery_usage_title">Optimalizovať spotrebu batérie</string>
+    <string name="optimize_battery_usage_subtitle">Agresívne obmedzovať prácu na pozadí a uvoľňovať wake locky</string>
+    <string name="wake_lock_title">Wake Lock</string>
+    <string name="wake_lock_subtitle">Udržiavať CPU aktívne pre úlohy na pozadí. Vypnite pre úsporu batérie</string>
+    <string name="animations_header">Animácie</string>
+    <string name="chat_animations_title">Animácie chatu</string>
+    <string name="chat_animations_subtitle">Vypnúť animácie v chate pre úsporu batérie</string>
+    <string name="background_header">Pozadie</string>
+    <string name="keep_alive_power_saving_subtitle">Vypnutím sa zníži spotreba energie, ale môžu sa oneskoriť oznámenia
+        na pozadí
+    </string>
+
+    <!-- Stickers and Emoji -->
+    <string name="stickers_emoji_header">Nálepky a emoji</string>
+    <string name="stickers_tab">Nálepky</string>
+    <string name="emoji_tab">Emoji</string>
+    <string name="recent_stickers_header">Nedávne nálepky</string>
+    <string name="sticker_sets_header">Sady nálepiek</string>
+    <string name="archived_stickers_header">Archivované nálepky</string>
+    <string name="add_own_stickers_title">Pridať vlastné nálepky</string>
+    <string name="add_own_stickers_subtitle">Vytvoriť vlastné sady nálepiek pomocou bota @Stickers</string>
+    <string name="no_sticker_sets_installed">Žiadne sady nálepiek nie sú nainštalované</string>
+    <string name="no_stickers_found_format">Žiadne nálepky neboli nájdené pre „%1$s"</string>
+    <string name="recent_emojis_header">Nedávne emoji</string>
+    <string name="emoji_packs_header">Balíčky emoji</string>
+    <string name="archived_emojis_header">Archivované emoji</string>
+    <string name="add_own_emoji_title">Pridať vlastné emoji</string>
+    <string name="add_own_emoji_subtitle">Vytvoriť vlastné balíčky emoji pomocou bota @Stickers</string>
+    <string name="clear_recent_emojis_title_settings">Vymazať nedávne emoji</string>
+    <string name="clear_recent_emojis_subtitle_settings">Odstrániť všetky naposledy použité emoji</string>
+    <string name="no_emoji_packs_installed">Žiadne balíčky emoji nie sú nainštalované</string>
+    <string name="no_emojis_found_format">Žiadne emoji neboli nájdené pre „%1$s"</string>
+    <string name="search_packs_placeholder">Hľadať balíčky</string>
+    <string name="action_search">Hľadať</string>
+    <plurals name="stickers_count">
+        <item quantity="one">%1$d nálepka</item>
+        <item quantity="few">%1$d nálepky</item>
+        <item quantity="many">%1$d nálepiek</item>
+        <item quantity="other">%1$d nálepiek</item>
+    </plurals>
+    <plurals name="emojis_count">
+        <item quantity="one">%1$d emoji</item>
+        <item quantity="few">%1$d emoji</item>
+        <item quantity="many">%1$d emoji</item>
+        <item quantity="other">%1$d emoji</item>
+    </plurals>
+    <string name="sticker_type_masks">Masky</string>
+    <string name="sticker_type_custom_emojis">Vlastné emoji</string>
+    <string name="sticker_official">Oficiálne</string>
+    <string name="link_copied">Odkaz skopírovaný do schránky</string>
+
+    <!-- Network Usage -->
+    <string name="network_usage_header">Spotreba siete</string>
+    <string name="reset_statistics_cd">Obnoviť štatistiky</string>
+    <string name="network_statistics_title">Štatistiky siete</string>
+    <string name="network_statistics_description">Sledujte, koľko dát spotrebúvate. Vypnutie môže znížiť využitie miesta
+        na disku.
+    </string>
+    <string name="network_stats_disabled_title">Štatistiky siete sú vypnuté</string>
+    <string name="network_stats_disabled_description">Sledovanie spotreby siete je momentálne vypnuté. Zapnite ho
+        pomocou prepínača vyššie a sledujte, koľko dát používate cez mobilné dáta, Wi-Fi a roaming.
+    </string>
+    <string name="total_usage_label">Celková spotreba</string>
+    <string name="sent_label">Odoslané</string>
+    <string name="received_label">Prijaté</string>
+    <string name="overview_header">Prehľad</string>
+    <string name="app_usage_header">Spotreba aplikácie</string>
+    <string name="no_usage_data_recorded">Žiadne dáta o spotrebe neboli zaznamenané</string>
+    <string name="no_statistics_available">Žiadne štatistiky nie sú dostupné</string>
+    <string name="mobile_tab">Mobil</string>
+    <string name="wifi_tab">Wi-Fi</string>
+    <string name="roaming_tab">Roaming</string>
+    <string name="other_tab">Iné</string>
+
+    <!-- Storage Usage -->
+    <string name="storage_usage_header">Využitie úložiska</string>
+    <string name="clear_all_cache_format">Vymazať celú vyrovnávaciu pamäť • %1$s</string>
+    <string name="clear_cache_description">Zahŕňa fotografie, videá, dokumenty, nálepky a GIFy zo všetkých chatov.
+    </string>
+    <string name="cache_limit_title">Limit vyrovnávacej pamäte</string>
+    <string name="auto_clear_cache_title">Automatické vymazanie vyrovnávacej pamäte</string>
+    <string name="storage_optimizer_title">Optimalizátor úložiska</string>
+    <string name="storage_optimizer_subtitle">Optimalizácia úložiska na pozadí</string>
+    <string name="detailed_usage_header">Podrobná spotreba</string>
+    <string name="storage_clean_title">Úložisko je čisté</string>
+    <string name="storage_clean_description">Žiadne uložené súbory sa nenašli.</string>
+    <string name="clear_cache_title_dialog">Vymazať vyrovnávaciu pamäť</string>
+    <string name="clear_cache_confirmation_format">Naozaj chcete vymazať vyrovnávaciu pamäť pre „%1$s"? Uvoľní sa tým
+        %2$s.
+    </string>
+    <string name="clear_all_cache_title">Vymazať celú vyrovnávaciu pamäť</string>
+    <string name="clear_all_cache_confirmation">Tým sa odstránia všetky uložené mediálne súbory zo všetkých chatov.
+        Naozaj chcete pokračovať?
+    </string>
+    <string name="unlimited_label">Neobmedzené</string>
+    <string name="never_label">Nikdy</string>
+    <string name="every_day_label">Každý deň</string>
+    <string name="every_week_label">Každý týždeň</string>
+    <string name="every_month_label">Každý mesiac</string>
+    <string name="total_used_label">Celkovo použité</string>
+    <string name="files_count_format">%1$d súborov</string>
+    <string name="files_count_label">%1$d súborov</string>
+
+    <!-- Privacy Setting -->
+    <string name="privacy_who_can_add_me">Kto ma môže pridať do %1$s?</string>
+    <string name="privacy_who_can_call_me">Kto mi môže volať?</string>
+    <string name="privacy_who_can_see_my_last_seen">Kto môže vidieť čas mojej poslednej aktivity?</string>
+    <string name="privacy_who_can_see_my_profile_photos">Kto môže vidieť moje profilové fotografie?</string>
+    <string name="privacy_who_can_see_my_bio">Kto môže vidieť moje bio?</string>
+    <string name="privacy_who_can_link_my_account_in_forwarded_messages">Kto môže pridať odkaz na môj účet pri
+        preposielaní mojich správ?
+    </string>
+    <string name="privacy_who_can_add_me_to_groups_and_channels">Kto ma môže pridať do skupín a kanálov?</string>
+    <string name="privacy_who_can_see_my_phone_number">Kto môže vidieť moje telefónne číslo?</string>
+    <string name="privacy_who_can_find_me_by_number">Kto ma môže nájsť podľa čísla?</string>
+    <string name="privacy_phone_number_search_help">Používatelia, ktorí pridajú vaše číslo do kontaktov, ho uvidia na
+        Telegrame iba ak to umožňuje nastavenie vyššie.
+    </string>
+    <string name="privacy_add_exceptions">Pridať výnimky</string>
+    <string name="privacy_always_allow">Vždy povoliť</string>
+    <string name="privacy_never_allow">Nikdy nepovoliť</string>
+    <string name="privacy_exceptions_count_format">%1$d používateľov/chatov</string>
+    <string name="privacy_user_deleted">(odstránené)</string>
+    <string name="privacy_chat_members">Členovia chatu</string>
+    <string name="privacy_phone_number_search_title">Vyhľadávanie podľa telefónneho čísla</string>
+    <string name="privacy_no_blocked_users">Žiadni zablokovaní používatelia</string>
+    <string name="privacy_blocked_users_help">Zablokovaní používatelia vás nebudú môcť kontaktovať a neuvidia čas vašej
+        poslednej aktivity.
+    </string>
+    <string name="privacy_unblock_action">Odblokovať</string>
+    <string name="privacy_block_user_cd">Blokovať používateľa</string>
+    <string name="privacy_search_users_placeholder">Hľadať používateľov</string>
+    <string name="privacy_no_users_found">Žiadni používatelia sa nenašli</string>
+
+    <!-- Passcode -->
+    <string name="passcode_change_title">Zmeniť kód</string>
+    <string name="passcode_set_title">Nastaviť kód</string>
+    <string name="passcode_change_description">Vaša aplikácia je momentálne chránená kódom. Zadajte nový kód na jeho
+        zmenu.
+    </string>
+    <string name="passcode_set_description">Zadajte 4-ciferný kód na zamknutie aplikácie a ochranu súkromia.</string>
+    <string name="passcode_label">Kód</string>
+    <string name="passcode_current_label">Aktuálny kód</string>
+    <string name="passcode_save_action">Uložiť kód</string>
+    <string name="passcode_off_action">Vypnúť kód</string>
+    <string name="passcode_verify_title">Overiť kód</string>
+    <string name="passcode_verify_description">Zadajte aktuálny kód pred jeho zmenou alebo vypnutím.</string>
+    <string name="passcode_verify_error">Nesprávny kód.</string>
+
+    <!-- AdBlock -->
+    <string name="cd_add_keyword">Pridať kľúčové slovo</string>
+    <string name="adblock_enable">Povoliť AdBlock</string>
+    <string name="adblock_whitelisted_channels">Kanály na whiteliste</string>
+    <string name="adblock_channels_count_format">%1$d povolených kanálov</string>
+    <string name="adblock_load_base">Načítať základné kľúčové slová</string>
+    <string name="adblock_load_base_subtitle">Importovať bežné reklamné kľúčové slová z prostriedkov</string>
+    <string name="adblock_copy_all">Kopírovať všetky kľúčové slová</string>
+    <string name="adblock_copy_all_subtitle">Kopírovať aktuálny zoznam do schránky</string>
+    <string name="adblock_clear_all">Vymazať všetky kľúčové slová</string>
+    <string name="adblock_clear_all_subtitle">Odstrániť všetky kľúčové slová zo zoznamu</string>
+    <string name="adblock_keywords_section">Kľúčové slová na skrytie príspevkov</string>
+    <string name="adblock_no_keywords">Žiadne kľúčové slová nie sú pridané</string>
+    <string name="adblock_no_keywords_subtitle">Klepnutím na tlačidlo + pridáte kľúčové slová na filtrovanie</string>
+    <string name="adblock_add_keywords_title">Pridať kľúčové slová</string>
+    <string name="adblock_add_keywords_description">Zadajte kľúčové slová oddelené čiarkami alebo novými riadkami na
+        filtrovanie príspevkov v kanáloch.
+    </string>
+    <string name="adblock_add_keywords_placeholder">napr. #promo, ad, реклама</string>
+    <string name="adblock_add_to_list">Pridať do zoznamu</string>
+    <string name="adblock_whitelisted_subtitle">Príspevky z týchto kanálov nebudú filtrované</string>
+    <string name="adblock_no_whitelisted">Žiadne kanály nie sú na whiteliste</string>
+    <string name="action_remove">Odstrániť</string>
+
+    <!-- Core/Common -->
+    <string name="last_seen_recently">naposledy aktívny nedávno</string>
+    <string name="last_seen_just_now">naposledy aktívny práve teraz</string>
+    <plurals name="last_seen_minutes_ago">
+        <item quantity="one">naposledy aktívny pred %1$d minútou</item>
+        <item quantity="few">naposledy aktívny pred %1$d minútami</item>
+        <item quantity="many">naposledy aktívny pred %1$d minútami</item>
+        <item quantity="other">naposledy aktívny pred %1$d minútami</item>
+    </plurals>
+    <string name="last_seen_at">naposledy aktívny o %1$s</string>
+    <string name="last_seen_yesterday_at">naposledy aktívny včera o %1$s</string>
+    <string name="last_seen_date">naposledy aktívny %1$s</string>
+    <string name="last_seen_within_week">naposledy aktívny tento týždeň</string>
+    <string name="last_seen_within_month">naposledy aktívny tento mesiac</string>
+    <string name="last_seen_long_time_ago">naposledy aktívny dávno</string>
+    <string name="status_online">online</string>
+    <string name="status_offline">offline</string>
+    <string name="status_bot">bot</string>
+    <string name="username_label_core">Používateľské meno</string>
+    <string name="stickers_count_format">%1$d nálepiek</string>
+    <string name="sticker_set_archived">Archivované</string>
+    <string name="action_add_sticker_set">Pridať</string>
+    <string name="menu_unarchive">Odarchivovať</string>
+    <string name="menu_archive">Archivovať</string>
+    <string name="menu_remove_set">Odstrániť sadu</string>
+
+    <!-- New Chat -->
+    <string name="new_message_title">Nová správa</string>
+    <string name="add_members_title">Pridať členov</string>
+    <string name="new_group_title">Nová skupina</string>
+    <string name="new_channel_title">Nový kanál</string>
+    <string name="contacts_count_format">%1$d kontaktov</string>
+    <string name="members_limit_format">%1$d / 200 000</string>
+    <string name="selected_members_count">%1$d vybraných</string>
+    <string name="search_contacts_hint">Hľadať kontakty...</string>
+    <string name="no_contacts_found">Neboli nájdené žiadne kontakty</string>
+    <string name="no_search_results_format">Žiadne výsledky pre „%1$s“</string>
+    <string name="sorted_by_last_seen">Zoradené podľa poslednej aktivity</string>
+    <string name="new_group_action">Nová skupina</string>
+    <string name="new_channel_action">Nový kanál</string>
+    <string name="support_label">Podpora</string>
+    <string name="channel_description_hint">Kanály sú nástroj na vysielanie správ neobmedzenému počtu príjemcov.
+    </string>
+    <string name="channel_details_header">Podrobnosti kanála</string>
+    <string name="channel_name_placeholder">Názov kanála</string>
+    <string name="description_optional_placeholder">Popis (voliteľné)</string>
+    <string name="auto_delete_messages_title">Automatické odstraňovanie správ</string>
+    <string name="auto_delete_off">Vypnuté</string>
+    <string name="auto_delete_1_day">1 deň</string>
+    <string name="auto_delete_2_days">2 dni</string>
+    <string name="auto_delete_3_days">3 dni</string>
+    <string name="auto_delete_4_days">4 dni</string>
+    <string name="auto_delete_5_days">5 dní</string>
+    <string name="auto_delete_6_days">6 dní</string>
+    <string name="auto_delete_1_week">1 týždeň</string>
+    <string name="auto_delete_2_weeks">2 týždne</string>
+    <string name="auto_delete_3_weeks">3 týždne</string>
+    <string name="auto_delete_1_month">1 mesiac</string>
+    <string name="auto_delete_2_months">2 mesiace</string>
+    <string name="auto_delete_3_months">3 mesiace</string>
+    <string name="auto_delete_4_months">4 mesiace</string>
+    <string name="auto_delete_5_months">5 mesiacov</string>
+    <string name="auto_delete_6_months">6 mesiacov</string>
+    <string name="auto_delete_1_year">1 rok</string>
+    <string name="channel_join_info">Môžete pridať voliteľný popis kanála. Ktokoľvek sa môže pripojiť, ak má odkaz.
+    </string>
+    <string name="group_description_hint">Zadajte názov a voliteľnú fotografiu pre novú skupinu.</string>
+    <string name="group_details_header">Podrobnosti skupiny</string>
+    <string name="group_name_placeholder">Názov skupiny</string>
+    <string name="group_name_required">Zadajte názov skupiny</string>
+    <string name="channel_name_required">Zadajte názov kanála</string>
+    <string name="contact_menu_open_profile">Otvoriť profil</string>
+    <string name="contact_menu_edit_name">Upraviť meno</string>
+    <string name="contact_menu_remove">Odstrániť kontakt</string>
+    <string name="edit_contact_title">Upraviť kontakt</string>
+    <string name="first_name_label">Meno</string>
+    <string name="last_name_label">Priezvisko</string>
+    <string name="remove_contact_title">Odstrániť kontakt?</string>
+    <string name="remove_contact_confirmation">Naozaj chcete odstrániť %1$s z vašich kontaktov?</string>
+    <string name="group_auto_delete_info">Automaticky odstrániť nové správy odoslané v tejto skupine po určitom čase.
+    </string>
+    <string name="add_photo_cd">Pridať fotografiu</string>
+    <string name="change_photo_cd">Zmeniť fotografiu</string>
+
+    <!-- Permissions -->
+    <string name="permissions_required_title">Vyžadované oprávnenia</string>
+    <string name="permissions_required_description">Na poskytnutie najlepšieho zážitku MonoGram potrebuje nasledujúce
+        oprávnenia.
+    </string>
+    <string name="permission_notifications_title">Oznámenia</string>
+    <string name="permission_notifications_description">Dostávať upozornenia na nové správy</string>
+    <string name="permission_allow_button">Povoliť</string>
+    <string name="permission_phone_state_title">Stav telefónu</string>
+    <string name="permission_phone_state_description">Spravovať stavy zariadenia pre lepší používateľský zážitok
+    </string>
+    <string name="permission_battery_optimization_title">Optimalizácia batérie</string>
+    <string name="permission_battery_optimization_description">Zabezpečiť spoľahlivú prevádzku na pozadí</string>
+    <string name="permission_disable_button">Vypnúť</string>
+    <string name="permission_camera_title">Fotoaparát</string>
+    <string name="permission_camera_description">Fotografovať a nahrávať video správy</string>
+    <string name="permission_microphone_title">Mikrofón</string>
+    <string name="permission_microphone_description">Nahrávať hlasové a video správy</string>
+    <string name="permission_location_title">Poloha</string>
+    <string name="permission_location_description">Zdieľať polohu a vidieť používateľov v blízkosti</string>
+
+    <!-- Selection -->
+    <string name="cd_clear_selection">Zrušiť výber</string>
+    <string name="action_pin">Pripnúť</string>
+
+    <!-- Bot Commands -->
+    <string name="bot_commands_title">Príkazy bota</string>
+    <string name="bot_commands_subtitle">Vyberte príkaz na odoslanie botovi</string>
+
+    <!-- Chat List Preview -->
+    <string name="chat_list_preview_title">Zoznam chatov</string>
+    <string name="preview_name_konata">Konata Izumi</string>
+    <string name="preview_message_konata">Nie som malá, som len skoncentrovaná úžasnosť! 🍫 Tiež som sa rozhodla stať
+        profesionálnou spáčkou 😴
+    </string>
+    <string name="preview_time_konata">12:45</string>
+    <string name="preview_name_kagami">Kagami Hiiragi</string>
+    <string name="preview_message_kagami">Nezabudni na domácu úlohu! Je na zajtra ráno a je dosť ťažká.</string>
+    <string name="preview_time_kagami">11:20</string>
+
+    <!-- Chat Settings Preview -->
+    <string name="chat_settings_preview_title">Náhľad</string>
+    <string name="preview_msg_sender_me">Ja</string>
+    <string name="preview_msg_text_1">Nie som malá, som len skoncentrovaná úžasnosť! 🍫\nTiež som sa rozhodla stať
+        profesionálnou spáčkou 😴
+    </string>
+    <string name="preview_msg_text_2">To hovoríš vždy, keď nedočiahneš na hornú policu... 🙄\nPozri na toto:</string>
+    <string name="preview_msg_text_3">Prestaň ma odhaľovať! 😤✨\nPoužijem svoju tajnú zbraň: 💯 čistú lenivosť</string>
+    <string name="preview_msg_text_4">Je to super efektívne! 😵‍💫</string>
+    <string name="preview_date_today">Dnes</string>
+    <string name="preview_name_konata_short">Konata</string>
+
+    <string name="subscribers_count_format">%1$d odberateľov</string>
+    <string name="thread_title">Vlákno</string>
+
+    <!-- Recording UI -->
+    <string name="recording_delete">Odstrániť nahrávku</string>
+    <string name="recording_slide_to_cancel">&lt; Potiahnutím zrušiť</string>
+    <string name="recording_send">Odoslať nahrávku</string>
+    <string name="recording_lock">Uzamknúť nahrávanie</string>
+    <string name="recording_swipe_up">Potiahnite nahor</string>
+
+    <!-- Input Bar -->
+    <string name="input_placeholder_caption">Pridať popis…</string>
+    <string name="input_placeholder_message">Správa</string>
+    <string name="input_error_not_allowed">Odosielanie správ nie je povolené</string>
+
+    <!-- Media Types -->
+    <string name="media_type_photo">Fotografia</string>
+    <string name="media_type_video">Video</string>
+    <string name="media_type_sticker">Nálepka</string>
+    <string name="media_type_voice">Hlasová správa</string>
+    <string name="media_type_video_note">Video správa</string>
+    <string name="media_type_gif">GIF</string>
+    <string name="media_type_location">Poloha</string>
+    <string name="media_type_message">Správa</string>
+
+    <!-- Actions -->
+    <string name="action_cancel_reply">Zrušiť odpoveď</string>
+    <string name="action_edit_message">Upraviť správu</string>
+    <string name="action_cancel_edit">Zrušiť úpravu</string>
+    <string name="action_send_items_count">Odoslať %1$d položiek</string>
+    <string name="action_send_media">Odoslať médiá</string>
+    <string name="action_cancel">Zrušiť</string>
+    <string name="action_copy">Kopírovať</string>
+    <string name="action_paste">Vložiť</string>
+    <string name="action_cut">Vystrihnúť</string>
+    <string name="action_select_all">Vybrať všetko</string>
+    <string name="action_apply">Použiť</string>
+    <string name="action_done">Hotovo</string>
+    <string name="action_refresh">Obnoviť</string>
+    <string name="action_open_fullscreen_editor">Editor na celú obrazovku</string>
+    <string name="fullscreen_editor_title">Editor</string>
+    <string name="action_send_silent">Odoslať ticho</string>
+    <string name="action_schedule_message">Naplánovať správu</string>
+    <string name="action_scheduled_messages">Naplánované správy</string>
+    <string name="action_scheduled_messages_count">Naplánované správy (%1$d)</string>
+    <string name="scheduled_messages_empty">Zatiaľ žiadne naplánované správy</string>
+    <string name="scheduled_messages_summary_count">Celkovo naplánovaných: %1$d</string>
+    <string name="scheduled_messages_summary_next">Nasledujúce odoslanie: %1$s</string>
+    <string name="scheduled_messages_summary_editable">Teraz upraviteľných: %1$d</string>
+    <string name="scheduled_message_id">ID: %1$d</string>
+    <string name="action_edit">Upraviť</string>
+    <string name="action_send_now">Odoslať</string>
+    <string name="action_delete_message">Odstrániť</string>
+    <string name="fullscreen_editor_meta">%1$d znakov • %2$d blokov formátovania</string>
+    <string name="fullscreen_editor_blocks">%1$d blokov formátovania</string>
+    <string name="fullscreen_editor_hint">Vyberte text a použite bohaté formátovanie ako v Telegrame</string>
+    <string name="message_length_counter">%1$d/%2$d</string>
+
+    <string name="rich_text_bold">Tučné</string>
+    <string name="rich_text_italic">Kurzíva</string>
+    <string name="rich_text_underline">Podčiarknuté</string>
+    <string name="rich_text_strikethrough">Prečiarknuté</string>
+    <string name="rich_text_spoiler">Spoiler</string>
+    <string name="rich_text_code">Kód</string>
+    <string name="rich_text_pre">Neproporcionálne</string>
+    <string name="rich_text_link">Odkaz</string>
+    <string name="rich_text_mention">Zmienka</string>
+    <string name="rich_text_emoji">Emoji</string>
+    <string name="rich_text_clear">Vymazať</string>
+    <string name="rich_text_link_title">Pridať odkaz</string>
+    <string name="rich_text_link_hint">URL</string>
+    <string name="rich_text_code_language_title">Jazyk kódu</string>
+    <string name="rich_text_code_language_hint">Jazyk (napr. kotlin)</string>
+
+    <!-- Bot -->
+    <string name="bot_commands">Príkazy</string>
+
+    <!-- Chat Typing -->
+    <string name="typing_typing">píše</string>
+    <string name="typing_recording_video">nahráva video</string>
+    <string name="typing_recording_voice">nahráva hlasovú správu</string>
+    <string name="typing_uploading_photo">odosiela fotografiu</string>
+    <string name="typing_uploading_video">odosiela video</string>
+    <string name="typing_uploading_document">odosiela súbor</string>
+    <string name="typing_choosing_sticker">vyberá nálepku</string>
+    <string name="typing_playing_game">hrá</string>
+    <string name="typing_someone">Niekto</string>
+    <string name="typing_and">a</string>
+    <string name="typing_and_more">a %d ďalší</string>
+    <string name="typing_multi_typing">píšu</string>
+    <plurals name="typing_multi_people">
+        <item quantity="one">%d osoba píše</item>
+        <item quantity="few">%d osoby píšu</item>
+        <item quantity="many">%d osôb píše</item>
+        <item quantity="other">%d osôb píše</item>
+    </plurals>
+    <!-- Storage Mapper -->
+    <string name="storage_photos">Fotografie</string>
+    <string name="storage_videos">Videá</string>
+    <string name="storage_documents">Dokumenty</string>
+    <string name="storage_stickers">Nálepky</string>
+    <string name="storage_music">Hudba</string>
+    <string name="storage_voice_messages">Hlasové správy</string>
+    <string name="storage_video_messages">Video správy</string>
+    <string name="storage_other_files">Ostatné súbory</string>
+    <string name="storage_other_cache">Ostatné / Vyrovnávacia pamäť</string>
+    <string name="storage_chat_format">Chat %d</string>
+
+    <!-- Network Mapper -->
+    <string name="network_calls">Hovory</string>
+
+    <!-- Notification Service -->
+    <string name="notification_service_waiting">Čakám na nové správy</string>
+    <string name="notification_service_stop">Zastaviť</string>
+    <string name="notification_service_channel_name">Služba na pozadí</string>
+    <string name="notification_service_channel_description">Oznámenie o behu aplikácie na pozadí</string>
+
+    <!-- Chat Mapper / Media Types -->
+    <string name="chat_mapper_photo">Fotografia</string>
+    <string name="chat_mapper_video">Video</string>
+    <string name="chat_mapper_voice">Hlasová správa</string>
+    <string name="chat_mapper_sticker">Nálepka</string>
+    <string name="chat_mapper_document">Dokument</string>
+    <string name="chat_mapper_audio">Audio</string>
+    <string name="chat_mapper_gif">GIF</string>
+    <string name="chat_mapper_video_note">Video správa</string>
+    <string name="chat_mapper_contact">Kontakt</string>
+    <string name="chat_mapper_poll">Anketa</string>
+    <string name="chat_mapper_location">Poloha</string>
+    <string name="chat_mapper_call">Hovor</string>
+    <string name="chat_mapper_game">Hra</string>
+    <string name="chat_mapper_invoice">Faktúra</string>
+    <string name="chat_mapper_story">Príbeh</string>
+    <string name="chat_mapper_pinned">Pripnutá správa</string>
+    <string name="chat_mapper_message">Správa</string>
+    <string name="chat_mapper_bot">Bot</string>
+    <string name="chat_mapper_online">Online</string>
+    <string name="chat_mapper_offline">Offline</string>
+    <string name="chat_mapper_seen_just_now">Naposledy aktívny práve teraz</string>
+    <string name="chat_mapper_seen_minutes_ago">Naposledy aktívny pred %d minútou</string>
+    <string name="chat_mapper_seen_minutes_ago_plural">Naposledy aktívny pred %d minútami</string>
+    <string name="chat_mapper_seen_at">Naposledy aktívny o %s</string>
+    <string name="chat_mapper_seen_yesterday">Naposledy aktívny včera o %s</string>
+    <string name="chat_mapper_seen_date">Naposledy aktívny %s</string>
+    <string name="chat_mapper_seen_recently">Naposledy aktívny nedávno</string>
+    <string name="chat_mapper_seen_week">Naposledy aktívny tento týždeň</string>
+    <string name="chat_mapper_seen_month">Naposledy aktívny tento mesiac</string>
+
+    <!-- Pinned Messages -->
+    <string name="pinned_messages">Pripnuté správy</string>
+    <string name="pinned_message">Pripnutá správa</string>
+    <string name="pinned_show_all">Zobraziť všetky pripnuté</string>
+    <string name="pinned_unpin">Odopnúť</string>
+    <string name="pinned_close">Zavrieť</string>
+    <plurals name="pinned_count">
+        <item quantity="one">%d správa</item>
+        <item quantity="few">%d správy</item>
+        <item quantity="many">%d správ</item>
+        <item quantity="other">%d správ</item>
+    </plurals>
+    <!-- Message Types -->
+    <string name="message_type_video_message">Video správa</string>
+    <string name="message_type_gif">GIF</string>
+    <string name="message_type_document">Dokument</string>
+    <string name="message_type_poll_format">Anketa: %s</string>
+    <string name="message_type_sticker_format">Nálepka %s</string>
+
+    <!-- Photo Editor Tools -->
+    <string name="photo_editor_tool_view">Zobrazenie</string>
+    <string name="photo_editor_tool_crop">Orezať</string>
+    <string name="photo_editor_tool_filters">Filtre</string>
+    <string name="photo_editor_tool_draw">Kresliť</string>
+    <string name="photo_editor_tool_text">Text</string>
+    <string name="photo_editor_tool_eraser">Guma</string>
+
+    <!-- Photo Editor Filters -->
+    <string name="photo_editor_filter_original">Originál</string>
+    <string name="photo_editor_filter_bw">Č&amp;B</string>
+    <string name="photo_editor_filter_sepia">Sépia</string>
+    <string name="photo_editor_filter_vintage">Vintage</string>
+    <string name="photo_editor_filter_cool">Studený</string>
+    <string name="photo_editor_filter_warm">Teplý</string>
+    <string name="photo_editor_filter_polaroid">Polaroid</string>
+    <string name="photo_editor_filter_invert">Invertovať</string>
+
+    <!-- Photo Editor Actions -->
+    <string name="photo_editor_action_save">Uložiť</string>
+    <string name="photo_editor_action_cancel">Zrušiť</string>
+    <string name="photo_editor_action_undo">Späť</string>
+    <string name="photo_editor_action_redo">Znovu</string>
+    <string name="photo_editor_action_close">Zavrieť</string>
+    <string name="photo_editor_action_reset">Obnoviť</string>
+    <string name="photo_editor_action_rotate_left">Otočiť doľava</string>
+    <string name="photo_editor_action_rotate_right">Otočiť doprava</string>
+    <string name="photo_editor_action_add_text">Pridať text</string>
+    <string name="photo_editor_action_edit_text">Upraviť text</string>
+    <string name="photo_editor_action_apply">Použiť</string>
+    <string name="photo_editor_action_delete">Odstrániť</string>
+
+    <!-- Photo Editor Labels -->
+    <string name="photo_editor_label_size">Veľkosť</string>
+    <string name="photo_editor_label_zoom">Priblíženie</string>
+    <string name="photo_editor_label_placeholder_text">Napíšte niečo...</string>
+    <string name="photo_editor_label_select_tool">Vyberte nástroj na začatie úprav</string>
+
+    <!-- Photo Editor Discard Dialog -->
+    <string name="photo_editor_discard_title">Zahodiť zmeny?</string>
+    <string name="photo_editor_discard_message">Máte neuložené zmeny. Naozaj ich chcete zahodiť?</string>
+    <string name="photo_editor_discard_button">Zahodiť</string>
+
+    <!-- Video Editor Common -->
+    <string name="video_editor_apply">Použiť</string>
+    <string name="video_editor_done">Hotovo</string>
+    <string name="video_editor_cancel">Zrušiť</string>
+    <string name="video_editor_low">Nízka</string>
+
+    <!-- Video Editor Tools -->
+    <string name="video_tool_view">Zobrazenie</string>
+    <string name="video_tool_trim">Orezať</string>
+    <string name="video_tool_filters">Filtre</string>
+    <string name="video_tool_text">Text</string>
+    <string name="video_tool_compress">Komprimovať</string>
+
+    <!-- Video Editor Actions/Controls -->
+    <string name="video_action_unmute">Zapnúť zvuk</string>
+    <string name="video_action_mute">Stlmiť</string>
+    <string name="video_action_add_text">Pridať textový overlay</string>
+    <string name="video_quality_label">Kvalita videa</string>
+    <string name="video_estimated_bitrate">Odhadovaný bitrate: %1$d kbps</string>
+
+    <!-- Video Editor Filters -->
+    <string name="video_filter_original">Originál</string>
+    <string name="video_filter_bw">Č&amp;B</string>
+    <string name="video_filter_sepia">Sépia</string>
+    <string name="video_filter_vintage">Vintage</string>
+    <string name="video_filter_cool">Studený</string>
+    <string name="video_filter_warm">Teplý</string>
+    <string name="video_filter_polaroid">Polaroid</string>
+    <string name="video_filter_invert">Invertovať</string>
+
+    <!-- Video Editor Dialogs & Toasts -->
+    <string name="video_error_file_not_found">Súbor sa nenašiel</string>
+    <string name="video_error_file_missing">Video súbor chýba</string>
+    <string name="video_discard_title">Zahodiť zmeny?</string>
+    <string name="video_discard_text">Máte neuložené zmeny. Naozaj ich chcete zahodiť?</string>
+    <string name="video_discard_confirm">Zahodiť</string>
+
+    <!-- Web View General -->
+    <string name="webview_loading">Načítavam…</string>
+    <string name="webview_default_title">Webové zobrazenie</string>
+    <string name="webview_close">Zavrieť</string>
+    <string name="webview_more_options">Viac možností</string>
+
+    <!-- Web View Options Sheet -->
+    <string name="webview_options_title">Možnosti</string>
+    <string name="webview_back">Späť</string>
+    <string name="webview_forward">Vpred</string>
+    <string name="webview_refresh">Obnoviť</string>
+    <string name="webview_section_actions">Akcie</string>
+    <string name="webview_section_settings">Nastavenia</string>
+    <string name="webview_copy_link">Kopírovať</string>
+    <string name="webview_link_copied">Odkaz skopírovaný</string>
+    <string name="webview_share">Zdieľať</string>
+    <string name="webview_share_chooser_title">Zdieľať odkaz cez</string>
+    <string name="webview_open_in_browser">Prehliadač</string>
+    <string name="webview_find_in_page">Hľadať</string>
+    <string name="webview_desktop_site">Desktopová verzia</string>
+    <string name="webview_block_ads">Blokovať reklamy</string>
+    <string name="webview_text_size">Veľkosť textu: %1$d%%</string>
+
+    <!-- Web View Security/Certificate -->
+    <string name="webview_secure">Zabezpečené</string>
+    <string name="webview_insecure">Nezabezpečené</string>
+    <string name="webview_security_info_title">Informácie o zabezpečení</string>
+    <string name="webview_insecure_connection_title">Nezabezpečené pripojenie</string>
+    <string name="webview_secure_connection_desc">Pripojenie k tejto stránke je šifrované a zabezpečené.</string>
+    <string name="webview_insecure_connection_desc">Pripojenie k tejto stránke nie je zabezpečené. Nezadávajte žiadne
+        citlivé informácie (napr. heslá alebo čísla kreditných kariet), pretože ich môžu ukradnúť útočníci.
+    </string>
+    <string name="webview_cert_issued_to">Vydané pre</string>
+    <string name="webview_cert_issued_by">Vydané kým</string>
+    <string name="webview_cert_valid_until">Platné do</string>
+    <string name="webview_cert_unknown">Neznáme</string>
+
+    <!-- Web View Find In Page Bar -->
+    <string name="webview_find_placeholder">Hľadať na stránke…</string>
+    <string name="webview_find_previous">Predchádzajúce</string>
+    <string name="webview_find_next">Nasledujúce</string>
+    <string name="webview_find_close">Zavrieť hľadanie</string>
+
+    <!-- Profile & Components -->
+    <string name="label_discussion">Diskusia</string>
+    <string name="label_channel">Kanál</string>
+    <string name="action_open_maps">Otvoriť mapy</string>
+    <string name="action_directions">Trasa</string>
+    <string name="navigate_with">Navigovať pomocou</string>
+    <string name="open_with">Otvoriť pomocou</string>
+    <string name="browser_other">Prehliadač / Iné</string>
+    <string name="tab_media">Médiá</string>
+    <string name="tab_members">Členovia</string>
+    <string name="tab_files">Súbory</string>
+    <string name="tab_audio">Audio</string>
+    <string name="tab_voice">Hlas</string>
+    <string name="tab_links">Odkazy</string>
+    <string name="tab_gifs">GIFy</string>
+    <string name="empty_members">Žiadni členovia sa nenašli</string>
+    <string name="empty_media">Žiadne médiá sa nenašli</string>
+    <string name="empty_audio">Žiadne audio sa nenašlo</string>
+    <string name="empty_voice">Žiadne hlasové správy sa nenašli</string>
+    <string name="empty_files">Žiadne súbory sa nenašli</string>
+    <string name="empty_links">Žiadne odkazy sa nenašli</string>
+    <string name="empty_gifs">Žiadne GIFy sa nenašli</string>
+    <string name="label_bot_badge">BOT</string>
+    <string name="opening_hours_closed">Zatvorené</string>
+    <string name="label_id">ID</string>
+
+    <!-- Statistics Viewer -->
+    <string name="statistics_analyzing">Analyzujem štatistiky...</string>
+    <string name="statistics_overview">Prehľad</string>
+    <string name="statistics_members">Členovia</string>
+    <string name="statistics_messages">Správy</string>
+    <string name="statistics_viewers">Diváci</string>
+    <string name="statistics_active_senders">Aktívni odosielatelia</string>
+    <string name="statistics_member_growth">Rast členov</string>
+    <string name="statistics_new_members">Noví členovia</string>
+    <string name="statistics_message_content">Obsah správ</string>
+    <string name="statistics_actions">Akcie</string>
+    <string name="statistics_activity_day">Aktivita podľa dňa</string>
+    <string name="statistics_activity_week">Aktivita podľa týždňa</string>
+    <string name="statistics_top_hours">Najaktívnejšie hodiny</string>
+    <string name="statistics_views_source">Zobrazenia podľa zdroja</string>
+    <string name="statistics_new_members_source">Noví členovia podľa zdroja</string>
+    <string name="statistics_languages">Jazyky</string>
+    <string name="statistics_top_senders">Najaktívnejší odosielatelia</string>
+    <string name="statistics_msgs_label">správ</string>
+    <string name="statistics_avg_chars_format">Priemerný počet znakov: %1$d</string>
+    <string name="statistics_top_admins">Najaktívnejší správcovia</string>
+    <string name="statistics_actions_label">akcií</string>
+    <string name="statistics_admin_actions_format">Odstr.: %1$d | Zákaz: %2$d</string>
+    <string name="statistics_top_inviters">Najaktívnejší pozývači</string>
+    <string name="statistics_invites_label">pozvánok</string>
+    <string name="statistics_added_members_label">Pridaní členovia</string>
+    <string name="statistics_subscribers">Odberatelia</string>
+    <string name="statistics_notifications_enabled">Oznámenia zapnuté</string>
+    <string name="statistics_avg_msg_views">Priemerné zobrazenia správ</string>
+    <string name="statistics_avg_msg_shares">Priemerné zdieľania správ</string>
+    <string name="statistics_avg_reactions">Priemerné reakcie</string>
+    <string name="statistics_growth">Rast</string>
+    <string name="statistics_new_subscribers">Noví odberatelia</string>
+    <string name="statistics_views_hour">Zobrazenia podľa hodiny</string>
+    <string name="statistics_msg_interactions">Interakcie so správami</string>
+    <string name="statistics_iv_interactions">Interakcie s Instant View</string>
+    <string name="statistics_msg_reactions">Reakcie na správy</string>
+    <string name="statistics_recent_interactions">Nedávne interakcie</string>
+    <string name="statistics_interaction_message">Správa</string>
+    <string name="statistics_interaction_story">Príbeh</string>
+    <string name="statistics_post_id">ID príspevku</string>
+    <string name="statistics_show_less">Zobraziť menej</string>
+    <string name="statistics_show_all_format">Zobraziť všetko (%1$d)</string>
+    <string name="statistics_revenue_header">Príjmy</string>
+    <string name="statistics_available_balance">Dostupný zostatok</string>
+    <string name="statistics_total_balance">Celkový zostatok</string>
+    <string name="statistics_exchange_rate">Výmenný kurz</string>
+    <string name="statistics_revenue_growth">Rast príjmov</string>
+    <string name="statistics_hourly_revenue">Hodinové príjmy</string>
+    <string name="statistics_insights_loaded">Prehľady načítané</string>
+    <string name="statistics_zoom_in">Priblížiť</string>
+    <string name="statistics_rendering_chart">Vykresľujem graf...</string>
+    <string name="statistics_no_change">Bez zmeny</string>
+    <string name="statistics_vs_previous">oproti predchádzajúcemu</string>
+    <string name="statistics_unknown_type">Neznámy typ štatistík</string>
+    <string name="statistics_data_class_format">Trieda dát: %1$s</string>
+
+    <!-- Selection: Viewer Common -->
+    <string name="viewer_back">Späť</string>
+    <string name="viewer_options">Možnosti</string>
+    <string name="viewer_seek_rewind_cd">Pretočiť o 10 sekúnd späť</string>
+    <string name="viewer_seek_forward_cd">Pretočiť o 10 sekúnd vpred</string>
+    <string name="viewer_seek_rewind_format">-%1$ds</string>
+    <string name="viewer_seek_forward_format">+%1$ds</string>
+    <string name="viewer_thumbnail_cd">Miniatúra %1$d</string>
+    <string name="viewer_page_indicator">%1$d / %2$d</string>
+    <string name="viewer_loading_original">Načítavam pôvodnú verziu...</string>
+
+    <!-- Selection: Viewer Actions -->
+    <string name="action_download">Stiahnuť</string>
+    <string name="action_download_video">Stiahnuť video</string>
+    <string name="action_copy_image">Kopírovať obrázok</string>
+    <string name="action_copy_text">Kopírovať text</string>
+    <string name="action_copy_link">Kopírovať odkaz</string>
+    <string name="action_copy_link_time">Kopírovať odkaz s časom</string>
+    <string name="action_forward">Preposlať</string>
+    <string name="action_save_gifs">Uložiť do GIFov</string>
+    <string name="action_save_gallery">Uložiť do galérie</string>
+    <string name="action_copy_clipboard">Kopírovať do schránky</string>
+    <string name="action_restart">Reštartovať</string>
+    <string name="action_pause">Pozastaviť</string>
+    <string name="action_play">Prehrať</string>
+    <string name="action_unlock">Odomknúť</string>
+
+    <!-- Selection: Viewer Settings -->
+    <string name="settings_title">Nastavenia</string>
+    <string name="settings_playback_speed">Rýchlosť prehrávania</string>
+    <string name="settings_scale_mode">Režim mierky</string>
+    <string name="settings_scale_fit">Prispôsobiť</string>
+    <string name="settings_scale_zoom">Priblížiť</string>
+    <string name="settings_rotate_screen">Otočiť obrazovku</string>
+    <string name="settings_pip">Obraz v obraze</string>
+    <string name="settings_screenshot">Snímka obrazovky</string>
+    <string name="settings_loop_video">Opakovať video</string>
+    <string name="settings_mute_audio">Stlmiť zvuk</string>
+    <string name="settings_subtitles">Titulky</string>
+    <string name="settings_lock_controls">Uzamknúť ovládacie prvky</string>
+    <string name="settings_quality">Kvalita</string>
+    <string name="settings_video_quality">Kvalita videa</string>
+    <string name="settings_quality_auto">Automaticky</string>
+    <string name="settings_quality_high_res">Vysoké rozlíšenie</string>
+    <string name="settings_speed_normal">Normálna</string>
+
+    <!-- Selection: Picture-in-Picture -->
+    <string name="pip_play">Prehrať</string>
+    <string name="pip_pause">Pozastaviť</string>
+    <string name="pip_rewind">Pretočiť späť</string>
+    <string name="pip_forward">Pretočiť vpred</string>
+
+    <!-- Sticker & Emoji Menu -->
+    <string name="sticker_menu_tab_stickers">Nálepky</string>
+    <string name="sticker_menu_tab_emojis">Emoji</string>
+    <string name="sticker_menu_tab_gifs">GIFy</string>
+
+    <!-- Stickers View -->
+    <string name="stickers_header_recent">Nedávne nálepky</string>
+    <string name="stickers_header_all">Nálepky</string>
+    <string name="stickers_search_placeholder">Hľadať nálepky</string>
+
+    <!-- Emojis View -->
+    <string name="emojis_header_recent">Nedávne emoji</string>
+    <string name="emojis_header_standard">Štandardné emoji</string>
+    <string name="emojis_header_custom">Vlastné emoji</string>
+    <string name="emojis_header_all">Emoji</string>
+    <string name="emojis_search_placeholder">Hľadať emoji</string>
+
+    <!-- GIFs View -->
+    <string name="gifs_header_recent_saved">Nedávne a uložené GIFy</string>
+    <string name="gifs_no_results">Žiadne GIFy sa nenašli</string>
+    <string name="gifs_search_placeholder">Hľadať GIFy</string>
+
+    <!-- Common/Accessibility -->
+    <string name="common_back">Späť</string>
+    <string name="common_clear">Vymazať</string>
+    <string name="common_recent">Nedávne</string>
+
+    <!-- QR Code -->
+    <string name="qr_saved_to_gallery">Uložené do galérie</string>
+    <string name="qr_share_title">Zdieľať QR</string>
+    <string name="qr_share_error">Chyba pri odosielaní: %1$s</string>
+
+    <!-- Chat Edit (ChatEditContent.kt) -->
+    <string name="edit_channel">Upraviť kanál</string>
+    <string name="edit_group">Upraviť skupinu</string>
+    <string name="channel_name">Názov kanála</string>
+    <string name="group_name">Názov skupiny</string>
+    <string name="description">Popis</string>
+    <string name="settings">Nastavenia</string>
+    <string name="public_channel">Verejný kanál</string>
+    <string name="public_group">Verejná skupina</string>
+    <string name="auto_translate">Automatický preklad</string>
+    <string name="topics">Témy</string>
+    <string name="management">Správa</string>
+    <string name="delete_channel">Odstrániť kanál</string>
+    <string name="delete_group">Odstrániť skupinu</string>
+
+    <!-- Member List (MemberListContent.kt) -->
+    <string name="search_hint">Hľadať...</string>
+    <string name="administrators">Správcovia</string>
+    <string name="subscribers">Odberatelia</string>
+    <string name="members">Členovia</string>
+    <string name="blacklist">Čierna listina</string>
+    <string name="no_results_found">Žiadne výsledky</string>
+    <string name="no_members_yet">Zatiaľ žiadni členovia</string>
+
+    <!-- Admin Management (AdminManageContent.kt) -->
+    <string name="admin_rights">Práva správcu</string>
+    <string name="custom_title">Vlastný titul</string>
+    <string name="custom_title_description">Tento titul bude viditeľný pre všetkých členov chatu</string>
+    <string name="what_can_this_admin_do">Čo môže tento správca robiť?</string>
+    <string name="permission_manage_chat">Spravovať chat</string>
+    <string name="permission_post_messages">Zverejňovať správy</string>
+    <string name="permission_edit_messages">Upravovať správy</string>
+    <string name="permission_delete_messages">Odstraňovať správy</string>
+    <string name="permission_restrict_members">Obmedzovať členov</string>
+    <string name="permission_invite_users">Pozývať používateľov</string>
+    <string name="permission_manage_topics">Spravovať témy</string>
+    <string name="permission_manage_video_chats">Spravovať videohovory</string>
+    <string name="permission_post_stories">Zverejňovať príbehy</string>
+    <string name="permission_edit_stories">Upravovať príbehy</string>
+    <string name="permission_delete_stories">Odstraňovať príbehy</string>
+    <string name="permission_add_new_admins">Pridávať nových správcov</string>
+    <string name="permission_remain_anonymous">Zostať anonymný</string>
+
+    <!-- Group Permissions (ChatPermissionsContent.kt) -->
+    <string name="permissions">Oprávnenia</string>
+    <string name="what_can_members_do">Čo môžu členovia tejto skupiny robiť?</string>
+    <string name="permission_add_members">Pridávať členov</string>
+
+    <!-- Common UI / Content Descriptions -->
+    <string name="back">Späť</string>
+    <string name="save">Uložiť</string>
+    <string name="clear">Vymazať</string>
+    <string name="search">Hľadať</string>
+    <string name="add">Pridať</string>
+    <string name="edit">Upraviť</string>
+    <string name="username">Používateľské meno</string>
+    <string name="filters">Filtre</string>
+
+    <!-- Profile Logs / Recent Actions -->
+    <string name="logs_title">Nedávne akcie</string>
+    <string name="logs_events_count">Načítaných %d udalostí</string>
+    <string name="logs_empty_title">Žiadne nedávne akcie</string>
+    <string name="logs_empty_subtitle">Skúste zmeniť filtre</string>
+    <string name="logs_not_implemented">Nie je implementované</string>
+    <string name="logs_user_id_copied">ID používateľa skopírované</string>
+
+    <!-- Logs Filters -->
+    <string name="logs_filter_title">Filtrovať akcie</string>
+    <string name="logs_filter_reset">Obnoviť</string>
+    <string name="logs_filter_apply">Použiť</string>
+    <string name="logs_filter_section_types">Typy akcií</string>
+    <string name="logs_filter_section_users">Podľa používateľov</string>
+    <string name="logs_filter_search_placeholder">Hľadať…</string>
+    <string name="logs_filter_no_users">Žiadni používatelia sa nenašli</string>
+    <string name="logs_filter_no_results">Žiadne výsledky pre „%s"</string>
+
+    <!-- Action Types -->
+    <string name="logs_action_edits">Úpravy</string>
+    <string name="logs_action_deletions">Odstránenia</string>
+    <string name="logs_action_pins">Pripnutia</string>
+    <string name="logs_action_joins">Pripojenia</string>
+    <string name="logs_action_leaves">Odchody</string>
+    <string name="logs_action_invites">Pozvánky</string>
+    <string name="logs_action_promotions">Povýšenia</string>
+    <string name="logs_action_restrictions">Obmedzenia</string>
+    <string name="logs_action_info">Informácie</string>
+    <string name="logs_action_settings">Nastavenia</string>
+    <string name="logs_action_links">Odkazy</string>
+    <string name="logs_action_video">Video</string>
+
+    <!-- Action Descriptions -->
+    <string name="logs_action_edited">upravil správu</string>
+    <string name="logs_action_deleted">odstránil správu</string>
+    <string name="logs_action_pinned">pripol správu</string>
+    <string name="logs_action_unpinned">odopol správu</string>
+    <string name="logs_action_joined">pripojil sa do chatu</string>
+    <string name="logs_action_left">opustil chat</string>
+    <string name="logs_action_invited">pozval %s</string>
+    <string name="logs_action_permissions_changed">zmenil oprávnenia pre %s</string>
+    <string name="logs_action_restrictions_changed">zmenil obmedzenia pre %s</string>
+    <string name="logs_action_title_changed">zmenil názov chatu na „%s"</string>
+    <string name="logs_action_description_changed">zmenil popis chatu</string>
+    <string name="logs_action_username_changed">zmenil používateľské meno na @%s</string>
+    <string name="logs_action_photo_changed">zmenil fotografiu chatu</string>
+    <string name="logs_action_link_edited">upravil pozývací odkaz</string>
+    <string name="logs_action_link_revoked">zrušil pozývací odkaz</string>
+    <string name="logs_action_link_deleted">odstránil pozývací odkaz</string>
+    <string name="logs_action_video_started">spustil videohovor</string>
+    <string name="logs_action_video_ended">ukončil videohovor</string>
+    <string name="logs_action_unknown">vykonal akciu: %s</string>
+
+    <!-- Details and Previews -->
+    <string name="logs_original_message">Pôvodná správa:</string>
+    <string name="logs_new_message">Nová správa:</string>
+    <string name="logs_deleted_message">Odstránená správa:</string>
+    <string name="logs_pinned_message">Pripnutá správa:</string>
+    <string name="logs_unpinned_message">Odopnutá správa:</string>
+    <string name="logs_restricted_until">Do: %s</string>
+    <string name="logs_restricted_permanently">Obmedzený natrvalo</string>
+    <string name="logs_photo_old">Stará</string>
+    <string name="logs_photo_new">Nová</string>
+    <string name="logs_photo_old_desc">Stará fotografia chatu</string>
+    <string name="logs_photo_new_desc">Nová fotografia chatu</string>
+    <string name="logs_status_from">Od</string>
+    <string name="logs_status_to">Na</string>
+    <string name="logs_permissions_changes">Zmeny oprávnení:</string>
+    <string name="logs_permissions_current">Aktuálne oprávnenia:</string>
+
+    <!-- Permissions / Roles -->
+    <string name="logs_perm_messages">Správy</string>
+    <string name="logs_perm_media">Médiá</string>
+    <string name="logs_perm_stickers">Nálepky</string>
+    <string name="logs_perm_links">Odkazy</string>
+    <string name="logs_perm_polls">Ankety</string>
+    <string name="logs_perm_invite">Pozvánky</string>
+    <string name="logs_perm_pin">Pripnúť</string>
+    <string name="logs_perm_info">Informácie</string>
+
+    <string name="logs_role_admin">Správca</string>
+    <string name="logs_role_owner">Vlastník</string>
+    <string name="logs_role_restricted">Obmedzený</string>
+    <string name="logs_role_banned">Zablokovaný</string>
+    <string name="logs_role_member">Člen</string>
+
+    <!-- Media Types -->
+    <string name="logs_media_photo">Fotografia</string>
+    <string name="logs_media_video">Video</string>
+    <string name="logs_media_gif">GIF</string>
+    <string name="logs_media_sticker">Nálepka</string>
+    <string name="logs_media_document">Dokument</string>
+    <string name="logs_media_audio">Audio</string>
+    <string name="logs_media_voice">Hlasová správa</string>
+    <string name="logs_media_video_note">Video správa</string>
+    <string name="logs_media_contact">Kontakt</string>
+    <string name="logs_media_poll">Anketa</string>
+    <string name="logs_media_location">Poloha</string>
+    <string name="logs_media_venue">Miesto</string>
+    <string name="logs_media_unsupported">Nepodporovaná správa</string>
+
+    <!-- Date and Formats -->
+    <string name="format_time">HH:mm</string>
+    <string name="format_duration">%1$02d:%2$02d</string>
+
+    <!-- Views Count -->
+    <string name="views_k">%1$.1f tis.</string>
+    <string name="views_m">%1$.1f mil.</string>
+
+    <!-- Comments -->
+    <string name="comment_leave">Napísať komentár</string>
+    <string name="comment_count">%1$d komentárov</string>
+    <string name="comment_count_k">%1$.1f tis. komentárov</string>
+    <string name="comment_count_m">%1$.1f mil. komentárov</string>
+
+    <!-- Poll Message -->
+    <string name="poll_final_results">Konečné výsledky</string>
+    <string name="poll_anonymous">Anonymná</string>
+    <string name="poll_public">Verejná</string>
+    <string name="poll_type_quiz">Kvíz</string>
+    <string name="poll_type_poll">Anketa</string>
+    <string name="poll_multiple_choice">• Viacnásobný výber</string>
+    <string name="poll_retract_vote">Zrušiť hlas</string>
+    <string name="poll_close_poll">Uzavrieť anketu</string>
+    <plurals name="poll_votes_count">
+        <item quantity="one">%d hlas</item>
+        <item quantity="few">%d hlasy</item>
+        <item quantity="many">%d hlasov</item>
+        <item quantity="other">%d hlasov</item>
+    </plurals>
+    <!-- Accessibility Content Descriptions -->
+    <string name="cd_more">Viac</string>
+    <string name="cd_vote">Hlasovať</string>
+    <string name="cd_explanation">Vysvetlenie</string>
+
+    <!-- Poll Voters Sheet -->
+    <string name="poll_voters_title">Hlasujúci</string>
+    <string name="poll_no_voters">Zatiaľ žiadni hlasujúci</string>
+    <string name="action_close">Zavrieť</string>
+
+    <!-- Reply Content -->
+    <string name="reply_content_photo">Fotografia</string>
+    <string name="reply_content_video">Video</string>
+    <string name="reply_content_sticker">Nálepka</string>
+    <string name="reply_content_voice_message">Hlasová správa</string>
+    <string name="reply_content_video_message">Video správa</string>
+    <string name="reply_content_gif">GIF</string>
+    <string name="reply_content_message">Správa</string>
+
+    <!-- Chat Folders -->
+    <string name="folders_title">Priečinky chatov</string>
+    <string name="folders_back">Späť</string>
+    <string name="folders_new_folder">Nový priečinok</string>
+    <string name="folders_create">Vytvoriť</string>
+    <string name="folders_edit_folder">Upraviť priečinok</string>
+    <string name="folders_save">Uložiť</string>
+    <string name="folders_default_section">Predvolené priečinky</string>
+    <string name="folders_custom_section">Vlastné priečinky</string>
+    <string name="folders_delete">Odstrániť</string>
+    <string name="folders_header_description">Vytvorte priečinky pre rôzne skupiny chatov a rýchlo medzi nimi
+        prepínajte.
+    </string>
+    <string name="folders_empty_title">Žiadne vlastné priečinky</string>
+    <string name="folders_empty_subtitle">Klepnutím na tlačidlo + vytvoríte nový</string>
+    <string name="folders_system_all_chats">Všetky chaty</string>
+    <string name="folders_user_chats_count">%1$d chatov</string>
+    <string name="folders_move_up">Presunúť nahor</string>
+    <string name="folders_move_down">Presunúť nadol</string>
+    <string name="folders_name_placeholder">Názov priečinka</string>
+    <string name="folders_choose_icon">Vybrať ikonu</string>
+    <string name="folders_included_chats">Zahrnuté chaty</string>
+    <string name="folders_search_chats">Hľadať chaty…</string>
+    <string name="folders_cancel">Zrušiť</string>
+
+    <!-- Premium Screen -->
+    <string name="premium_title">Telegram Premium</string>
+    <string name="premium_back">Späť</string>
+    <string name="premium_subscribe_button">Prihlásiť sa za %s mesačne</string>
+    <string name="premium_unlock_features">Odomknúť exkluzívne funkcie</string>
+
+    <!-- Premium Features -->
+    <string name="premium_feature_doubled_limits_title">Zdvojené limity</string>
+    <string name="premium_feature_doubled_limits_description">Až %1$d kanálov, %2$d priečinkov chatov, %3$d pripnutých
+        správ, %4$d verejných odkazov a viac.
+    </string>
+    <string name="premium_feature_voice_to_text_title">Prevod hlasu na text</string>
+    <string name="premium_feature_voice_to_text_description">Prečítajte si prepis ľubovoľnej hlasovej správy klepnutím
+        na tlačidlo vedľa nej.
+    </string>
+    <string name="premium_feature_faster_download_title">Rýchlejšie sťahovanie</string>
+    <string name="premium_feature_faster_download_description">Žiadne obmedzenia rýchlosti sťahovania médií a
+        dokumentov.
+    </string>
+    <string name="premium_feature_translation_title">Preklad v reálnom čase</string>
+    <string name="premium_feature_translation_description">Preložte celé chaty v reálnom čase jedným klepnutím.</string>
+    <string name="premium_feature_animated_emoji_title">Animované emoji</string>
+    <string name="premium_feature_animated_emoji_description">Vkladajte animované emoji zo stoviek balíčkov do správ.
+    </string>
+    <string name="premium_feature_chat_management_title">Pokročilá správa chatov</string>
+    <string name="premium_feature_chat_management_description">Nástroje na nastavenie predvoleného priečinka,
+        automatické archivovanie a skrytie nových chatov od neznámych kontaktov.
+    </string>
+    <string name="premium_feature_no_ads_title">Bez reklám</string>
+    <string name="premium_feature_no_ads_description">Verejné kanály niekedy zobrazujú reklamy, ale vám sa už zobrazovať
+        nebudú.
+    </string>
+    <string name="premium_feature_infinite_reactions_title">Neobmedzené reakcie</string>
+    <string name="premium_feature_infinite_reactions_description">Reagujte tisíckami emoji — až 3 na správu.</string>
+    <string name="premium_feature_badge_title">Premium odznak</string>
+    <string name="premium_feature_badge_description">Špeciálny odznak vedľa vášho mena zobrazujúci, že ste
+        predplatiteľom Telegram Premium.
+    </string>
+    <string name="premium_feature_emoji_status_title">Emoji statusy</string>
+    <string name="premium_feature_emoji_status_description">Vyberte si z tisícok emoji na zobrazenie vedľa svojho
+        mena.
+    </string>
+    <string name="premium_feature_app_icons_title">Prémiové ikony aplikácie</string>
+    <string name="premium_feature_app_icons_description">Vyberte si ikonu aplikácie Telegram pre plochu zo širokej
+        ponuky.
+    </string>
+
+    <!-- Mini App Menu -->
+    <string name="mini_app_menu_reload">Znovu načítať</string>
+    <string name="mini_app_menu_copy_link">Kopírovať odkaz</string>
+    <string name="mini_app_menu_open_in_browser">Otvoriť v prehliadači</string>
+    <string name="mini_app_menu_add_to_home">Pridať na plochu</string>
+
+    <!-- Mini App Dialogs -->
+    <string name="mini_app_close_confirmation_title">Zavrieť mini aplikáciu?</string>
+    <string name="mini_app_close_confirmation_text">Máte neuložené zmeny. Naozaj chcete zavrieť?</string>
+    <string name="mini_app_close">Zavrieť</string>
+    <string name="mini_app_cancel">Zrušiť</string>
+    <string name="mini_app_permission_request">Žiadosť o oprávnenie</string>
+    <string name="mini_app_allow">Povoliť</string>
+    <string name="mini_app_deny">Odmietnuť</string>
+    <string name="mini_app_bot_permissions">Oprávnenia bota</string>
+    <string name="mini_app_tos_title">Podmienky služby</string>
+    <string name="mini_app_tos_text">Spustením tejto mini aplikácie súhlasíte s Podmienkami služby a Zásadami ochrany
+        súkromia. Bot bude mať prístup k základným informáciám vášho profilu.
+    </string>
+    <string name="mini_app_tos_accept">Prijať a spustiť</string>
+
+    <!-- Instant View -->
+    <string name="instant_view_search_placeholder">Hľadať v článku…</string>
+    <string name="instant_view_back">Späť</string>
+    <string name="instant_view_clear">Vymazať</string>
+    <string name="instant_view_title">Instant View</string>
+    <string name="instant_view_more">Viac</string>
+    <string name="instant_view_views_count">%d zobrazení</string>
+    <string name="instant_view_copy_link">Kopírovať odkaz</string>
+    <string name="instant_view_open_in_browser">Otvoriť v prehliadači</string>
+    <string name="instant_view_search">Hľadať</string>
+    <string name="instant_view_text_size">Veľkosť textu</string>
+    <string name="instant_view_play_video">Prehrať video</string>
+    <string name="instant_view_play_animation">Prehrať animáciu</string>
+    <string name="instant_view_audio">Audio</string>
+    <string name="instant_view_unknown_artist">Neznámy interpret</string>
+    <string name="instant_view_play">Prehrať</string>
+    <string name="instant_view_open">Otvoriť</string>
+    <string name="instant_view_collapse">Zbaliť</string>
+    <string name="instant_view_expand">Rozbaliť</string>
+    <string name="instant_view_map_prefix">Mapa: %1$s, %2$s</string>
+
+    <!-- Settings Top -->
+    <string name="share_profile_title">Zdieľať profil</string>
+    <string name="share_profile_subtitle">Zdieľajte odkaz na váš profil v MonoGrame</string>
+    <string name="copy_link_title">Kopírovať odkaz</string>
+    <string name="copy_link_subtitle">Kopírovať odkaz na váš profil v MonoGrame do schránky</string>
+
+    <!-- Chat Theme Editor -->
+    <string name="chat_theme_editor_title">Editor témy</string>
+    <string name="chat_theme_editor_palette_mode">Režim palety</string>
+    <string name="chat_theme_editor_palette_mode_description">Vyberte, ktorú paletu upravujete. Editor sa otvára na
+        palete, ktorá je momentálne aktívna v aplikácii.
+    </string>
+    <string name="chat_theme_editor_light">Svetlá</string>
+    <string name="chat_theme_editor_dark">Tmavá</string>
+    <string name="chat_theme_editor_editing_palette">Úprava: paleta %1$s</string>
+    <string name="chat_theme_editor_active_palette">Momentálne aktívna v aplikácii: %1$s</string>
+    <string name="chat_theme_editor_accent">Zvýraznenie</string>
+    <string name="chat_theme_editor_accent_description">Zvýraznenie aktualizuje iba paletu %1$s.</string>
+    <string name="chat_theme_editor_hex_accent">Hex zvýraznenie</string>
+    <string name="chat_theme_editor_apply">Použiť</string>
+    <string name="chat_theme_editor_cancel">Zrušiť</string>
+    <string name="chat_theme_editor_pick">Vybrať</string>
+    <string name="chat_theme_editor_save">Uložiť</string>
+    <string name="chat_theme_editor_load">Načítať</string>
+    <string name="chat_theme_editor_both">Obe</string>
+    <string name="chat_theme_editor_hex">Hex</string>
+    <string name="chat_theme_editor_theme_file_name">monogram-theme.json</string>
+
+    <string name="chat_theme_editor_theme_file_saved">Súbor témy uložený</string>
+    <string name="chat_theme_editor_save_failed">Uloženie zlyhalo</string>
+    <string name="chat_theme_editor_theme_loaded">Téma načítaná</string>
+    <string name="chat_theme_editor_invalid_file">Neplatný súbor</string>
+    <string name="chat_theme_editor_load_failed">Načítanie zlyhalo</string>
+
+    <string name="chat_theme_editor_theme_source_title">Zdroj témy</string>
+    <string name="chat_theme_editor_theme_source_description">Vyberte práve jeden zdroj farieb aplikácie. Vlastná téma
+        používa vaše upraviteľné palety, Monet používa dynamické farby Androidu. AMOLED ovplyvňuje iba tmavé pozadie.
+    </string>
+    <string name="chat_theme_editor_custom_theme">Vlastná téma</string>
+    <string name="chat_theme_editor_custom_theme_description">Použiť vlastné svetlé/tmavé palety, zvýraznenia, predvolby
+        a ručne nastavené farby rolí.
+    </string>
+    <string name="chat_theme_editor_monet">Monet</string>
+    <string name="chat_theme_editor_monet_description">Použiť systémom generované farby Material You na základe tapety
+        (Android 12+).
+    </string>
+    <string name="chat_theme_editor_amoled_dark">AMOLED tmavá</string>
+    <string name="chat_theme_editor_amoled_dark_description">Vynútiť čisto čiernu pre tmavé plochy na zníženie žiary a
+        úsporu energie na OLED obrazovkách.
+    </string>
+
+    <string name="chat_theme_editor_preset_themes">Predvolené témy</string>
+    <string name="chat_theme_editor_preset_themes_description">Každá predvolba má pripravené svetlé aj tmavé varianty.
+        Klepnutím na Svetlá, Tmavá alebo Obe ich okamžite použijete.
+    </string>
+    <string name="chat_theme_editor_manual_colors_title">Ručné farby (%1$s)</string>
+    <string name="chat_theme_editor_preview_title">Náhľad %1$s</string>
+    <string name="chat_theme_editor_preview_summary_text">Súhrnný text</string>
+    <string name="chat_theme_editor_preview_action">Akcia</string>
+    <string name="chat_theme_editor_pick_title">Vybrať %1$s</string>
+    <string name="chat_theme_editor_hue_format">Odtieň %1$d°</string>
+    <string name="chat_theme_editor_saturation_format">Sýtosť %1$d%%</string>
+    <string name="chat_theme_editor_brightness_format">Jas %1$d%%</string>
+    <string name="chat_theme_editor_alpha_format">Priehľadnosť %1$d%%</string>
+
+    <string name="chat_theme_editor_role_primary">Primárna</string>
+    <string name="chat_theme_editor_role_secondary">Sekundárna</string>
+    <string name="chat_theme_editor_role_tertiary">Terciárna</string>
+    <string name="chat_theme_editor_role_background">Pozadie</string>
+    <string name="chat_theme_editor_role_surface">Povrch</string>
+    <string name="chat_theme_editor_role_primary_container">Primárny kontajner</string>
+    <string name="chat_theme_editor_role_secondary_container">Sekundárny kontajner</string>
+    <string name="chat_theme_editor_role_tertiary_container">Terciárny kontajner</string>
+    <string name="chat_theme_editor_role_surface_variant">Variant povrchu</string>
+    <string name="chat_theme_editor_role_outline">Obrys</string>
+
+    <string name="chat_theme_editor_chip_light_primary">S P</string>
+    <string name="chat_theme_editor_chip_light_container">S K</string>
+    <string name="chat_theme_editor_chip_light_background">S P</string>
+    <string name="chat_theme_editor_chip_dark_primary">T P</string>
+    <string name="chat_theme_editor_chip_dark_container">T K</string>
+    <string name="chat_theme_editor_chip_dark_background">T P</string>
+
+    <string name="chat_theme_editor_accent_blue">Modrá</string>
+    <string name="chat_theme_editor_accent_green">Zelená</string>
+    <string name="chat_theme_editor_accent_orange">Oranžová</string>
+    <string name="chat_theme_editor_accent_rose">Ružová</string>
+    <string name="chat_theme_editor_accent_indigo">Indigo</string>
+    <string name="chat_theme_editor_accent_cyan">Azúrová</string>
+
+    <string name="chat_theme_editor_preset_classic_name">Klasická</string>
+    <string name="chat_theme_editor_preset_classic_description">Vyvážená modrá s čitateľnosťou a neutrálnymi plochami.
+    </string>
+
+    <string name="chat_theme_editor_preset_forest_name">Les</string>
+    <string name="chat_theme_editor_preset_forest_description">Prírodné zelené s pokojným kontrastom a jemnými
+        kontajnermi.
+    </string>
+
+    <string name="chat_theme_editor_preset_ocean_name">Oceán</string>
+    <string name="chat_theme_editor_preset_ocean_description">Svieži azúrovo-modrý gradient so svetlým a hlbokým tmavým
+        režimom.
+    </string>
+
+    <string name="chat_theme_editor_preset_sunset_name">Západ slnka</string>
+    <string name="chat_theme_editor_preset_sunset_description">Teplé oranžové a koralové zvýraznenia s vysokou
+        čitateľnosťou.
+    </string>
+
+    <string name="chat_theme_editor_preset_graphite_name">Grafit</string>
+    <string name="chat_theme_editor_preset_graphite_description">Neutrálna sivá základňa s modrosivými zvýrazneniami a
+        silnou štruktúrou.
+    </string>
+
+    <string name="chat_theme_editor_preset_mint_name">Mäta</string>
+    <string name="chat_theme_editor_preset_mint_description">Svieža kombinácia mätovej a tyrkysovej s jemnými
+        kontajnermi.
+    </string>
+
+    <string name="chat_theme_editor_preset_ruby_name">Rubín</string>
+    <string name="chat_theme_editor_preset_ruby_description">Hlboké červené zvýraznenie s neutrálnymi kontajnermi pre
+        silný dôraz na akcie.
+    </string>
+
+    <string name="chat_theme_editor_preset_lavender_gray_name">Levanduľová sivá</string>
+    <string name="chat_theme_editor_preset_lavender_gray_description">Tlmená fialovo-sivá schéma s kontrolovanou
+        sýtosťou a čistým kontrastom.
+    </string>
+
+    <string name="chat_theme_editor_preset_sand_name">Piesok</string>
+    <string name="chat_theme_editor_preset_sand_description">Béžová a jantárová paleta pre veľmi jemný vizuálny šum.
+    </string>
+
+    <string name="chat_theme_editor_preset_arctic_name">Arktická</string>
+    <string name="chat_theme_editor_preset_arctic_description">Ľadovo bielo-modrý pocit s vysokou čitateľnosťou a
+        ostrými hranicami.
+    </string>
+
+    <string name="chat_theme_editor_preset_emerald_name">Smaragd</string>
+    <string name="chat_theme_editor_preset_emerald_description">Živá zelená paleta s čistými plochami a moderným
+        kontrastom.
+    </string>
+
+    <string name="chat_theme_editor_preset_copper_name">Meď</string>
+    <string name="chat_theme_editor_preset_copper_description">Teplá medeno-oranžová téma so zachovanou čitateľnosťou
+        textu v oboch režimoch.
+    </string>
+
+    <string name="chat_theme_editor_preset_sakura_name">Sakura</string>
+    <string name="chat_theme_editor_preset_sakura_description">Jemné ružovo-purpurové tóny s mäkkými kontajnermi a
+        silnými zvýrazneniami.
+    </string>
+
+    <string name="chat_theme_editor_preset_nord_name">Nord</string>
+    <string name="chat_theme_editor_preset_nord_description">Chladné severské modré s pokojnou a profesionálnou
+        vizuálnou rovnováhou.
+    </string>
+
+    <!-- Circular recorder -->
+    <string name="recorder_permissions_required">Vyžadujú sa oprávnenia pre fotoaparát a mikrofón</string>
+    <string name="recorder_processing">Spracovávam...</string>
+    <string name="recorder_processing_error">Chyba spracovania: %1$s</string>
+    <string name="recorder_close_cd">Zavrieť rekordér</string>
+    <string name="recorder_switch_cd">Prepnúť fotoaparát</string>
+    <string name="recorder_done_cd">Ukončiť nahrávanie</string>
+    <string name="recorder_rec_label">NAH</string>
+    <string name="recorder_ready_label">PRIPRAVENÉ</string>
+    <string name="recorder_time_format">Čas: %1$s</string>
+    <string name="recorder_zoom_format">Priblíženie: %1$.1fx (rozsah %2$.1fx – %3$.1fx)</string>
+    <string name="recorder_cancel">Zrušiť</string>
+
+    <string name="clear_history_title">Vymazať históriu?</string>
+    <string name="clear_history_confirmation">Naozaj chcete vymazať históriu chatu? Túto akciu nie je možné vrátiť
+        späť.
+    </string>
+    <string name="action_clear_history">Vymazať históriu</string>
+    <string name="delete_chat_title">Odstrániť chat?</string>
+    <string name="delete_chat_confirmation">Naozaj chcete odstrániť tento chat? Túto akciu nie je možné vrátiť späť.
+    </string>
+    <string name="action_delete_chat">Odstrániť chat</string>
+    <string name="leave_chat_title">Odísť z chatu?</string>
+    <string name="leave_chat_confirmation">Naozaj chcete odísť z tohto chatu?</string>
+    <string name="action_leave">Odísť</string>
+    <string name="delete_channel_title">Odstrániť kanál?</string>
+    <string name="delete_group_title">Odstrániť skupinu?</string>
+    <string name="delete_channel_confirmation">Naozaj chcete odstrániť tento kanál? Všetky správy a médiá budú
+        stratené.
+    </string>
+    <string name="delete_group_confirmation">Naozaj chcete odstrániť túto skupinu? Všetky správy a médiá budú
+        stratené.
+    </string>
+    <string name="delete_chats_title">Odstrániť %1$d chatov?</string>
+    <string name="delete_chats_confirmation">Naozaj chcete odstrániť vybrané chaty?</string>
+    <string name="action_delete_chats">Odstrániť chaty</string>
+    <string name="block_user_title">Blokovať používateľa?</string>
+    <string name="block_user_confirmation">Naozaj chcete zablokovať tohto používateľa? Tento používateľ vám nebude môcť
+        posielať správy.
+    </string>
+    <string name="action_block">Blokovať</string>
+    <string name="unblock_user_title">Odblokovať používateľa?</string>
+    <string name="unblock_user_confirmation">Naozaj chcete odblokovať tohto používateľa? Bude vám môcť znovu posielať
+        správy.
+    </string>
+    <string name="unpin_message_title">Odipnúť správu?</string>
+    <string name="unpin_message_confirmation">Naozaj chcete odipnúť túto správu?</string>
+    <string name="action_unpin">Odipnúť</string>
+    <string name="clear_recent_stickers_confirmation">Naozaj chcete vymazať nedávne nálepky?</string>
+    <string name="action_clear_recent_stickers">Vymazať nedávne nálepky</string>
+    <string name="clear_recent_emojis_confirmation">Naozaj chcete vymazať nedávne emoji?</string>
+    <string name="action_clear_recent_emojis">Vymazať nedávne emoji</string>
+    <string name="action_add_contact">Pridať do kontaktov</string>
+    <string name="action_remove_contact">Odstrániť z kontaktov</string>
+    <string name="action_mark_as_read">Označiť ako prečítané</string>
+    <string name="action_mark_as_unread">Označiť ako neprečítané</string>
+</resources>

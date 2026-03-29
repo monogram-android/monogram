@@ -1,0 +1,45 @@
+<resources>
+    <!-- Lock Screen -->
+    <string name="lock_unlock_title">Odomknúť MonoGram</string>
+    <string name="lock_unlock_subtitle">Prihláste sa pomocou biometrických údajov</string>
+    <string name="lock_use_passcode">Použiť kód</string>
+    <string name="lock_enter_passcode">Zadajte kód</string>
+    <string name="lock_messages_protected">Vaše správy sú chránené</string>
+    <string name="lock_invalid_passcode">Nesprávny kód</string>
+    <string name="lock_biometric_unlock">Biometrické odomknutie</string>
+
+    <!-- Main Content / Proxy Confirm -->
+    <string name="proxy_details">Podrobnosti proxy</string>
+    <string name="proxy_add_connect">Pridať a pripojiť sa k tomuto proxy serveru</string>
+    <string name="proxy_server">Server</string>
+    <string name="proxy_port">Port</string>
+    <string name="proxy_type">Typ</string>
+    <string name="proxy_unknown">Neznáme</string>
+    <string name="cancel">Zrušiť</string>
+    <string name="connect">Pripojiť</string>
+
+    <!-- Main Content / Chat Confirm -->
+    <string name="chat_join">Pripojiť sa</string>
+    <string name="chat_channel">Kanál</string>
+    <string name="chat_group">Skupina</string>
+    <plurals name="members_count">
+        <item quantity="one">%d člen</item>
+        <item quantity="few">%d členov</item>
+        <item quantity="many">%d členov</item>
+        <item quantity="other">%d členov</item>
+    </plurals>
+
+    <!-- Tablet Layout -->
+    <string name="tablet_select_setting">Vyberte nastavenie</string>
+    <string name="tablet_select_chat">Vyberte chat a začnite písať</string>
+
+    <!-- Crash Activity -->
+    <string name="crash_log_label">Záznam pádu</string>
+    <string name="crash_copied_to_clipboard">Skopírované do schránky</string>
+    <string name="crash_share_title">Zdieľať záznam pádu</string>
+    <string name="crash_share">Zdieľať</string>
+    <string name="crash_copy">Kopírovať</string>
+    <string name="crash_restart">Reštartovať aplikáciu</string>
+    <string name="crash_error_details">Podrobnosti chyby</string>
+    <string name="crash_description">Niečo sa pokazilo. Prosím, zdieľajte alebo skopírujte záznamy nižšie a nahláste tento problém vývojárom.</string>
+</resources>

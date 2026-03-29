@@ -1,13 +1,20 @@
 package org.monogram.presentation.features.profile.components
 
 import android.content.Intent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,12 +33,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -90,49 +99,55 @@ fun LazyGridScope.profileMediaSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceContainer,
-                            RoundedCornerShape(24.dp)
-                        )
+                        .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(24.dp))
                         .clip(RoundedCornerShape(24.dp))
                 ) {
-                    ScrollableRow(
+                    PrimaryScrollableTabRow(
+                        selectedTabIndex = state.selectedTabIndex,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .selectableGroup()
-                            .padding(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            .padding(horizontal = 4.dp),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        edgePadding = 4.dp,
+                        divider = {},
+                        indicator = {
+                            Box(
+                                Modifier
+                                    .tabIndicatorOffset(state.selectedTabIndex)
+                                    .fillMaxHeight()
+                                    .padding(vertical = 4.dp)
+                                    .zIndex(-1f)
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                        }
                     ) {
                         tabs.forEachIndexed { index, titleFunc ->
                             val selected = state.selectedTabIndex == index
-                            Box(
-                                Modifier
+
+                            Tab(
+                                selected = selected,
+                                onClick = { onTabSelected(index) },
+                                modifier = Modifier
                                     .height(44.dp)
-                                    .padding(horizontal = 2.dp)
-                                    .clip(RoundedCornerShape(22.dp))
-                                    .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                    .selectable(
-                                        selected = selected,
-                                        onClick = { onTabSelected(index) },
-                                        role = Role.Tab
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = titleFunc(),
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-                                )
-                            }
+                                    .padding(vertical = 4.dp)
+                                    .clip(RoundedCornerShape(24.dp)),
+                                selectedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = {
+                                    Text(
+                                        text = titleFunc(),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            )
                         }
                     }
                 }
             }
         }
     }
-
 
     item(span = { GridItemSpan(3) }) {
         LaunchedEffect(state.selectedTabIndex) {
@@ -167,30 +182,29 @@ fun LazyGridScope.profileMediaSection(
     val isMediaLoading = state.isLoadingMedia || state.isLoadingMoreMedia
     val canLoadMedia = state.canLoadMoreMedia
 
-    if (isGroup) {
-        when (state.selectedTabIndex) {
-            0 -> mediaGrid(state.mediaMessages, isMediaLoading, canLoadMedia, onLoadMore, onMessageClick, onLoadMedia)
-            1 -> membersList(state.members, videoPlayerPool, state.isLoadingMembers, state.canLoadMoreMembers, onLoadMore, onMemberClick, onMemberLongClick)
-            2 -> filesList(state.fileMessages, isMediaLoading, canLoadMedia, onLoadMore, onMessageClick)
-            3 -> audioList(state.audioMessages, isMediaLoading, canLoadMedia, onLoadMore, onMessageClick)
-            4 -> voiceList(state.voiceMessages, isMediaLoading, canLoadMedia, onLoadMore, onMessageClick)
-            5 -> linksList(state.linkMessages, isMediaLoading, canLoadMedia, onLoadMore, onMessageClick)
-            6 -> gifsGrid(state.gifMessages, videoPlayerPool, isMediaLoading, canLoadMedia, onLoadMore, onMessageClick)
-        }
-    } else {
-        when (state.selectedTabIndex) {
-            0 -> mediaGrid(state.mediaMessages, isMediaLoading, canLoadMedia, onLoadMore, onMessageClick, onLoadMedia)
-            1 -> filesList(state.fileMessages, isMediaLoading, canLoadMedia, onLoadMore, onMessageClick)
-            2 -> audioList(state.audioMessages, isMediaLoading, canLoadMedia, onLoadMore, onMessageClick)
-            3 -> voiceList(state.voiceMessages, isMediaLoading, canLoadMedia, onLoadMore, onMessageClick)
-            4 -> linksList(state.linkMessages, isMediaLoading, canLoadMedia, onLoadMore, onMessageClick)
-            5 -> gifsGrid(
-                state.gifMessages,
-                videoPlayerPool,
-                isMediaLoading,
-                canLoadMedia,
-                onLoadMore,
-                onMessageClick
+    item(span = { GridItemSpan(3) }) {
+        AnimatedContent(
+            targetState = state.selectedTabIndex,
+            transitionSpec = {
+                if (targetState > initialState) {
+                    slideInHorizontally { width -> width } + fadeIn() togetherWith
+                    slideOutHorizontally { width -> -width } + fadeOut()
+                } else {
+                    slideInHorizontally { width -> -width } + fadeIn() togetherWith
+                    slideOutHorizontally { width -> width } + fadeOut()
+                }
+            },
+            label = "tabs"
+        ) { tab ->
+            ProfileTabContent(
+                tab = tab,
+                state = state,
+                videoPlayerPool = videoPlayerPool,
+                onLoadMore = onLoadMore,
+                onMessageClick = onMessageClick,
+                onLoadMedia = onLoadMedia,
+                onMemberClick = onMemberClick,
+                onMemberLongClick = onMemberLongClick
             )
         }
     }
@@ -271,6 +285,60 @@ fun LazyGridScope.profileMediaSection(
         }
     }
 }
+
+@Composable
+fun ProfileTabContent(
+    tab: Int,
+    state: ProfileComponent.State,
+    videoPlayerPool: VideoPlayerPool,
+    onLoadMore: () -> Unit,
+    onMessageClick: (MessageModel) -> Unit,
+    onLoadMedia: (MessageModel) -> Unit,
+    onMemberClick: (Long) -> Unit,
+    onMemberLongClick: (Long) -> Unit
+) {
+    val gridState = rememberLazyGridState()
+    val viewportHeightPx = LocalWindowInfo.current.containerSize.height
+    val density = LocalDensity.current
+
+    val viewportHeightDp = with(density) { viewportHeightPx.toDp() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 1.dp, max = viewportHeightDp)
+    ) {
+        LazyVerticalGrid(
+            modifier = Modifier.fillMaxSize(),
+            columns = GridCells.Fixed(3),
+            state = gridState
+        ) {
+            val isGroup = state.chat?.isGroup == true || state.chat?.isChannel == true
+
+            if (isGroup) {
+                when (tab) {
+                    0 -> mediaGrid(state.mediaMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick, onLoadMedia)
+                    1 -> membersList(state.members, videoPlayerPool, state.isLoadingMembers, state.canLoadMoreMembers, onLoadMore, onMemberClick, onMemberLongClick)
+                    2 -> filesList(state.fileMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+                    3 -> audioList(state.audioMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+                    4 -> voiceList(state.voiceMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+                    5 -> linksList(state.linkMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+                    6 -> gifsGrid(state.gifMessages, videoPlayerPool, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+                }
+            } else {
+                when (tab) {
+                    0 -> mediaGrid(state.mediaMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick, onLoadMedia)
+                    1 -> filesList(state.fileMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+                    2 -> audioList(state.audioMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+                    3 -> voiceList(state.voiceMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+                    4 -> linksList(state.linkMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+                    5 -> gifsGrid(state.gifMessages, videoPlayerPool, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun ScrollableRow(

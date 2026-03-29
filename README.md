@@ -93,7 +93,21 @@ API_ID=12345678
 API_HASH=your_api_hash_here
 ```
 
-### 3. Build and Run
+### 3. How to configure push notifications
+
+1. Log in to the [Firebase console](https://console.firebase.google.com)
+2. Create a new project.
+3. Add a new application with the applicationId you need (if you have multiple applications with different IDs, you will need to create multiple applications). **By default, the applicationId for debug and release builds is different!**
+4. The console will create a `google-services.json` file, which you can copy to the root of the **app** module (`monogram/app/google-services.json`). If you have created multiple applications, only copy the most recent config.
+5. Go to the "Cloud Messaging" section.
+6. Click on the **Manage service accounts** link.
+7. In the window that opens, select the top **Keys** section.
+8. Click on the **Add key** button and select the **JSON** option in the dialog box. Wait for the file to be downloaded to your computer.
+9. Return to the page where you received the App ID from Telegram.
+10. Click on the Update button next to the FCM credentials section.
+11. Upload the JSON of the service account in the page that opens.
+
+### 4. Build and Run
 
 1. Open the project in **Android Studio**.
 2. Sync Gradle.

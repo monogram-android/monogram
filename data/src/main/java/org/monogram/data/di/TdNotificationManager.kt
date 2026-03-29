@@ -1,5 +1,6 @@
 package org.monogram.data.di
 
+import org.monogram.data.core.coRunCatching
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationChannelGroup
@@ -243,7 +244,7 @@ class TdNotificationManager(
         )
 
         scopes.forEach { (key, scope) ->
-            val enabled = runCatching { settingsRepository.getNotificationSettings(scope) }
+            val enabled = coRunCatching { settingsRepository.getNotificationSettings(scope) }
                 .getOrDefault(false)
 
             scopeNotificationsEnabled[key] = enabled

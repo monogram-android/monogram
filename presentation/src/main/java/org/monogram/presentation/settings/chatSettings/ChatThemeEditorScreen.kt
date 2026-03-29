@@ -1,5 +1,6 @@
 package org.monogram.presentation.settings.chatSettings
 
+import org.monogram.presentation.core.util.coRunCatching
 import android.graphics.Color.*
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -225,13 +226,13 @@ fun ChatThemeEditorScreen(
 
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        runCatching { context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(component.exportCustomThemeJson()) } }
+        coRunCatching { context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(component.exportCustomThemeJson()) } }
             .onSuccess { Toast.makeText(context, context.getString(R.string.chat_theme_editor_theme_file_saved), Toast.LENGTH_SHORT).show() }
             .onFailure { Toast.makeText(context, context.getString(R.string.chat_theme_editor_save_failed), Toast.LENGTH_SHORT).show() }
     }
     val loadLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        runCatching { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }.orEmpty() }
+        coRunCatching { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }.orEmpty() }
             .onSuccess {
                 val messageRes = if (component.importCustomThemeJson(it)) {
                     R.string.chat_theme_editor_theme_loaded
@@ -631,7 +632,7 @@ private fun argbToHex(color: Int): String = String.format("#%08X", color)
 private fun parseThemeColor(value: String): Int? {
     val s = value.trim()
     if (!s.startsWith("#") || (s.length != 7 && s.length != 9)) return null
-    return runCatching { val p = parseColor(s); if (s.length == 7) p or (0xFF shl 24) else p }.getOrNull()
+    return coRunCatching { val p = parseColor(s); if (s.length == 7) p or (0xFF shl 24) else p }.getOrNull()
 }
 private fun toHsv(color: Int): FloatArray = FloatArray(3).also { colorToHSV(color, it) }
 private fun fromHsv(h: Float, s: Float, v: Float, a: Float): Int =

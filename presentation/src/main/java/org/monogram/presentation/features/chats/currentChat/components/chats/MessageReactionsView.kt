@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
+import org.monogram.presentation.core.util.coRunCatching
 import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -52,7 +53,7 @@ fun MessageReactionsView(
     val customEmojiStickerSets by stickerRepository.customEmojiStickerSets.collectAsState()
 
     LaunchedEffect(Unit) {
-        runCatching { stickerRepository.loadCustomEmojiStickerSets() }
+        coRunCatching { stickerRepository.loadCustomEmojiStickerSets() }
     }
 
     val customEmojiFileIdsById = remember(customEmojiStickerSets) {

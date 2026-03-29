@@ -1,5 +1,6 @@
 package org.monogram.data.datasource.remote
 
+import org.monogram.data.core.coRunCatching
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.mapper.toApi
@@ -22,7 +23,7 @@ class TdProxyRemoteDataSource(
     ): ProxyModel = gateway.execute(TdApi.EditProxy(proxyId, TdApi.Proxy(server, port, type.toApi()), enable)).toDomain()
 
     override suspend fun enableProxy(proxyId: Int) : Boolean {
-        val result = runCatching { gateway.execute(TdApi.EnableProxy(proxyId)) }
+        val result = coRunCatching { gateway.execute(TdApi.EnableProxy(proxyId)) }
         return result.isSuccess
     }
 

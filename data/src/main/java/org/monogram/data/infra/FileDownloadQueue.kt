@@ -1,5 +1,6 @@
 package org.monogram.data.infra
 
+import org.monogram.data.core.coRunCatching
 import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -86,7 +87,7 @@ class FileDownloadQueue(
         scope.appScope.launch(dispatcherProvider.default) {
             while (isActive) {
                 trigger.receive()
-                runCatching { dispatchTasks() }
+                coRunCatching { dispatchTasks() }
                     .onFailure { Log.e("FileDownloadQueue", "dispatchTasks failed", it) }
             }
         }
@@ -94,7 +95,7 @@ class FileDownloadQueue(
         scope.appScope.launch(dispatcherProvider.default) {
             while (isActive) {
                 delay(TimeUnit.MINUTES.toMillis(1))
-                runCatching { retryFailedDownloads() }
+                coRunCatching { retryFailedDownloads() }
                     .onFailure { Log.e("FileDownloadQueue", "retryFailedDownloads failed", it) }
             }
         }
@@ -102,7 +103,7 @@ class FileDownloadQueue(
         scope.appScope.launch(dispatcherProvider.default) {
             while (isActive) {
                 delay(15_000)
-                runCatching { recoverStalledDownloads() }
+                coRunCatching { recoverStalledDownloads() }
                     .onFailure { Log.e("FileDownloadQueue", "recoverStalledDownloads failed", it) }
             }
         }
@@ -110,7 +111,7 @@ class FileDownloadQueue(
         scope.appScope.launch(dispatcherProvider.default) {
             while (isActive) {
                 delay(TimeUnit.MINUTES.toMillis(5))
-                runCatching { cleanupDeadState() }
+                coRunCatching { cleanupDeadState() }
                     .onFailure { Log.e("FileDownloadQueue", "cleanupDeadState failed", it) }
             }
         }
@@ -397,7 +398,7 @@ class FileDownloadQueue(
                     }
 
                     if (recovered) {
-                        runCatching {
+                        coRunCatching {
                             withContext(dispatcherProvider.io) {
                                 gateway.execute(TdApi.CancelDownloadFile(req.fileId, false))
                             }

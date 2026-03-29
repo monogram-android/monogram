@@ -1,5 +1,6 @@
 package org.monogram.data.datasource.remote
 
+import org.monogram.data.core.coRunCatching
 import android.util.Log
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TelegramGateway
@@ -13,13 +14,13 @@ class TdSettingsRemoteDataSource(
     override suspend fun getScopeNotificationSettings(
         scope: TdApi.NotificationSettingsScope
     ): TdApi.ScopeNotificationSettings? =
-        runCatching { gateway.execute(TdApi.GetScopeNotificationSettings(scope)) }.getOrNull()
+        coRunCatching { gateway.execute(TdApi.GetScopeNotificationSettings(scope)) }.getOrNull()
 
     override suspend fun getActiveSessions(): TdApi.Sessions? =
-        runCatching { gateway.execute(TdApi.GetActiveSessions()) }.getOrNull()
+        coRunCatching { gateway.execute(TdApi.GetActiveSessions()) }.getOrNull()
 
     override suspend fun getInstalledBackgrounds(forDarkTheme: Boolean): TdApi.Backgrounds? =
-        runCatching {
+        coRunCatching {
             val result = gateway.execute(TdApi.GetInstalledBackgrounds(forDarkTheme))
             result.backgrounds.forEach { bg ->
                 bg.document?.thumbnail?.file?.let { file ->
@@ -32,10 +33,10 @@ class TdSettingsRemoteDataSource(
         }.getOrNull()
 
     override suspend fun getStorageStatistics(chatLimit: Int): TdApi.StorageStatistics? =
-        runCatching { gateway.execute(TdApi.GetStorageStatistics(chatLimit)) }.getOrNull()
+        coRunCatching { gateway.execute(TdApi.GetStorageStatistics(chatLimit)) }.getOrNull()
 
     override suspend fun getNetworkStatistics(): TdApi.NetworkStatistics? =
-        runCatching {
+        coRunCatching {
             Log.d("NetworkStats", "Fetching network statistics...")
             val stats = gateway.execute(TdApi.GetNetworkStatistics(true))
             Log.d("NetworkStats", "Received stats with ${stats.entries.size} entries")
@@ -62,13 +63,13 @@ class TdSettingsRemoteDataSource(
         }.getOrNull()
 
     override suspend fun getOption(name: String): TdApi.OptionValue? =
-        runCatching { gateway.execute(TdApi.GetOption(name)) }.getOrNull()
+        coRunCatching { gateway.execute(TdApi.GetOption(name)) }.getOrNull()
 
     override suspend fun getChatNotificationSettingsExceptions(
         scope: TdApi.NotificationSettingsScope,
         compareSound: Boolean
     ): TdApi.Chats? =
-        runCatching {
+        coRunCatching {
             gateway.execute(TdApi.GetChatNotificationSettingsExceptions(scope, compareSound))
         }.getOrNull()
 
@@ -76,25 +77,25 @@ class TdSettingsRemoteDataSource(
         scope: TdApi.NotificationSettingsScope,
         settings: TdApi.ScopeNotificationSettings
     ) {
-        runCatching { gateway.execute(TdApi.SetScopeNotificationSettings(scope, settings)) }
+        coRunCatching { gateway.execute(TdApi.SetScopeNotificationSettings(scope, settings)) }
     }
 
     override suspend fun setChatNotificationSettings(
         chatId: Long,
         settings: TdApi.ChatNotificationSettings
     ) {
-        runCatching { gateway.execute(TdApi.SetChatNotificationSettings(chatId, settings)) }
+        coRunCatching { gateway.execute(TdApi.SetChatNotificationSettings(chatId, settings)) }
     }
 
     override suspend fun setOption(name: String, value: TdApi.OptionValue) {
-        runCatching { gateway.execute(TdApi.SetOption(name, value)) }
+        coRunCatching { gateway.execute(TdApi.SetOption(name, value)) }
     }
 
     override suspend fun terminateSession(sessionId: Long): Boolean =
-        runCatching { gateway.execute(TdApi.TerminateSession(sessionId)); true }.getOrDefault(false)
+        coRunCatching { gateway.execute(TdApi.TerminateSession(sessionId)); true }.getOrDefault(false)
 
     override suspend fun confirmQrCode(link: String): Boolean =
-        runCatching { gateway.execute(TdApi.ConfirmQrCodeAuthentication(link)); true }.getOrDefault(false)
+        coRunCatching { gateway.execute(TdApi.ConfirmQrCodeAuthentication(link)); true }.getOrDefault(false)
 
     override suspend fun optimizeStorage(
         size: Long,
@@ -105,7 +106,7 @@ class TdSettingsRemoteDataSource(
         returnDeletedFileStatistics: Boolean,
         chatLimit: Int
     ): Boolean =
-        runCatching {
+        coRunCatching {
             gateway.execute(
                 TdApi.OptimizeStorage(size, ttl, count, immunityDelay, null, chatIds, null, returnDeletedFileStatistics, chatLimit)
             )
@@ -113,7 +114,7 @@ class TdSettingsRemoteDataSource(
         }.getOrDefault(false)
 
     override suspend fun resetNetworkStatistics(): Boolean =
-        runCatching {
+        coRunCatching {
             Log.d("NetworkStats", "Resetting network statistics...")
             gateway.execute(TdApi.ResetNetworkStatistics())
             true

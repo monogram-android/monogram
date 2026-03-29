@@ -1,5 +1,6 @@
 package org.monogram.presentation.settings.settings
 
+import org.monogram.presentation.core.util.coRunCatching
 import android.os.Build
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
@@ -203,7 +204,7 @@ class DefaultSettingsComponent(
         }
 
         scope.launch(Dispatchers.IO) {
-            runCatching {
+            coRunCatching {
                 repository.setEmojiStatus(customEmojiId)
             }
         }

@@ -1,5 +1,6 @@
 package org.monogram.data.datasource.remote
 
+import org.monogram.data.core.coRunCatching
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
@@ -13,19 +14,19 @@ class TdChatRemoteSource(
 ) : ChatRemoteSource {
 
     override suspend fun loadChats(chatList: TdApi.ChatList, limit: Int) {
-        runCatching { gateway.execute(TdApi.LoadChats(chatList, limit)) }
+        coRunCatching { gateway.execute(TdApi.LoadChats(chatList, limit)) }
     }
 
     override suspend fun searchChats(query: String, limit: Int): TdApi.Chats? {
-        return runCatching { gateway.execute(TdApi.SearchChats(query, limit)) }.getOrNull()
+        return coRunCatching { gateway.execute(TdApi.SearchChats(query, limit)) }.getOrNull()
     }
 
     override suspend fun searchPublicChats(query: String): TdApi.Chats? {
-        return runCatching { gateway.execute(TdApi.SearchPublicChats(query)) }.getOrNull()
+        return coRunCatching { gateway.execute(TdApi.SearchPublicChats(query)) }.getOrNull()
     }
 
     override suspend fun searchMessages(query: String, offset: String, limit: Int): TdApi.FoundMessages? {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(
                 TdApi.SearchMessages(null, query, offset, limit, TdApi.SearchMessagesFilterEmpty(), null, 0, 0)
             )
@@ -33,11 +34,11 @@ class TdChatRemoteSource(
     }
 
     override suspend fun getChat(chatId: Long): TdApi.Chat? {
-        return runCatching { gateway.execute(TdApi.GetChat(chatId)) }.getOrNull()
+        return coRunCatching { gateway.execute(TdApi.GetChat(chatId)) }.getOrNull()
     }
 
     override suspend fun createGroup(title: String, userIds: List<Long>, messageAutoDeleteTime: Int): Long {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(TdApi.CreateNewBasicGroupChat(userIds.toLongArray(), title, messageAutoDeleteTime)).chatId
         }.getOrDefault(0L)
     }
@@ -48,7 +49,7 @@ class TdChatRemoteSource(
         isMegagroup: Boolean,
         messageAutoDeleteTime: Int
     ): Long {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(
                 TdApi.CreateNewSupergroupChat(title, isMegagroup, !isMegagroup, description, null, messageAutoDeleteTime, false)
             ).id
@@ -56,17 +57,17 @@ class TdChatRemoteSource(
     }
 
     override suspend fun setChatPhoto(chatId: Long, photoPath: String) {
-        runCatching {
+        coRunCatching {
             gateway.execute(TdApi.SetChatPhoto(chatId, TdApi.InputChatPhotoStatic(TdApi.InputFileLocal(photoPath))))
         }
     }
 
     override suspend fun setChatTitle(chatId: Long, title: String) {
-        runCatching { gateway.execute(TdApi.SetChatTitle(chatId, title)) }
+        coRunCatching { gateway.execute(TdApi.SetChatTitle(chatId, title)) }
     }
 
     override suspend fun setChatDescription(chatId: Long, description: String) {
-        runCatching {
+        coRunCatching {
             val chat = gateway.execute(TdApi.GetChat(chatId))
             val groupId = when (val type = chat.type) {
                 is TdApi.ChatTypeSupergroup -> type.supergroupId
@@ -78,7 +79,7 @@ class TdChatRemoteSource(
     }
 
     override suspend fun setChatUsername(chatId: Long, username: String) {
-        runCatching {
+        coRunCatching {
             val chat = gateway.execute(TdApi.GetChat(chatId))
             val type = chat.type as? TdApi.ChatTypeSupergroup ?: return
             gateway.execute(TdApi.SetSupergroupUsername(type.supergroupId, username))
@@ -86,13 +87,13 @@ class TdChatRemoteSource(
     }
 
     override suspend fun setChatPermissions(chatId: Long, permissions: ChatPermissionsModel) {
-        runCatching {
+        coRunCatching {
             gateway.execute(TdApi.SetChatPermissions(chatId, permissions.toTd()))
         }
     }
 
     override suspend fun setChatSlowModeDelay(chatId: Long, slowModeDelay: Int) {
-        runCatching {
+        coRunCatching {
             val chat = gateway.execute(TdApi.GetChat(chatId))
             val supergroupId = (chat.type as? TdApi.ChatTypeSupergroup)?.supergroupId ?: chatId
             gateway.execute(TdApi.SetChatSlowModeDelay(supergroupId, slowModeDelay))
@@ -100,7 +101,7 @@ class TdChatRemoteSource(
     }
 
     override suspend fun toggleChatIsForum(chatId: Long, isForum: Boolean) {
-        runCatching {
+        coRunCatching {
             val chat = gateway.execute(TdApi.GetChat(chatId))
             val type = chat.type as? TdApi.ChatTypeSupergroup ?: return
             gateway.execute(TdApi.ToggleSupergroupIsForum(type.supergroupId, isForum, isForum))
@@ -108,7 +109,7 @@ class TdChatRemoteSource(
     }
 
     override suspend fun toggleChatIsTranslatable(chatId: Long, isTranslatable: Boolean) {
-        runCatching {
+        coRunCatching {
             val chat = gateway.execute(TdApi.GetChat(chatId))
             if (chat.type is TdApi.ChatTypeSupergroup) {
                 val supergroupId = (chat.type as TdApi.ChatTypeSupergroup).supergroupId
@@ -120,7 +121,7 @@ class TdChatRemoteSource(
     }
 
     override suspend fun getChatLink(chatId: Long): String? {
-        return runCatching {
+        return coRunCatching {
             val chat = gateway.execute(TdApi.GetChat(chatId))
             when (val type = chat.type) {
                 is TdApi.ChatTypePrivate -> {
@@ -128,7 +129,7 @@ class TdChatRemoteSource(
                     user.usernames?.activeUsernames?.firstOrNull()?.let { "https://t.me/$it" }
                 }
                 is TdApi.ChatTypeSupergroup -> {
-                    if (type.supergroupId == 0L) return@runCatching null
+                    if (type.supergroupId == 0L) return@coRunCatching null
                     val sg = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
                     sg.usernames?.activeUsernames?.firstOrNull()?.let { "https://t.me/$it" }
                 }
@@ -138,11 +139,11 @@ class TdChatRemoteSource(
     }
 
     override suspend fun deleteFolder(folderId: Int) {
-        runCatching { gateway.execute(TdApi.DeleteChatFolder(folderId, longArrayOf())) }
+        coRunCatching { gateway.execute(TdApi.DeleteChatFolder(folderId, longArrayOf())) }
     }
 
     override suspend fun muteChat(chatId: Long, muteFor: Int) {
-        runCatching {
+        coRunCatching {
             val settings = TdApi.ChatNotificationSettings(
                 false, muteFor, false, 0L,
                 false, false, false, false,
@@ -154,26 +155,26 @@ class TdChatRemoteSource(
     }
 
     override suspend fun archiveChat(chatId: Long, archive: Boolean) {
-        runCatching {
+        coRunCatching {
             val list = if (archive) TdApi.ChatListArchive() else TdApi.ChatListMain()
             gateway.execute(TdApi.AddChatToList(chatId, list))
         }
     }
 
     override suspend fun deleteChat(chatId: Long) {
-        runCatching { gateway.execute(TdApi.DeleteChat(chatId)) }
+        coRunCatching { gateway.execute(TdApi.DeleteChat(chatId)) }
     }
 
     override suspend fun leaveChat(chatId: Long) {
-        runCatching { gateway.execute(TdApi.LeaveChat(chatId)) }
+        coRunCatching { gateway.execute(TdApi.LeaveChat(chatId)) }
     }
 
     override suspend fun clearChatHistory(chatId: Long, revoke: Boolean) {
-        runCatching { gateway.execute(TdApi.DeleteChatHistory(chatId, false, revoke)) }
+        coRunCatching { gateway.execute(TdApi.DeleteChatHistory(chatId, false, revoke)) }
     }
 
     override suspend fun reportChat(chatId: Long, reason: String, messageIds: List<Long>) {
-        runCatching {
+        coRunCatching {
             val msgArray = messageIds.toLongArray()
             val predefined = setOf(
                 "spam", "violence", "pornography", "child_abuse",
@@ -193,7 +194,7 @@ class TdChatRemoteSource(
     }
 
     override suspend fun getMyUserId(): Long {
-        return runCatching { gateway.execute(TdApi.GetMe()).id }.getOrDefault(0L)
+        return coRunCatching { gateway.execute(TdApi.GetMe()).id }.getOrDefault(0L)
     }
 
     override suspend fun setNetworkType(): Boolean {
@@ -223,11 +224,11 @@ class TdChatRemoteSource(
                 else -> TdApi.NetworkTypeOther()
             }
         }
-        return runCatching { gateway.execute(TdApi.SetNetworkType(networkType)) }.isSuccess
+        return coRunCatching { gateway.execute(TdApi.SetNetworkType(networkType)) }.isSuccess
     }
 
     override suspend fun getConnectionState(): TdApi.ConnectionState? {
-        val option = runCatching { gateway.execute(TdApi.GetOption("connection_state")) }.getOrNull() ?: return null
+        val option = coRunCatching { gateway.execute(TdApi.GetOption("connection_state")) }.getOrNull() ?: return null
 
         val normalized = when (option) {
             is TdApi.OptionValueString -> option.value.lowercase()
@@ -253,7 +254,7 @@ class TdChatRemoteSource(
         offsetForumTopicId: Int,
         limit: Int
     ): TdApi.ForumTopics? {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(
                 TdApi.GetForumTopics(chatId, query, offsetDate, offsetMessageId, offsetForumTopicId, limit)
             )

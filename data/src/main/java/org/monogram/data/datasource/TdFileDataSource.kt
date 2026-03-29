@@ -1,5 +1,6 @@
 package org.monogram.data.datasource
 
+import org.monogram.data.core.coRunCatching
 import android.util.Log
 import kotlinx.coroutines.CompletableDeferred
 import org.drinkless.tdlib.TdApi
@@ -26,7 +27,7 @@ class TdFileDataSource(
             ignoreSuppression = true
         )
         if (synchronous) {
-            runCatching { fileDownloadQueue.waitForDownload(fileId).await() }
+            coRunCatching { fileDownloadQueue.waitForDownload(fileId).await() }
         }
         return getFile(fileId)
     }
@@ -40,15 +41,15 @@ class TdFileDataSource(
     }
 
     override suspend fun getFile(fileId: Int): TdApi.File? {
-        return runCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull()
+        return coRunCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull()
     }
 
     override suspend fun getFileDownloadedPrefixSize(fileId: Int, offset: Long): TdApi.FileDownloadedPrefixSize? {
-        return runCatching { gateway.execute(TdApi.GetFileDownloadedPrefixSize(fileId, offset)) }.getOrNull()
+        return coRunCatching { gateway.execute(TdApi.GetFileDownloadedPrefixSize(fileId, offset)) }.getOrNull()
     }
 
     override suspend fun readFilePart(fileId: Int, offset: Long, count: Long): TdApi.Data? {
-        return runCatching { gateway.execute(TdApi.ReadFilePart(fileId, offset, count)) }.getOrNull()
+        return coRunCatching { gateway.execute(TdApi.ReadFilePart(fileId, offset, count)) }.getOrNull()
     }
 
     override fun waitForUpload(fileId: Int): CompletableDeferred<Unit> {

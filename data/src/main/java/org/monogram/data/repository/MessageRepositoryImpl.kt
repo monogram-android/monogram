@@ -1,5 +1,6 @@
 package org.monogram.data.repository
 
+import org.monogram.data.core.coRunCatching
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.launch
@@ -641,7 +642,7 @@ class MessageRepositoryImpl(
     }
 
     override suspend fun getFilePath(fileId: Int): String? {
-        val result = runCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull()
+        val result = coRunCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull()
         return if (result is TdApi.File) {
             result.local.path.ifEmpty { null }
         } else {
@@ -686,7 +687,7 @@ class MessageRepositoryImpl(
             result.messages.mapNotNull { msg ->
                 cache.putMessage(msg)
                 triggerFileDownload(msg)
-                runCatching {
+                coRunCatching {
                     messageMapper.mapMessageToModel(msg)
                 }.getOrNull()
             }
@@ -1155,7 +1156,7 @@ class MessageRepositoryImpl(
         }
 
     override suspend fun getFileInfo(fileId: Int): FileModel? {
-        val result = runCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull()
+        val result = coRunCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull()
         if (result is TdApi.File) {
             val model = FileModel(
                 id = result.id,
@@ -1250,7 +1251,7 @@ class MessageRepositoryImpl(
 
         senderIds.forEach { senderId ->
             if (cache.getUser(senderId) != null) return@forEach
-            val localUser = runCatching { userLocalDataSource.getUser(senderId) }.getOrNull() ?: return@forEach
+            val localUser = coRunCatching { userLocalDataSource.getUser(senderId) }.getOrNull() ?: return@forEach
             cache.putUser(localUser)
         }
     }

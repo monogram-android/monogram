@@ -1,5 +1,6 @@
 package org.monogram.data.repository
 
+import org.monogram.data.core.coRunCatching
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -68,8 +69,8 @@ class UpdateRepositoryImpl(
 
         _updateState.value = UpdateState.Checking
 
-        runCatching {
-            val info = remote.fetchLatestUpdate() ?: return@runCatching _updateState.value.let {
+        coRunCatching {
+            val info = remote.fetchLatestUpdate() ?: return@coRunCatching _updateState.value.let {
                 _updateState.value = UpdateState.Error("No update found")
             }
 
@@ -83,7 +84,7 @@ class UpdateRepositoryImpl(
 
             if (info.versionCode <= currentVersionCode) {
                 _updateState.value = UpdateState.UpToDate
-                return@runCatching
+                return@coRunCatching
             }
 
             currentUpdateInfo = info

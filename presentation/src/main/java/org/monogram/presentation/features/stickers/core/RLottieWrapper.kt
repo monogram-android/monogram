@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.stickers.core
 
+import org.monogram.presentation.core.util.coRunCatching
 import android.graphics.Bitmap
 import java.io.File
 import java.io.FileInputStream
@@ -17,7 +18,7 @@ class RLottieWrapper {
         if (!file.exists()) return false
         if (nativePtr == 0L) return false
 
-        return runCatching {
+        return coRunCatching {
             val json = if (file.isGzipped()) {
                 GZIPInputStream(FileInputStream(file)).bufferedReader(Charsets.UTF_8).use { it.readText() }
             } else {
@@ -56,7 +57,7 @@ class RLottieWrapper {
 
     private fun File.isGzipped(): Boolean {
         if (!exists() || length() < 2L) return false
-        return runCatching {
+        return coRunCatching {
             FileInputStream(this).use { fis ->
                 val low = fis.read()
                 val high = fis.read()

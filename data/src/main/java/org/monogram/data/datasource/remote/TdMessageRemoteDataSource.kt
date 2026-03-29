@@ -1460,7 +1460,13 @@ class TdMessageRemoteDataSource(
             val job = scope.launch {
                 delay(150)
                 val msg = getMessage(chatId, messageId) ?: return@launch
-                try { messageEditedFlow.emit(mapMessageToModel(msg)) } catch (e: Exception) {}
+                try {
+                    messageEditedFlow.emit(mapMessageToModel(msg))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e("TdMessageRemote", "Error emitting edited message", e)
+                }
             }
             job.invokeOnCompletion { messageUpdateJobs.remove(key, job) }
             messageUpdateJobs[key] = job

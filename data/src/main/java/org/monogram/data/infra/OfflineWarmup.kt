@@ -1,5 +1,6 @@
 package org.monogram.data.infra
 
+import org.monogram.data.core.coRunCatching
 import android.util.Log
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -35,7 +36,7 @@ class OfflineWarmup(
     init {
         scope.launch(dispatchers.io) {
             delay(1800)
-            runCatching { warmup() }
+            coRunCatching { warmup() }
                 .onFailure { Log.e(TAG, "Offline warmup failed", it) }
         }
     }
@@ -51,8 +52,8 @@ class OfflineWarmup(
     }
 
     private suspend fun warmupStickers() {
-        runCatching { stickerRepository.loadInstalledStickerSets() }
-        runCatching { stickerRepository.loadCustomEmojiStickerSets() }
+        coRunCatching { stickerRepository.loadInstalledStickerSets() }
+        coRunCatching { stickerRepository.loadCustomEmojiStickerSets() }
     }
 
     private suspend fun warmupUsers(chats: List<ChatEntity>) {
@@ -77,7 +78,7 @@ class OfflineWarmup(
             val cachedUser = existingUsers[userId]
             var hasUser = cachedUser != null
             if (cachedUser == null || now - cachedUser.createdAt > ONE_DAY_MS) {
-                val user = runCatching { gateway.execute(TdApi.GetUser(userId)) as? TdApi.User }.getOrNull()
+                val user = coRunCatching { gateway.execute(TdApi.GetUser(userId)) as? TdApi.User }.getOrNull()
                 if (user != null) {
                     val personalAvatarPath = existingFullInfos[userId]?.personalPhotoPath?.ifBlank { null }
                     userDao.insertUser(user.toUserEntity(personalAvatarPath))
@@ -95,7 +96,7 @@ class OfflineWarmup(
 
             val cachedFullInfo = existingFullInfos[userId]
             if (cachedFullInfo == null || now - cachedFullInfo.createdAt > SEVEN_DAYS_MS) {
-                val fullInfo = runCatching {
+                val fullInfo = coRunCatching {
                     gateway.execute(TdApi.GetUserFullInfo(userId)) as? TdApi.UserFullInfo
                 }.getOrNull()
                 if (fullInfo != null) {

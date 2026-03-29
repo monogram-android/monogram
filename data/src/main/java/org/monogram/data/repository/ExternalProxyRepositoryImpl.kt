@@ -1,5 +1,6 @@
 package org.monogram.data.repository
 
+import org.monogram.data.core.coRunCatching
 import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.repository.AppPreferencesProvider
@@ -37,13 +38,13 @@ class ExternalProxyRepositoryImpl(
         appPreferences.setTelegaProxyUrls(parsed.map { it.first }.toSet())
 
         val added = parsed.mapNotNull { (_, sp, type) ->
-            runCatching { remote.addProxy(sp.first, sp.second, false, type) }.getOrNull()
+            coRunCatching { remote.addProxy(sp.first, sp.second, false, type) }.getOrNull()
         }
 
         remote.getProxies().forEach { proxy ->
             val iden = "${proxy.server}:${proxy.port}"
             if (iden in oldIdentifiers && iden !in newIdentifiers && !proxy.isEnabled) {
-                runCatching { remote.removeProxy(proxy.id) }
+                coRunCatching { remote.removeProxy(proxy.id) }
             }
         }
 
@@ -54,7 +55,7 @@ class ExternalProxyRepositoryImpl(
 
     override suspend fun addProxy(
         server: String, port: Int, enable: Boolean, type: ProxyTypeModel
-    ): ProxyModel? = runCatching {
+    ): ProxyModel? = coRunCatching {
         val proxy = remote.addProxy(server, port, enable, type)
         if (enable) appPreferences.setEnabledProxyId(proxy.id)
         proxy
@@ -62,32 +63,32 @@ class ExternalProxyRepositoryImpl(
 
     override suspend fun editProxy(
         proxyId: Int, server: String, port: Int, enable: Boolean, type: ProxyTypeModel
-    ): ProxyModel? = runCatching {
+    ): ProxyModel? = coRunCatching {
         val proxy = remote.editProxy(proxyId, server, port, enable, type)
         if (enable) appPreferences.setEnabledProxyId(proxy.id)
         proxy
     }.getOrNull()
 
-    override suspend fun enableProxy(proxyId: Int): Boolean = runCatching {
+    override suspend fun enableProxy(proxyId: Int): Boolean = coRunCatching {
         remote.enableProxy(proxyId)
         appPreferences.setEnabledProxyId(proxyId)
         true
     }.getOrDefault(false)
 
-    override suspend fun disableProxy(): Boolean = runCatching {
+    override suspend fun disableProxy(): Boolean = coRunCatching {
         remote.disableProxy()
         appPreferences.setEnabledProxyId(null)
         true
     }.getOrDefault(false)
 
-    override suspend fun removeProxy(proxyId: Int): Boolean = runCatching {
+    override suspend fun removeProxy(proxyId: Int): Boolean = coRunCatching {
         remote.removeProxy(proxyId)
         if (appPreferences.enabledProxyId.value == proxyId) appPreferences.setEnabledProxyId(null)
         true
     }.getOrDefault(false)
 
     override suspend fun pingProxy(proxyId: Int): Long? = withTimeoutOrNull(10_000L) {
-        runCatching {
+        coRunCatching {
             val proxy = remote.getProxies().find { it.id == proxyId } ?: return@withTimeoutOrNull null
             remote.pingProxy(proxy.server, proxy.port, proxy.type)
         }.getOrNull()
@@ -95,7 +96,7 @@ class ExternalProxyRepositoryImpl(
 
     override suspend fun testProxy(server: String, port: Int, type: ProxyTypeModel): Long? =
         withTimeoutOrNull(10_000L) {
-            runCatching { remote.testProxy(server, port, type) }.getOrNull()
+            coRunCatching { remote.testProxy(server, port, type) }.getOrNull()
         }
 
     override fun setPreferIpv6(enabled: Boolean) {
@@ -103,7 +104,7 @@ class ExternalProxyRepositoryImpl(
     }
 
     private fun parseProxyUrl(url: String): Triple<String, Int, String>? =
-        runCatching {
+        coRunCatching {
             val uri = url.toUri()
             val server = uri.getQueryParameter("server") ?: return null
             val port = uri.getQueryParameter("port")?.toIntOrNull() ?: 443

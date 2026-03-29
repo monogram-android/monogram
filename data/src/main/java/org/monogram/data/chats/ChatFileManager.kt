@@ -1,5 +1,6 @@
 package org.monogram.data.chats
 
+import org.monogram.data.core.coRunCatching
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
@@ -65,7 +66,7 @@ class ChatFileManager(
         fileQueue.enqueue(fileId, effectivePriority, FileDownloadQueue.DownloadType.DEFAULT, offset, limit, synchronous)
         if (synchronous) {
             scope.launch(dispatchers.io) {
-                runCatching {
+                coRunCatching {
                     fileQueue.waitForDownload(fileId).await()
                 }
             }
@@ -76,7 +77,7 @@ class ChatFileManager(
         if (emojiId == 0L || emojiPathsCache.containsKey(emojiId)) return
         if (loadingEmojis.add(emojiId)) {
             scope.launch(dispatchers.io) {
-                runCatching {
+                coRunCatching {
                     val result = gateway.execute(TdApi.GetCustomEmojiStickers(longArrayOf(emojiId)))
                     val sticker = result.stickers.firstOrNull() ?: return@launch
                     val file = sticker.sticker

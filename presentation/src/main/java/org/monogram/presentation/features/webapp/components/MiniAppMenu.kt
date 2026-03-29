@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.webapp.components
 
+import org.monogram.presentation.core.util.coRunCatching
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutInfo
@@ -94,7 +95,7 @@ fun MiniAppMenu(
                     icon = Icons.AutoMirrored.Rounded.OpenInNew,
                     title = stringResource(R.string.mini_app_menu_open_in_browser),
                     onClick = {
-                        runCatching {
+                        coRunCatching {
                             context.startActivity(
                                 Intent(
                                     Intent.ACTION_VIEW,

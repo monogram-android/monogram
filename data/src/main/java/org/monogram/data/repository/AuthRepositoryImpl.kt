@@ -1,5 +1,6 @@
 package org.monogram.data.repository
 
+import org.monogram.data.core.coRunCatching
 import android.os.Build
 import org.monogram.core.ScopeProvider
 import kotlinx.coroutines.flow.*
@@ -45,7 +46,7 @@ class AuthRepositoryImpl(
     }
 
     private suspend fun sendTdLibParameters() {
-        runCatching {
+        coRunCatching {
             val parameters = TdApi.SetTdlibParameters().apply {
                 databaseDirectory = File(context.filesDir, "td-db").absolutePath
                 filesDirectory = File(context.filesDir, "td-files").absolutePath
@@ -70,14 +71,14 @@ class AuthRepositoryImpl(
 
     override fun sendPhone(phone: String) {
         scope.launch {
-            runCatching { remote.setPhoneNumber(phone) }
+            coRunCatching { remote.setPhoneNumber(phone) }
                 .onFailure { emitError(it) }
         }
     }
 
     override fun resendCode() {
         scope.launch {
-            runCatching { remote.resendCode() }
+            coRunCatching { remote.resendCode() }
                 .onFailure { emitError(it) }
         }
     }
@@ -85,7 +86,7 @@ class AuthRepositoryImpl(
     override fun sendCode(code: String) {
         scope.launch {
             val isEmail = (_authState.value as? AuthStep.InputCode)?.isEmailCode == true
-            runCatching {
+            coRunCatching {
                 if (isEmail) remote.checkEmailCode(code) else remote.setAuthCode(code)
             }.onFailure { emitError(it) }
         }
@@ -93,7 +94,7 @@ class AuthRepositoryImpl(
 
     override fun sendPassword(password: String) {
         scope.launch {
-            runCatching { remote.checkPassword(password) }
+            coRunCatching { remote.checkPassword(password) }
                 .onFailure { emitError(it) }
         }
     }

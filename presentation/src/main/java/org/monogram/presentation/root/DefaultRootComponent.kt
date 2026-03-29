@@ -1,6 +1,7 @@
 // DefaultRootComponent.kt
 package org.monogram.presentation.root
 
+import org.monogram.presentation.core.util.coRunCatching
 import android.os.Parcelable
 import android.util.Log
 import com.arkivanov.decompose.DelicateDecomposeApi
@@ -232,7 +233,7 @@ class DefaultRootComponent(
 
     override fun handleLink(link: String) {
         scope.launch {
-            runCatching {
+            coRunCatching {
                 linkHandlerRepository.handleLink(link)
             }.onSuccess { action ->
                 processLinkAction(action, link)

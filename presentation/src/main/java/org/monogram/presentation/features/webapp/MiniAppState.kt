@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.webapp
 
+import org.monogram.presentation.core.util.coRunCatching
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -362,12 +363,12 @@ class MiniAppState(
     fun createHost(secureStorage: Any?) = object : TelegramWebAppHost {
         override fun onOpenLink(url: String, tryBrowser: Boolean, tryInstantView: Boolean) {
             val intent = Intent(Intent.ACTION_VIEW, url.toUri())
-            runCatching { context.startActivity(intent) }
+            coRunCatching { context.startActivity(intent) }
         }
 
         override fun onOpenTgLink(path: String) {
             val uri = if (path.startsWith("tg://")) path.toUri() else "tg://$path".toUri()
-            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
+            coRunCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
         }
 
         override fun onOpenInvoice(slug: String) {
@@ -758,7 +759,7 @@ class MiniAppState(
         override fun onSendPreparedMessage(id: String) {}
 
         override fun onFileDownloadRequested(url: String, fileName: String) {
-            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
+            coRunCatching { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
         }
 
         override fun onOpenLocationSettings() {

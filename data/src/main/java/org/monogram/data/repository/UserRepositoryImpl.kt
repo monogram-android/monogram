@@ -1,5 +1,6 @@
 package org.monogram.data.repository
 
+import org.monogram.data.core.coRunCatching
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
@@ -148,9 +149,9 @@ class UserRepositoryImpl(
                 } else {
                     fileIdToUserIdMap[file.id] = user.id
                     fileQueue.enqueue(file.id, 1, FileDownloadQueue.DownloadType.DEFAULT, synchronous = false)
-                    runCatching { fileQueue.waitForDownload(file.id).await() }
+                    coRunCatching { fileQueue.waitForDownload(file.id).await() }
 
-                    val refreshedPath = runCatching {
+                    val refreshedPath = coRunCatching {
                         (gateway.execute(TdApi.GetFile(file.id)) as? TdApi.File)
                             ?.local
                             ?.path
@@ -176,7 +177,7 @@ class UserRepositoryImpl(
     override suspend fun getMe(): UserModel {
         val user = remote.getMe() ?: return UserModel(0, "Error")
         currentUserId = user.id
-        runCatching { keyValueDao.insertValue(KeyValueEntity(KEY_CURRENT_USER_ID, user.id.toString())) }
+        coRunCatching { keyValueDao.insertValue(KeyValueEntity(KEY_CURRENT_USER_ID, user.id.toString())) }
         userLocal.putUser(user)
         if (userLocal is RoomUserLocalDataSource) {
             val personalAvatarPath = resolveStoredPersonalAvatarPath(user.id)
@@ -295,7 +296,7 @@ class UserRepositoryImpl(
 
     private suspend fun resolveDownloadedFilePath(fileId: Int?): String? {
         if (fileId == null || fileId == 0) return null
-        val file = runCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull() ?: return null
+        val file = coRunCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull() ?: return null
         return if (file.local.isDownloadingCompleted) file.local.path.ifEmpty { null } else null
     }
 
@@ -349,7 +350,7 @@ class UserRepositoryImpl(
             ignoreSuppression = true
         )
         withTimeoutOrNull(15_000) {
-            runCatching { fileQueue.waitForDownload(fileId).await() }
+            coRunCatching { fileQueue.waitForDownload(fileId).await() }
         }
         return resolveDownloadedFilePath(fileId)
     }
@@ -601,13 +602,13 @@ class UserRepositoryImpl(
     }
 
     override fun logOut() {
-        scope.launch { runCatching { remote.logout() } }
+        scope.launch { coRunCatching { remote.logout() } }
         scope.launch { userLocal.clearAll() }
         if (userLocal is RoomUserLocalDataSource) {
             scope.launch { userLocal.clearDatabase() }
         }
         scope.launch {
-            runCatching { keyValueDao.deleteValue(KEY_CURRENT_USER_ID) }
+            coRunCatching { keyValueDao.deleteValue(KEY_CURRENT_USER_ID) }
             currentUserId = 0L
             _currentUserFlow.value = null
         }

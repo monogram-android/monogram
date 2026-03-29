@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.chats.chatList
 
+import org.monogram.presentation.core.util.coRunCatching
 import android.util.Log
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.mvikotlin.core.instancekeeper.getStore
@@ -344,7 +345,7 @@ class DefaultChatListComponent(
         }
 
         scope.launch(Dispatchers.IO) {
-            runCatching {
+            coRunCatching {
                 repositoryUser.setEmojiStatus(customEmojiId)
             }
         }

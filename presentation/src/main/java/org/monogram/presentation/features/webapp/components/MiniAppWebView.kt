@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.webapp.components
 
+import org.monogram.presentation.core.util.coRunCatching
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Bitmap
@@ -85,7 +86,7 @@ fun MiniAppWebView(
                     ): Boolean {
                         val uri = request?.url ?: return false
                         if (uri.scheme == "tg" || !listOf("http", "https").contains(uri.scheme)) {
-                            runCatching {
+                            coRunCatching {
                                 ctx.startActivity(
                                     Intent(
                                         Intent.ACTION_VIEW,

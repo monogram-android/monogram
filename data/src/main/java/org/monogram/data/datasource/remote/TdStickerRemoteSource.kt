@@ -1,5 +1,6 @@
 package org.monogram.data.datasource.remote
 
+import org.monogram.data.core.coRunCatching
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -16,7 +17,7 @@ class TdStickerRemoteSource(
     private val gateway: TelegramGateway
 ) : StickerRemoteSource {
     override suspend fun getInstalledStickerSets(type: StickerType): List<StickerSetModel> {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(TdApi.GetInstalledStickerSets(type.toApi()))
                 .sets
                 .mapNotNull { getStickerSet(it.id) }
@@ -24,7 +25,7 @@ class TdStickerRemoteSource(
     }
 
     override suspend fun getArchivedStickerSets(type: StickerType): List<StickerSetModel> {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(TdApi.GetArchivedStickerSets(type.toApi(), 0, 100))
                 .sets
                 .mapNotNull { getStickerSet(it.id) }
@@ -32,19 +33,19 @@ class TdStickerRemoteSource(
     }
 
     override suspend fun getStickerSet(setId: Long): StickerSetModel? {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(TdApi.GetStickerSet(setId)).toDomain()
         }.getOrNull()
     }
 
     override suspend fun getStickerSetByName(name: String): StickerSetModel? {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(TdApi.SearchStickerSet(name, false)).toDomain()
         }.getOrNull()
     }
 
     override suspend fun getRecentStickers(): List<StickerModel> {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(TdApi.GetRecentStickers(false))
                 .stickers
                 .map { it.toDomain() }
@@ -52,15 +53,15 @@ class TdStickerRemoteSource(
     }
 
     override suspend fun toggleStickerSetInstalled(setId: Long, isInstalled: Boolean) {
-        runCatching { gateway.execute(TdApi.ChangeStickerSet(setId, isInstalled, false)) }
+        coRunCatching { gateway.execute(TdApi.ChangeStickerSet(setId, isInstalled, false)) }
     }
 
     override suspend fun toggleStickerSetArchived(setId: Long, isArchived: Boolean) {
-        runCatching { gateway.execute(TdApi.ChangeStickerSet(setId, false, isArchived)) }
+        coRunCatching { gateway.execute(TdApi.ChangeStickerSet(setId, false, isArchived)) }
     }
 
     override suspend fun reorderStickerSets(type: StickerType, setIds: List<Long>) {
-        runCatching {
+        coRunCatching {
             gateway.execute(TdApi.ReorderInstalledStickerSets(type.toApi(), setIds.toLongArray()))
         }
     }
@@ -74,7 +75,7 @@ class TdStickerRemoteSource(
         )
         return coroutineScope {
             types
-                .map { type -> async { runCatching { gateway.execute(TdApi.GetEmojiCategories(type)) }.getOrNull() } }
+                .map { type -> async { coRunCatching { gateway.execute(TdApi.GetEmojiCategories(type)) }.getOrNull() } }
                 .awaitAll()
                 .asSequence()
                 .filterNotNull()
@@ -86,7 +87,7 @@ class TdStickerRemoteSource(
     }
 
     override suspend fun getMessageAvailableReactions(chatId: Long, messageId: Long): List<String> {
-        return runCatching {
+        return coRunCatching {
             val result = gateway.execute(TdApi.GetMessageAvailableReactions(chatId, messageId, 32))
             buildSet {
                 result.topReactions.forEach { (it.type as? TdApi.ReactionTypeEmoji)?.let { r -> add(r.emoji) } }
@@ -97,7 +98,7 @@ class TdStickerRemoteSource(
     }
 
     override suspend fun searchEmojis(query: String): List<String> {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(TdApi.SearchEmojis(query, emptyArray()))
                 .emojiKeywords
                 .map { it.emoji }
@@ -105,7 +106,7 @@ class TdStickerRemoteSource(
     }
 
     override suspend fun searchCustomEmojis(query: String): List<StickerModel> {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(
                 TdApi.SearchStickers(TdApi.StickerTypeCustomEmoji(), "", query, emptyArray(), 0, 100)
             ).stickers.map { it.toDomain() }
@@ -113,7 +114,7 @@ class TdStickerRemoteSource(
     }
 
     override suspend fun searchStickers(query: String): List<StickerModel> {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(
                 TdApi.SearchStickers(TdApi.StickerTypeRegular(), "", query, emptyArray(), 0, 100)
             ).stickers.map { it.toDomain() }
@@ -121,7 +122,7 @@ class TdStickerRemoteSource(
     }
 
     override suspend fun searchStickerSets(query: String): List<StickerSetModel> {
-        return runCatching {
+        return coRunCatching {
             gateway.execute(TdApi.SearchStickerSets(TdApi.StickerTypeRegular(), query))
                 .sets
                 .mapNotNull { getStickerSet(it.id) }
@@ -129,8 +130,8 @@ class TdStickerRemoteSource(
     }
 
     override suspend fun getSavedGifs(): List<GifModel> {
-        return runCatching {
-            val recentGifs = runCatching {
+        return coRunCatching {
+            val recentGifs = coRunCatching {
                 gateway.execute(TdApi.GetSavedAnimations())
                     .animations
                     .map { animation ->
@@ -146,7 +147,7 @@ class TdStickerRemoteSource(
 
             when {
                 recentGifs.isNotEmpty() -> {
-                    return@runCatching recentGifs
+                    return@coRunCatching recentGifs
                 }
                 else -> return searchGifs("")
             }
@@ -154,11 +155,11 @@ class TdStickerRemoteSource(
     }
 
     override suspend fun addSavedGif(path: String) {
-        runCatching { gateway.execute(TdApi.AddSavedAnimation(TdApi.InputFileLocal(path))) }
+        coRunCatching { gateway.execute(TdApi.AddSavedAnimation(TdApi.InputFileLocal(path))) }
     }
 
     override suspend fun searchGifs(query: String): List<GifModel> {
-        return runCatching {
+        return coRunCatching {
             val chat = gateway.execute(TdApi.SearchPublicChat("gif"))
             val type = chat.type as? TdApi.ChatTypePrivate ?: return emptyList()
             gateway.execute(TdApi.GetInlineQueryResults(type.userId, chat.id, null, query, ""))
@@ -177,6 +178,6 @@ class TdStickerRemoteSource(
     }
 
     override suspend fun clearRecentStickers() {
-        runCatching { gateway.execute(TdApi.ClearRecentStickers()) }
+        coRunCatching { gateway.execute(TdApi.ClearRecentStickers()) }
     }
 }

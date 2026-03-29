@@ -1,5 +1,6 @@
 package org.monogram.data.infra
 
+import org.monogram.data.core.coRunCatching
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -169,7 +170,7 @@ class SponsorSyncManager(
     }
 
     private suspend fun resolveSponsorChatId(): Long {
-        val chat = runCatching {
+        val chat = coRunCatching {
             gateway.execute(TdApi.SearchPublicChat(SPONSOR_CHANNEL_USERNAME)) as? TdApi.Chat
         }.getOrNull()
 

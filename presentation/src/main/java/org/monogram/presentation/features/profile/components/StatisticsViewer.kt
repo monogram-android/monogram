@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.profile.components
 
+import org.monogram.presentation.core.util.coRunCatching
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -1397,7 +1398,7 @@ private data class ParsedStatisticsSeries(
 )
 
 private fun parseStatisticsGraph(jsonData: String): ParsedStatisticsGraph? {
-    return runCatching {
+    return coRunCatching {
         val root = JSONObject(jsonData)
         val columnsArray = root.optJSONArray("columns") ?: return null
         val typesObject = root.optJSONObject("types") ?: return null
@@ -1468,7 +1469,7 @@ private fun formatChartXAxisLabel(rawValue: Long, pointCount: Int): String {
 
 private fun String.toComposeColorOrNull(): Color? {
     if (!startsWith("#")) return null
-    return runCatching { Color(android.graphics.Color.parseColor(this)) }.getOrNull()
+    return coRunCatching { Color(android.graphics.Color.parseColor(this)) }.getOrNull()
 }
 
 private fun formatStatNumber(value: Int): String {

@@ -1,5 +1,6 @@
 package org.monogram.data.chats
 
+import org.monogram.data.core.coRunCatching
 import android.util.Log
 import org.monogram.core.DispatcherProvider
 import org.monogram.core.ScopeProvider
@@ -92,7 +93,7 @@ class ChatFolderManager(
 
         folderInfos.forEach { info ->
             scope.launch(dispatchers.io) {
-                runCatching {
+                coRunCatching {
                     val result = gateway.execute(TdApi.GetChatFolder(info.id))
                     val chatIds = result.includedChatIds.toList()
                     val pinnedIds = result.pinnedChatIds.toList()

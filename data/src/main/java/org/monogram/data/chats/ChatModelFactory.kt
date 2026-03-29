@@ -1,5 +1,6 @@
 package org.monogram.data.chats
 
+import org.monogram.data.core.coRunCatching
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
@@ -143,7 +144,7 @@ class ChatModelFactory(
                     if (!isUserFullInfoTemporarilyMissing(type.userId)) {
                         lazyLoad(cache.pendingUserFullInfo, type.userId) {
                             if (type.userId == 0L) return@lazyLoad
-                            val result = runCatching { gateway.execute(TdApi.GetUserFullInfo(type.userId)) }.getOrNull()
+                            val result = coRunCatching { gateway.execute(TdApi.GetUserFullInfo(type.userId)) }.getOrNull()
                             if (result != null) {
                                 cache.userFullInfoCache[type.userId] = result
                                 missingUserFullInfoUntilMs.remove(type.userId)
@@ -247,7 +248,7 @@ class ChatModelFactory(
     private fun <K> lazyLoad(pendingSet: MutableSet<K>, key: K, block: suspend () -> Unit) {
         if (pendingSet.add(key)) {
             scope.launch(dispatchers.io) {
-                runCatching { block() }
+                coRunCatching { block() }
                 pendingSet.remove(key)
             }
         }

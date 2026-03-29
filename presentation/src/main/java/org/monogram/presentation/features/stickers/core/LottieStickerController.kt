@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.stickers.core
 
+import org.monogram.presentation.core.util.coRunCatching
 import android.graphics.Bitmap
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -117,7 +118,7 @@ class LottieStickerController(
         if (!file.exists()) return
 
         val localDecoder = RLottieWrapper()
-        if (!runCatching { localDecoder.open(file) }.getOrDefault(false)) {
+        if (!coRunCatching { localDecoder.open(file) }.getOrDefault(false)) {
             localDecoder.release()
             return
         }

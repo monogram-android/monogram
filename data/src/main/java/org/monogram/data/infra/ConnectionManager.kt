@@ -1,5 +1,6 @@
 package org.monogram.data.infra
 
+import org.monogram.data.core.coRunCatching
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkRequest
@@ -131,7 +132,7 @@ class ConnectionManager(
 
         Log.d(TAG, "Reconnect attempt #$reconnectAttempts ($reason), state=${_connectionStateFlow.value}")
 
-        val networkTypeUpdated = runCatching {
+        val networkTypeUpdated = coRunCatching {
             withContext(dispatchers.io) {
                 chatRemoteSource.setNetworkType()
             }
@@ -144,7 +145,7 @@ class ConnectionManager(
             Log.w(TAG, "Reconnect attempt did not update network type")
         }
 
-        runCatching {
+        coRunCatching {
             withContext(dispatchers.io) {
                 proxyRemoteSource.setOption("online", TdApi.OptionValueBoolean(true))
             }
@@ -178,7 +179,7 @@ class ConnectionManager(
             if (reconnectAttempts % 3 != 0) return
         }
 
-        runCatching { selectBestProxy() }
+        coRunCatching { selectBestProxy() }
             .onFailure { Log.e(TAG, "Proxy fallback failed during reconnect", it) }
     }
 
@@ -206,7 +207,7 @@ class ConnectionManager(
 
             while (isActive) {
                 if (appPreferences.isAutoBestProxyEnabled.value) {
-                    runCatching { selectBestProxy() }
+                    coRunCatching { selectBestProxy() }
                         .onFailure { Log.e(TAG, "Error selecting best proxy", it) }
                 }
                 delay(300_000)
@@ -273,7 +274,7 @@ class ConnectionManager(
             }
         }
 
-        val registered = runCatching {
+        val registered = coRunCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 connectivityManager.registerDefaultNetworkCallback(callback)
             } else {

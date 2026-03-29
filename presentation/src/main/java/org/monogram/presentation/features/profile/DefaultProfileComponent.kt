@@ -1,8 +1,10 @@
 package org.monogram.presentation.features.profile
 
+import org.monogram.presentation.core.util.coRunCatching
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
@@ -60,19 +62,11 @@ class DefaultProfileComponent(
         scope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val chat = try {
-                    chatsListRepository.getChatById(chatId)
-                } catch (e: Exception) {
-                    null
-                }
+                val chat = coRunCatching { chatsListRepository.getChatById(chatId) }.getOrNull()
                 val user = if (chat == null || (!chat.isGroup && !chat.isChannel)) {
                     userRepository.getUser(chatId)
                 } else null
-                val fullInfo = try {
-                    userRepository.getChatFullInfo(chatId)
-                } catch (e: Exception) {
-                    null
-                }
+                val fullInfo = coRunCatching { userRepository.getChatFullInfo(chatId) }.getOrNull()
                 val description = fullInfo?.description
                 val link = fullInfo?.inviteLink
                     ?: chat?.username?.let { "https://t.me/$it" }
@@ -94,11 +88,7 @@ class DefaultProfileComponent(
 
                 val linkedChatId = fullInfo?.linkedChatId?.takeIf { it != 0L }
                 val linkedChat = linkedChatId?.let {
-                    try {
-                        chatsListRepository.getChatById(it)
-                    } catch (e: Exception) {
-                        null
-                    }
+                    coRunCatching { chatsListRepository.getChatById(it) }.getOrNull()
                 }
 
                 _state.update {
@@ -267,6 +257,8 @@ class DefaultProfileComponent(
                         )
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -320,6 +312,8 @@ class DefaultProfileComponent(
                 } else {
                     _state.update { appendMessagesToState(it, filter, messages) }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -626,7 +620,7 @@ class DefaultProfileComponent(
         scope.launch {
             _state.update { it.copy(isProfilePhotoHdLoading = true) }
             try {
-                val refreshedPhotos = runCatching {
+                val refreshedPhotos = coRunCatching {
                     userRepository.getUserProfilePhotos(
                         userId = userId,
                         offset = 0,
@@ -979,7 +973,7 @@ class DefaultProfileComponent(
             if (interaction.type != ChatInteractionType.MESSAGE || interaction.objectId == 0L) {
                 interaction
             } else {
-                val preview = runCatching {
+                val preview = coRunCatching {
                     messageRepository
                         .getMessagesAround(chatId = chatId, messageId = interaction.objectId, limit = 1)
                         .firstOrNull { it.id == interaction.objectId }

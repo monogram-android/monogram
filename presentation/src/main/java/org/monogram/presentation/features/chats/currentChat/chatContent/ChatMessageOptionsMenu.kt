@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.chats.currentChat.chatContent
 
+import org.monogram.presentation.core.util.coRunCatching
 import android.util.Log
 import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
@@ -318,7 +319,7 @@ fun ChatMessageOptionsMenu(
         },
         onTelegramSummary = {
             telegramAiScope.launch {
-                runCatching {
+                coRunCatching {
                     messageRepository.summarizeMessage(
                         chatId = selectedMessage.chatId,
                         messageId = selectedMessage.id
@@ -351,7 +352,7 @@ fun ChatMessageOptionsMenu(
             telegramAiScope.launch {
                 val languageCode = state.currentUser?.languageCode?.takeIf { it.isNotBlank() }
                     ?: Locale.getDefault().language
-                runCatching {
+                coRunCatching {
                     messageRepository.translateMessage(
                         chatId = selectedMessage.chatId,
                         messageId = selectedMessage.id,

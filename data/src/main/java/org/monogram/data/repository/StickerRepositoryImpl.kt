@@ -1,5 +1,6 @@
 package org.monogram.data.repository
 
+import org.monogram.data.core.coRunCatching
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.*
@@ -106,7 +107,7 @@ class StickerRepositoryImpl(
         scope.launch(dispatchers.default) {
             delay(60_000L)
             while (isActive) {
-                runCatching { verifyInstalledStickerSets() }
+                coRunCatching { verifyInstalledStickerSets() }
                     .onFailure { Log.w("StickerRepo", "verifyInstalledStickerSets failed", it) }
                 delay(120_000L)
             }
@@ -475,7 +476,7 @@ class StickerRepositoryImpl(
 
     override suspend fun getTgsJson(path: String): String? = withContext(dispatchers.io) {
         tgsCache[path]?.let { return@withContext it }
-        runCatching {
+        coRunCatching {
             val file = File(path)
             if (!file.exists() || file.length() == 0L) return@withContext null
             GZIPInputStream(FileInputStream(file))

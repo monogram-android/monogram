@@ -1,5 +1,6 @@
 package org.monogram.data.repository
 
+import org.monogram.data.core.coRunCatching
 import androidx.core.net.toUri
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TelegramGateway
@@ -23,13 +24,13 @@ class LinkHandlerRepositoryImpl(
         tryParseProxyLink(normalized)?.let { return it }
         tryParseUserLink(normalized)?.let { return it }
 
-        return runCatching {
+        return coRunCatching {
             when (val result = gateway.execute(TdApi.GetInternalLinkType(normalized))) {
                 is TdApi.InternalLinkTypePublicChat ->
                     handlePublicChat(result.chatUsername)
 
                 is TdApi.InternalLinkTypeMessage -> {
-                    val info = runCatching {
+                    val info = coRunCatching {
                         gateway.execute(TdApi.GetMessageLinkInfo(result.url))
                     }.getOrNull()
                     when {
@@ -46,7 +47,7 @@ class LinkHandlerRepositoryImpl(
                     LinkAction.OpenStickerSet(result.stickerSetName)
 
                 is TdApi.InternalLinkTypeChatInvite -> {
-                    val inviteInfo = runCatching {
+                    val inviteInfo = coRunCatching {
                         gateway.execute(TdApi.CheckChatInviteLink(result.inviteLink))
                     }.getOrNull()
 
@@ -55,7 +56,7 @@ class LinkHandlerRepositoryImpl(
                     val photo = inviteInfo.photo?.small ?: inviteInfo.photo?.big
                     if (photo != null && photo.local.path.isEmpty()) {
                         fileQueue.enqueue(photo.id, 1, FileDownloadQueue.DownloadType.DEFAULT, synchronous = false)
-                        runCatching { fileQueue.waitForDownload(photo.id).await() }
+                        coRunCatching { fileQueue.waitForDownload(photo.id).await() }
                     }
 
                     LinkAction.ConfirmJoinInviteLink(
@@ -123,51 +124,51 @@ class LinkHandlerRepositoryImpl(
     }
 
     override suspend fun joinChat(inviteLink: String): Long? =
-        runCatching {
+        coRunCatching {
             gateway.execute(TdApi.JoinChatByInviteLink(inviteLink)).id
         }.getOrNull()
 
     private suspend fun handlePublicChat(username: String): LinkAction {
-        val chat = runCatching {
+        val chat = coRunCatching {
             gateway.execute(TdApi.SearchPublicChat(username))
         }.getOrNull() ?: return LinkAction.ShowToast("Chat not found")
         return resolveChatAction(chat)
     }
 
     private suspend fun handleMyProfileLink(): LinkAction {
-        val me = runCatching { gateway.execute(TdApi.GetMe()) }.getOrNull()
+        val me = coRunCatching { gateway.execute(TdApi.GetMe()) }.getOrNull()
             ?: return LinkAction.ShowToast("User not found")
         return LinkAction.OpenUser(me.id)
     }
 
     private suspend fun handleSavedMessagesLink(): LinkAction {
-        val me = runCatching { gateway.execute(TdApi.GetMe()) }.getOrNull()
+        val me = coRunCatching { gateway.execute(TdApi.GetMe()) }.getOrNull()
             ?: return LinkAction.ShowToast("Chat not found")
-        val chat = runCatching {
+        val chat = coRunCatching {
             gateway.execute(TdApi.CreatePrivateChat(me.id, false))
         }.getOrNull() ?: return LinkAction.ShowToast("Chat not found")
         return LinkAction.OpenChat(chat.id)
     }
 
     private suspend fun handleUserPhoneNumberLink(phoneNumber: String, openProfile: Boolean): LinkAction {
-        val user = runCatching {
+        val user = coRunCatching {
             gateway.execute(TdApi.SearchUserByPhoneNumber(phoneNumber, true))
         }.getOrNull() ?: return LinkAction.ShowToast("User not found")
 
         if (openProfile) return LinkAction.OpenUser(user.id)
 
-        val chat = runCatching {
+        val chat = coRunCatching {
             gateway.execute(TdApi.CreatePrivateChat(user.id, false))
         }.getOrNull()
         return if (chat != null) LinkAction.OpenChat(chat.id) else LinkAction.OpenUser(user.id)
     }
 
     private suspend fun handleUserTokenLink(token: String): LinkAction {
-        val user = runCatching {
+        val user = coRunCatching {
             gateway.execute(TdApi.SearchUserByToken(token))
         }.getOrNull() ?: return LinkAction.ShowToast("User not found")
 
-        val chat = runCatching {
+        val chat = coRunCatching {
             gateway.execute(TdApi.CreatePrivateChat(user.id, false))
         }.getOrNull()
         return if (chat != null) LinkAction.OpenChat(chat.id) else LinkAction.OpenUser(user.id)
@@ -187,7 +188,7 @@ class LinkHandlerRepositoryImpl(
     }
 
     private suspend fun handleExternalOrUnknownLink(link: String): LinkAction {
-        val uri = runCatching { link.toUri() }.getOrNull()
+        val uri = coRunCatching { link.toUri() }.getOrNull()
 
         if (uri != null && uri.scheme.equals("tg", ignoreCase = true)) {
             if (uri.host.equals("resolve", ignoreCase = true)) {
@@ -247,7 +248,7 @@ class LinkHandlerRepositoryImpl(
     }
 
     private fun tryParseProxyLink(link: String): LinkAction? {
-        val uri = runCatching { link.toUri() }.getOrNull() ?: return null
+        val uri = coRunCatching { link.toUri() }.getOrNull() ?: return null
 
         val isProxy = link.contains("/proxy?") || link.startsWith("tg://proxy")
         val isSocks = link.contains("/socks?") || link.startsWith("tg://socks")
@@ -269,7 +270,7 @@ class LinkHandlerRepositoryImpl(
     }
 
     private fun tryParseUserLink(link: String): LinkAction? {
-        val uri = runCatching { link.toUri() }.getOrNull() ?: return null
+        val uri = coRunCatching { link.toUri() }.getOrNull() ?: return null
         if (!uri.scheme.equals("tg", ignoreCase = true)) return null
 
         val userId = when {

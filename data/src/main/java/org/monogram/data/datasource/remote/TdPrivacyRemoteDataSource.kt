@@ -1,5 +1,6 @@
 package org.monogram.data.datasource.remote
 
+import org.monogram.data.core.coRunCatching
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TelegramGateway
 
@@ -10,7 +11,7 @@ class TdPrivacyRemoteDataSource(
     override suspend fun getPrivacyRules(
         setting: TdApi.UserPrivacySetting
     ): List<TdApi.UserPrivacySettingRule> =
-        runCatching {
+        coRunCatching {
             gateway.execute(TdApi.GetUserPrivacySettingRules(setting)).rules.toList()
         }.getOrDefault(emptyList())
 
@@ -22,7 +23,7 @@ class TdPrivacyRemoteDataSource(
     }
 
     override suspend fun getBlockedUsers(): List<Long> =
-        runCatching {
+        coRunCatching {
             gateway.execute(TdApi.GetBlockedMessageSenders(TdApi.BlockListMain(), 0, 100))
                 .senders
                 .mapNotNull { (it as? TdApi.MessageSenderUser)?.userId }
@@ -45,7 +46,7 @@ class TdPrivacyRemoteDataSource(
     }
 
     override suspend fun getAccountTtl(): Int =
-        runCatching {
+        coRunCatching {
             gateway.execute(TdApi.GetAccountTtl()).days
         }.getOrDefault(180)
 
@@ -54,12 +55,12 @@ class TdPrivacyRemoteDataSource(
     }
 
     override suspend fun getPasswordState(): Boolean =
-        runCatching {
+        coRunCatching {
             gateway.execute(TdApi.GetPasswordState()).hasPassword
         }.getOrDefault(false)
 
     override suspend fun getOption(name: String): Boolean =
-        runCatching {
+        coRunCatching {
             (gateway.execute(TdApi.GetOption(name)) as? TdApi.OptionValueBoolean)?.value ?: false
         }.getOrDefault(false)
 

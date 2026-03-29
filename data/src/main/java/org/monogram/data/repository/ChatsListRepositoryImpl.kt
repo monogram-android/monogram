@@ -1,5 +1,6 @@
 package org.monogram.data.repository
 
+import org.monogram.data.core.coRunCatching
 import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
@@ -170,7 +171,7 @@ class ChatsListRepositoryImpl(
         }
 
         scope.launch(dispatchers.io) {
-            runCatching {
+            coRunCatching {
                 val entities = chatLocalDataSource.getAllChats().first()
                 if (entities.isNotEmpty()) {
                     entities.forEach { entity ->
@@ -216,7 +217,7 @@ class ChatsListRepositoryImpl(
     }
 
     private suspend fun rebuildAndEmit() {
-        runCatching {
+        coRunCatching {
             activeRequestId
             val folderIdAtStart = activeFolderId
             val limitAtStart = maxOf(currentLimit, cache.activeListPositions.size)
@@ -238,7 +239,7 @@ class ChatsListRepositoryImpl(
             }
 
             if (folderIdAtStart != activeFolderId) {
-                return@runCatching
+                return@coRunCatching
             }
 
             val folderChanged = folderIdAtStart != lastListFolderId
@@ -632,7 +633,7 @@ class ChatsListRepositoryImpl(
         if (!cacheHydrated.isCompleted) {
             pendingSelectFolderJob?.cancel()
             pendingSelectFolderJob = scope.launch(dispatchers.io) {
-                runCatching { cacheHydrated.await() }
+                coRunCatching { cacheHydrated.await() }
                     .onSuccess { selectFolder(folderId) }
             }
             return
@@ -704,7 +705,7 @@ class ChatsListRepositoryImpl(
     override fun refresh() {
         if (!cacheHydrated.isCompleted) {
             scope.launch(dispatchers.io) {
-                runCatching { cacheHydrated.await() }
+                coRunCatching { cacheHydrated.await() }
                     .onSuccess { refresh() }
             }
             return
@@ -772,7 +773,7 @@ class ChatsListRepositoryImpl(
             } ?: return null
 
         val position = chatObj.positions.find { listManager.isSameChatList(it.list, activeChatList) }
-        return runCatching {
+        return coRunCatching {
             modelFactory.mapChatToModel(chatObj, position?.order ?: 0L, position?.isPinned ?: false)
         }.getOrNull()
     }
@@ -968,7 +969,7 @@ class ChatsListRepositoryImpl(
         if (userId == 0L) return
         if (cache.pendingUsers.add(userId)) {
             scope.launch(dispatchers.io) {
-                runCatching {
+                coRunCatching {
                     val user = gateway.execute(TdApi.GetUser(userId))
                     cache.putUser(user)
                     triggerUpdate()

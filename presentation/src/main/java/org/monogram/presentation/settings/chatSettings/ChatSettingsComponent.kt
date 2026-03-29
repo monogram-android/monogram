@@ -1,5 +1,6 @@
 package org.monogram.presentation.settings.chatSettings
 
+import org.monogram.presentation.core.util.coRunCatching
 import android.graphics.Color.colorToHSV
 import android.graphics.Color.HSVToColor
 import com.arkivanov.decompose.value.MutableValue
@@ -847,7 +848,7 @@ class DefaultChatSettingsComponent(
     }
 
     override fun importCustomThemeJson(json: String): Boolean {
-        return runCatching {
+        return coRunCatching {
             val data = JSONObject(json)
             val light = data.optJSONObject("lightPalette") ?: data
             val dark = data.optJSONObject("darkPalette") ?: data

@@ -25,6 +25,8 @@ class MainActivity : FragmentActivity() {
     @OptIn(ExperimentalDecomposeApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
         root = retainedComponent { componentContext ->
             DefaultRootComponent(
                 DefaultAppComponentContext(
@@ -33,7 +35,6 @@ class MainActivity : FragmentActivity() {
                 )
             )
         }
-        enableEdgeToEdge()
 
         handleIntent(intent)
         startNotificationService()

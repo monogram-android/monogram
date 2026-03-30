@@ -1,8 +1,20 @@
 package org.monogram.presentation.core.ui
 
+import android.content.ClipData
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,7 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -30,7 +42,7 @@ fun UsernamesTile(
     activeUsernames: List<String>,
     collectibleUsernames: List<String>,
     disabledUsernames: List<String>,
-    clipboardManager: ClipboardManager,
+    localClipboard: Clipboard,
     position: ItemPosition
 ) {
     val allUsernames = (activeUsernames + collectibleUsernames + disabledUsernames).distinct()
@@ -71,7 +83,10 @@ fun UsernamesTile(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .clickable { clipboardManager.setText(AnnotatedString("@$primaryUsername")) }
+            .clickable {
+                val clip = ClipData.newPlainText("", AnnotatedString("@$primaryUsername"))
+                localClipboard.nativeClipboard.setPrimaryClip(clip)
+            }
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
@@ -121,7 +136,10 @@ fun UsernamesTile(
                             UsernameChip(
                                 username = username,
                                 color = chipColor,
-                                onClick = { clipboardManager.setText(AnnotatedString("@$username")) }
+                                onClick = {
+                                    val clip = ClipData.newPlainText("", AnnotatedString("@$username"))
+                                    localClipboard.nativeClipboard.setPrimaryClip(clip)
+                                }
                             )
                         }
                     }

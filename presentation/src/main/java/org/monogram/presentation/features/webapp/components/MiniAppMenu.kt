@@ -1,6 +1,6 @@
 package org.monogram.presentation.features.webapp.components
 
-import org.monogram.presentation.core.util.coRunCatching
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutInfo
@@ -8,13 +8,22 @@ import android.content.pm.ShortcutManager
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
 import android.os.Build
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.AddToHomeScreen
@@ -25,12 +34,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.viewers.components.ViewerSettingsDropdown
 
@@ -43,7 +53,7 @@ fun MiniAppMenu(
     botName: String,
     botAvatarPath: String?,
     context: Context,
-    clipboardManager: ClipboardManager,
+    localClipboard: Clipboard,
     onDismiss: () -> Unit,
     onReload: () -> Unit
 ) {
@@ -87,7 +97,10 @@ fun MiniAppMenu(
                     icon = Icons.Rounded.ContentCopy,
                     title = stringResource(R.string.mini_app_menu_copy_link),
                     onClick = {
-                        clipboardManager.setText(AnnotatedString(url))
+                        localClipboard.nativeClipboard.setPrimaryClip(
+                            ClipData.newPlainText("", AnnotatedString(url))
+                        )
+
                         onDismiss()
                     }
                 )

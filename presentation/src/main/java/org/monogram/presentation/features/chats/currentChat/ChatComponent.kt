@@ -1,9 +1,23 @@
 package org.monogram.presentation.features.chats.currentChat
 
 import androidx.compose.runtime.Stable
-import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.Clipboard
 import kotlinx.coroutines.flow.StateFlow
-import org.monogram.domain.models.*
+import org.monogram.domain.models.AttachMenuBotModel
+import org.monogram.domain.models.BotCommandModel
+import org.monogram.domain.models.BotMenuButtonModel
+import org.monogram.domain.models.ChatPermissionsModel
+import org.monogram.domain.models.GifModel
+import org.monogram.domain.models.InlineKeyboardButtonModel
+import org.monogram.domain.models.KeyboardButtonModel
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageSendOptions
+import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.models.StickerSetModel
+import org.monogram.domain.models.TopicModel
+import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.WallpaperModel
 import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.StickerRepository
@@ -98,7 +112,7 @@ interface ChatComponent {
     fun onClearSelection()
     fun onClearMessages()
     fun onDeleteSelectedMessages(revoke: Boolean = false)
-    fun onCopySelectedMessages(clipboardManager: ClipboardManager)
+    fun onCopySelectedMessages(localClipboard: Clipboard)
 
     fun onStickerClick(setId: Long)
     fun onDismissStickerSet()
@@ -149,7 +163,7 @@ interface ChatComponent {
     fun onReportMessage(message: MessageModel)
     fun onReportReasonSelected(reason: String)
     fun onDismissReportDialog()
-    fun onCopyLink(clipboardManager: ClipboardManager)
+    fun onCopyLink(localClipboard: Clipboard)
 
     fun scrollToMessage(messageId: Long)
 

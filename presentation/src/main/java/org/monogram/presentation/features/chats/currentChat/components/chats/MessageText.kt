@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
+import android.content.ClipData
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.animation.core.withInfiniteAnimationFrameMillis
@@ -8,13 +9,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.Clipboard
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
@@ -37,7 +43,7 @@ fun MessageText(
     onLongClick: (Offset) -> Unit = {}
 ) {
     val uriHandler = LocalUriHandler.current
-    val clipboardManager = LocalClipboardManager.current
+    val localClipboard = LocalClipboard.current
     val context = LocalContext.current
     val linkHandler = LocalLinkHandler.current
 
@@ -58,7 +64,7 @@ fun MessageText(
                 onLongClick = onLongClick,
                 linkHandler = linkHandler,
                 uriHandler = uriHandler,
-                clipboardManager = clipboardManager,
+                localClipboard = localClipboard,
                 context = context
             )
         } else {
@@ -79,7 +85,7 @@ fun MessageText(
                             onLongClick = onLongClick,
                             linkHandler = linkHandler,
                             uriHandler = uriHandler,
-                            clipboardManager = clipboardManager,
+                            localClipboard = localClipboard,
                             context = context
                         )
                     }
@@ -111,7 +117,7 @@ fun MessageText(
                         onLongClick = onLongClick,
                         linkHandler = linkHandler,
                         uriHandler = uriHandler,
-                        clipboardManager = clipboardManager,
+                        localClipboard = localClipboard,
                         context = context
                     )
                 }
@@ -132,7 +138,7 @@ private fun DefaultTextRender(
     onLongClick: (Offset) -> Unit,
     linkHandler: (String) -> Unit,
     uriHandler: androidx.compose.ui.platform.UriHandler,
-    clipboardManager: androidx.compose.ui.platform.ClipboardManager,
+    localClipboard: Clipboard,
     context: android.content.Context
 ) {
     val layoutResult = remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -216,7 +222,9 @@ private fun DefaultTextRender(
                                     }
 
                                     "COPY" -> {
-                                        clipboardManager.setText(AnnotatedString(annotation.item))
+                                        localClipboard.nativeClipboard.setPrimaryClip(
+                                            ClipData.newPlainText("", AnnotatedString(annotation.item))
+                                        )
                                         Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
                                         consumed = true
                                     }

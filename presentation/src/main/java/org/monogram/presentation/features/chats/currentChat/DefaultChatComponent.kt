@@ -1,25 +1,64 @@
 package org.monogram.presentation.features.chats.currentChat
 
 import android.util.Log
-import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.Clipboard
 import com.arkivanov.essenty.lifecycle.doOnResume
 import com.arkivanov.essenty.lifecycle.doOnStart
 import com.arkivanov.essenty.lifecycle.doOnStop
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
 import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 import org.monogram.core.DispatcherProvider
 import org.monogram.domain.managers.DistrManager
-import org.monogram.domain.models.*
-import org.monogram.domain.repository.*
+import org.monogram.domain.models.BotMenuButtonModel
+import org.monogram.domain.models.ChatPermissionsModel
+import org.monogram.domain.models.GifModel
+import org.monogram.domain.models.InlineKeyboardButtonModel
+import org.monogram.domain.models.KeyboardButtonModel
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageSendOptions
+import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.WallpaperModel
+import org.monogram.domain.repository.BotPreferencesProvider
+import org.monogram.domain.repository.CacheProvider
+import org.monogram.domain.repository.ChatMembersFilter
+import org.monogram.domain.repository.ChatsListRepository
+import org.monogram.domain.repository.MessageDisplayer
+import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.PrivacyRepository
+import org.monogram.domain.repository.SettingsRepository
+import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
-import org.monogram.presentation.features.chats.currentChat.impl.*
+import org.monogram.presentation.features.chats.currentChat.impl.loadChatInfo
+import org.monogram.presentation.features.chats.currentChat.impl.loadDraft
+import org.monogram.presentation.features.chats.currentChat.impl.loadMessages
+import org.monogram.presentation.features.chats.currentChat.impl.loadPinnedMessage
+import org.monogram.presentation.features.chats.currentChat.impl.loadScheduledMessages
+import org.monogram.presentation.features.chats.currentChat.impl.loadWallpapers
+import org.monogram.presentation.features.chats.currentChat.impl.observePreferences
+import org.monogram.presentation.features.chats.currentChat.impl.observeUserUpdates
+import org.monogram.presentation.features.chats.currentChat.impl.setupMessageCollectors
+import org.monogram.presentation.features.chats.currentChat.impl.setupPinnedMessageCollector
 import org.monogram.presentation.root.AppComponentContext
 import org.monogram.presentation.settings.storage.CacheController
 import java.io.File
@@ -505,8 +544,8 @@ class DefaultChatComponent(
     override fun onClearSelection() = store.accept(ChatStore.Intent.ClearSelection)
     override fun onClearMessages() = store.accept(ChatStore.Intent.ClearMessages)
 
-    override fun onCopySelectedMessages(clipboardManager: ClipboardManager) =
-        store.accept(ChatStore.Intent.CopySelectedMessages(clipboardManager))
+    override fun onCopySelectedMessages(localClipboard: Clipboard) =
+        store.accept(ChatStore.Intent.CopySelectedMessages(localClipboard))
 
     override fun onStickerClick(setId: Long) = store.accept(ChatStore.Intent.StickerClick(setId))
     override fun onDismissStickerSet() = store.accept(ChatStore.Intent.DismissStickerSet)
@@ -579,8 +618,8 @@ class DefaultChatComponent(
 
     override fun onDismissReportDialog() = store.accept(ChatStore.Intent.DismissReportDialog)
 
-    override fun onCopyLink(clipboardManager: ClipboardManager) =
-        store.accept(ChatStore.Intent.CopyLink(clipboardManager))
+    override fun onCopyLink(localClipboard: Clipboard) =
+        store.accept(ChatStore.Intent.CopyLink(localClipboard))
 
     override fun scrollToMessage(messageId: Long) = store.accept(ChatStore.Intent.ScrollToMessage(messageId))
     override fun onBotCommandClick(command: String) = store.accept(ChatStore.Intent.BotCommandClick(command))

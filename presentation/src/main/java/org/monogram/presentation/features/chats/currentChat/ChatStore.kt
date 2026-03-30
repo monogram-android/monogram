@@ -1,8 +1,14 @@
 package org.monogram.presentation.features.chats.currentChat
 
-import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.Clipboard
 import com.arkivanov.mvikotlin.core.store.Store
-import org.monogram.domain.models.*
+import org.monogram.domain.models.ChatPermissionsModel
+import org.monogram.domain.models.GifModel
+import org.monogram.domain.models.InlineKeyboardButtonModel
+import org.monogram.domain.models.KeyboardButtonModel
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageSendOptions
 import java.io.File
 
 interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Label> {
@@ -83,7 +89,7 @@ interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Lab
         object ClearSelection : Intent()
         object ClearMessages : Intent()
         data class DeleteSelectedMessages(val revoke: Boolean = false) : Intent()
-        data class CopySelectedMessages(val clipboardManager: ClipboardManager) : Intent()
+        data class CopySelectedMessages(val localClipboard: Clipboard) : Intent()
         data class StickerClick(val setId: Long) : Intent()
         object DismissStickerSet : Intent()
         data class AddToGifs(val path: String) : Intent()
@@ -127,7 +133,7 @@ interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Lab
         data class ReportMessage(val message: MessageModel) : Intent()
         data class ReportReasonSelected(val reason: String) : Intent()
         object DismissReportDialog : Intent()
-        data class CopyLink(val clipboardManager: ClipboardManager) : Intent()
+        data class CopyLink(val localClipboard: Clipboard) : Intent()
         data class ScrollToMessage(val messageId: Long) : Intent()
         data class BotCommandClick(val command: String) : Intent()
         object ShowBotCommands : Intent()

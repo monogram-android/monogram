@@ -1,15 +1,20 @@
 package org.monogram.presentation.features.chats.currentChat.impl
 
+import android.content.ClipData
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
-import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.text.AnnotatedString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.monogram.domain.models.*
+import org.monogram.domain.models.GifModel
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageSendOptions
 import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
 import org.monogram.presentation.features.chats.currentChat.editor.video.VideoQuality
 import org.monogram.presentation.features.chats.currentChat.editor.video.VideoTrimRange
@@ -297,7 +302,7 @@ internal fun DefaultChatComponent.handleSendVoice(path: String, duration: Int, w
     }
 }
 
-internal fun DefaultChatComponent.handleCopySelectedMessages(clipboardManager: ClipboardManager) {
+internal fun DefaultChatComponent.handleCopySelectedMessages(localClipboard: Clipboard) {
     val currentState = _state.value
     val selectedIds = currentState.selectedMessageIds
     val selectedMessages = currentState.messages
@@ -316,7 +321,8 @@ internal fun DefaultChatComponent.handleCopySelectedMessages(clipboardManager: C
     }
 
     if (text.isNotEmpty()) {
-        clipboardManager.setText(AnnotatedString(text))
+        val clip = ClipData.newPlainText("", AnnotatedString(text))
+        localClipboard.nativeClipboard.setPrimaryClip(clip)
     }
     onClearSelection()
 }
@@ -329,11 +335,13 @@ internal fun DefaultChatComponent.handleReportReasonSelected(reason: String) {
     chatsListRepository.reportChat(chatId, reason)
 }
 
-internal fun DefaultChatComponent.handleCopyLink(clipboardManager: ClipboardManager) {
+internal fun DefaultChatComponent.handleCopyLink(localClipboard: Clipboard) {
     scope.launch {
         val link = chatsListRepository.getChatLink(chatId)
         if (link != null) {
-            clipboardManager.setText(AnnotatedString(link))
+            localClipboard.nativeClipboard.setPrimaryClip(
+                ClipData.newPlainText("", AnnotatedString(link))
+            )
         }
     }
 }

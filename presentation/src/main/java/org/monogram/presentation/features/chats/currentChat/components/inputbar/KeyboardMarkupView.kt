@@ -1,9 +1,18 @@
 package org.monogram.presentation.features.chats.currentChat.components.inputbar
 
+import android.content.ClipData
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,7 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,7 +44,8 @@ fun KeyboardMarkupView(
     val rows = remember(markup) { markup.rows.filter { it.isNotEmpty() } }
     if (rows.isEmpty()) return
 
-    val clipboardManager = LocalClipboardManager.current
+    val clipboardManager = LocalClipboard.current
+    val nativeClipboard = clipboardManager.nativeClipboard
     val haptic = LocalHapticFeedback.current
 
     LazyColumn(
@@ -72,7 +82,10 @@ fun KeyboardMarkupView(
                                     }
 
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    clipboardManager.setText(AnnotatedString(dataToCopy))
+
+                                    nativeClipboard.setPrimaryClip(
+                                        ClipData.newPlainText("", (AnnotatedString(dataToCopy)))
+                                    )
                                 }
                             ),
                         shape = RoundedCornerShape(12.dp),

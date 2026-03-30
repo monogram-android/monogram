@@ -1,20 +1,39 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
+import android.content.ClipData
 import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -25,7 +44,7 @@ import org.koin.compose.koinInject
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.NightMode
 import org.monogram.presentation.features.chats.currentChat.components.chats.code.CodeHighlighter
-import java.util.*
+import java.util.Calendar
 
 @Composable
 fun CodeBlock(
@@ -35,7 +54,7 @@ fun CodeBlock(
     modifier: Modifier = Modifier,
     appPreferences: AppPreferences = koinInject()
 ) {
-    val clipboardManager = LocalClipboardManager.current
+    val localClipboard = LocalClipboard.current
     val context = LocalContext.current
     val backgroundColor = if (isOutgoing) {
         MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.08f)
@@ -144,7 +163,9 @@ fun CodeBlock(
                 }
                 IconButton(
                     onClick = {
-                        clipboardManager.setText(AnnotatedString(text))
+                        localClipboard.nativeClipboard.setPrimaryClip(
+                            ClipData.newPlainText("", AnnotatedString(text))
+                        )
                         Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.size(24.dp)

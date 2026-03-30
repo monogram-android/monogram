@@ -1,9 +1,18 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
+import android.content.ClipData
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,7 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -80,7 +89,7 @@ private fun InlineKeyboardButtonView(
     position: ItemPosition,
     modifier: Modifier = Modifier
 ) {
-    val clipboardManager = LocalClipboardManager.current
+    val localClipboard = LocalClipboard.current
     val haptic = LocalHapticFeedback.current
 
     val icon = when (button.type) {
@@ -128,7 +137,9 @@ private fun InlineKeyboardButtonView(
                     }
                     if (dataToCopy != null) {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        clipboardManager.setText(AnnotatedString(dataToCopy))
+                        localClipboard.nativeClipboard.setPrimaryClip(
+                            ClipData.newPlainText("", AnnotatedString(dataToCopy))
+                        )
                     }
                 }
             )

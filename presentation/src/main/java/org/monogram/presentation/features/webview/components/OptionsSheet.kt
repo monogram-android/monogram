@@ -7,7 +7,15 @@ import android.content.Intent
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,8 +24,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.DesktopWindows
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.TextFormat
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -111,10 +129,14 @@ fun OptionsSheet(
                     .padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
+                val webviewLinkStr = stringResource(R.string.webview_link_copied)
+                val webviewShareSelectorTitleStr = stringResource(R.string.webview_share_chooser_title)
+
                 ActionItem(Icons.Rounded.ContentCopy, stringResource(R.string.webview_copy_link)) {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
                     clipboard.setPrimaryClip(ClipData.newPlainText("URL", currentUrl))
-                    Toast.makeText(context, context.getString(R.string.webview_link_copied), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, webviewLinkStr, Toast.LENGTH_SHORT).show()
                     onDismiss()
                 }
                 ActionItem(Icons.Rounded.Share, stringResource(R.string.webview_share)) {
@@ -122,7 +144,8 @@ fun OptionsSheet(
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, currentUrl)
                     }
-                    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.webview_share_chooser_title)))
+                    context.startActivity(Intent.createChooser(shareIntent, webviewShareSelectorTitleStr))
+
                     onDismiss()
                 }
                 ActionItem(Icons.AutoMirrored.Rounded.OpenInNew, stringResource(R.string.webview_open_in_browser)) {

@@ -1,16 +1,36 @@
 package org.monogram.presentation.features.profile.logs.components
 
+import android.content.ClipData
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.StickyNote2
-import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.rounded.AllInclusive
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.ChatBubble
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.PermMedia
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.Poll
+import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,7 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -34,7 +54,8 @@ import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.profile.logs.ProfileLogsComponent
 import java.io.File
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun ActionDetails(
@@ -234,8 +255,9 @@ private fun TargetUserRow(
 ) {
     val info = allSenderInfo[userId]
     val name = info?.name ?: "User $userId"
-    val clipboardManager = LocalClipboardManager.current
+    val localClipboard = LocalClipboard.current
     val context = LocalContext.current
+    val logsUserIdCopiedResId = stringResource(R.string.logs_user_id_copied)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -245,8 +267,10 @@ private fun TargetUserRow(
             .combinedClickable(
                 onClick = { component.onUserClick(userId) },
                 onLongClick = {
-                    clipboardManager.setText(AnnotatedString(userId.toString()))
-                    Toast.makeText(context, context.getString(R.string.logs_user_id_copied), Toast.LENGTH_SHORT).show()
+                    localClipboard.nativeClipboard.setPrimaryClip(
+                        ClipData.newPlainText("", AnnotatedString(userId.toString()))
+                    )
+                    Toast.makeText(context, logsUserIdCopiedResId, Toast.LENGTH_SHORT).show()
                 }
             )
             .padding(horizontal = 8.dp, vertical = 6.dp)

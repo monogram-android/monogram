@@ -93,24 +93,66 @@ API_ID=12345678
 API_HASH=your_api_hash_here
 ```
 
-### 3. Build and Run
+### 3. How to configure push notifications
+
+1. Log in to the [Firebase console](https://console.firebase.google.com)
+2. Create a new project.
+3. Add a new application with the applicationId you need (if you have multiple applications with different IDs, you will need to create multiple applications). **By default, the applicationId for debug and release builds is different!**
+4. The console will create a `google-services.json` file, which you can copy to the root of the **app** module (`monogram/app/google-services.json`). If you have created multiple applications, only copy the most recent config.
+5. Go to the "Cloud Messaging" section.
+6. Click on the **Manage service accounts** link.
+7. In the window that opens, select the top **Keys** section.
+8. Click on the **Add key** button and select the **JSON** option in the dialog box. Wait for the file to be downloaded to your computer.
+9. Return to the page where you received the App ID from Telegram.
+10. Click on the Update button next to the FCM credentials section.
+11. Upload the JSON of the service account in the page that opens.
+
+### 4. Build and Run
 
 1. Open the project in **Android Studio**.
-2. Sync Gradle.
-3. Select the `app` run configuration.
-4. Connect a device or start an emulator.
-5. Click **Run**.
+2. Increase the IDE indexing limits so `TdApi.java` (the TDLib wrapper) is indexed correctly:
+
+```properties
+# custom IntelliJ IDEA properties (expand/override 'bin\idea.properties')
+
+# size in Kb
+idea.max.intellisense.filesize=20480
+# size in Kb
+idea.max.content.load.filesize=20480
+```
+
+3. In **Android Studio** or **IntelliJ IDEA**, open **Help -> Edit Custom Properties...**, paste the lines above, and restart the IDE if prompted.
+4. Sync Gradle.
+5. Select the `app` run configuration.
+6. Connect a device or start an emulator.
+7. Click **Run**.
 
 ---
+## Building TDLib
 
+If you need to build TDLib from source, you must first install the required dependencies on your system. For Debian/Ubuntu-based distributions, you can install them by running:
+
+```bash
+sudo apt-get update
+sudo apt-get install build-essential git curl wget php perl gperf unzip zip default-jdk cmake
+```
+
+Once the dependencies are installed, you can start the build process by executing the build script from the root of your project:
+
+```bash
+./build-tdlib.sh
+```
+
+---
 ## Contributing
 
 We welcome contributions! Whether it's fixing bugs, improving documentation, or suggesting new features.
 
 1. **Check the Issues**: Look for open issues or create a new one to discuss your ideas.
-2. **Fork & Branch**: Fork the repo and create a feature branch.
-3. **Code Style**: Please follow the existing Kotlin coding style and Clean Architecture guidelines.
-4. **Submit a PR**: Open a Pull Request with a clear description of your changes.
+2. **Work from `develop`**: Create your branch from `develop` and keep your work based on that branch.
+3. **Fork & Branch**: Fork the repo and create a feature branch.
+4. **Code Style**: Please follow the existing Kotlin coding style and Clean Architecture guidelines.
+5. **Submit a PR**: Open a Pull Request to `develop` with a clear description of your changes.
 
 **Important**:
 

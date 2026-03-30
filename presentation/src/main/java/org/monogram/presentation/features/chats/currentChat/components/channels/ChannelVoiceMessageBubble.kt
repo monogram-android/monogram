@@ -26,6 +26,7 @@ fun ChannelVoiceMessageBubble(
     isSameSenderAbove: Boolean = false,
     isSameSenderBelow: Boolean = false,
     fontSize: Float,
+    letterSpacing: Float,
     bubbleRadius: Float = 18f,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,

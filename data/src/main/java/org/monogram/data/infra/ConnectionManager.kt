@@ -4,9 +4,12 @@ import org.monogram.data.core.coRunCatching
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkRequest
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.drinkless.tdlib.TdApi
@@ -35,7 +38,9 @@ class ConnectionManager(
     val connectionStateFlow = _connectionStateFlow.asStateFlow()
 
     private var retryJob: Job? = null
-    private var proxyJob: Job? = null
+    private var proxyModeWatcherJob: Job? = null
+    private var autoBestJob: Job? = null
+    private var telegaSwitchJob: Job? = null
     private var watchdogJob: Job? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var reconnectAttempts = 0
@@ -172,14 +177,16 @@ class ConnectionManager(
     }
 
     private suspend fun maybeAdjustProxyOnFailures(force: Boolean = false) {
-        if (!appPreferences.isAutoBestProxyEnabled.value) return
+        val isTelegaEnabled = appPreferences.isTelegaProxyEnabled.value
+        val isAutoBestEnabled = appPreferences.isAutoBestProxyEnabled.value
+        if (!isAutoBestEnabled && !isTelegaEnabled) return
 
         if (!force) {
             if (reconnectAttempts < 4) return
             if (reconnectAttempts % 3 != 0) return
         }
 
-        coRunCatching { selectBestProxy() }
+        coRunCatching { selectBestProxy(telegaOnly = isTelegaEnabled) }
             .onFailure { Log.e(TAG, "Proxy fallback failed during reconnect", it) }
     }
 
@@ -197,26 +204,58 @@ class ConnectionManager(
     }
 
     private fun startProxyManagement() {
-        proxyJob?.cancel()
-        proxyJob = scope.launch {
+        proxyModeWatcherJob?.cancel()
+        proxyModeWatcherJob = scope.launch {
             appPreferences.enabledProxyId.value?.let { proxyId ->
                 if (!proxyRemoteSource.enableProxy(proxyId)) {
                     appPreferences.setEnabledProxyId(null)
+                    coRunCatching { selectBestProxy(telegaOnly = appPreferences.isTelegaProxyEnabled.value) }
                 }
             }
 
-            while (isActive) {
-                if (appPreferences.isAutoBestProxyEnabled.value) {
-                    coRunCatching { selectBestProxy() }
-                        .onFailure { Log.e(TAG, "Error selecting best proxy", it) }
+            combine(
+                appPreferences.isAutoBestProxyEnabled,
+                appPreferences.isTelegaProxyEnabled
+            ) { autoBest, telega -> autoBest to telega }
+                .distinctUntilChanged()
+                .collect { (autoBest, telega) ->
+                    autoBestJob?.cancel()
+                    telegaSwitchJob?.cancel()
+
+                    if (telega) {
+                        telegaSwitchJob = launchTelegaSwitchLoop()
+                    } else if (autoBest) {
+                        autoBestJob = launchAutoBestLoop()
+                    }
                 }
-                delay(300_000)
-            }
         }
     }
 
-    private suspend fun selectBestProxy() {
-        val proxies = proxyRemoteSource.getProxies()
+    private fun launchAutoBestLoop(): Job = scope.launch(dispatchers.default) {
+        while (isActive) {
+            coRunCatching { selectBestProxy(telegaOnly = false) }
+                .onFailure { Log.e(TAG, "Error selecting best proxy", it) }
+            delay(300_000L)
+        }
+    }
+
+    private fun launchTelegaSwitchLoop(): Job = scope.launch(dispatchers.default) {
+        while (isActive) {
+            coRunCatching { selectBestProxy(telegaOnly = true) }
+                .onFailure { Log.e(TAG, "Error selecting telega proxy", it) }
+            delay(60_000L)
+        }
+    }
+
+    private suspend fun selectBestProxy(telegaOnly: Boolean = false) {
+        val allProxies = proxyRemoteSource.getProxies()
+        val proxies = if (telegaOnly) {
+            val telegaIds = getTelegaIdentifiers()
+            allProxies.filter { "${it.server}:${it.port}" in telegaIds }
+        } else {
+            allProxies
+        }
+
         if (proxies.isEmpty()) return
 
         val best = coroutineScope {
@@ -230,7 +269,14 @@ class ConnectionManager(
             }.awaitAll()
         }.minByOrNull { it.second } ?: return
 
-        if (best.second == Long.MAX_VALUE) return
+        if (best.second == Long.MAX_VALUE) {
+            Log.w(TAG, "All candidate proxies are unreachable, switching to direct connection")
+            coRunCatching {
+                proxyRemoteSource.disableProxy()
+                appPreferences.setEnabledProxyId(null)
+            }.onFailure { Log.e(TAG, "Failed to switch to direct connection", it) }
+            return
+        }
 
         val currentEnabled = proxies.find { it.isEnabled }
         if (best.first.id != currentEnabled?.id) {
@@ -239,6 +285,22 @@ class ConnectionManager(
                 appPreferences.setEnabledProxyId(best.first.id)
             }
         }
+    }
+
+    private fun getTelegaIdentifiers(): Set<String> {
+        return appPreferences.telegaProxyUrls.value.mapNotNull { parseTelegaIdentifier(it) }.toSet()
+    }
+
+    private fun parseTelegaIdentifier(url: String): String? {
+        val normalized = url.replace("t.me/proxy", "tg://proxy")
+        val uri = runCatching { Uri.parse(normalized) }.getOrNull()
+        val server = uri?.getQueryParameter("server")
+        val port = uri?.getQueryParameter("port") ?: "443"
+        if (!server.isNullOrBlank()) return "$server:$port"
+
+        val serverMatch = Regex("server=([^&]+)").find(url)?.groupValues?.get(1)
+        val regexPort = Regex("port=([^&]+)").find(url)?.groupValues?.get(1) ?: "443"
+        return serverMatch?.let { "$it:$regexPort" }
     }
 
     private fun startWatchdog() {

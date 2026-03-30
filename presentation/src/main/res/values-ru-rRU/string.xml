@@ -479,6 +479,10 @@
     <string name="your_proxies_header">Ваши прокси</string>
     <string name="clear_offline_cd">Очистить офлайн</string>
     <string name="remove_all_cd">Удалить все</string>
+    <string name="clear_offline_title">Удалить офлайн-прокси</string>
+    <string name="clear_offline_confirmation">Это действие удалит все прокси, которые сейчас недоступны. Продолжить?</string>
+    <string name="remove_all_proxies_title">Удалить все прокси</string>
+    <string name="remove_all_proxies_confirmation">Это действие удалит все настроенные прокси из приложения. Продолжить?</string>
     <string name="no_proxies_label">Нет добавленных прокси</string>
     <string name="delete_proxy_title">Удалить прокси</string>
     <string name="delete_proxy_confirmation_format">Вы уверены, что хотите удалить прокси %1$s?</string>
@@ -490,6 +494,8 @@
     <string name="username_optional_placeholder">Имя пользователя (опционально)</string>
     <string name="password_optional_placeholder">Пароль (опционально)</string>
     <string name="save_changes_button">Сохранить изменения</string>
+    <string name="test_proxy_button">Проверить</string>
+    <string name="test_proxy_result">Результат проверки</string>
     <string name="action_delete">Удалить</string>
     <string name="proxy_checking">Проверка...</string>
     <string name="proxy_offline">Недоступен</string>
@@ -547,6 +553,7 @@
     <string name="chat_settings_header">Настройки чатов</string>
     <string name="appearance_header">Внешний вид</string>
     <string name="message_text_size_title">Размер текста сообщений</string>
+    <string name="message_letter_spacing_title">Межбуквенный интервал сообщений</string>
     <string name="bubble_rounding_title">Скругление блоков</string>
     <string name="reset_button">Сбросить</string>
     <string name="chat_wallpaper_header">Обои чата</string>
@@ -1845,4 +1852,7 @@
     <string name="action_remove_contact">Удалить из контактов</string>
     <string name="action_mark_as_read">Пометить прочитанным</string>
     <string name="action_mark_as_unread">Пометить непрочитанным</string>
+    <string name="folder_tab_edit">Изменить</string>
+    <string name="folder_tab_reorder">Порядок</string>
+    <string name="folder_tab_delete">Удалить</string>
 </resources>

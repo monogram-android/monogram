@@ -45,6 +45,7 @@ interface AppPreferencesProvider {
     val isTelegaProxyEnabled: StateFlow<Boolean>
     val telegaProxyUrls: StateFlow<Set<String>>
     val preferIpv6: StateFlow<Boolean>
+    val userProxyBackups: StateFlow<Set<String>>
 
     val isBiometricEnabled: StateFlow<Boolean>
     val passcode: StateFlow<String?>
@@ -90,6 +91,7 @@ interface AppPreferencesProvider {
     fun setTelegaProxyEnabled(enabled: Boolean)
     fun setTelegaProxyUrls(urls: Set<String>)
     fun setPreferIpv6(enabled: Boolean)
+    fun setUserProxyBackups(backups: Set<String>)
 
     fun setBiometricEnabled(enabled: Boolean)
     fun setPasscode(passcode: String?)

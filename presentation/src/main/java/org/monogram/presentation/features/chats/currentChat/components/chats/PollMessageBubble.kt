@@ -39,6 +39,7 @@ fun PollMessageBubble(
     isSameSenderAbove: Boolean,
     isSameSenderBelow: Boolean,
     fontSize: Float,
+    letterSpacing: Float,
     bubbleRadius: Float = 18f,
     onOptionClick: (Int) -> Unit,
     onRetractVote: () -> Unit = {},
@@ -98,6 +99,7 @@ fun PollMessageBubble(
                     question = content.question,
                     pollType = content.type,
                     fontSize = fontSize,
+                    letterSpacing = letterSpacing,
                     hasVoted = hasVoted,
                     isClosed = content.isClosed,
                     isAnonymous = content.isAnonymous,
@@ -166,6 +168,7 @@ private fun PollHeader(
     question: String,
     pollType: PollType,
     fontSize: Float,
+    letterSpacing: Float,
     hasVoted: Boolean,
     isClosed: Boolean,
     isAnonymous: Boolean,
@@ -258,6 +261,7 @@ private fun PollHeader(
             text = question,
             style = MaterialTheme.typography.titleMedium.copy(
                 fontSize = (fontSize + 2).sp,
+                letterSpacing = letterSpacing.sp,
                 fontWeight = FontWeight.Bold,
                 lineHeight = (fontSize + 6).sp
             )

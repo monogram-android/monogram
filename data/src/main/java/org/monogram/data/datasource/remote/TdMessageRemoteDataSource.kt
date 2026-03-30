@@ -55,7 +55,7 @@ class TdMessageRemoteDataSource(
         extraBufferCapacity = 100,
         onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.SUSPEND
     )
-    override val messageDownloadCompletedFlow = MutableSharedFlow<Pair<Long, String>>()
+    override val messageDownloadCompletedFlow = MutableSharedFlow<Triple<Long, Int, String>>()
     override val pinnedMessageFlow = MutableSharedFlow<Long>(
         extraBufferCapacity = 10,
         onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.SUSPEND
@@ -1363,13 +1363,17 @@ class TdMessageRemoteDataSource(
             if (!entries.isNullOrEmpty()) {
                 scope.launch {
                     entries.forEach { (_, messageId) ->
-                        messageDownloadCompletedFlow.emit(messageId to (file.local?.path ?: ""))
+                        messageDownloadCompletedFlow.emit(
+                            Triple(messageId, file.id, file.local?.path ?: "")
+                        )
                         messageDownloadProgressFlow.emit(messageId to 1.0f)
                     }
                 }
             } else if (fileDownloadQueue.registry.standaloneFileIds.contains(file.id)) {
                 scope.launch {
-                    messageDownloadCompletedFlow.emit(file.id.toLong() to (file.local?.path ?: ""))
+                    messageDownloadCompletedFlow.emit(
+                        Triple(file.id.toLong(), file.id, file.local?.path ?: "")
+                    )
                     messageDownloadProgressFlow.emit(file.id.toLong() to 1.0f)
                 }
                 fileDownloadQueue.registry.standaloneFileIds.remove(file.id)

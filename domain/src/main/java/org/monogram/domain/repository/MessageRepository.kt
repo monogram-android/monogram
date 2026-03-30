@@ -40,7 +40,7 @@ interface MessageRepository {
     val messageUploadProgressFlow: Flow<Pair<Long, Float>>
     val messageDownloadProgressFlow: Flow<Pair<Long, Float>>
     val messageDownloadCancelledFlow: Flow<Long>
-    val messageDownloadCompletedFlow: Flow<Pair<Long, String>>
+    val messageDownloadCompletedFlow: Flow<Triple<Long, Int, String>>
     val messageDeletedFlow: Flow<Pair<Long, List<Long>>>
     val messageEditedFlow: Flow<MessageModel>
     val messageIdUpdateFlow: Flow<Triple<Long, Long, MessageModel>>

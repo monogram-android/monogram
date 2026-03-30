@@ -49,6 +49,7 @@ fun ContactMessageBubble(
     isSameSenderAbove: Boolean,
     isSameSenderBelow: Boolean,
     fontSize: Float,
+    letterSpacing: Float,
     bubbleRadius: Float,
     videoPlayerPool: VideoPlayerPool,
     isGroup: Boolean = false,
@@ -161,7 +162,8 @@ fun ContactMessageBubble(
                             text = "${content.firstName} ${content.lastName}".trim(),
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                fontSize = (fontSize + 2).sp
+                                fontSize = (fontSize + 2).sp,
+                                letterSpacing = letterSpacing.sp
                             ),
                             color = contentColor,
                             maxLines = 1,

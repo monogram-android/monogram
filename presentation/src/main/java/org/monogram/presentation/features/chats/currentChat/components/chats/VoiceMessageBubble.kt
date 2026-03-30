@@ -37,6 +37,7 @@ fun VoiceMessageBubble(
     isSameSenderAbove: Boolean,
     isSameSenderBelow: Boolean,
     fontSize: Float,
+    letterSpacing: Float,
     autoDownloadFiles: Boolean,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,

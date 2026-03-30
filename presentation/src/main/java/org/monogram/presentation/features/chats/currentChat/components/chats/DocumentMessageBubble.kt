@@ -35,6 +35,7 @@ fun DocumentMessageBubble(
     isSameSenderAbove: Boolean,
     isSameSenderBelow: Boolean,
     fontSize: Float,
+    letterSpacing: Float,
     autoDownloadFiles: Boolean,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,
@@ -147,6 +148,7 @@ fun DocumentMessageBubble(
                     content = content,
                     msg = msg,
                     fontSize = fontSize,
+                    letterSpacing = letterSpacing,
                     timeColor = timeColor,
                     onDocumentClick = {
                         isAutoDownloadSuppressed = false
@@ -174,6 +176,7 @@ fun DocumentMessageBubble(
                         inlineContent = inlineContent,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = fontSize.sp,
+                            letterSpacing = letterSpacing.sp,
                             lineHeight = (fontSize * 1.375f).sp
                         ),
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
@@ -214,6 +217,7 @@ fun DocumentRow(
     content: MessageContent.Document,
     msg: MessageModel,
     fontSize: Float,
+    letterSpacing: Float,
     timeColor: Color,
     onDocumentClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit
@@ -272,7 +276,10 @@ fun DocumentRow(
         ) {
             Text(
                 text = content.fileName.ifEmpty { "Document" },
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = fontSize.sp),
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = fontSize.sp,
+                    letterSpacing = letterSpacing.sp,
+                ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -292,6 +299,7 @@ fun DocumentAlbumBubble(
     isSameSenderAbove: Boolean,
     isSameSenderBelow: Boolean,
     fontSize: Float,
+    letterSpacing: Float,
     autoDownloadFiles: Boolean,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,
@@ -368,6 +376,7 @@ fun DocumentAlbumBubble(
                         content = content,
                         msg = msg,
                         fontSize = fontSize,
+                        letterSpacing = letterSpacing,
                         timeColor = timeColor,
                         onDocumentClick = onDocumentClick,
                         onCancelDownload = onCancelDownload
@@ -393,6 +402,7 @@ fun DocumentAlbumBubble(
                         inlineContent = inlineContent,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = fontSize.sp,
+                            letterSpacing = letterSpacing.sp,
                             lineHeight = (fontSize * 1.375f).sp
                         ),
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
@@ -434,6 +444,7 @@ fun ChannelDocumentAlbumBubble(
     isSameSenderAbove: Boolean,
     isSameSenderBelow: Boolean,
     fontSize: Float,
+    letterSpacing: Float,
     bubbleRadius: Float,
     autoDownloadFiles: Boolean,
     autoDownloadMobile: Boolean,
@@ -508,6 +519,7 @@ fun ChannelDocumentAlbumBubble(
                         content = content,
                         msg = msg,
                         fontSize = fontSize,
+                        letterSpacing = letterSpacing,
                         timeColor = timeColor,
                         onDocumentClick = onDocumentClick,
                         onCancelDownload = onCancelDownload
@@ -533,6 +545,7 @@ fun ChannelDocumentAlbumBubble(
                         inlineContent = inlineContent,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = fontSize.sp,
+                            letterSpacing = letterSpacing.sp,
                             lineHeight = (fontSize * 1.375f).sp
                         ),
                         modifier = Modifier.padding(vertical = 4.dp),

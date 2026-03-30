@@ -479,6 +479,10 @@
     <string name="your_proxies_header">您的代理</string>
     <string name="clear_offline_cd">清除离线</string>
     <string name="remove_all_cd">全部移除</string>
+    <string name="clear_offline_title">删除离线代理</string>
+    <string name="clear_offline_confirmation">此操作将删除当前所有离线代理。是否继续？</string>
+    <string name="remove_all_proxies_title">删除所有代理</string>
+    <string name="remove_all_proxies_confirmation">此操作将从应用中删除所有已配置的代理。是否继续？</string>
     <string name="no_proxies_label">未添加代理</string>
     <string name="delete_proxy_title">删除代理</string>
     <string name="delete_proxy_confirmation_format">您确定要删除代理 %1$s 吗？</string>
@@ -490,6 +494,8 @@
     <string name="username_optional_placeholder">用户名（选填）</string>
     <string name="password_optional_placeholder">密码（选填）</string>
     <string name="save_changes_button">保存修改</string>
+    <string name="test_proxy_button">测试</string>
+    <string name="test_proxy_result">测试结果</string>
     <string name="action_delete">删除</string>
     <string name="proxy_checking">检查中...</string>
     <string name="proxy_offline">离线</string>
@@ -547,6 +553,7 @@
     <string name="chat_settings_header">会话设置</string>
     <string name="appearance_header">外观</string>
     <string name="message_text_size_title">消息文字大小</string>
+    <string name="message_letter_spacing_title">字元間距</string>
     <string name="bubble_rounding_title">气泡圆角</string>
     <string name="reset_button">重置</string>
     <string name="chat_wallpaper_header">会话壁纸</string>
@@ -1828,4 +1835,7 @@
     <string name="action_remove_contact">从联系人中移除</string>
     <string name="action_mark_as_read">标为已读</string>
     <string name="action_mark_as_unread">标为未读</string>
+    <string name="folder_tab_edit">编辑</string>
+    <string name="folder_tab_reorder">排序</string>
+    <string name="folder_tab_delete">删除</string>
 </resources>

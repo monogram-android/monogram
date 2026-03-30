@@ -441,6 +441,7 @@ class DefaultRootComponent(
                     },
                     isForwarding = config.forwardingMessageIds != null,
                     onNewChatClick = { navigation.bringToFront(Config.NewChat) },
+                    onEditFoldersClick = { navigation.bringToFront(Config.Folders) },
                     activeChatId = activeChatId
                 )
             )

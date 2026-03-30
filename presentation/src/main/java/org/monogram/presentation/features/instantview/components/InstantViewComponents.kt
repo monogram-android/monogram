@@ -100,7 +100,7 @@ fun AsyncImageWithDownload(
             val completedPath = withTimeoutOrNull(60_000L) {
                 messageRepository.messageDownloadCompletedFlow
                     .filter { it.first == fileId.toLong() }
-                    .mapNotNull { (_, candidatePath) -> candidatePath.takeIf { it.isNotEmpty() } }
+                    .mapNotNull { (_, _, candidatePath) -> candidatePath.takeIf { it.isNotEmpty() } }
                     .first()
             }
 
@@ -183,7 +183,7 @@ fun AsyncVideoWithDownload(
             val completedPath = withTimeoutOrNull(60_000L) {
                 messageRepository.messageDownloadCompletedFlow
                     .filter { it.first == fileId.toLong() }
-                    .mapNotNull { (_, candidatePath) -> candidatePath.takeIf { it.isNotEmpty() } }
+                    .mapNotNull { (_, _, candidatePath) -> candidatePath.takeIf { it.isNotEmpty() } }
                     .first()
             }
 

@@ -113,6 +113,7 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                     wallpaper = state.wallpaper,
                     availableWallpapers = state.availableWallpapers,
                     fontSize = state.fontSize,
+                    letterSpacing = state.letterSpacing,
                     bubbleRadius = state.bubbleRadius,
                     isBlurred = state.isWallpaperBlurred,
                     isMoving = state.isWallpaperMoving,
@@ -160,6 +161,40 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                                     fontWeight = FontWeight.Bold
                                 )
                             }
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        AppearanceSliderItem(
+                            title = stringResource(R.string.message_letter_spacing_title),
+                            value = state.letterSpacing,
+                            onValueChange = component::onLetterSpacingChanged,
+                            valueRange = -2f..2f,
+                            steps = 20,
+                            onReset = { component.onLetterSpacingChanged(0f) },
+                            valueSuffix = "sp",
+                            startIcon = {
+                                Text(
+                                    text = "AB",
+                                    letterSpacing = (-1f).sp,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            endIcon = {
+                                Text(
+                                    text = "AB",
+                                    letterSpacing = 2f.sp,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            displayedDecimalPlaces = 2
                         )
 
                         HorizontalDivider(
@@ -969,6 +1004,7 @@ private fun AppearanceSliderItem(
     valueSuffix: String,
     startIcon: @Composable () -> Unit,
     endIcon: @Composable () -> Unit,
+    displayedDecimalPlaces: Int? = 0
 ) {
     Column {
         Row(
@@ -989,7 +1025,7 @@ private fun AppearanceSliderItem(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        text = "${value.toInt()} $valueSuffix",
+                        text = "${"%.${displayedDecimalPlaces}f".format(value)} $valueSuffix",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),

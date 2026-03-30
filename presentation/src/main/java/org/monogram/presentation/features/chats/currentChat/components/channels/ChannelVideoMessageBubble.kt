@@ -52,6 +52,7 @@ fun ChannelVideoMessageBubble(
     isSameSenderAbove: Boolean = false,
     isSameSenderBelow: Boolean = false,
     fontSize: Float,
+    letterSpacing: Float,
     bubbleRadius: Float = 18f,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,
@@ -350,6 +351,7 @@ fun ChannelVideoMessageBubble(
                             inlineContent = inlineContent,
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontSize = fontSize.sp,
+                                letterSpacing = letterSpacing.sp,
                                 lineHeight = (fontSize * 1.35f).sp
                             ),
                             onSpoilerClick = { index ->

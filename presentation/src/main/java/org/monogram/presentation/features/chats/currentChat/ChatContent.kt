@@ -794,34 +794,46 @@ fun ChatContent(
                                 component = component,
                                 scrollState = scrollState,
                                 groupedMessages = groupedMessages,
+                                onPhotoDownload = { fileId -> if (fileId != 0) component.onDownloadFile(fileId) },
                                 onPhotoClick = { msg, paths, captions, messageIds, index ->
-                                        val content = msg.content as? MessageContent.Photo
-                                        val validPath = content?.path?.takeIf { File(it).exists() }
-                                        if (validPath != null) {
-                                            keyboardController?.hide()
-                                            focusManager.clearFocus()
-                                            val validPairs = paths.withIndex()
-                                                .mapNotNull { (itemIndex, path) ->
-                                                    path.takeIf { it.isNotBlank() && File(it).exists() }
-                                                        ?.let { valid -> valid to captions.getOrNull(itemIndex) }
-                                                }
-                                            if (validPairs.isNotEmpty()) {
-                                                val validPaths = validPairs.map { it.first }
-                                                val validCaptions = validPairs.map { it.second }
-                                                val validMessageIds = messageIds
-                                                val startIndex = validPaths.indexOf(validPath).let { if (it >= 0) it else 0 }
-                                                component.onOpenImages(
-                                                    images = validPaths,
-                                                    captions = validCaptions,
-                                                    startIndex = startIndex,
-                                                    messageId = msg.id,
-                                                    messageIds = validMessageIds
-                                                )
-                                            }
-                                        } else content?.let {
-                                            component.onDownloadFile(it.fileId)
+                                    val content = msg.content as? MessageContent.Photo
+                                    val clickedPath = paths.getOrNull(index)
+                                        ?.takeIf { it.isNotBlank() && File(it).exists() }
+                                        ?: content?.path?.takeIf { File(it).exists() }
+
+                                    if (clickedPath != null) {
+                                        keyboardController?.hide()
+                                        focusManager.clearFocus()
+
+                                        val validItems = paths.mapIndexedNotNull { itemIndex, path ->
+                                            val validPath = path.takeIf { it.isNotBlank() && File(it).exists() }
+                                                ?: return@mapIndexedNotNull null
+                                            Triple(itemIndex, validPath, captions.getOrNull(itemIndex))
                                         }
-                                    },
+
+                                        if (validItems.isNotEmpty()) {
+                                            val validPaths = validItems.map { it.second }
+                                            val validCaptions = validItems.map { it.third }
+                                            val validMessageIds = validItems.map { (itemIndex, _, _) ->
+                                                messageIds.getOrNull(itemIndex) ?: msg.id
+                                            }
+                                            val startIndex = validItems.indexOfFirst { (itemIndex, _, _) -> itemIndex == index }
+                                                .takeIf { it >= 0 }
+                                                ?: validPaths.indexOf(clickedPath).takeIf { it >= 0 }
+                                                ?: 0
+
+                                            component.onOpenImages(
+                                                images = validPaths,
+                                                captions = validCaptions,
+                                                startIndex = startIndex,
+                                                messageId = msg.id,
+                                                messageIds = validMessageIds
+                                            )
+                                        }
+                                    } else {
+                                        content?.fileId?.takeIf { it != 0 }?.let(component::onDownloadFile)
+                                    }
+                                },
                                     onVideoClick = { msg, path, caption ->
                                         if (!isVisible || showInitialLoading || scrollState.isScrollInProgress) {
                                             return@ChatContentList

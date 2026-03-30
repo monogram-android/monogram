@@ -42,6 +42,9 @@ class AppPreferences(
     private val _fontSize = MutableStateFlow(prefs.getFloat(KEY_FONT_SIZE, 16f))
     val fontSize: StateFlow<Float> = _fontSize
 
+    private val _letterSpacing = MutableStateFlow(prefs.getFloat(KEY_LETTER_SPACING, 0f))
+    val letterSpacing: StateFlow<Float> = _letterSpacing
+    
     private val _bubbleRadius = MutableStateFlow(prefs.getFloat(KEY_BUBBLE_RADIUS, 18f))
     val bubbleRadius: StateFlow<Float> = _bubbleRadius
 
@@ -337,6 +340,9 @@ class AppPreferences(
     private val _preferIpv6 = MutableStateFlow(prefs.getBoolean(KEY_PREFER_IPV6, false))
     override val preferIpv6: StateFlow<Boolean> = _preferIpv6
 
+    private val _userProxyBackups = MutableStateFlow(prefs.getStringSet(KEY_USER_PROXY_BACKUPS, emptySet()) ?: emptySet())
+    override val userProxyBackups: StateFlow<Set<String>> = _userProxyBackups
+
     private val _isBiometricEnabled = MutableStateFlow(securePrefs.getBoolean(KEY_BIOMETRIC_ENABLED, false))
     override val isBiometricEnabled: StateFlow<Boolean> = _isBiometricEnabled
 
@@ -373,6 +379,11 @@ class AppPreferences(
     fun setFontSize(size: Float) {
         prefs.edit().putFloat(KEY_FONT_SIZE, size).apply()
         _fontSize.value = size
+    }
+    
+    fun setLetterSpacing(spacing: Float) {
+        prefs.edit().putFloat(KEY_LETTER_SPACING, spacing).apply()
+        _letterSpacing.value = spacing
     }
 
     fun setBubbleRadius(radius: Float) {
@@ -829,6 +840,11 @@ class AppPreferences(
         _preferIpv6.value = enabled
     }
 
+    override fun setUserProxyBackups(backups: Set<String>) {
+        prefs.edit().putStringSet(KEY_USER_PROXY_BACKUPS, backups).apply()
+        _userProxyBackups.value = backups
+    }
+
     override fun setBiometricEnabled(enabled: Boolean) {
         securePrefs.edit().putBoolean(KEY_BIOMETRIC_ENABLED, enabled).apply()
         _isBiometricEnabled.value = enabled
@@ -941,6 +957,7 @@ class AppPreferences(
         _isTelegaProxyEnabled.value = false
         _telegaProxyUrls.value = emptySet()
         _preferIpv6.value = false
+        _userProxyBackups.value = emptySet()
         _isPermissionRequested.value = false
     }
 
@@ -957,6 +974,7 @@ class AppPreferences(
 
     companion object {
         private const val KEY_FONT_SIZE = "font_size"
+        private const val KEY_LETTER_SPACING = "letter_spacing"
         private const val KEY_BUBBLE_RADIUS = "bubble_radius"
         private const val KEY_WALLPAPER = "wallpaper"
         private const val KEY_WALLPAPER_BLURRED = "wallpaper_blurred"
@@ -1053,6 +1071,7 @@ class AppPreferences(
         private const val KEY_TELEGA_PROXY = "telega_proxy"
         private const val KEY_TELEGA_PROXY_URLS = "telega_proxy_urls"
         private const val KEY_PREFER_IPV6 = "prefer_ipv6"
+        private const val KEY_USER_PROXY_BACKUPS = "user_proxy_backups"
 
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
         private const val KEY_PASSCODE = "passcode"

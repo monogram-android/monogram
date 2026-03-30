@@ -47,6 +47,7 @@ fun ChannelGifMessageBubble(
     isSameSenderAbove: Boolean = false,
     isSameSenderBelow: Boolean = false,
     fontSize: Float,
+    letterSpacing: Float,
     bubbleRadius: Float = 18f,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,
@@ -341,6 +342,7 @@ fun ChannelGifMessageBubble(
                             inlineContent = inlineContent,
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontSize = fontSize.sp,
+                                letterSpacing = letterSpacing.sp,
                                 lineHeight = (fontSize * 1.375f).sp
                             ),
                             modifier = Modifier.padding(bottom = 2.dp),

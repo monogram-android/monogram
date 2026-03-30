@@ -14,6 +14,12 @@ internal fun DefaultChatComponent.observePreferences(availableWallpapers: List<W
             _state.update { it.copy(fontSize = size) }
         }
         .launchIn(scope)
+    
+    appPreferences.letterSpacing
+        .onEach { spacing ->
+            _state.update { it.copy(letterSpacing = spacing) }
+        }
+        .launchIn(scope)
 
     appPreferences.bubbleRadius
         .onEach { radius ->

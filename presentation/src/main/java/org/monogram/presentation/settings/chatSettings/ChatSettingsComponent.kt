@@ -29,6 +29,7 @@ interface ChatSettingsComponent {
     val videoPlayerPool: VideoPlayerPool
     fun onBackClicked()
     fun onFontSizeChanged(size: Float)
+    fun onLetterSpacingChanged(size: Float)
     fun onBubbleRadiusChanged(radius: Float)
     fun onWallpaperChanged(wallpaper: String?)
     fun onWallpaperSelected(wallpaper: WallpaperModel)
@@ -89,6 +90,7 @@ interface ChatSettingsComponent {
 
     data class State(
         val fontSize: Float = 16f,
+        val letterSpacing: Float = 0f,
         val bubbleRadius: Float = 18f,
         val wallpaper: String? = null,
         val isWallpaperBlurred: Boolean = false,
@@ -170,6 +172,7 @@ class DefaultChatSettingsComponent(
     private val _state = MutableValue(
         ChatSettingsComponent.State(
             fontSize = appPreferences.fontSize.value,
+            letterSpacing = appPreferences.letterSpacing.value,
             bubbleRadius = appPreferences.bubbleRadius.value,
             wallpaper = appPreferences.wallpaper.value,
             isWallpaperBlurred = appPreferences.isWallpaperBlurred.value,
@@ -232,6 +235,12 @@ class DefaultChatSettingsComponent(
         appPreferences.fontSize
             .onEach { size ->
                 _state.update { it.copy(fontSize = size) }
+            }
+            .launchIn(scope)
+
+        appPreferences.letterSpacing
+            .onEach { spacing  ->
+                _state.update { it.copy(letterSpacing = spacing) }
             }
             .launchIn(scope)
 
@@ -604,6 +613,10 @@ class DefaultChatSettingsComponent(
         appPreferences.setFontSize(size)
     }
 
+    override fun onLetterSpacingChanged(spacing: Float) {
+        appPreferences.setLetterSpacing(spacing)
+    }
+    
     override fun onBubbleRadiusChanged(radius: Float) {
         appPreferences.setBubbleRadius(radius)
     }

@@ -23,6 +23,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.StickerModel
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.presentation.features.stickers.ui.view.StickerSkeleton
+import java.io.File
 
 @OptIn(UnstableApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -80,13 +81,14 @@ fun StickerMessageBubble(
                     onLongClick = onLongClick
                 )
         ) {
-            if (content.path != null) {
+            val validPath = content.path?.takeIf { it.isNotBlank() && File(it).exists() }
+            if (validPath != null) {
                 val stickerModel = StickerModel(
                     id = content.id,
                     width = content.width,
                     height = content.height,
                     emoji = content.emoji,
-                    path = content.path,
+                    path = validPath,
                     format = content.format
                 )
 

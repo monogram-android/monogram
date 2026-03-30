@@ -29,7 +29,7 @@ android {
         applicationId = "org.monogram"
         minSdk = 25
         targetSdk = 36
-        versionCode = 4
+        versionCode = 5
         versionName = "1.0"
     }
 
@@ -47,7 +47,7 @@ android {
         variant.outputs.all {
             val output = this as ApkVariantOutputImpl
             val abi = output.getFilter(VariantOutput.FilterType.ABI) ?: "universal"
-            output.outputFileName = "monogram-$abi-${variant.versionName}-${variant.buildType.name}.apk"
+            output.outputFileName = "monogram-$abi-${variant.versionName}(${variant.versionCode})-${variant.buildType.name}.apk"
         }
     }
 

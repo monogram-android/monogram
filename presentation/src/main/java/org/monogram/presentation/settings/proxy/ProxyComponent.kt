@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import org.json.JSONObject
 import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.repository.AppPreferencesProvider
@@ -43,7 +44,10 @@ interface ProxyComponent {
     fun onFetchTelegaProxies()
     fun onClearUnavailableProxies()
     fun onRemoveAllProxies()
+    fun onConfirmClearUnavailableProxies()
+    fun onConfirmRemoveAllProxies()
     fun onDismissToast()
+    fun onDismissMassDeleteDialogs()
 
     data class State(
         val proxies: List<ProxyModel> = emptyList(),
@@ -60,7 +64,9 @@ interface ProxyComponent {
         val isTesting: Boolean = false,
         val isFetchingExternal: Boolean = false,
         val toastMessage: String? = null,
-        val isRussianNumber: Boolean = false
+        val isRussianNumber: Boolean = false,
+        val showClearOfflineConfirmation: Boolean = false,
+        val showRemoveAllConfirmation: Boolean = false
     )
 }
 
@@ -76,8 +82,7 @@ class DefaultProxyComponent(
     private val _state = MutableValue(ProxyComponent.State())
     override val state: Value<ProxyComponent.State> = _state
     private val scope = componentScope
-    private var isFindingBest = false
-    private var smartSwitchJob: Job? = null
+    private var restoreAttempted = false
 
     init {
         checkIfRussianNumber()
@@ -102,14 +107,6 @@ class DefaultProxyComponent(
                         preferIpv6 = ipv6
                     )
                 }
-                if (telega) {
-                    startSmartSwitching()
-                } else {
-                    stopSmartSwitching()
-                    if (autoBest) {
-                        findAndConnectToBestProxy()
-                    }
-                }
             }.launchIn(scope)
     }
 
@@ -126,6 +123,7 @@ class DefaultProxyComponent(
 
     private suspend fun refreshProxies(shouldPing: Boolean = false) {
         _state.update { it.copy(isLoading = true) }
+        restoreUserProxiesIfNeeded()
         val allProxies = externalProxyRepository.getProxies()
         val telegaIdentifiers = getTelegaIdentifiers()
 
@@ -144,6 +142,103 @@ class DefaultProxyComponent(
             performPingAll()
         }
     }
+
+    private suspend fun restoreUserProxiesIfNeeded() {
+        if (restoreAttempted) return
+        restoreAttempted = true
+
+        val backups = appPreferences.userProxyBackups.value
+        if (backups.isEmpty()) return
+
+        val existing = externalProxyRepository.getProxies()
+        if (existing.isNotEmpty()) return
+
+        backups.mapNotNull { parseProxyBackup(it) }.forEach { backup ->
+            externalProxyRepository.addProxy(
+                server = backup.server,
+                port = backup.port,
+                enable = false,
+                type = backup.type
+            )
+        }
+    }
+
+    private fun addProxyToBackup(proxy: ProxyModel) {
+        val current = appPreferences.userProxyBackups.value.toMutableSet()
+        current.add(serializeProxyBackup(proxy))
+        appPreferences.setUserProxyBackups(current)
+    }
+
+    private fun removeProxyFromBackup(proxy: ProxyModel) {
+        val current = appPreferences.userProxyBackups.value.toMutableSet()
+        current.remove(serializeProxyBackup(proxy))
+        appPreferences.setUserProxyBackups(current)
+    }
+
+    private fun replaceProxyInBackup(oldProxy: ProxyModel?, newProxy: ProxyModel) {
+        val current = appPreferences.userProxyBackups.value.toMutableSet()
+        if (oldProxy != null) {
+            current.remove(serializeProxyBackup(oldProxy))
+        }
+        current.add(serializeProxyBackup(newProxy))
+        appPreferences.setUserProxyBackups(current)
+    }
+
+    private fun serializeProxyBackup(proxy: ProxyModel): String = JSONObject().apply {
+        put("server", proxy.server)
+        put("port", proxy.port)
+        when (val type = proxy.type) {
+            is ProxyTypeModel.Mtproto -> {
+                put("type", "mtproto")
+                put("secret", type.secret)
+            }
+
+            is ProxyTypeModel.Socks5 -> {
+                put("type", "socks5")
+                put("username", type.username)
+                put("password", type.password)
+            }
+
+            is ProxyTypeModel.Http -> {
+                put("type", "http")
+                put("username", type.username)
+                put("password", type.password)
+                put("httpOnly", type.httpOnly)
+            }
+        }
+    }.toString()
+
+    private fun parseProxyBackup(raw: String): ProxyBackup? {
+        return runCatching {
+            val json = JSONObject(raw)
+            val type = when (json.optString("type")) {
+                "mtproto" -> ProxyTypeModel.Mtproto(json.optString("secret"))
+                "socks5" -> ProxyTypeModel.Socks5(
+                    username = json.optString("username"),
+                    password = json.optString("password")
+                )
+
+                "http" -> ProxyTypeModel.Http(
+                    username = json.optString("username"),
+                    password = json.optString("password"),
+                    httpOnly = json.optBoolean("httpOnly", false)
+                )
+
+                else -> return null
+            }
+
+            val server = json.optString("server")
+            val port = json.optInt("port", 443)
+            if (server.isBlank() || port !in 1..65535) return null
+            ProxyBackup(server = server, port = port, type = type)
+        }.getOrNull()
+    }
+
+    private data class ProxyBackup(
+        val server: String,
+        val port: Int,
+        val type: ProxyTypeModel
+    )
 
     private fun updateTelegaStatus(allProxies: List<ProxyModel>) {
         val identifiers = getTelegaIdentifiers()
@@ -188,72 +283,6 @@ class DefaultProxyComponent(
         val isTelega = id in identifiers
         if (isTelega) Log.d("ProxyComponent", "Proxy $id is identified as Telega")
         return isTelega
-    }
-
-    private fun startSmartSwitching() {
-        smartSwitchJob?.cancel()
-        smartSwitchJob = scope.launch {
-            while (isActive) {
-                findAndConnectToBestProxy(onlyTelega = true)
-                delay(60000)
-            }
-        }
-    }
-
-    private fun stopSmartSwitching() {
-        smartSwitchJob?.cancel()
-        smartSwitchJob = null
-    }
-
-    private fun findAndConnectToBestProxy(onlyTelega: Boolean = false) {
-        if (isFindingBest) return
-        scope.launch {
-            isFindingBest = true
-            try {
-                val isTelega = appPreferences.isTelegaProxyEnabled.value
-                val isAutoBest = appPreferences.isAutoBestProxyEnabled.value
-
-                if (!isTelega && !isAutoBest && !onlyTelega) return@launch
-
-                val allProxies = externalProxyRepository.getProxies()
-                val identifiers = getTelegaIdentifiers()
-
-                val targetProxies = if (isTelega || onlyTelega) {
-                    allProxies.filter { isProxyTelega(it, identifiers) }
-                } else {
-                    allProxies
-                }
-
-                if (targetProxies.isEmpty()) {
-                    if (isTelega || onlyTelega) onFetchTelegaProxies()
-                    return@launch
-                }
-
-                val pings = coroutineScope {
-                    targetProxies.map { proxy ->
-                        proxy.id to async {
-                            withTimeoutOrNull(5000) {
-                                externalProxyRepository.pingProxy(proxy.id)
-                            } ?: -1L
-                        }
-                    }.map { (id, job) -> id to job.await() }
-                }
-
-                val best = pings.filter { it.second > 0 }.minByOrNull { it.second }
-
-                if (best != null) {
-                    val currentEnabled = allProxies.find { it.isEnabled }
-                    if (currentEnabled?.id != best.first) {
-                        externalProxyRepository.enableProxy(best.first)
-                        refreshProxies(shouldPing = false)
-                    }
-                } else if (isTelega || onlyTelega) {
-                    onFetchTelegaProxies()
-                }
-            } finally {
-                isFindingBest = false
-            }
-        }
     }
 
     override fun onBackClicked() = onBack()
@@ -361,6 +390,7 @@ class DefaultProxyComponent(
         scope.launch {
             val proxy = externalProxyRepository.addProxy(server, port, true, type)
             if (proxy != null) {
+                addProxyToBackup(proxy)
                 _state.update { it.copy(isAddingProxy = false) }
                 refreshProxies(shouldPing = false)
                 onPingProxy(proxy.id)
@@ -370,8 +400,10 @@ class DefaultProxyComponent(
 
     override fun onEditProxy(proxyId: Int, server: String, port: Int, type: ProxyTypeModel) {
         scope.launch {
+            val oldProxy = (_state.value.proxies + _state.value.telegaProxies).find { it.id == proxyId }
             val proxy = externalProxyRepository.editProxy(proxyId, server, port, true, type)
             if (proxy != null) {
+                replaceProxyInBackup(oldProxy, proxy)
                 _state.update { it.copy(proxyToEdit = null) }
                 refreshProxies(shouldPing = false)
                 onPingProxy(proxy.id)
@@ -384,9 +416,10 @@ class DefaultProxyComponent(
     }
 
     override fun onConfirmDelete() {
-        val proxyId = _state.value.proxyToDelete?.id ?: return
+        val proxy = _state.value.proxyToDelete ?: return
         scope.launch {
-            if (externalProxyRepository.removeProxy(proxyId)) {
+            if (externalProxyRepository.removeProxy(proxy.id)) {
+                removeProxyFromBackup(proxy)
                 _state.update { it.copy(proxyToDelete = null) }
                 refreshProxies(shouldPing = false)
             }
@@ -405,9 +438,17 @@ class DefaultProxyComponent(
         appPreferences.setTelegaProxyEnabled(enabled)
         if (enabled) {
             appPreferences.setAutoBestProxyEnabled(false)
-        }
-        if (!enabled) {
-            onDisableProxy()
+            scope.launch {
+                if (_state.value.telegaProxies.isEmpty()) {
+                    onFetchTelegaProxies()
+                }
+                refreshProxies(shouldPing = false)
+            }
+        } else {
+            scope.launch {
+                externalProxyRepository.disableProxy()
+                refreshProxies(shouldPing = false)
+            }
         }
     }
 
@@ -431,9 +472,6 @@ class DefaultProxyComponent(
                 }
 
                 refreshProxies(shouldPing = false)
-                if (appPreferences.isTelegaProxyEnabled.value) {
-                    findAndConnectToBestProxy(onlyTelega = true)
-                }
             } catch (e: Exception) {
                 Log.e("ProxyComponent", "Error fetching proxies", e)
                 _state.update { it.copy(toastMessage = "Failed to fetch proxies") }
@@ -444,27 +482,58 @@ class DefaultProxyComponent(
     }
 
     override fun onClearUnavailableProxies() {
+        _state.update {
+            it.copy(
+                showClearOfflineConfirmation = true,
+                showRemoveAllConfirmation = false
+            )
+        }
+    }
+
+    override fun onConfirmClearUnavailableProxies() {
         scope.launch {
-            val allProxies = _state.value.proxies + _state.value.telegaProxies
-            val proxiesToDelete = allProxies.filter { it.ping == -1L }
+            val proxiesToDelete = _state.value.proxies.filter { it.ping == -1L }
             proxiesToDelete.forEach { proxy ->
-                externalProxyRepository.removeProxy(proxy.id)
+                if (externalProxyRepository.removeProxy(proxy.id)) {
+                    removeProxyFromBackup(proxy)
+                }
             }
+            _state.update { it.copy(showClearOfflineConfirmation = false) }
             refreshProxies(shouldPing = false)
         }
     }
 
     override fun onRemoveAllProxies() {
+        _state.update {
+            it.copy(
+                showRemoveAllConfirmation = true,
+                showClearOfflineConfirmation = false
+            )
+        }
+    }
+
+    override fun onConfirmRemoveAllProxies() {
         scope.launch {
-            val allProxies = _state.value.proxies + _state.value.telegaProxies
-            allProxies.forEach { proxy ->
-                externalProxyRepository.removeProxy(proxy.id)
+            _state.value.proxies.forEach { proxy ->
+                if (externalProxyRepository.removeProxy(proxy.id)) {
+                    removeProxyFromBackup(proxy)
+                }
             }
+            _state.update { it.copy(showRemoveAllConfirmation = false) }
             refreshProxies(shouldPing = false)
         }
     }
 
     override fun onDismissToast() {
         _state.update { it.copy(toastMessage = null) }
+    }
+
+    override fun onDismissMassDeleteDialogs() {
+        _state.update {
+            it.copy(
+                showClearOfflineConfirmation = false,
+                showRemoveAllConfirmation = false
+            )
+        }
     }
 }

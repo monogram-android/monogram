@@ -747,9 +747,7 @@ private fun ContactActionsPopup(
         Surface(
             modifier = Modifier.widthIn(min = 220.dp, max = 260.dp),
             shape = RoundedCornerShape(22.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
         ) {
             Column(modifier = Modifier.padding(vertical = 8.dp)) {
                 DropdownMenuItem(

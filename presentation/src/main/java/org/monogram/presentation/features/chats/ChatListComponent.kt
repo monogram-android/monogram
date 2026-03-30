@@ -35,6 +35,9 @@ interface ChatListComponent {
     fun onConfirmForwarding()
     fun onNewChatClicked()
     fun onProxySettingsClicked()
+    fun onEditFoldersClicked()
+    fun onDeleteFolder(folderId: Int)
+    fun onEditFolder(folderId: Int)
 
     fun onOpenInstantView(url: String)
     fun onDismissInstantView()

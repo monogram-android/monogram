@@ -494,6 +494,10 @@
     <string name="your_proxies_header">Your Proxies</string>
     <string name="clear_offline_cd">Clear Offline</string>
     <string name="remove_all_cd">Remove All</string>
+    <string name="clear_offline_title">Delete Offline Proxies</string>
+    <string name="clear_offline_confirmation">This will remove all currently offline proxies. Continue?</string>
+    <string name="remove_all_proxies_title">Delete All Proxies</string>
+    <string name="remove_all_proxies_confirmation">This will remove all configured proxies from the app. Continue?</string>
     <string name="no_proxies_label">No proxies added</string>
     <string name="delete_proxy_title">Delete Proxy</string>
     <string name="delete_proxy_confirmation_format">Are you sure you want to delete the proxy %1$s?</string>
@@ -505,6 +509,8 @@
     <string name="username_optional_placeholder">Username (Optional)</string>
     <string name="password_optional_placeholder">Password (Optional)</string>
     <string name="save_changes_button">Save Changes</string>
+    <string name="test_proxy_button">Test</string>
+    <string name="test_proxy_result">Test Result</string>
     <string name="action_delete">Delete</string>
     <string name="proxy_checking">Checking...</string>
     <string name="proxy_offline">Offline</string>
@@ -567,6 +573,7 @@
     <string name="chat_settings_header">Chat Settings</string>
     <string name="appearance_header">Appearance</string>
     <string name="message_text_size_title">Message text size</string>
+    <string name="message_letter_spacing_title">Message letter spacing</string>
     <string name="bubble_rounding_title">Bubble rounding</string>
     <string name="reset_button">Reset</string>
     <string name="chat_wallpaper_header">Chat Wallpaper</string>
@@ -1873,4 +1880,7 @@
     <string name="action_remove_contact">Remove from contacts</string>
     <string name="action_mark_as_read">Mark as read</string>
     <string name="action_mark_as_unread">Mark as unread</string>
+    <string name="folder_tab_edit">Edit</string>
+    <string name="folder_tab_reorder">Reorder</string>
+    <string name="folder_tab_delete">Delete</string>
 </resources>

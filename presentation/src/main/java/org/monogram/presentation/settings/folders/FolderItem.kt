@@ -82,7 +82,11 @@ fun FolderItem(
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = folder.title,
+                    text = if (isSystem) {
+                        stringResource(R.string.folders_system_all_chats)
+                    } else {
+                        folder.title
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = 18.sp
                 )

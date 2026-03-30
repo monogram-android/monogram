@@ -101,14 +101,19 @@ class DefaultChatComponent(
     private var autoLoadJob: Job? = null
     private var mentionJob: Job? = null
     internal val reactionUpdateSuppressedUntil = ConcurrentHashMap<Long, Long>()
+    internal val remappedMessageIds = ConcurrentHashMap<Long, Long>()
+    internal val mediaDownloadRetryCount = ConcurrentHashMap<Int, Int>()
 
     internal var lastLoadedOlderId: Long = 0L
     internal var lastLoadedNewerId: Long = 0L
+    internal var inFlightOlderAnchorId: Long = 0L
+    internal var inFlightNewerAnchorId: Long = 0L
 
     internal val _state = MutableStateFlow(
         ChatComponent.State(
             chatId = chatId,
             fontSize = appPreferences.fontSize.value,
+            letterSpacing = appPreferences.letterSpacing.value,
             bubbleRadius = appPreferences.bubbleRadius.value,
             wallpaper = appPreferences.wallpaper.value,
             isWallpaperBlurred = appPreferences.isWallpaperBlurred.value,
@@ -189,7 +194,6 @@ class DefaultChatComponent(
         setupPinnedMessageCollector()
         observeUserUpdates()
         observeCurrentUser()
-        observeFileDownloads()
         cacheProvider.attachBots
             .onEach { bots ->
                 _state.update {
@@ -286,124 +290,6 @@ class DefaultChatComponent(
                 _state.update { it.copy(currentUser = user) }
             }
             .launchIn(scope)
-    }
-
-    private fun observeFileDownloads() {
-        repositoryMessage.messageDownloadCompletedFlow
-            .onEach { (messageId, path) ->
-                if (path.isNotEmpty()) {
-                    val belongsToMessage = _state.value.messages.any { it.id == messageId }
-                    if (belongsToMessage) {
-                        updateMessagePathByMessageId(messageId, path)
-                    } else if (messageId in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) {
-                        updateInlineResultsWithFile(messageId.toInt(), path)
-                    }
-                }
-            }
-            .launchIn(scope)
-    }
-
-    private fun updateInlineResultsWithFile(fileId: Int, newPath: String) {
-        _state.update { currentState ->
-            val currentResults = currentState.inlineBotResults ?: return@update currentState
-            val updatedResults = currentResults.results.map { result ->
-                if (result.thumbFileId == fileId) result.copy(thumbUrl = newPath) else result
-            }
-            currentState.copy(inlineBotResults = currentResults.copy(results = updatedResults))
-        }
-    }
-
-    private fun updateMessagePathByMessageId(messageId: Long, newPath: String) {
-        _state.update { currentState ->
-            val updatedMessages = currentState.messages.map { msg ->
-                updateMessagePathIfNeeded(msg, messageId, newPath)
-            }
-
-            val updatedViewerImages = currentState.fullScreenImages?.let { currentImages ->
-                val index = currentState.fullScreenImageMessageIds.indexOf(messageId)
-                if (index in currentImages.indices) {
-                    currentImages.toMutableList().apply { this[index] = newPath }
-                } else {
-                    currentImages
-                }
-            }
-
-            currentState.copy(
-                messages = updatedMessages,
-                fullScreenImages = updatedViewerImages
-            )
-        }
-    }
-
-    private fun updateMessagePathIfNeeded(msg: MessageModel, targetMessageId: Long, newPath: String): MessageModel {
-        if (msg.id != targetMessageId) return msg
-
-        return when (val content = msg.content) {
-            is MessageContent.Photo -> msg.copy(
-                content = content.copy(
-                    path = newPath,
-                    isDownloading = false,
-                    downloadProgress = 1f
-                )
-            )
-
-            is MessageContent.Video -> msg.copy(
-                content = content.copy(
-                    path = newPath,
-                    isDownloading = false,
-                    downloadProgress = 1f
-                )
-            )
-
-            is MessageContent.Document -> msg.copy(
-                content = content.copy(
-                    path = newPath,
-                    isDownloading = false,
-                    downloadProgress = 1f
-                )
-            )
-
-            is MessageContent.Audio -> msg.copy(
-                content = content.copy(
-                    path = newPath,
-                    isDownloading = false,
-                    downloadProgress = 1f
-                )
-            )
-
-            is MessageContent.Sticker -> msg.copy(
-                content = content.copy(
-                    path = newPath,
-                    isDownloading = false,
-                    downloadProgress = 1f
-                )
-            )
-
-            is MessageContent.Voice -> msg.copy(
-                content = content.copy(
-                    path = newPath,
-                    isDownloading = false,
-                    downloadProgress = 1f
-                )
-            )
-
-            is MessageContent.VideoNote -> msg.copy(
-                content = content.copy(
-                    path = newPath,
-                    isDownloading = false,
-                    downloadProgress = 1f
-                )
-            )
-
-            is MessageContent.Gif -> msg.copy(
-                content = content.copy(
-                    path = newPath,
-                    isDownloading = false,
-                    downloadProgress = 1f
-                )
-            )
-            else -> msg
-        }
     }
 
     override fun onSendMessage(

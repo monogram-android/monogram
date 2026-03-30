@@ -31,6 +31,7 @@ fun TextMessageBubble(
     isSameSenderAbove: Boolean,
     isSameSenderBelow: Boolean,
     fontSize: Float,
+    letterSpacing: Float,
     isGroup: Boolean = false,
     bubbleRadius: Float = 18f,
     showLinkPreviews: Boolean = true,
@@ -134,6 +135,7 @@ fun TextMessageBubble(
                         inlineContent = inlineContent,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = finalFontSize.sp,
+                            letterSpacing = letterSpacing.sp,
                             lineHeight = (finalFontSize * 1.1f).sp
                         ),
                         modifier = Modifier.padding(bottom = 2.dp),

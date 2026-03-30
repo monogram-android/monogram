@@ -54,7 +54,7 @@ fun InvoiceDialog(
                     }
                     messageRepository.messageDownloadCompletedFlow
                         .filter { it.first == fileId.toLong() }
-                        .collect { photoPath = it.second }
+                        .collect { (_, _, completedPath) -> photoPath = completedPath }
                 }
             } else {
                 photoPath = fileIdStr

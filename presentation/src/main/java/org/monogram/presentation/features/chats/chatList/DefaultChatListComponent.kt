@@ -5,11 +5,17 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.mvikotlin.core.instancekeeper.getStore
 import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.UpdateState
-import org.monogram.domain.repository.*
+import org.monogram.domain.repository.ChatsListRepository
+import org.monogram.domain.repository.SettingsRepository
+import org.monogram.domain.repository.UpdateRepository
+import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
@@ -28,13 +34,13 @@ class DefaultChatListComponent(
     private val onConfirmForward: (Set<Long>) -> Unit = {},
     internal val isForwarding: Boolean = false,
     private val onNewChatClick: () -> Unit = {},
+    private val onEditFoldersClick: () -> Unit = {},
     activeChatId: Value<Long>
 ) : ChatListComponent, AppComponentContext by context {
 
     private val repository: ChatsListRepository = container.repositories.chatsListRepository
     private val repositoryUser: UserRepository = container.repositories.userRepository
     private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
-    private val externalProxyRepository: ExternalProxyRepository = container.repositories.externalProxyRepository
     private val updateRepository: UpdateRepository = container.repositories.updateRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
@@ -116,7 +122,12 @@ class DefaultChatListComponent(
         repository.connectionStateFlow
             .onEach { status ->
                 _state.update { it.copy(connectionStatus = status) }
-                updateProxyStatus()
+            }
+            .launchIn(scope)
+
+        appPreferences.enabledProxyId
+            .onEach { enabledProxyId ->
+                _state.update { it.copy(isProxyEnabled = enabledProxyId != null) }
             }
             .launchIn(scope)
 
@@ -137,13 +148,6 @@ class DefaultChatListComponent(
                 _state.update { it.copy(searchHistory = history) }
             }
             .launchIn(scope)
-
-        scope.launch {
-            while (isActive) {
-                updateProxyStatus()
-                delay(5000)
-            }
-        }
 
         settingsRepository.getAttachMenuBots()
             .onEach { bots ->
@@ -183,12 +187,6 @@ class DefaultChatListComponent(
         scope.launch(Dispatchers.IO) {
             repository.selectFolder(_state.value.selectedFolderId)
         }
-    }
-
-    private suspend fun updateProxyStatus() {
-        val proxies = externalProxyRepository.getProxies()
-        val isProxyEnabled = proxies.any { it.isEnabled }
-        _state.update { it.copy(isProxyEnabled = isProxyEnabled) }
     }
 
     override fun retryConnection() {
@@ -305,6 +303,26 @@ class DefaultChatListComponent(
         searchJob = scope.launch(Dispatchers.IO) {
             delay(300)
             if (query.isNotEmpty()) {
+                if (_state.value.selectedFolderId == -2) {
+                    val archivedChats = _state.value.chatsByFolder[-2].orEmpty()
+                    val trimmedQuery = query.trim()
+                    val archiveResults = archivedChats.filter { chat ->
+                        chat.title.contains(trimmedQuery, ignoreCase = true) ||
+                                chat.lastMessageText.contains(trimmedQuery, ignoreCase = true)
+                    }
+
+                    _state.update {
+                        it.copy(
+                            searchResults = archiveResults,
+                            globalSearchResults = emptyList(),
+                            messageSearchResults = emptyList(),
+                            canLoadMoreMessages = false
+                        )
+                    }
+                    nextMessagesOffset = ""
+                    return@launch
+                }
+
                 val localResults = repository.searchChats(query)
                 _state.update { it.copy(searchResults = localResults) }
 
@@ -425,6 +443,26 @@ class DefaultChatListComponent(
 
     override fun onProxySettingsClicked() {
         onProxySettingsClick()
+    }
+
+    override fun onEditFoldersClicked() {
+        onEditFoldersClick()
+    }
+
+    override fun onDeleteFolder(folderId: Int) {
+        if (folderId <= 0) return
+
+        scope.launch(Dispatchers.IO) {
+            repository.deleteFolder(folderId)
+            if (_state.value.selectedFolderId == folderId) {
+                onFolderClicked(-1)
+            }
+        }
+    }
+
+    override fun onEditFolder(folderId: Int) {
+        if (folderId <= 0) return
+        onEditFoldersClick()
     }
 
     override fun onOpenInstantView(url: String) {

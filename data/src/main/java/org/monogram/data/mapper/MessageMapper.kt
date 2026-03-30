@@ -62,6 +62,7 @@ class MessageMapper(
     private companion object {
         private const val NO_RANK_SENTINEL = "__NO_RANK__"
         private const val META_SEPARATOR = '\u001F'
+        private const val MESSAGE_MAP_TIMEOUT_MS = 2500L
     }
 
     private fun getCurrentNetworkType(): TdApi.NetworkType {
@@ -175,20 +176,78 @@ class MessageMapper(
         return null
     }
 
+    private fun resolveFallbackSender(msg: TdApi.Message): Triple<Long, String, String?> {
+        return when (val sender = msg.senderId) {
+            is TdApi.MessageSenderUser -> {
+                val senderId = sender.userId
+                val snapshot = senderUserSnapshotCache[senderId]
+                if (snapshot != null) {
+                    val avatar = snapshot.avatar ?: snapshot.personalAvatar
+                    Triple(senderId, snapshot.name.ifBlank { "User" }, avatar)
+                } else {
+                    val user = cache.getUser(senderId)
+                    val fallbackName = if (user != null) {
+                        listOfNotNull(
+                            user.firstName.takeIf { it.isNotBlank() },
+                            user.lastName?.takeIf { it.isNotBlank() }
+                        ).joinToString(" ").ifBlank { "User" }
+                    } else {
+                        "User"
+                    }
+                    val avatar = user?.profilePhoto?.small?.local?.path?.takeIf { isValidPath(it) }
+                        ?: user?.profilePhoto?.big?.local?.path?.takeIf { isValidPath(it) }
+                    Triple(senderId, fallbackName, avatar)
+                }
+            }
+
+            is TdApi.MessageSenderChat -> {
+                val senderId = sender.chatId
+                val snapshot = senderChatSnapshotCache[senderId]
+                if (snapshot != null) {
+                    Triple(senderId, snapshot.name.ifBlank { "User" }, snapshot.avatar)
+                } else {
+                    val chat = cache.getChat(senderId)
+                    val fallbackName = chat?.title?.takeIf { it.isNotBlank() } ?: "User"
+                    val avatar = chat?.photo?.small?.local?.path?.takeIf { isValidPath(it) }
+                    Triple(senderId, fallbackName, avatar)
+                }
+            }
+
+            else -> Triple(0L, "User", null)
+        }
+    }
+
+    private fun mapMessageToModelFallback(
+        msg: TdApi.Message,
+        isChatOpen: Boolean,
+        isReply: Boolean
+    ): MessageModel {
+        val (senderId, senderName, senderAvatar) = resolveFallbackSender(msg)
+        return createMessageModel(
+            msg = msg,
+            senderName = senderName,
+            senderId = senderId,
+            senderAvatar = senderAvatar,
+            isChatOpen = isChatOpen,
+            isReply = isReply
+        )
+    }
+
     suspend fun mapMessageToModel(
         msg: TdApi.Message,
         isChatOpen: Boolean = false,
         isReply: Boolean = false
     ): MessageModel = coroutineScope {
-        var senderName = "User"
-        var senderAvatar: String? = null
-        var senderPersonalAvatar: String? = null
-        var senderCustomTitle: String? = null
-        var isSenderVerified = false
-        var isSenderPremium = false
-        var senderStatusEmojiId = 0L
-        var senderStatusEmojiPath: String? = null
-        val senderId: Long
+        withTimeoutOrNull(MESSAGE_MAP_TIMEOUT_MS) {
+            var senderName = "User"
+            var senderAvatar: String? = null
+            var senderPersonalAvatar: String? = null
+            var senderCustomTitle: String? = null
+            var isSenderVerified = false
+            var isSenderPremium = false
+            var senderStatusEmojiId = 0L
+            var senderStatusEmojiPath: String? = null
+            val senderId: Long
 
         when (val sender = msg.senderId) {
             is TdApi.MessageSenderUser -> {
@@ -521,34 +580,35 @@ class MessageMapper(
             viaBotName = bot?.username ?: bot?.firstName
         }
 
-        createMessageModel(
-            msg,
-            senderName,
-            senderId,
-            senderAvatar,
-            isReadOverride = false,
-            replyToMsgId = replyToMsgId,
-            replyToMsg = replyToMsg,
-            forwardInfo = forwardInfo,
-            views = views,
-            viewCount = views,
-            mediaAlbumId = msg.mediaAlbumId,
-            sendingState = sendingState,
-            isChatOpen = isChatOpen,
-            readDate = 0,
-            reactions = reactions,
-            isSenderVerified = isSenderVerified,
-            threadId = threadId,
-            replyCount = replyCount,
-            isReply = isReply,
-            viaBotUserId = msg.viaBotUserId,
-            viaBotName = viaBotName,
-            senderPersonalAvatar = senderPersonalAvatar,
-            senderCustomTitle = senderCustomTitle,
-            isSenderPremium = isSenderPremium,
-            senderStatusEmojiId = senderStatusEmojiId,
-            senderStatusEmojiPath = senderStatusEmojiPath
-        )
+            createMessageModel(
+                msg,
+                senderName,
+                senderId,
+                senderAvatar,
+                isReadOverride = false,
+                replyToMsgId = replyToMsgId,
+                replyToMsg = replyToMsg,
+                forwardInfo = forwardInfo,
+                views = views,
+                viewCount = views,
+                mediaAlbumId = msg.mediaAlbumId,
+                sendingState = sendingState,
+                isChatOpen = isChatOpen,
+                readDate = 0,
+                reactions = reactions,
+                isSenderVerified = isSenderVerified,
+                threadId = threadId,
+                replyCount = replyCount,
+                isReply = isReply,
+                viaBotUserId = msg.viaBotUserId,
+                viaBotName = viaBotName,
+                senderPersonalAvatar = senderPersonalAvatar,
+                senderCustomTitle = senderCustomTitle,
+                isSenderPremium = isSenderPremium,
+                senderStatusEmojiId = senderStatusEmojiId,
+                senderStatusEmojiPath = senderStatusEmojiPath
+            )
+        } ?: mapMessageToModelFallback(msg, isChatOpen, isReply)
     }
 
     suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int {

@@ -19,7 +19,7 @@ interface MessageRemoteDataSource {
     val messageDownloadCancelledFlow: Flow<Long>
     val messageDeletedFlow: Flow<Pair<Long, List<Long>>>
     val messageIdUpdateFlow: Flow<Triple<Long, Long, MessageModel>>
-    val messageDownloadCompletedFlow: Flow<Pair<Long, String>>
+    val messageDownloadCompletedFlow: Flow<Triple<Long, Int, String>>
     val pinnedMessageFlow: Flow<Long>
     val mediaUpdateFlow: Flow<Unit>
     fun registerFileForMessage(fileId: Int, chatId: Long, messageId: Long)

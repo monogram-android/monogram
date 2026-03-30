@@ -105,7 +105,7 @@ class ChatsListRepositoryImpl(
     )
     override val folderChatsFlow: Flow<FolderChatsUpdate> = _folderChatsFlow.asSharedFlow()
 
-    private val _foldersFlow = MutableStateFlow(listOf(FolderModel(-1, "Все")))
+    private val _foldersFlow = MutableStateFlow(listOf(FolderModel(-1, "")))
     override val foldersFlow = _foldersFlow.asStateFlow()
 
     private val _isLoadingFlow = MutableStateFlow(false)

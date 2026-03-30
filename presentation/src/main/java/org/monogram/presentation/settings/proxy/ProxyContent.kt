@@ -135,7 +135,7 @@ fun ProxyContent(component: ProxyComponent) {
                         onCheckedChange = component::onPreferIpv6Toggled
                     )
 
-                    val isDirect = !state.isTelegaProxyEnabled && state.proxies.none { it.isEnabled }
+                    val isDirect = state.proxies.none { it.isEnabled } && state.telegaProxies.none { it.isEnabled }
                     SettingsTile(
                         icon = Icons.Rounded.LinkOff,
                         title = stringResource(R.string.disable_proxy_title),
@@ -254,20 +254,22 @@ fun ProxyContent(component: ProxyComponent) {
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    Row {
-                        IconButton(onClick = { component.onClearUnavailableProxies() }) {
-                            Icon(
-                                Icons.Rounded.DeleteSweep,
-                                stringResource(R.string.clear_offline_cd),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton(onClick = { component.onRemoveAllProxies() }) {
-                            Icon(
-                                Icons.Rounded.DeleteForever,
-                                stringResource(R.string.remove_all_cd),
-                                tint = MaterialTheme.colorScheme.error
-                            )
+                    if (state.proxies.isNotEmpty()) {
+                        Row {
+                            IconButton(onClick = { component.onClearUnavailableProxies() }) {
+                                Icon(
+                                    Icons.Rounded.DeleteSweep,
+                                    stringResource(R.string.clear_offline_cd),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(onClick = { component.onRemoveAllProxies() }) {
+                                Icon(
+                                    Icons.Rounded.DeleteForever,
+                                    stringResource(R.string.remove_all_cd),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
                 }
@@ -327,6 +329,9 @@ fun ProxyContent(component: ProxyComponent) {
         ProxyAddEditSheet(
             proxy = state.proxyToEdit,
             onDismiss = component::onDismissAddEdit,
+            onTest = component::onTestProxy,
+            testPing = state.testPing,
+            isTesting = state.isTesting,
             onSave = { server, port, type ->
                 if (state.proxyToEdit != null) {
                     component.onEditProxy(state.proxyToEdit!!.id, server, port, type)
@@ -352,6 +357,48 @@ fun ProxyContent(component: ProxyComponent) {
             },
             dismissButton = {
                 TextButton(onClick = component::onDismissDeleteConfirmation) {
+                    Text(stringResource(R.string.cancel_button))
+                }
+            }
+        )
+    }
+
+    if (state.showClearOfflineConfirmation) {
+        AlertDialog(
+            onDismissRequest = component::onDismissMassDeleteDialogs,
+            title = { Text(stringResource(R.string.clear_offline_title)) },
+            text = { Text(stringResource(R.string.clear_offline_confirmation)) },
+            confirmButton = {
+                TextButton(
+                    onClick = component::onConfirmClearUnavailableProxies,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = component::onDismissMassDeleteDialogs) {
+                    Text(stringResource(R.string.cancel_button))
+                }
+            }
+        )
+    }
+
+    if (state.showRemoveAllConfirmation) {
+        AlertDialog(
+            onDismissRequest = component::onDismissMassDeleteDialogs,
+            title = { Text(stringResource(R.string.remove_all_proxies_title)) },
+            text = { Text(stringResource(R.string.remove_all_proxies_confirmation)) },
+            confirmButton = {
+                TextButton(
+                    onClick = component::onConfirmRemoveAllProxies,
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = component::onDismissMassDeleteDialogs) {
                     Text(stringResource(R.string.cancel_button))
                 }
             }
@@ -565,6 +612,9 @@ private fun SectionHeader(
 fun ProxyAddEditSheet(
     proxy: ProxyModel?,
     onDismiss: () -> Unit,
+    onTest: (String, Int, ProxyTypeModel) -> Unit,
+    testPing: Long?,
+    isTesting: Boolean,
     onSave: (String, Int, ProxyTypeModel) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -636,7 +686,7 @@ fun ProxyAddEditSheet(
                 Modifier
                     .selectableGroup()
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(50))
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -645,8 +695,8 @@ fun ProxyAddEditSheet(
                     Box(
                         Modifier
                             .weight(1f)
-                            .height(40.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(50))
                             .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
                             .selectable(
                                 selected = selected,
@@ -725,22 +775,68 @@ fun ProxyAddEditSheet(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Button(
-                onClick = {
-                    val p = port.toIntOrNull() ?: 443
-                    onSave(server, p, currentProxyType)
-                },
-                enabled = isInputValid,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp)
+            if (testPing != null || isTesting) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.test_proxy_result),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    ProxyPingIndicator(
+                        ping = testPing,
+                        isChecking = isTesting
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    if (proxy == null) stringResource(R.string.add_proxy_button) else stringResource(R.string.save_changes_button),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                OutlinedButton(
+                    onClick = {
+                        val p = port.toIntOrNull() ?: 443
+                        onTest(server, p, currentProxyType)
+                    },
+                    enabled = isInputValid && !isTesting,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    if (isTesting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(stringResource(R.string.test_proxy_button))
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        val p = port.toIntOrNull() ?: 443
+                        onSave(server, p, currentProxyType)
+                    },
+                    enabled = isInputValid,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        if (proxy == null) stringResource(R.string.add_proxy_button) else stringResource(R.string.save_changes_button),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

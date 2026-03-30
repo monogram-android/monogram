@@ -34,6 +34,7 @@ fun AudioMessageBubble(
     isSameSenderAbove: Boolean,
     isSameSenderBelow: Boolean,
     fontSize: Float,
+    letterSpacing: Float,
     autoDownloadFiles: Boolean,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,
@@ -136,6 +137,7 @@ fun AudioMessageBubble(
                     content = content,
                     msg = msg,
                     fontSize = fontSize,
+                    letterSpacing = letterSpacing,
                     onAudioClick = onAudioClick,
                     onCancelDownload = onCancelDownload
                 )
@@ -154,6 +156,7 @@ fun AudioMessageBubble(
                         inlineContent = inlineContent,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = fontSize.sp,
+                            letterSpacing = letterSpacing.sp,
                             lineHeight = (fontSize * 1.375f).sp
                         ),
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
@@ -194,6 +197,7 @@ fun AudioRow(
     content: MessageContent.Audio,
     msg: MessageModel,
     fontSize: Float,
+    letterSpacing: Float,
     onAudioClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit
 ) {
@@ -251,6 +255,7 @@ fun AudioRow(
                 text = content.title.ifEmpty { content.fileName.ifEmpty { "Audio" } },
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = fontSize.sp,
+                    letterSpacing = letterSpacing.sp,
                     fontWeight = FontWeight.Bold
                 ),
                 maxLines = 1,
@@ -274,6 +279,7 @@ fun AudioAlbumBubble(
     isSameSenderAbove: Boolean,
     isSameSenderBelow: Boolean,
     fontSize: Float,
+    letterSpacing: Float,
     autoDownloadFiles: Boolean,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,
@@ -350,6 +356,7 @@ fun AudioAlbumBubble(
                         content = content,
                         msg = msg,
                         fontSize = fontSize,
+                        letterSpacing = letterSpacing,
                         onAudioClick = onAudioClick,
                         onCancelDownload = onCancelDownload
                     )
@@ -374,6 +381,7 @@ fun AudioAlbumBubble(
                         inlineContent = inlineContent,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = fontSize.sp,
+                            letterSpacing = letterSpacing.sp,
                             lineHeight = (fontSize * 1.375f).sp
                         ),
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
@@ -415,6 +423,7 @@ fun ChannelAudioAlbumBubble(
     isSameSenderAbove: Boolean,
     isSameSenderBelow: Boolean,
     fontSize: Float,
+    letterSpacing: Float,
     bubbleRadius: Float,
     autoDownloadFiles: Boolean,
     autoDownloadMobile: Boolean,
@@ -489,6 +498,7 @@ fun ChannelAudioAlbumBubble(
                         content = content,
                         msg = msg,
                         fontSize = fontSize,
+                        letterSpacing = letterSpacing,
                         onAudioClick = onAudioClick,
                         onCancelDownload = onCancelDownload
                     )
@@ -513,6 +523,7 @@ fun ChannelAudioAlbumBubble(
                         inlineContent = inlineContent,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = fontSize.sp,
+                            letterSpacing = letterSpacing.sp,
                             lineHeight = (fontSize * 1.375f).sp
                         ),
                         modifier = Modifier.padding(vertical = 4.dp),

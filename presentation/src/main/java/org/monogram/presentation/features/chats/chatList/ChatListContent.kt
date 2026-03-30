@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.*
@@ -428,13 +429,19 @@ fun ChatListContent(component: ChatListComponent) {
                     if (isSelectionMode) {
                         val selectedChats = state.chats.filter { state.selectedChatIds.contains(it.id) }
                         val canMarkUnread = selectedChats.any { !it.isMarkedAsUnread }
+                        val allPinned = selectedChats.isNotEmpty() && selectedChats.all { it.isPinned }
+                        val allMuted = selectedChats.isNotEmpty() && selectedChats.all { it.isMuted }
+                        val isInArchive = state.selectedFolderId == -2
 
                         SelectionTopBar(
                             selectedCount = state.selectedChatIds.size,
+                            isInArchive = isInArchive,
+                            allPinned = allPinned,
+                            allMuted = allMuted,
                             onClearSelection = { component.clearSelection() },
                             onPinClick = { component.onPinSelected() },
-                            onMuteClick = { component.onMuteSelected(true) },
-                            onArchiveClick = { component.onArchiveSelected(true) },
+                            onMuteClick = { component.onMuteSelected(!allMuted) },
+                            onArchiveClick = { component.onArchiveSelected(!isInArchive) },
                             onDeleteClick = { showDeleteChatsSheet = true },
                             onToggleReadClick = { component.onToggleReadSelected() },
                             canMarkUnread = canMarkUnread
@@ -490,6 +497,14 @@ fun ChatListContent(component: ChatListComponent) {
                                 navigationIcon = {
                                     IconButton(onClick = { component.handleBack() }) {
                                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.cd_back))
+                                    }
+                                },
+                                actions = {
+                                    IconButton(onClick = { component.onSearchToggle() }) {
+                                        Icon(
+                                            Icons.Rounded.Search,
+                                            contentDescription = stringResource(R.string.action_search)
+                                        )
                                     }
                                 },
                                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
@@ -620,7 +635,11 @@ fun ChatListContent(component: ChatListComponent) {
                                                 pagerState.animateScrollToPage(index)
                                             }
                                         }
-                                    }
+                                    },
+                                    onEditClick = { component.onEditFoldersClicked() },
+                                    onEditFolderClick = { folder -> component.onEditFolder(folder.id) },
+                                    onDeleteFolderClick = { folder -> component.onDeleteFolder(folder.id) },
+                                    onReorderFoldersClick = { component.onEditFoldersClicked() }
                                 )
                             }
                         }

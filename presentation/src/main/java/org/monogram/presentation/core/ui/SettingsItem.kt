@@ -97,7 +97,7 @@ fun SettingsItem(
                             messageRepository.downloadFile(icon.id, 32)
                             messageRepository.messageDownloadCompletedFlow
                                 .filter { it.first == icon.id.toLong() }
-                                .collect { localPath = it.second }
+                                .collect { (_, _, completedPath) -> localPath = completedPath }
                         }
                     }
 

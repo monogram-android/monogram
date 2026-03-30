@@ -49,6 +49,7 @@ fun CompactMediaMosaic(
     autoplayGifs: Boolean,
     autoplayVideos: Boolean,
     onPhotoClick: (MessageModel) -> Unit,
+    onDownloadPhoto: (Int) -> Unit = {},
     onVideoClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit = {},
     onLongClick: (Offset) -> Unit,
@@ -86,6 +87,7 @@ fun CompactMediaMosaic(
                         msg = msg,
                         photo = content,
                         onPhotoClick = onPhotoClick,
+                        onDownloadPhoto = onDownloadPhoto,
                         onCancelDownload = onCancelDownload,
                         onLongClick = onLongClick,
                         contentScale = contentScale,
@@ -283,6 +285,7 @@ fun PhotoItem(
     msg: MessageModel,
     photo: MessageContent.Photo,
     onPhotoClick: (MessageModel) -> Unit,
+    onDownloadPhoto: (Int) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
     autoDownloadMobile: Boolean,
@@ -314,7 +317,7 @@ fun PhotoItem(
                 downloadUtils.isRoaming() -> autoDownloadRoaming
                 else -> autoDownloadMobile
             }
-            if (shouldDownload) onPhotoClick(msg)
+            if (shouldDownload) onDownloadPhoto(photo.fileId)
         }
     }
 
@@ -361,7 +364,7 @@ fun PhotoItem(
                                     } else {
                                         isAutoDownloadSuppressed = false
                                         AutoDownloadSuppression.clear(photo.fileId)
-                                        onPhotoClick(msg)
+                                        onDownloadPhoto(photo.fileId)
                                     }
                                 },
                                 onLongPress = { offset -> onLongClick(itemPosition + offset) }
@@ -387,7 +390,7 @@ fun PhotoItem(
                         onIdleClick = {
                             isAutoDownloadSuppressed = false
                             AutoDownloadSuppression.clear(photo.fileId)
-                            onPhotoClick(msg)
+                            onDownloadPhoto(photo.fileId)
                         }
                     )
                 }

@@ -126,6 +126,7 @@ fun PinnedMessagesListSheet(
                                     onGoToReply = { onReplyClick(it) },
                                     onReactionClick = onReactionClick,
                                     fontSize = state.fontSize,
+                                    letterSpacing = state.letterSpacing,
                                     bubbleRadius = state.bubbleRadius,
                                     downloadUtils = downloadUtils,
                                     videoPlayerPool = videoPlayerPool
@@ -157,6 +158,7 @@ fun PinnedMessagesListSheet(
                                     newerMsg = newerMsg,
                                     isGroup = state.isGroup,
                                     fontSize = state.fontSize,
+                                    letterSpacing = state.letterSpacing,
                                     bubbleRadius = state.bubbleRadius,
                                     autoDownloadMobile = state.autoDownloadMobile,
                                     autoDownloadWifi = state.autoDownloadWifi,

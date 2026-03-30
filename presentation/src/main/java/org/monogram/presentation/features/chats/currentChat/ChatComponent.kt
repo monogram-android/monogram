@@ -239,6 +239,7 @@ interface ChatComponent {
         val isLatestLoaded: Boolean = true,
         val isOldestLoaded: Boolean = false,
         val fontSize: Float = 16f,
+        val letterSpacing: Float = 0f,
         val bubbleRadius: Float = 18f,
         val wallpaper: String? = null,
         val wallpaperModel: WallpaperModel? = null,

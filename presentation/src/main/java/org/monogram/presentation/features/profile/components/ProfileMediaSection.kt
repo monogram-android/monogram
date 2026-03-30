@@ -1,20 +1,18 @@
 package org.monogram.presentation.features.profile.components
 
 import android.content.Intent
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,7 +22,10 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -84,6 +85,7 @@ fun LazyGridScope.profileMediaSection(
         { stringResource(R.string.tab_links) },
         { stringResource(R.string.tab_gifs) }
     ))
+    val pagerOffset = mutableFloatStateOf(0f)
 
     stickyHeader {
         Surface(
@@ -117,6 +119,7 @@ fun LazyGridScope.profileMediaSection(
                                     .fillMaxHeight()
                                     .padding(vertical = 4.dp)
                                     .zIndex(-1f)
+                                    .offset(x = pagerOffset.floatValue.dp)
                                     .clip(RoundedCornerShape(24.dp))
                                     .background(MaterialTheme.colorScheme.primary)
                             )
@@ -183,21 +186,31 @@ fun LazyGridScope.profileMediaSection(
     val canLoadMedia = state.canLoadMoreMedia
 
     item(span = { GridItemSpan(3) }) {
-        AnimatedContent(
-            targetState = state.selectedTabIndex,
-            transitionSpec = {
-                if (targetState > initialState) {
-                    slideInHorizontally { width -> width } + fadeIn() togetherWith
-                    slideOutHorizontally { width -> -width } + fadeOut()
-                } else {
-                    slideInHorizontally { width -> -width } + fadeIn() togetherWith
-                    slideOutHorizontally { width -> width } + fadeOut()
-                }
-            },
-            label = "tabs"
-        ) { tab ->
+        val pagerState = rememberPagerState(
+            initialPage = state.selectedTabIndex,
+            pageCount = { tabs.size }
+        )
+        LaunchedEffect(state.selectedTabIndex) {
+            pagerState.animateScrollToPage(state.selectedTabIndex)
+        }
+        LaunchedEffect(pagerState.currentPage) {
+            if (state.selectedTabIndex != pagerState.currentPage) {
+                onTabSelected(pagerState.currentPage)
+            }
+        }
+        LaunchedEffect(pagerState) {
+            snapshotFlow {
+                pagerState.currentPage + pagerState.currentPageOffsetFraction
+            }.collect { offset ->
+                pagerOffset.floatValue = offset
+            }
+        }
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth()
+        ) { page ->
             ProfileTabContent(
-                tab = tab,
+                tab = page,
                 state = state,
                 videoPlayerPool = videoPlayerPool,
                 onLoadMore = onLoadMore,
@@ -338,7 +351,6 @@ fun ProfileTabContent(
         }
     }
 }
-
 
 @Composable
 private fun ScrollableRow(

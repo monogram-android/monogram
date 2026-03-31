@@ -92,10 +92,10 @@ import org.monogram.domain.models.UserModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ItemPosition
+import com.google.i18n.phonenumbers.PhoneNumberUtil
+import org.koin.compose.koinInject
 import org.monogram.presentation.core.ui.SettingsItem
 import org.monogram.presentation.core.util.AppUtils
-import org.monogram.presentation.core.util.CountryManager
-import org.monogram.presentation.core.util.formatMaskedGlobal
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import kotlin.math.roundToInt
 
@@ -410,7 +410,6 @@ fun AccountMenu(
                                         )
 
                                         is UpdateState.ReadyToInstall -> stringResource(R.string.update_ready_subtitle)
-                                        else -> null
                                     },
                                     position = ItemPosition.MIDDLE,
                                     onClick = {
@@ -539,6 +538,7 @@ private fun ActiveAccountCard(
         MaterialTheme.colorScheme.surfaceContainer
 
     val haptic = LocalHapticFeedback.current
+    val phoneUtil: PhoneNumberUtil = koinInject()
 
     Surface(
         modifier = Modifier
@@ -583,8 +583,20 @@ private fun ActiveAccountCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = user?.phoneNumber?.let {
-                        if (isPhoneVisible) CountryManager.formatPhone(it) else formatMaskedGlobal(it)
+                    text = user?.phoneNumber?.let { phone ->
+                        val formatted = remember(phone) {
+                            runCatching {
+                                phoneUtil.format(phoneUtil.parse(phone, null), PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL)
+                            }.getOrDefault(phone)
+                        }
+                        if (isPhoneVisible) formatted
+                        else {
+                            val digits = formatted.filter { it.isDigit() }
+                            if (digits.length < 5) "****"
+                            else formatted.replace(Regex("[0-9]"), "*")
+                                .replace(Regex("\\*{1,}(${digits.takeLast(4)})"), "$1")
+                                .let { if (!it.startsWith("+")) "+$it" else it }
+                        }
                     } ?: user?.username ?: stringResource(R.string.no_info),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -34,6 +34,8 @@ import androidx.core.net.toUri
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.*
+import com.google.i18n.phonenumbers.PhoneNumberUtil
+import org.koin.compose.koinInject
 import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.core.util.OperatorManager
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
@@ -279,6 +281,7 @@ fun ProfileInfoSection(
     val chat = state.chat
     val fullInfo = state.fullInfo
     val context = LocalContext.current
+    val phoneUtil: PhoneNumberUtil = koinInject()
     var isSponsorSheetVisible by remember { mutableStateOf(false) }
 
     if (isSponsorSheetVisible) {
@@ -519,7 +522,11 @@ fun ProfileInfoSection(
     }
 
     user?.phoneNumber?.takeIf { it.isNotEmpty() }?.let { phone ->
-        val formattedPhone = CountryManager.formatPhone(phone)
+        val formattedPhone = remember(phone) {
+            runCatching {
+                phoneUtil.format(phoneUtil.parse(phone, null), PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL)
+            }.getOrDefault(phone)
+        }
         val country = CountryManager.getCountryForPhone(phone)
         val operator = OperatorManager.detectOperator(phone, country?.iso)
         items.add { pos ->

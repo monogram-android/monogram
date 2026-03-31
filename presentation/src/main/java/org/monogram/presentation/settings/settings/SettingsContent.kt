@@ -115,7 +115,10 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import com.google.i18n.phonenumbers.PhoneNumberUtil
+import org.koin.compose.koinInject
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
 import org.monogram.presentation.core.ui.ItemPosition
@@ -127,9 +130,7 @@ import org.monogram.presentation.core.ui.generatePureBitmap
 import org.monogram.presentation.core.ui.rememberCollapsingToolbarScaffoldState
 import org.monogram.presentation.core.ui.saveBitmapToGallery
 import org.monogram.presentation.core.ui.shareBitmap
-import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.core.util.ScrollStrategy
-import org.monogram.presentation.core.util.formatMaskedGlobal
 import org.monogram.presentation.features.stickers.ui.menu.EmojisGrid
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.presentation.settings.sessions.SectionHeader
@@ -145,8 +146,9 @@ val QrSurfaceShapeColor = Color(0xFFE3E6D8)
 fun SettingsContent(component: SettingsComponent) {
     val state by component.state.subscribeAsState()
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val haptic = LocalHapticFeedback.current
+    val phoneUtil: PhoneNumberUtil = koinInject()
     val blueColor = Color(0xFF4285F4)
     val greenColor = Color(0xFF34A853)
     val orangeColor = Color(0xFFF9AB00)
@@ -641,14 +643,23 @@ fun SettingsContent(component: SettingsComponent) {
                     item {
                         state.currentUser?.let { user ->
                             val rawPhone = user.phoneNumber ?: ""
+                            val formattedPhone = remember(rawPhone) {
+                                runCatching {
+                                    phoneUtil.format(phoneUtil.parse(rawPhone, null), PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL)
+                                }.getOrDefault(rawPhone)
+                            }
+                            val maskedPhone = remember(rawPhone) {
+                                val formatted = formattedPhone
+                                val digits = formatted.filter { it.isDigit() }
+                                if (digits.length < 5) "****"
+                                else formatted.replace(Regex("[0-9]"), "*")
+                                    .replace(Regex("\\*{1,}(${digits.takeLast(4)})"), "$1")
+                                    .let { if (!it.startsWith("+")) "+$it" else it }
+                            }
 
                             SettingsItem(
                                 icon = Icons.Default.PhoneIphone,
-                                title = if (isPhoneVisible) CountryManager.formatPhone(
-                                    rawPhone
-                                ) else formatMaskedGlobal(
-                                    rawPhone
-                                ),
+                                title = if (isPhoneVisible) formattedPhone else maskedPhone,
                                 subtitle = if (isPhoneVisible) stringResource(R.string.phone_subtitle_visible) else stringResource(
                                     R.string.phone_subtitle_hidden
                                 ),
@@ -661,11 +672,7 @@ fun SettingsContent(component: SettingsComponent) {
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     clipboardManager.setText(
-                                        AnnotatedString(
-                                            CountryManager.formatPhone(
-                                                rawPhone
-                                            )
-                                        )
+                                        AnnotatedString(formattedPhone)
                                     )
                                 }
                             )

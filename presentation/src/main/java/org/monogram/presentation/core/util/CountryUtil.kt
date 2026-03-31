@@ -136,34 +136,6 @@ object CountryManager {
         return matches.maxByOrNull { it.code.length }
     }
 
-    fun formatPhone(phone: String): String {
-        val digits = phone.filter { it.isDigit() }
-        if (digits.isEmpty()) return ""
-
-        val country = getCountryForPhone(digits) ?: return "+$digits"
-        val mask = country.mask ?: return "+$digits"
-
-        val phoneWithoutCode = digits.removePrefix(country.code)
-        val result = StringBuilder("+${country.code} ")
-        var phoneIndex = 0
-
-        for (char in mask) {
-            if (phoneIndex >= phoneWithoutCode.length) break
-            if (char == 'X') {
-                result.append(phoneWithoutCode[phoneIndex])
-                phoneIndex++
-            } else {
-                result.append(char)
-            }
-        }
-
-        if (phoneIndex < phoneWithoutCode.length) {
-            result.append(phoneWithoutCode.substring(phoneIndex))
-        }
-
-        return result.toString().trim()
-    }
-
     private fun countryCodeToEmoji(countryCode: String): String {
         if (countryCode == "FT") return "⭐"
         if (countryCode == "YL") return "✈️"

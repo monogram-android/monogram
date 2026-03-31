@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.ui.Avatar
+import com.google.i18n.phonenumbers.PhoneNumberUtil
+import org.koin.compose.koinInject
 import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
@@ -60,8 +62,11 @@ fun ContactMessageBubble(
     toProfile: (Long) -> Unit = {},
     showReactions: Boolean = true
 ) {
+    val phoneUtil: PhoneNumberUtil = koinInject()
     val formattedPhone = remember(content.phoneNumber) {
-        CountryManager.formatPhone(content.phoneNumber)
+        runCatching {
+            phoneUtil.format(phoneUtil.parse(content.phoneNumber, null), PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL)
+        }.getOrDefault(content.phoneNumber)
     }
     val country = remember(content.phoneNumber) {
         CountryManager.getCountryForPhone(content.phoneNumber)

@@ -96,6 +96,7 @@ import com.google.i18n.phonenumbers.PhoneNumberUtil
 import org.koin.compose.koinInject
 import org.monogram.presentation.core.ui.SettingsItem
 import org.monogram.presentation.core.util.AppUtils
+import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import kotlin.math.roundToInt
 
@@ -236,7 +237,9 @@ fun AccountMenu(
                 Surface(
                     modifier = Modifier
                         .padding(8.dp)
-                        .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
+                        .padding(
+                            top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                        )
                         .widthIn(max = 600.dp)
                         .offset { IntOffset(0, offsetY.value.roundToInt()) }
                         .pointerInput(Unit) {
@@ -290,7 +293,9 @@ fun AccountMenu(
                                     .width(32.dp)
                                     .height(4.dp)
                                     .background(
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                            alpha = 0.4f
+                                        ),
                                         shape = CircleShape
                                     )
                             )
@@ -342,7 +347,8 @@ fun AccountMenu(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            val sideMenuBots = attachMenuBots.filter { it.showInSideMenu && it.name.isNotBlank() && it.icon?.icon != null }
+                            val sideMenuBots =
+                                attachMenuBots.filter { it.showInSideMenu && it.name.isNotBlank() && it.icon?.icon != null }
 
                             sideMenuBots.forEachIndexed { index, bot ->
                                 SettingsItem(
@@ -469,7 +475,9 @@ fun AccountMenu(
                                     .width(32.dp)
                                     .height(4.dp)
                                     .background(
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                            alpha = 0.4f
+                                        ),
                                         shape = CircleShape
                                     )
                             )
@@ -538,7 +546,6 @@ private fun ActiveAccountCard(
         MaterialTheme.colorScheme.surfaceContainer
 
     val haptic = LocalHapticFeedback.current
-    val phoneUtil: PhoneNumberUtil = koinInject()
 
     Surface(
         modifier = Modifier
@@ -585,17 +592,11 @@ private fun ActiveAccountCard(
                 Text(
                     text = user?.phoneNumber?.let { phone ->
                         val formatted = remember(phone) {
-                            runCatching {
-                                phoneUtil.format(phoneUtil.parse(phone, null), PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL)
-                            }.getOrDefault(phone)
+                            CountryManager.formatPhoneNumber(phone)
                         }
                         if (isPhoneVisible) formatted
                         else {
-                            val digits = formatted.filter { it.isDigit() }
-                            if (digits.length < 5) "****"
-                            else formatted.replace(Regex("[0-9]"), "*")
-                                .replace(Regex("\\*{1,}(${digits.takeLast(4)})"), "$1")
-                                .let { if (!it.startsWith("+")) "+$it" else it }
+                            CountryManager.maskPhoneNumber(formatted)
                         }
                     } ?: user?.username ?: stringResource(R.string.no_info),
                     style = MaterialTheme.typography.bodyMedium,
@@ -663,7 +664,10 @@ private fun MenuFooter(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            FooterLink(text = stringResource(R.string.terms_of_service_title), onClick = onTermsClick)
+            FooterLink(
+                text = stringResource(R.string.terms_of_service_title),
+                onClick = onTermsClick
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))

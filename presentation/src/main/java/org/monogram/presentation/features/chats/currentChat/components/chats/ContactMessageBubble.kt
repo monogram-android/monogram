@@ -62,11 +62,8 @@ fun ContactMessageBubble(
     toProfile: (Long) -> Unit = {},
     showReactions: Boolean = true
 ) {
-    val phoneUtil: PhoneNumberUtil = koinInject()
     val formattedPhone = remember(content.phoneNumber) {
-        runCatching {
-            phoneUtil.format(phoneUtil.parse(content.phoneNumber, null), PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL)
-        }.getOrDefault(content.phoneNumber)
+        CountryManager.formatPhoneNumber(content.phoneNumber)
     }
     val country = remember(content.phoneNumber) {
         CountryManager.getCountryForPhone(content.phoneNumber)

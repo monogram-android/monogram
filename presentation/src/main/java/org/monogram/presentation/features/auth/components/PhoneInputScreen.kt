@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.auth.components
 
 import android.content.res.Configuration
+import android.util.Log
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -131,9 +132,7 @@ fun PhoneInputScreen(
         }
     }
 
-    val phoneUtil: PhoneNumberUtil = koinInject()
     var phoneDisplay by remember { mutableStateOf("") }
-    var formatter by remember { mutableStateOf(phoneUtil.getAsYouTypeFormatter(selectedCountry.iso)) }
 
     val iconSize by animateDpAsState(
         targetValue = if (isInputMode) 0.dp else 72.dp,
@@ -168,17 +167,13 @@ fun PhoneInputScreen(
         codeInput = country.code
         phoneBody = ""
         phoneDisplay = ""
-        formatter = phoneUtil.getAsYouTypeFormatter(country.iso)
         showCountryPicker = false
         searchQuery = ""
         activeField = ActiveField.PHONE
     }
 
     val fullNumber = "+$codeInput$phoneBody"
-    val isFormValid = codeInput.isNotEmpty() && runCatching {
-        val parsed = phoneUtil.parse(phoneBody, selectedCountry.iso)
-        phoneUtil.isValidNumber(parsed)
-    }.getOrDefault(false)
+    val isFormValid = codeInput.isNotEmpty() && CountryManager.isValidPhoneNumber(fullNumber, selectedCountry.iso)
 
     val content: @Composable () -> Unit = {
         Spacer(modifier = Modifier.height(topSpacerHeight))
@@ -283,15 +278,15 @@ fun PhoneInputScreen(
                 value = textFieldValue,
                 onValueChange = {
                     val newText = it.text.filter { char -> char.isDigit() }
+
                     if (activeField == ActiveField.CODE) {
                         onCodeChanged(newText)
                     } else {
                         if (newText.length <= 15) {
+                            val formattedFull = CountryManager.formatPartialPhoneNumber(selectedCountry.iso, newText)
+
                             phoneBody = newText
-                            formatter.clear()
-                            var formatted = ""
-                            newText.forEach { digit -> formatted = formatter.inputDigit(digit) }
-                            phoneDisplay = formatted
+                            phoneDisplay = formattedFull
                         }
                     }
                 },

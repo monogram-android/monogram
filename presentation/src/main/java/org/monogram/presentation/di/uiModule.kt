@@ -1,12 +1,8 @@
 package org.monogram.presentation.di
 
-import com.google.i18n.phonenumbers.PhoneNumberUtil
-import org.monogram.presentation.di.coil.coilModule
 import org.koin.dsl.module
+import org.monogram.presentation.di.coil.coilModule
 
 val uiModule = module {
     includes(coilModule)
-    single {
-        PhoneNumberUtil.getInstance()
-    }
 }

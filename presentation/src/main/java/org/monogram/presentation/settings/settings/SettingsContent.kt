@@ -102,7 +102,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -115,10 +114,7 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import com.google.i18n.phonenumbers.PhoneNumberUtil
-import org.koin.compose.koinInject
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
 import org.monogram.presentation.core.ui.ItemPosition
@@ -130,6 +126,7 @@ import org.monogram.presentation.core.ui.generatePureBitmap
 import org.monogram.presentation.core.ui.rememberCollapsingToolbarScaffoldState
 import org.monogram.presentation.core.ui.saveBitmapToGallery
 import org.monogram.presentation.core.ui.shareBitmap
+import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.features.stickers.ui.menu.EmojisGrid
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
@@ -148,7 +145,6 @@ fun SettingsContent(component: SettingsComponent) {
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val haptic = LocalHapticFeedback.current
-    val phoneUtil: PhoneNumberUtil = koinInject()
     val blueColor = Color(0xFF4285F4)
     val greenColor = Color(0xFF34A853)
     val orangeColor = Color(0xFFF9AB00)
@@ -474,9 +470,12 @@ fun SettingsContent(component: SettingsComponent) {
                                     path = userModel.statusEmojiPath,
                                     modifier = Modifier
                                         .size(22.dp)
-                                        .onGloballyPositioned { topBarStatusAnchorBounds = it.boundsInRoot() }
+                                        .onGloballyPositioned {
+                                            topBarStatusAnchorBounds = it.boundsInRoot()
+                                        }
                                         .clickable(onClick = {
-                                            statusAnchorBounds = topBarStatusAnchorBounds ?: statusAnchorBounds
+                                            statusAnchorBounds =
+                                                topBarStatusAnchorBounds ?: statusAnchorBounds
                                             showStatusMenu = true
                                         }),
                                     animate = false
@@ -488,9 +487,12 @@ fun SettingsContent(component: SettingsComponent) {
                                     contentDescription = null,
                                     modifier = Modifier
                                         .size(20.dp)
-                                        .onGloballyPositioned { topBarStatusAnchorBounds = it.boundsInRoot() }
+                                        .onGloballyPositioned {
+                                            topBarStatusAnchorBounds = it.boundsInRoot()
+                                        }
                                         .clickable(onClick = {
-                                            statusAnchorBounds = topBarStatusAnchorBounds ?: statusAnchorBounds
+                                            statusAnchorBounds =
+                                                topBarStatusAnchorBounds ?: statusAnchorBounds
                                             showStatusMenu = true
                                         }),
                                     tint = Color(0xFF31A6FD)
@@ -554,7 +556,7 @@ fun SettingsContent(component: SettingsComponent) {
                     containerColor = dynamicContainerColorTopBar,
                     scrolledContainerColor = Color.Transparent,
 
-                )
+                    )
             )
         }
     ) { padding ->
@@ -618,7 +620,8 @@ fun SettingsContent(component: SettingsComponent) {
                                 ),
                                 videoPlayerPool = component.videoPlayerPool,
                                 onStatusClick = {
-                                    statusAnchorBounds = headerStatusAnchorBounds ?: statusAnchorBounds
+                                    statusAnchorBounds =
+                                        headerStatusAnchorBounds ?: statusAnchorBounds
                                     showStatusMenu = true
                                 },
                                 onStatusBoundsChanged = { headerStatusAnchorBounds = it }
@@ -644,17 +647,10 @@ fun SettingsContent(component: SettingsComponent) {
                         state.currentUser?.let { user ->
                             val rawPhone = user.phoneNumber ?: ""
                             val formattedPhone = remember(rawPhone) {
-                                runCatching {
-                                    phoneUtil.format(phoneUtil.parse(rawPhone, null), PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL)
-                                }.getOrDefault(rawPhone)
+                                CountryManager.formatPhoneNumber(rawPhone)
                             }
                             val maskedPhone = remember(rawPhone) {
-                                val formatted = formattedPhone
-                                val digits = formatted.filter { it.isDigit() }
-                                if (digits.length < 5) "****"
-                                else formatted.replace(Regex("[0-9]"), "*")
-                                    .replace(Regex("\\*{1,}(${digits.takeLast(4)})"), "$1")
-                                    .let { if (!it.startsWith("+")) "+$it" else it }
+                                CountryManager.maskPhoneNumber(formattedPhone)
                             }
 
                             SettingsItem(
@@ -719,7 +715,9 @@ fun SettingsContent(component: SettingsComponent) {
                                 iconBackgroundColor = blueColor,
                                 position = ItemPosition.BOTTOM,
                                 onClick = component::onEditProfileClicked,
-                                modifier = Modifier.semantics { contentDescription = "SettingsEditProfile" }
+                                modifier = Modifier.semantics {
+                                    contentDescription = "SettingsEditProfile"
+                                }
                             )
                         }
                     }
@@ -746,7 +744,9 @@ fun SettingsContent(component: SettingsComponent) {
                             iconBackgroundColor = blueColor,
                             position = ItemPosition.TOP,
                             onClick = component::onChatSettingsClicked,
-                            modifier = Modifier.semantics { contentDescription = "SettingsChatSettings" }
+                            modifier = Modifier.semantics {
+                                contentDescription = "SettingsChatSettings"
+                            }
                         )
                         SettingsItem(
                             icon = Icons.Rounded.Lock,
@@ -764,7 +764,9 @@ fun SettingsContent(component: SettingsComponent) {
                             iconBackgroundColor = pinkColor,
                             position = ItemPosition.MIDDLE,
                             onClick = component::onNotificationsClicked,
-                            modifier = Modifier.semantics { contentDescription = "SettingsNotifications" }
+                            modifier = Modifier.semantics {
+                                contentDescription = "SettingsNotifications"
+                            }
                         )
                         SettingsItem(
                             icon = Icons.Rounded.DataUsage,
@@ -773,7 +775,9 @@ fun SettingsContent(component: SettingsComponent) {
                             iconBackgroundColor = tealColor,
                             position = ItemPosition.MIDDLE,
                             onClick = component::onDataStorageClicked,
-                            modifier = Modifier.semantics { contentDescription = "SettingsDataStorage" }
+                            modifier = Modifier.semantics {
+                                contentDescription = "SettingsDataStorage"
+                            }
                         )
                         SettingsItem(
                             icon = Icons.Rounded.PowerSettingsNew,
@@ -922,7 +926,8 @@ fun SettingsContent(component: SettingsComponent) {
                 ?.let { ((it.left + it.right) / 2f - menuWidthPx / 2f).roundToInt() }
                 ?: horizontalPaddingPx
 
-            val maxLeftPx = (rootWidthPx - menuWidthPx - horizontalPaddingPx).coerceAtLeast(horizontalPaddingPx)
+            val maxLeftPx =
+                (rootWidthPx - menuWidthPx - horizontalPaddingPx).coerceAtLeast(horizontalPaddingPx)
             val clampedLeftPx = desiredLeftPx.coerceIn(horizontalPaddingPx, maxLeftPx)
 
             val maxTopPx = (
@@ -933,7 +938,8 @@ fun SettingsContent(component: SettingsComponent) {
             val maxMenuHeightPx = (
                     rootHeightPx - clampedTopPx - navigationBarBottomPx - menuBottomMarginPx
                     ).coerceAtLeast(minMenuVisibleHeightPx)
-            val maxMenuHeightDp = with(density) { maxMenuHeightPx.toDp() }.coerceAtMost(menuHeightLimit)
+            val maxMenuHeightDp =
+                with(density) { maxMenuHeightPx.toDp() }.coerceAtMost(menuHeightLimit)
 
             AnimatedVisibility(
                 visibleState = statusMenuTransitionState,

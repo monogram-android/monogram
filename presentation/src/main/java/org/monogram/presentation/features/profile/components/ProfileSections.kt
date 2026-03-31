@@ -281,7 +281,6 @@ fun ProfileInfoSection(
     val chat = state.chat
     val fullInfo = state.fullInfo
     val context = LocalContext.current
-    val phoneUtil: PhoneNumberUtil = koinInject()
     var isSponsorSheetVisible by remember { mutableStateOf(false) }
 
     if (isSponsorSheetVisible) {
@@ -523,9 +522,7 @@ fun ProfileInfoSection(
 
     user?.phoneNumber?.takeIf { it.isNotEmpty() }?.let { phone ->
         val formattedPhone = remember(phone) {
-            runCatching {
-                phoneUtil.format(phoneUtil.parse(phone, null), PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL)
-            }.getOrDefault(phone)
+            CountryManager.formatPhoneNumber(phone)
         }
         val country = CountryManager.getCountryForPhone(phone)
         val operator = OperatorManager.detectOperator(phone, country?.iso)

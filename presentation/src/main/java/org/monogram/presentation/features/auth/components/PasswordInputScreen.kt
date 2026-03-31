@@ -156,7 +156,7 @@ fun PasswordInputScreen(
                         scaleX = scale
                         scaleY = scale
                     },
-                shape = CircleShape,
+                shape = MaterialShapes.Cookie4Sided.toShape(),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
             ) {
                 Box(contentAlignment = Alignment.Center) {

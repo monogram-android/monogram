@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import org.monogram.presentation.R
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LoadingScreen(
     onReset: () -> Unit
@@ -30,10 +31,9 @@ fun LoadingScreen(
             .fillMaxSize()
             .padding(24.dp)
     ) {
-        CircularProgressIndicator(
+        LoadingIndicator(
             modifier = Modifier.size(48.dp),
-            color = MaterialTheme.colorScheme.primary,
-            strokeWidth = 4.dp
+            color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(24.dp))
 

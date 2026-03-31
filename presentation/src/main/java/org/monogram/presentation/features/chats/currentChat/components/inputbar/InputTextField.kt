@@ -325,10 +325,7 @@ fun InputTextField(
                     maxLines = Int.MAX_VALUE,
                     visualTransformation = { transformedTextState },
                     decorationBox = { innerTextField ->
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
+                        Box {
                             if (shouldUseOverlayText) {
                                 Text(
                                     text = transformedTextState.text,
@@ -345,13 +342,10 @@ fun InputTextField(
                                         R.string.input_placeholder_message
                                     ),
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.fillMaxWidth()
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                innerTextField()
-                            }
+                            innerTextField()
                         }
                     }
                 )

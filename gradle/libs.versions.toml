@@ -130,6 +130,7 @@ maplibre-compose = { module = "io.github.rallista:maplibre-compose", version.ref
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 libphonenumber = { module = "com.lionscribe.open.libphonenumber:libphonenumber", version.ref = "libphonenumber" }
+flagkit = { group = "eu.acolombo.flagkit", name = "flagkit", version = "1.1.1" }
 
 [bundles]
 androidx-camera = [

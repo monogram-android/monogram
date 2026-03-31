@@ -93,9 +93,7 @@ import org.monogram.presentation.features.chats.chatList.components.SettingsText
 import java.util.Locale
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import org.koin.compose.koinInject
-import androidx.compose.ui.unit.DpSize
-import flagkit.Flag
-import flagkit.FlagKit
+import org.monogram.presentation.core.ui.CountryFlag
 
 enum class ActiveField {
     CODE, PHONE
@@ -255,23 +253,10 @@ fun PhoneInputScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val selectedFlag = remember(selectedCountry.iso) {
-                    runCatching { FlagKit.Flag.valueOf(selectedCountry.iso) }.getOrNull()
-                }
-                if (selectedFlag != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                    ) {
-                        Flag(
-                            flag = selectedFlag,
-                            shape = CircleShape,
-                            size = DpSize(40.dp, 40.dp),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                }
+                CountryFlag(
+                    iso = selectedCountry.iso,
+                    size = 40.dp
+                )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -553,19 +538,11 @@ fun PhoneInputScreen(
                                     .padding(horizontal = 20.dp, vertical = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                val flag = remember(country.iso) {
-                                    runCatching { FlagKit.Flag.valueOf(country.iso) }.getOrNull()
-                                }
-                                if (flag != null) {
-                                    Flag(
-                                        flag = flag,
-                                        shape = CircleShape,
-                                        size = DpSize(32.dp, 32.dp),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    Text(country.flagEmoji, fontSize = 24.sp)
-                                }
+                                CountryFlag(
+                                    iso = country.iso,
+                                    size = 32.dp,
+                                    flagEmoji = country.flagEmoji
+                                )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Text(
                                     text = country.name,
@@ -593,3 +570,4 @@ fun PhoneInputScreen(
         }
     }
 }
+

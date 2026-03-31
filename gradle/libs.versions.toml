@@ -45,7 +45,6 @@ playServices-ossLicenses = "17.4.0"
 zxing = "3.5.4"
 junit = "4.13.2"
 libphonenumber = "8.12.18.1"
-flagkit = "1.1.0"
 
 [libraries]
 # AndroidX Activity
@@ -131,7 +130,6 @@ maplibre-compose = { module = "io.github.rallista:maplibre-compose", version.ref
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 libphonenumber = { module = "com.lionscribe.open.libphonenumber:libphonenumber", version.ref = "libphonenumber" }
-flagkit = { group = "eu.acolombo.flagkit", name = "flagkit", version.ref = "flagkit" }
 
 [bundles]
 androidx-camera = [

@@ -7,5 +7,8 @@ import org.koin.dsl.module
 
 val uiModule = module {
     includes(coilModule)
-    single { PhoneNumberUtil.init(androidContext()) }
+    single {
+        PhoneNumberUtil.init(androidContext())
+        PhoneNumberUtil.getInstance()
+    }
 }

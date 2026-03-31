@@ -83,6 +83,8 @@ import org.monogram.presentation.core.util.Country
 import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
 import java.util.Locale
+import com.google.i18n.phonenumbers.PhoneNumberUtil
+import org.koin.compose.koinInject
 
 enum class ActiveField {
     CODE, PHONE
@@ -97,7 +99,8 @@ fun PhoneInputScreen(
     val countries = remember { CountryManager.getCountries() }
     val defaultCountry = remember {
         val currentIso = Locale.getDefault().country
-        countries.find { it.iso == currentIso } ?: countries.find { it.code == "380" } ?: countries.first()
+        countries.find { it.iso == currentIso } ?: countries.find { it.code == "380" }
+        ?: countries.first()
     }
 
     var phoneBody by remember { mutableStateOf("") }
@@ -118,6 +121,10 @@ fun PhoneInputScreen(
     var isFocused by remember { mutableStateOf(false) }
     val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val isInputMode = isKeyboardVisible || isFocused
+
+    val phoneUtil: PhoneNumberUtil = koinInject()
+    var phoneDisplay by remember { mutableStateOf("") }
+    var formatter by remember { mutableStateOf(phoneUtil.getAsYouTypeFormatter(selectedCountry.iso)) }
 
     val iconSize by animateDpAsState(
         targetValue = if (isInputMode) 0.dp else 72.dp,
@@ -150,13 +157,19 @@ fun PhoneInputScreen(
     fun onCountrySelected(country: Country) {
         selectedCountry = country
         codeInput = country.code
+        phoneBody = ""
+        phoneDisplay = ""
+        formatter = phoneUtil.getAsYouTypeFormatter(country.iso)
         showCountryPicker = false
         searchQuery = ""
         activeField = ActiveField.PHONE
     }
 
     val fullNumber = "+$codeInput$phoneBody"
-    val isFormValid = codeInput.isNotEmpty() && phoneBody.length >= selectedCountry.getMobileNumberLength()
+    val isFormValid = codeInput.isNotEmpty() && runCatching {
+        val parsed = phoneUtil.parse(phoneBody, selectedCountry.iso)
+        phoneUtil.isValidNumber(parsed)
+    }.getOrDefault(false)
 
     val content: @Composable () -> Unit = {
         Spacer(modifier = Modifier.height(topSpacerHeight))
@@ -228,7 +241,10 @@ fun PhoneInputScreen(
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .background(color = MaterialTheme.colorScheme.primary.copy(0.15f), shape = CircleShape),
+                        .background(
+                            color = MaterialTheme.colorScheme.primary.copy(0.15f),
+                            shape = CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(selectedCountry.flagEmoji, fontSize = 20.sp)
@@ -245,7 +261,11 @@ fun PhoneInputScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Icon(Icons.Default.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(
+                    Icons.Default.ArrowDropDown,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
@@ -261,6 +281,17 @@ fun PhoneInputScreen(
                 value = textFieldValue,
                 onValueChange = {
                     val newText = it.text.filter { char -> char.isDigit() }
+                    if (activeField == ActiveField.CODE) {
+                        onCodeChanged(newText)
+                    } else {
+                        if (newText.length <= 15) {
+                            phoneBody = newText
+                            formatter.clear()
+                            var formatted = ""
+                            newText.forEach { digit -> formatted = formatter.inputDigit(digit) }
+                            phoneDisplay = formatted
+                        }
+                    }
                     if (activeField == ActiveField.CODE) {
                         onCodeChanged(newText)
                     } else {
@@ -347,9 +378,11 @@ fun PhoneInputScreen(
                     ) {
                         Column {
                             Text(
-                                text = if (phoneBody.isEmpty()) stringResource(R.string.phone_number_placeholder) else phoneBody,
+                                text = if (phoneBody.isEmpty()) stringResource(R.string.phone_number_placeholder) else phoneDisplay,
                                 style = MaterialTheme.typography.titleMedium,
-                                color = if (phoneBody.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                color = if (phoneBody.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                    alpha = 0.5f
+                                )
                                 else if (activeField == ActiveField.PHONE && isFocused) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurface
                             )
@@ -385,7 +418,11 @@ fun PhoneInputScreen(
                     strokeWidth = 2.dp
                 )
             } else {
-                Text(stringResource(R.string.continue_button), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.continue_button),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
             }
@@ -404,9 +441,11 @@ fun PhoneInputScreen(
         color = MaterialTheme.colorScheme.background
     ) {
         if (isLandscape) {
-            Row(modifier = Modifier
-                .fillMaxSize()
-                .imePadding()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
+            ) {
                 Column(
                     modifier = Modifier
                         .weight(1f)

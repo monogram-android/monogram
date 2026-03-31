@@ -258,12 +258,30 @@ object CountryManager {
      * @return formatted phone number body (for example, 999 123-45-67)
      **/
     fun formatPartialPhoneNumber(iso: String, raw: String): String {
-        val formatter = phoneUtil.getAsYouTypeFormatter(iso)
-        var result = ""
-        for (char in raw.filter { it.isDigit() }) {
-            result = formatter.inputDigit(char)
+        val digits = raw.filter { it.isDigit() }
+        val country = countries.firstOrNull { it.iso == iso }
+
+        if (country == null)
+            return raw
+
+        val rule = customRules.firstOrNull { it.code == country.code }
+
+        if (rule != null) {
+            if (!rule.formatIt) return digits
+
+            if (rule.code == "888") {
+                val formatted = format888("888$digits")
+                return formatted.removePrefix("+888").trimStart()
+            }
+
+            return digits
         }
 
+        val formatter = phoneUtil.getAsYouTypeFormatter(iso)
+        var result = ""
+        for (char in digits) {
+            result = formatter.inputDigit(char)
+        }
         return result
     }
 

@@ -24,13 +24,41 @@ fun CountryFlag(
     flagEmoji: String = ""
 ) {
     val context = LocalContext.current
-    val flagResId = remember(iso) {
+    var flagResId = remember(iso) {
         context.resources.getIdentifier(
             "flag_${iso.lowercase().replace("-", "_")}",
             "drawable",
             context.packageName
         )
     }
+
+    if (iso == "FT")
+        flagResId = remember(iso) {
+            context.resources.getIdentifier(
+                "ton",
+                "drawable",
+                context.packageName
+            )
+        }
+
+    if (iso == "YL")
+        flagResId = remember(iso) {
+            context.resources.getIdentifier(
+                "ic_app_logo",
+                "drawable",
+                context.packageName
+            )
+        }
+
+    if (iso == "GO")
+        flagResId = remember(iso) {
+            context.resources.getIdentifier(
+                "question",
+                "drawable",
+                context.packageName
+            )
+        }
+
     if (flagResId != 0) {
         Image(
             painter = painterResource(id = flagResId),

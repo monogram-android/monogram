@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ExitToApp
@@ -203,6 +204,21 @@ fun ProfileContent(component: ProfileComponent) {
             },
             containerColor = dynamicContainerColor
         ) { padding ->
+            val isGroup = state.chat?.isGroup == true || state.chat?.isChannel == true
+            val tabs = mutableListOf<@Composable () -> String>({ stringResource(R.string.tab_media) })
+            if (isGroup) tabs.add { stringResource(R.string.tab_members) }
+            tabs.addAll(listOf(
+                { stringResource(R.string.tab_files) },
+                { stringResource(R.string.tab_audio) },
+                { stringResource(R.string.tab_voice) },
+                { stringResource(R.string.tab_links) },
+                { stringResource(R.string.tab_gifs) }
+            ))
+            val pagerState = rememberPagerState(
+                initialPage = state.selectedTabIndex,
+                pageCount = { tabs.size }
+            )
+
             CollapsingToolbarScaffold(
                 modifier = Modifier
                     .fillMaxSize()
@@ -310,6 +326,9 @@ fun ProfileContent(component: ProfileComponent) {
 
                     profileMediaSection(
                         state = state,
+                        pagerState = pagerState,
+                        isGroup = isGroup,
+                        tabs = tabs,
                         onTabSelected = component::onTabSelected,
                         onMessageClick = component::onMessageClick,
                         onMessageLongClick = component::onMessageLongClick,

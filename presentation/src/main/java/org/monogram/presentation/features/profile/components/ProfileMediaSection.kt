@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,10 +21,7 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -66,6 +62,9 @@ private const val LOAD_MORE_THRESHOLD = 40
 @OptIn(ExperimentalFoundationApi::class)
 fun LazyGridScope.profileMediaSection(
     state: ProfileComponent.State,
+    pagerState: PagerState,
+    isGroup: Boolean,
+    tabs: MutableList<@Composable (() -> String)>,
     videoPlayerPool: VideoPlayerPool,
     onTabSelected: (Int) -> Unit,
     onMessageClick: (MessageModel) -> Unit,
@@ -75,18 +74,6 @@ fun LazyGridScope.profileMediaSection(
     onMemberLongClick: (Long) -> Unit = {},
     onLoadMedia: (MessageModel) -> Unit = {}
 ) {
-    val isGroup = state.chat?.isGroup == true || state.chat?.isChannel == true
-    val tabs = mutableListOf<@Composable () -> String>({ stringResource(R.string.tab_media) })
-    if (isGroup) tabs.add { stringResource(R.string.tab_members) }
-    tabs.addAll(listOf(
-        { stringResource(R.string.tab_files) },
-        { stringResource(R.string.tab_audio) },
-        { stringResource(R.string.tab_voice) },
-        { stringResource(R.string.tab_links) },
-        { stringResource(R.string.tab_gifs) }
-    ))
-    val pagerOffset = mutableFloatStateOf(0f)
-
     stickyHeader {
         Surface(
             color = MaterialTheme.colorScheme.background,
@@ -115,11 +102,10 @@ fun LazyGridScope.profileMediaSection(
                         indicator = {
                             Box(
                                 Modifier
-                                    .tabIndicatorOffset(state.selectedTabIndex)
+                                    .tabIndicatorOffset(pagerState.currentPage)
                                     .fillMaxHeight()
                                     .padding(vertical = 4.dp)
                                     .zIndex(-1f)
-                                    .offset(x = pagerOffset.floatValue.dp)
                                     .clip(RoundedCornerShape(24.dp))
                                     .background(MaterialTheme.colorScheme.primary)
                             )
@@ -186,23 +172,12 @@ fun LazyGridScope.profileMediaSection(
     val canLoadMedia = state.canLoadMoreMedia
 
     item(span = { GridItemSpan(3) }) {
-        val pagerState = rememberPagerState(
-            initialPage = state.selectedTabIndex,
-            pageCount = { tabs.size }
-        )
         LaunchedEffect(state.selectedTabIndex) {
             pagerState.animateScrollToPage(state.selectedTabIndex)
         }
         LaunchedEffect(pagerState.currentPage) {
             if (state.selectedTabIndex != pagerState.currentPage) {
                 onTabSelected(pagerState.currentPage)
-            }
-        }
-        LaunchedEffect(pagerState) {
-            snapshotFlow {
-                pagerState.currentPage + pagerState.currentPageOffsetFraction
-            }.collect { offset ->
-                pagerOffset.floatValue = offset
             }
         }
         HorizontalPager(

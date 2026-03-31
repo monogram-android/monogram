@@ -26,8 +26,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.window.core.layout.WindowWidthSizeClass
 import com.arkivanov.decompose.ExperimentalDecomposeApi
+import com.arkivanov.decompose.FaultyDecomposeApi
 import com.arkivanov.decompose.extensions.compose.stack.Children
+import com.arkivanov.decompose.extensions.compose.stack.animation.Direction
+import com.arkivanov.decompose.extensions.compose.stack.animation.fade
+import com.arkivanov.decompose.extensions.compose.stack.animation.plus
 import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.predictiveBackAnimation
+import com.arkivanov.decompose.extensions.compose.stack.animation.slide
+import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.stack.ChildStack
 import org.monogram.domain.models.ProxyTypeModel
@@ -382,7 +388,27 @@ private fun isSettingsSelected(stack: ChildStack<*, RootComponent.Child>): Boole
 @OptIn(ExperimentalDecomposeApi::class)
 @Composable
 private fun MobileLayout(root: RootComponent) {
-    Children(
+    val stack by root.childStack.subscribeAsState()
+
+    // todo: fix gesture back
+    AnimatedContent(
+        targetState = stack,
+        transitionSpec = {
+            val isForward = targetState.items.size > initialState.items.size
+
+            if (isForward) {
+                slideInHorizontally { width -> width } + fadeIn() togetherWith
+                slideOutHorizontally { width -> -width } + fadeOut()
+            } else {
+                slideInHorizontally { width -> -width } + fadeIn() togetherWith
+                slideOutHorizontally { width -> width } + fadeOut()
+            }
+        }
+    ) { stackState ->
+        RenderChild(root, stackState.active.instance, isOverlay = true)
+    }
+
+    /*Children(
         stack = root.childStack,
         animation = predictiveBackAnimation(
             backHandler = root.backHandler,
@@ -391,7 +417,7 @@ private fun MobileLayout(root: RootComponent) {
         )
     ) {
         RenderChild(root, it.instance, isOverlay = true)
-    }
+    }*/
 }
 
 @Composable

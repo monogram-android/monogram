@@ -63,7 +63,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -85,6 +87,9 @@ import org.monogram.presentation.features.chats.chatList.components.SettingsText
 import java.util.Locale
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import org.koin.compose.koinInject
+import androidx.compose.ui.unit.DpSize
+import flagkit.Flag
+import flagkit.FlagKit
 
 enum class ActiveField {
     CODE, PHONE
@@ -238,16 +243,22 @@ fun PhoneInputScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.primary.copy(0.15f),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(selectedCountry.flagEmoji, fontSize = 20.sp)
+                val selectedFlag = remember(selectedCountry.iso) {
+                    runCatching { FlagKit.Flag.valueOf(selectedCountry.iso) }.getOrNull()
+                }
+                if (selectedFlag != null) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                    ) {
+                        Flag(
+                            flag = selectedFlag,
+                            shape = CircleShape,
+                            size = DpSize(40.dp, 40.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -291,11 +302,6 @@ fun PhoneInputScreen(
                             newText.forEach { digit -> formatted = formatter.inputDigit(digit) }
                             phoneDisplay = formatted
                         }
-                    }
-                    if (activeField == ActiveField.CODE) {
-                        onCodeChanged(newText)
-                    } else {
-                        if (newText.length <= 15) phoneBody = newText
                     }
                 },
                 keyboardOptions = KeyboardOptions(
@@ -536,7 +542,19 @@ fun PhoneInputScreen(
                                     .padding(horizontal = 20.dp, vertical = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(country.flagEmoji, fontSize = 24.sp)
+                                val flag = remember(country.iso) {
+                                    runCatching { FlagKit.Flag.valueOf(country.iso) }.getOrNull()
+                                }
+                                if (flag != null) {
+                                    Flag(
+                                        flag = flag,
+                                        shape = CircleShape,
+                                        size = DpSize(32.dp, 32.dp),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Text(country.flagEmoji, fontSize = 24.sp)
+                                }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Text(
                                     text = country.name,

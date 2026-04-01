@@ -44,7 +44,7 @@ class AppPreferences(
 
     private val _letterSpacing = MutableStateFlow(prefs.getFloat(KEY_LETTER_SPACING, 0f))
     val letterSpacing: StateFlow<Float> = _letterSpacing
-    
+
     private val _bubbleRadius = MutableStateFlow(prefs.getFloat(KEY_BUBBLE_RADIUS, 18f))
     val bubbleRadius: StateFlow<Float> = _bubbleRadius
 
@@ -367,10 +367,10 @@ class AppPreferences(
         val keywords = withContext(Dispatchers.IO) {
             try {
                 context.assets.open("adblock_keywords.txt").bufferedReader().useLines { lines ->
-                    lines.filter { it.isNotBlank() }.toSet()
+                    lines.map { it.trim() }.filter { it.isNotBlank() }.toSet()
                 }
             } catch (e: Exception) {
-                setOf("erid", "#ad", "#реклама")
+                emptySet()
             }
         }
         setAdBlockKeywords(keywords)
@@ -380,7 +380,7 @@ class AppPreferences(
         prefs.edit().putFloat(KEY_FONT_SIZE, size).apply()
         _fontSize.value = size
     }
-    
+
     fun setLetterSpacing(spacing: Float) {
         prefs.edit().putFloat(KEY_LETTER_SPACING, spacing).apply()
         _letterSpacing.value = spacing

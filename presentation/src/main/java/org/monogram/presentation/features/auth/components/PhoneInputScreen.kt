@@ -1,7 +1,6 @@
 package org.monogram.presentation.features.auth.components
 
 import android.content.res.Configuration
-import android.util.Log
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -80,8 +79,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.i18n.phonenumbers.PhoneNumberUtil
-import org.koin.compose.koinInject
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CountryFlag
 import org.monogram.presentation.core.ui.ItemPosition
@@ -155,25 +152,26 @@ fun PhoneInputScreen(
         label = "middleSpacerHeight"
     )
 
-    fun onCodeChanged(newCode: String) {
-        if (newCode.length <= 4) {
-            codeInput = newCode
-            countries.find { it.code == newCode }?.let { selectedCountry = it }
+    val closeCountryPicker = {
+        showCountryPicker = false
+        searchQuery = ""
+    }
+
+    val onCountrySelected: (Country) -> Unit = remember {
+        { country ->
+            selectedCountry = country
+            codeInput = country.code
+            phoneBody = ""
+            phoneDisplay = ""
+            activeField = ActiveField.PHONE
+            closeCountryPicker()
         }
     }
 
-    fun onCountrySelected(country: Country) {
-        selectedCountry = country
-        codeInput = country.code
-        phoneBody = ""
-        phoneDisplay = ""
-        showCountryPicker = false
-        searchQuery = ""
-        activeField = ActiveField.PHONE
-    }
-
     val fullNumber = "+$codeInput$phoneBody"
-    val isFormValid = codeInput.isNotEmpty() && CountryManager.isValidPhoneNumber(fullNumber, selectedCountry.iso)
+    val isFormValid = remember(fullNumber, selectedCountry.iso) {
+        codeInput.isNotEmpty() && CountryManager.isValidPhoneNumber(fullNumber, selectedCountry.iso)
+    }
 
     val content: @Composable () -> Unit = {
         Spacer(modifier = Modifier.height(topSpacerHeight))
@@ -269,24 +267,36 @@ fun PhoneInputScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Box {
-            val textFieldValue = remember(activeField, codeInput, phoneBody) {
-                val text = if (activeField == ActiveField.CODE) codeInput else phoneBody
-                TextFieldValue(text = text, selection = TextRange(text.length))
+            var codeFieldValue by remember(selectedCountry) {
+                mutableStateOf(
+                    TextFieldValue(
+                        text = selectedCountry.code,
+                        selection = TextRange(selectedCountry.code.length)
+                    )
+                )
             }
+            var phoneFieldValue by remember { mutableStateOf(TextFieldValue()) }
+
+            val currentValue =
+                if (activeField == ActiveField.CODE) codeFieldValue else phoneFieldValue
 
             BasicTextField(
-                value = textFieldValue,
-                onValueChange = {
-                    val newText = it.text.filter { char -> char.isDigit() }
+                value = currentValue,
+                onValueChange = { newValue ->
+                    val digits = newValue.text.filter { it.isDigit() }
 
                     if (activeField == ActiveField.CODE) {
-                        onCodeChanged(newText)
+                        if (digits.length <= 4) {
+                            codeInput = digits
+                            codeFieldValue = newValue.copy(text = digits)
+                            countries.find { it.code == digits }?.let { selectedCountry = it }
+                        }
                     } else {
-                        if (newText.length <= 15) {
-                            val formattedFull = CountryManager.formatPartialPhoneNumber(selectedCountry.iso, newText)
-
-                            phoneBody = newText
-                            phoneDisplay = formattedFull
+                        if (digits.length <= 15) {
+                            phoneBody = digits
+                            phoneDisplay =
+                                CountryManager.formatPartialPhoneNumber(selectedCountry.iso, digits)
+                            phoneFieldValue = newValue.copy(text = digits)
                         }
                     }
                 },
@@ -471,10 +481,7 @@ fun PhoneInputScreen(
 
     if (showCountryPicker) {
         ModalBottomSheet(
-            onDismissRequest = {
-                showCountryPicker = false
-                searchQuery = ""
-            },
+            onDismissRequest = closeCountryPicker,
             containerColor = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -559,4 +566,3 @@ fun PhoneInputScreen(
         }
     }
 }
-

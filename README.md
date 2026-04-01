@@ -1,65 +1,59 @@
-# Monogram
+<h1 align="center">
+  <br>
+  <a href="https://github.com/monogram-android/monogram"><img width="130" height="130" alt="image" src="https://github.com/user-attachments/assets/1882f65d-8950-4df7-8607-6580d7604eb1" />
 
-**Read this in other languages:** [Русский](README_RU.md)
+</a>
+  <br>
+  <b>Monogram</b>
+  <br>
+</h1>
 
-![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-blue.svg?logo=kotlin)
-![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-4285F4?logo=android)
-![TDLib](https://img.shields.io/badge/TDLib-1.8.62-blue)
-![Status](https://img.shields.io/badge/Status-Active_Development-orange)
-![Boosty](https://img.shields.io/badge/Boosty-Support_the_project-ff6f61?logo=boosty&logoColor=white)
-![License](https://img.shields.io/badge/License-GPLv3-blue.svg)
+<h1 align="center">
+  <a href="https://github.com/monogram-android/monogram/blob/develop/LICENSE">
+    <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" width="120">
+  </a>
+  <a href="https://github.com/monogram-android/monogram/stargazers">
+    <img src="https://img.shields.io/github/stars/monogram-android/monogram" width="120">
+  </a>
+  <img src="https://img.shields.io/badge/Kotlin-2.0+-blue.svg?logo=kotlin" width="130">
+  <img src="https://img.shields.io/badge/TDLib-1.8.62-blue" width="120">
+  <img src="https://img.shields.io/badge/Status-Active_Development-orange" width="170">
+  <a href="https://boosty.to/monogram">
+    <img src="https://img.shields.io/badge/Boosty-Support_the_project-ff6f61?logo=boosty&logoColor=white" width="200">
+  </a>
+</h1>
 
-**Monogram** is a modern, lightning-fast, and elegant unofficial Telegram client for Android. Built with **Jetpack
-Compose** and **Material Design 3**, it aims to provide a native and fluid experience while leveraging the power of the
-official **TDLib**.
+---
 
-> **Note:** Monogram is currently in **active development**. Expect frequent updates, architectural changes, and the
-> occasional bug.
+**Monogram** is a modern, lightning-fast, and elegant unofficial Telegram client for Android. Built with **Jetpack Compose** and **Material Design 3**, it delivers a native and fluid experience powered by the official **TDLib**.
 
-Support the project on [Boosty](https://boosty.to/monogram).
+> [!IMPORTANT]
+> Monogram is currently in **active development**. Expect frequent updates, architectural changes, and the occasional bug.
+
+Support the project on [**Boosty**](https://boosty.to/monogram).
+
+---
+
+## Screenshots
+
+<div align="center">
+
+| | | | |
+|:---:|:---:|:---:|:---:|
+| <img src="https://github.com/user-attachments/assets/452cd6b0-1531-4813-b090-e35a511b1388" width="180" alt="Screenshot 1" /> | <img src="https://github.com/user-attachments/assets/e8546f43-4fea-4be0-b8f7-d38447113506" width="180" alt="Screenshot 2" /> | <img src="https://github.com/user-attachments/assets/8f11ad2f-e80f-4d5b-89ab-6886ec035ac3" width="180" alt="Screenshot 3" /> | <img src="https://github.com/user-attachments/assets/1137ed58-7eff-45a5-9db3-4d08366dc5a6" width="180" alt="Screenshot 4" /> |
+
+</div>
 
 ---
 
 ## Key Features
 
-* **Material Design 3**: A beautiful, adaptive UI that looks great on phones, tablets, and foldables.
-* **Clean Architecture**: Separation of concerns with Domain, Data, and Presentation layers.
-* **MVI Pattern**: Predictable state management using MVIKotlin.
-* **Secure**: Built-in biometric locking and encrypted local storage.
-* **Media Rich**: High-performance media playback with ExoPlayer and Coil 3.
-* **Fast & Efficient**: Powered by Kotlin Coroutines and optimized for performance.
-
----
-
-## Tech Stack
-
-Monogram leverages the latest Android development tools and libraries:
-
-| Category                 | Libraries                                                                                                             |
-|:-------------------------|:----------------------------------------------------------------------------------------------------------------------|
-| **Language**             | [Kotlin](https://kotlinlang.org/)                                                                                     |
-| **UI Toolkit**           | [Jetpack Compose](https://developer.android.com/jetpack/compose) (Material 3)                                         |
-| **Architecture**         | [Decompose](https://github.com/arkivanov/Decompose) (Navigation), [MVIKotlin](https://github.com/arkivanov/MVIKotlin) |
-| **Dependency Injection** | [Koin](https://insert-koin.io/)                                                                                       |
-| **Async**                | Coroutines & Flow                                                                                                     |
-| **Telegram Core**        | [TDLib](https://core.telegram.org/tdlib) (Telegram Database Library)                                                  |
-| **Image Loading**        | [Coil 3](https://coil-kt.github.io/coil/)                                                                             |
-| **Media**                | Media3 (ExoPlayer)                                                                                                    |
-| **Maps**                 | [MapLibre](https://maplibre.org/)                                                                                     |
-| **Local DB**             | Room                                                                                                                  |
-
----
-
-## Project Structure
-
-The project follows a multi-module structure to ensure separation of concerns and scalability:
-
-* **:app** - The main Android application module.
-* **:domain** - Pure Kotlin module containing business logic, use cases, and repository interfaces.
-* **:data** - Implementation of repositories, data sources, and TDLib integration.
-* **:presentation** - UI components, screens, and view models (MVI Stores).
-* **:core** - Common utility classes and extensions used across modules.
-* **:baselineprofile** - Baseline Profiles for optimizing app startup and performance.
+- **Material Design 3** — A beautiful, adaptive UI that looks great on phones, tablets, and foldables.
+- **Secure** — Built-in biometric locking and encrypted local storage.
+- **Media Rich** — High-performance media playback with ExoPlayer and Coil 3.
+- **Fast & Efficient** — Powered by Kotlin Coroutines and optimized for performance.
+- **Clean Architecture** — Clear separation of concerns with Domain, Data, and Presentation layers.
+- **MVI Pattern** — Predictable state management using MVIKotlin.
 
 ---
 
@@ -69,10 +63,11 @@ Follow these steps to set up the project locally.
 
 ### Prerequisites
 
-* **Android Studio**: Ladybug or newer (recommended).
-* **JDK**: Java 17 or newer.
+- **Android Studio**: Ladybug or newer (recommended).
+- **JDK**: Java 17 or newer.
 
 ### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/monogram-android/monogram.git
 cd monogram
@@ -93,74 +88,116 @@ API_ID=12345678
 API_HASH=your_api_hash_here
 ```
 
-### 3. How to configure push notifications
+### 3. Configure Push Notifications
 
-1. Log in to the [Firebase console](https://console.firebase.google.com)
+1. Log in to the [Firebase console](https://console.firebase.google.com).
 2. Create a new project.
-3. Add a new application with the applicationId you need (if you have multiple applications with different IDs, you will need to create multiple applications). **By default, the applicationId for debug and release builds is different!**
-4. The console will create a `google-services.json` file, which you can copy to the root of the **app** module (`monogram/app/google-services.json`). If you have created multiple applications, only copy the most recent config.
-5. Go to the "Cloud Messaging" section.
-6. Click on the **Manage service accounts** link.
-7. In the window that opens, select the top **Keys** section.
-8. Click on the **Add key** button and select the **JSON** option in the dialog box. Wait for the file to be downloaded to your computer.
-9. Return to the page where you received the App ID from Telegram.
-10. Click on the Update button next to the FCM credentials section.
-11. Upload the JSON of the service account in the page that opens.
+3. Add a new application with the `applicationId` you need. If you have multiple applications with different IDs, create multiple Firebase applications. **By default, the `applicationId` for debug and release builds is different.**
+4. Download the `google-services.json` file and copy it to the root of the **app** module (`monogram/app/google-services.json`). If you created multiple applications, copy only the most recent config.
+5. Go to the **Cloud Messaging** section.
+6. Click **Manage service accounts**.
+7. Select the **Keys** section at the top of the window that opens.
+8. Click **Add key** and select the **JSON** option. Wait for the file to download.
+9. Return to the Telegram API page where you received your App ID.
+10. Click **Update** next to the FCM credentials section.
+11. Upload the service account JSON on the page that opens.
 
 ### 4. Build and Run
 
 1. Open the project in **Android Studio**.
-2. Increase the IDE indexing limits so `TdApi.java` (the TDLib wrapper) is indexed correctly:
+2. Increase the IDE indexing limits so `TdApi.java` (the TDLib wrapper) is indexed correctly. In **Android Studio** or **IntelliJ IDEA**, open **Help → Edit Custom Properties...**, paste the lines below, and restart the IDE if prompted:
 
 ```properties
-# custom IntelliJ IDEA properties (expand/override 'bin\idea.properties')
-
 # size in Kb
 idea.max.intellisense.filesize=20480
 # size in Kb
 idea.max.content.load.filesize=20480
 ```
 
-3. In **Android Studio** or **IntelliJ IDEA**, open **Help -> Edit Custom Properties...**, paste the lines above, and restart the IDE if prompted.
-4. Sync Gradle.
-5. Select the `app` run configuration.
-6. Connect a device or start an emulator.
-7. Click **Run**.
+3. Sync Gradle.
+4. Select the `app` run configuration.
+5. Connect a device or start an emulator.
+6. Click **Run**.
 
 ---
+
 ## Building TDLib
 
-If you need to build TDLib from source, you must first install the required dependencies on your system. For Debian/Ubuntu-based distributions, you can install them by running:
+If you need to build TDLib from source, first install the required dependencies. For Debian/Ubuntu-based distributions:
 
 ```bash
 sudo apt-get update
 sudo apt-get install build-essential git curl wget php perl gperf unzip zip default-jdk cmake
 ```
 
-Once the dependencies are installed, you can start the build process by executing the build script from the root of your project:
+Then run the build script from the root of your project:
 
 ```bash
 ./build-tdlib.sh
 ```
 
 ---
+
 ## Contributing
 
 We welcome contributions! Whether it's fixing bugs, improving documentation, or suggesting new features.
 
-1. **Check the Issues**: Look for open issues or create a new one to discuss your ideas.
-2. **Work from `develop`**: Create your branch from `develop` and keep your work based on that branch.
-3. **Fork & Branch**: Fork the repo and create a feature branch.
-4. **Code Style**: Please follow the existing Kotlin coding style and Clean Architecture guidelines.
-5. **Submit a PR**: Open a Pull Request to `develop` with a clear description of your changes.
+If you want to contribute, please read the contributing guidelines and open a PR — we'll review it promptly.
 
-**Important**:
+1. **Check the Issues** — Look for open issues or create a new one to discuss your ideas.
+2. **Work from `develop`** — Create your branch from `develop` and keep your work based on that branch.
+3. **Fork & Branch** — Fork the repo and create a feature branch.
+4. **Code Style** — Follow the existing Kotlin coding style and Clean Architecture guidelines.
+5. **Submit a PR** — Open a Pull Request to `develop` with a clear description of your changes.
 
-* Respect the [Telegram API Terms of Service](https://core.telegram.org/api/terms).
-* Ensure your code passes all checks and tests.
+> [!IMPORTANT]
+> - Respect the [Telegram API Terms of Service](https://core.telegram.org/api/terms).
+> - Ensure your code passes all checks and tests.
+
+---
+
+## Translations
+
+Monogram welcomes community translations! You can contribute your own language by editing the strings resource file.
+
+The source strings are located at [`presentation/src/main/res/values/string.xml`](https://github.com/monogram-android/monogram/blob/develop/presentation/src/main/res/values/string.xml). To add a new language, create a corresponding `values-<locale>/string.xml` file (e.g. `values-de/string.xml` for German) and translate the strings there. Open a PR with your translation and we'll get it merged.
+
+---
+
+## Tech Stack
+
+Monogram leverages the latest Android development tools and libraries:
+
+| Category | Libraries |
+|:---|:---|
+| **Language** | [Kotlin](https://kotlinlang.org/) |
+| **UI Toolkit** | [Jetpack Compose](https://developer.android.com/jetpack/compose) (Material 3) |
+| **Architecture** | [Decompose](https://github.com/arkivanov/Decompose) (Navigation), [MVIKotlin](https://github.com/arkivanov/MVIKotlin) |
+| **Dependency Injection** | [Koin](https://insert-koin.io/) |
+| **Async** | Coroutines & Flow |
+| **Telegram Core** | [TDLib](https://core.telegram.org/tdlib) (Telegram Database Library) |
+| **Image Loading** | [Coil 3](https://coil-kt.github.io/coil/) |
+| **Media** | Media3 (ExoPlayer) |
+| **Maps** | [MapLibre](https://maplibre.org/) |
+| **Local DB** | Room |
+
+---
+
+## Project Structure
+
+The project follows a multi-module structure to ensure separation of concerns and scalability:
+
+| Module | Description |
+|:---|:---|
+| **:app** | The main Android application module. |
+| **:domain** | Pure Kotlin module containing business logic, use cases, and repository interfaces. |
+| **:data** | Implementation of repositories, data sources, and TDLib integration. |
+| **:presentation** | UI components, screens, and view models (MVI Stores). |
+| **:core** | Common utility classes and extensions used across modules. |
+| **:baselineprofile** | Baseline Profiles for optimizing app startup and performance. |
 
 ---
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0. See `LICENSE` for the full text.
+This project is licensed under the [**GNU General Public License v3.0**](LICENSE).

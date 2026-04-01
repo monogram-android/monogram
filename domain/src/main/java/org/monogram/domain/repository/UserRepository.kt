@@ -17,7 +17,16 @@ interface UserRepository {
         limit: Int = 10,
         ensureFullRes: Boolean = false
     ): List<String>
+
+    suspend fun getChatProfilePhotos(
+        chatId: Long,
+        offset: Int = 0,
+        limit: Int = 10,
+        ensureFullRes: Boolean = false
+    ): List<String>
+
     fun getUserProfilePhotosFlow(userId: Long): Flow<List<String>>
+    fun getChatProfilePhotosFlow(chatId: Long): Flow<List<String>>
 
     suspend fun getChatFullInfo(chatId: Long): ChatFullInfoModel?
 

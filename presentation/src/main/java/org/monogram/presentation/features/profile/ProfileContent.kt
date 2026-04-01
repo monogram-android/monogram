@@ -393,7 +393,7 @@ fun ProfileContent(component: ProfileComponent) {
                         images = images,
                         startIndex = state.fullScreenStartIndex,
                         onDismiss = component::onDismissViewer,
-                        autoDownload = true,
+                        autoDownload = false,
                         downloadUtils = component.downloadUtils,
                         onPageChanged = { index ->
 

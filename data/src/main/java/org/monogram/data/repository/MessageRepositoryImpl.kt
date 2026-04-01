@@ -708,26 +708,6 @@ class MessageRepositoryImpl(
         if (lowQualityFile != null && lowQualityFile.local.path.isEmpty()) {
             fileDataSource.downloadFile(lowQualityFile.id, 32, 0, 0, false)
         }
-
-        triggerFullQualityDownload(msg)
-    }
-
-    private suspend fun triggerFullQualityDownload(msg: TdApi.Message) {
-        val file = when (val content = msg.content) {
-            is TdApi.MessagePhoto -> {
-                content.photo.sizes.find { it.type == "x" }?.photo
-                    ?: content.photo.sizes.find { it.type == "m" }?.photo
-                    ?: content.photo.sizes.lastOrNull()?.photo
-            }
-
-            is TdApi.MessageVideo -> content.video.video
-            is TdApi.MessageAnimation -> content.animation.animation
-            else -> null
-        }
-
-        if (file != null && file.local.path.isEmpty()) {
-            fileDataSource.downloadFile(file.id, 16, 0, 0, false)
-        }
     }
 
     override suspend fun joinChat(chatId: Long) {

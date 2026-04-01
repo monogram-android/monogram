@@ -9,7 +9,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.*
@@ -28,7 +27,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -435,7 +433,6 @@ fun ChatContent(
             (!state.viewAsTopics || state.currentTopicId != null)
 
     val isDragToBackEnabled by component.appPreferences.isDragToBackEnabled.collectAsState()
-    val dragOffsetX = remember { Animatable(0f) }
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
 
     val isCustomBackHandlingEnabled =
@@ -471,51 +468,6 @@ fun ChatContent(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    /*.then(
-                        if (isDragToBackEnabled && !isTablet && !isCustomBackHandlingEnabled) {
-                            Modifier.pointerInput(Unit) {
-                                var isDragging = false
-                                detectHorizontalDragGestures(
-                                    onDragStart = { offset ->
-                                        isDragging = offset.x > 48.dp.toPx()
-                                    },
-                                    onHorizontalDrag = { change, dragAmount ->
-                                        if (isDragging) {
-                                            change.consume()
-                                            coroutineScope.launch {
-                                                val newOffset = dragOffsetX.value + dragAmount
-                                                dragOffsetX.snapTo(newOffset.coerceAtLeast(0f))
-                                            }
-                                        }
-                                    },
-                                    onDragEnd = {
-                                        if (isDragging) {
-                                            val width = containerSize.width.toFloat()
-                                            coroutineScope.launch {
-                                                if (dragOffsetX.value > width * 0.15f) {
-                                                    dragOffsetX.animateTo(width, tween(200))
-                                                    component.onBackClicked()
-                                                } else {
-                                                    dragOffsetX.animateTo(0f, spring())
-                                                }
-                                            }
-                                            isDragging = false
-                                        }
-                                    },
-                                    onDragCancel = {
-                                        if (isDragging) {
-                                            coroutineScope.launch { dragOffsetX.animateTo(0f) }
-                                            isDragging = false
-                                        }
-                                    }
-                                )
-                            }
-                        } else Modifier
-                    )
-                    .graphicsLayer {
-                        translationX = dragOffsetX.value
-                        shadowElevation = if (dragOffsetX.value > 0) 20f else 0f
-                    }*/
             ) {
                 Box(
                     modifier = Modifier

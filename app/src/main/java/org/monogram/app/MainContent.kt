@@ -23,9 +23,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,9 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.window.core.layout.WindowWidthSizeClass
 import com.arkivanov.decompose.ExperimentalDecomposeApi
-import com.arkivanov.decompose.FaultyDecomposeApi
 import com.arkivanov.decompose.extensions.compose.stack.Children
-import com.arkivanov.decompose.extensions.compose.stack.animation.Direction
 import com.arkivanov.decompose.extensions.compose.stack.animation.fade
 import com.arkivanov.decompose.extensions.compose.stack.animation.plus
 import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.predictiveBackAnimation
@@ -395,23 +394,40 @@ private fun isSettingsSelected(stack: ChildStack<*, RootComponent.Child>): Boole
     }
 }
 
-@OptIn(ExperimentalAnimationApi::class)
+@OptIn(ExperimentalDecomposeApi::class)
 @Composable
 fun MobileLayout(root: RootComponent) {
     val stack by root.childStack.subscribeAsState()
     val coroutineScope = rememberCoroutineScope()
     val dragOffsetX = remember { Animatable(0f) }
     val previous = stack.items.dropLast(1).lastOrNull()?.instance
+    var swipeBackInProgress by remember { mutableStateOf(false) }
+    var widthPx by remember { mutableFloatStateOf(0f) }
 
     if (dragOffsetX.value > 0 && previous != null) { // todo: isDragToBackEnabled
         Box(modifier = Modifier.fillMaxSize()) {
             RenderChild(root, previous)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Color.Black.copy(
+                            alpha = 0.3f * (1f - (dragOffsetX.value / widthPx).coerceIn(
+                                0f,
+                                1f
+                            ))
+                        )
+                    )
+            )
         }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .onSizeChanged {
+                widthPx = it.width.toFloat()
+            }
             .then(
                 if (stack.active.instance is RootComponent.Child.ChatDetailChild) {
                     Modifier.pointerInput(Unit) {
@@ -434,9 +450,11 @@ fun MobileLayout(root: RootComponent) {
                                     coroutineScope.launch {
                                         val width = size.width.toFloat()
                                         if (dragOffsetX.value > width * 0.15f) {
-                                            //dragOffsetX.animateTo(width, tween(200))
+                                            swipeBackInProgress = true
+                                            dragOffsetX.animateTo(width, tween(200))
                                             root.onBack()
-                                            dragOffsetX.animateTo(0f)
+                                            dragOffsetX.snapTo(0f)
+                                            swipeBackInProgress = false
                                         } else {
                                             dragOffsetX.animateTo(0f, spring())
                                         }
@@ -459,20 +477,15 @@ fun MobileLayout(root: RootComponent) {
                 shadowElevation = if (dragOffsetX.value > 0) 20f else 0f
             }
     ) {
-        AnimatedContent(
-            targetState = stack,
-            transitionSpec = {
-                val isForward = targetState.items.size > initialState.items.size
-                if (isForward) {
-                    slideInHorizontally { width -> width } + fadeIn() togetherWith
-                    slideOutHorizontally { width -> -width } + fadeOut()
-                } else {
-                    slideInHorizontally { width -> -width } + fadeIn() togetherWith
-                    slideOutHorizontally { width -> width } + fadeOut()
-                }
-            }
-        ) { stackState ->
-            RenderChild(root, stackState.active.instance)
+        Children(
+            stack = root.childStack,
+            animation = predictiveBackAnimation(
+                backHandler = root.backHandler,
+                onBack = root::onBack,
+                fallbackAnimation = if (!swipeBackInProgress) stackAnimation(slide() + fade()) else null
+            )
+        ) {
+            RenderChild(root, it.instance, isOverlay = false)
         }
     }
 }

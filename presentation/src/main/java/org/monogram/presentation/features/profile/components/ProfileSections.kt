@@ -97,14 +97,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
-import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.core.ui.SettingsSwitchTile
-import org.monogram.presentation.core.ui.SettingsTile
-import org.monogram.presentation.core.ui.StyledQRCode
-import org.monogram.presentation.core.ui.generatePureBitmap
-import org.monogram.presentation.core.ui.rememberShimmerBrush
-import org.monogram.presentation.core.ui.saveBitmapToGallery
-import org.monogram.presentation.core.ui.shareBitmap
+import org.monogram.presentation.core.ui.*
+import com.google.i18n.phonenumbers.PhoneNumberUtil
+import org.koin.compose.koinInject
 import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.core.util.OperatorManager
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
@@ -597,8 +592,9 @@ fun ProfileInfoSection(
     }
 
     user?.phoneNumber?.takeIf { it.isNotEmpty() }?.let { phone ->
-        val formattedPhone = CountryManager.formatPhone(phone)
-
+        val formattedPhone = remember(phone) {
+            CountryManager.formatPhoneNumber(phone)
+        }
         val country = CountryManager.getCountryForPhone(phone)
         val operator = OperatorManager.detectOperator(phone, country?.iso)
         items.add { pos ->
@@ -1105,7 +1101,7 @@ private fun SectionHeader(
 @Composable
 fun ProfileQRDialog(
     state: ProfileComponent.State,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unitrfhnjirf 
 ) {
     val context = LocalContext.current
     if (state.isQrVisible) {
@@ -1120,7 +1116,7 @@ fun ProfileQRDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 40.dp),
+                    .padding(bottom = 40.dp),rfhnjirf 
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 val qrContent = state.qrContent

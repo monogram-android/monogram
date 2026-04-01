@@ -1,6 +1,8 @@
 package org.monogram.presentation.core.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
@@ -96,5 +98,83 @@ class CountryManagerTest {
         val result = CountryManager.getCountryForPhone("79000000001")
         assertEquals(country, result)
     }
+
+    @Test
+    fun `format russian number`() =
+        assertEquals("+7 999 123-45-67", CountryManager.formatPhoneNumber("+79991234567"))
+
+    @Test
+    fun `format returns raw string on invalid input`() =
+        assertEquals("notaphone", CountryManager.formatPhoneNumber("notaphone"))
+
+    @Test
+    fun `format empty string returns empty`() =
+        assertEquals("", CountryManager.formatPhoneNumber(""))
+
+    @Test
+    fun `mask hides all digits except last 4`() =
+        assertEquals("+7 *** ***-45-67", CountryManager.maskPhoneNumber("+7 999 123-45-67"))
+
+    @Test
+    fun `mask short number returns stars`() =
+        assertEquals("****", CountryManager.maskPhoneNumber("+123"))
+
+    @Test
+    fun `mask exactly 4 digits returns stars`() =
+        assertEquals("****", CountryManager.maskPhoneNumber("+123 4"))
+
+    @Test
+    fun `mask preserves plus sign`() {
+        val result = CountryManager.maskPhoneNumber("+7 (999) 123-45-67")
+        assertTrue(result.startsWith("+"))
+    }
+
+    @Test
+    fun `valid russian number`() =
+        assertTrue(CountryManager.isValidPhoneNumber("+79991234567", "RU"))
+
+    @Test
+    fun `invalid number`() =
+        assertFalse(CountryManager.isValidPhoneNumber("123", "RU"))
+
+    @Test
+    fun `empty string is invalid`() =
+        assertFalse(CountryManager.isValidPhoneNumber("", "RU"))
+
+    @Test
+    fun `fragment number is valid`() =
+        assertTrue(CountryManager.isValidPhoneNumber("+88808419042", "FT"))
+
+    @Test
+    fun `fragment number format`() =
+        assertEquals("+888 0841 9042", CountryManager.formatPhoneNumber("+88808419042"))
+
+    @Test
+    fun `fragment number mask`() =
+        assertEquals("+888 **** 9042", CountryManager.maskPhoneNumber("+888 0841 9042"))
+
+    @Test
+    fun `international networks number is valid`() =
+        assertTrue(CountryManager.isValidPhoneNumber("+883510000000001", "GO"))
+
+    @Test
+    fun `international networks number format`() =
+        assertEquals("+883510000000001", CountryManager.formatPhoneNumber("+883510000000001"))
+
+    @Test
+    fun `international networks number mask`() =
+        assertEquals("+883********0001", CountryManager.maskPhoneNumber("+883510000000001"))
+
+    @Test
+    fun `Y-land number is valid`() =
+        assertTrue(CountryManager.isValidPhoneNumber("42777", "YL"))
+
+    @Test
+    fun `Y-land number format`() =
+        assertEquals("42777", CountryManager.formatPhoneNumber("42777"))
+
+    @Test
+    fun `Y-land number mask`() =
+        assertEquals("42777", CountryManager.maskPhoneNumber("42777"))
 }
 

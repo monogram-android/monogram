@@ -149,7 +149,7 @@ class DefaultAdBlockComponent(
             val keywords = withContext(Dispatchers.IO) {
                 try {
                     assetsManager.getAssets("adblock_keywords.txt").bufferedReader().useLines { lines ->
-                        lines.filter { it.isNotBlank() }.toSet()
+                        lines.map { it.trim() }.filter { it.isNotBlank() }.toSet()
                     }
                 } catch (e: Exception) {
                     emptySet()

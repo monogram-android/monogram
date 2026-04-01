@@ -44,6 +44,7 @@ playServices-ossLicenses = "17.4.0"
 # Others
 zxing = "3.5.4"
 junit = "4.13.2"
+libphonenumber = "8.13.55"
 
 [libraries]
 # AndroidX Activity
@@ -128,6 +129,7 @@ play-services-oss-licenses = { group = "com.google.android.gms", name = "play-se
 maplibre-compose = { module = "io.github.rallista:maplibre-compose", version.ref = "maplibre" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+libphonenumber = { module = "com.googlecode.libphonenumber:libphonenumber", version.ref = "libphonenumber" }
 
 [bundles]
 androidx-camera = [

@@ -79,7 +79,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import org.monogram.presentation.R
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CodeInputScreen(
     phoneNumber: String,
@@ -166,7 +166,7 @@ fun CodeInputScreen(
                         scaleX = scale
                         scaleY = scale
                     },
-                shape = CircleShape,
+                shape = MaterialShapes.Cookie4Sided.toShape(),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -314,7 +314,7 @@ fun CodeInputScreen(
         Spacer(modifier = Modifier.height(middleSpacerHeight))
 
         if (isSubmitting) {
-            CircularProgressIndicator(modifier = Modifier.size(32.dp))
+            LoadingIndicator(modifier = Modifier.size(32.dp))
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(

@@ -1,5 +1,7 @@
 package org.monogram.presentation.core.util
 
+import android.util.Log
+import com.google.i18n.phonenumbers.PhoneNumberUtil
 import org.monogram.presentation.core.util.Country.Companion.FALLBACK_LENGTH
 
 
@@ -35,11 +37,22 @@ data class Country(
     }
 }
 
+data class CustomCountryRule(val code: String, val formatIt: Boolean, val maskIt: Boolean)
+
 /**
  * An object to get and manage countries
  **/
 object CountryManager {
     private var countries: List<Country> = emptyList()
+    private val phoneUtil: PhoneNumberUtil = PhoneNumberUtil.getInstance()
+
+    private val customRules: List<CustomCountryRule> = listOf(
+        CustomCountryRule("42", formatIt = false, maskIt = false),
+        CustomCountryRule("888", formatIt = true, maskIt = true),
+        CustomCountryRule("881", formatIt = false, maskIt = true),
+        CustomCountryRule("882", formatIt = false, maskIt = true),
+        CustomCountryRule("883", formatIt = false, maskIt = true),
+    )
 
     /**
      * @return list of available countries, or empty list, if no valid data present
@@ -75,6 +88,7 @@ object CountryManager {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+
         return countries
     }
 
@@ -136,32 +150,139 @@ object CountryManager {
         return matches.maxByOrNull { it.code.length }
     }
 
-    fun formatPhone(phone: String): String {
-        val digits = phone.filter { it.isDigit() }
-        if (digits.isEmpty()) return ""
+    private fun format888(digits: String): String {
+        val rest = digits.removePrefix("888")
 
-        val country = getCountryForPhone(digits) ?: return "+$digits"
-        val mask = country.mask ?: return "+$digits"
+        val part1 = rest.take(4)
+        val part2 = rest.drop(4).take(4)
 
-        val phoneWithoutCode = digits.removePrefix(country.code)
-        val result = StringBuilder("+${country.code} ")
-        var phoneIndex = 0
+        return buildString {
+            append("+888")
+            if (part1.isNotEmpty()) append(" $part1")
+            if (part2.isNotEmpty()) append(" $part2")
+        }
+    }
 
-        for (char in mask) {
-            if (phoneIndex >= phoneWithoutCode.length) break
-            if (char == 'X') {
-                result.append(phoneWithoutCode[phoneIndex])
-                phoneIndex++
-            } else {
-                result.append(char)
+    /**
+     * Format raw phone number to international format
+     *
+     * @param raw raw phone number string (for example, +79991234567)
+     * @return formatted phone number in international format (for example, +7 999 123-45-67),
+     * or [raw] if parsing fails
+     **/
+    fun formatPhoneNumber(raw: String): String {
+        val digits = raw.filter { it.isDigit() }
+        val rule = customRules.firstOrNull { digits.startsWith(it.code) }
+
+        if (rule != null) {
+            if (!rule.formatIt)
+                return raw
+
+            if (rule.code == "888")
+                return format888(digits)
+        }
+
+        return runCatching {
+            phoneUtil.format(
+                phoneUtil.parse(raw, null),
+                PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL
+            )
+        }.getOrDefault(raw)
+    }
+
+    /**
+     * Mask formatted phone number, leaving last 4 digits visible
+     *
+     * @param formatted phone number already formatted via [format]
+     * @return masked phone number (for example, +* ***) ***-**-67),
+     * or "****" if number has less than 5 digits
+     **/
+    fun maskPhoneNumber(formatted: String): String {
+        val digits = formatted.filter { it.isDigit() }
+        val rule = customRules.firstOrNull { digits.startsWith(it.code) }
+
+        if (rule != null) {
+            if (!rule.maskIt) return formatted
+
+            var digitIndex = 0
+            val result = buildString {
+                formatted.forEach { c ->
+                    if (c.isDigit()) {
+                        append(
+                            if (digitIndex < rule.code.length || digitIndex >= digits.length - 4) c else '*'
+                        )
+                        digitIndex++
+                    } else append(c)
+                }
             }
+            return if (!result.startsWith("+")) "+$result" else result
         }
 
-        if (phoneIndex < phoneWithoutCode.length) {
-            result.append(phoneWithoutCode.substring(phoneIndex))
+        if (digits.length < 5) return "****"
+
+        var digitIndex = 0
+        val masked = formatted.map { c ->
+            if (c.isDigit()) {
+                val idx = digitIndex++
+                if (idx == 0 || idx >= digits.length - 4) c else '*'
+            } else c
+        }.joinToString("")
+
+        return if (!masked.startsWith("+")) "+$masked" else masked
+    }
+
+    /**
+     * Check if phone number is valid for given country
+     *
+     * @param phone phone number to validate
+     * @param iso country ISO code (for example, RU, UA)
+     * @return `true` if number is valid, `false` otherwise or if parsing fails
+     **/
+    fun isValidPhoneNumber(phone: String, iso: String): Boolean {
+        val digits = phone.filter { it.isDigit() }
+
+        if (customRules.any { digits.startsWith(it.code) && digits.length - it.code.length >= 3 }) {
+            return true
         }
 
-        return result.toString().trim()
+        return runCatching {
+            phoneUtil.isValidNumber(phoneUtil.parse(phone, iso))
+        }.getOrDefault(false)
+    }
+
+    /**
+     * Format incomplete phone number body to local format as you type
+     *
+     * @param iso country ISO code (for example, RU, UA)
+     * @param raw phone number body without country code (for example, 9991234567)
+     * @return formatted phone number body (for example, 999 123-45-67)
+     **/
+    fun formatPartialPhoneNumber(iso: String, raw: String): String {
+        val digits = raw.filter { it.isDigit() }
+        val country = countries.firstOrNull { it.iso == iso }
+
+        if (country == null)
+            return raw
+
+        val rule = customRules.firstOrNull { it.code == country.code }
+
+        if (rule != null) {
+            if (!rule.formatIt) return digits
+
+            if (rule.code == "888") {
+                val formatted = format888("888$digits")
+                return formatted.removePrefix("+888").trimStart()
+            }
+
+            return digits
+        }
+
+        val formatter = phoneUtil.getAsYouTypeFormatter(iso)
+        var result = ""
+        for (char in digits) {
+            result = formatter.inputDigit(char)
+        }
+        return result
     }
 
     private fun countryCodeToEmoji(countryCode: String): String {

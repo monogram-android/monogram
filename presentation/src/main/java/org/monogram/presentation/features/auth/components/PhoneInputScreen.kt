@@ -1,12 +1,12 @@
 package org.monogram.presentation.features.auth.components
 
 import android.content.res.Configuration
+import android.util.Log
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -41,17 +40,21 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,7 +80,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.i18n.phonenumbers.PhoneNumberUtil
+import org.koin.compose.koinInject
 import org.monogram.presentation.R
+import org.monogram.presentation.core.ui.CountryFlag
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.util.Country
 import org.monogram.presentation.core.util.CountryManager
@@ -88,7 +94,7 @@ enum class ActiveField {
     CODE, PHONE
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PhoneInputScreen(
     onConfirm: (String) -> Unit,
@@ -97,7 +103,8 @@ fun PhoneInputScreen(
     val countries = remember { CountryManager.getCountries() }
     val defaultCountry = remember {
         val currentIso = Locale.getDefault().country
-        countries.find { it.iso == currentIso } ?: countries.find { it.code == "380" } ?: countries.first()
+        countries.find { it.iso == currentIso } ?: countries.find { it.code == "380" }
+        ?: countries.first()
     }
 
     var phoneBody by remember { mutableStateOf("") }
@@ -118,6 +125,14 @@ fun PhoneInputScreen(
     var isFocused by remember { mutableStateOf(false) }
     val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val isInputMode = isKeyboardVisible || isFocused
+
+    LaunchedEffect(isKeyboardVisible) {
+        if (!isKeyboardVisible && isFocused) {
+            focusManager.clearFocus()
+        }
+    }
+
+    var phoneDisplay by remember { mutableStateOf("") }
 
     val iconSize by animateDpAsState(
         targetValue = if (isInputMode) 0.dp else 72.dp,
@@ -150,13 +165,15 @@ fun PhoneInputScreen(
     fun onCountrySelected(country: Country) {
         selectedCountry = country
         codeInput = country.code
+        phoneBody = ""
+        phoneDisplay = ""
         showCountryPicker = false
         searchQuery = ""
         activeField = ActiveField.PHONE
     }
 
     val fullNumber = "+$codeInput$phoneBody"
-    val isFormValid = codeInput.isNotEmpty() && phoneBody.length >= selectedCountry.getMobileNumberLength()
+    val isFormValid = codeInput.isNotEmpty() && CountryManager.isValidPhoneNumber(fullNumber, selectedCountry.iso)
 
     val content: @Composable () -> Unit = {
         Spacer(modifier = Modifier.height(topSpacerHeight))
@@ -175,7 +192,7 @@ fun PhoneInputScreen(
                         scaleX = scale
                         scaleY = scale
                     },
-                shape = CircleShape,
+                shape = MaterialShapes.Cookie4Sided.toShape(),
                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -225,14 +242,10 @@ fun PhoneInputScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(color = MaterialTheme.colorScheme.primary.copy(0.15f), shape = CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(selectedCountry.flagEmoji, fontSize = 20.sp)
-                }
+                CountryFlag(
+                    iso = selectedCountry.iso,
+                    size = 40.dp
+                )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -245,7 +258,11 @@ fun PhoneInputScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Icon(Icons.Default.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(
+                    Icons.Default.ArrowDropDown,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
@@ -261,10 +278,16 @@ fun PhoneInputScreen(
                 value = textFieldValue,
                 onValueChange = {
                     val newText = it.text.filter { char -> char.isDigit() }
+
                     if (activeField == ActiveField.CODE) {
                         onCodeChanged(newText)
                     } else {
-                        if (newText.length <= 15) phoneBody = newText
+                        if (newText.length <= 15) {
+                            val formattedFull = CountryManager.formatPartialPhoneNumber(selectedCountry.iso, newText)
+
+                            phoneBody = newText
+                            phoneDisplay = formattedFull
+                        }
                     }
                 },
                 keyboardOptions = KeyboardOptions(
@@ -347,9 +370,11 @@ fun PhoneInputScreen(
                     ) {
                         Column {
                             Text(
-                                text = if (phoneBody.isEmpty()) stringResource(R.string.phone_number_placeholder) else phoneBody,
+                                text = if (phoneBody.isEmpty()) stringResource(R.string.phone_number_placeholder) else phoneDisplay,
                                 style = MaterialTheme.typography.titleMedium,
-                                color = if (phoneBody.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                color = if (phoneBody.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                    alpha = 0.5f
+                                )
                                 else if (activeField == ActiveField.PHONE && isFocused) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurface
                             )
@@ -379,13 +404,16 @@ fun PhoneInputScreen(
             )
         ) {
             if (isSubmitting) {
-                CircularProgressIndicator(
+                LoadingIndicator(
                     modifier = Modifier.size(24.dp),
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    strokeWidth = 2.dp
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
             } else {
-                Text(stringResource(R.string.continue_button), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.continue_button),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
             }
@@ -404,9 +432,11 @@ fun PhoneInputScreen(
         color = MaterialTheme.colorScheme.background
     ) {
         if (isLandscape) {
-            Row(modifier = Modifier
-                .fillMaxSize()
-                .imePadding()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
+            ) {
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -497,7 +527,11 @@ fun PhoneInputScreen(
                                     .padding(horizontal = 20.dp, vertical = 16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(country.flagEmoji, fontSize = 24.sp)
+                                CountryFlag(
+                                    iso = country.iso,
+                                    size = 32.dp,
+                                    flagEmoji = country.flagEmoji
+                                )
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Text(
                                     text = country.name,
@@ -525,3 +559,4 @@ fun PhoneInputScreen(
         }
     }
 }
+

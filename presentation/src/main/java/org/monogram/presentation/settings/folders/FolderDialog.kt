@@ -51,6 +51,7 @@ fun FolderDialog(
     var selectedIcon by remember { mutableStateOf(initialIcon) }
     var selectedChatIds by remember { mutableStateOf(initialSelectedChatIds.toSet()) }
     var searchQuery by remember { mutableStateOf("") }
+    val canConfirm = text.isNotBlank() && selectedChatIds.isNotEmpty()
 
     val icons = listOf(
         "All", "Unread", "Unmuted", "Bots", "Channels", "Groups", "Private", "Custom",
@@ -233,8 +234,12 @@ fun FolderDialog(
                 }
 
                 Button(
-                    onClick = { if (text.isNotBlank()) onConfirm(text, selectedIcon, selectedChatIds.toList()) },
-                    enabled = text.isNotBlank(),
+                    onClick = {
+                        if (canConfirm) {
+                            onConfirm(text, selectedIcon, selectedChatIds.toList())
+                        }
+                    },
+                    enabled = canConfirm,
                     modifier = Modifier
                         .weight(1f)
                         .height(56.dp),

@@ -1,3 +1,18 @@
 [submodule "presentation/src/main/cpp/third_party/libvpx"]
 	path = presentation/src/main/cpp/third_party/libvpx
 	url = https://github.com/webmproject/libvpx.git
+[submodule "tdlib"]
+	path = tdlib
+	url = https://github.com/monogram-android/monogram_tdlib_module.git
+[submodule "core"]
+	path = core
+	url = https://github.com/monogram-android/monogram_core_module.git
+[submodule "domain"]
+	path = domain
+	url = https://github.com/monogram-android/monogram_domain_module.git
+[submodule "data"]
+	path = data
+	url = https://github.com/monogram-android/monogram_data_module.git
+[submodule "presentation"]
+	path = presentation
+	url = https://github.com/monogram-android/monogram_presentation_module.git

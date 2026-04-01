@@ -1,5 +1,4 @@
 import com.android.build.gradle.internal.tasks.factory.dependsOn
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.internal.ensureParentDirsCreated
 import java.net.URL
 
@@ -24,9 +23,7 @@ android {
             }
         }
         ndk {
-            abiFilters.add("arm64-v8a")
-            abiFilters.add("armeabi-v7a")
-            abiFilters.add("x86_64")
+            abiFilters += listOf("arm64-v8a, armeabi-v7a, x86_64")
         }
     }
 
@@ -40,16 +37,14 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+    kotlin {
+        jvmToolchain(21)
     }
     buildFeatures {
         compose = true
-    }
-    kotlin {
-        compilerOptions {
-            jvmTarget = JvmTarget.JVM_17
-        }
     }
     externalNativeBuild {
         cmake {
@@ -58,6 +53,7 @@ android {
         }
     }
 }
+
 val downloadFolder = "src/main/cpp"
 var vpxFolder = file("$downloadFolder/libvpx_build")
 val vpxZip = file("$downloadFolder/libvpx_build.zip")
@@ -91,17 +87,17 @@ tasks.apply {
 dependencies {
     implementation(project(":core"))
     implementation(project(":domain"))
-    
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.androidx.compose)
     implementation(libs.bundles.androidx.camera)
     implementation(libs.bundles.androidx.media3)
-    
+
     implementation(libs.bundles.coil)
     implementation(libs.bundles.decompose)
     implementation(libs.bundles.mvikotlin)
     implementation(libs.bundles.koin)
-    
+
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.play.services.mlkit.barcode.scanning)
     implementation(libs.zxing.core)

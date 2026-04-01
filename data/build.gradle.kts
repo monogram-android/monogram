@@ -1,5 +1,4 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import java.util.*
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.library)
@@ -10,21 +9,14 @@ plugins {
 
 android {
     namespace = "org.monogram.data"
-    buildFeatures {
-        buildConfig = true
-    }
+    compileSdk = 36
 
-    compileSdk {
-        version = release(36)
-    }
-    sourceSets {
-        getByName("main") {
-            jniLibs.srcDirs("src/main/jniLibs")
-        }
-    }
     defaultConfig {
+        minSdk = 25
+        consumerProguardFiles("consumer-rules.pro")
+
         ndk {
-            abiFilters.add("arm64-v8a")
+            abiFilters += listOf("arm64-v8a")
         }
 
         val properties = Properties()
@@ -39,14 +31,17 @@ android {
         buildConfigField("int", "API_ID", apiId)
         buildConfigField("String", "API_HASH", "\"$apiHash\"")
     }
+
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDirs("src/main/jniLibs")
+        }
+    }
+
     packaging {
         jniLibs {
             useLegacyPackaging = true
         }
-    }
-    defaultConfig {
-        minSdk = 25
-        consumerProguardFiles("consumer-rules.pro")
     }
 
     buildTypes {
@@ -59,13 +54,14 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     kotlin {
-        compilerOptions {
-            jvmTarget = JvmTarget.JVM_17
-        }
+        jvmToolchain(21)
+    }
+    buildFeatures {
+        buildConfig = true
     }
 }
 

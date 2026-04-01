@@ -1,7 +1,6 @@
 import com.android.build.VariantOutput
 import com.android.build.gradle.internal.api.ApkVariantOutputImpl
 import com.google.android.gms.oss.licenses.plugin.DependencyTask
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
@@ -14,16 +13,7 @@ plugins {
 
 android {
     namespace = "org.monogram.app"
-
     compileSdk = 36
-    
-    buildFeatures {
-        compose = true
-    }
-
-    androidResources {
-        generateLocaleConfig = true
-    }
 
     defaultConfig {
         applicationId = "org.monogram"
@@ -51,6 +41,10 @@ android {
         }
     }
 
+    androidResources {
+        generateLocaleConfig = true
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -69,16 +63,12 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
-
     kotlin {
-        compilerOptions {
-            jvmTarget = JvmTarget.JVM_17
-        }
+        jvmToolchain(21)
     }
-
     buildFeatures {
         compose = true
     }
@@ -87,13 +77,13 @@ android {
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.androidx.compose)
-    
+
     implementation(libs.bundles.decompose)
     implementation(libs.bundles.koin)
-    
+
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
-    
+
     implementation(libs.androidx.biometric)
     implementation(libs.play.services.oss.licenses)
 

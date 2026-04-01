@@ -59,7 +59,6 @@ import org.monogram.presentation.features.chats.currentChat.components.chats.Pol
 import org.monogram.presentation.features.chats.currentChat.components.pins.PinnedMessagesListSheet
 import org.monogram.presentation.features.chats.currentChat.editor.photo.PhotoEditorScreen
 import org.monogram.presentation.features.chats.currentChat.editor.video.VideoEditorScreen
-import org.monogram.presentation.root.RootComponent
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URLEncoder
@@ -70,8 +69,6 @@ import kotlin.math.abs
 fun ChatContent(
     component: ChatComponent,
     isOverlay: Boolean = false,
-    previousChild: RootComponent.Child? = null,
-    renderChild: @Composable (RootComponent.Child) -> Unit = {}
 ) {
     val state by component.state.collectAsState()
     val scrollState = rememberLazyListState()

@@ -39,6 +39,8 @@ import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.stack.animation.fade
 import com.arkivanov.decompose.extensions.compose.stack.animation.plus
+import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.androidPredictiveBackAnimatableV1
+import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.androidPredictiveBackAnimatableV2
 import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.predictiveBackAnimation
 import com.arkivanov.decompose.extensions.compose.stack.animation.slide
 import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
@@ -406,7 +408,7 @@ fun MobileLayout(root: RootComponent) {
 
     if (dragOffsetX.value > 0 && previous != null) { // todo: isDragToBackEnabled
         Box(modifier = Modifier.fillMaxSize()) {
-            RenderChild(root, previous)
+            RenderChild(previous)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -485,7 +487,7 @@ fun MobileLayout(root: RootComponent) {
                 fallbackAnimation = if (!swipeBackInProgress) stackAnimation(slide() + fade()) else null
             )
         ) {
-            RenderChild(root, it.instance, isOverlay = false)
+            RenderChild(it.instance, isOverlay = false)
         }
     }
 }
@@ -516,7 +518,7 @@ private fun TabletLayout(root: RootComponent, childStack: ChildStack<*, RootComp
                 .fillMaxHeight()
         ) {
             if (listChild != null) {
-                RenderChild(root, listChild)
+                RenderChild(listChild)
             }
         }
 
@@ -536,7 +538,7 @@ private fun TabletLayout(root: RootComponent, childStack: ChildStack<*, RootComp
             val isListOnly = activeChild == listChild
 
             if (!isListOnly) {
-                RenderChild(root, activeChild)
+                RenderChild(activeChild)
             } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -554,10 +556,7 @@ private fun TabletLayout(root: RootComponent, childStack: ChildStack<*, RootComp
 }
 
 @Composable
-private fun RenderChild(root: RootComponent, child: RootComponent.Child, isOverlay: Boolean = false) {
-    val childStack by root.childStack.subscribeAsState()
-    val previousChild = childStack.items.getOrNull(childStack.items.lastIndex - 1)?.instance
-
+private fun RenderChild(child: RootComponent.Child, isOverlay: Boolean = false) {
     when (child) {
         is RootComponent.Child.StartupChild -> StartupContent()
         is RootComponent.Child.AuthChild -> AuthContent(child.component)
@@ -566,8 +565,6 @@ private fun RenderChild(root: RootComponent, child: RootComponent.Child, isOverl
         is RootComponent.Child.ChatDetailChild -> ChatContent(
             component = child.component,
             isOverlay = isOverlay,
-            previousChild = previousChild,
-            renderChild = { RenderChild(root, it) }
         )
         is RootComponent.Child.SettingsChild -> SettingsContent(child.component)
         is RootComponent.Child.EditProfileChild -> EditProfileContent(child.component)

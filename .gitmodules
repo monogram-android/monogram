@@ -4,3 +4,6 @@
 [submodule "tdlib"]
 	path = tdlib
 	url = https://github.com/monogram-android/monogram_tdlib_module.git
+[submodule "core"]
+	path = core
+	url = https://github.com/monogram-android/monogram_core_module.git

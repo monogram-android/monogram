@@ -209,30 +209,3 @@ fun buildRichText(
 }
 
 fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
-fun formatPhoneGlobal(phone: String): String {
-    val digits = phone.filter { it.isDigit() }
-
-    if (digits.isEmpty()) return ""
-
-    if (digits.length == 11 && (digits.startsWith("7") || digits.startsWith("8"))) {
-        return "+7 (${digits.substring(1, 4)}) ${digits.substring(4, 7)}-${digits.substring(7, 9)}-${digits.substring(9, 11)}"
-    }
-
-    return "+$digits"
-}
-
-fun formatMaskedGlobal(phone: String): String {
-    val digits = phone.filter { it.isDigit() }
-
-    if (digits.length < 5) return "****"
-
-    if (digits.length == 11 && (digits.startsWith("7") || digits.startsWith("8"))) {
-        return "+7 (***) ***-**-${digits.takeLast(2)}"
-    }
-
-    val visibleCount = 4
-    val maskedCount = digits.length - visibleCount
-    val stars = "*".repeat(maskedCount)
-
-    return "+$stars${digits.takeLast(visibleCount)}"
-}

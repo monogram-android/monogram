@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -41,14 +40,17 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -78,6 +80,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import org.monogram.presentation.R
+import java.util.Locale
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -200,8 +203,16 @@ fun CodeInputScreen(
                 ignoreCase = true
             ) -> stringResource(R.string.verification_delivery_telegram)
 
-            codeType.contains("Sms", ignoreCase = true) -> stringResource(R.string.verification_delivery_sms)
-            codeType.contains("Call", ignoreCase = true) -> stringResource(R.string.verification_delivery_call)
+            codeType.contains(
+                "Sms",
+                ignoreCase = true
+            ) -> stringResource(R.string.verification_delivery_sms)
+
+            codeType.contains(
+                "Call",
+                ignoreCase = true
+            ) -> stringResource(R.string.verification_delivery_call)
+
             else -> stringResource(R.string.verification_delivery_default)
         }
 
@@ -270,7 +281,9 @@ fun CodeInputScreen(
                     Surface(
                         modifier = Modifier.size(width = 50.dp, height = 64.dp),
                         shape = RoundedCornerShape(16.dp),
-                        color = if (isBoxFocused) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        color = if (isBoxFocused) MaterialTheme.colorScheme.primaryContainer.copy(
+                            alpha = 0.3f
+                        )
                         else MaterialTheme.colorScheme.surfaceContainerHigh,
                         border = if (isBoxFocused) BorderStroke(
                             2.dp,
@@ -325,7 +338,11 @@ fun CodeInputScreen(
                     enabled = code.length == maxCodeLength,
                     shape = RoundedCornerShape(24.dp)
                 ) {
-                    Text(stringResource(R.string.confirm_button), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.confirm_button),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
                 }
@@ -334,7 +351,10 @@ fun CodeInputScreen(
                     val minutes = timeLeft / 60
                     val seconds = timeLeft % 60
                     Text(
-                        text = stringResource(R.string.resend_code_timer, String.format("%02d:%02d", minutes, seconds)),
+                        text = stringResource(
+                            R.string.resend_code_timer,
+                            String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.fillMaxWidth(),
@@ -352,8 +372,16 @@ fun CodeInputScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         val resendText = when {
-                            nextCodeType.contains("Sms", ignoreCase = true) -> stringResource(R.string.resend_via_sms)
-                            nextCodeType.contains("Call", ignoreCase = true) -> stringResource(R.string.resend_via_call)
+                            nextCodeType.contains(
+                                "Sms",
+                                ignoreCase = true
+                            ) -> stringResource(R.string.resend_via_sms)
+
+                            nextCodeType.contains(
+                                "Call",
+                                ignoreCase = true
+                            ) -> stringResource(R.string.resend_via_call)
+
                             else -> stringResource(R.string.resend_code)
                         }
                         Text(resendText)
@@ -388,9 +416,11 @@ fun CodeInputScreen(
         color = MaterialTheme.colorScheme.background
     ) {
         if (isLandscape) {
-            Row(modifier = Modifier
-                .fillMaxSize()
-                .imePadding()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
+            ) {
                 Column(
                     modifier = Modifier
                         .weight(1f)

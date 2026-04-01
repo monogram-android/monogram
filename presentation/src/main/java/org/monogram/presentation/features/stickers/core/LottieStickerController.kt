@@ -27,6 +27,7 @@ class LottieStickerController(
 
     private var renderJob: Job? = null
     private var isPaused = false
+    @Volatile
     private var isActiveController = true
     private var frontBitmap: Bitmap? = null
     private var backBitmap: Bitmap? = null
@@ -48,20 +49,8 @@ class LottieStickerController(
     override fun release() {
         isActiveController = false
         renderJob?.cancel()
+        renderJob = null
         currentImageBitmap = null
-        scope.launch(renderDispatcher) {
-            renderJob?.join()
-
-            decoder?.release()
-            decoder = null
-
-            frontBitmap?.let { BitmapPool.recycle(it) }
-            backBitmap?.let { BitmapPool.recycle(it) }
-            spareBitmap?.let { BitmapPool.recycle(it) }
-            frontBitmap = null
-            backBitmap = null
-            spareBitmap = null
-        }
     }
 
     override suspend fun renderFirstFrame(): ImageBitmap? = withContext(renderDispatcher) {
@@ -110,145 +99,151 @@ class LottieStickerController(
     }
 
     private suspend fun loadAndRender() {
-        while (isPaused && scope.isActive) {
-            delay(50)
-        }
+        var fBitmap: Bitmap? = null
+        var bBitmap: Bitmap? = null
+        var sBitmap: Bitmap? = null
 
-        val file = File(filePath)
-        if (!file.exists()) return
-
-        val localDecoder = RLottieWrapper()
-        if (!coRunCatching { localDecoder.open(file) }.getOrDefault(false)) {
-            localDecoder.release()
-            return
-        }
-        decoder = localDecoder
-
-        val compositionWidth = localDecoder.getWidth().coerceAtLeast(1)
-        val compositionHeight = localDecoder.getHeight().coerceAtLeast(1)
-        val extraPaddingX = minOf((compositionWidth * OVERFLOW_PADDING_RATIO).toInt(), MAX_OVERFLOW_PADDING_PX)
-        val extraPaddingY = minOf((compositionHeight * OVERFLOW_PADDING_RATIO).toInt(), MAX_OVERFLOW_PADDING_PX)
-        val renderWidth = maxOf(reqWidth, compositionWidth + extraPaddingX * 2)
-        val renderHeight = maxOf(reqHeight, compositionHeight + extraPaddingY * 2)
-        val boundsLeft = (renderWidth - compositionWidth) / 2
-        val boundsTop = (renderHeight - compositionHeight) / 2
-
-        val fBitmap = BitmapPool.obtain(renderWidth, renderHeight)
-        val bBitmap = BitmapPool.obtain(renderWidth, renderHeight)
-        val sBitmap = BitmapPool.obtain(renderWidth, renderHeight)
-
-        if (!isActiveController) {
-            BitmapPool.recycle(fBitmap)
-            BitmapPool.recycle(bBitmap)
-            BitmapPool.recycle(sBitmap)
-            decoder?.release()
-            decoder = null
-            return
-        }
-
-        frontBitmap = fBitmap
-        backBitmap = bBitmap
-        spareBitmap = sBitmap
-
-        fBitmap.eraseColor(0)
-        val firstFrameRendered = localDecoder.renderFrame(
-            bitmap = fBitmap,
-            frameNo = 0,
-            drawLeft = boundsLeft,
-            drawTop = boundsTop,
-            drawWidth = compositionWidth,
-            drawHeight = compositionHeight
-        )
-        if (!firstFrameRendered) {
-            BitmapPool.recycle(fBitmap)
-            BitmapPool.recycle(bBitmap)
-            BitmapPool.recycle(sBitmap)
-            frontBitmap = null
-            backBitmap = null
-            spareBitmap = null
-            decoder?.release()
-            decoder = null
-            return
-        }
-
-        currentImageBitmap = fBitmap.asImageBitmap()
-
-        val totalFrames = localDecoder.getTotalFrames().coerceAtLeast(1)
-        val frameRate = localDecoder.getFrameRate().takeIf { it > 0.0 }
-            ?: run {
-                val durationMs = localDecoder.getDurationMs().coerceAtLeast(1L)
-                max(totalFrames / (durationMs / 1000.0), 1.0)
-            }
-        val normalizedFrameRate = frameRate.coerceIn(1.0, 120.0)
-
-        var lastFrameTime = System.nanoTime()
-        val frameDurationMs = max(1L, (1000.0 / normalizedFrameRate).toLong())
-        var frameAccumulator = 0.0
-        var frameNo = 0
-
-        while (isActiveController && scope.isActive) {
-            val now = System.nanoTime()
-            if (isPaused) {
-                delay(100)
-                lastFrameTime = System.nanoTime()
-                continue
+        try {
+            while (isPaused && scope.isActive) {
+                delay(50)
             }
 
-            val dtMs = (now - lastFrameTime) / 1_000_000.0
-            frameAccumulator += dtMs * normalizedFrameRate / 1000.0
-            val framesToAdvance = frameAccumulator.toInt()
-            if (framesToAdvance <= 0) {
-                lastFrameTime = now
-                delay(1)
-                continue
+            val file = File(filePath)
+            if (!file.exists()) return
+
+            val localDecoder = RLottieWrapper()
+            if (!coRunCatching { localDecoder.open(file) }.getOrDefault(false)) {
+                localDecoder.release()
+                return
             }
-            frameNo = (frameNo + framesToAdvance) % totalFrames
-            frameAccumulator -= framesToAdvance
+            decoder = localDecoder
 
-            val localBackBitmap = backBitmap ?: break
+            val compositionWidth = localDecoder.getWidth().coerceAtLeast(1)
+            val compositionHeight = localDecoder.getHeight().coerceAtLeast(1)
+            val extraPaddingX = minOf((compositionWidth * OVERFLOW_PADDING_RATIO).toInt(), MAX_OVERFLOW_PADDING_PX)
+            val extraPaddingY = minOf((compositionHeight * OVERFLOW_PADDING_RATIO).toInt(), MAX_OVERFLOW_PADDING_PX)
+            val renderWidth = maxOf(reqWidth, compositionWidth + extraPaddingX * 2)
+            val renderHeight = maxOf(reqHeight, compositionHeight + extraPaddingY * 2)
+            val boundsLeft = (renderWidth - compositionWidth) / 2
+            val boundsTop = (renderHeight - compositionHeight) / 2
 
-            localBackBitmap.eraseColor(0)
-            val rendered = localDecoder.renderFrame(
-                bitmap = localBackBitmap,
-                frameNo = frameNo,
+            fBitmap = BitmapPool.obtain(renderWidth, renderHeight)
+            bBitmap = BitmapPool.obtain(renderWidth, renderHeight)
+            sBitmap = BitmapPool.obtain(renderWidth, renderHeight)
+            val firstBitmap = requireNotNull(fBitmap)
+
+            if (!isActiveController) {
+                return
+            }
+
+            frontBitmap = fBitmap
+            backBitmap = bBitmap
+            spareBitmap = sBitmap
+
+            firstBitmap.eraseColor(0)
+            val firstFrameRendered = localDecoder.renderFrame(
+                bitmap = firstBitmap,
+                frameNo = 0,
                 drawLeft = boundsLeft,
                 drawTop = boundsTop,
                 drawWidth = compositionWidth,
                 drawHeight = compositionHeight
             )
-            if (!rendered) {
-                break
+            if (!firstFrameRendered) {
+                return
             }
 
-            val previousFront = frontBitmap
-            frontBitmap = backBitmap
-            backBitmap = spareBitmap
-            spareBitmap = previousFront
+            currentImageBitmap = firstBitmap.copy(Bitmap.Config.ARGB_8888, false).asImageBitmap()
 
-            val localFrontBitmap = frontBitmap
-            if (localFrontBitmap != null) {
-                currentImageBitmap = localFrontBitmap.asImageBitmap()
-                frameVersion++
+            val totalFrames = localDecoder.getTotalFrames().coerceAtLeast(1)
+            val frameRate = localDecoder.getFrameRate().takeIf { it > 0.0 }
+                ?: run {
+                    val durationMs = localDecoder.getDurationMs().coerceAtLeast(1L)
+                    max(totalFrames / (durationMs / 1000.0), 1.0)
+                }
+            val normalizedFrameRate = frameRate.coerceIn(1.0, 120.0)
+
+            var lastFrameTime = System.nanoTime()
+            val frameDurationMs = max(1L, (1000.0 / normalizedFrameRate).toLong())
+            var frameAccumulator = 0.0
+            var frameNo = 0
+
+            while (isActiveController && scope.isActive) {
+                val now = System.nanoTime()
+                if (isPaused) {
+                    delay(100)
+                    lastFrameTime = System.nanoTime()
+                    continue
+                }
+
+                val dtMs = (now - lastFrameTime) / 1_000_000.0
+                frameAccumulator += dtMs * normalizedFrameRate / 1000.0
+                val framesToAdvance = frameAccumulator.toInt()
+                if (framesToAdvance <= 0) {
+                    lastFrameTime = now
+                    delay(1)
+                    continue
+                }
+                frameNo = (frameNo + framesToAdvance) % totalFrames
+                frameAccumulator -= framesToAdvance
+
+                val localBackBitmap = backBitmap ?: break
+
+                localBackBitmap.eraseColor(0)
+                val rendered = localDecoder.renderFrame(
+                    bitmap = localBackBitmap,
+                    frameNo = frameNo,
+                    drawLeft = boundsLeft,
+                    drawTop = boundsTop,
+                    drawWidth = compositionWidth,
+                    drawHeight = compositionHeight
+                )
+                if (!rendered) {
+                    break
+                }
+
+                val previousFront = frontBitmap
+                frontBitmap = backBitmap
+                backBitmap = spareBitmap
+                spareBitmap = previousFront
+
+                val localFrontBitmap = frontBitmap
+                if (localFrontBitmap != null) {
+                    currentImageBitmap = localFrontBitmap.copy(Bitmap.Config.ARGB_8888, false).asImageBitmap()
+                    frameVersion++
+                }
+
+                lastFrameTime = now
+
+                val workTime = (System.nanoTime() - now) / 1_000_000
+                val delayTime = (frameDurationMs - workTime).coerceAtLeast(0)
+                delay(delayTime)
             }
-            
-            lastFrameTime = now
-            
-            val workTime = (System.nanoTime() - now) / 1_000_000
-            val delayTime = (frameDurationMs - workTime).coerceAtLeast(0)
-            delay(delayTime)
+        } finally {
+            withContext(NonCancellable) {
+                val decoderToRelease = decoder
+                decoder = null
+
+                currentImageBitmap = null
+
+                val bitmapsToRecycle = mutableSetOf<Bitmap>()
+                frontBitmap?.let(bitmapsToRecycle::add)
+                backBitmap?.let(bitmapsToRecycle::add)
+                spareBitmap?.let(bitmapsToRecycle::add)
+                fBitmap?.let(bitmapsToRecycle::add)
+                bBitmap?.let(bitmapsToRecycle::add)
+                sBitmap?.let(bitmapsToRecycle::add)
+
+                frontBitmap = null
+                backBitmap = null
+                spareBitmap = null
+
+                decoderToRelease?.release()
+                for (bitmap in bitmapsToRecycle) {
+                    BitmapPool.recycle(bitmap)
+                }
+            }
         }
-
-        decoder?.release()
-        decoder = null
-
-        currentImageBitmap = null
-
-        frontBitmap?.let { BitmapPool.recycle(it) }
-        backBitmap?.let { BitmapPool.recycle(it) }
-        spareBitmap?.let { BitmapPool.recycle(it) }
-        frontBitmap = null
-        backBitmap = null
-        spareBitmap = null
     }
     
     companion object {

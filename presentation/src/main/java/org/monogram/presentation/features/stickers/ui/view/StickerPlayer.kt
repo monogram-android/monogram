@@ -32,8 +32,8 @@ fun StickerPlayer(
         val widthPx = constraints.maxWidth
         val heightPx = constraints.maxHeight
         
-        val renderWidth = if (widthPx != Constraints.Infinity && widthPx > 0) widthPx else 512
-        val renderHeight = if (heightPx != Constraints.Infinity && heightPx > 0) heightPx else 512
+        val renderWidth = if (widthPx != Constraints.Infinity && widthPx > 0) minOf(widthPx, 512) else 512
+        val renderHeight = if (heightPx != Constraints.Infinity && heightPx > 0) minOf(heightPx, 512) else 512
 
         val scope = rememberCoroutineScope()
         val thumbnailKey = remember(path) {

@@ -33,13 +33,13 @@ fun rememberMessageInlineContent(
         val map = mutableMapOf<String, InlineTextContent>()
         val emojiEntities = entities.filter { it.type is MessageEntityType.CustomEmoji }.sortedBy { it.offset }
         emojiEntities.forEachIndexed { index, entity ->
-            val emojiSize = (fontSize * 1.25f).sp
+            val emojiSize = (fontSize * 1.5f).sp
             map["emoji_$index"] = InlineTextContent(
                 Placeholder(emojiSize, emojiSize, PlaceholderVerticalAlign.Center)
             ) {
                 StickerImage(
                     path = (entity.type as MessageEntityType.CustomEmoji).path,
-                    modifier = Modifier.size((fontSize * 1.25f).dp)
+                    modifier = Modifier.size((fontSize * 1.5f).dp)
                 )
             }
         }

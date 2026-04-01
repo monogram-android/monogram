@@ -73,7 +73,7 @@ fun StickerMessageBubble(
 
         Box(
             modifier = Modifier
-                .size(190.dp)
+                .size(300.dp)
                 .combinedClickable(
                     onClick = {
                         onStickerClick(content.setId)

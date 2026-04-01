@@ -3,4 +3,4 @@
 	url = https://github.com/webmproject/libvpx.git
 [submodule "presentation/src/main/cpp/third_party/rlottie"]
 	path = presentation/src/main/cpp/third_party/rlottie
-	url = https://github.com/Samsung/rlottie.git
+	url = https://github.com/monogram-android/rlottie

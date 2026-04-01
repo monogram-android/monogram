@@ -448,7 +448,7 @@ fun ChatContent(
                 .background(MaterialTheme.colorScheme.background)
                 .onGloballyPositioned { containerSize = it.size }
         ) {
-            if (isDragToBackEnabled && !isTablet && !isCustomBackHandlingEnabled && dragOffsetX.value > 0 && previousChild != null) {
+            /*if (isDragToBackEnabled && !isTablet && !isCustomBackHandlingEnabled && dragOffsetX.value > 0 && previousChild != null) {
                 Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -466,12 +466,12 @@ fun ChatContent(
                             )
                     )
                 }
-            }
+            }*/
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(
+                    /*.then(
                         if (isDragToBackEnabled && !isTablet && !isCustomBackHandlingEnabled) {
                             Modifier.pointerInput(Unit) {
                                 var isDragging = false
@@ -515,7 +515,7 @@ fun ChatContent(
                     .graphicsLayer {
                         translationX = dragOffsetX.value
                         shadowElevation = if (dragOffsetX.value > 0) 20f else 0f
-                    }
+                    }*/
             ) {
                 Box(
                     modifier = Modifier

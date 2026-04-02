@@ -21,7 +21,6 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,18 +29,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
@@ -80,8 +75,6 @@ fun LazyGridScope.profileMediaSection(
     onLoadMedia: (MessageModel) -> Unit = {}
 ) {
     stickyHeader {
-        val tabOffsets = remember { mutableStateListOf<Int>() }
-
         Surface(
             color = MaterialTheme.colorScheme.background,
             modifier = Modifier.fillMaxWidth()
@@ -107,33 +100,19 @@ fun LazyGridScope.profileMediaSection(
                         edgePadding = 4.dp,
                         divider = {},
                         indicator = {
-                            val currentPage = pagerState.currentPage
-                            val offsetFraction = pagerState.currentPageOffsetFraction
-
-                            val targetPage = when {
-                                offsetFraction > 0 -> currentPage + 1
-                                offsetFraction < 0 -> currentPage - 1
-                                else -> currentPage
-                            }
-
-                            val fraction = kotlin.math.abs(offsetFraction)
-                            val currentOffset = tabOffsets.getOrNull(currentPage) ?: 0
-                            val targetOffset = tabOffsets.getOrNull(targetPage) ?: currentOffset
-                            val offset = lerp(currentOffset, targetOffset, fraction)
-
                             Box(
                                 Modifier
-                                    .fillMaxSize()
+                                    .tabIndicatorOffset(pagerState.currentPage)
+                                    .fillMaxHeight()
                                     .padding(vertical = 4.dp)
                                     .zIndex(-1f)
-                                    .offset { IntOffset(offset, 0) }
                                     .clip(RoundedCornerShape(24.dp))
                                     .background(MaterialTheme.colorScheme.primary)
                             )
                         }
                     ) {
                         tabs.forEachIndexed { index, titleFunc ->
-                            val selected = state.selectedTabIndex == index
+                            val selected = pagerState.currentPage == index
 
                             Tab(
                                 selected = selected,
@@ -141,15 +120,6 @@ fun LazyGridScope.profileMediaSection(
                                 modifier = Modifier
                                     .height(44.dp)
                                     .padding(vertical = 4.dp)
-                                    .onGloballyPositioned { cords ->
-                                        val x = cords.positionInParent().x.toInt()
-
-                                        if (tabOffsets.size > index) {
-                                            tabOffsets[index] = x
-                                        } else {
-                                            tabOffsets.add(x)
-                                        }
-                                    }
                                     .clip(RoundedCornerShape(24.dp)),
                                 selectedContentColor = MaterialTheme.colorScheme.onPrimary,
                                 unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,

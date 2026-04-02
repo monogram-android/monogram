@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.chatSettings
 
 import androidx.compose.animation.*
@@ -1259,10 +1261,9 @@ private fun EmojiStyleItem(
                     contentAlignment = Alignment.Center
                 ) {
                     if (isDownloading) {
-                        CircularProgressIndicator(
+                        LoadingIndicator(
                             modifier = Modifier.size(24.dp),
                             color = Color.White,
-                            strokeWidth = 2.dp
                         )
                     } else {
                         Icon(

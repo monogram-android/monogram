@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.sessions
 
 import android.Manifest
@@ -218,7 +220,7 @@ fun SessionsContent(component: SessionsComponent) {
             }
 
             if (state.isLoading) {
-                CircularProgressIndicator(Modifier.align(Alignment.Center))
+                LoadingIndicator(Modifier.align(Alignment.Center))
             }
         }
     }

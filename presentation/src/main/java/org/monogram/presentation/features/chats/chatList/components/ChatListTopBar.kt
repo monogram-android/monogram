@@ -14,6 +14,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.ShieldMoon
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,11 +31,12 @@ import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.presentation.R
+import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChatListTopBar(
     user: UserModel?,
@@ -51,6 +53,7 @@ fun ChatListTopBar(
     onMenuClick: () -> Unit
 ) {
     var statusAnchorBounds by remember { mutableStateOf<Rect?>(null) }
+    val iconButtonShapes = ExpressiveDefaults.iconButtonShapes()
 
     AnimatedContent(
         targetState = isSearchActive,
@@ -80,13 +83,13 @@ fun ChatListTopBar(
                             onExpandedChange = {},
                             placeholder = { Text(stringResource(R.string.search_conversations_placeholder)) },
                             leadingIcon = {
-                                IconButton(onClick = onSearchToggle) {
+                                IconButton(onClick = onSearchToggle, shapes = iconButtonShapes) {
                                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                                 }
                             },
                             trailingIcon = {
                                 if (searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { onSearchQueryChange("") }) {
+                                    IconButton(onClick = { onSearchQueryChange("") }, shapes = iconButtonShapes) {
                                         Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_clear))
                                     }
                                 }
@@ -268,7 +271,7 @@ fun ChatListTopBar(
                     if (isProxyEnabled) {
                         val isConnected =
                             connectionStatus is ConnectionStatus.Connected || connectionStatus is ConnectionStatus.Updating
-                        IconButton(onClick = onProxySettingsClick) {
+                        IconButton(onClick = onProxySettingsClick, shapes = iconButtonShapes) {
                             Icon(
                                 imageVector = if (isConnected) Icons.Rounded.Shield else Icons.Rounded.ShieldMoon,
                                 contentDescription = stringResource(R.string.cd_proxy),
@@ -278,7 +281,7 @@ fun ChatListTopBar(
                         }
                     }
 
-                    IconButton(onClick = onSearchToggle) {
+                    IconButton(onClick = onSearchToggle, shapes = iconButtonShapes) {
                         Icon(
                             imageVector = Icons.Rounded.Search,
                             contentDescription = stringResource(R.string.action_search),
@@ -291,6 +294,7 @@ fun ChatListTopBar(
 
                     IconButton(
                         onClick = onMenuClick,
+                        shapes = iconButtonShapes,
                         modifier = Modifier
                             .size(40.dp)
                             .semantics { contentDescription = "Settings" }

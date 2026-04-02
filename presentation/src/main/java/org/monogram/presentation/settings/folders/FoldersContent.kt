@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.folders
 
 import androidx.compose.animation.animateColorAsState
@@ -88,7 +90,7 @@ fun FoldersContent(component: FoldersComponent) {
                 .padding(top = padding.calculateTopPadding())
         ) {
             if (state.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                LoadingIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
                 FolderList(
                     systemFolders = systemFolders,

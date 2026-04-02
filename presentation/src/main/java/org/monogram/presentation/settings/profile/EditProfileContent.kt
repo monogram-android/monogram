@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.profile
 
 import android.Manifest
@@ -767,11 +769,10 @@ fun EditProfileContent(component: EditProfileComponent) {
                 },
                 actions = {
                     if (state.isLoading) {
-                        CircularProgressIndicator(
+                        LoadingIndicator(
                             modifier = Modifier
                                 .size(24.dp)
                                 .padding(end = 16.dp),
-                            strokeWidth = 2.dp
                         )
                     } else if (state.user != null) {
                         IconButton(onClick = component::onSave) {
@@ -794,7 +795,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                LoadingIndicator()
             }
         } else {
             LazyColumn(

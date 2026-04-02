@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.chats.currentChat.components
 
 import android.Manifest
@@ -40,6 +42,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +74,7 @@ import java.util.*
 
 private const val EGL_RECORDABLE_ANDROID = 0x3142
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AdvancedCircularRecorderScreen(
     onClose: () -> Unit,
@@ -605,7 +610,7 @@ fun NativeCircularCameraContent(
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.8f)), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = Color.White)
+                    LoadingIndicator(color = Color.White)
                     Text(
                         stringResource(R.string.recorder_processing),
                         color = Color.White,

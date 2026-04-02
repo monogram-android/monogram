@@ -3,7 +3,9 @@ package org.monogram.presentation.features.instantview.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.ClickableText
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,6 +74,7 @@ fun RichTextView(
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AsyncImageWithDownload(
     path: String?,
@@ -137,16 +140,14 @@ fun AsyncImageWithDownload(
             }
 
             if (progress > 0f && progress < 1f) {
-                CircularProgressIndicator(
+                CircularWavyProgressIndicator(
                     progress = { progress },
                     modifier = Modifier.size(32.dp),
-                    strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.primary
                 )
             } else {
-                CircularProgressIndicator(
+                LoadingIndicator(
                     modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                 )
             }
@@ -154,6 +155,7 @@ fun AsyncImageWithDownload(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AsyncVideoWithDownload(
     path: String?,
@@ -210,16 +212,14 @@ fun AsyncVideoWithDownload(
             contentAlignment = Alignment.Center
         ) {
             if (progress > 0f && progress < 1f) {
-                CircularProgressIndicator(
+                CircularWavyProgressIndicator(
                     progress = { progress },
                     modifier = Modifier.size(32.dp),
-                    strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.primary
                 )
             } else {
-                CircularProgressIndicator(
+                LoadingIndicator(
                     modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                 )
             }

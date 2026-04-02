@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -70,6 +72,7 @@ fun MediaLoadingBackground(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MediaLoadingAction(
     isDownloading: Boolean,
@@ -89,19 +92,16 @@ fun MediaLoadingAction(
     ) {
         if (isDownloading) {
             if (progress > 0f && progress < 1f) {
-                CircularProgressIndicator(
+                CircularWavyProgressIndicator(
                     progress = { progress },
                     modifier = Modifier.size(36.dp),
                     color = Color.White,
                     trackColor = Color.White.copy(alpha = 0.25f),
-                    strokeWidth = 2.5.dp
                 )
             } else {
-                CircularProgressIndicator(
+                LoadingIndicator(
                     modifier = Modifier.size(36.dp),
                     color = Color.White,
-                    trackColor = Color.White.copy(alpha = 0.25f),
-                    strokeWidth = 2.5.dp
                 )
             }
 

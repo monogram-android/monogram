@@ -12,6 +12,7 @@ import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -28,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.presentation.R
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ConfirmationSheet(
     icon: ImageVector,
@@ -39,6 +40,9 @@ fun ConfirmationSheet(
     onDismiss: () -> Unit,
     isDestructive: Boolean = true
 ) {
+    val buttonHeight = ButtonDefaults.LargeContainerHeight
+    val buttonShapes = ExpressiveDefaults.buttonShapesFor(buttonHeight)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         dragHandle = { BottomSheetDefaults.DragHandle() },
@@ -86,10 +90,10 @@ fun ConfirmationSheet(
             ) {
                 Button(
                     onClick = onConfirm,
+                    shapes = buttonShapes,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
+                        .height(buttonHeight),
                     colors = if (isDestructive) {
                         ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error,
@@ -107,10 +111,10 @@ fun ConfirmationSheet(
 
                 OutlinedButton(
                     onClick = onDismiss,
+                    shapes = buttonShapes,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp)
+                        .height(buttonHeight)
                 ) {
                     Text(stringResource(R.string.cancel_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }

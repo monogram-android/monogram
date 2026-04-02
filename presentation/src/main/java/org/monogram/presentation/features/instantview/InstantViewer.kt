@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.instantview
 
 import androidx.activity.compose.BackHandler
@@ -230,7 +232,7 @@ fun InstantViewer(
                         .padding(padding)
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        LoadingIndicator(modifier = Modifier.align(Alignment.Center))
                     } else if (instantView != null) {
                         val blocks = remember(instantView, searchQuery) {
                             if (searchQuery.isEmpty()) {

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.profile.components
 
 import org.monogram.presentation.core.util.coRunCatching
@@ -89,9 +91,7 @@ fun StatisticsViewer(
                         .fillMaxWidth()
                         .height(300.dp), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(
-                                strokeWidth = 4.dp,
-                                strokeCap = StrokeCap.Round,
+                            LoadingIndicator(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(16.dp))
@@ -421,7 +421,7 @@ fun InteractionItem(interaction: ChatInteractionInfoModel) {
                         InteractionStat(Icons.Rounded.EmojiEmotions, interaction.reactionCount)
                     }
                     Spacer(modifier = Modifier.height(10.dp))
-                    LinearProgressIndicator(
+                    LinearWavyProgressIndicator(
                         progress = { (interaction.viewCount.toFloat() / dominantMetric.toFloat()).coerceIn(0f, 1f) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -429,7 +429,6 @@ fun InteractionItem(interaction: ChatInteractionInfoModel) {
                             .clip(CircleShape),
                         color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        drawStopIndicator = {}
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -804,11 +803,9 @@ fun GraphSection(title: String, graph: StatisticsGraphModel, color: Color, onLoa
                     }
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(
+                            LoadingIndicator(
                                 modifier = Modifier.size(48.dp),
-                                strokeWidth = 4.dp,
                                 color = color,
-                                strokeCap = StrokeCap.Round
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(

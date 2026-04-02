@@ -72,7 +72,7 @@ import org.monogram.presentation.features.webapp.MiniAppViewer
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChatListContent(component: ChatListComponent) {
     val state by component.state.collectAsState()
@@ -532,7 +532,7 @@ fun ChatListContent(component: ChatListComponent) {
                 }
 
                 if (state.connectionStatus == ConnectionStatus.Connecting || state.connectionStatus == ConnectionStatus.Updating || state.connectionStatus == ConnectionStatus.ConnectingToProxy) {
-                    LinearProgressIndicator(
+                    LinearWavyProgressIndicator(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(2.dp),

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.stickers
 
 import androidx.compose.animation.*
@@ -197,7 +199,7 @@ fun StickersContent(component: StickersComponent) {
                                 .padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            LoadingIndicator()
                         }
                     } else {
                         when (tabIndex) {

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.stickers.ui.menu
 
 import androidx.compose.animation.*
@@ -511,9 +513,8 @@ fun MessageOptionsMenu(
                                 text = "${viewers.size} ${stringResource(R.string.info_views)}",
                                 trailingContent = {
                                     if (isLoadingViewers) {
-                                        CircularProgressIndicator(
+                                        LoadingIndicator(
                                             modifier = Modifier.size(16.dp),
-                                            strokeWidth = 2.dp
                                         )
                                     } else {
                                         Icon(
@@ -756,7 +757,7 @@ fun MessageOptionsMenu(
                                         .padding(vertical = 24.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator()
+                                    LoadingIndicator()
                                 }
                             }
 

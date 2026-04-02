@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.profile.admin
 
 import androidx.compose.animation.*
@@ -135,7 +137,7 @@ fun MemberListContent(component: MemberListComponent) {
     ) { padding ->
         if (state.isLoading && state.members.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                LoadingIndicator()
             }
         } else {
             LazyColumn(
@@ -203,7 +205,7 @@ fun MemberListContent(component: MemberListComponent) {
                                 .fillMaxWidth()
                                 .padding(16.dp), contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            LoadingIndicator(modifier = Modifier.size(24.dp))
                         }
                     }
                 }

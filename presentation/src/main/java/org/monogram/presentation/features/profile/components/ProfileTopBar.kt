@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,11 +30,12 @@ import androidx.compose.ui.window.PopupProperties
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.UserModel
 import org.monogram.presentation.R
+import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.presentation.features.viewers.components.ViewerSettingsDropdown
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ProfileTopBar(
     onBack: () -> Unit,
@@ -61,6 +63,7 @@ fun ProfileTopBar(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val hasMenuActions = canShare || canEdit || canEditContact || canReport || canBlock || canDelete
+    val iconButtonShapes = ExpressiveDefaults.iconButtonShapes()
 
     val iconTint = lerp(
         start = MaterialTheme.colorScheme.onSurface,
@@ -135,7 +138,7 @@ fun ProfileTopBar(
                     shape = RoundedCornerShape(50),
                     colors = CardDefaults.cardColors(containerColor = buttonBackground)
                 ) {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, shapes = iconButtonShapes) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.cd_back),
@@ -153,7 +156,7 @@ fun ProfileTopBar(
                     ) {
                         Row {
                             if (canSearch) {
-                                IconButton(onClick = onSearch) {
+                                IconButton(onClick = onSearch, shapes = iconButtonShapes) {
                                     Icon(
                                         Icons.Rounded.Search,
                                         contentDescription = stringResource(R.string.search_section_chats),
@@ -162,7 +165,7 @@ fun ProfileTopBar(
                                 }
                             }
                             if (hasMenuActions) {
-                                IconButton(onClick = { showMenu = true }) {
+                                IconButton(onClick = { showMenu = true }, shapes = iconButtonShapes) {
                                     Icon(Icons.Rounded.MoreVert, contentDescription = null, tint = iconTint)
                                 }
                             }

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.webapp.components
 
 import androidx.compose.animation.core.*
@@ -103,10 +105,9 @@ fun MainButton(
         shape = MaterialTheme.shapes.medium
     ) {
         if (state.isProgressVisible) {
-            CircularProgressIndicator(
+            LoadingIndicator(
                 modifier = Modifier.size(20.dp),
                 color = state.textColor ?: defaultTextColor,
-                strokeWidth = 2.dp
             )
         } else {
             if (state.iconCustomEmojiId?.toLongOrNull() != null) {
@@ -151,10 +152,9 @@ fun SecondaryButton(
         shape = MaterialTheme.shapes.medium
     ) {
         if (state.isProgressVisible) {
-            CircularProgressIndicator(
+            LoadingIndicator(
                 modifier = Modifier.size(20.dp),
                 color = state.textColor ?: defaultTextColor,
-                strokeWidth = 2.dp
             )
         } else {
             if (state.iconCustomEmojiId?.toLongOrNull() != null) {

@@ -23,6 +23,8 @@
   </a>
 </h1>
 
+**Read this in other languages:** [Русский](README_RU.md)
+
 ---
 
 **Monogram** is a modern, lightning-fast, and elegant unofficial Telegram client for Android. Built with **Jetpack Compose** and **Material Design 3**, it delivers a native and fluid experience powered by the official **TDLib**.
@@ -54,6 +56,7 @@ Support the project on [**Boosty**](https://boosty.to/monogram).
 - **Fast & Efficient** — Powered by Kotlin Coroutines and optimized for performance.
 - **Clean Architecture** — Clear separation of concerns with Domain, Data, and Presentation layers.
 - **MVI Pattern** — Predictable state management using MVIKotlin.
+- **No NFT or Crypto** — Monogram will never include NFT promotions, gifts or any other features pushed by Telegram that we consider outside the scope of a messaging app.
 
 ---
 
@@ -142,8 +145,6 @@ Then run the build script from the root of your project:
 
 We welcome contributions! Whether it's fixing bugs, improving documentation, or suggesting new features.
 
-If you want to contribute, please read the contributing guidelines and open a PR — we'll review it promptly.
-
 1. **Check the Issues** — Look for open issues or create a new one to discuss your ideas.
 2. **Work from `develop`** — Create your branch from `develop` and keep your work based on that branch.
 3. **Fork & Branch** — Fork the repo and create a feature branch.
@@ -153,6 +154,11 @@ If you want to contribute, please read the contributing guidelines and open a PR
 > [!IMPORTANT]
 > - Respect the [Telegram API Terms of Service](https://core.telegram.org/api/terms).
 > - Ensure your code passes all checks and tests.
+
+### Reporting Bugs & Suggesting Features
+
+- **Bugs** — Open an issue and use the `[Bug]` tag in the title (e.g. `[Bug] App crashes on startup`). You can also browse all known bugs on the [**Bug Tracker**](https://github.com/orgs/monogram-android/projects/3/views/1).
+- **Feature Requests** — Open an issue with the `[Feature]` tag (e.g. `[Feature] Support scheduled messages`). Existing feature requests can be found on the [**Feature Board**](https://github.com/orgs/monogram-android/projects/5/views/1).
 
 ---
 

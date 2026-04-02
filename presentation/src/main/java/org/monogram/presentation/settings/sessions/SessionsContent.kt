@@ -220,7 +220,7 @@ fun SessionsContent(component: SessionsComponent) {
             }
 
             if (state.isLoading) {
-                LoadingIndicator(Modifier.align(Alignment.Center))
+                ContainedLoadingIndicator(Modifier.align(Alignment.Center))
             }
         }
     }

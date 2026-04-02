@@ -105,7 +105,7 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    LoadingIndicator()
+                    ContainedLoadingIndicator()
                 }
             } else {
                 LazyColumn(

@@ -103,7 +103,7 @@ fun NetworkUsageContent(component: NetworkUsageComponent) {
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                LoadingIndicator()
+                ContainedLoadingIndicator()
             }
         } else {
             Column(

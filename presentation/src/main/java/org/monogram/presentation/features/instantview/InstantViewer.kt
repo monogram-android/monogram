@@ -232,7 +232,7 @@ fun InstantViewer(
                         .padding(padding)
                 ) {
                     if (isLoading) {
-                        LoadingIndicator(modifier = Modifier.align(Alignment.Center))
+                        ContainedLoadingIndicator(modifier = Modifier.align(Alignment.Center))
                     } else if (instantView != null) {
                         val blocks = remember(instantView, searchQuery) {
                             if (searchQuery.isEmpty()) {

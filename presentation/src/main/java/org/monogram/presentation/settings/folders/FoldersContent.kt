@@ -90,7 +90,7 @@ fun FoldersContent(component: FoldersComponent) {
                 .padding(top = padding.calculateTopPadding())
         ) {
             if (state.isLoading) {
-                LoadingIndicator(modifier = Modifier.align(Alignment.Center))
+                ContainedLoadingIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
                 FolderList(
                     systemFolders = systemFolders,

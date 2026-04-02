@@ -466,7 +466,7 @@ fun VideoEditorScreen(
                         .background(Color.Black.copy(0.6f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    LoadingIndicator()
+                    ContainedLoadingIndicator()
                 }
             }
         }

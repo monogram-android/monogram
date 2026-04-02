@@ -101,7 +101,7 @@ fun BlockedUsersContent(component: BlockedUsersComponent) {
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        LoadingIndicator()
+                        ContainedLoadingIndicator()
                     }
                 }
 

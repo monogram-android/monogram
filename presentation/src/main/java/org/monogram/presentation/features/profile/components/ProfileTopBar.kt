@@ -1,9 +1,6 @@
 package org.monogram.presentation.features.profile.components
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -197,16 +194,13 @@ fun ProfileTopBar(
 
                     AnimatedVisibility(
                         visible = isVisible,
-                        enter = fadeIn(tween(150)) + scaleIn(
-                            animationSpec = spring(
-                                dampingRatio = 0.8f,
-                                stiffness = Spring.StiffnessMedium
-                            ),
+                        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + scaleIn(
+                            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
                             initialScale = 0.8f,
                             transformOrigin = TransformOrigin(1f, 0f)
                         ),
-                        exit = fadeOut(tween(150)) + scaleOut(
-                            animationSpec = tween(150),
+                        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + scaleOut(
+                            animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
                             targetScale = 0.9f,
                             transformOrigin = TransformOrigin(1f, 0f)
                         ),

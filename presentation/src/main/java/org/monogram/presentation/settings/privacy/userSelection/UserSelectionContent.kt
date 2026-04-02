@@ -85,7 +85,7 @@ fun UserSelectionContent(component: UserSelectionComponent) {
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        LoadingIndicator()
+                        ContainedLoadingIndicator()
                     }
                 }
 

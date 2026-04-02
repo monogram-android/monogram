@@ -100,7 +100,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 if (state.isLoading) {
-                    LoadingIndicator(modifier = Modifier.align(Alignment.Center))
+                    ContainedLoadingIndicator(modifier = Modifier.align(Alignment.Center))
                 } else if (state.logs.isEmpty()) {
                     Column(
                         modifier = Modifier.align(Alignment.Center),

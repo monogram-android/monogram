@@ -1,12 +1,8 @@
 package org.monogram.presentation.features.chats.chatList.components
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Star
@@ -54,6 +50,7 @@ fun ChatListTopBar(
 ) {
     var statusAnchorBounds by remember { mutableStateOf<Rect?>(null) }
     val iconButtonShapes = ExpressiveDefaults.iconButtonShapes()
+    val motionScheme = MaterialTheme.motionScheme
 
     AnimatedContent(
         targetState = isSearchActive,
@@ -98,7 +95,7 @@ fun ChatListTopBar(
                     },
                     expanded = false,
                     onExpandedChange = {},
-                    shape = RoundedCornerShape(24.dp),
+                    shape = ShapeDefaults.LargeIncreased,
                     colors = SearchBarDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         dividerColor = Color.Transparent
@@ -107,207 +104,191 @@ fun ChatListTopBar(
                 ) {}
             }
         } else {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .animateContentSize(
-                            animationSpec = spring(
-                                dampingRatio = 0.9f,
-                                stiffness = 450f
-                            )
-                        )
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = stringResource(R.string.app_name_monogram),
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        if (!user?.statusEmojiPath.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .onGloballyPositioned { statusAnchorBounds = it.boundsInRoot() }
-                                    .clickable { onStatusClick(statusAnchorBounds) }
-                            ) {
-                                StickerImage(
-                                    path = user.statusEmojiPath,
-                                    modifier = Modifier.size(28.dp),
-                                )
-                            }
-                        } else if (user?.isPremium == true) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = stringResource(R.string.telegram_premium_title),
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .onGloballyPositioned { statusAnchorBounds = it.boundsInRoot() }
-                                    .clickable { onStatusClick(statusAnchorBounds) },
-                                tint = Color(0xFF31A6FD)
-                            )
-                        }
-                    }
-
-                    val statusInfo = when {
-                        connectionStatus != null && connectionStatus !is ConnectionStatus.Connected -> {
-                            val (text, color, action) = when (connectionStatus) {
-                                ConnectionStatus.WaitingForNetwork -> Triple(
-                                    stringResource(R.string.waiting_for_network),
-                                    MaterialTheme.colorScheme.error,
-                                    TopBarStatusAction.Retry
-                                )
-
-                                ConnectionStatus.Connecting -> Triple(
-                                    stringResource(R.string.connecting),
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
-                                    TopBarStatusAction.ProxySettings
-                                )
-
-                                ConnectionStatus.Updating -> Triple(
-                                    stringResource(R.string.updating),
-                                    MaterialTheme.colorScheme.primary,
-                                    TopBarStatusAction.Retry
-                                )
-
-                                ConnectionStatus.ConnectingToProxy -> Triple(
-                                    stringResource(R.string.connecting_to_proxy),
-                                    MaterialTheme.colorScheme.primary,
-                                    TopBarStatusAction.ProxySettings
-                                )
-                            }
-
-                            TopBarStatusInfo(text = text, color = color, action = action)
-                        }
-
-                        isProxyEnabled -> TopBarStatusInfo(
-                            text = stringResource(R.string.proxy_enabled),
-                            color = MaterialTheme.colorScheme.primary,
-                            action = TopBarStatusAction.ProxySettings
-                        )
-
-                        else -> null
-                    }
-
-                    AnimatedContent(
-                        targetState = statusInfo,
-                        transitionSpec = {
-                            val enter = fadeIn(
-                                animationSpec = tween(
-                                    durationMillis = 260,
-                                    delayMillis = 40,
-                                    easing = FastOutSlowInEasing
-                                )
-                            ) +
-                                    slideInVertically(
-                                        animationSpec = tween(
-                                            durationMillis = 300,
-                                            easing = FastOutSlowInEasing
-                                        ),
-                                        initialOffsetY = { it / 2 }
-                                    ) +
-                                    expandVertically(
-                                        animationSpec = spring(
-                                            dampingRatio = 0.92f,
-                                            stiffness = 520f
-                                        ),
-                                        expandFrom = Alignment.Top
-                                    )
-
-                            val exit = fadeOut(
-                                animationSpec = tween(
-                                    durationMillis = 200,
-                                    easing = FastOutSlowInEasing
-                                )
-                            ) +
-                                    slideOutVertically(
-                                        animationSpec = tween(
-                                            durationMillis = 220,
-                                            easing = FastOutSlowInEasing
-                                        ),
-                                        targetOffsetY = { it / 3 }
-                                    ) +
-                                    shrinkVertically(
-                                        animationSpec = tween(
-                                            durationMillis = 220,
-                                            easing = FastOutSlowInEasing
-                                        ),
-                                        shrinkTowards = Alignment.Top
-                                    )
-
-                            enter.togetherWith(exit).using(SizeTransform(clip = false))
-                        },
-                        label = "TopBarStatusTextTransition"
-                    ) { info ->
-                        if (info != null) {
-                            Text(
-                                text = info.text,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = info.color,
-                                modifier = Modifier.clickable {
-                                    when (info.action) {
-                                        TopBarStatusAction.Retry -> onRetryConnection()
-                                        TopBarStatusAction.ProxySettings -> onProxySettingsClick()
-                                    }
-                                }
-                            )
-                        } else {
-                            Spacer(modifier = Modifier.height(0.dp))
-                        }
-                    }
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (isProxyEnabled) {
-                        val isConnected =
-                            connectionStatus is ConnectionStatus.Connected || connectionStatus is ConnectionStatus.Updating
-                        IconButton(onClick = onProxySettingsClick, shapes = iconButtonShapes) {
-                            Icon(
-                                imageVector = if (isConnected) Icons.Rounded.Shield else Icons.Rounded.ShieldMoon,
-                                contentDescription = stringResource(R.string.cd_proxy),
-                                modifier = Modifier.size(24.dp),
-                                tint = if (isConnected) Color(0xFF34A853) else MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-
-                    IconButton(onClick = onSearchToggle, shapes = iconButtonShapes) {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = stringResource(R.string.action_search),
-                            modifier = Modifier.size(26.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    IconButton(
-                        onClick = onMenuClick,
-                        shapes = iconButtonShapes,
+                    Column(
                         modifier = Modifier
-                            .size(40.dp)
-                            .semantics { contentDescription = "Settings" }
+                            .weight(1f)
+                            .animateContentSize(
+                                animationSpec = motionScheme.defaultSpatialSpec()
+                            )
                     ) {
-                        AvatarTopAppBar(
-                            path = user?.avatarPath,
-                            fallbackPath = user?.personalAvatarPath,
-                            name = user?.firstName ?: "",
-                            size = 36.dp,
-                            videoPlayerPool = videoPlayerPool
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = stringResource(R.string.app_name_monogram),
+                                style = MaterialTheme.typography.headlineSmallEmphasized,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            if (!user?.statusEmojiPath.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .onGloballyPositioned { statusAnchorBounds = it.boundsInRoot() }
+                                        .clickable { onStatusClick(statusAnchorBounds) }
+                                ) {
+                                    StickerImage(
+                                        path = user.statusEmojiPath,
+                                        modifier = Modifier.size(28.dp),
+                                    )
+                                }
+                            } else if (user?.isPremium == true) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Filled.Star,
+                                    contentDescription = stringResource(R.string.telegram_premium_title),
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .onGloballyPositioned { statusAnchorBounds = it.boundsInRoot() }
+                                        .clickable { onStatusClick(statusAnchorBounds) },
+                                    tint = Color(0xFF31A6FD)
+                                )
+                            }
+                        }
+
+                        val statusInfo = when {
+                            connectionStatus != null && connectionStatus !is ConnectionStatus.Connected -> {
+                                val (text, color, action) = when (connectionStatus) {
+                                    ConnectionStatus.WaitingForNetwork -> Triple(
+                                        stringResource(R.string.waiting_for_network),
+                                        MaterialTheme.colorScheme.error,
+                                        TopBarStatusAction.Retry
+                                    )
+
+                                    ConnectionStatus.Connecting -> Triple(
+                                        stringResource(R.string.connecting),
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                        TopBarStatusAction.ProxySettings
+                                    )
+
+                                    ConnectionStatus.Updating -> Triple(
+                                        stringResource(R.string.updating),
+                                        MaterialTheme.colorScheme.primary,
+                                        TopBarStatusAction.Retry
+                                    )
+
+                                    ConnectionStatus.ConnectingToProxy -> Triple(
+                                        stringResource(R.string.connecting_to_proxy),
+                                        MaterialTheme.colorScheme.primary,
+                                        TopBarStatusAction.ProxySettings
+                                    )
+                                }
+
+                                TopBarStatusInfo(text = text, color = color, action = action)
+                            }
+
+                            isProxyEnabled -> TopBarStatusInfo(
+                                text = stringResource(R.string.proxy_enabled),
+                                color = MaterialTheme.colorScheme.primary,
+                                action = TopBarStatusAction.ProxySettings
+                            )
+
+                            else -> null
+                        }
+
+                        AnimatedContent(
+                            targetState = statusInfo,
+                            transitionSpec = {
+                                val enter = fadeIn(
+                                    animationSpec = motionScheme.defaultEffectsSpec()
+                                ) +
+                                        slideInVertically(
+                                            animationSpec = motionScheme.defaultSpatialSpec(),
+                                            initialOffsetY = { it / 2 }
+                                        ) +
+                                        expandVertically(
+                                            animationSpec = motionScheme.defaultSpatialSpec(),
+                                            expandFrom = Alignment.Top
+                                        )
+
+                                val exit = fadeOut(
+                                    animationSpec = motionScheme.fastEffectsSpec()
+                                ) +
+                                        slideOutVertically(
+                                            animationSpec = motionScheme.fastSpatialSpec(),
+                                            targetOffsetY = { it / 3 }
+                                        ) +
+                                        shrinkVertically(
+                                            animationSpec = motionScheme.fastSpatialSpec(),
+                                            shrinkTowards = Alignment.Top
+                                        )
+
+                                enter.togetherWith(exit).using(SizeTransform(clip = false))
+                            },
+                            label = "TopBarStatusTextTransition"
+                        ) { info ->
+                            if (info != null) {
+                                Text(
+                                    text = info.text,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = info.color,
+                                    modifier = Modifier.clickable {
+                                        when (info.action) {
+                                            TopBarStatusAction.Retry -> onRetryConnection()
+                                            TopBarStatusAction.ProxySettings -> onProxySettingsClick()
+                                        }
+                                    }
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.height(0.dp))
+                            }
+                        }
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isProxyEnabled) {
+                            val isConnected =
+                                connectionStatus is ConnectionStatus.Connected || connectionStatus is ConnectionStatus.Updating
+                            IconButton(onClick = onProxySettingsClick, shapes = iconButtonShapes) {
+                                Icon(
+                                    imageVector = if (isConnected) Icons.Rounded.Shield else Icons.Rounded.ShieldMoon,
+                                    contentDescription = stringResource(R.string.cd_proxy),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = if (isConnected) Color(0xFF34A853) else MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+
+                        IconButton(onClick = onSearchToggle, shapes = iconButtonShapes) {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = stringResource(R.string.action_search),
+                                modifier = Modifier.size(26.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        IconButton(
+                            onClick = onMenuClick,
+                            shapes = iconButtonShapes,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .semantics { contentDescription = "Settings" }
+                        ) {
+                            AvatarTopAppBar(
+                                path = user?.avatarPath,
+                                fallbackPath = user?.personalAvatarPath,
+                                name = user?.firstName ?: "",
+                                size = 36.dp,
+                                videoPlayerPool = videoPlayerPool
+                            )
+                        }
                     }
                 }
+
             }
         }
     }

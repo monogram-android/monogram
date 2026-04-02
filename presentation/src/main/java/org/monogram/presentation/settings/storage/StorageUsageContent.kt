@@ -98,7 +98,7 @@ fun StorageUsageContent(component: StorageUsageComponent) {
             Box(modifier = Modifier
                 .fillMaxSize()
                 .padding(padding), contentAlignment = Alignment.Center) {
-                LoadingIndicator()
+                ContainedLoadingIndicator()
             }
         } else {
             val usage = state.usage

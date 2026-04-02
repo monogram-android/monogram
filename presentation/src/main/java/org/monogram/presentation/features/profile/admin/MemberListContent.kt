@@ -137,7 +137,7 @@ fun MemberListContent(component: MemberListComponent) {
     ) { padding ->
         if (state.isLoading && state.members.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                LoadingIndicator()
+                ContainedLoadingIndicator()
             }
         } else {
             LazyColumn(

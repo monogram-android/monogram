@@ -164,7 +164,7 @@ fun NotificationsExceptionsContent(
                         .padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
-                    LoadingIndicator()
+                    ContainedLoadingIndicator()
                 }
             }
 

@@ -485,6 +485,13 @@ fun MessageOptionsMenu(
                     modifier = contentModifier
                         .padding(vertical = 4.dp)
                 ) {
+                    DropdownMenuGroup(
+                        shapes = MenuDefaults.groupShape(0, 1),
+                        contentPadding = PaddingValues(0.dp),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 0.dp
+                    ) {
                     if (page == MenuPage.Main) {
                         ReactionsRow(
                             message = message,
@@ -795,6 +802,7 @@ fun MessageOptionsMenu(
                                 }
                             }
                         }
+                    }
                     }
                 }
             }

@@ -795,7 +795,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                LoadingIndicator()
+                ContainedLoadingIndicator()
             }
         } else {
             LazyColumn(

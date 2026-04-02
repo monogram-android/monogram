@@ -199,7 +199,7 @@ fun StickersContent(component: StickersComponent) {
                                 .padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            LoadingIndicator()
+                            ContainedLoadingIndicator()
                         }
                     } else {
                         when (tabIndex) {

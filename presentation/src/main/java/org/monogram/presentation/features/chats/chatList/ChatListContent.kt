@@ -6,7 +6,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -95,6 +95,7 @@ fun ChatListContent(component: ChatListComponent) {
 
     val adaptiveInfo = currentWindowAdaptiveInfo()
     val isTablet = adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED
+    val wideRailState = rememberWideNavigationRailState(initialValue = WideNavigationRailValue.Expanded)
 
     val isCustomBackHandlingEnabled =
         state.isSearchActive || state.selectedChatIds.isNotEmpty() || state.selectedFolderId == -2 || state.isForwarding || state.instantViewUrl != null || state.webAppUrl != null || state.webViewUrl != null || showStatusMenu
@@ -412,7 +413,7 @@ fun ChatListContent(component: ChatListComponent) {
     val onChatLongClicked = remember(component) { { id: Long -> component.onChatLongClicked(id) } }
     val statusMenuScrimAlpha by animateFloatAsState(
         targetValue = if (statusMenuTransitionState.targetState) 0.18f else 0f,
-        animationSpec = tween(durationMillis = 220),
+        animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
         label = "ChatListStatusMenuScrimAlpha"
     )
 
@@ -532,13 +533,15 @@ fun ChatListContent(component: ChatListComponent) {
                 }
 
                 if (state.connectionStatus == ConnectionStatus.Connecting || state.connectionStatus == ConnectionStatus.Updating || state.connectionStatus == ConnectionStatus.ConnectingToProxy) {
-                    LinearWavyProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(2.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = Color.Transparent
-                    )
+                    Column {
+                        LinearWavyProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = Color.Transparent
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
                 }
 
                 val isMainView = !state.isSearchActive && state.selectedFolderId != -2
@@ -687,6 +690,46 @@ fun ChatListContent(component: ChatListComponent) {
             shape = if (isTablet) RoundedCornerShape(0.dp) else RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             color = if (isTablet) Color.Transparent else MaterialTheme.colorScheme.surface
         ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (isTablet) {
+                    WideNavigationRail(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(start = 8.dp, top = 12.dp, bottom = 12.dp),
+                        state = wideRailState,
+                        shape = ShapeDefaults.ExtraLargeIncreased
+                    ) {
+                        WideNavigationRailItem(
+                            railExpanded = true,
+                            icon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                            label = { Text(stringResource(R.string.search_section_chats)) },
+                            selected = state.selectedFolderId != -2,
+                            onClick = {
+                                state.folders.firstOrNull()?.id?.let { component.onFolderClicked(it) }
+                            }
+                        )
+                        WideNavigationRailItem(
+                            railExpanded = true,
+                            icon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
+                            label = { Text(stringResource(R.string.menu_archive)) },
+                            selected = state.selectedFolderId == -2,
+                            onClick = { component.onFolderClicked(-2) }
+                        )
+                        WideNavigationRailItem(
+                            railExpanded = true,
+                            icon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
+                            label = { Text(stringResource(R.string.settings)) },
+                            selected = false,
+                            onClick = component::onSettingsClicked
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = if (isTablet) 108.dp else 0.dp)
+                ) {
             if (state.isSearchActive || state.selectedFolderId == -2) {
                 var showAllGlobal by remember { mutableStateOf(false) }
                 var showAllMessages by remember { mutableStateOf(false) }
@@ -1012,7 +1055,7 @@ fun ChatListContent(component: ChatListComponent) {
                     if (isArchivedView) {
                         Crossfade(
                             targetState = showArchivedShimmer,
-                            animationSpec = if (shouldAnimateFirstArchiveTransition) tween(360) else tween(0),
+                            animationSpec = if (shouldAnimateFirstArchiveTransition) MaterialTheme.motionScheme.defaultEffectsSpec() else snap(),
                             label = "ArchiveChatsCrossfade"
                         ) { showShimmer ->
                             if (showShimmer) {
@@ -1096,7 +1139,7 @@ fun ChatListContent(component: ChatListComponent) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         Crossfade(
                             targetState = showFolderShimmer,
-                            animationSpec = if (shouldAnimateFirstFolderTransition) tween(360) else tween(0),
+                            animationSpec = if (shouldAnimateFirstFolderTransition) MaterialTheme.motionScheme.defaultEffectsSpec() else snap(),
                             label = "FolderChatsCrossfade"
                         ) { showShimmer ->
                             if (showShimmer) {
@@ -1137,6 +1180,8 @@ fun ChatListContent(component: ChatListComponent) {
                             }
                         }
                     }
+                }
+            }
                 }
             }
         }
@@ -1193,17 +1238,17 @@ fun ChatListContent(component: ChatListComponent) {
 
             AnimatedVisibility(
                 visibleState = statusMenuTransitionState,
-                enter = fadeIn(animationSpec = tween(180)) +
-                        slideInVertically(animationSpec = tween(260)) { -it / 5 } +
+                enter = fadeIn(animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                        slideInVertically(animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()) { -it / 5 } +
                         scaleIn(
-                            animationSpec = tween(260),
+                            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
                             initialScale = 0.94f,
                             transformOrigin = TransformOrigin(0.85f, 0f)
                         ),
-                exit = fadeOut(animationSpec = tween(130)) +
-                        slideOutVertically(animationSpec = tween(170)) { -it / 6 } +
+                exit = fadeOut(animationSpec = MaterialTheme.motionScheme.fastEffectsSpec()) +
+                        slideOutVertically(animationSpec = MaterialTheme.motionScheme.fastSpatialSpec()) { -it / 6 } +
                         scaleOut(
-                            animationSpec = tween(170),
+                            animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
                             targetScale = 0.97f,
                             transformOrigin = TransformOrigin(0.85f, 0f)
                         ),
@@ -1213,7 +1258,7 @@ fun ChatListContent(component: ChatListComponent) {
                     modifier = Modifier
                         .width(menuWidth)
                         .heightIn(max = maxMenuHeightDp)
-                        .clip(RoundedCornerShape(24.dp))
+                        .clip(ShapeDefaults.LargeIncreased)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null

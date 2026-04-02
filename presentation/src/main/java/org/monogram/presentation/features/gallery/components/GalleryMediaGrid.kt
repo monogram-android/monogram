@@ -37,7 +37,7 @@ fun GalleryGrid(
 ) {
     if (isLoading) {
         Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            LoadingIndicator()
+            ContainedLoadingIndicator()
         }
         return
     }

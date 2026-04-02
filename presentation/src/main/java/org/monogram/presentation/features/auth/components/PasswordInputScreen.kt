@@ -422,7 +422,7 @@ private fun PasswordContent(
         if (isSubmitting) {
             LoadingIndicator(
                 modifier = Modifier.size(24.dp),
-                color = MaterialTheme.colorScheme.onPrimary
+                color = MaterialTheme.colorScheme.primary
             )
         } else {
             Text(stringResource(R.string.unlock_button), fontSize = 18.sp, fontWeight = FontWeight.Bold)

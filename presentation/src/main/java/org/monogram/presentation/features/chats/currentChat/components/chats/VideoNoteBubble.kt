@@ -22,11 +22,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -52,6 +54,7 @@ import java.io.File
 import java.io.FileNotFoundException
 
 @OptIn(UnstableApi::class)
+@kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoNoteBubble(
     content: MessageContent.VideoNote,
@@ -225,7 +228,7 @@ fun VideoNoteBubble(
                             contentAlignment = Alignment.Center
                         ) {
                             if (content.isDownloading) {
-                                CircularProgressIndicator(
+                                CircularWavyProgressIndicator(
                                     progress = { content.downloadProgress },
                                     color = Color.White,
                                     modifier = Modifier.size(48.dp)
@@ -265,20 +268,19 @@ fun VideoNoteBubble(
                         .background(Color.Black.copy(alpha = 0.5f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
+                    CircularWavyProgressIndicator(
                         progress = { content.uploadProgress },
                         color = Color.White,
-                        strokeWidth = 3.dp,
+                        stroke = Stroke(width = with(LocalDensity.current) { 3.dp.toPx() }),
                         modifier = Modifier.size(48.dp),
                         trackColor = Color.White.copy(alpha = 0.3f)
                     )
                 }
             } else if (content.path != null && !hasError) {
-
-                CircularProgressIndicator(
+                CircularWavyProgressIndicator(
                     progress = { progress },
                     color = Color.White,
-                    strokeWidth = 2.dp,
+                    stroke = Stroke(width = with(LocalDensity.current) { 2.dp.toPx() }),
                     modifier = Modifier.matchParentSize(),
                     trackColor = Color.Transparent
                 )

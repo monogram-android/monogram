@@ -32,7 +32,7 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.IntegratedQRScanner
 import org.monogram.presentation.core.ui.ItemPosition
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SessionsContent(component: SessionsComponent) {
     val state by component.state.subscribeAsState()
@@ -218,7 +218,7 @@ fun SessionsContent(component: SessionsComponent) {
             }
 
             if (state.isLoading) {
-                CircularProgressIndicator(Modifier.align(Alignment.Center))
+                LoadingIndicator(Modifier.align(Alignment.Center))
             }
         }
     }

@@ -38,7 +38,10 @@ import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.SettingsTile
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class,
+    ExperimentalMaterial3ExpressiveApi::class
+)
 @Composable
 fun ProxyContent(component: ProxyComponent) {
     val state by component.state.subscribeAsState()
@@ -73,7 +76,10 @@ fun ProxyContent(component: ProxyComponent) {
                 },
                 actions = {
                     IconButton(onClick = component::onPingAll) {
-                        Icon(Icons.Rounded.Refresh, contentDescription = stringResource(R.string.refresh_pings_cd))
+                        Icon(
+                            Icons.Rounded.Refresh,
+                            contentDescription = stringResource(R.string.refresh_pings_cd)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -135,7 +141,8 @@ fun ProxyContent(component: ProxyComponent) {
                         onCheckedChange = component::onPreferIpv6Toggled
                     )
 
-                    val isDirect = state.proxies.none { it.isEnabled } && state.telegaProxies.none { it.isEnabled }
+                    val isDirect =
+                        state.proxies.none { it.isEnabled } && state.telegaProxies.none { it.isEnabled }
                     SettingsTile(
                         icon = Icons.Rounded.LinkOff,
                         title = stringResource(R.string.disable_proxy_title),
@@ -147,7 +154,11 @@ fun ProxyContent(component: ProxyComponent) {
                         onClick = { component.onDisableProxy() },
                         trailingContent = {
                             if (isDirect) {
-                                Icon(Icons.Rounded.Check, contentDescription = null, tint = Color(0xFF34A853))
+                                Icon(
+                                    Icons.Rounded.Check,
+                                    contentDescription = null,
+                                    tint = Color(0xFF34A853)
+                                )
                             }
                         }
                     )
@@ -165,7 +176,8 @@ fun ProxyContent(component: ProxyComponent) {
                             text = stringResource(R.string.telega_proxy_header),
                             subtitle = stringResource(R.string.telega_proxy_subtitle),
                             onSubtitleClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/telegaru"))
+                                val intent =
+                                    Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/telegaru"))
                                 context.startActivity(intent)
                             }
                         )
@@ -200,9 +212,8 @@ fun ProxyContent(component: ProxyComponent) {
                                     onClick = { component.onFetchTelegaProxies() },
                                     trailingContent = {
                                         if (state.isFetchingExternal) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(20.dp),
-                                                strokeWidth = 2.dp
+                                            LoadingIndicator(
+                                                modifier = Modifier.size(20.dp)
                                             )
                                         }
                                     }
@@ -346,7 +357,14 @@ fun ProxyContent(component: ProxyComponent) {
         AlertDialog(
             onDismissRequest = component::onDismissDeleteConfirmation,
             title = { Text(stringResource(R.string.delete_proxy_title)) },
-            text = { Text(stringResource(R.string.delete_proxy_confirmation_format, proxy.server)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.delete_proxy_confirmation_format,
+                        proxy.server
+                    )
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = component::onConfirmDelete,
@@ -496,7 +514,10 @@ fun ProxyItem(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                RoundedCornerShape(4.dp)
+                            )
                             .padding(horizontal = 4.dp, vertical = 1.dp)
                     )
                     Spacer(Modifier.width(8.dp))
@@ -607,7 +628,7 @@ private fun SectionHeader(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ProxyAddEditSheet(
     proxy: ProxyModel?,
@@ -631,7 +652,11 @@ fun ProxyAddEditSheet(
         )
     }
 
-    var secret by remember { mutableStateOf((proxy?.type as? ProxyTypeModel.Mtproto)?.secret ?: "") }
+    var secret by remember {
+        mutableStateOf(
+            (proxy?.type as? ProxyTypeModel.Mtproto)?.secret ?: ""
+        )
+    }
     var username by remember {
         mutableStateOf(
             when (val t = proxy?.type) {
@@ -659,7 +684,8 @@ fun ProxyAddEditSheet(
         }
     }
 
-    val isInputValid = server.isNotBlank() && port.isNotBlank() && (type != "MTProto" || secret.isNotBlank())
+    val isInputValid =
+        server.isNotBlank() && port.isNotBlank() && (type != "MTProto" || secret.isNotBlank())
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -675,7 +701,9 @@ fun ProxyAddEditSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = if (proxy == null) stringResource(R.string.new_proxy_title) else stringResource(R.string.edit_proxy_title),
+                text = if (proxy == null) stringResource(R.string.new_proxy_title) else stringResource(
+                    R.string.edit_proxy_title
+                ),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -686,7 +714,10 @@ fun ProxyAddEditSheet(
                 Modifier
                     .selectableGroup()
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(50))
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        RoundedCornerShape(50)
+                    )
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -811,10 +842,7 @@ fun ProxyAddEditSheet(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     if (isTesting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
-                        )
+                        LoadingIndicator(modifier = Modifier.size(18.dp))
                     } else {
                         Text(stringResource(R.string.test_proxy_button))
                     }
@@ -832,7 +860,9 @@ fun ProxyAddEditSheet(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(
-                        if (proxy == null) stringResource(R.string.add_proxy_button) else stringResource(R.string.save_changes_button),
+                        if (proxy == null) stringResource(R.string.add_proxy_button) else stringResource(
+                            R.string.save_changes_button
+                        ),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )

@@ -36,8 +36,9 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -91,7 +92,7 @@ import org.monogram.presentation.features.viewers.ImageViewer
 import org.monogram.presentation.features.viewers.VideoViewer
 import org.monogram.presentation.features.webapp.MiniAppViewer
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ProfileContent(component: ProfileComponent) {
     val state by component.state.subscribeAsState()
@@ -438,8 +439,7 @@ fun ProfileContent(component: ProfileComponent) {
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                CircularProgressIndicator(
-                                    strokeWidth = 2.dp,
+                                LoadingIndicator(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(

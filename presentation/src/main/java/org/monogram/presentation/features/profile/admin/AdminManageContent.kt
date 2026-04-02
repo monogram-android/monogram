@@ -24,7 +24,7 @@ import org.monogram.presentation.features.chats.chatList.components.SettingsText
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AdminManageContent(component: AdminManageComponent) {
     val state by component.state.subscribeAsState()
@@ -72,7 +72,7 @@ fun AdminManageContent(component: AdminManageComponent) {
     ) { padding ->
         if (state.isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                LoadingIndicator()
             }
         } else {
             LazyColumn(

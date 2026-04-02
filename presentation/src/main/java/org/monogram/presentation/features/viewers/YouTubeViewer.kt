@@ -57,6 +57,7 @@ import java.util.*
 import java.util.regex.Pattern
 import kotlin.math.max
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun YouTubeViewer(
     videoUrl: String,
@@ -449,7 +450,7 @@ fun YouTubeViewer(
                     }
             ) {
                 if (playerState.isLoading) {
-                    CircularProgressIndicator(
+                    LoadingIndicator(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.align(Alignment.Center)
                     )

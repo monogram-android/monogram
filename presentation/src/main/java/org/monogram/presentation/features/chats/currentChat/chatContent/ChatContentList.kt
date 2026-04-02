@@ -303,6 +303,7 @@ fun ChatContentList(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun PagingLoadingIndicator() {
     Box(
@@ -321,9 +322,8 @@ private fun PagingLoadingIndicator() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(14.dp),
-                    strokeWidth = 2.dp
+                LoadingIndicator(
+                    modifier = Modifier.size(14.dp)
                 )
                 Text(
                     text = "Loading...",

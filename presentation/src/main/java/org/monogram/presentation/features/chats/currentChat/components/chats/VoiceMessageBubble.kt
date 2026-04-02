@@ -20,8 +20,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.MessageContent
@@ -161,6 +163,7 @@ fun VoiceMessageBubble(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VoiceRow(
     content: MessageContent.Voice,
@@ -195,11 +198,11 @@ fun VoiceRow(
             contentAlignment = Alignment.Center
         ) {
             if (content.isDownloading || content.isUploading) {
-                CircularProgressIndicator(
+                CircularWavyProgressIndicator(
                     progress = { if (content.isDownloading) content.downloadProgress else content.uploadProgress },
                     modifier = Modifier.size(32.dp),
                     color = if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onPrimary,
-                    strokeWidth = 2.dp,
+                    stroke = Stroke(width = with(LocalDensity.current) { 2.dp.toPx() }),
                     trackColor = (if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onPrimary).copy(
                         alpha = 0.2f
                     ),

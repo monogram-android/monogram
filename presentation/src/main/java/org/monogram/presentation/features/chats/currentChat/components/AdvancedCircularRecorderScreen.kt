@@ -119,6 +119,7 @@ fun AdvancedCircularRecorderScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @SuppressLint("MissingPermission", "RestrictedApi")
 @Composable
 fun NativeCircularCameraContent(
@@ -605,7 +606,7 @@ fun NativeCircularCameraContent(
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.8f)), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = Color.White)
+                    LoadingIndicator(color = Color.White)
                     Text(
                         stringResource(R.string.recorder_processing),
                         color = Color.White,

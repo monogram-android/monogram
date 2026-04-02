@@ -45,7 +45,7 @@ private enum class NetworkTab(val titleRes: Int, val icon: ImageVector) {
     Other(R.string.other_tab, Icons.Rounded.DevicesOther)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun NetworkUsageContent(component: NetworkUsageComponent) {
     val state by component.state.subscribeAsState()
@@ -101,7 +101,7 @@ fun NetworkUsageContent(component: NetworkUsageComponent) {
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                LoadingIndicator()
             }
         } else {
             Column(

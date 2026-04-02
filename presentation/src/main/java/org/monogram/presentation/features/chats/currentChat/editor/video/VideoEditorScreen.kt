@@ -2,7 +2,6 @@ package org.monogram.presentation.features.chats.currentChat.editor.video
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.annotation.OptIn
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
@@ -57,7 +56,8 @@ enum class VideoEditorTool(@StringRes val labelRes: Int, val icon: ImageVector) 
     COMPRESS(R.string.video_tool_compress, Icons.Rounded.Compress)
 }
 
-@OptIn(UnstableApi::class)
+@androidx.annotation.OptIn(UnstableApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoEditorScreen(
     videoPath: String,
@@ -354,7 +354,8 @@ fun VideoEditorScreen(
                                     indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                                     selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             )
                         }
@@ -463,7 +464,7 @@ fun VideoEditorScreen(
                         .background(Color.Black.copy(0.6f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    LoadingIndicator()
                 }
             }
         }

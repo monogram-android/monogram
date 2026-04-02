@@ -56,7 +56,7 @@ private val ChartColors = listOf(
     Color(0xFF90A4AE)  // Blue Grey
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun StorageUsageContent(component: StorageUsageComponent) {
     val state by component.state.subscribeAsState()
@@ -96,7 +96,7 @@ fun StorageUsageContent(component: StorageUsageComponent) {
             Box(modifier = Modifier
                 .fillMaxSize()
                 .padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                LoadingIndicator()
             }
         } else {
             val usage = state.usage

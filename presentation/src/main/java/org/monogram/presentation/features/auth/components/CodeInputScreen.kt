@@ -310,7 +310,8 @@ fun CodeInputScreen(
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.paste_action)) },
                     onClick = {
-                        val pastedText = nativeClipboard.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
+                        val pastedText =
+                            nativeClipboard.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
                         val digits = pastedText.filter { it.isDigit() }.take(maxCodeLength)
                         if (digits.isNotEmpty()) {
                             code = digits
@@ -327,7 +328,10 @@ fun CodeInputScreen(
         Spacer(modifier = Modifier.height(middleSpacerHeight))
 
         if (isSubmitting) {
-            LoadingIndicator(modifier = Modifier.size(32.dp))
+            LoadingIndicator(
+                modifier = Modifier.size(32.dp),
+                color = MaterialTheme.colorScheme.primary
+            )
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(

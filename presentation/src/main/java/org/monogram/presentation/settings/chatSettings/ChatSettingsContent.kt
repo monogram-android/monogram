@@ -1171,7 +1171,7 @@ private fun nightModeLabel(mode: NightMode): String = when (mode) {
     NightMode.BRIGHTNESS -> stringResource(R.string.night_mode_brightness)
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun EmojiStyleItem(
     style: EmojiStyle,
@@ -1259,10 +1259,9 @@ private fun EmojiStyleItem(
                     contentAlignment = Alignment.Center
                 ) {
                     if (isDownloading) {
-                        CircularProgressIndicator(
+                        LoadingIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
+                            color = Color.White
                         )
                     } else {
                         Icon(

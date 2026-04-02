@@ -23,7 +23,7 @@ import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PollVotersSheet(
     voters: List<UserModel>,
@@ -57,7 +57,7 @@ fun PollVotersSheet(
                         .height(200.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    LoadingIndicator()
                 }
             } else if (voters.isEmpty()) {
                 Box(

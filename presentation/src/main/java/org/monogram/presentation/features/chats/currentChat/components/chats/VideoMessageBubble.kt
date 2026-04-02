@@ -42,6 +42,7 @@ import org.monogram.presentation.features.chats.currentChat.components.VideoPlay
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoMessageBubble(
     content: MessageContent.Video,
@@ -341,13 +342,13 @@ fun VideoMessageBubble(
                             contentAlignment = Alignment.Center
                         ) {
                             if (content.uploadProgress > 0f) {
-                                CircularProgressIndicator(
+                                CircularWavyProgressIndicator(
                                     progress = { content.uploadProgress },
                                     color = Color.White,
                                     trackColor = Color.White.copy(alpha = 0.3f)
                                 )
                             } else {
-                                CircularProgressIndicator(
+                                LoadingIndicator(
                                     color = Color.White
                                 )
                             }

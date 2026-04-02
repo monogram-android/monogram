@@ -44,6 +44,7 @@ private enum class InlineResultsMode {
     List
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun InlineBotResults(
     inlineBotResults: InlineBotResultsModel?,
@@ -123,7 +124,7 @@ fun InlineBotResults(
                             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.25f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(30.dp))
+                        LoadingIndicator(modifier = Modifier.size(30.dp))
                     }
                 }
             }

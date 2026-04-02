@@ -58,6 +58,7 @@ import kotlin.math.max
 private const val TAG = "VideoPage"
 
 @OptIn(UnstableApi::class)
+@kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoPage(
     path: String,
@@ -147,9 +148,19 @@ fun VideoPage(
         }
 
         if (dataSourceFactory != null) {
-            playerBuilder.setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory))
+            playerBuilder.setMediaSourceFactory(
+                DefaultMediaSourceFactory(
+                    dataSourceFactory,
+                    extractorsFactory
+                )
+            )
         } else {
-            playerBuilder.setMediaSourceFactory(DefaultMediaSourceFactory(context, extractorsFactory))
+            playerBuilder.setMediaSourceFactory(
+                DefaultMediaSourceFactory(
+                    context,
+                    extractorsFactory
+                )
+            )
         }
 
         playerBuilder.build().apply {
@@ -332,7 +343,8 @@ fun VideoPage(
                 },
                 update = { view ->
                     view.player = exoPlayer
-                    view.resizeMode = if (isInPipMode) AspectRatioFrameLayout.RESIZE_MODE_FIT else resizeMode
+                    view.resizeMode =
+                        if (isInPipMode) AspectRatioFrameLayout.RESIZE_MODE_FIT else resizeMode
                     view.setOnClickListener { currentOnToggleControls() }
                     playerView = view
                 },
@@ -341,10 +353,11 @@ fun VideoPage(
         }
 
         if (!isInPipMode) {
-            if (isBuffering) CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.align(Alignment.Center)
-            )
+            if (isBuffering)
+                LoadingIndicator(
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.align(Alignment.Center)
+                )
 
             SeekFeedback(
                 rewindSeekFeedback,
@@ -362,7 +375,12 @@ fun VideoPage(
                     .align(Alignment.CenterEnd)
                     .padding(end = 64.dp)
             )
-            GestureOverlay(showGestureOverlay, gestureIcon, gestureText, Modifier.align(Alignment.Center))
+            GestureOverlay(
+                showGestureOverlay,
+                gestureIcon,
+                gestureText,
+                Modifier.align(Alignment.Center)
+            )
 
             if (isLocked) {
                 AnimatedVisibility(
@@ -381,7 +399,13 @@ fun VideoPage(
                                 .windowInsetsPadding(WindowInsets.statusBars)
                                 .padding(16.dp)
                                 .background(MaterialTheme.colorScheme.surfaceContainer, CircleShape)
-                        ) { Icon(Icons.Rounded.Lock, stringResource(R.string.action_unlock), tint = MaterialTheme.colorScheme.onSurface) }
+                        ) {
+                            Icon(
+                                Icons.Rounded.Lock,
+                                stringResource(R.string.action_unlock),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             } else {
@@ -418,11 +442,16 @@ fun VideoPage(
                 AnimatedVisibility(
                     visible = showSettingsMenu && showControls,
                     enter = fadeIn(tween(150)) + scaleIn(
-                        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium),
+                        animationSpec = spring(
+                            dampingRatio = 0.8f,
+                            stiffness = Spring.StiffnessMedium
+                        ),
                         initialScale = 0.8f, transformOrigin = TransformOrigin(1f, 0f)
                     ),
                     exit = fadeOut(tween(150)) + scaleOut(
-                        animationSpec = tween(150), targetScale = 0.9f, transformOrigin = TransformOrigin(1f, 0f)
+                        animationSpec = tween(150),
+                        targetScale = 0.9f,
+                        transformOrigin = TransformOrigin(1f, 0f)
                     ),
                     modifier = Modifier
                         .fillMaxSize()
@@ -476,12 +505,18 @@ fun VideoPage(
                                 val view = playerView ?: return@VideoSettingsMenu
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                                     val surfaceView =
-                                        view.videoSurfaceView as? android.view.SurfaceView ?: return@VideoSettingsMenu
+                                        view.videoSurfaceView as? android.view.SurfaceView
+                                            ?: return@VideoSettingsMenu
                                     val bitmap =
-                                        androidx.core.graphics.createBitmap(surfaceView.width, surfaceView.height)
+                                        androidx.core.graphics.createBitmap(
+                                            surfaceView.width,
+                                            surfaceView.height
+                                        )
                                     android.view.PixelCopy.request(surfaceView, bitmap, { result ->
                                         if (result == android.view.PixelCopy.SUCCESS) {
-                                            if (toClipboard) downloadUtils.copyBitmapToClipboard(bitmap) else downloadUtils.saveBitmapToGallery(
+                                            if (toClipboard) downloadUtils.copyBitmapToClipboard(
+                                                bitmap
+                                            ) else downloadUtils.saveBitmapToGallery(
                                                 bitmap
                                             )
                                         }
@@ -549,7 +584,11 @@ fun VideoPlayerControls(
             exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
-            ViewerTopBar(onBack = onBack, onActionClick = onSettingsToggle, isActionActive = isSettingsOpen)
+            ViewerTopBar(
+                onBack = onBack,
+                onActionClick = onSettingsToggle,
+                isActionActive = isSettingsOpen
+            )
         }
 
         AnimatedVisibility(
@@ -558,14 +597,25 @@ fun VideoPlayerControls(
             exit = scaleOut() + fadeOut(),
             modifier = Modifier.align(Alignment.Center)
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(48.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(48.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 IconButton(onClick = onRewind, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Rounded.Replay10, stringResource(R.string.viewer_seek_rewind_cd), tint = Color.White, modifier = Modifier.fillMaxSize())
+                    Icon(
+                        Icons.Rounded.Replay10,
+                        stringResource(R.string.viewer_seek_rewind_cd),
+                        tint = Color.White,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
 
                 val interactionSource = remember { MutableInteractionSource() }
                 val isPressed by interactionSource.collectIsPressedAsState()
-                val scale by animateFloatAsState(targetValue = if (isPressed) 0.9f else 1f, label = "scale")
+                val scale by animateFloatAsState(
+                    targetValue = if (isPressed) 0.9f else 1f,
+                    label = "scale"
+                )
 
                 Box(
                     modifier = Modifier
@@ -573,7 +623,10 @@ fun VideoPlayerControls(
                         .size(84.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f))
-                        .clickable(interactionSource = interactionSource, indication = null) { onPlayPauseToggle() },
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null
+                        ) { onPlayPauseToggle() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -593,7 +646,12 @@ fun VideoPlayerControls(
                 }
 
                 IconButton(onClick = onForward, modifier = Modifier.size(56.dp)) {
-                    Icon(Icons.Rounded.Forward10, stringResource(R.string.viewer_seek_forward_cd), tint = Color.White, modifier = Modifier.fillMaxSize())
+                    Icon(
+                        Icons.Rounded.Forward10,
+                        stringResource(R.string.viewer_seek_forward_cd),
+                        tint = Color.White,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
         }
@@ -747,7 +805,9 @@ fun VideoSettingsMenu(
                             MenuOptionRow(
                                 icon = if (resizeMode == AspectRatioFrameLayout.RESIZE_MODE_FIT) Icons.Rounded.AspectRatio else Icons.Rounded.FitScreen,
                                 title = stringResource(R.string.settings_scale_mode),
-                                value = if (resizeMode == AspectRatioFrameLayout.RESIZE_MODE_FIT) stringResource(R.string.settings_scale_fit) else stringResource(R.string.settings_scale_zoom),
+                                value = if (resizeMode == AspectRatioFrameLayout.RESIZE_MODE_FIT) stringResource(
+                                    R.string.settings_scale_fit
+                                ) else stringResource(R.string.settings_scale_zoom),
                                 onClick = onResizeToggle
                             )
                         }
@@ -787,7 +847,11 @@ fun VideoSettingsMenu(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                         )
-                        MenuOptionRow(icon = Icons.Rounded.Download, title = stringResource(R.string.action_download_video), onClick = onDownload)
+                        MenuOptionRow(
+                            icon = Icons.Rounded.Download,
+                            title = stringResource(R.string.action_download_video),
+                            onClick = onDownload
+                        )
                         if (onSaveGif != null) MenuOptionRow(
                             icon = Icons.Rounded.Gif,
                             title = stringResource(R.string.action_save_gifs),
@@ -803,7 +867,11 @@ fun VideoSettingsMenu(
                             title = stringResource(R.string.action_copy_link),
                             onClick = onCopyLink
                         )
-                        MenuOptionRow(icon = Icons.AutoMirrored.Rounded.Forward, title = stringResource(R.string.action_forward), onClick = onForward)
+                        MenuOptionRow(
+                            icon = Icons.AutoMirrored.Rounded.Forward,
+                            title = stringResource(R.string.action_forward),
+                            onClick = onForward
+                        )
                         MenuOptionRow(
                             icon = Icons.Rounded.Lock,
                             title = stringResource(R.string.settings_lock_controls),
@@ -826,6 +894,7 @@ fun VideoSettingsMenu(
                         }
                     }
                 }
+
                 SettingsScreen.SPEED -> {
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
                         Row(
@@ -857,6 +926,7 @@ fun VideoSettingsMenu(
                         }
                     }
                 }
+
                 SettingsScreen.SCREENSHOT -> {
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
                         Row(

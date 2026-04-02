@@ -48,7 +48,7 @@ enum class EditorTool(val labelRes: Int, val icon: ImageVector) {
     ERASER(R.string.photo_editor_tool_eraser, Icons.Rounded.CleaningServices)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PhotoEditorScreen(
     imagePath: String,
@@ -236,7 +236,8 @@ fun PhotoEditorScreen(
                                     indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                                     selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             )
                         }
@@ -436,7 +437,7 @@ fun PhotoEditorScreen(
                         .background(Color.Black.copy(0.6f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    LoadingIndicator()
                 }
             }
         }

@@ -73,6 +73,7 @@ private fun CustomEmojiIcon(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainButton(
     state: MainButtonState,
@@ -103,10 +104,9 @@ fun MainButton(
         shape = MaterialTheme.shapes.medium
     ) {
         if (state.isProgressVisible) {
-            CircularProgressIndicator(
+            LoadingIndicator(
                 modifier = Modifier.size(20.dp),
-                color = state.textColor ?: defaultTextColor,
-                strokeWidth = 2.dp
+                color = state.textColor ?: defaultTextColor
             )
         } else {
             if (state.iconCustomEmojiId?.toLongOrNull() != null) {
@@ -121,6 +121,7 @@ fun MainButton(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SecondaryButton(
     state: SecondaryButtonState,
@@ -151,10 +152,9 @@ fun SecondaryButton(
         shape = MaterialTheme.shapes.medium
     ) {
         if (state.isProgressVisible) {
-            CircularProgressIndicator(
+            LoadingIndicator(
                 modifier = Modifier.size(20.dp),
-                color = state.textColor ?: defaultTextColor,
-                strokeWidth = 2.dp
+                color = state.textColor ?: defaultTextColor
             )
         } else {
             if (state.iconCustomEmojiId?.toLongOrNull() != null) {

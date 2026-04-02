@@ -16,9 +16,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -284,6 +286,7 @@ fun ChannelAlbumMessageBubble(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChannelDocumentAlbumBubble(
     messages: List<MessageModel>,
@@ -382,11 +385,11 @@ fun ChannelDocumentAlbumBubble(
                             contentAlignment = Alignment.Center
                         ) {
                             if (content.isDownloading || content.isUploading) {
-                                CircularProgressIndicator(
+                                CircularWavyProgressIndicator(
                                     progress = { if (content.isDownloading) content.downloadProgress else content.uploadProgress },
                                     modifier = Modifier.size(36.dp),
                                     color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 3.dp,
+                                    stroke = Stroke(width = with(LocalDensity.current) { 3.dp.toPx() }),
                                     trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
                                 )
                                 Icon(
@@ -486,6 +489,7 @@ fun ChannelDocumentAlbumBubble(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChannelAudioAlbumBubble(
     messages: List<MessageModel>,
@@ -584,11 +588,11 @@ fun ChannelAudioAlbumBubble(
                             contentAlignment = Alignment.Center
                         ) {
                             if (content.isDownloading || content.isUploading) {
-                                CircularProgressIndicator(
+                                CircularWavyProgressIndicator(
                                     progress = { if (content.isDownloading) content.downloadProgress else content.uploadProgress },
                                     modifier = Modifier.size(36.dp),
                                     color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 3.dp,
+                                    stroke = Stroke(width = with(LocalDensity.current) { 3.dp.toPx() }),
                                     trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
                                 )
                                 Icon(

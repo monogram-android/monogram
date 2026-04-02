@@ -42,7 +42,7 @@ import java.util.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun StatisticsViewer(
     title: String,
@@ -89,9 +89,7 @@ fun StatisticsViewer(
                         .fillMaxWidth()
                         .height(300.dp), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(
-                                strokeWidth = 4.dp,
-                                strokeCap = StrokeCap.Round,
+                            LoadingIndicator(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(16.dp))
@@ -765,6 +763,7 @@ private fun RevenueMetricCard(modifier: Modifier = Modifier, label: String, valu
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GraphSection(title: String, graph: StatisticsGraphModel, color: Color, onLoadGraph: (String) -> Unit) {
     if (graph is StatisticsGraphModel.Error) return
@@ -804,11 +803,9 @@ fun GraphSection(title: String, graph: StatisticsGraphModel, color: Color, onLoa
                     }
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(
+                            LoadingIndicator(
                                 modifier = Modifier.size(48.dp),
-                                strokeWidth = 4.dp,
-                                color = color,
-                                strokeCap = StrokeCap.Round
+                                color = color
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(

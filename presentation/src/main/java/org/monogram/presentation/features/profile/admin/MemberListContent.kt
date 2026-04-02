@@ -36,7 +36,7 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MemberListContent(component: MemberListComponent) {
     val state by component.state.subscribeAsState()
@@ -135,7 +135,7 @@ fun MemberListContent(component: MemberListComponent) {
     ) { padding ->
         if (state.isLoading && state.members.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                LoadingIndicator()
             }
         } else {
             LazyColumn(
@@ -203,7 +203,7 @@ fun MemberListContent(component: MemberListComponent) {
                                 .fillMaxWidth()
                                 .padding(16.dp), contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            LoadingIndicator(modifier = Modifier.size(24.dp))
                         }
                     }
                 }

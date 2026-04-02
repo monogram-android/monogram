@@ -36,7 +36,7 @@ import org.monogram.presentation.features.viewers.VideoViewer
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ProfileLogsContent(component: ProfileLogsComponent) {
     val state by component.state.subscribeAsState()
@@ -98,7 +98,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 if (state.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    LoadingIndicator(modifier = Modifier.align(Alignment.Center))
                 } else if (state.logs.isEmpty()) {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
@@ -159,7 +159,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                                         .padding(16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                    LoadingIndicator(modifier = Modifier.size(24.dp))
                                 }
                             }
                         }

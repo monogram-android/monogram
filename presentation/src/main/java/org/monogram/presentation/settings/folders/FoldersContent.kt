@@ -33,7 +33,7 @@ import org.monogram.domain.models.FolderModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FoldersContent(component: FoldersComponent) {
     val state by component.state.subscribeAsState()
@@ -88,7 +88,7 @@ fun FoldersContent(component: FoldersComponent) {
                 .padding(top = padding.calculateTopPadding())
         ) {
             if (state.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                LoadingIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
                 FolderList(
                     systemFolders = systemFolders,

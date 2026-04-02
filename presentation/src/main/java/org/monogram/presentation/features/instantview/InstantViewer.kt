@@ -50,7 +50,9 @@ import org.monogram.presentation.features.viewers.components.ViewerSettingsDropd
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class,
+    ExperimentalMaterial3ExpressiveApi::class
+)
 @Composable
 fun InstantViewer(
     url: String,
@@ -230,7 +232,7 @@ fun InstantViewer(
                         .padding(padding)
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        LoadingIndicator(modifier = Modifier.align(Alignment.Center))
                     } else if (instantView != null) {
                         val blocks = remember(instantView, searchQuery) {
                             if (searchQuery.isEmpty()) {

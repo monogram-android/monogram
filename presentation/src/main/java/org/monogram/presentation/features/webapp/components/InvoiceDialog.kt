@@ -8,7 +8,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -19,7 +21,7 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.models.webapp.InvoiceModel
 import org.monogram.domain.repository.MessageRepository
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun InvoiceDialog(
     slug: String? = null,
@@ -77,7 +79,7 @@ fun InvoiceDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.padding(32.dp))
+                LoadingIndicator(modifier = Modifier.padding(32.dp))
             } else if (invoice == null) {
                 Text("Failed to load invoice", color = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.height(16.dp))
@@ -108,13 +110,12 @@ fun InvoiceDialog(
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(
+                        CircularWavyProgressIndicator(
                             progress = { progress },
                             modifier = Modifier,
                             color = ProgressIndicatorDefaults.circularColor,
-                            strokeWidth = 4.dp,
-                            trackColor = ProgressIndicatorDefaults.circularIndeterminateTrackColor,
-                            strokeCap = ProgressIndicatorDefaults.CircularDeterminateStrokeCap,
+                            stroke = Stroke(width = with(LocalDensity.current) { 4.dp.toPx() }, cap = ProgressIndicatorDefaults.CircularDeterminateStrokeCap),
+                            trackColor = ProgressIndicatorDefaults.circularIndeterminateTrackColor
                         )
                     }
                 }
@@ -181,10 +182,9 @@ fun InvoiceDialog(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     if (isPaying) {
-                        CircularProgressIndicator(
+                        LoadingIndicator(
                             modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
                         Text(

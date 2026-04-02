@@ -60,7 +60,7 @@ private enum class StickerTab(val titleRes: Int, val icon: ImageVector) {
     Emoji(R.string.emoji_tab, Icons.Rounded.EmojiEmotions)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun StickersContent(component: StickersComponent) {
     val state by component.state.subscribeAsState()
@@ -123,7 +123,8 @@ fun StickersContent(component: StickersComponent) {
                     ) {
                         StickerTab.entries.forEachIndexed { index, tab ->
                             val selected = (state.selectedTabIndex == index)
-                            val count = if (index == 0) state.stickerSets.size else state.emojiSets.size
+                            val count =
+                                if (index == 0) state.stickerSets.size else state.emojiSets.size
 
                             val backgroundColor by animateColorAsState(
                                 if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
@@ -197,20 +198,21 @@ fun StickersContent(component: StickersComponent) {
                                 .padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            LoadingIndicator()
                         }
                     } else {
                         when (tabIndex) {
                             0 -> {
-                                val filteredSets = remember(state.stickerSets, debouncedSearchQuery) {
-                                    if (debouncedSearchQuery.isEmpty()) state.stickerSets
-                                    else state.stickerSets.filter {
-                                        it.title.contains(
-                                            debouncedSearchQuery,
-                                            ignoreCase = true
-                                        )
+                                val filteredSets =
+                                    remember(state.stickerSets, debouncedSearchQuery) {
+                                        if (debouncedSearchQuery.isEmpty()) state.stickerSets
+                                        else state.stickerSets.filter {
+                                            it.title.contains(
+                                                debouncedSearchQuery,
+                                                ignoreCase = true
+                                            )
+                                        }
                                     }
-                                }
                                 GenericStickerList(
                                     sets = filteredSets,
                                     archivedSets = state.archivedStickerSets,
@@ -382,12 +384,18 @@ private fun GenericStickerList(
                     onActiveChange = { },
                     placeholder = { Text(stringResource(R.string.search_packs_placeholder)) },
                     leadingIcon = {
-                        Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.action_search))
+                        Icon(
+                            Icons.Rounded.Search,
+                            contentDescription = stringResource(R.string.action_search)
+                        )
                     },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { onSearchQueryChange("") }) {
-                                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_clear))
+                                Icon(
+                                    Icons.Rounded.Close,
+                                    contentDescription = stringResource(R.string.action_clear)
+                                )
                             }
                         }
                     },
@@ -479,7 +487,8 @@ private fun GenericStickerList(
                                         totalDragDistance += dragAmount.y
 
                                         val currentItemInfo = listState.layoutInfo.visibleItemsInfo
-                                            .firstOrNull { it.key == set.id } ?: return@detectDragGesturesAfterLongPress
+                                            .firstOrNull { it.key == set.id }
+                                            ?: return@detectDragGesturesAfterLongPress
 
                                         val targetY = initialDragStartOffset + totalDragDistance
                                         dragOffset = targetY - currentItemInfo.offset
@@ -501,17 +510,25 @@ private fun GenericStickerList(
                                             }
                                         }
 
-                                        val viewPortHeight = listState.layoutInfo.viewportSize.height
+                                        val viewPortHeight =
+                                            listState.layoutInfo.viewportSize.height
                                         val topThreshold = 100.dp.toPx()
                                         val bottomThreshold = viewPortHeight - 100.dp.toPx()
                                         val pointerY = initialPointerY + totalDragDistance
 
                                         if (pointerY < topThreshold) {
-                                            val intensity = ((topThreshold - pointerY) / topThreshold).coerceIn(0f, 1f)
+                                            val intensity =
+                                                ((topThreshold - pointerY) / topThreshold).coerceIn(
+                                                    0f,
+                                                    1f
+                                                )
                                             autoScrollVelocity = -(6f + (18f * intensity))
                                         } else if (pointerY > bottomThreshold) {
                                             val intensity =
-                                                ((pointerY - bottomThreshold) / topThreshold).coerceIn(0f, 1f)
+                                                ((pointerY - bottomThreshold) / topThreshold).coerceIn(
+                                                    0f,
+                                                    1f
+                                                )
                                             autoScrollVelocity = 6f + (18f * intensity)
                                         } else {
                                             autoScrollVelocity = 0f

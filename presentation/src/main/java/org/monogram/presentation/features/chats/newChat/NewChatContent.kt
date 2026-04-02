@@ -50,7 +50,7 @@ import org.monogram.presentation.features.chats.chatList.components.SectionHeade
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun NewChatContent(component: NewChatComponent) {
     val state by component.state.collectAsState()
@@ -225,9 +225,8 @@ fun NewChatContent(component: NewChatComponent) {
                     }
                 ) {
                     if (state.isCreating) {
-                        CircularProgressIndicator(
+                        LoadingIndicator(
                             modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {

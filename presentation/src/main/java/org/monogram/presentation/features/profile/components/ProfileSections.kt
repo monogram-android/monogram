@@ -60,13 +60,14 @@ import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -97,9 +98,14 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
-import org.monogram.presentation.core.ui.*
-import com.google.i18n.phonenumbers.PhoneNumberUtil
-import org.koin.compose.koinInject
+import org.monogram.presentation.core.ui.ItemPosition
+import org.monogram.presentation.core.ui.SettingsSwitchTile
+import org.monogram.presentation.core.ui.SettingsTile
+import org.monogram.presentation.core.ui.StyledQRCode
+import org.monogram.presentation.core.ui.generatePureBitmap
+import org.monogram.presentation.core.ui.rememberShimmerBrush
+import org.monogram.presentation.core.ui.saveBitmapToGallery
+import org.monogram.presentation.core.ui.shareBitmap
 import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.core.util.OperatorManager
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
@@ -1346,7 +1352,7 @@ fun ProfilePermissionsDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ProfileTOSDialog(
     state: ProfileComponent.State,
@@ -1398,10 +1404,9 @@ fun ProfileTOSDialog(
                         label = "AcceptButtonContent"
                     ) { accepting ->
                         if (accepting) {
-                            CircularProgressIndicator(
+                            LoadingIndicator(
                                 modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                         } else {
                             Text(

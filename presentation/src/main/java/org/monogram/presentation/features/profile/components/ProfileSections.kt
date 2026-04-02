@@ -61,7 +61,6 @@ import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -1008,32 +1007,19 @@ private fun ProfileQuickActions(
                 .fillMaxWidth()
                 .padding(bottom = 2.dp)
         ) {
-            ButtonGroup(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                expandedRatio = 0.12f,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items.forEach { item ->
-                    OutlinedButton(
+                    QuickActionItem(
+                        icon = item.icon,
+                        label = item.label,
                         onClick = item.onClick,
-                        modifier = Modifier.widthIn(max = 124.dp),
-                        shape = ShapeDefaults.LargeIncreased
-                    ) {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = item.label,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = item.label,
-                            style = MaterialTheme.typography.labelMediumEmphasized,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }
@@ -1072,8 +1058,8 @@ fun QuickActionItem(icon: ImageVector, label: String, modifier: Modifier = Modif
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
             color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            maxLines = 2,
+            overflow = TextOverflow.Clip
         )
     }
 }

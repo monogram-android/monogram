@@ -1,10 +1,11 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
 package org.monogram.presentation.settings.stickers
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -19,11 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.StickyNote2
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.EmojiEmotions
-import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,11 +45,7 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.monogram.domain.models.StickerSetModel
 import org.monogram.presentation.R
-import org.monogram.presentation.core.ui.ConfirmationSheet
-import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.core.ui.SettingsTile
-import org.monogram.presentation.core.ui.StickerSetItem
-import org.monogram.presentation.core.ui.getItemShape
+import org.monogram.presentation.core.ui.*
 import org.monogram.presentation.features.stickers.ui.view.LocalIsScrolling
 import org.monogram.presentation.features.webapp.MiniAppViewer
 import kotlin.math.abs
@@ -443,6 +436,11 @@ private fun GenericStickerList(
                         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                         label = "elevation"
                     )
+                    val scale by animateFloatAsState(
+                        targetValue = if (isDragging) 1.02f else 1f,
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        label = "scale"
+                    )
 
                     val position = when {
                         sets.size == 1 -> ItemPosition.STANDALONE
@@ -450,17 +448,31 @@ private fun GenericStickerList(
                         index == sets.size - 1 -> ItemPosition.BOTTOM
                         else -> ItemPosition.MIDDLE
                     }
+                    val effectivePosition = if (isDragging) ItemPosition.STANDALONE else position
 
                     Box(
                         modifier = Modifier
                             .zIndex(if (isDragging) 1f else 0f)
-                            .then(if (isDragging) Modifier else Modifier.animateItem())
+                            .then(
+                                if (isDragging) {
+                                    Modifier
+                                } else {
+                                    Modifier.animateItem(
+                                        fadeInSpec = null,
+                                        placementSpec = spring(
+                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        ),
+                                        fadeOutSpec = null
+                                    )
+                                }
+                            )
                             .graphicsLayer {
                                 translationY = if (isDragging) dragOffset else 0f
-                                scaleX = if (isDragging) 1.02f else 1f
-                                scaleY = if (isDragging) 1.02f else 1f
+                                scaleX = scale
+                                scaleY = scale
                             }
-                            .shadow(elevation, shape = getItemShape(position))
+                            .shadow(elevation, shape = getItemShape(effectivePosition))
                             .pointerInput(searchQuery) {
                                 if (searchQuery.isNotEmpty()) return@pointerInput
 
@@ -555,7 +567,7 @@ private fun GenericStickerList(
                     ) {
                         StickerSetItem(
                             stickerSet = set,
-                            position = position,
+                            position = effectivePosition,
                             onClick = { onSetClick(set) },
                             onToggle = { onSetToggle(set) },
                             onArchive = { onSetArchive(set) },

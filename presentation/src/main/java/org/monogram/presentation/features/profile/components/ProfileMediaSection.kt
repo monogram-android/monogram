@@ -80,7 +80,6 @@ fun LazyGridScope.profileMediaSection(
     onLoadMedia: (MessageModel) -> Unit = {}
 ) {
     stickyHeader {
-        val tabWidths = remember { mutableStateListOf<Int>() }
         val tabOffsets = remember { mutableStateListOf<Int>() }
 
         Surface(
@@ -124,8 +123,7 @@ fun LazyGridScope.profileMediaSection(
 
                             Box(
                                 Modifier
-                                    .fillMaxHeight()
-                                    .fillMaxWidth()
+                                    .fillMaxSize()
                                     .padding(vertical = 4.dp)
                                     .zIndex(-1f)
                                     .offset { IntOffset(offset, 0) }
@@ -144,14 +142,11 @@ fun LazyGridScope.profileMediaSection(
                                     .height(44.dp)
                                     .padding(vertical = 4.dp)
                                     .onGloballyPositioned { cords ->
-                                        val width = cords.size.width
                                         val x = cords.positionInParent().x.toInt()
 
-                                        if (tabWidths.size > index) {
-                                            tabWidths[index] = width
+                                        if (tabOffsets.size > index) {
                                             tabOffsets[index] = x
                                         } else {
-                                            tabWidths.add(width)
                                             tabOffsets.add(x)
                                         }
                                     }

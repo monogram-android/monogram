@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ExitToApp
@@ -269,11 +268,6 @@ fun ProfileContent(component: ProfileComponent) {
                 { stringResource(R.string.tab_links) },
                 { stringResource(R.string.tab_gifs) }
             ))
-            val pagerState = rememberPagerState(
-                initialPage = state.selectedTabIndex,
-                pageCount = { tabs.size }
-            )
-
             CollapsingToolbarScaffold(
                 modifier = Modifier
                     .fillMaxSize()
@@ -381,7 +375,6 @@ fun ProfileContent(component: ProfileComponent) {
 
                     profileMediaSection(
                         state = state,
-                        pagerState = pagerState,
                         isGroup = isGroup,
                         tabs = tabs,
                         onTabSelected = component::onTabSelected,

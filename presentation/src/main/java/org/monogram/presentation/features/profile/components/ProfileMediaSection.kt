@@ -4,14 +4,9 @@ import android.content.Intent
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,8 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,7 +55,6 @@ private const val LOAD_MORE_THRESHOLD = 40
 @OptIn(ExperimentalFoundationApi::class)
 fun LazyGridScope.profileMediaSection(
     state: ProfileComponent.State,
-    pagerState: PagerState,
     isGroup: Boolean,
     tabs: MutableList<@Composable (() -> String)>,
     videoPlayerPool: VideoPlayerPool,
@@ -102,7 +94,7 @@ fun LazyGridScope.profileMediaSection(
                         indicator = {
                             Box(
                                 Modifier
-                                    .tabIndicatorOffset(pagerState.currentPage)
+                                    .tabIndicatorOffset(state.selectedTabIndex)
                                     .fillMaxHeight()
                                     .padding(vertical = 4.dp)
                                     .zIndex(-1f)
@@ -112,7 +104,7 @@ fun LazyGridScope.profileMediaSection(
                         }
                     ) {
                         tabs.forEachIndexed { index, titleFunc ->
-                            val selected = pagerState.currentPage == index
+                            val selected = state.selectedTabIndex == index
 
                             Tab(
                                 selected = selected,
@@ -168,32 +160,24 @@ fun LazyGridScope.profileMediaSection(
         }
     }
 
-    val isMediaLoading = state.isLoadingMedia || state.isLoadingMoreMedia
-    val canLoadMedia = state.canLoadMoreMedia
-
-    item(span = { GridItemSpan(3) }) {
-        LaunchedEffect(state.selectedTabIndex) {
-            pagerState.animateScrollToPage(state.selectedTabIndex)
+    if (isGroup) {
+        when (state.selectedTabIndex) {
+            0 -> mediaGrid(state.mediaMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick, onLoadMedia)
+            1 -> membersList(state.members, videoPlayerPool, state.isLoadingMembers, state.canLoadMoreMembers, onLoadMore, onMemberClick, onMemberLongClick)
+            2 -> filesList(state.fileMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            3 -> audioList(state.audioMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            4 -> voiceList(state.voiceMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            5 -> linksList(state.linkMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            6 -> gifsGrid(state.gifMessages, videoPlayerPool, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
         }
-        LaunchedEffect(pagerState.currentPage) {
-            if (state.selectedTabIndex != pagerState.currentPage) {
-                onTabSelected(pagerState.currentPage)
-            }
-        }
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxWidth()
-        ) { page ->
-            ProfileTabContent(
-                tab = page,
-                state = state,
-                videoPlayerPool = videoPlayerPool,
-                onLoadMore = onLoadMore,
-                onMessageClick = onMessageClick,
-                onLoadMedia = onLoadMedia,
-                onMemberClick = onMemberClick,
-                onMemberLongClick = onMemberLongClick
-            )
+    } else {
+        when (state.selectedTabIndex) {
+            0 -> mediaGrid(state.mediaMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick, onLoadMedia)
+            1 -> filesList(state.fileMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            2 -> audioList(state.audioMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            3 -> voiceList(state.voiceMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            4 -> linksList(state.linkMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            5 -> gifsGrid(state.gifMessages, videoPlayerPool, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
         }
     }
 
@@ -268,59 +252,6 @@ fun LazyGridScope.profileMediaSection(
                             }
                         }
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ProfileTabContent(
-    tab: Int,
-    state: ProfileComponent.State,
-    videoPlayerPool: VideoPlayerPool,
-    onLoadMore: () -> Unit,
-    onMessageClick: (MessageModel) -> Unit,
-    onLoadMedia: (MessageModel) -> Unit,
-    onMemberClick: (Long) -> Unit,
-    onMemberLongClick: (Long) -> Unit
-) {
-    val gridState = rememberLazyGridState()
-    val viewportHeightPx = LocalWindowInfo.current.containerSize.height
-    val density = LocalDensity.current
-
-    val viewportHeightDp = with(density) { viewportHeightPx.toDp() }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 1.dp, max = viewportHeightDp)
-    ) {
-        LazyVerticalGrid(
-            modifier = Modifier.fillMaxSize(),
-            columns = GridCells.Fixed(3),
-            state = gridState
-        ) {
-            val isGroup = state.chat?.isGroup == true || state.chat?.isChannel == true
-
-            if (isGroup) {
-                when (tab) {
-                    0 -> mediaGrid(state.mediaMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick, onLoadMedia)
-                    1 -> membersList(state.members, videoPlayerPool, state.isLoadingMembers, state.canLoadMoreMembers, onLoadMore, onMemberClick, onMemberLongClick)
-                    2 -> filesList(state.fileMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    3 -> audioList(state.audioMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    4 -> voiceList(state.voiceMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    5 -> linksList(state.linkMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    6 -> gifsGrid(state.gifMessages, videoPlayerPool, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                }
-            } else {
-                when (tab) {
-                    0 -> mediaGrid(state.mediaMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick, onLoadMedia)
-                    1 -> filesList(state.fileMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    2 -> audioList(state.audioMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    3 -> voiceList(state.voiceMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    4 -> linksList(state.linkMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    5 -> gifsGrid(state.gifMessages, videoPlayerPool, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
                 }
             }
         }

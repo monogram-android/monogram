@@ -47,7 +47,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -985,14 +984,6 @@ fun ChatContent(
                                         .fillMaxSize()
                                         .background(MaterialTheme.colorScheme.surface)
                                 ) {
-                                    LinearWavyProgressIndicator(
-                                        modifier = Modifier
-                                            .align(Alignment.TopCenter)
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 40.dp, vertical = 24.dp),
-                                        color = MaterialTheme.colorScheme.primary,
-                                        trackColor = Color.Transparent
-                                    )
                                     MessageListShimmer(
                                         isGroup = state.isGroup,
                                         isChannel = state.isChannel

@@ -32,9 +32,13 @@ class ChatListManager(
             compareByDescending<Pair<Long, TdApi.ChatPosition>> { it.second.order }
                 .thenByDescending { it.first }
         )
+        val otherLastMessageDates = HashMap<Long, Long>(otherEntries.size)
+        otherEntries.forEach { (chatId, _) ->
+            otherLastMessageDates[chatId] = cache.allChats[chatId]?.lastMessage?.date?.toLong() ?: 0L
+        }
         otherEntries.sortWith(
             compareByDescending<Pair<Long, TdApi.ChatPosition>> { (chatId, _) ->
-                cache.allChats[chatId]?.lastMessage?.date?.toLong() ?: 0L
+                otherLastMessageDates[chatId] ?: 0L
             }
                 .thenByDescending { it.second.order }
                 .thenByDescending { it.first }

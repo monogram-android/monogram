@@ -102,23 +102,19 @@ fun FolderItem(
             }
             if (!isSystem) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (onMoveUp != null) {
-                        IconButton(onClick = onMoveUp) {
-                            Icon(
-                                imageVector = Icons.Rounded.KeyboardArrowUp,
-                                contentDescription = stringResource(R.string.folders_move_up),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                    IconButton(onClick = onMoveUp ?: { }, enabled = onMoveUp != null) {
+                        Icon(
+                            imageVector = Icons.Rounded.KeyboardArrowUp,
+                            contentDescription = stringResource(R.string.folders_move_up),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
-                    if (onMoveDown != null) {
-                        IconButton(onClick = onMoveDown) {
-                            Icon(
-                                imageVector = Icons.Rounded.KeyboardArrowDown,
-                                contentDescription = stringResource(R.string.folders_move_down),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                    IconButton(onClick = onMoveDown ?: { }, enabled = onMoveDown != null) {
+                        Icon(
+                            imageVector = Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = stringResource(R.string.folders_move_down),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }

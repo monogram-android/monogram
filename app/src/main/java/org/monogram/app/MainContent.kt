@@ -1,5 +1,6 @@
 package org.monogram.app
 
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseInBack
@@ -35,14 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.window.core.layout.WindowWidthSizeClass
-import com.arkivanov.decompose.ExperimentalDecomposeApi
-import com.arkivanov.decompose.extensions.compose.stack.Children
-import com.arkivanov.decompose.extensions.compose.stack.animation.fade
-import com.arkivanov.decompose.extensions.compose.stack.animation.plus
-import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.androidPredictiveBackAnimatableV2
-import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.predictiveBackAnimation
-import com.arkivanov.decompose.extensions.compose.stack.animation.slide
-import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.stack.ChildStack
 import kotlinx.coroutines.launch
@@ -81,6 +74,7 @@ import org.monogram.presentation.settings.sessions.SessionsContent
 import org.monogram.presentation.settings.settings.SettingsContent
 import org.monogram.presentation.settings.stickers.StickersContent
 import org.monogram.presentation.settings.storage.StorageUsageContent
+import kotlin.coroutines.cancellation.CancellationException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -142,5 +136,456 @@ fun MainContent(
         ) {
             LockScreen(root)
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProxyConfirmSheet(root: RootComponent) {
+    val proxyConfirmState by root.proxyToConfirm.collectAsState()
+    if (proxyConfirmState.server != null) {
+        ModalBottomSheet(
+            onDismissRequest = root::dismissProxyConfirm,
+            dragHandle = { BottomSheetDefaults.DragHandle() },
+            containerColor = MaterialTheme.colorScheme.background,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.proxy_details),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+
+                Text(
+                    text = stringResource(R.string.proxy_add_connect),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    Column(
+                        Modifier.padding(vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        DetailRow(stringResource(R.string.proxy_server), proxyConfirmState.server!!)
+                        DetailRow(stringResource(R.string.proxy_port), proxyConfirmState.port!!.toString())
+                        val typeName = when (proxyConfirmState.type) {
+                            is ProxyTypeModel.Mtproto -> "MTProto"
+                            is ProxyTypeModel.Socks5 -> "SOCKS5"
+                            is ProxyTypeModel.Http -> "HTTP"
+                            else -> stringResource(R.string.proxy_unknown)
+                        }
+                        DetailRow(stringResource(R.string.proxy_type), typeName)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = root::dismissProxyConfirm,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(stringResource(R.string.cancel), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = {
+                            root.confirmProxy(
+                                proxyConfirmState.server!!,
+                                proxyConfirmState.port!!,
+                                proxyConfirmState.type!!
+                            )
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(stringResource(R.string.connect), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChatConfirmJoinSheet(root: RootComponent) {
+    val chatConfirmJoinState by root.chatToConfirmJoin.collectAsState()
+    if (chatConfirmJoinState.chat != null || chatConfirmJoinState.inviteLink != null) {
+        ModalBottomSheet(
+            onDismissRequest = root::dismissChatConfirmJoin,
+            dragHandle = { BottomSheetDefaults.DragHandle() },
+            containerColor = MaterialTheme.colorScheme.background,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val title =
+                    chatConfirmJoinState.chat?.title ?: chatConfirmJoinState.inviteTitle ?: ""
+                val avatarPath =
+                    chatConfirmJoinState.chat?.avatarPath ?: chatConfirmJoinState.inviteAvatarPath
+                val isChannel =
+                    chatConfirmJoinState.chat?.isChannel ?: chatConfirmJoinState.inviteIsChannel
+                val memberCount =
+                    chatConfirmJoinState.chat?.memberCount ?: chatConfirmJoinState.inviteMemberCount
+                val description = chatConfirmJoinState.fullInfo?.description
+                    ?: chatConfirmJoinState.inviteDescription
+
+                AvatarTopAppBar(
+                    path = avatarPath,
+                    name = title,
+                    size = 100.dp,
+                    fontSize = 32,
+                    videoPlayerPool = root.videoPlayerPool
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+
+                val channelStr = stringResource(R.string.chat_channel)
+                val groupStr = stringResource(R.string.chat_group)
+                val infoText = buildString {
+                    if (isChannel) append(channelStr) else append(groupStr)
+                    if (memberCount > 0) {
+                        append(" • ")
+                        append(pluralStringResource(R.plurals.members_count, memberCount, memberCount))
+                    }
+                }
+
+                Text(
+                    text = infoText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                description?.let { bio ->
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = bio,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        maxLines = 3
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = root::dismissChatConfirmJoin,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(stringResource(R.string.cancel), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = {
+                            val chatId = chatConfirmJoinState.chat?.id
+                            val inviteLink = chatConfirmJoinState.inviteLink
+                            if (chatId != null) {
+                                root.confirmJoinChat(chatId)
+                            } else if (inviteLink != null) {
+                                root.confirmJoinInviteLink(inviteLink)
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(stringResource(R.string.chat_join), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+private fun isSettingsSelected(stack: ChildStack<*, RootComponent.Child>): Boolean {
+    return when (stack.active.instance) {
+        is RootComponent.Child.SettingsChild,
+        is RootComponent.Child.EditProfileChild,
+        is RootComponent.Child.SessionsChild,
+        is RootComponent.Child.FoldersChild,
+        is RootComponent.Child.ChatSettingsChild,
+        is RootComponent.Child.DataStorageChild,
+        is RootComponent.Child.StorageUsageChild,
+        is RootComponent.Child.NetworkUsageChild,
+        is RootComponent.Child.PrivacyChild,
+        is RootComponent.Child.AdBlockChild,
+        is RootComponent.Child.PowerSavingChild,
+        is RootComponent.Child.NotificationsChild,
+        is RootComponent.Child.PremiumChild,
+        is RootComponent.Child.ProxyChild,
+        is RootComponent.Child.StickersChild,
+        is RootComponent.Child.AboutChild,
+        is RootComponent.Child.DebugChild -> true
+
+        else -> false
+    }
+}
+
+@OptIn(ExperimentalDecomposeApi::class)
+@Composable
+fun MobileLayout(root: RootComponent) {
+    val stack by root.childStack.subscribeAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val dragOffsetX = remember { Animatable(0f) }
+    val previous = stack.items.dropLast(1).lastOrNull()?.instance
+    var swipeBackInProgress by remember { mutableStateOf(false) }
+    var widthPx by remember { mutableFloatStateOf(0f) }
+
+    if (dragOffsetX.value > 0 && previous != null) { // todo: isDragToBackEnabled
+        Box(modifier = Modifier.fillMaxSize()) {
+            RenderChild(previous)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Color.Black.copy(
+                            alpha = 0.3f * (1f - (dragOffsetX.value / widthPx).coerceIn(
+                                0f,
+                                1f
+                            ))
+                        )
+                    )
+            )
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged {
+                widthPx = it.width.toFloat()
+            }
+            .then(
+                if (stack.active.instance is RootComponent.Child.ChatDetailChild) {
+                    Modifier.pointerInput(Unit) {
+                        var isDragging = false
+                        detectHorizontalDragGestures(
+                            onDragStart = { offset ->
+                                isDragging = offset.x > 48.dp.toPx()
+                            },
+                            onHorizontalDrag = { change, dragAmount ->
+                                if (isDragging) {
+                                    change.consume()
+                                    coroutineScope.launch {
+                                        val newOffset = dragOffsetX.value + dragAmount
+                                        dragOffsetX.snapTo(newOffset.coerceAtLeast(0f))
+                                    }
+                                }
+                            },
+                            onDragEnd = {
+                                if (isDragging) {
+                                    coroutineScope.launch {
+                                        val width = size.width.toFloat()
+                                        if (dragOffsetX.value > width * 0.15f) {
+                                            swipeBackInProgress = true
+                                            dragOffsetX.animateTo(width, tween(200))
+                                            root.onBack()
+                                            dragOffsetX.snapTo(0f)
+                                            swipeBackInProgress = false
+                                        } else {
+                                            dragOffsetX.animateTo(0f, spring())
+                                        }
+                                    }
+                                    isDragging = false
+                                }
+                            },
+                            onDragCancel = {
+                                if (isDragging) {
+                                    coroutineScope.launch { dragOffsetX.animateTo(0f) }
+                                    isDragging = false
+                                }
+                            }
+                        )
+                    }
+                } else Modifier
+            )
+            .graphicsLayer {
+                translationX = dragOffsetX.value
+                shadowElevation = if (dragOffsetX.value > 0) 20f else 0f
+            }
+    ) {
+        Children(
+            stack = root.childStack,
+            animation = predictiveBackAnimation(
+                backHandler = root.backHandler,
+                onBack = root::onBack,
+                fallbackAnimation = if (!swipeBackInProgress) stackAnimation(slide() + fade()) else null
+            )
+        ) {
+            RenderChild(it.instance, isOverlay = false)
+        }
+    }
+}
+
+@Composable
+private fun TabletLayout(root: RootComponent, childStack: ChildStack<*, RootComponent.Child>) {
+    val activeChild = childStack.active.instance
+    val isSettings = isSettingsSelected(childStack)
+
+    val listChild = remember(childStack) {
+        val settingsChild = childStack.backStack.find { it.instance is RootComponent.Child.SettingsChild }?.instance
+            ?: (activeChild as? RootComponent.Child.SettingsChild)
+        val chatsChild = childStack.backStack.find { it.instance is RootComponent.Child.ChatsChild }?.instance
+            ?: (activeChild as? RootComponent.Child.ChatsChild)
+
+        if (isSettings && settingsChild != null) {
+            settingsChild
+        } else {
+            chatsChild
+        }
+    }
+
+    Row(Modifier.fillMaxSize()) {
+        // List Pane
+        Box(
+            modifier = Modifier
+                .width(350.dp)
+                .fillMaxHeight()
+        ) {
+            if (listChild != null) {
+                RenderChild(listChild)
+            }
+        }
+
+        HorizontalDivider(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(1.dp),
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+
+        // Detail Pane
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+        ) {
+            val isListOnly = activeChild == listChild
+
+            if (!isListOnly) {
+                RenderChild(activeChild)
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (isSettings) stringResource(R.string.tablet_select_setting) else stringResource(R.string.tablet_select_chat),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RenderChild(child: RootComponent.Child, isOverlay: Boolean = false) {
+    when (child) {
+        is RootComponent.Child.StartupChild -> StartupContent(child.component)
+        is RootComponent.Child.AuthChild -> AuthContent(child.component)
+        is RootComponent.Child.ChatsChild -> ChatListContent(child.component)
+        is RootComponent.Child.NewChatChild -> NewChatContent(child.component)
+        is RootComponent.Child.ChatDetailChild -> ChatContent(
+            component = child.component,
+            isOverlay = isOverlay,
+        )
+        is RootComponent.Child.SettingsChild -> SettingsContent(child.component)
+        is RootComponent.Child.EditProfileChild -> EditProfileContent(child.component)
+        is RootComponent.Child.SessionsChild -> SessionsContent(child.component)
+        is RootComponent.Child.FoldersChild -> FoldersContent(child.component)
+        is RootComponent.Child.ChatSettingsChild -> ChatSettingsContent(child.component)
+        is RootComponent.Child.DataStorageChild -> DataStorageContent(child.component)
+        is RootComponent.Child.StorageUsageChild -> StorageUsageContent(child.component)
+        is RootComponent.Child.NetworkUsageChild -> NetworkUsageContent(child.component)
+        is RootComponent.Child.ProfileChild -> ProfileContent(child.component)
+        is RootComponent.Child.PremiumChild -> PremiumContent(child.component)
+        is RootComponent.Child.PrivacyChild -> PrivacyContent(child.component)
+        is RootComponent.Child.AdBlockChild -> AdBlockContent(child.component)
+        is RootComponent.Child.PowerSavingChild -> PowerSavingContent(child.component)
+        is RootComponent.Child.NotificationsChild -> NotificationsContent(child.component)
+        is RootComponent.Child.ProxyChild -> ProxyContent(child.component)
+        is RootComponent.Child.ProfileLogsChild -> ProfileLogsContent(child.component)
+        is RootComponent.Child.AdminManageChild -> AdminManageContent(child.component)
+        is RootComponent.Child.ChatEditChild -> ChatEditContent(child.component)
+        is RootComponent.Child.MemberListChild -> MemberListContent(child.component)
+        is RootComponent.Child.ChatPermissionsChild -> ChatPermissionsContent(child.component)
+        is RootComponent.Child.PasscodeChild -> PasscodeContent(child.component)
+        is RootComponent.Child.StickersChild -> StickersContent(child.component)
+        is RootComponent.Child.AboutChild -> AboutContent(child.component)
+        is RootComponent.Child.DebugChild -> DebugContent(child.component)
+        is RootComponent.Child.WebViewChild -> InternalWebView(
+            url = child.component.url,
+            onDismiss = child.component::onDismiss
+        )
     }
 }

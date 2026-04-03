@@ -33,7 +33,7 @@ fun queryImages(context: Context): List<GalleryMediaItem> {
                         cursor.getLong(idColumn)
                     ),
                     dateAdded = cursor.getLong(dateColumn),
-                    isVideo = false,
+                    duration = 0,
                     bucketName = bucket,
                     relativePath = relative,
                     isCamera = isCameraBucket(bucket, relative),
@@ -51,7 +51,8 @@ fun queryVideos(context: Context): List<GalleryMediaItem> {
         MediaStore.Video.Media._ID,
         MediaStore.Video.Media.DATE_ADDED,
         MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
-        MediaStore.Video.Media.RELATIVE_PATH
+        MediaStore.Video.Media.RELATIVE_PATH,
+        MediaStore.Video.Media.DURATION
     )
     context.contentResolver.query(
         MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
@@ -64,6 +65,7 @@ fun queryVideos(context: Context): List<GalleryMediaItem> {
         val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
         val bucketColumn = cursor.getColumnIndex(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
         val relColumn = cursor.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH)
+        val durationColumn = cursor.getColumnIndex(MediaStore.Video.Media.DURATION)
         while (cursor.moveToNext()) {
             val bucket = if (bucketColumn != -1) cursor.getString(bucketColumn).orEmpty() else ""
             val relative = if (relColumn != -1) cursor.getString(relColumn).orEmpty() else ""
@@ -74,7 +76,7 @@ fun queryVideos(context: Context): List<GalleryMediaItem> {
                         cursor.getLong(idColumn)
                     ),
                     dateAdded = cursor.getLong(dateColumn),
-                    isVideo = true,
+                    duration = cursor.getLong(durationColumn),
                     bucketName = bucket,
                     relativePath = relative,
                     isCamera = isCameraBucket(bucket, relative),

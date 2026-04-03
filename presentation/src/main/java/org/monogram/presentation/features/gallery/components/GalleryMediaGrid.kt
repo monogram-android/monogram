@@ -29,6 +29,19 @@ import coil3.compose.AsyncImage
 import org.monogram.presentation.R
 import org.monogram.presentation.features.gallery.GalleryMediaItem
 
+private fun formatDuration(ms: Long): String {
+    val sec = ms / 1000
+    val h = sec / 3600
+    val m = (sec % 3600) / 60
+    val s = sec % 60
+
+    return if (h > 0) {
+        "%d:%02d:%02d".format(h, m, s)
+    } else {
+        "%02d:%02d".format(m, s)
+    }
+}
+
 @Composable
 fun GalleryGrid(
     media: List<GalleryMediaItem>,
@@ -97,7 +110,7 @@ fun GalleryGrid(
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
                     ) {
                         Text(
-                            text = stringResource(R.string.media_type_video),
+                            text = formatDuration(item.duration),
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )

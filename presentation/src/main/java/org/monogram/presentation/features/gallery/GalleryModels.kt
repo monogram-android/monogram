@@ -18,9 +18,12 @@ sealed class BucketFilter(val key: String) {
 data class GalleryMediaItem(
     val uri: Uri,
     val dateAdded: Long,
-    val isVideo: Boolean,
+    val duration: Long,
     val bucketName: String,
     val relativePath: String,
     val isCamera: Boolean,
     val isScreenshot: Boolean
-)
+) {
+    val isVideo: Boolean
+        get() = duration > 0
+}

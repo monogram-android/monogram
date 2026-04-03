@@ -1,10 +1,9 @@
 <h1 align="center">
   <br>
-  <a href="https://github.com/monogram-android/monogram"><img width="130" height="130" alt="image" src="https://github.com/user-attachments/assets/1882f65d-8950-4df7-8607-6580d7604eb1" />
-
+  <a href="https://github.com/monogram-android/monogram"><img width="130" height="130" alt="MonoGram" src="./documents/monogram.png" />
 </a>
   <br>
-  <b>Monogram</b>
+  <b>MonoGram</b>
   <br>
 </h1>
 
@@ -27,10 +26,10 @@
 
 ---
 
-**Monogram** is a modern, lightning-fast, and elegant unofficial Telegram client for Android. Built with **Jetpack Compose** and **Material Design 3**, it delivers a native and fluid experience powered by the official **TDLib**.
+**MonoGram** is a modern, lightning-fast, and elegant unofficial Telegram client for Android. Built with **Jetpack Compose** and **Material Design 3**, it delivers a native and fluid experience powered by the official **TDLib**.
 
 > [!IMPORTANT]
-> Monogram is currently in **active development**. Expect frequent updates, architectural changes, and the occasional bug.
+> MonoGram is currently in **active development**. Expect frequent updates, architectural changes, and the occasional bug.
 
 Support the project on [**Boosty**](https://boosty.to/monogram).
 
@@ -56,7 +55,7 @@ Support the project on [**Boosty**](https://boosty.to/monogram).
 - **Fast & Efficient** — Powered by Kotlin Coroutines and optimized for performance.
 - **Clean Architecture** — Clear separation of concerns with Domain, Data, and Presentation layers.
 - **MVI Pattern** — Predictable state management using MVIKotlin.
-- **No NFT or Crypto** — Monogram will never include NFT promotions, gifts or any other features pushed by Telegram that we consider outside the scope of a messaging app.
+- **No NFT or Crypto** — MonoGram will never include NFT promotions, gifts or any other features pushed by Telegram that we consider outside the scope of a messaging app.
 
 ---
 
@@ -164,7 +163,7 @@ We welcome contributions! Whether it's fixing bugs, improving documentation, or 
 
 ## Translations
 
-Monogram welcomes community translations! You can contribute your own language by editing the strings resource file.
+MonoGram welcomes community translations! You can contribute your own language by editing the strings resource file.
 
 The source strings are located at [`presentation/src/main/res/values/string.xml`](https://github.com/monogram-android/monogram/blob/develop/presentation/src/main/res/values/string.xml). To add a new language, create a corresponding `values-<locale>/string.xml` file (e.g. `values-de/string.xml` for German) and translate the strings there. Open a PR with your translation and we'll get it merged.
 
@@ -172,7 +171,7 @@ The source strings are located at [`presentation/src/main/res/values/string.xml`
 
 ## Tech Stack
 
-Monogram leverages the latest Android development tools and libraries:
+MonoGram leverages the latest Android development tools and libraries:
 
 | Category | Libraries |
 |:---|:---|

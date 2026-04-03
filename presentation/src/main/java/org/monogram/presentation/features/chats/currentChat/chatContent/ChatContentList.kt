@@ -1066,7 +1066,7 @@ fun TopicItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(

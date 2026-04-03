@@ -1,6 +1,5 @@
 package org.monogram.app
 
-import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseInBack
@@ -36,6 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.window.core.layout.WindowWidthSizeClass
+import com.arkivanov.decompose.ExperimentalDecomposeApi
+import com.arkivanov.decompose.extensions.compose.stack.Children
+import com.arkivanov.decompose.extensions.compose.stack.animation.fade
+import com.arkivanov.decompose.extensions.compose.stack.animation.plus
+import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.androidPredictiveBackAnimatableV2
+import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.predictiveBackAnimation
+import com.arkivanov.decompose.extensions.compose.stack.animation.slide
+import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.stack.ChildStack
 import kotlinx.coroutines.launch
@@ -74,7 +81,6 @@ import org.monogram.presentation.settings.sessions.SessionsContent
 import org.monogram.presentation.settings.settings.SettingsContent
 import org.monogram.presentation.settings.stickers.StickersContent
 import org.monogram.presentation.settings.storage.StorageUsageContent
-import kotlin.coroutines.cancellation.CancellationException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -389,6 +395,7 @@ private fun isSettingsSelected(stack: ChildStack<*, RootComponent.Child>): Boole
     }
 }
 
+@OptIn(ExperimentalDecomposeApi::class)
 @Composable
 fun MobileLayout(root: RootComponent) {
     val stack by root.childStack.subscribeAsState()
@@ -471,39 +478,15 @@ fun MobileLayout(root: RootComponent) {
                 shadowElevation = if (dragOffsetX.value > 0) 20f else 0f
             }
     ) {
-        PredictiveBackHandler(
-            enabled = !swipeBackInProgress
-        ) { progressFlow ->
-            try {
-                progressFlow.collect { backEvent ->
-                    val newOffset = backEvent.progress * widthPx
-                    dragOffsetX.snapTo(newOffset.coerceAtLeast(0f))
-                }
-                swipeBackInProgress = true
-                dragOffsetX.animateTo(widthPx, tween(200))
-                root.onBack()
-                dragOffsetX.snapTo(0f)
-                swipeBackInProgress = false
-            } catch (e: CancellationException) {
-                dragOffsetX.animateTo(0f)
-            }
-        }
-
-        if (!swipeBackInProgress) {
-            AnimatedContent(
-                targetState = stack,
-                transitionSpec = {
-                    if (targetState.items.size > initialState.items.size) {
-                        slideInHorizontally { width -> width } + fadeIn() togetherWith
-                        slideOutHorizontally { width -> -width } + fadeOut()
-                    } else {
-                        slideInHorizontally { width -> -width } + fadeIn() togetherWith
-                        slideOutHorizontally { width -> width } + fadeOut()
-                    }
-                }
-            ) {
-                RenderChild(it.active.instance, isOverlay = false)
-            }
+        Children(
+            stack = root.childStack,
+            animation = predictiveBackAnimation(
+                backHandler = root.backHandler,
+                onBack = root::onBack,
+                fallbackAnimation = if (!swipeBackInProgress) stackAnimation(slide() + fade()) else null
+            )
+        ) {
+            RenderChild(it.instance, isOverlay = false)
         }
     }
 }

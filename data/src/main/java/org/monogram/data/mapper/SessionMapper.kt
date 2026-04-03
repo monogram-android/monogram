@@ -1,6 +1,7 @@
 package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.utils.toDate
 import org.monogram.domain.models.SessionModel
 import org.monogram.domain.models.SessionType
 
@@ -16,7 +17,7 @@ fun TdApi.Session.toDomain(): SessionModel {
         platform = this.platform,
         systemVersion = this.systemVersion,
         logInDate = this.logInDate,
-        lastActiveDate = this.lastActiveDate,
+        lastActiveDate = this.lastActiveDate.toDate(),
         ipAddress = this.ipAddress,
         location = this.location,
         isOfficial = this.isOfficialApplication,

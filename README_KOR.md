@@ -22,7 +22,7 @@
   </a>
 </h1>
 
-**다른 언어로 읽기:** [English](README.md), [Русский](README_RU.md)
+**다른 언어로 읽기:** [English](README.md), [Русский](README_RU.md), [Español](README_ES.md)
 
 ---
 

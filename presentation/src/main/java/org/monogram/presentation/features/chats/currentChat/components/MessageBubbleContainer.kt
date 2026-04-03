@@ -132,24 +132,22 @@ fun MessageBubbleContainer(
                 IntOffset(dragOffsetX.value.toInt(), 0)
             }
             .pointerInput(Unit) {
-                if (swipeEnabled) {
-                    detectHorizontalDragGestures(
-                        onHorizontalDrag = { change, dragAmount ->
-                            change.consume()
-                            scope.launch {
-                                dragOffsetX.snapTo((dragOffsetX.value + dragAmount).coerceIn(-200f, 0f))
-                            }
-                        },
-                        onDragEnd = {
-                            if (dragOffsetX.value < -120f && canReply) {
-                                onReplySwipe(msg)
-                            }
-                            scope.launch {
-                                dragOffsetX.animateTo(0f, spring())
-                            }
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        scope.launch {
+                            dragOffsetX.snapTo((dragOffsetX.value + dragAmount).coerceIn(-200f, 0f))
                         }
-                    )
-                }
+                    },
+                    onDragEnd = {
+                        if (dragOffsetX.value < -120f && canReply) {
+                            onReplySwipe(msg)
+                        }
+                        scope.launch {
+                            dragOffsetX.animateTo(0f, spring())
+                        }
+                    }
+                )
                 detectTapGestures(
                     onTap = { offset ->
                         val clickPos = outerColumnPosition + offset

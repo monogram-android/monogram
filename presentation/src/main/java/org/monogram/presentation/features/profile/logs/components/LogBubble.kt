@@ -104,7 +104,6 @@ fun LogBubble(
             name = senderName,
             size = 40.dp,
             fontSize = 16,
-            videoPlayerPool = component.videoPlayerPool,
             onClick = {
                 if (event.memberId is MessageSenderModel.User) {
                     component.onUserClick((event.memberId as MessageSenderModel.User).userId)

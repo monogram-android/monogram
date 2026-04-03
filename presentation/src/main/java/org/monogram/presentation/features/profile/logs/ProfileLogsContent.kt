@@ -376,7 +376,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
                                         .padding(horizontal = 12.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Avatar(path = info.avatarPath, videoPlayerPool = component.videoPlayerPool, name = info.name, size = 36.dp)
+                                    Avatar(path = info.avatarPath, name = info.name, size = 36.dp)
                                     Spacer(Modifier.width(12.dp))
                                     Text(
                                         text = info.name,

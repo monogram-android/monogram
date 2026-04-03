@@ -101,11 +101,8 @@ import androidx.core.net.toUri
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.*
-import com.google.i18n.phonenumbers.PhoneNumberUtil
-import org.koin.compose.koinInject
 import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.core.util.OperatorManager
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.profile.ProfileComponent
 import java.util.Calendar
 
@@ -326,7 +323,6 @@ private fun SectionHeaderSkeleton(shimmer: androidx.compose.ui.graphics.Brush) {
 @Composable
 fun ProfileInfoSection(
     state: ProfileComponent.State,
-    videoPlayerPool: VideoPlayerPool,
     localClipboard: Clipboard,
     onOpenMiniApp: (String, String, Long) -> Unit = { _, _, _ -> },
     onSendMessage: () -> Unit = {},
@@ -439,8 +435,7 @@ fun ProfileInfoSection(
         LinkedChatItem(
             chat = linkedChat,
             isDiscussion = chat?.isChannel == true,
-            onClick = onLinkedChatClick,
-            videoPlayerPool = videoPlayerPool
+            onClick = onLinkedChatClick
         )
     }
 

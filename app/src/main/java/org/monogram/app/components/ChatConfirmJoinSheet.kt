@@ -51,8 +51,7 @@ fun ChatConfirmJoinSheet(root: RootComponent) {
                     path = avatarPath,
                     name = title,
                     size = 100.dp,
-                    fontSize = 32,
-                    videoPlayerPool = root.videoPlayerPool,
+                    fontSize = 32
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

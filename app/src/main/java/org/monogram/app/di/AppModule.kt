@@ -33,7 +33,7 @@ val appModule = module {
 
     single { ExoPlayerCache() }
     single { CacheController(androidContext(), get()) }
-    single { VideoPlayerPool(androidContext(), get()) }
+    single { VideoPlayerPool(androidContext(), get(), get()) }
     single<ClipManager> {
         ClipManagerImpl(
             androidContext().getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager,

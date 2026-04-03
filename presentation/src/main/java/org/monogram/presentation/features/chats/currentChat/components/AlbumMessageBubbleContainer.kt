@@ -61,7 +61,6 @@ fun AlbumMessageBubbleContainer(
     onReplySwipe: (MessageModel) -> Unit = {},
     swipeEnabled: Boolean = true,
     downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     if (messages.isEmpty()) return
@@ -133,8 +132,7 @@ fun AlbumMessageBubbleContainer(
                     fallbackPath = firstMsg.senderPersonalAvatar,
                     name = firstMsg.senderName,
                     size = 40.dp,
-                    onClick = { toProfile(firstMsg.senderId) },
-                    videoPlayerPool = videoPlayerPool
+                    onClick = { toProfile(firstMsg.senderId) }
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }
@@ -193,7 +191,6 @@ fun AlbumMessageBubbleContainer(
                         fontSize = fontSize,
                         bubbleRadius = bubbleRadius,
                         downloadUtils = downloadUtils,
-                        videoPlayerPool = videoPlayerPool,
                         isAnyViewerOpen = isAnyViewerOpen
                     )
                 } else {
@@ -227,7 +224,6 @@ fun AlbumMessageBubbleContainer(
                         modifier = Modifier,
                         fontSize = fontSize,
                         downloadUtils = downloadUtils,
-                        videoPlayerPool = videoPlayerPool,
                         isAnyViewerOpen = isAnyViewerOpen
                     )
                 }

@@ -30,7 +30,6 @@ import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.repository.PrivacyKey
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsTile
 
@@ -192,8 +191,7 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
                             user = user,
                             position = position,
                             onClick = { component.onUserClicked(user.id) },
-                            onRemove = { component.onRemoveUser(user.id, true) },
-                            videoPlayerPool = component.videoPlayerPool
+                            onRemove = { component.onRemoveUser(user.id, true) }
                         )
                         currentIndex++
                     }
@@ -207,8 +205,7 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
                         ExceptionChatItem(
                             chat = chat,
                             position = position,
-                            onRemove = { component.onRemoveChat(chat.id, true) },
-                            videoPlayerPool = component.videoPlayerPool
+                            onRemove = { component.onRemoveChat(chat.id, true) }
                         )
                         currentIndex++
                     }
@@ -232,8 +229,7 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
                             user = user,
                             position = position,
                             onClick = { component.onUserClicked(user.id) },
-                            onRemove = { component.onRemoveUser(user.id, false) },
-                            videoPlayerPool = component.videoPlayerPool
+                            onRemove = { component.onRemoveUser(user.id, false) }
                         )
                         currentIndex++
                     }
@@ -247,8 +243,7 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
                         ExceptionChatItem(
                             chat = chat,
                             position = position,
-                            onRemove = { component.onRemoveChat(chat.id, false) },
-                            videoPlayerPool = component.videoPlayerPool
+                            onRemove = { component.onRemoveChat(chat.id, false) }
                         )
                         currentIndex++
                     }
@@ -263,7 +258,6 @@ fun PrivacySettingContent(component: PrivacySettingComponent) {
 fun ExceptionUserItem(
     user: UserModel,
     position: ItemPosition,
-    videoPlayerPool: VideoPlayerPool,
     onClick: () -> Unit,
     onRemove: () -> Unit
 ) {
@@ -322,8 +316,7 @@ fun ExceptionUserItem(
                 fallbackPath = user.personalAvatarPath,
                 name = user.firstName.ifBlank { "D" },
                 size = 40.dp,
-                isOnline = user.userStatus == UserStatusType.ONLINE,
-                videoPlayerPool = videoPlayerPool
+                isOnline = user.userStatus == UserStatusType.ONLINE
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -341,7 +334,6 @@ fun ExceptionUserItem(
 fun ExceptionChatItem(
     chat: ChatModel,
     position: ItemPosition,
-    videoPlayerPool: VideoPlayerPool,
     onRemove: () -> Unit
 ) {
     val cornerRadius = 24.dp
@@ -379,8 +371,7 @@ fun ExceptionChatItem(
                 path = chat.avatarPath,
                 fallbackPath = chat.personalAvatarPath,
                 name = chat.title.take(1),
-                size = 40.dp,
-                videoPlayerPool = videoPlayerPool
+                size = 40.dp
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {

@@ -11,7 +11,6 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.repository.ChatsListRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultNewChatComponent(
@@ -23,7 +22,6 @@ class DefaultNewChatComponent(
 
     private val userRepository: UserRepository = container.repositories.userRepository
     private val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
     private val scope = componentScope
     private val _state = MutableStateFlow(NewChatComponent.State())

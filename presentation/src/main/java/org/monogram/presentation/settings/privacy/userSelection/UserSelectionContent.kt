@@ -27,7 +27,6 @@ import org.monogram.domain.models.UserModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.SettingsGroup
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,8 +117,7 @@ fun UserSelectionContent(component: UserSelectionComponent) {
                                         UserSelectionItem(
                                             user = user,
                                             onClick = { component.onUserClicked(user.id) },
-                                            modifier = Modifier.animateItem(),
-                                            videoPlayerPool = component.videoPlayerPool
+                                            modifier = Modifier.animateItem()
                                         )
                                     }
                                 }
@@ -136,7 +134,6 @@ fun UserSelectionContent(component: UserSelectionComponent) {
 fun UserSelectionItem(
     user: UserModel,
     onClick: () -> Unit,
-    videoPlayerPool: VideoPlayerPool,
     modifier: Modifier = Modifier
 ) {
     val deletedText = stringResource(R.string.privacy_user_deleted)
@@ -186,8 +183,7 @@ fun UserSelectionItem(
                 path = user.avatarPath,
                 fallbackPath = user.personalAvatarPath,
                 name = user.firstName.ifBlank { "D" },
-                size = 40.dp,
-                videoPlayerPool = videoPlayerPool
+                size = 40.dp
             )
         },
         modifier = modifier.clickable(onClick = onClick),

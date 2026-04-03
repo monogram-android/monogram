@@ -9,7 +9,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultUserSelectionComponent(
@@ -19,7 +18,6 @@ class DefaultUserSelectionComponent(
 ) : UserSelectionComponent, AppComponentContext by context {
 
     private val userRepository: UserRepository = container.repositories.userRepository
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
     private val _state = MutableValue(UserSelectionComponent.State())
     override val state: Value<UserSelectionComponent.State> = _state

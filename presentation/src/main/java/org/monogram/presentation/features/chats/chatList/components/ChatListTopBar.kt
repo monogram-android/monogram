@@ -28,7 +28,6 @@ import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ExpressiveDefaults
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 
@@ -36,7 +35,6 @@ import org.monogram.presentation.features.stickers.ui.view.StickerImage
 @Composable
 fun ChatListTopBar(
     user: UserModel?,
-    videoPlayerPool: VideoPlayerPool,
     connectionStatus: ConnectionStatus?,
     isProxyEnabled: Boolean,
     onRetryConnection: () -> Unit,
@@ -282,8 +280,7 @@ fun ChatListTopBar(
                                 path = user?.avatarPath,
                                 fallbackPath = user?.personalAvatarPath,
                                 name = user?.firstName ?: "",
-                                size = 36.dp,
-                                videoPlayerPool = videoPlayerPool
+                                size = 36.dp
                             )
                         }
                     }

@@ -24,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsItem
 
@@ -38,7 +37,6 @@ fun NewChannelContent(
     onDescriptionChange: (String) -> Unit,
     onPhotoClick: () -> Unit,
     onAutoDeleteTimeChange: (Int) -> Unit,
-    videoPlayerPool: VideoPlayerPool,
     modifier: Modifier = Modifier
 ) {
     var showAutoDeleteSheet by remember { mutableStateOf(false) }
@@ -61,8 +59,7 @@ fun NewChannelContent(
             ChannelPhotoSelector(
                 photoPath = photoPath,
                 title = title,
-                onClick = onPhotoClick,
-                videoPlayerPool = videoPlayerPool
+                onClick = onPhotoClick
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
@@ -148,7 +145,6 @@ fun NewChannelContent(
 @Composable
 private fun ChannelPhotoSelector(
     photoPath: String?,
-    videoPlayerPool: VideoPlayerPool,
     title: String,
     onClick: () -> Unit
 ) {
@@ -172,8 +168,7 @@ private fun ChannelPhotoSelector(
                 Avatar(
                     path = photoPath,
                     name = title,
-                    size = 100.dp,
-                    videoPlayerPool = videoPlayerPool
+                    size = 100.dp
                 )
             } else {
                 Icon(

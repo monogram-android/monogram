@@ -28,7 +28,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.monogram.domain.models.webapp.PageBlockCaption
 import org.monogram.domain.models.webapp.RichText
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
 import org.monogram.presentation.features.chats.currentChat.components.chats.normalizeUrl
@@ -79,13 +78,13 @@ fun RichTextView(
 fun AsyncImageWithDownload(
     path: String?,
     fileId: Int,
-    minithumbnail: ByteArray? = null,
     modifier: Modifier = Modifier,
+    minithumbnail: ByteArray? = null,
     contentScale: ContentScale = ContentScale.Fit
 ) {
     val messageRepository = LocalMessageRepository.current
     var currentPath by remember(fileId) { mutableStateOf(path) }
-    var progress by remember { mutableStateOf(0f) }
+    var progress by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(path, fileId) {
         if (!path.isNullOrEmpty()) {
@@ -159,7 +158,6 @@ fun AsyncImageWithDownload(
 @Composable
 fun AsyncVideoWithDownload(
     path: String?,
-    videoPlayerPool: VideoPlayerPool,
     fileId: Int,
     modifier: Modifier = Modifier,
     shouldLoop: Boolean = true,
@@ -167,7 +165,7 @@ fun AsyncVideoWithDownload(
 ) {
     val messageRepository = LocalMessageRepository.current
     var currentPath by remember(fileId) { mutableStateOf(path) }
-    var progress by remember { mutableStateOf(0f) }
+    var progress by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(path, fileId) {
         if (!path.isNullOrEmpty()) {
@@ -201,8 +199,7 @@ fun AsyncVideoWithDownload(
             modifier = modifier,
             animate = true,
             shouldLoop = shouldLoop,
-            contentScale = contentScale,
-            videoPlayerPool = videoPlayerPool
+            contentScale = contentScale
         )
     } else {
         Box(

@@ -43,7 +43,6 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.rememberShimmerBrush
 import org.monogram.presentation.core.util.getUserStatusText
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
 import org.monogram.presentation.features.profile.ProfileComponent
@@ -57,7 +56,6 @@ fun LazyGridScope.profileMediaSection(
     state: ProfileComponent.State,
     isGroup: Boolean,
     tabs: MutableList<@Composable (() -> String)>,
-    videoPlayerPool: VideoPlayerPool,
     onTabSelected: (Int) -> Unit,
     onMessageClick: (MessageModel) -> Unit,
     onMessageLongClick: (MessageModel) -> Unit,
@@ -163,12 +161,12 @@ fun LazyGridScope.profileMediaSection(
     if (isGroup) {
         when (state.selectedTabIndex) {
             0 -> mediaGrid(state.mediaMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick, onLoadMedia)
-            1 -> membersList(state.members, videoPlayerPool, state.isLoadingMembers, state.canLoadMoreMembers, onLoadMore, onMemberClick, onMemberLongClick)
+            1 -> membersList(state.members, state.isLoadingMembers, state.canLoadMoreMembers, onLoadMore, onMemberClick, onMemberLongClick)
             2 -> filesList(state.fileMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
             3 -> audioList(state.audioMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
             4 -> voiceList(state.voiceMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
             5 -> linksList(state.linkMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-            6 -> gifsGrid(state.gifMessages, videoPlayerPool, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            6 -> gifsGrid(state.gifMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
         }
     } else {
         when (state.selectedTabIndex) {
@@ -177,7 +175,7 @@ fun LazyGridScope.profileMediaSection(
             2 -> audioList(state.audioMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
             3 -> voiceList(state.voiceMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
             4 -> linksList(state.linkMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-            5 -> gifsGrid(state.gifMessages, videoPlayerPool, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            5 -> gifsGrid(state.gifMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
         }
     }
 
@@ -275,7 +273,6 @@ private fun ScrollableRow(
 
 private fun LazyGridScope.membersList(
     members: List<GroupMemberModel>,
-    videoPlayerPool: VideoPlayerPool,
     isLoading: Boolean,
     canLoadMore: Boolean,
     onLoadMore: () -> Unit,
@@ -401,7 +398,6 @@ private fun LazyGridScope.membersList(
                         name = user.firstName,
                         isOnline = user.userStatus == UserStatusType.ONLINE,
                         size = 40.dp,
-                        videoPlayerPool = videoPlayerPool,
                         modifier = Modifier.combinedClickable(
                             onClick = { onMemberClick(user.id) },
                             onLongClick = { onMemberLongClick(user.id) }
@@ -826,7 +822,6 @@ private fun LazyGridScope.linksList(
 
 private fun LazyGridScope.gifsGrid(
     messages: List<MessageModel>,
-    videoPlayerPool: VideoPlayerPool,
     isLoading: Boolean,
     canLoadMore: Boolean,
     onLoadMore: () -> Unit,
@@ -868,8 +863,7 @@ private fun LazyGridScope.gifsGrid(
                         path = content.path!!,
                         type = VideoType.Gif,
                         modifier = Modifier.fillMaxSize(),
-                        animate = true,
-                        videoPlayerPool = videoPlayerPool
+                        animate = true
                     )
                     Box(
                         modifier = Modifier

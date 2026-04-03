@@ -34,7 +34,6 @@ fun PinnedMessagesListSheet(
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (Long, String) -> Unit,
     downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     val messages = state.allPinnedMessages
@@ -129,8 +128,7 @@ fun PinnedMessagesListSheet(
                                     letterSpacing = state.letterSpacing,
                                     bubbleRadius = state.bubbleRadius,
                                     stickerSize = state.stickerSize,
-                                    downloadUtils = downloadUtils,
-                                    videoPlayerPool = videoPlayerPool
+                                    downloadUtils = downloadUtils
                                 )
                             } else if (item is GroupedMessageItem.Album) {
                                 AlbumMessageBubbleContainer(
@@ -147,8 +145,7 @@ fun PinnedMessagesListSheet(
                                     onGoToReply = { onReplyClick(it) },
                                     onReactionClick = onReactionClick,
                                     toProfile = {},
-                                    downloadUtils = downloadUtils,
-                                    videoPlayerPool = videoPlayerPool
+                                    downloadUtils = downloadUtils
                                 )
                             }
                         } else {
@@ -175,8 +172,7 @@ fun PinnedMessagesListSheet(
                                     onGoToReply = { onReplyClick(it) },
                                     onReactionClick = onReactionClick,
                                     toProfile = {},
-                                    downloadUtils = downloadUtils,
-                                    videoPlayerPool = videoPlayerPool
+                                    downloadUtils = downloadUtils
                                 )
                             } else if (item is GroupedMessageItem.Album) {
                                 AlbumMessageBubbleContainer(
@@ -193,8 +189,7 @@ fun PinnedMessagesListSheet(
                                     onGoToReply = { onReplyClick(it) },
                                     onReactionClick = onReactionClick,
                                     toProfile = {},
-                                    downloadUtils = downloadUtils,
-                                    videoPlayerPool = videoPlayerPool
+                                    downloadUtils = downloadUtils
                                 )
                             }
                         }

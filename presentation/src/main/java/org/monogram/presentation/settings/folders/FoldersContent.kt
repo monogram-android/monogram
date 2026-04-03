@@ -137,8 +137,7 @@ fun FoldersContent(component: FoldersComponent) {
             confirmButtonText = stringResource(R.string.folders_create),
             onDismiss = { defaultComponent?.dismissDialog() },
             onConfirm = component::onAddFolder,
-            onSearchChats = component::onSearchChats,
-            videoPlayerPool = component.videoPlayerPool
+            onSearchChats = component::onSearchChats
         )
     }
 
@@ -161,8 +160,7 @@ fun FoldersContent(component: FoldersComponent) {
                 )
             },
             onDelete = { component.onDeleteFolder(state.selectedFolder!!.id) },
-            onSearchChats = component::onSearchChats,
-            videoPlayerPool = component.videoPlayerPool
+            onSearchChats = component::onSearchChats
         )
     }
 }

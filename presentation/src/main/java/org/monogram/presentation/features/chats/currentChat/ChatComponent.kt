@@ -9,13 +9,11 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import java.io.File
 
 @Stable
 interface ChatComponent {
     val appPreferences: AppPreferences
-    val videoPlayerPool: VideoPlayerPool
     val stickerRepository: StickerRepository
     val state: StateFlow<State>
     val repositoryMessage: MessageRepository

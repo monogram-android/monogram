@@ -5,13 +5,11 @@ import org.monogram.domain.models.ChatEventLogFiltersModel
 import org.monogram.domain.models.ChatEventModel
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.presentation.core.util.IDownloadUtils
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 interface ProfileLogsComponent {
     val state: Value<State>
     val messageRepository: MessageRepository
     val downloadUtils: IDownloadUtils
-    val videoPlayerPool: VideoPlayerPool
 
     fun onBack()
     fun onLoadMore()

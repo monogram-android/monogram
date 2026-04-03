@@ -623,7 +623,6 @@ fun SettingsContent(component: SettingsComponent) {
                                     start = sidePadding,
                                     end = sidePadding
                                 ),
-                                videoPlayerPool = component.videoPlayerPool,
                                 onStatusClick = {
                                     statusAnchorBounds =
                                         headerStatusAnchorBounds ?: statusAnchorBounds

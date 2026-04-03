@@ -29,7 +29,6 @@ import org.monogram.domain.models.ChatModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.SettingsTile
@@ -178,8 +177,7 @@ fun AdBlockContent(component: AdBlockComponent) {
             channels = state.whitelistedChannelModels,
             onDismiss = component::onDismissBottomSheet,
             onRemove = component::onRemoveWhitelistedChannel,
-            onClear = component::onClearWhitelistedChannels,
-            videoPlayerPool = component.videoPlayerPool
+            onClear = component::onClearWhitelistedChannels
         )
     }
 }
@@ -327,7 +325,6 @@ private fun AddKeywordBottomSheet(
 @Composable
 private fun WhitelistedChannelsBottomSheet(
     channels: List<ChatModel>,
-    videoPlayerPool: VideoPlayerPool,
     onDismiss: () -> Unit,
     onRemove: (Long) -> Unit,
     onClear: () -> Unit
@@ -430,7 +427,6 @@ private fun WhitelistedChannelsBottomSheet(
                                     path = channel.avatarPath,
                                     fallbackPath = channel.personalAvatarPath,
                                     name = channel.title,
-                                    videoPlayerPool = videoPlayerPool,
                                     size = 48.dp
                                 )
                             },

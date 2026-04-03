@@ -22,7 +22,6 @@ import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.features.chats.ChatListComponent
 import org.monogram.presentation.features.chats.ChatListStore
 import org.monogram.presentation.features.chats.ChatListStoreFactory
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultChatListComponent(
@@ -43,7 +42,6 @@ class DefaultChatListComponent(
     private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
     private val updateRepository: UpdateRepository = container.repositories.updateRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
     private val _state = MutableStateFlow(
         ChatListComponent.State(

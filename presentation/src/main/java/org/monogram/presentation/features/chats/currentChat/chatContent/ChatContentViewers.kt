@@ -45,8 +45,7 @@ fun ChatContentViewers(
                 url = url,
                 messageRepository = component.repositoryMessage,
                 onDismiss = { component.onDismissInstantView() },
-                onOpenWebView = { component.onOpenWebView(it) },
-                videoPlayerPool = component.videoPlayerPool
+                onOpenWebView = { component.onOpenWebView(it) }
             )
         }
     }

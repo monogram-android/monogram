@@ -31,7 +31,6 @@ import org.monogram.domain.models.UserModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,8 +143,7 @@ fun BlockedUsersContent(component: BlockedUsersComponent) {
                                     user = user,
                                     position = position,
                                     onUnblock = { component.onUnblockUserClicked(user.id) },
-                                    onClick = { component.onUserClicked(user.id) },
-                                    videoPlayerPool = component.videoPlayerPool
+                                    onClick = { component.onUserClicked(user.id) }
                                 )
                             }
                         }
@@ -160,7 +158,6 @@ fun BlockedUsersContent(component: BlockedUsersComponent) {
 fun BlockedUserItem(
     user: UserModel,
     position: ItemPosition,
-    videoPlayerPool: VideoPlayerPool,
     onUnblock: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -220,8 +217,7 @@ fun BlockedUserItem(
                 path = user.avatarPath,
                 fallbackPath = user.personalAvatarPath,
                 name = user.firstName.ifBlank { "D" },
-                size = 40.dp,
-                videoPlayerPool = videoPlayerPool
+                size = 40.dp
             )
             Spacer(modifier = Modifier.width(16.dp))
             Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {

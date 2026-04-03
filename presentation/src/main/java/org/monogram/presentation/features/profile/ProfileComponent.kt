@@ -5,13 +5,11 @@ import org.monogram.domain.models.*
 import org.monogram.domain.repository.ChatMemberStatus
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.presentation.core.util.IDownloadUtils
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 interface ProfileComponent {
     val state: Value<State>
     val messageRepository: MessageRepository
     val downloadUtils: IDownloadUtils
-    val videoPlayerPool: VideoPlayerPool
 
     fun onBack()
     fun onTabSelected(index: Int)

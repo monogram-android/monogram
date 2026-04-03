@@ -74,7 +74,6 @@ fun MessageBubbleContainer(
     onReplySwipe: (MessageModel) -> Unit = {},
     swipeEnabled: Boolean = true,
     downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     val configuration = LocalConfiguration.current
@@ -150,8 +149,7 @@ fun MessageBubbleContainer(
                 isGroup = isGroup,
                 isOutgoing = isOutgoing,
                 isSameSenderBelow = isSameSenderBelow,
-                toProfile = toProfile,
-                videoPlayerPool = videoPlayerPool
+                toProfile = toProfile
             )
 
             Column(
@@ -205,7 +203,6 @@ fun MessageBubbleContainer(
                     bubblePosition = bubblePosition,
                     bubbleSize = bubbleSize,
                     downloadUtils = downloadUtils,
-                    videoPlayerPool = videoPlayerPool,
                     isAnyViewerOpen = isAnyViewerOpen
                 )
 
@@ -228,7 +225,6 @@ fun MessageBubbleContainer(
 @Composable
 private fun MessageAvatar(
     msg: MessageModel,
-    videoPlayerPool: VideoPlayerPool,
     isGroup: Boolean,
     isOutgoing: Boolean,
     isSameSenderBelow: Boolean,
@@ -242,8 +238,7 @@ private fun MessageAvatar(
                 name = msg.senderName,
                 size = 40.dp,
                 isLocal = msg.senderAvatar?.contains("local") ?: false,
-                onClick = { toProfile(msg.senderId) },
-                videoPlayerPool = videoPlayerPool)
+                onClick = { toProfile(msg.senderId) })
         } else {
             Spacer(modifier = Modifier.width(40.dp))
         }
@@ -290,7 +285,6 @@ private fun MessageContentSelector(
     bubblePosition: Offset,
     bubbleSize: IntSize,
     downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     Column(
@@ -401,7 +395,6 @@ private fun MessageContentSelector(
                     toProfile = toProfile,
                     modifier = Modifier.fillMaxWidth(),
                     downloadUtils = downloadUtils,
-                    videoPlayerPool = videoPlayerPool,
                     isAnyViewerOpen = isAnyViewerOpen
                 )
             }
@@ -481,7 +474,6 @@ private fun MessageContentSelector(
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
                     downloadUtils = downloadUtils,
-                    videoPlayerPool = videoPlayerPool,
                     isAnyViewerOpen = isAnyViewerOpen
                 )
             }
@@ -565,7 +557,6 @@ private fun MessageContentSelector(
                     },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
-                    videoPlayerPool = videoPlayerPool,
                     toProfile = toProfile,
                     showReactions = msg.reactions.isNotEmpty()
                 )

@@ -11,7 +11,6 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultProfileLogsComponent(
@@ -24,7 +23,6 @@ class DefaultProfileLogsComponent(
 
     override val messageRepository: MessageRepository = container.repositories.messageRepository
     private val userRepository: UserRepository = container.repositories.userRepository
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
     private val scope = componentScope
     private val _state = MutableValue(ProfileLogsComponent.State())

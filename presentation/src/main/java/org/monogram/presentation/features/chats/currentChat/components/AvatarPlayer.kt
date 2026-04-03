@@ -28,6 +28,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import coil3.video.VideoFrameDecoder
 import coil3.video.videoFrameMillis
+import org.monogram.presentation.core.util.LocalVideoPlayerPool
 import java.io.File
 
 @OptIn(UnstableApi::class)
@@ -35,13 +36,13 @@ import java.io.File
 fun AvatarPlayer(
     path: String,
     modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Crop,
-    videoPlayerPool: VideoPlayerPool
+    contentScale: ContentScale = ContentScale.Crop
 ) {
     if (LocalInspectionMode.current) {
         Box(modifier = modifier)
         return
     }
+    val videoPlayerPool = LocalVideoPlayerPool.current
 
     val context = LocalContext.current
     var isVideoFrameReady by remember { mutableStateOf(false) }

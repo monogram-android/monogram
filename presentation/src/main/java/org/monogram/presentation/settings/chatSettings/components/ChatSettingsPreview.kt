@@ -23,7 +23,6 @@ import org.monogram.domain.models.*
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.components.MessageBubbleContainer
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import java.io.File
 
 @Composable
@@ -39,8 +38,7 @@ fun ChatSettingsPreview(
     dimming: Int = 0,
     isGrayscale: Boolean = false,
     modifier: Modifier = Modifier,
-    downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool
+    downloadUtils: IDownloadUtils
 ) {
     Column(modifier = modifier) {
         Text(
@@ -234,8 +232,7 @@ fun ChatSettingsPreview(
                         onPhotoClick = onPhotoClick,
                         onReplyClick = onReplyClick,
                         toProfile = toProfile,
-                        downloadUtils = downloadUtils,
-                        videoPlayerPool = videoPlayerPool
+                        downloadUtils = downloadUtils
                     )
                 }
             }

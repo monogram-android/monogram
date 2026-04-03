@@ -19,7 +19,6 @@ import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.*
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.chats.BotCommandSuggestions
 import org.monogram.presentation.features.stickers.ui.menu.StickerEmojiMenu
 
@@ -60,7 +59,6 @@ fun ChatInputBarComposerSection(
     isVideoMessageMode: Boolean,
     replyMarkup: ReplyMarkupModel?,
     showSendOptionsSheet: Boolean,
-    videoPlayerPool: VideoPlayerPool,
     stickerRepository: StickerRepository,
     onCancelEdit: () -> Unit,
     onCancelReply: () -> Unit,
@@ -124,8 +122,7 @@ fun ChatInputBarComposerSection(
                     onMentionClick = {
                         onMentionClick(it)
                         onMentionQueryClear()
-                    },
-                    videoPlayerPool = videoPlayerPool
+                    }
                 )
             }
 
@@ -331,7 +328,6 @@ fun ChatInputBarComposerSection(
                     onGifSelected = onGifClick,
                     onSearchFocused = onGifSearchFocusedChange,
                     panelHeight = stickerMenuHeight,
-                    videoPlayerPool = videoPlayerPool,
                     stickerRepository = stickerRepository
                 )
             }

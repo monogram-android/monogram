@@ -325,8 +325,7 @@ fun ProfileContent(component: ProfileComponent) {
                                 onAvatarClick = component::onAvatarClick,
                                 userModel = user,
                                 chatModel = chat,
-                                onActionClick = {},
-                                videoPlayerPool = component.videoPlayerPool
+                                onActionClick = {}
                             )
                         }
                     }
@@ -365,8 +364,7 @@ fun ProfileContent(component: ProfileComponent) {
                                     onShowPermissions = component::onShowPermissions,
                                     onAcceptTOS = component::onAcceptTOS,
                                     onToggleContact = component::onToggleContact,
-                                    onLocationClick = component::onLocationClick,
-                                    videoPlayerPool = component.videoPlayerPool
+                                    onLocationClick = component::onLocationClick
                                 )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
@@ -385,8 +383,7 @@ fun ProfileContent(component: ProfileComponent) {
                         onMemberLongClick = component::onMemberLongClick,
                         onLoadMedia = { msg ->
                             component.onDownloadMedia(msg)
-                        },
-                        videoPlayerPool = component.videoPlayerPool
+                        }
                     )
 
                     item(span = { GridItemSpan(3) }) {

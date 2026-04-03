@@ -826,7 +826,6 @@ fun EditProfileContent(component: EditProfileComponent) {
                                 path = state.avatarPath,
                                 name = state.firstName,
                                 size = 100.dp,
-                                videoPlayerPool = component.videoPlayerPool,
                                 onClick = {
                                     photoPickerLauncher.launch(
                                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -980,8 +979,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                                         path = chat.avatarPath,
                                         fallbackPath = chat.personalAvatarPath,
                                         name = chat.title,
-                                        size = 40.dp,
-                                        videoPlayerPool = component.videoPlayerPool
+                                        size = 40.dp
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column {

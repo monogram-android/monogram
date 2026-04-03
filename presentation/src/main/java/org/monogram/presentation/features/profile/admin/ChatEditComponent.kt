@@ -2,11 +2,9 @@ package org.monogram.presentation.features.profile.admin
 
 import com.arkivanov.decompose.value.Value
 import org.monogram.domain.models.ChatModel
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 interface ChatEditComponent {
     val state: Value<State>
-    val videoPlayerPool: VideoPlayerPool
 
     fun onBack()
     fun onUpdateTitle(title: String)

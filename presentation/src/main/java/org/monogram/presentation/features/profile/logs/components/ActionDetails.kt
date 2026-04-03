@@ -279,8 +279,7 @@ private fun TargetUserRow(
             path = info?.avatarPath,
             name = name,
             size = 28.dp,
-            fontSize = 12,
-            videoPlayerPool = component.videoPlayerPool
+            fontSize = 12
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(

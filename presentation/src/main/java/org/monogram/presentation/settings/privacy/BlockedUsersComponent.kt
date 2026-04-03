@@ -8,12 +8,10 @@ import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 
 interface BlockedUsersComponent {
     val state: Value<State>
-    val videoPlayerPool: VideoPlayerPool
     fun onBackClicked()
     fun onUnblockUserClicked(userId: Long)
     fun onAddBlockedUserClicked()
@@ -34,7 +32,6 @@ class DefaultBlockedUsersComponent(
 
     private val privacyRepository: PrivacyRepository = container.repositories.privacyRepository
     private val userRepository: UserRepository = container.repositories.userRepository
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
     private val _state = MutableValue(BlockedUsersComponent.State())
     override val state: Value<BlockedUsersComponent.State> = _state

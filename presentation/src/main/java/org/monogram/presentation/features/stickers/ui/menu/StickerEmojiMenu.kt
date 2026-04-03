@@ -22,7 +22,6 @@ import org.monogram.domain.models.GifModel
 import org.monogram.domain.models.StickerModel
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +32,6 @@ fun StickerEmojiMenu(
     panelHeight: Dp = 400.dp,
     emojiOnlyMode: Boolean = false,
     onSearchFocused: (Boolean) -> Unit = {},
-    videoPlayerPool: VideoPlayerPool,
     stickerRepository: StickerRepository
 ) {
     var selectedTab by remember(emojiOnlyMode) { mutableIntStateOf(if (emojiOnlyMode) 1 else 0) }
@@ -91,7 +89,6 @@ fun StickerEmojiMenu(
                             onSearchFocused(focused)
                         },
                         contentPadding = PaddingValues(bottom = 76.dp),
-                        videoPlayerPool = videoPlayerPool,
                         stickerRepository = stickerRepository
                     )
                 }

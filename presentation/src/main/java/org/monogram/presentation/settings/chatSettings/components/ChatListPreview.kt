@@ -18,13 +18,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.core.ui.ItemPosition
 
 @Composable
 fun ChatListPreview(
     messageLines: Int,
-    videoPlayerPool: VideoPlayerPool,
     modifier: Modifier = Modifier,
     showPhotos: Boolean = true,
     position: ItemPosition = ItemPosition.STANDALONE
@@ -83,8 +81,7 @@ fun ChatListPreview(
                     time = stringResource(R.string.preview_time_konata),
                     lines = messageLines,
                     showPhotos = showPhotos,
-                    isKonata = true,
-                    videoPlayerPool = videoPlayerPool
+                    isKonata = true
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 PreviewChatItem(
@@ -93,8 +90,7 @@ fun ChatListPreview(
                     time = stringResource(R.string.preview_time_kagami),
                     lines = messageLines,
                     showPhotos = showPhotos,
-                    isKonata = false,
-                    videoPlayerPool = videoPlayerPool
+                    isKonata = false
                 )
             }
         }
@@ -112,8 +108,7 @@ private fun PreviewChatItem(
     time: String,
     lines: Int,
     showPhotos: Boolean,
-    isKonata: Boolean,
-    videoPlayerPool: VideoPlayerPool
+    isKonata: Boolean
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -129,8 +124,7 @@ private fun PreviewChatItem(
                     path = if (isKonata) "local" else null,
                     name = name,
                     size = 48.dp,
-                    isLocal = isKonata,
-                    videoPlayerPool = videoPlayerPool
+                    isLocal = isKonata
                 )
 
                 Spacer(modifier = Modifier.width(12.dp))

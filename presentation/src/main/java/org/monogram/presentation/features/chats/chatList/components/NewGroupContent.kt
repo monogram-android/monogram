@@ -26,7 +26,6 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsItem
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 @Composable
 fun NewGroupContent(
@@ -38,7 +37,6 @@ fun NewGroupContent(
     onDescriptionChange: (String) -> Unit,
     onPhotoClick: () -> Unit,
     onAutoDeleteTimeChange: (Int) -> Unit,
-    videoPlayerPool: VideoPlayerPool,
     modifier: Modifier = Modifier
 ) {
     var showAutoDeleteSheet by remember { mutableStateOf(false) }
@@ -61,8 +59,7 @@ fun NewGroupContent(
             GroupPhotoSelector(
                 photoPath = photoPath,
                 title = title,
-                onClick = onPhotoClick,
-                videoPlayerPool = videoPlayerPool
+                onClick = onPhotoClick
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
@@ -148,7 +145,6 @@ fun NewGroupContent(
 @Composable
 private fun GroupPhotoSelector(
     photoPath: String?,
-    videoPlayerPool: VideoPlayerPool,
     title: String,
     onClick: () -> Unit
 ) {
@@ -172,8 +168,7 @@ private fun GroupPhotoSelector(
                 Avatar(
                     path = photoPath,
                     name = title,
-                    size = 100.dp,
-                    videoPlayerPool = videoPlayerPool
+                    size = 100.dp
                 )
             } else {
                 Icon(

@@ -23,20 +23,18 @@ import coil3.size.Precision
 import coil3.size.Size
 import org.monogram.presentation.core.util.generateColorFromHash
 import org.monogram.presentation.features.chats.currentChat.components.AvatarPlayer
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import java.io.File
 
 @Composable
 fun AvatarHeader(
     path: String?,
-    fallbackPath: String? = null,
     name: String,
     size: Dp,
     modifier: Modifier = Modifier,
+    fallbackPath: String? = null,
     fontSize: Int = 64,
     isOnline: Boolean = false,
-    avatarCornerPercent: Int = 0,
-    videoPlayerPool: VideoPlayerPool
+    avatarCornerPercent: Int = 0
 ) {
     val context = LocalContext.current
     val combinedModifier = modifier
@@ -56,8 +54,7 @@ fun AvatarHeader(
                     AvatarPlayer(
                         path = resolvedPath,
                         modifier = Modifier.matchParentSize(),
-                        contentScale = ContentScale.Crop,
-                        videoPlayerPool = videoPlayerPool
+                        contentScale = ContentScale.Crop
                     )
                 }
 
@@ -98,7 +95,7 @@ private fun resolveAvatarPath(primaryPath: String?, fallbackPath: String?): Stri
     if (candidates.isEmpty()) return null
 
     val existingCandidates = candidates.filter { File(it).exists() }
-    val source = if (existingCandidates.isNotEmpty()) existingCandidates else candidates
+    val source = existingCandidates.ifEmpty { candidates }
 
     return source.firstOrNull { it.endsWith(".mp4", ignoreCase = true) } ?: source.firstOrNull()
 }

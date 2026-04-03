@@ -252,7 +252,6 @@ fun ChatMessageOptionsMenu(
             scope.launch { reloadViewers() }
         },
         onViewerClick = { component.toProfile(it) },
-        videoPlayerPool = component.videoPlayerPool,
         bubbleRadius = state.bubbleRadius,
         splitOffset = splitOffset,
         onReply = {

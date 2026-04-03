@@ -32,6 +32,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -40,7 +41,6 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
 import org.monogram.presentation.features.chats.currentChat.components.chats.*
@@ -49,15 +49,16 @@ import org.monogram.presentation.features.chats.currentChat.components.chats.*
 fun ChannelVideoMessageBubble(
     content: MessageContent.Video,
     msg: MessageModel,
-    isSameSenderAbove: Boolean = false,
-    isSameSenderBelow: Boolean = false,
     fontSize: Float,
     letterSpacing: Float,
-    bubbleRadius: Float = 18f,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,
     autoDownloadRoaming: Boolean,
     autoplayVideos: Boolean,
+    modifier: Modifier = Modifier,
+    bubbleRadius: Float = 18f,
+    isSameSenderBelow: Boolean = false,
+    isSameSenderAbove: Boolean = false,
     onVideoClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit = {},
     onLongClick: (Offset) -> Unit,
@@ -68,9 +69,7 @@ fun ChannelVideoMessageBubble(
     showMetadata: Boolean = true,
     showReactions: Boolean = true,
     toProfile: (Long) -> Unit = {},
-    modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     val cornerRadius = bubbleRadius.dp
@@ -95,7 +94,8 @@ fun ChannelVideoMessageBubble(
     var isVisible by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
-    val screenHeightPx = remember { context.resources.displayMetrics.heightPixels }
+    val resource = LocalResources.current
+    val screenHeightPx = remember { resource.displayMetrics.heightPixels }
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
 
     var stablePath by remember(msg.id) { mutableStateOf(content.path) }
@@ -209,7 +209,6 @@ fun ChannelVideoMessageBubble(
                                             currentPositionSeconds = seconds
                                         }
                                     },
-                                    videoPlayerPool = videoPlayerPool,
                                     fileId = if (!hasPath && content.supportsStreaming) content.fileId else 0,
                                     thumbnailData = content.minithumbnail
                                 )

@@ -62,8 +62,7 @@ fun ChannelMessageBubbleContainer(
     showComments: Boolean = true,
     toProfile: (Long) -> Unit = {},
     onViaBotClick: (String) -> Unit = {},
-    downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool
+    downloadUtils: IDownloadUtils
 ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -185,8 +184,7 @@ fun ChannelMessageBubbleContainer(
                             onReplyClick = onGoToReply,
                             onReactionClick = { onReactionClick(msg.id, it) },
                             modifier = bubbleModifier.fillMaxWidth(),
-                            downloadUtils = downloadUtils,
-                            videoPlayerPool = videoPlayerPool
+                            downloadUtils = downloadUtils
                         )
                     }
 
@@ -260,8 +258,7 @@ fun ChannelMessageBubbleContainer(
                             onReplyClick = onGoToReply,
                             onReactionClick = { onReactionClick(msg.id, it) },
                             modifier = bubbleModifier.fillMaxWidth(),
-                            downloadUtils = downloadUtils,
-                            videoPlayerPool = videoPlayerPool
+                            downloadUtils = downloadUtils
                         )
                     }
 

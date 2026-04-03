@@ -387,8 +387,7 @@ fun ChatListContent(component: ChatListComponent) {
                     botUserId = bot.botUserId,
                     botName = state.botWebAppName ?: bot.name
                 )
-            },
-            videoPlayerPool = component.videoPlayerPool
+            }
         )
     }
 
@@ -524,8 +523,7 @@ fun ChatListContent(component: ChatListComponent) {
                                     statusAnchorBounds = anchorBounds ?: statusAnchorBounds
                                     showStatusMenu = true
                                 },
-                                onMenuClick = { showAccountMenu = true },
-                                videoPlayerPool = component.videoPlayerPool
+                                onMenuClick = { showAccountMenu = true }
                             )
                         }
                     }
@@ -818,8 +816,7 @@ fun ChatListContent(component: ChatListComponent) {
                                                         fallbackPath = chat.personalAvatarPath,
                                                         name = chat.title,
                                                         size = 64.dp,
-                                                        isOnline = chat.isOnline,
-                                                        videoPlayerPool = component.videoPlayerPool
+                                                        isOnline = chat.isOnline
                                                     )
                                                     Box(
                                                         modifier = Modifier
@@ -866,8 +863,7 @@ fun ChatListContent(component: ChatListComponent) {
                                         onLongClick = { component.onRemoveSearchHistoryItem(chat.id) },
                                         emojiFontFamily = emojiFontFamily,
                                         messageLines = messageLines,
-                                        showPhotos = showPhotos,
-                                        videoPlayerPool = component.videoPlayerPool
+                                        showPhotos = showPhotos
                                     )
                                 }
                             }
@@ -892,8 +888,7 @@ fun ChatListContent(component: ChatListComponent) {
                                     onLongClick = { onChatLongClicked(chat.id) },
                                     emojiFontFamily = emojiFontFamily,
                                     messageLines = messageLines,
-                                    showPhotos = showPhotos,
-                                    videoPlayerPool = component.videoPlayerPool
+                                    showPhotos = showPhotos
                                 )
                             }
                         }
@@ -921,8 +916,7 @@ fun ChatListContent(component: ChatListComponent) {
                                     onLongClick = { onChatLongClicked(chat.id) },
                                     emojiFontFamily = emojiFontFamily,
                                     messageLines = messageLines,
-                                    showPhotos = showPhotos,
-                                    videoPlayerPool = component.videoPlayerPool
+                                    showPhotos = showPhotos
                                 )
                             }
 
@@ -968,8 +962,7 @@ fun ChatListContent(component: ChatListComponent) {
                                 MessageSearchItem(
                                     modifier = Modifier.animateItem(),
                                     message = msg,
-                                    onClick = { component.onMessageClicked(msg.chatId, msg.id) },
-                                    videoPlayerPool = component.videoPlayerPool
+                                    onClick = { component.onMessageClicked(msg.chatId, msg.id) }
                                 )
                             }
 
@@ -1009,8 +1002,7 @@ fun ChatListContent(component: ChatListComponent) {
                                     isTabletSelected = isTablet && state.activeChatId == chat.id,
                                     emojiFontFamily = emojiFontFamily,
                                     messageLines = messageLines,
-                                    showPhotos = showPhotos,
-                                    videoPlayerPool = component.videoPlayerPool
+                                    showPhotos = showPhotos
                                 )
                             }
                         }
@@ -1134,7 +1126,6 @@ fun ChatListContent(component: ChatListComponent) {
                                             onClick = { onChatClicked(chat.id) },
                                             onLongClick = { onChatLongClicked(chat.id) },
                                             isTabletSelected = isTablet && state.activeChatId == chat.id,
-                                            videoPlayerPool = component.videoPlayerPool,
                                             emojiFontFamily = emojiFontFamily,
                                             messageLines = messageLines,
                                             showPhotos = showPhotos
@@ -1260,8 +1251,7 @@ fun ChatListContent(component: ChatListComponent) {
                 url = url,
                 messageRepository = koinInject(),
                 onDismiss = { component.onDismissInstantView() },
-                onOpenWebView = { component.onOpenWebView(it) },
-                videoPlayerPool = component.videoPlayerPool
+                onOpenWebView = { component.onOpenWebView(it) }
             )
         }
     }

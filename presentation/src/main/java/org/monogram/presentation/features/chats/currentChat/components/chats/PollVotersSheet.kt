@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.UserModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -30,7 +29,6 @@ import org.monogram.presentation.features.chats.currentChat.components.VideoPlay
 fun PollVotersSheet(
     voters: List<UserModel>,
     isLoading: Boolean,
-    videoPlayerPool: VideoPlayerPool,
     onUserClick: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -88,7 +86,6 @@ fun PollVotersSheet(
                         itemsIndexed(voters) { index, user ->
                             VoterItem(
                                 user = user,
-                                videoPlayerPool = videoPlayerPool,
                                 onClick = { onUserClick(user.id) }
                             )
                             if (index < voters.size - 1) {
@@ -127,7 +124,6 @@ fun PollVotersSheet(
 @Composable
 private fun VoterItem(
     user: UserModel,
-    videoPlayerPool: VideoPlayerPool,
     onClick: () -> Unit
 ) {
     Row(
@@ -141,8 +137,7 @@ private fun VoterItem(
             path = user.avatarPath,
             fallbackPath = user.personalAvatarPath,
             name = user.firstName,
-            size = 40.dp,
-            videoPlayerPool = videoPlayerPool
+            size = 40.dp
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {

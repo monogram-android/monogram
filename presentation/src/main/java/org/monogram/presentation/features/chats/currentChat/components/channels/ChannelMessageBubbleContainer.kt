@@ -27,7 +27,6 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.chatContent.shouldShowDate
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.chats.*
 
 @Composable
@@ -72,7 +71,6 @@ fun ChannelMessageBubbleContainer(
     toProfile: (Long) -> Unit = {},
     onViaBotClick: (String) -> Unit = {},
     downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     val configuration = LocalConfiguration.current
@@ -238,7 +236,6 @@ fun ChannelMessageBubbleContainer(
                             toProfile = toProfile,
                             modifier = Modifier.fillMaxWidth(),
                             downloadUtils = downloadUtils,
-                            videoPlayerPool = videoPlayerPool,
                             isAnyViewerOpen = isAnyViewerOpen
                         )
                     }
@@ -332,7 +329,6 @@ fun ChannelMessageBubbleContainer(
                             toProfile = toProfile,
                             modifier = Modifier.fillMaxWidth(),
                             downloadUtils = downloadUtils,
-                            videoPlayerPool = videoPlayerPool,
                             isAnyViewerOpen = isAnyViewerOpen
                         )
                     }

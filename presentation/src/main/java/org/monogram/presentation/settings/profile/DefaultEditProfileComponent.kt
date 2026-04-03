@@ -10,7 +10,6 @@ import org.monogram.domain.repository.ChatsListRepository
 import org.monogram.domain.repository.LocationRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultEditProfileComponent(
@@ -21,7 +20,6 @@ class DefaultEditProfileComponent(
     private val userRepository: UserRepository = container.repositories.userRepository
     private val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
     private val locationRepository: LocationRepository = container.repositories.locationRepository
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
     private val _state = MutableValue(EditProfileComponent.State())
     override val state: Value<EditProfileComponent.State> = _state

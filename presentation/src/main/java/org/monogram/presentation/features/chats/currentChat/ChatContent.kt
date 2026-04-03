@@ -635,7 +635,6 @@ fun ChatContent(
                                 state = inputBarState,
                                 actions = inputBarActions,
                                 appPreferences = component.appPreferences,
-                                videoPlayerPool = component.videoPlayerPool,
                                 stickerRepository = component.stickerRepository
                             )
                         } else if (!state.isMember && (state.isChannel || state.isGroup)) {
@@ -818,7 +817,6 @@ fun ChatContent(
                                         it.let { component.toProfile(it) }
                                     },
                                     downloadUtils = component.downloadUtils,
-                                    videoPlayerPool = component.videoPlayerPool,
                                     isAnyViewerOpen = isAnyViewerOpen
                                 )
 
@@ -946,8 +944,7 @@ fun ChatContent(
                     onUnpin = { component.onUnpinMessage(it) },
                     onReplyClick = { scrollToMessageState.value(it); component.onDismissPinnedMessages() },
                     onReactionClick = { id, r -> component.onSendReaction(id, r) },
-                    downloadUtils = component.downloadUtils,
-                    videoPlayerPool = component.videoPlayerPool
+                    downloadUtils = component.downloadUtils
                 )
             }
 
@@ -967,8 +964,7 @@ fun ChatContent(
                         component.onDismissVoters()
                         component.toProfile(it)
                     },
-                    onDismiss = { component.onDismissVoters() },
-                    videoPlayerPool = component.videoPlayerPool
+                    onDismiss = { component.onDismissVoters() }
                 )
             }
 

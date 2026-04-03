@@ -4,11 +4,9 @@ import kotlinx.coroutines.flow.StateFlow
 import org.monogram.domain.models.*
 import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.presentation.core.util.AppPreferences
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 interface ChatListComponent {
     val state: StateFlow<State>
-    val videoPlayerPool: VideoPlayerPool
     val appPreferences: AppPreferences
 
     fun onChatClicked(id: Long)

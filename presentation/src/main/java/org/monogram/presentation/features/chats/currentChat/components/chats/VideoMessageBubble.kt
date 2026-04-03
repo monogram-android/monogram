@@ -31,6 +31,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -41,7 +42,6 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
 
@@ -60,6 +60,7 @@ fun VideoMessageBubble(
     autoDownloadRoaming: Boolean,
     autoplayVideos: Boolean,
     onVideoClick: (MessageModel) -> Unit,
+    modifier: Modifier = Modifier,
     onCancelDownload: (Int) -> Unit = {},
     onLongClick: (Offset) -> Unit,
     onReplyClick: (MessageModel) -> Unit = {},
@@ -67,9 +68,7 @@ fun VideoMessageBubble(
     showMetadata: Boolean = true,
     showReactions: Boolean = true,
     toProfile: (Long) -> Unit = {},
-    modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     val cornerRadius = 18.dp
@@ -127,8 +126,8 @@ fun VideoMessageBubble(
     var isMuted by remember { mutableStateOf(true) }
     var currentPositionSeconds by remember { mutableIntStateOf(0) }
     var isVisible by remember { mutableStateOf(false) }
-
-    val screenHeightPx = remember { context.resources.displayMetrics.heightPixels }
+    val resources = LocalResources.current
+    val screenHeightPx = remember { resources.displayMetrics.heightPixels }
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
     var isMediaSpoilerRevealed by remember { mutableStateOf(!content.hasSpoiler) }
 
@@ -221,7 +220,6 @@ fun VideoMessageBubble(
                                             currentPositionSeconds = seconds
                                         }
                                     },
-                                    videoPlayerPool = videoPlayerPool,
                                     fileId = if (!hasPath && content.supportsStreaming) content.fileId else 0,
                                     thumbnailData = content.minithumbnail
                                 )

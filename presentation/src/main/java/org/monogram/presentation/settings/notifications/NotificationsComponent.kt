@@ -17,12 +17,10 @@ import org.monogram.domain.repository.SettingsRepository
 import org.monogram.domain.repository.SettingsRepository.TdNotificationScope
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 
 interface NotificationsComponent {
     val state: Value<State>
-    val videoPlayerPool: VideoPlayerPool
     val childStack: Value<ChildStack<*, Child>>
 
     fun onBackClicked()
@@ -81,7 +79,6 @@ class DefaultNotificationsComponent(
 
     private val appPreferences: AppPreferences = container.preferences.appPreferences
     private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
     private val distrManager: DistrManager = container.utils.distrManager()
 
     private val scope = componentScope

@@ -10,12 +10,10 @@ import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.FolderModel
 import org.monogram.domain.repository.ChatsListRepository
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 
 interface FoldersComponent {
     val state: Value<State>
-    val videoPlayerPool: VideoPlayerPool
     fun onBackClicked()
     fun onCreateFolderClicked()
     fun onFolderClicked(folderId: Int)
@@ -42,7 +40,6 @@ class DefaultFoldersComponent(
 ) : FoldersComponent, AppComponentContext by context {
 
     private val repository: ChatsListRepository = container.repositories.chatsListRepository
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
     private val _state = MutableValue(FoldersComponent.State())
     override val state: Value<FoldersComponent.State> = _state

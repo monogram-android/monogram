@@ -18,12 +18,10 @@ import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.UserStatusType
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.getUserStatusText
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 @Composable
 fun MentionSuggestions(
     suggestions: List<UserModel>,
-    videoPlayerPool: VideoPlayerPool,
     onMentionClick: (UserModel) -> Unit
 ) {
     val context = LocalContext.current
@@ -49,8 +47,7 @@ fun MentionSuggestions(
                         fallbackPath = user.personalAvatarPath,
                         name = user.firstName,
                         size = 36.dp,
-                        isOnline = user.userStatus == UserStatusType.ONLINE,
-                        videoPlayerPool = videoPlayerPool
+                        isOnline = user.userStatus == UserStatusType.ONLINE
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {

@@ -17,7 +17,6 @@ import org.monogram.domain.models.WallpaperModel
 import org.monogram.domain.repository.SettingsRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.*
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 import org.json.JSONObject
 import java.io.File
@@ -26,7 +25,6 @@ import java.net.URL
 interface ChatSettingsComponent {
     val state: Value<State>
     val downloadUtils: IDownloadUtils
-    val videoPlayerPool: VideoPlayerPool
     fun onBackClicked()
     fun onFontSizeChanged(size: Float)
     fun onLetterSpacingChanged(size: Float)
@@ -167,7 +165,6 @@ class DefaultChatSettingsComponent(
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
     private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
     private val stickerRepository: StickerRepository = container.repositories.stickerRepository
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
     private val distrManager: DistrManager = container.utils.distrManager()
     private val assetsManager: AssetsManager = container.utils.assetsManager()
 

@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.UserModel
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 @Composable
@@ -38,7 +37,6 @@ fun UserProfileHeader(
     contentPadding: PaddingValues,
     currentRadius: Dp,
     alpha: Float = 1f,
-    videoPlayerPool: VideoPlayerPool,
     onStatusClick: (() -> Unit)? = null,
     onStatusBoundsChanged: ((Rect) -> Unit)? = null
 ) {
@@ -61,8 +59,7 @@ fun UserProfileHeader(
                     fallbackPath = userModel.personalAvatarPath,
                     name = "${userModel.firstName} ${userModel.lastName}",
                     size = avatarSize.coerceAtMost(headerHeight),
-                    avatarCornerPercent = avatarCornerPercent,
-                    videoPlayerPool = videoPlayerPool
+                    avatarCornerPercent = avatarCornerPercent
                 )
             }
 

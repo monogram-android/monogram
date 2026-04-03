@@ -23,7 +23,6 @@ import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import org.monogram.presentation.core.util.generateColorFromHash
 import org.monogram.presentation.features.chats.currentChat.components.AvatarPlayer
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import java.io.File
 
 @Composable
@@ -32,7 +31,6 @@ fun AvatarTopAppBar(
     fallbackPath: String? = null,
     name: String,
     size: Dp,
-    videoPlayerPool: VideoPlayerPool,
     modifier: Modifier = Modifier,
     fontSize: Int = 14,
     isOnline: Boolean = false
@@ -52,8 +50,7 @@ fun AvatarTopAppBar(
                     AvatarPlayer(
                         path = resolvedPath,
                         modifier = combinedModifier,
-                        contentScale = ContentScale.Crop,
-                        videoPlayerPool = videoPlayerPool
+                        contentScale = ContentScale.Crop
                     )
                 }
             } else {

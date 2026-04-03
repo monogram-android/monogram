@@ -35,7 +35,6 @@ import kotlinx.coroutines.delay
 import org.monogram.domain.models.GifModel
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
 import org.monogram.presentation.features.stickers.ui.view.shimmerEffect
@@ -46,7 +45,6 @@ fun GifsView(
     onGifSelected: (GifModel) -> Unit,
     onSearchFocused: (Boolean) -> Unit,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    videoPlayerPool: VideoPlayerPool,
     stickerRepository: StickerRepository
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -171,7 +169,6 @@ fun GifsView(
                             gif = gif,
                             stickerRepository = stickerRepository,
                             onGifSelected = onGifClick,
-                            videoPlayerPool = videoPlayerPool,
                             animate = index in visibleRange
                         )
                     }
@@ -288,7 +285,6 @@ fun GifSearchBar(
 @UnstableApi
 @Composable
 fun GifItem(
-    videoPlayerPool: VideoPlayerPool,
     gif: GifModel,
     stickerRepository: StickerRepository,
     onGifSelected: (GifModel) -> Unit,
@@ -342,7 +338,6 @@ fun GifItem(
                         type = VideoType.Gif,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        videoPlayerPool = videoPlayerPool,
                         animate = animate,
                         thumbnailData = thumbPath
                     )

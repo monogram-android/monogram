@@ -28,7 +28,6 @@ import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.features.chats.chatList.components.SectionHeader
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,7 +39,6 @@ fun FolderDialog(
     initialSelectedChatIds: List<Long> = emptyList(),
     availableChats: List<ChatModel> = emptyList(),
     confirmButtonText: String,
-    videoPlayerPool: VideoPlayerPool,
     isEditMode: Boolean = false,
     onDismiss: () -> Unit,
     onConfirm: (String, String?, List<Long>) -> Unit,
@@ -195,8 +193,7 @@ fun FolderDialog(
                                 path = chat.avatarPath,
                                 fallbackPath = chat.personalAvatarPath,
                                 name = chat.title,
-                                size = 36.dp,
-                                videoPlayerPool = videoPlayerPool
+                                size = 36.dp
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(

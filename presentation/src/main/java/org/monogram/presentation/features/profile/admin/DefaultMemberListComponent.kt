@@ -11,7 +11,6 @@ import org.monogram.domain.repository.ChatMemberStatus
 import org.monogram.domain.repository.ChatMembersFilter
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultMemberListComponent(
@@ -24,7 +23,6 @@ class DefaultMemberListComponent(
 ) : MemberListComponent, AppComponentContext by context {
 
     private val userRepository: UserRepository = container.repositories.userRepository
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
     private val scope = componentScope
     private val _state = MutableValue(MemberListComponent.State(chatId = chatId, type = type))

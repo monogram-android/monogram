@@ -17,13 +17,11 @@ import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.ChatModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 @Composable
 fun LinkedChatItem(
     chat: ChatModel,
     isDiscussion: Boolean,
-    videoPlayerPool: VideoPlayerPool,
     onClick: () -> Unit
 ) {
     Surface(
@@ -45,8 +43,7 @@ fun LinkedChatItem(
                 fallbackPath = chat.personalAvatarPath,
                 name = chat.title,
                 size = 64.dp,
-                modifier = Modifier.clip(CircleShape),
-                videoPlayerPool = videoPlayerPool
+                modifier = Modifier.clip(CircleShape)
             )
 
             Spacer(modifier = Modifier.width(12.dp))

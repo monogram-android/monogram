@@ -12,7 +12,6 @@ import org.monogram.domain.repository.*
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultProfileComponent(
@@ -33,7 +32,6 @@ class DefaultProfileComponent(
     private val userRepository: UserRepository = container.repositories.userRepository
     private val privacyRepository: PrivacyRepository = container.repositories.privacyRepository
     override val messageRepository: MessageRepository = container.repositories.messageRepository
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
     private val locationRepository: LocationRepository = container.repositories.locationRepository
     private val botPreferences: BotPreferencesProvider = container.preferences.botPreferencesProvider
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()

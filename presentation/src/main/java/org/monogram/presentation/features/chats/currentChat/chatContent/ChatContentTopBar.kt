@@ -335,8 +335,7 @@ fun ChatContentTopBar(
                         { component.onProfileClicked() }
                     } else null,
                     showBack = showBack,
-                    personalAvatarPath = state.chatPersonalAvatar,
-                    videoPlayerPool = component.videoPlayerPool
+                    personalAvatarPath = state.chatPersonalAvatar
                 )
             }
         }

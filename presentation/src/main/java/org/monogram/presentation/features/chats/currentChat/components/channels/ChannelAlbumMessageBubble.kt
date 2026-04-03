@@ -29,37 +29,35 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.components.CompactMediaMosaic
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.chats.*
 
 @Composable
 fun ChannelAlbumMessageBubble(
     messages: List<MessageModel>,
-    isSameSenderAbove: Boolean = false,
-    isSameSenderBelow: Boolean = false,
     autoplayGifs: Boolean,
     autoplayVideos: Boolean,
+    modifier: Modifier = Modifier,
+    fontSize: Float,
+    onPhotoClick: (MessageModel) -> Unit,
+    onLongClick: (Offset) -> Unit,
+    downloadUtils: IDownloadUtils,
+    isSameSenderAbove: Boolean = false,
+    isSameSenderBelow: Boolean = false,
     autoDownloadMobile: Boolean = false,
     autoDownloadWifi: Boolean = false,
     autoDownloadRoaming: Boolean = false,
     autoDownloadFiles: Boolean = false,
-    fontSize: Float,
     bubbleRadius: Float = 16f,
-    onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit = {},
     onVideoClick: (MessageModel) -> Unit,
     onDocumentClick: (MessageModel) -> Unit = {},
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
-    onLongClick: (Offset) -> Unit,
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
     onCommentsClick: (Long) -> Unit = {},
     showComments: Boolean = true,
     toProfile: (Long) -> Unit = {},
-    modifier: Modifier = Modifier,
-    downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     if (messages.isEmpty()) return
@@ -113,8 +111,7 @@ fun ChannelAlbumMessageBubble(
             onCommentsClick = onCommentsClick,
             showComments = showComments,
             toProfile = toProfile,
-            modifier = modifier,
-            downloadUtils = downloadUtils
+            modifier = modifier
         )
         return
     }
@@ -212,7 +209,6 @@ fun ChannelAlbumMessageBubble(
                     autoDownloadRoaming = autoDownloadRoaming,
                     toProfile = toProfile,
                     downloadUtils = downloadUtils,
-                    videoPlayerPool = videoPlayerPool,
                     isAnyViewerOpen = isAnyViewerOpen
                 )
 
@@ -508,8 +504,7 @@ fun ChannelAudioAlbumBubble(
     onCommentsClick: (Long) -> Unit,
     showComments: Boolean,
     toProfile: (Long) -> Unit,
-    modifier: Modifier = Modifier,
-    downloadUtils: IDownloadUtils
+    modifier: Modifier = Modifier
 ) {
     val firstMsg = messages.first()
     val lastMsg = messages.last()

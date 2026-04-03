@@ -112,7 +112,7 @@ fun ChatEditContent(component: ChatEditComponent) {
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Avatar(path = state.avatarPath, name = state.title, size = 100.dp, videoPlayerPool = component.videoPlayerPool)
+                        Avatar(path = state.avatarPath, name = state.title, size = 100.dp)
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()

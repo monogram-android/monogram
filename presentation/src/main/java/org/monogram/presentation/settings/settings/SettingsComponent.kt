@@ -2,11 +2,9 @@ package org.monogram.presentation.settings.settings
 
 import com.arkivanov.decompose.value.Value
 import org.monogram.domain.models.UserModel
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 interface SettingsComponent {
     val state: Value<State>
-    val videoPlayerPool: VideoPlayerPool
 
     fun onBackClicked()
     fun onEditProfileClicked()

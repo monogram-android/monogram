@@ -50,7 +50,6 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.features.chats.currentChat.chatContent.DeleteMessagesSheet
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.chats.getEmojiFontFamily
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import java.text.SimpleDateFormat
@@ -83,7 +82,6 @@ fun MessageOptionsMenu(
     isLoadingViewers: Boolean = false,
     onReloadViewers: () -> Unit = {},
     onViewerClick: (Long) -> Unit = {},
-    videoPlayerPool: VideoPlayerPool,
     bubbleRadius: Float = 18f,
     splitOffset: Int? = null,
     onReply: () -> Unit,
@@ -791,7 +789,6 @@ fun MessageOptionsMenu(
                                         ViewerRow(
                                             viewer = viewer,
                                             dateFormat = viewerDateFormat,
-                                            videoPlayerPool = videoPlayerPool,
                                             onClick = {
                                                 animateOutAndDismiss {
                                                     onViewerClick(viewer.user.id)
@@ -1063,7 +1060,6 @@ private fun ReactionsRow(
 private fun ViewerRow(
     viewer: MessageViewerModel,
     dateFormat: SimpleDateFormat,
-    videoPlayerPool: VideoPlayerPool,
     onClick: () -> Unit
 ) {
     val fullName = remember(viewer.user.firstName, viewer.user.lastName) {
@@ -1090,7 +1086,6 @@ private fun ViewerRow(
             fallbackPath = viewer.user.personalAvatarPath,
             name = fullName,
             size = 32.dp,
-            videoPlayerPool = videoPlayerPool,
             fontSize = 12,
             onClick = onClick
         )

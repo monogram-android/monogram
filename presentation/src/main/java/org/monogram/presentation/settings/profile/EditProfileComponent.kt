@@ -5,11 +5,9 @@ import org.monogram.domain.models.BirthdateModel
 import org.monogram.domain.models.BusinessOpeningHoursModel
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.UserModel
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 interface EditProfileComponent {
     val state: Value<State>
-    val videoPlayerPool: VideoPlayerPool
 
     fun onBack()
     fun onUpdateFirstName(firstName: String)

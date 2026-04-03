@@ -2,11 +2,9 @@ package org.monogram.presentation.features.chats.newChat
 
 import kotlinx.coroutines.flow.StateFlow
 import org.monogram.domain.models.UserModel
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 interface NewChatComponent {
     val state: StateFlow<State>
-    val videoPlayerPool: VideoPlayerPool
 
     fun onBack()
     fun onUserClicked(userId: Long)

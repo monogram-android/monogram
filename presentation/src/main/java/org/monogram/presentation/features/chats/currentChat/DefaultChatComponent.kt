@@ -48,7 +48,6 @@ import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.impl.loadChatInfo
 import org.monogram.presentation.features.chats.currentChat.impl.loadDraft
 import org.monogram.presentation.features.chats.currentChat.impl.loadMessages
@@ -86,7 +85,6 @@ class DefaultChatComponent(
     override val repositoryMessage: MessageRepository = container.repositories.messageRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     internal val cacheProvider: CacheProvider = container.cacheProvider
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
     internal val cacheController: CacheController = container.utils.cacheController
     internal val distrManager: DistrManager = container.utils.distrManager()
     internal val dispatcherProvider: DispatcherProvider = container.utils.dispatcherProvider

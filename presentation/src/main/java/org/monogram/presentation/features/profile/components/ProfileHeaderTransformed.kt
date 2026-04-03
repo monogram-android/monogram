@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.UserModel
 import org.monogram.presentation.core.ui.AvatarHeader
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 @Composable
@@ -50,8 +49,7 @@ fun ProfileHeaderTransformed(
     progress: Float,
     contentPadding: PaddingValues,
     onAvatarClick: () -> Unit,
-    onActionClick: () -> Unit,
-    videoPlayerPool: VideoPlayerPool
+    onActionClick: () -> Unit
 ) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
@@ -82,8 +80,7 @@ fun ProfileHeaderTransformed(
                     path = avatarPath,
                     name = title,
                     size = avatarSize.coerceAtMost(headerHeight),
-                    avatarCornerPercent = avatarCornerPercent,
-                    videoPlayerPool = videoPlayerPool
+                    avatarCornerPercent = avatarCornerPercent
                 )
             }
 

@@ -35,7 +35,6 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
 import org.monogram.presentation.features.chats.currentChat.components.chats.*
@@ -44,15 +43,17 @@ import org.monogram.presentation.features.chats.currentChat.components.chats.*
 fun ChannelGifMessageBubble(
     content: MessageContent.Gif,
     msg: MessageModel,
-    isSameSenderAbove: Boolean = false,
-    isSameSenderBelow: Boolean = false,
     fontSize: Float,
     letterSpacing: Float,
-    bubbleRadius: Float = 18f,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,
     autoDownloadRoaming: Boolean,
     autoplayGifs: Boolean,
+    downloadUtils: IDownloadUtils,
+    modifier: Modifier = Modifier,
+    bubbleRadius: Float = 18f,
+    isSameSenderAbove: Boolean = false,
+    isSameSenderBelow: Boolean = false,
     onGifClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onLongClick: (Offset) -> Unit,
@@ -63,9 +64,6 @@ fun ChannelGifMessageBubble(
     showMetadata: Boolean = true,
     showReactions: Boolean = true,
     toProfile: (Long) -> Unit = {},
-    modifier: Modifier = Modifier,
-    downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     val context = LocalContext.current
@@ -188,7 +186,6 @@ fun ChannelGifMessageBubble(
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Fit,
                                         animate = !isAnyViewerOpen,
-                                        videoPlayerPool = videoPlayerPool,
                                         thumbnailData = content.minithumbnail
                                     )
                                 }

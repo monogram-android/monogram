@@ -15,7 +15,6 @@ import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.ExternalNavigator
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultSettingsComponent(
@@ -40,7 +39,6 @@ class DefaultSettingsComponent(
     private val externalNavigator: ExternalNavigator = container.utils.externalNavigator()
     private val domainManager: DomainManager = container.utils.domainManager()
     private val preferences: AppPreferencesProvider = container.preferences.appPreferences
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
     private val _state = MutableValue(SettingsComponent.State())
     override val state: Value<SettingsComponent.State> = _state

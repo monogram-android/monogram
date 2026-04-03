@@ -94,7 +94,6 @@ fun ChatInputBar(
     state: ChatInputBarState,
     actions: ChatInputBarActions,
     appPreferences: AppPreferences,
-    videoPlayerPool: VideoPlayerPool,
     stickerRepository: StickerRepository
 ) {
     if (state.isClosed) {
@@ -471,7 +470,6 @@ fun ChatInputBar(
                 isVideoMessageMode = isVideoMessageMode,
                 replyMarkup = state.replyMarkup,
                 showSendOptionsSheet = showSendOptionsSheet,
-                videoPlayerPool = videoPlayerPool,
                 stickerRepository = stickerRepository,
                 onCancelEdit = actions.onCancelEdit,
                 onCancelReply = actions.onCancelReply,
@@ -600,7 +598,6 @@ fun ChatInputBar(
                 isOverMessageLimit = isOverMessageLimit,
                 currentMessageLength = currentMessageLength,
                 maxMessageLength = maxMessageLength,
-                videoPlayerPool = videoPlayerPool,
                 stickerRepository = stickerRepository,
                 isPremiumUser = state.isPremiumUser,
                 isSecretChat = state.isSecretChat,

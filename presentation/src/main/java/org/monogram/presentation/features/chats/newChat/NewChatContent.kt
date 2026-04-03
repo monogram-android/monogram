@@ -50,7 +50,6 @@ import org.monogram.presentation.features.chats.chatList.components.NewChannelCo
 import org.monogram.presentation.features.chats.chatList.components.NewGroupContent
 import org.monogram.presentation.features.chats.chatList.components.SectionHeader
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -251,7 +250,6 @@ fun NewChatContent(component: NewChatComponent) {
                                 "channel" -> component.onCreateChannel()
                             }
                         },
-                        videoPlayerPool = component.videoPlayerPool,
                         onUserClick = { user ->
                             if (state.step == NewChatComponent.Step.GROUP_MEMBERS) {
                                 component.onToggleUserSelection(user.id)
@@ -286,8 +284,7 @@ fun NewChatContent(component: NewChatComponent) {
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         },
-                        onAutoDeleteTimeChange = component::onAutoDeleteTimeChange,
-                        videoPlayerPool = component.videoPlayerPool
+                        onAutoDeleteTimeChange = component::onAutoDeleteTimeChange
                     )
                 }
 
@@ -304,8 +301,7 @@ fun NewChatContent(component: NewChatComponent) {
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         },
-                        onAutoDeleteTimeChange = component::onAutoDeleteTimeChange,
-                        videoPlayerPool = component.videoPlayerPool
+                        onAutoDeleteTimeChange = component::onAutoDeleteTimeChange
                     )
                 }
             }
@@ -410,7 +406,6 @@ fun NewChatContent(component: NewChatComponent) {
 private fun ContactsList(
     state: NewChatComponent.State,
     isSearchActive: Boolean,
-    videoPlayerPool: VideoPlayerPool,
     onActionClick: (String) -> Unit,
     onUserClick: (UserModel) -> Unit,
     onOpenProfile: (UserModel) -> Unit,
@@ -525,8 +520,7 @@ private fun ContactsList(
                 onClick = { onUserClick(user) },
                 onOpenProfile = { onOpenProfile(user) },
                 onEditContact = { onEditContact(user) },
-                onRemoveContact = { onRemoveContact(user) },
-                videoPlayerPool = videoPlayerPool
+                onRemoveContact = { onRemoveContact(user) }
             )
         }
 
@@ -621,7 +615,6 @@ private fun ContactItem(
     showCheckbox: Boolean,
     enableLongPress: Boolean,
     position: ItemPosition,
-    videoPlayerPool: VideoPlayerPool,
     onClick: () -> Unit,
     onOpenProfile: () -> Unit,
     onEditContact: () -> Unit,
@@ -675,8 +668,7 @@ private fun ContactItem(
                     fallbackPath = user.personalAvatarPath,
                     name = user.firstName,
                     size = 40.dp,
-                    isOnline = user.userStatus == UserStatusType.ONLINE && !isSupport,
-                    videoPlayerPool = videoPlayerPool
+                    isOnline = user.userStatus == UserStatusType.ONLINE && !isSupport
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {

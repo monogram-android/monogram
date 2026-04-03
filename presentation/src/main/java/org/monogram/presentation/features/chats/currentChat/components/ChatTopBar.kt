@@ -44,7 +44,6 @@ fun ChatTopBar(
     avatarPath: String?,
     emojiStatusPath: String?,
     statusText: String?,
-    videoPlayerPool: VideoPlayerPool,
     isOnline: Boolean = false,
     isVerified: Boolean = false,
     isSponsor: Boolean = false,
@@ -139,8 +138,7 @@ fun ChatTopBar(
                                     fallbackPath = personalAvatarPath,
                                     name = title,
                                     size = 40.dp,
-                                    isOnline = isOnline,
-                                    videoPlayerPool = videoPlayerPool
+                                    isOnline = isOnline
                                 )
                             }
                             Spacer(Modifier.width(12.dp))

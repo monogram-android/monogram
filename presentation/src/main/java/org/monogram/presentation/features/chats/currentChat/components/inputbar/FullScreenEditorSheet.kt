@@ -47,7 +47,6 @@ import org.monogram.domain.repository.*
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.profile.logs.components.calculateDiff
 import org.monogram.presentation.features.stickers.ui.menu.StickerEmojiMenu
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
@@ -138,7 +137,6 @@ fun FullScreenEditorSheet(
     isOverMessageLimit: Boolean,
     currentMessageLength: Int,
     maxMessageLength: Int,
-    videoPlayerPool: VideoPlayerPool,
     stickerRepository: StickerRepository,
     isPremiumUser: Boolean,
     isSecretChat: Boolean,
@@ -609,7 +607,6 @@ fun FullScreenEditorSheet(
                 onGifSelected = {},
                 emojiOnlyMode = true,
                 onSearchFocused = {},
-                videoPlayerPool = videoPlayerPool,
                 stickerRepository = stickerRepository
             )
         }

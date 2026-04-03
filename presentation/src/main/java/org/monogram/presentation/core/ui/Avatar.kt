@@ -24,7 +24,6 @@ import coil3.request.ImageRequest
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.generateColorFromHash
 import org.monogram.presentation.features.chats.currentChat.components.AvatarPlayer
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import java.io.File
 
 @Composable
@@ -33,7 +32,6 @@ fun Avatar(
     fallbackPath: String? = null,
     name: String,
     size: Dp,
-    videoPlayerPool: VideoPlayerPool,
     modifier: Modifier = Modifier,
     fontSize: Int = 14,
     isOnline: Boolean = false,
@@ -74,8 +72,7 @@ fun Avatar(
                         AvatarPlayer(
                             path = resolvedPath,
                             modifier = combinedModifier,
-                            contentScale = ContentScale.Crop,
-                            videoPlayerPool = videoPlayerPool
+                            contentScale = ContentScale.Crop
                         )
                     }
                 } else {
@@ -126,8 +123,7 @@ fun AvatarForChat(
     modifier: Modifier = Modifier,
     fontSize: Int = 14,
     isOnline: Boolean = false,
-    isLocal: Boolean = false,
-    videoPlayerPool: VideoPlayerPool
+    isLocal: Boolean = false
 ) {
     val context = LocalContext.current
     val combinedModifier = modifier
@@ -162,8 +158,7 @@ fun AvatarForChat(
                         AvatarPlayer(
                             path = resolvedPath,
                             modifier = combinedModifier,
-                            contentScale = ContentScale.Crop,
-                            videoPlayerPool = videoPlayerPool
+                            contentScale = ContentScale.Crop
                         )
                     }
                 } else {
@@ -232,7 +227,7 @@ private fun resolveAvatarPath(primaryPath: String?, fallbackPath: String?): Stri
     if (candidates.isEmpty()) return null
 
     val existingCandidates = candidates.filter { File(it).exists() }
-    val source = if (existingCandidates.isNotEmpty()) existingCandidates else candidates
+    val source = existingCandidates.ifEmpty { candidates }
 
     return source.firstOrNull { it.endsWith(".mp4", ignoreCase = true) } ?: source.firstOrNull()
 }

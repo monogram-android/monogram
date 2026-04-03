@@ -93,19 +93,15 @@ import org.monogram.domain.models.UserModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ItemPosition
-import com.google.i18n.phonenumbers.PhoneNumberUtil
-import org.koin.compose.koinInject
 import org.monogram.presentation.core.ui.SettingsItem
 import org.monogram.presentation.core.util.AppUtils
 import org.monogram.presentation.core.util.CountryManager
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AccountMenu(
     user: UserModel?,
-    videoPlayerPool: VideoPlayerPool,
     attachMenuBots: List<AttachMenuBotModel>,
     updateState: UpdateState = UpdateState.Idle,
     onDismiss: () -> Unit,
@@ -314,8 +310,7 @@ fun AccountMenu(
                                     isPhoneVisible = isExpanded
                                 },
                                 isPhoneVisible = isPhoneVisible,
-                                onPhoneToggle = { isPhoneVisible = !isPhoneVisible },
-                                videoPlayerPool = videoPlayerPool
+                                onPhoneToggle = { isPhoneVisible = !isPhoneVisible }
                             )
 
                             AnimatedVisibility(
@@ -527,7 +522,6 @@ private fun MenuHeader(onDismiss: () -> Unit) {
 @Composable
 private fun ActiveAccountCard(
     user: UserModel?,
-    videoPlayerPool: VideoPlayerPool,
     isExpanded: Boolean,
     onExpandToggle: () -> Unit,
     isPhoneVisible: Boolean,
@@ -575,8 +569,7 @@ private fun ActiveAccountCard(
                 fallbackPath = user?.personalAvatarPath,
                 name = user?.firstName ?: "",
                 size = 56.dp,
-                fontSize = 20,
-                videoPlayerPool = videoPlayerPool
+                fontSize = 20
             )
 
             Spacer(modifier = Modifier.width(16.dp))

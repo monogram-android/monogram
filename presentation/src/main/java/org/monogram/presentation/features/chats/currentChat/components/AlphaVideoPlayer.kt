@@ -58,6 +58,8 @@ import coil3.video.VideoFrameDecoder
 import coil3.video.videoFrameMillis
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import org.monogram.domain.repository.PlayerDataSourceFactory
+import org.monogram.presentation.core.util.LocalVideoPlayerPool
 import org.monogram.presentation.core.util.getMimeType
 import java.io.File
 import java.io.FileNotFoundException
@@ -83,7 +85,6 @@ sealed interface VideoType {
 @Composable
 fun VideoStickerPlayer(
     path: String,
-    videoPlayerPool: VideoPlayerPool,
     type: VideoType,
     modifier: Modifier = Modifier,
     animate: Boolean = true,
@@ -99,6 +100,8 @@ fun VideoStickerPlayer(
         Box(modifier = modifier)
         return
     }
+
+    val videoPlayerPool = LocalVideoPlayerPool.current
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -271,15 +274,13 @@ fun VideoStickerPlayer(
 }
 
 @OptIn(UnstableApi::class)
-class VideoPlayerPool(val context: Context, val exoPlayerCache: ExoPlayerCache) {
+class VideoPlayerPool(val context: Context, val exoPlayerCache: ExoPlayerCache, val streamingRepository: PlayerDataSourceFactory) {
     private val players = ArrayBlockingQueue<ExoPlayer>(8)
     private var isCallbackRegistered = false
     private var mediaSourceFactory: MediaSource.Factory? = null
 
     fun getMediaSourceFactory(fileId: Int = 0): MediaSource.Factory {
         if (fileId != 0) {
-            val streamingRepository =
-                org.koin.core.context.GlobalContext.get().get<org.monogram.domain.repository.PlayerDataSourceFactory>()
             val dataSourceFactory = streamingRepository.createPayload(fileId) as DataSource.Factory
             val extractorsFactory = DefaultExtractorsFactory()
                 .setConstantBitrateSeekingEnabled(true)
@@ -342,8 +343,6 @@ class VideoPlayerPool(val context: Context, val exoPlayerCache: ExoPlayerCache) 
             .setMp4ExtractorFlags(Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
 
         val mediaSourceFactory = if (fileId != 0) {
-            val streamingRepository =
-                org.koin.core.context.GlobalContext.get().get<org.monogram.domain.repository.PlayerDataSourceFactory>()
             val dataSourceFactory = streamingRepository.createPayload(fileId) as DataSource.Factory
             DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
         } else {

@@ -13,7 +13,6 @@ import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.ui.Avatar
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -21,7 +20,6 @@ import java.util.*
 fun MessageSearchItem(
     message: MessageModel,
     onClick: () -> Unit,
-    videoPlayerPool: VideoPlayerPool,
     modifier: Modifier = Modifier
 ) {
     val date = Date(message.date.toLong() * 1000)
@@ -50,8 +48,7 @@ fun MessageSearchItem(
             path = message.senderAvatar,
             fallbackPath = message.senderPersonalAvatar,
             name = message.senderName,
-            size = 48.dp,
-            videoPlayerPool = videoPlayerPool
+            size = 48.dp
         )
 
         Spacer(Modifier.width(14.dp))

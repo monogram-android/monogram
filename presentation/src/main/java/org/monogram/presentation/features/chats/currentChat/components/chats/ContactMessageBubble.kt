@@ -37,10 +37,7 @@ import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.ui.Avatar
-import com.google.i18n.phonenumbers.PhoneNumberUtil
-import org.koin.compose.koinInject
 import org.monogram.presentation.core.util.CountryManager
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -53,7 +50,6 @@ fun ContactMessageBubble(
     fontSize: Float,
     letterSpacing: Float,
     bubbleRadius: Float,
-    videoPlayerPool: VideoPlayerPool,
     isGroup: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -136,8 +132,7 @@ fun ContactMessageBubble(
                         Avatar(
                             path = content.avatarPath,
                             name = "${content.firstName} ${content.lastName}".trim(),
-                            size = 56.dp,
-                            videoPlayerPool = videoPlayerPool
+                            size = 56.dp
                         )
                         if (country != null) {
                             Box(

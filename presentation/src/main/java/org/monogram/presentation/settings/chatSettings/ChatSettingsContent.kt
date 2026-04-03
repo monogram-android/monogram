@@ -122,8 +122,7 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                     blurIntensity = state.wallpaperBlurIntensity,
                     dimming = state.wallpaperDimming,
                     isGrayscale = state.isWallpaperGrayscale,
-                    downloadUtils = component.downloadUtils,
-                    videoPlayerPool = component.videoPlayerPool
+                    downloadUtils = component.downloadUtils
                 )
             }
 
@@ -789,8 +788,7 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                 ChatListPreview(
                     messageLines = state.chatListMessageLines,
                     showPhotos = state.showChatListPhotos,
-                    position = ItemPosition.TOP,
-                    videoPlayerPool = component.videoPlayerPool
+                    position = ItemPosition.TOP
                 )
 
                 Surface(

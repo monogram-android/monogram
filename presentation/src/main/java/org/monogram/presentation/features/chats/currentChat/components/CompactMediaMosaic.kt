@@ -62,7 +62,6 @@ fun CompactMediaMosaic(
     sendingState: MessageSendingState? = null,
     autoDownloadMobile: Boolean = false,
     downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     autoDownloadWifi: Boolean = false,
     autoDownloadRoaming: Boolean = false,
     toProfile: (Long) -> Unit = {},
@@ -113,7 +112,6 @@ fun CompactMediaMosaic(
                         autoDownloadRoaming = autoDownloadRoaming,
                         modifier = Modifier.fillMaxSize(),
                         downloadUtils = downloadUtils,
-                        videoPlayerPool = videoPlayerPool,
                         isAnyViewerOpen = isAnyViewerOpen
                     )
                 }
@@ -132,7 +130,6 @@ fun CompactMediaMosaic(
                         autoDownloadRoaming = autoDownloadRoaming,
                         modifier = Modifier.fillMaxSize(),
                         downloadUtils = downloadUtils,
-                        videoPlayerPool = videoPlayerPool,
                         isAnyViewerOpen = isAnyViewerOpen
                     )
                 }
@@ -151,7 +148,6 @@ fun CompactMediaMosaic(
                         autoDownloadRoaming = autoDownloadRoaming,
                         modifier = Modifier.fillMaxSize(),
                         downloadUtils = downloadUtils,
-                        videoPlayerPool = videoPlayerPool,
                         isAnyViewerOpen = isAnyViewerOpen
                     )
                 }
@@ -417,7 +413,6 @@ fun VideoItem(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
     downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     var stablePath by remember(msg.id) { mutableStateOf(video.path) }
@@ -475,7 +470,6 @@ fun VideoItem(
                             },
                         animate = !isAnyViewerOpen,
                         contentScale = contentScale,
-                        videoPlayerPool = videoPlayerPool,
                         fileId = if (stablePath == null) video.fileId else 0,
                         thumbnailData = video.minithumbnail
                     )
@@ -599,7 +593,6 @@ fun VideoItem(
 @Composable
 fun VideoNoteItem(
     msg: MessageModel,
-    videoPlayerPool: VideoPlayerPool,
     videoNote: MessageContent.VideoNote,
     autoplayVideos: Boolean,
     onVideoClick: (MessageModel) -> Unit,
@@ -662,7 +655,6 @@ fun VideoNoteItem(
                             },
                         animate = !isAnyViewerOpen,
                         contentScale = contentScale,
-                        videoPlayerPool = videoPlayerPool,
                         thumbnailData = videoNote.thumbnail
                     )
                 } else {
@@ -775,7 +767,6 @@ fun GifItem(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
     downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     var stablePath by remember(msg.id) { mutableStateOf(gif.path) }
@@ -831,7 +822,6 @@ fun GifItem(
                         },
                     animate = autoplayGifs && !isAnyViewerOpen,
                     contentScale = contentScale,
-                    videoPlayerPool = videoPlayerPool,
                     thumbnailData = gif.minithumbnail
                 )
 
@@ -925,10 +915,10 @@ fun TimestampPill(
     time: String,
     isRead: Boolean,
     isOutgoing: Boolean,
+    modifier: Modifier = Modifier,
     isChannel: Boolean = false,
     views: Int? = null,
-    sendingState: MessageSendingState? = null,
-    modifier: Modifier = Modifier
+    sendingState: MessageSendingState? = null
 ) {
     val context = LocalContext.current
     Box(

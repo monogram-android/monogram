@@ -27,7 +27,6 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.repository.SettingsRepository.TdNotificationScope
 import org.monogram.presentation.core.ui.Avatar
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.core.ui.ItemPosition
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -215,8 +214,7 @@ fun NotificationsExceptionsContent(
                         ExceptionItem(
                             chat = chat,
                             position = position,
-                            onClick = { selectedChat = chat },
-                            videoPlayerPool = component.videoPlayerPool
+                            onClick = { selectedChat = chat }
                         )
                     }
 
@@ -242,7 +240,6 @@ fun NotificationsExceptionsContent(
                 component.onChatExceptionToggled(chat.id, chat.isMuted)
                 selectedChat = null
             },
-            videoPlayerPool = component.videoPlayerPool,
             onRemoveException = {
                 component.onChatExceptionReset(chat.id)
                 selectedChat = null
@@ -297,7 +294,6 @@ private fun EmptyExceptionsPlaceholder(modifier: Modifier = Modifier) {
 @Composable
 private fun ExceptionActionsSheet(
     chat: ChatModel,
-    videoPlayerPool: VideoPlayerPool,
     onDismiss: () -> Unit,
     onToggleMute: () -> Unit,
     onRemoveException: () -> Unit
@@ -334,8 +330,7 @@ private fun ExceptionActionsSheet(
                     path = chat.avatarPath,
                     fallbackPath = chat.personalAvatarPath,
                     name = chat.title,
-                    size = 48.dp,
-                    videoPlayerPool = videoPlayerPool
+                    size = 48.dp
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
@@ -430,7 +425,6 @@ private fun ExceptionActionsSheet(
 private fun ExceptionItem(
     chat: ChatModel,
     position: ItemPosition,
-    videoPlayerPool: VideoPlayerPool,
     onClick: () -> Unit
 ) {
     val cornerRadius = 24.dp
@@ -469,8 +463,7 @@ private fun ExceptionItem(
                 path = chat.avatarPath,
                 fallbackPath = chat.personalAvatarPath,
                 name = chat.title,
-                size = 44.dp,
-                videoPlayerPool = videoPlayerPool
+                size = 44.dp
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {

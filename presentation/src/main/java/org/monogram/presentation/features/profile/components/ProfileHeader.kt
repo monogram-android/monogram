@@ -23,14 +23,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 
 @Composable
 fun ProfileHeader(
     avatarPath: String?,
-    videoPlayerPool: VideoPlayerPool,
     profilePhotos: List<String>,
     title: String,
     subtitle: String,
@@ -57,7 +55,6 @@ fun ProfileHeader(
                 name = title,
                 size = 120.dp,
                 fontSize = 48,
-                videoPlayerPool = videoPlayerPool,
                 modifier = Modifier
                     .clip(CircleShape)
                     .clickable(enabled = displayPath != null) { onAvatarClick() }

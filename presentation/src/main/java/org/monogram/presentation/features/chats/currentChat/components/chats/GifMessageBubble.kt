@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
@@ -36,12 +36,11 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
 
 @OptIn(UnstableApi::class, ExperimentalMaterial3ExpressiveApi::class)
-@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GifMessageBubble(
     content: MessageContent.Gif,
@@ -55,6 +54,7 @@ fun GifMessageBubble(
     autoDownloadWifi: Boolean,
     autoDownloadRoaming: Boolean,
     autoplayGifs: Boolean,
+    modifier: Modifier = Modifier,
     onGifClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onLongClick: (Offset) -> Unit,
@@ -63,9 +63,7 @@ fun GifMessageBubble(
     showMetadata: Boolean = true,
     showReactions: Boolean = true,
     toProfile: (Long) -> Unit = {},
-    modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     val cornerRadius = 18.dp
@@ -197,7 +195,6 @@ fun GifMessageBubble(
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Fit,
                                     animate = !isAnyViewerOpen,
-                                    videoPlayerPool = videoPlayerPool,
                                     thumbnailData = content.minithumbnail
                                 )
                             } else {

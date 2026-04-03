@@ -7,7 +7,6 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.repository.ChatsListRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultChatEditComponent(
@@ -22,7 +21,6 @@ class DefaultChatEditComponent(
 
     private val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
     private val userRepository: UserRepository = container.repositories.userRepository
-    override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
 
     private val scope = componentScope
     private val _state = MutableValue(ChatEditComponent.State(chatId = chatId))

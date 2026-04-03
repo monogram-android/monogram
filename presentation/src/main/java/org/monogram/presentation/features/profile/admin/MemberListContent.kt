@@ -177,8 +177,7 @@ fun MemberListContent(component: MemberListComponent) {
                                     path = member.user.avatarPath,
                                     fallbackPath = member.user.personalAvatarPath,
                                     name = member.user.firstName,
-                                    size = 48.dp,
-                                    videoPlayerPool = component.videoPlayerPool
+                                    size = 48.dp
                                 )
                             },
                             trailingContent = {

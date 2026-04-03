@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
 package org.monogram.presentation.features.instantview
 
@@ -44,7 +44,6 @@ import org.monogram.domain.models.webapp.PageBlock
 import org.monogram.domain.models.webapp.RichText
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.presentation.R
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.currentChat.components.chats.normalizeUrl
 import org.monogram.presentation.features.instantview.components.*
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
@@ -56,7 +55,6 @@ import java.util.*
 @Composable
 fun InstantViewer(
     url: String,
-    videoPlayerPool: VideoPlayerPool,
     messageRepository: MessageRepository,
     onDismiss: () -> Unit,
     onOpenWebView: (String) -> Unit
@@ -66,7 +64,7 @@ fun InstantViewer(
 
     var instantView by remember(currentUrl) { mutableStateOf<InstantViewModel?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-    var textSizeMultiplier by remember { mutableStateOf(1f) }
+    var textSizeMultiplier by remember { mutableFloatStateOf(1f) }
     var isSearching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showSettingsMenu by remember { mutableStateOf(false) }
@@ -249,7 +247,7 @@ fun InstantViewer(
                                 verticalArrangement = Arrangement.spacedBy(20.dp)
                             ) {
                                 items(blocks) { block ->
-                                    InstantViewBlock(block, textSizeMultiplier, videoPlayerPool)
+                                    InstantViewBlock(block, textSizeMultiplier)
                                 }
                                 item {
                                     Spacer(modifier = Modifier.height(48.dp))
@@ -357,7 +355,7 @@ fun InstantViewer(
 }
 
 @Composable
-fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPool: VideoPlayerPool) {
+fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
     val onUrlClick = LocalOnUrlClick.current
     LocalUriHandler.current
     when (block) {
@@ -503,8 +501,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
                             fileId = block.video.fileId,
                             modifier = Modifier.fillMaxSize(),
                             shouldLoop = block.isLooped,
-                            contentScale = ContentScale.FillWidth,
-                            videoPlayerPool = videoPlayerPool
+                            contentScale = ContentScale.FillWidth
                         )
                     } else {
                         Icon(
@@ -540,8 +537,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
                             fileId = block.animation.fileId,
                             modifier = Modifier.fillMaxSize(),
                             shouldLoop = true,
-                            contentScale = ContentScale.FillWidth,
-                            videoPlayerPool = videoPlayerPool
+                            contentScale = ContentScale.FillWidth
                         )
                     } else {
                         Icon(
@@ -676,7 +672,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     block.pageBlocks.forEach { innerBlock ->
-                        InstantViewBlock(innerBlock, textSizeMultiplier, videoPlayerPool)
+                        InstantViewBlock(innerBlock, textSizeMultiplier)
                     }
                     PageBlockCaptionView(block.caption, textSizeMultiplier, modifier = Modifier.padding(top = 12.dp))
                 }
@@ -755,14 +751,14 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         item.pageBlocks.forEach { innerBlock ->
-                            InstantViewBlock(innerBlock, textSizeMultiplier, videoPlayerPool)
+                            InstantViewBlock(innerBlock, textSizeMultiplier)
                         }
                     }
                 }
             }
         }
 
-        is PageBlock.Cover -> InstantViewBlock(block.cover, textSizeMultiplier, videoPlayerPool)
+        is PageBlock.Cover -> InstantViewBlock(block.cover, textSizeMultiplier)
         is PageBlock.Details -> {
             var isOpen by remember { mutableStateOf(block.isOpen) }
             Surface(
@@ -801,7 +797,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             block.pageBlocks.forEach { innerBlock ->
-                                InstantViewBlock(innerBlock, textSizeMultiplier, videoPlayerPool)
+                                InstantViewBlock(innerBlock, textSizeMultiplier)
                             }
                         }
                     }
@@ -812,7 +808,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
         is PageBlock.Collage -> {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 block.pageBlocks.forEach { innerBlock ->
-                    InstantViewBlock(innerBlock, textSizeMultiplier, videoPlayerPool)
+                    InstantViewBlock(innerBlock, textSizeMultiplier)
                 }
                 PageBlockCaptionView(block.caption, textSizeMultiplier)
             }
@@ -821,7 +817,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float, videoPlayerPoo
         is PageBlock.Slideshow -> {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 block.pageBlocks.forEach { innerBlock ->
-                    InstantViewBlock(innerBlock, textSizeMultiplier, videoPlayerPool)
+                    InstantViewBlock(innerBlock, textSizeMultiplier)
                 }
                 PageBlockCaptionView(block.caption, textSizeMultiplier)
             }

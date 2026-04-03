@@ -20,17 +20,17 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.components.CompactMediaMosaic
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
 @Composable
 fun ChatAlbumMessageBubble(
     messages: List<MessageModel>,
     isOutgoing: Boolean,
+    autoplayGifs: Boolean,
+    autoplayVideos: Boolean,
+    modifier: Modifier = Modifier,
     isGroup: Boolean = false,
     isSameSenderAbove: Boolean = false,
     isSameSenderBelow: Boolean = false,
-    autoplayGifs: Boolean,
-    autoplayVideos: Boolean,
     autoDownloadMobile: Boolean = false,
     autoDownloadWifi: Boolean = false,
     autoDownloadRoaming: Boolean = false,
@@ -45,11 +45,9 @@ fun ChatAlbumMessageBubble(
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
     toProfile: (Long) -> Unit = {},
-    modifier: Modifier = Modifier,
     fontSize: Float = 16f,
     letterSpacing: Float = 0f,
     downloadUtils: IDownloadUtils,
-    videoPlayerPool: VideoPlayerPool,
     isAnyViewerOpen: Boolean = false
 ) {
     if (messages.isEmpty()) return
@@ -197,7 +195,6 @@ fun ChatAlbumMessageBubble(
                     autoDownloadRoaming = autoDownloadRoaming,
                     toProfile = toProfile,
                     downloadUtils = downloadUtils,
-                    videoPlayerPool = videoPlayerPool,
                     isAnyViewerOpen = isAnyViewerOpen
                 )
 
@@ -266,9 +263,9 @@ fun ChatTimestampInfo(
     time: String,
     isRead: Boolean,
     isOutgoing: Boolean,
-    sendingState: MessageSendingState? = null,
     color: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sendingState: MessageSendingState? = null
 ) {
     Row(
         modifier = modifier,

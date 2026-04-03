@@ -2,8 +2,11 @@ package org.monogram.presentation.features.chats.currentChat.components
 
 import android.content.res.Configuration
 import androidx.compose.animation.Animatable
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,10 +21,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -114,13 +119,37 @@ fun MessageBubbleContainer(
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
     var bubbleSize by remember { mutableStateOf(IntSize.Zero) }
 
+    val scope = rememberCoroutineScope()
+    val dragOffsetX = remember { Animatable(0f) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(animatedColor.value, RoundedCornerShape(12.dp))
             .onGloballyPositioned { outerColumnPosition = it.positionInWindow() }
             .padding(top = topSpacing)
+            .offset {
+                IntOffset(dragOffsetX.value.toInt(), 0)
+            }
             .pointerInput(Unit) {
+                if (swipeEnabled) {
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            scope.launch {
+                                dragOffsetX.snapTo((dragOffsetX.value + dragAmount).coerceIn(-200f, 0f))
+                            }
+                        },
+                        onDragEnd = {
+                            if (dragOffsetX.value < -120f && canReply) {
+                                onReplySwipe(msg)
+                            }
+                            scope.launch {
+                                dragOffsetX.animateTo(0f, spring())
+                            }
+                        }
+                    )
+                }
                 detectTapGestures(
                     onTap = { offset ->
                         val clickPos = outerColumnPosition + offset

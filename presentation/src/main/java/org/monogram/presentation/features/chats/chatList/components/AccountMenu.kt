@@ -51,7 +51,8 @@ import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -100,6 +101,7 @@ import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AccountMenu(
     user: UserModel?,
@@ -426,7 +428,7 @@ fun AccountMenu(
                                     }
                                 )
                                 if (updateState is UpdateState.Downloading) {
-                                    LinearProgressIndicator(
+                                    LinearWavyProgressIndicator(
                                         progress = { updateState.progress },
                                         modifier = Modifier
                                             .fillMaxWidth()

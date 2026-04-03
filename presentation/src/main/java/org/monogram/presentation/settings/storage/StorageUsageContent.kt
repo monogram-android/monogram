@@ -563,6 +563,7 @@ fun StorageChartHeader(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun StorageItemRow(
     chatUsage: ChatStorageUsageModel,
@@ -646,7 +647,7 @@ fun StorageItemRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                LinearProgressIndicator(
+                LinearWavyProgressIndicator(
                     progress = { relativeProgress },
                     modifier = Modifier
                         .fillMaxWidth(0.8f)

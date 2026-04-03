@@ -339,6 +339,7 @@ fun ChannelStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Unit)
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun InteractionItem(interaction: ChatInteractionInfoModel) {
     var expanded by remember { mutableStateOf(false) }
@@ -419,7 +420,7 @@ fun InteractionItem(interaction: ChatInteractionInfoModel) {
                         InteractionStat(Icons.Rounded.EmojiEmotions, interaction.reactionCount)
                     }
                     Spacer(modifier = Modifier.height(10.dp))
-                    LinearProgressIndicator(
+                    LinearWavyProgressIndicator(
                         progress = { (interaction.viewCount.toFloat() / dominantMetric.toFloat()).coerceIn(0f, 1f) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -427,7 +428,6 @@ fun InteractionItem(interaction: ChatInteractionInfoModel) {
                             .clip(CircleShape),
                         color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        drawStopIndicator = {}
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

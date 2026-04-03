@@ -35,7 +35,7 @@ import org.monogram.presentation.features.webview.components.OptionsSheet
 import org.monogram.presentation.features.webview.components.WebViewTopBar
 import java.io.ByteArrayInputStream
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun InternalWebView(
     url: String,
@@ -394,7 +394,7 @@ fun InternalWebView(
                 exit = fadeOut(animationSpec = tween(500)) + shrinkVertically(),
                 modifier = Modifier.align(Alignment.TopCenter)
             ) {
-                LinearProgressIndicator(
+                LinearWavyProgressIndicator(
                     progress = { progress },
                     modifier = Modifier.fillMaxWidth(),
                     color = MaterialTheme.colorScheme.primary,

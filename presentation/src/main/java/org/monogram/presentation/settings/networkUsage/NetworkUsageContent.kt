@@ -425,6 +425,7 @@ private fun NetworkTabBody(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun UsageRowItem(
     category: NetworkUsageCategory,
@@ -501,7 +502,7 @@ private fun UsageRowItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                LinearProgressIndicator(
+                LinearWavyProgressIndicator(
                     progress = { visualProgress },
                     modifier = Modifier
                         .fillMaxWidth(0.8f)

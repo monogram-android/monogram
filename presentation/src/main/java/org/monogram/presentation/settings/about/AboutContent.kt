@@ -37,7 +37,7 @@ import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsItem
 import org.monogram.presentation.core.util.AppUtils
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AboutContent(component: AboutComponent) {
     val updateState by component.updateState.collectAsState()
@@ -336,6 +336,7 @@ private fun UpdateSection(state: UpdateState, component: AboutComponent) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun DownloadingUpdateItem(state: UpdateState.Downloading) {
     Surface(
@@ -383,14 +384,13 @@ private fun DownloadingUpdateItem(state: UpdateState.Downloading) {
             }
             Spacer(modifier = Modifier.height(12.dp))
             val animatedProgress by animateFloatAsState(targetValue = state.progress, label = "progress")
-            LinearProgressIndicator(
+            LinearWavyProgressIndicator(
                 progress = { animatedProgress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp),
                 color = Color(0xFFF9AB00),
                 trackColor = Color(0xFFF9AB00).copy(alpha = 0.2f),
-                strokeCap = StrokeCap.Round
             )
         }
     }

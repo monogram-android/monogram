@@ -421,7 +421,7 @@ private fun PasswordContent(
         shapes = ExpressiveDefaults.extraLargeButtonShapes(),
         modifier = Modifier
             .fillMaxWidth()
-            .height(ButtonDefaults.ExtraLargeContainerHeight),
+            .height(56.dp),
         enabled = password.isNotBlank() && !isSubmitting
     ) {
         if (isSubmitting) {

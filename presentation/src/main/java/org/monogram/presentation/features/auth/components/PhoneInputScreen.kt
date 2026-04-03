@@ -407,7 +407,7 @@ fun PhoneInputScreen(
             shapes = ExpressiveDefaults.extraLargeButtonShapes(),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(ButtonDefaults.ExtraLargeContainerHeight),
+                .height(56.dp),
             enabled = isFormValid && !isSubmitting,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,

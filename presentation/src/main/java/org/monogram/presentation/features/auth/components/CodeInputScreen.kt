@@ -337,7 +337,7 @@ fun CodeInputScreen(
                     shapes = ExpressiveDefaults.extraLargeButtonShapes(),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(ButtonDefaults.ExtraLargeContainerHeight),
+                        .height(56.dp),
                     enabled = code.length == maxCodeLength
                 ) {
                     Text(

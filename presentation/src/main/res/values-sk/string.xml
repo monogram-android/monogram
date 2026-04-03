@@ -2027,4 +2027,7 @@
     <string name="action_insert">Vložiť</string>
     <string name="action_previous">Predchádzajúci</string>
     <string name="action_next">Ďalší</string>
+    <string name="auth_phone_code_invalid_error">Neplatný overovací kód</string>
+    <string name="auth_password_hash_invalid">Neplatné heslo</string>
+    <string name="unexpected_error">Vyskytla sa neočakávaná chyba</string>
 </resources>

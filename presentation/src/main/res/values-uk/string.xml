@@ -1895,4 +1895,7 @@
     <string name="action_insert">Вставити</string>
     <string name="action_previous">Назад</string>
     <string name="action_next">Вперед</string>
+    <string name="auth_phone_code_invalid_error">Невірний код підтвердження</string>
+    <string name="auth_password_hash_invalid">Невірний пароль</string>
+    <string name="unexpected_error">Сталася непередбачена помилка</string>
 </resources>

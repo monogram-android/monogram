@@ -1922,4 +1922,7 @@
     <string name="folder_tab_edit">Edit</string>
     <string name="folder_tab_reorder">Reorder</string>
     <string name="folder_tab_delete">Delete</string>
+    <string name="auth_phone_code_invalid_error">Invalid confirmation code</string>
+    <string name="auth_password_hash_invalid">Invalid password</string>
+    <string name="unexpected_error">An unexpected error occurred</string>
 </resources>

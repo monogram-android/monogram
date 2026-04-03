@@ -1877,4 +1877,7 @@
     <string name="action_insert">插入</string>
     <string name="action_previous">上一个</string>
     <string name="action_next">下一个</string>
+    <string name="auth_phone_code_invalid_error">验证码无效</string>
+    <string name="auth_password_hash_invalid">密码无效</string>
+    <string name="unexpected_error">发生了意外错误</string>
 </resources>

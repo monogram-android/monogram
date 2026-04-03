@@ -557,7 +557,7 @@ private fun TabletLayout(root: RootComponent, childStack: ChildStack<*, RootComp
 @Composable
 private fun RenderChild(child: RootComponent.Child, isOverlay: Boolean = false) {
     when (child) {
-        is RootComponent.Child.StartupChild -> StartupContent()
+        is RootComponent.Child.StartupChild -> StartupContent(child.component)
         is RootComponent.Child.AuthChild -> AuthContent(child.component)
         is RootComponent.Child.ChatsChild -> ChatListContent(child.component)
         is RootComponent.Child.NewChatChild -> NewChatContent(child.component)

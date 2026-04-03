@@ -15,6 +15,9 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.Stream
 import androidx.compose.material3.*
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +45,7 @@ import org.monogram.presentation.features.chats.currentChat.components.VideoPlay
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoMessageBubble(
     content: MessageContent.Video,
@@ -341,13 +345,13 @@ fun VideoMessageBubble(
                             contentAlignment = Alignment.Center
                         ) {
                             if (content.uploadProgress > 0f) {
-                                CircularProgressIndicator(
+                                CircularWavyProgressIndicator(
                                     progress = { content.uploadProgress },
                                     color = Color.White,
                                     trackColor = Color.White.copy(alpha = 0.3f)
                                 )
                             } else {
-                                CircularProgressIndicator(
+                                LoadingIndicator(
                                     color = Color.White
                                 )
                             }

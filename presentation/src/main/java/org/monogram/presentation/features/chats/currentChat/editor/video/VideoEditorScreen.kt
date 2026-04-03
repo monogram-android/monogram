@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.chats.currentChat.editor.video
 
 import android.widget.Toast
@@ -58,6 +60,7 @@ enum class VideoEditorTool(@StringRes val labelRes: Int, val icon: ImageVector) 
 }
 
 @OptIn(UnstableApi::class)
+@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoEditorScreen(
     videoPath: String,
@@ -463,7 +466,7 @@ fun VideoEditorScreen(
                         .background(Color.Black.copy(0.6f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    ContainedLoadingIndicator()
                 }
             }
         }

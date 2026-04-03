@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.models.webapp.InvoiceModel
 import org.monogram.domain.repository.MessageRepository
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun InvoiceDialog(
     slug: String? = null,
@@ -77,7 +77,7 @@ fun InvoiceDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.padding(32.dp))
+                LoadingIndicator(modifier = Modifier.padding(32.dp))
             } else if (invoice == null) {
                 Text("Failed to load invoice", color = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.height(16.dp))
@@ -108,13 +108,11 @@ fun InvoiceDialog(
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(
+                        CircularWavyProgressIndicator(
                             progress = { progress },
                             modifier = Modifier,
                             color = ProgressIndicatorDefaults.circularColor,
-                            strokeWidth = 4.dp,
                             trackColor = ProgressIndicatorDefaults.circularIndeterminateTrackColor,
-                            strokeCap = ProgressIndicatorDefaults.CircularDeterminateStrokeCap,
                         )
                     }
                 }
@@ -181,10 +179,9 @@ fun InvoiceDialog(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     if (isPaying) {
-                        CircularProgressIndicator(
+                        LoadingIndicator(
                             modifier = Modifier.size(20.dp),
                             color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
                         )
                     } else {
                         Text(

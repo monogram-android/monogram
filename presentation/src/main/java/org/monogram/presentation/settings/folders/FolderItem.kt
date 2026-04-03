@@ -7,7 +7,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,8 +30,7 @@ fun FolderItem(
     isSystem: Boolean,
     position: ItemPosition,
     onClick: () -> Unit,
-    onMoveUp: (() -> Unit)? = null,
-    onMoveDown: (() -> Unit)? = null,
+    showReorder: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val icon = if (isSystem) Icons.Rounded.AllInbox else getFolderIcon(folder.iconName) ?: Icons.Rounded.Folder
@@ -66,6 +68,16 @@ fun FolderItem(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (showReorder) {
+                Icon(
+                    imageVector = Icons.Rounded.DragHandle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -99,28 +111,6 @@ fun FolderItem(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-            if (!isSystem) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (onMoveUp != null) {
-                        IconButton(onClick = onMoveUp) {
-                            Icon(
-                                imageVector = Icons.Rounded.KeyboardArrowUp,
-                                contentDescription = stringResource(R.string.folders_move_up),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    if (onMoveDown != null) {
-                        IconButton(onClick = onMoveDown) {
-                            Icon(
-                                imageVector = Icons.Rounded.KeyboardArrowDown,
-                                contentDescription = stringResource(R.string.folders_move_down),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
             }
         }
     }

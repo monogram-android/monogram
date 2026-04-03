@@ -25,6 +25,7 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.repository.PushProvider
 import org.monogram.domain.repository.SettingsRepository.TdNotificationScope
 import org.monogram.presentation.R
+import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsItem
 import org.monogram.presentation.core.ui.SettingsSwitchTile
@@ -39,7 +40,7 @@ fun NotificationsContent(component: NotificationsComponent) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun NotificationsMainContent(component: NotificationsComponent) {
     val state by component.state.subscribeAsState()
@@ -59,7 +60,10 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface) },
                 navigationIcon = {
-                    IconButton(onClick = component::onBackClicked) {
+                    IconButton(
+                        onClick = component::onBackClicked,
+                        shapes = ExpressiveDefaults.iconButtonShapes()
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.cd_back)
@@ -360,7 +364,7 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun NotificationOptionSheet(
     title: String,
@@ -426,10 +430,10 @@ private fun NotificationOptionSheet(
 
             Button(
                 onClick = onDismiss,
+                shapes = ExpressiveDefaults.largeButtonShapes(),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp)
+                    .height(ButtonDefaults.LargeContainerHeight)
             ) {
                 Text(stringResource(R.string.cancel_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }

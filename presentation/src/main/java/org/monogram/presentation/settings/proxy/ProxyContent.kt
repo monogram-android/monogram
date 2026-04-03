@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.proxy
 
 import android.content.Intent
@@ -200,9 +202,8 @@ fun ProxyContent(component: ProxyComponent) {
                                     onClick = { component.onFetchTelegaProxies() },
                                     trailingContent = {
                                         if (state.isFetchingExternal) {
-                                            CircularProgressIndicator(
+                                            LoadingIndicator(
                                                 modifier = Modifier.size(20.dp),
-                                                strokeWidth = 2.dp
                                             )
                                         }
                                     }
@@ -811,9 +812,8 @@ fun ProxyAddEditSheet(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     if (isTesting) {
-                        CircularProgressIndicator(
+                        LoadingIndicator(
                             modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
                         )
                     } else {
                         Text(stringResource(R.string.test_proxy_button))

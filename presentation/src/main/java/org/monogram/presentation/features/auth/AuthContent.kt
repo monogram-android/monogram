@@ -3,12 +3,12 @@ package org.monogram.presentation.features.auth
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.SettingsEthernet
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,7 +25,7 @@ import org.monogram.presentation.features.auth.components.CodeInputScreen
 import org.monogram.presentation.features.auth.components.PasswordInputScreen
 import org.monogram.presentation.features.auth.components.PhoneInputScreen
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AuthContent(component: AuthComponent) {
     val model by component.model.subscribeAsState()
@@ -33,6 +33,7 @@ fun AuthContent(component: AuthComponent) {
     val isTablet = configuration.screenWidthDp >= 600
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val maxContentWidth = if (isTablet && isLandscape) 1000.dp else 600.dp
+    val motionScheme = MaterialTheme.motionScheme
 
     val isCustomBackHandlingEnabled = model.authState is AuthComponent.AuthState.InputCode || model.authState is AuthComponent.AuthState.InputPassword
 
@@ -113,12 +114,12 @@ fun AuthContent(component: AuthComponent) {
                     }
                     slideIntoContainer(
                         towards = direction,
-                        animationSpec = tween(400)
-                    ) + fadeIn(animationSpec = tween(400)) togetherWith
+                        animationSpec = motionScheme.defaultSpatialSpec()
+                    ) + fadeIn(animationSpec = motionScheme.defaultEffectsSpec()) togetherWith
                             slideOutOfContainer(
                                 towards = direction,
-                                animationSpec = tween(400)
-                            ) + fadeOut(animationSpec = tween(400))
+                                animationSpec = motionScheme.defaultSpatialSpec()
+                            ) + fadeOut(animationSpec = motionScheme.defaultEffectsSpec())
                 },
                 label = "AuthTransition"
             ) { targetState ->

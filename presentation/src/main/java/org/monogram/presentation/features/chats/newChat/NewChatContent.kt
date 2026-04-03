@@ -21,6 +21,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +52,7 @@ import org.monogram.presentation.features.chats.chatList.components.SectionHeade
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun NewChatContent(component: NewChatComponent) {
     val state by component.state.collectAsState()
@@ -225,9 +227,8 @@ fun NewChatContent(component: NewChatComponent) {
                     }
                 ) {
                     if (state.isCreating) {
-                        CircularProgressIndicator(
+                        LoadingIndicator(
                             modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {

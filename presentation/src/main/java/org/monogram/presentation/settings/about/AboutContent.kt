@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.about
 
 import androidx.compose.animation.AnimatedContent
@@ -383,14 +385,13 @@ private fun DownloadingUpdateItem(state: UpdateState.Downloading) {
             }
             Spacer(modifier = Modifier.height(12.dp))
             val animatedProgress by animateFloatAsState(targetValue = state.progress, label = "progress")
-            LinearProgressIndicator(
+            LinearWavyProgressIndicator(
                 progress = { animatedProgress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp),
                 color = Color(0xFFF9AB00),
-                trackColor = Color(0xFFF9AB00).copy(alpha = 0.2f),
-                strokeCap = StrokeCap.Round
+                trackColor = Color(0xFFF9AB00).copy(alpha = 0.2f)
             )
         }
     }

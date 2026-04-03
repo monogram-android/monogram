@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.networkUsage
 
 import androidx.compose.animation.AnimatedContent
@@ -101,7 +103,7 @@ fun NetworkUsageContent(component: NetworkUsageComponent) {
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                ContainedLoadingIndicator()
             }
         } else {
             Column(
@@ -501,7 +503,7 @@ private fun UsageRowItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                LinearProgressIndicator(
+                LinearWavyProgressIndicator(
                     progress = { visualProgress },
                     modifier = Modifier
                         .fillMaxWidth(0.8f)

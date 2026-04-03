@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.viewers.components
 
 import androidx.compose.animation.*
@@ -482,10 +484,9 @@ fun ZoomableImage(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                CircularProgressIndicator(
+                CircularWavyProgressIndicator(
                     modifier = Modifier.size(48.dp),
                     color = Color.White,
-                    strokeWidth = 3.dp,
                     progress = {
                         if (isDownloading && downloadProgress in 0f..1f) {
                             downloadProgress

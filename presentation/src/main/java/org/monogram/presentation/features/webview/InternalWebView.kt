@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.webview
 
 import android.annotation.SuppressLint
@@ -394,7 +396,7 @@ fun InternalWebView(
                 exit = fadeOut(animationSpec = tween(500)) + shrinkVertically(),
                 modifier = Modifier.align(Alignment.TopCenter)
             ) {
-                LinearProgressIndicator(
+                LinearWavyProgressIndicator(
                     progress = { progress },
                     modifier = Modifier.fillMaxWidth(),
                     color = MaterialTheme.colorScheme.primary,

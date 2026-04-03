@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.privacy
 
 import android.widget.Toast
@@ -103,7 +105,7 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    ContainedLoadingIndicator()
                 }
             } else {
                 LazyColumn(

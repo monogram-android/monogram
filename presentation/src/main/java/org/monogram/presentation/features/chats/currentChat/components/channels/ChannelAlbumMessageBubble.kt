@@ -11,6 +11,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -284,6 +286,7 @@ fun ChannelAlbumMessageBubble(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChannelDocumentAlbumBubble(
     messages: List<MessageModel>,
@@ -382,11 +385,10 @@ fun ChannelDocumentAlbumBubble(
                             contentAlignment = Alignment.Center
                         ) {
                             if (content.isDownloading || content.isUploading) {
-                                CircularProgressIndicator(
+                                CircularWavyProgressIndicator(
                                     progress = { if (content.isDownloading) content.downloadProgress else content.uploadProgress },
                                     modifier = Modifier.size(36.dp),
                                     color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 3.dp,
                                     trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
                                 )
                                 Icon(
@@ -486,6 +488,7 @@ fun ChannelDocumentAlbumBubble(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChannelAudioAlbumBubble(
     messages: List<MessageModel>,
@@ -584,11 +587,10 @@ fun ChannelAudioAlbumBubble(
                             contentAlignment = Alignment.Center
                         ) {
                             if (content.isDownloading || content.isUploading) {
-                                CircularProgressIndicator(
+                                CircularWavyProgressIndicator(
                                     progress = { if (content.isDownloading) content.downloadProgress else content.uploadProgress },
                                     modifier = Modifier.size(36.dp),
                                     color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 3.dp,
                                     trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
                                 )
                                 Icon(

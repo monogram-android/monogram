@@ -13,10 +13,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.SplitButtonDefaults
+import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun InputBarSendButton(
     textValue: TextFieldValue,
@@ -60,17 +64,29 @@ fun InputBarSendButton(
     val isRecordingMode = isTextEmpty && editingMessage == null && pendingMediaPaths.isEmpty() && canSendVoice
 
     if (canWriteText || canSendVoice) {
+        val sendIcon = when {
+            pendingMediaPaths.isNotEmpty() -> Icons.AutoMirrored.Filled.Send
+            editingMessage != null -> Icons.Default.Check
+            !isTextEmpty -> Icons.AutoMirrored.Filled.Send
+            isVideoMessageMode -> Icons.Default.Videocam
+            else -> Icons.Outlined.Mic
+        }
+        val canShowOptions = editingMessage == null && canWriteText &&
+                (!isTextEmpty || (pendingMediaPaths.isNotEmpty() && canSendMedia)) &&
+                !isOverCharLimit
+
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .background(
-                    color = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = CircleShape
-                )
-                .clip(CircleShape)
                 .then(
                     if (isRecordingMode) {
-                        Modifier.pointerInput(isVideoMessageMode) {
+                        Modifier
+                            .size(48.dp)
+                            .background(
+                                color = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = CircleShape
+                            )
+                            .clip(CircleShape)
+                            .pointerInput(isVideoMessageMode) {
                             awaitEachGesture {
                                 try {
                                     awaitFirstDown()
@@ -134,41 +150,64 @@ fun InputBarSendButton(
                                 }
                             }
                         }
+                    } else if (canShowOptions) {
+                        Modifier
                     } else {
-                        Modifier.combinedClickable(
-                            onClick = {
-                                if (!isOverCharLimit) {
-                                    onSendWithOptions(MessageSendOptions())
+                        Modifier
+                            .size(48.dp)
+                            .background(
+                                color = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = CircleShape
+                            )
+                            .clip(CircleShape)
+                            .combinedClickable(
+                                onClick = {
+                                    if (!isOverCharLimit) {
+                                        onSendWithOptions(MessageSendOptions())
+                                    }
                                 }
-                            },
-                            onLongClick = {
-                                val canShowOptions = editingMessage == null && canWriteText &&
-                                        (!isTextEmpty || (pendingMediaPaths.isNotEmpty() && canSendMedia)) &&
-                                        !isOverCharLimit
-                                if (canShowOptions) {
-                                    onShowSendOptionsMenu()
-                                }
-                            }
-                        )
+                            )
                     }
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Crossfade(
-                targetState = when {
-                    pendingMediaPaths.isNotEmpty() -> Icons.AutoMirrored.Filled.Send
-                    editingMessage != null -> Icons.Default.Check
-                    !isTextEmpty -> Icons.AutoMirrored.Filled.Send
-                    isVideoMessageMode -> Icons.Default.Videocam
-                    else -> Icons.Outlined.Mic
-                },
-                label = "IconAnimation"
-            ) { icon ->
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+            if (!isRecordingMode && canShowOptions) {
+                SplitButtonLayout(
+                    leadingButton = {
+                        SplitButtonDefaults.LeadingButton(
+                            onClick = { onSendWithOptions(MessageSendOptions()) }
+                        ) {
+                            Crossfade(targetState = sendIcon, label = "SplitLeadingIcon") { icon ->
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+                    },
+                    trailingButton = {
+                        SplitButtonDefaults.TrailingButton(onClick = onShowSendOptionsMenu) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
                 )
+            } else {
+                Crossfade(targetState = sendIcon, label = "IconAnimation") { icon ->
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = if (isSendEnabled || isVoiceRecordingActive) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
             }
         }
     }

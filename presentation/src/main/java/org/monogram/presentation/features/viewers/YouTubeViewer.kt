@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 
 package org.monogram.presentation.features.viewers
 
@@ -449,7 +449,7 @@ fun YouTubeViewer(
                     }
             ) {
                 if (playerState.isLoading) {
-                    CircularProgressIndicator(
+                    LoadingIndicator(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.align(Alignment.Center)
                     )

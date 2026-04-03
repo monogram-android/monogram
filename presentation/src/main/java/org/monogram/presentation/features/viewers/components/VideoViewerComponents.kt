@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.viewers.components
 
 import android.os.Build
@@ -58,6 +60,7 @@ import kotlin.math.max
 private const val TAG = "VideoPage"
 
 @OptIn(UnstableApi::class)
+@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoPage(
     path: String,
@@ -341,7 +344,7 @@ fun VideoPage(
         }
 
         if (!isInPipMode) {
-            if (isBuffering) CircularProgressIndicator(
+            if (isBuffering) LoadingIndicator(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.align(Alignment.Center)
             )
@@ -512,6 +515,7 @@ fun VideoPage(
     }
 }
 
+@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoPlayerControls(
     visible: Boolean,
@@ -650,15 +654,14 @@ fun VideoPlayerControls(
 
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
                     if (downloadProgress < 1f) {
-                        LinearProgressIndicator(
+                        LinearWavyProgressIndicator(
                             progress = { downloadProgress },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(4.dp)
                                 .padding(horizontal = 2.dp),
                             color = Color.White.copy(alpha = 0.2f),
-                            trackColor = Color.Transparent,
-                            strokeCap = StrokeCap.Round
+                            trackColor = Color.Transparent
                         )
                     }
                     Slider(

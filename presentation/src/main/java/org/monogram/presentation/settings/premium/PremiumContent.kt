@@ -31,11 +31,12 @@ import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
+import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.ui.TelegramStarInteractive
 import org.monogram.presentation.core.ui.rememberCollapsingToolbarScaffoldState
 import org.monogram.presentation.core.util.ScrollStrategy
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PremiumContent(component: PremiumComponent) {
     val state by component.state.subscribeAsState()
@@ -62,7 +63,10 @@ fun PremiumContent(component: PremiumComponent) {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = component::onBackClicked) {
+                    IconButton(
+                        onClick = component::onBackClicked,
+                        shapes = ExpressiveDefaults.iconButtonShapes()
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Rounded.ArrowBack,
                             contentDescription = stringResource(R.string.premium_back)
@@ -89,11 +93,11 @@ fun PremiumContent(component: PremiumComponent) {
                                 context.startActivity(intent)
                                 component.onSubscribeClicked()
                             },
+                            shapes = ExpressiveDefaults.largeButtonShapes(),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp)
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
+                                .height(ButtonDefaults.LargeContainerHeight),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFAF52DE)
                             )

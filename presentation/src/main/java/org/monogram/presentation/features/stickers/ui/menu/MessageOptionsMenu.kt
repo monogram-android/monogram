@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.stickers.ui.menu
 
 import androidx.compose.animation.*
@@ -483,6 +485,13 @@ fun MessageOptionsMenu(
                     modifier = contentModifier
                         .padding(vertical = 4.dp)
                 ) {
+                    DropdownMenuGroup(
+                        shapes = MenuDefaults.groupShape(0, 1),
+                        contentPadding = PaddingValues(0.dp),
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 0.dp
+                    ) {
                     if (page == MenuPage.Main) {
                         ReactionsRow(
                             message = message,
@@ -511,9 +520,8 @@ fun MessageOptionsMenu(
                                 text = "${viewers.size} ${stringResource(R.string.info_views)}",
                                 trailingContent = {
                                     if (isLoadingViewers) {
-                                        CircularProgressIndicator(
+                                        LoadingIndicator(
                                             modifier = Modifier.size(16.dp),
-                                            strokeWidth = 2.dp
                                         )
                                     } else {
                                         Icon(
@@ -756,7 +764,7 @@ fun MessageOptionsMenu(
                                         .padding(vertical = 24.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator()
+                                    LoadingIndicator()
                                 }
                             }
 
@@ -794,6 +802,7 @@ fun MessageOptionsMenu(
                                 }
                             }
                         }
+                    }
                     }
                 }
             }

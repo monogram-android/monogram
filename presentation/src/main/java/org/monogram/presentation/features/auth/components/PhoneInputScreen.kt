@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CountryFlag
+import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.util.Country
 import org.monogram.presentation.core.util.CountryManager
@@ -403,11 +404,11 @@ fun PhoneInputScreen(
 
         Button(
             onClick = { onConfirm(fullNumber) },
+            shapes = ExpressiveDefaults.extraLargeButtonShapes(),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(ButtonDefaults.ExtraLargeContainerHeight),
             enabled = isFormValid && !isSubmitting,
-            shape = RoundedCornerShape(24.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary

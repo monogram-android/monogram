@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -41,6 +42,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -95,6 +99,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.ReplyMarkupModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ConfirmationSheet
+import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentBackground
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentList
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentTopBar
@@ -122,6 +127,7 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import kotlin.math.abs
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChatContent(
     component: ChatComponent,
@@ -692,24 +698,23 @@ fun ChatContent(
                                 stickerRepository = component.stickerRepository
                             )
                         } else if (!state.isMember && (state.isChannel || state.isGroup)) {
-                            Surface(
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { component.onJoinChat() },
-                                color = MaterialTheme.colorScheme.surface,
-                                tonalElevation = 2.dp
+                                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                                    .windowInsetsPadding(WindowInsets.navigationBars),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
+                                Button(
+                                    onClick = { component.onJoinChat() },
+                                    shapes = ExpressiveDefaults.largeButtonShapes(),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp)
-                                        .windowInsetsPadding(WindowInsets.navigationBars),
-                                    contentAlignment = Alignment.Center
+                                        .height(ButtonDefaults.LargeContainerHeight)
                                 ) {
                                     Text(
                                         text = stringResource(R.string.action_join),
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.profile
 
 import android.content.ClipData
@@ -27,7 +29,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ExitToApp
@@ -37,7 +38,8 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -266,11 +268,6 @@ fun ProfileContent(component: ProfileComponent) {
                 { stringResource(R.string.tab_links) },
                 { stringResource(R.string.tab_gifs) }
             ))
-            val pagerState = rememberPagerState(
-                initialPage = state.selectedTabIndex,
-                pageCount = { tabs.size }
-            )
-
             CollapsingToolbarScaffold(
                 modifier = Modifier
                     .fillMaxSize()
@@ -378,7 +375,6 @@ fun ProfileContent(component: ProfileComponent) {
 
                     profileMediaSection(
                         state = state,
-                        pagerState = pagerState,
                         isGroup = isGroup,
                         tabs = tabs,
                         onTabSelected = component::onTabSelected,
@@ -457,8 +453,7 @@ fun ProfileContent(component: ProfileComponent) {
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                CircularProgressIndicator(
-                                    strokeWidth = 2.dp,
+                                LoadingIndicator(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(

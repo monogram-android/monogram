@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.storage
 
 import androidx.compose.animation.core.Animatable
@@ -96,7 +98,7 @@ fun StorageUsageContent(component: StorageUsageComponent) {
             Box(modifier = Modifier
                 .fillMaxSize()
                 .padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                ContainedLoadingIndicator()
             }
         } else {
             val usage = state.usage
@@ -646,7 +648,7 @@ fun StorageItemRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                LinearProgressIndicator(
+                LinearWavyProgressIndicator(
                     progress = { relativeProgress },
                     modifier = Modifier
                         .fillMaxWidth(0.8f)

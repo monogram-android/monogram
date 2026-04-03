@@ -17,6 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +46,7 @@ private enum class InlineResultsMode {
     List
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun InlineBotResults(
     inlineBotResults: InlineBotResultsModel?,
@@ -123,7 +126,7 @@ fun InlineBotResults(
                             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.25f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(30.dp))
+                        LoadingIndicator(modifier = Modifier.size(30.dp))
                     }
                 }
             }

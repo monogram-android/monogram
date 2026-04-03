@@ -1362,9 +1362,9 @@ class MessageMapper(
             is TdApi.MessagePoll -> {
                 val poll = c.poll
                 val type = when (val pollType = poll.type) {
-                    is TdApi.PollTypeRegular -> PollType.Regular(pollType.allowMultipleAnswers)
-                    is TdApi.PollTypeQuiz -> PollType.Quiz(pollType.correctOptionId, pollType.explanation?.text)
-                    else -> PollType.Regular(false)
+                    is TdApi.PollTypeRegular -> PollType.Regular(poll.allowsMultipleAnswers)
+                    is TdApi.PollTypeQuiz -> PollType.Quiz(pollType.correctOptionIds.firstOrNull() ?: -1, pollType.explanation?.text)
+                    else -> PollType.Regular(poll.allowsMultipleAnswers)
                 }
                 MessageContent.Poll(
                     id = poll.id,

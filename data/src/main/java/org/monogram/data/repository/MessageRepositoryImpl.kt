@@ -393,7 +393,7 @@ class MessageRepositoryImpl(
     @Deprecated("Use getMessagesOlder instead")
     override suspend fun getMessages(chatId: Long, fromMessageId: Long, limit: Int): List<MessageModel> =
         withContext(dispatcherProvider.io) {
-            getMessagesOlder(chatId, fromMessageId, limit).messages
+            getMessagesOlder(chatId, fromMessageId, limit, null).messages
         }
 
     override suspend fun getChatDraft(chatId: Long, threadId: Long?): String? =
@@ -415,6 +415,7 @@ class MessageRepositoryImpl(
                         this.messageId = replyToMsgId
                         this.quote = null
                         this.checklistTaskId = 0
+                        this.pollOptionId = ""
                     }
                 }
             }
@@ -503,7 +504,7 @@ class MessageRepositoryImpl(
 
     override suspend fun summarizeMessage(chatId: Long, messageId: Long, toLanguageCode: String): String? =
         withContext(dispatcherProvider.io) {
-            when (val result = gateway.execute(TdApi.SummarizeMessage(chatId, messageId, toLanguageCode))) {
+            when (val result = gateway.execute(TdApi.SummarizeMessage(chatId, messageId, toLanguageCode, ""))) {
                 is TdApi.FormattedText -> result.text
                 else -> null
             }
@@ -511,7 +512,7 @@ class MessageRepositoryImpl(
 
     override suspend fun translateMessage(chatId: Long, messageId: Long, toLanguageCode: String): String? =
         withContext(dispatcherProvider.io) {
-            when (val result = gateway.execute(TdApi.TranslateMessageText(chatId, messageId, toLanguageCode))) {
+            when (val result = gateway.execute(TdApi.TranslateMessageText(chatId, messageId, toLanguageCode, ""))) {
                 is TdApi.FormattedText -> result.text
                 else -> null
             }
@@ -918,7 +919,7 @@ class MessageRepositoryImpl(
         threadId: Long?
     ) {
         val replyTo = if (replyToMsgId != null)
-            TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0)
+            TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "")
         else null
 
         val topicId = if (threadId != null) {

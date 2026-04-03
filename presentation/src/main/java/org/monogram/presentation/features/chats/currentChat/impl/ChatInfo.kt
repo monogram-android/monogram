@@ -119,6 +119,7 @@ internal fun DefaultChatComponent.updateChatState(chat: ChatModel) {
             chatEmojiStatus = chat.emojiStatusPath,
             isGroup = chat.isGroup,
             isChannel = chat.isChannel,
+            isSecretChat = chat.type == ChatType.SECRET,
             isVerified = if (chat.isGroup || chat.isChannel) chat.isVerified else (chat.isVerified || currentState.isVerified),
             isSponsor = if (chat.isGroup || chat.isChannel) false else (chat.isSponsor || currentState.isSponsor),
             canWrite = canWrite,

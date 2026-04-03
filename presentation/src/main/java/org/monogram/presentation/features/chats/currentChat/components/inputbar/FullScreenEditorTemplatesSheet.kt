@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.monogram.domain.repository.EditorSnippet
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField

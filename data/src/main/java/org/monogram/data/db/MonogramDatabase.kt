@@ -22,9 +22,10 @@ import org.monogram.data.db.model.*
         NotificationSettingEntity::class,
         WallpaperEntity::class,
         StickerPathEntity::class,
-        SponsorEntity::class
+        SponsorEntity::class,
+        TextCompositionStyleEntity::class
     ],
-    version = 26,
+    version = 27,
     exportSchema = false
 )
 abstract class MonogramDatabase : RoomDatabase() {
@@ -44,4 +45,5 @@ abstract class MonogramDatabase : RoomDatabase() {
     abstract fun wallpaperDao(): WallpaperDao
     abstract fun stickerPathDao(): StickerPathDao
     abstract fun sponsorDao(): SponsorDao
+    abstract fun textCompositionStyleDao(): TextCompositionStyleDao
 }

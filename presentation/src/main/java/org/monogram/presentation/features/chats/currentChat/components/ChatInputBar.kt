@@ -52,6 +52,7 @@ data class ChatInputBarState(
     val attachBots: List<AttachMenuBotModel> = emptyList(),
     val scheduledMessages: List<MessageModel> = emptyList(),
     val isPremiumUser: Boolean = false,
+    val isSecretChat: Boolean = false,
 )
 
 @Immutable
@@ -601,6 +602,8 @@ fun ChatInputBar(
                 maxMessageLength = maxMessageLength,
                 videoPlayerPool = videoPlayerPool,
                 stickerRepository = stickerRepository,
+                isPremiumUser = state.isPremiumUser,
+                isSecretChat = state.isSecretChat,
                 onDismiss = { showFullScreenEditor = false },
                 onSend = {
                     sendWithOptions(MessageSendOptions())

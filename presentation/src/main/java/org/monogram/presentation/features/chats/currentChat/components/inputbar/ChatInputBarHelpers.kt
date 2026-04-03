@@ -83,9 +83,21 @@ internal fun buildEditingMessageTextValue(
     knownCustomEmojis: MutableMap<Long, StickerModel>
 ): TextFieldValue? {
     val content = message.content as? MessageContent.Text ?: return null
+    return buildTextFieldValueFromTextAndEntities(
+        text = content.text,
+        entities = content.entities,
+        knownCustomEmojis = knownCustomEmojis
+    )
+}
+
+internal fun buildTextFieldValueFromTextAndEntities(
+    text: String,
+    entities: List<MessageEntity>,
+    knownCustomEmojis: MutableMap<Long, StickerModel>
+): TextFieldValue {
     knownCustomEmojis.clear()
 
-    content.entities.forEach { entity ->
+    entities.forEach { entity ->
         val type = entity.type as? MessageEntityType.CustomEmoji ?: return@forEach
         val emojiPath = type.path ?: return@forEach
         knownCustomEmojis[type.emojiId] = StickerModel(
@@ -100,21 +112,25 @@ internal fun buildEditingMessageTextValue(
     }
 
     val annotatedText = buildAnnotatedString {
-        append(content.text)
-        content.entities.forEach { entity ->
+        append(text)
+        entities.forEach { entity ->
+            val start = entity.offset.coerceIn(0, text.length)
+            val end = (entity.offset + entity.length).coerceIn(0, text.length)
+            if (start >= end) return@forEach
+
             when (val type = entity.type) {
                 is MessageEntityType.CustomEmoji -> addStringAnnotation(
                     CUSTOM_EMOJI_TAG,
                     type.emojiId.toString(),
-                    entity.offset,
-                    entity.offset + entity.length
+                    start,
+                    end
                 )
 
                 is MessageEntityType.TextMention -> addStringAnnotation(
                     MENTION_TAG,
                     type.userId.toString(),
-                    entity.offset,
-                    entity.offset + entity.length
+                    start,
+                    end
                 )
 
                 else -> {
@@ -123,8 +139,8 @@ internal fun buildEditingMessageTextValue(
                         addStringAnnotation(
                             RICH_ENTITY_TAG,
                             richEntity,
-                            entity.offset,
-                            entity.offset + entity.length
+                            start,
+                            end
                         )
                     }
                 }
@@ -132,7 +148,7 @@ internal fun buildEditingMessageTextValue(
         }
     }
 
-    return TextFieldValue(annotatedText, TextRange(content.text.length))
+    return TextFieldValue(annotatedText, TextRange(text.length))
 }
 
 internal fun Context.hasAllPermissions(permissions: List<String>): Boolean {

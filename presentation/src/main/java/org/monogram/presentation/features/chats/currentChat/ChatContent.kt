@@ -4,67 +4,25 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.*
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Block
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -88,11 +46,7 @@ import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.zIndex
 import androidx.window.core.layout.WindowWidthSizeClass
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -100,21 +54,8 @@ import org.monogram.domain.models.ReplyMarkupModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.core.ui.ExpressiveDefaults
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentBackground
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentList
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentTopBar
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentViewers
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatMessageOptionsMenu
-import org.monogram.presentation.features.chats.currentChat.chatContent.GroupedMessageItem
-import org.monogram.presentation.features.chats.currentChat.chatContent.ReportChatDialog
-import org.monogram.presentation.features.chats.currentChat.chatContent.RestrictUserSheet
-import org.monogram.presentation.features.chats.currentChat.chatContent.groupMessagesByAlbum
-import org.monogram.presentation.features.chats.currentChat.components.AdvancedCircularRecorderScreen
-import org.monogram.presentation.features.chats.currentChat.components.ChatInputBar
-import org.monogram.presentation.features.chats.currentChat.components.ChatInputBarActions
-import org.monogram.presentation.features.chats.currentChat.components.ChatInputBarState
-import org.monogram.presentation.features.chats.currentChat.components.MessageListShimmer
-import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
+import org.monogram.presentation.features.chats.currentChat.chatContent.*
+import org.monogram.presentation.features.chats.currentChat.components.*
 import org.monogram.presentation.features.chats.currentChat.components.chats.BotCommandsSheet
 import org.monogram.presentation.features.chats.currentChat.components.chats.LocalLinkHandler
 import org.monogram.presentation.features.chats.currentChat.components.chats.PollVotersSheet
@@ -492,7 +433,6 @@ fun ChatContent(
             state.selectedMessageIds.isEmpty() &&
             (!state.viewAsTopics || state.currentTopicId != null)
 
-    val isDragToBackEnabled by component.appPreferences.isDragToBackEnabled.collectAsState()
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
 
     val isCustomBackHandlingEnabled =
@@ -584,7 +524,8 @@ fun ChatContent(
                                     isInlineBotLoading = state.isInlineBotLoading,
                                     attachBots = state.attachMenuBots,
                                     scheduledMessages = state.scheduledMessages,
-                                    isPremiumUser = state.currentUser?.isPremium == true
+                                    isPremiumUser = state.currentUser?.isPremium == true,
+                                    isSecretChat = state.isSecretChat
                                 )
                             }
 

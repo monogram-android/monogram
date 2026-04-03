@@ -12,7 +12,12 @@ private enum class DiffType { Same, Added, Removed }
 
 private data class DiffPart(val text: String, val type: DiffType)
 
-fun calculateDiff(old: String, new: String): AnnotatedString {
+fun calculateDiff(
+    old: String,
+    new: String,
+    addedColor: Color = Color.Green.copy(alpha = 0.2f),
+    removedColor: Color = Color.Red.copy(alpha = 0.2f)
+): AnnotatedString {
     val oldWords = old.split(Regex("\\s+")).filter { it.isNotEmpty() }
     val newWords = new.split(Regex("\\s+")).filter { it.isNotEmpty() }
 
@@ -24,12 +29,12 @@ fun calculateDiff(old: String, new: String): AnnotatedString {
 
             val style = when (type) {
                 DiffType.Added -> SpanStyle(
-                    background = Color.Green.copy(alpha = 0.2f),
+                    background = addedColor,
                     fontWeight = FontWeight.Bold
                 )
 
                 DiffType.Removed -> SpanStyle(
-                    background = Color.Red.copy(alpha = 0.2f),
+                    background = removedColor,
                 )
 
                 DiffType.Same -> null

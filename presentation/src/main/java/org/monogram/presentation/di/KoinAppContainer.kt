@@ -24,6 +24,7 @@ class KoinPreferencesContainer(private val koin: Koin) : PreferencesContainer {
     override val appPreferences: AppPreferences by lazy { koin.get() }
     override val appPreferencesProvider: AppPreferencesProvider by lazy { koin.get() }
     override val botPreferencesProvider: BotPreferencesProvider by lazy { koin.get() }
+    override val editorSnippetProvider: EditorSnippetProvider by lazy { koin.get() }
 }
 
 class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer {

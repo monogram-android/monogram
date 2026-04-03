@@ -1,6 +1,7 @@
 package org.monogram.domain.repository
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import org.monogram.domain.models.*
 import org.monogram.domain.models.webapp.InstantViewModel
 import org.monogram.domain.models.webapp.InvoiceModel
@@ -46,6 +47,7 @@ interface MessageRepository {
     val messageIdUpdateFlow: Flow<Triple<Long, Long, MessageModel>>
     val pinnedMessageFlow: Flow<Long>
     val mediaUpdateFlow: Flow<Unit>
+    val textCompositionStyles: StateFlow<List<TextCompositionStyleModel>>
     suspend fun getHighResFileId(chatId: Long, messageId: Long): Int?
     suspend fun getFileInfo(fileId: Int): FileModel?
     suspend fun getProfileMedia(
@@ -144,6 +146,18 @@ interface MessageRepository {
     suspend fun getMessageViewers(chatId: Long, messageId: Long): List<MessageViewerModel>
     suspend fun summarizeMessage(chatId: Long, messageId: Long, toLanguageCode: String = ""): String?
     suspend fun translateMessage(chatId: Long, messageId: Long, toLanguageCode: String): String?
+    suspend fun composeTextWithAi(
+        text: String,
+        entities: List<MessageEntity>,
+        translateToLanguageCode: String = "",
+        styleName: String = "",
+        addEmojis: Boolean = false
+    ): FormattedTextResult?
+
+    suspend fun fixTextWithAi(
+        text: String,
+        entities: List<MessageEntity>
+    ): FixedTextResult?
     suspend fun addMessageReaction(chatId: Long, messageId: Long, reaction: String)
     suspend fun removeMessageReaction(chatId: Long, messageId: Long, reaction: String)
     suspend fun setPollAnswer(chatId: Long, messageId: Long, optionIds: List<Int>)

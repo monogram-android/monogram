@@ -23,6 +23,7 @@ interface PreferencesContainer {
     val appPreferences: AppPreferences
     val appPreferencesProvider: AppPreferencesProvider
     val botPreferencesProvider: BotPreferencesProvider
+    val editorSnippetProvider: EditorSnippetProvider
 }
 
 interface RepositoriesContainer {

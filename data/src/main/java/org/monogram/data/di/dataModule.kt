@@ -18,6 +18,7 @@ import org.monogram.data.datasource.TdFileDataSource
 import org.monogram.data.datasource.cache.*
 import org.monogram.data.datasource.remote.*
 import org.monogram.data.db.MonogramDatabase
+import org.monogram.data.db.MonogramMigrations
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.TelegramGatewayImpl
 import org.monogram.data.gateway.UpdateDispatcher
@@ -113,6 +114,7 @@ val dataModule = module {
             "monogram_db"
         )
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+            .addMigrations(MonogramMigrations.MIGRATION_26_27)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
@@ -132,6 +134,7 @@ val dataModule = module {
     single { get<MonogramDatabase>().wallpaperDao() }
     single { get<MonogramDatabase>().stickerPathDao() }
     single { get<MonogramDatabase>().sponsorDao() }
+    single { get<MonogramDatabase>().textCompositionStyleDao() }
 
     single<UserLocalDataSource> {
         RoomUserLocalDataSource(
@@ -321,7 +324,8 @@ val dataModule = module {
             fileDataSource = get(),
             chatLocalDataSource = get(),
             userLocalDataSource = get(),
-            fileUpdateHandler = get()
+            fileUpdateHandler = get(),
+            textCompositionStyleDao = get()
         )
     }
 

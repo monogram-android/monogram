@@ -27,6 +27,7 @@ val appModule = module {
 
     single<AppPreferencesProvider> { AppPreferences(androidContext(), get()) }
     single { get<AppPreferencesProvider>() as AppPreferences }
+    single<EditorSnippetProvider> { EditorSnippetPreferences(androidContext()) }
     single<CacheProvider> { CachePreferences(androidContext()) }
     single<BotPreferencesProvider> { BotPreferences(androidContext()) }
 

@@ -2,6 +2,8 @@ package org.monogram.data.repository
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.drinkless.tdlib.TdApi
@@ -13,6 +15,8 @@ import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.cache.ChatLocalDataSource
 import org.monogram.data.datasource.cache.UserLocalDataSource
 import org.monogram.data.datasource.remote.MessageRemoteDataSource
+import org.monogram.data.db.dao.TextCompositionStyleDao
+import org.monogram.data.db.model.TextCompositionStyleEntity
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileUpdateHandler
 import org.monogram.data.mapper.MessageMapper
@@ -37,9 +41,11 @@ class MessageRepositoryImpl(
     scopeProvider: ScopeProvider,
     private val chatLocalDataSource: ChatLocalDataSource,
     private val userLocalDataSource: UserLocalDataSource,
-    private val fileUpdateHandler: FileUpdateHandler
+    private val fileUpdateHandler: FileUpdateHandler,
+    private val textCompositionStyleDao: TextCompositionStyleDao
 ) : MessageRepository {
     private val scope = scopeProvider.appScope
+    private val _textCompositionStyles = MutableStateFlow<List<TextCompositionStyleModel>>(emptyList())
 
     override val newMessageFlow = messageRemoteDataSource.newMessageFlow
     override val senderUpdateFlow = messageMapper.senderUpdateFlow
@@ -53,8 +59,21 @@ class MessageRepositoryImpl(
     override val messageIdUpdateFlow = messageRemoteDataSource.messageIdUpdateFlow
     override val pinnedMessageFlow = messageRemoteDataSource.pinnedMessageFlow
     override val mediaUpdateFlow = messageRemoteDataSource.mediaUpdateFlow
+    override val textCompositionStyles = _textCompositionStyles.asStateFlow()
 
     init {
+        scope.launch(dispatcherProvider.io) {
+            textCompositionStyleDao.getAll().collect { cachedStyles ->
+                _textCompositionStyles.value = cachedStyles.map { style ->
+                    TextCompositionStyleModel(
+                        name = style.name,
+                        customEmojiId = style.customEmojiId,
+                        title = style.title
+                    )
+                }
+            }
+        }
+
         scope.launch {
             try {
                 gateway.updates.collect { update ->
@@ -109,6 +128,18 @@ class MessageRepositoryImpl(
                                     chatLocalDataSource.deleteMessage(messageId)
                                 }
                             }
+                        }
+
+                        is TdApi.UpdateTextCompositionStyles -> {
+                            val styles = update.styles.orEmpty().map { style ->
+                                TextCompositionStyleModel(
+                                    name = style.name,
+                                    customEmojiId = style.customEmojiId,
+                                    title = style.title
+                                )
+                            }
+                            _textCompositionStyles.value = styles
+                            textCompositionStyleDao.replaceAll(styles.map { it.toEntity() })
                         }
                     }
                 }
@@ -518,8 +549,118 @@ class MessageRepositoryImpl(
             }
         }
 
+    override suspend fun composeTextWithAi(
+        text: String,
+        entities: List<MessageEntity>,
+        translateToLanguageCode: String,
+        styleName: String,
+        addEmojis: Boolean
+    ): FormattedTextResult? = withContext(dispatcherProvider.io) {
+        val input = TdApi.FormattedText(text, entities.toTdTextEntitiesForAi(text))
+        when (
+            val result = gateway.execute(
+                TdApi.ComposeTextWithAi(
+                    input,
+                    translateToLanguageCode,
+                    styleName,
+                    addEmojis
+                )
+            )
+        ) {
+            is TdApi.FormattedText -> FormattedTextResult(
+                text = result.text,
+                entities = result.entities.orEmpty().mapNotNull { it.toDomainMessageEntity() }
+            )
+
+            else -> null
+        }
+    }
+
+    override suspend fun fixTextWithAi(
+        text: String,
+        entities: List<MessageEntity>
+    ): FixedTextResult? = withContext(dispatcherProvider.io) {
+        val input = TdApi.FormattedText(text, entities.toTdTextEntitiesForAi(text))
+        when (val result = gateway.execute(TdApi.FixTextWithAi(input))) {
+            is TdApi.FixedText -> {
+                val formatted = result.text ?: return@withContext null
+                FixedTextResult(
+                    text = formatted.text,
+                    entities = formatted.entities.orEmpty().mapNotNull { it.toDomainMessageEntity() }
+                )
+            }
+
+            else -> null
+        }
+    }
+
     override suspend fun addMessageReaction(chatId: Long, messageId: Long, reaction: String) {
         messageRemoteDataSource.addMessageReaction(chatId, messageId, reaction)
+    }
+
+    private fun List<MessageEntity>.toTdTextEntitiesForAi(text: String): Array<TdApi.TextEntity> {
+        if (isEmpty()) return emptyArray()
+
+        return mapNotNull { entity ->
+            val start = entity.offset.coerceIn(0, text.length)
+            val end = (entity.offset + entity.length).coerceIn(0, text.length)
+            val safeLength = end - start
+            if (safeLength <= 0) return@mapNotNull null
+
+            val type = when (val value = entity.type) {
+                is MessageEntityType.Bold -> TdApi.TextEntityTypeBold()
+                is MessageEntityType.Italic -> TdApi.TextEntityTypeItalic()
+                is MessageEntityType.Underline -> TdApi.TextEntityTypeUnderline()
+                is MessageEntityType.Strikethrough -> TdApi.TextEntityTypeStrikethrough()
+                is MessageEntityType.Spoiler -> TdApi.TextEntityTypeSpoiler()
+                is MessageEntityType.Code -> TdApi.TextEntityTypeCode()
+                is MessageEntityType.Pre -> if (value.language.isBlank()) TdApi.TextEntityTypePre() else TdApi.TextEntityTypePreCode(
+                    value.language
+                )
+
+                is MessageEntityType.TextUrl -> TdApi.TextEntityTypeTextUrl(value.url)
+                is MessageEntityType.Mention -> TdApi.TextEntityTypeMention()
+                is MessageEntityType.TextMention -> TdApi.TextEntityTypeMentionName(value.userId)
+                is MessageEntityType.Hashtag -> TdApi.TextEntityTypeHashtag()
+                is MessageEntityType.BotCommand -> TdApi.TextEntityTypeBotCommand()
+                is MessageEntityType.Url -> TdApi.TextEntityTypeUrl()
+                is MessageEntityType.Email -> TdApi.TextEntityTypeEmailAddress()
+                is MessageEntityType.PhoneNumber -> TdApi.TextEntityTypePhoneNumber()
+                is MessageEntityType.BankCardNumber -> TdApi.TextEntityTypeBankCardNumber()
+                is MessageEntityType.CustomEmoji -> TdApi.TextEntityTypeCustomEmoji(value.emojiId)
+                is MessageEntityType.Other -> return@mapNotNull null
+            }
+
+            TdApi.TextEntity(start, safeLength, type)
+        }
+            .sortedWith(compareBy<TdApi.TextEntity> { it.offset }.thenByDescending { it.length })
+            .toTypedArray()
+    }
+
+    private fun TdApi.TextEntity.toDomainMessageEntity(): MessageEntity? {
+        val mappedType = when (val value = type) {
+            is TdApi.TextEntityTypeBold -> MessageEntityType.Bold
+            is TdApi.TextEntityTypeItalic -> MessageEntityType.Italic
+            is TdApi.TextEntityTypeUnderline -> MessageEntityType.Underline
+            is TdApi.TextEntityTypeStrikethrough -> MessageEntityType.Strikethrough
+            is TdApi.TextEntityTypeSpoiler -> MessageEntityType.Spoiler
+            is TdApi.TextEntityTypeCode -> MessageEntityType.Code
+            is TdApi.TextEntityTypePre -> MessageEntityType.Pre()
+            is TdApi.TextEntityTypePreCode -> MessageEntityType.Pre(value.language)
+            is TdApi.TextEntityTypeTextUrl -> MessageEntityType.TextUrl(value.url)
+            is TdApi.TextEntityTypeMention -> MessageEntityType.Mention
+            is TdApi.TextEntityTypeMentionName -> MessageEntityType.TextMention(value.userId)
+            is TdApi.TextEntityTypeHashtag -> MessageEntityType.Hashtag
+            is TdApi.TextEntityTypeBotCommand -> MessageEntityType.BotCommand
+            is TdApi.TextEntityTypeUrl -> MessageEntityType.Url
+            is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email
+            is TdApi.TextEntityTypePhoneNumber -> MessageEntityType.PhoneNumber
+            is TdApi.TextEntityTypeBankCardNumber -> MessageEntityType.BankCardNumber
+            is TdApi.TextEntityTypeCustomEmoji -> MessageEntityType.CustomEmoji(value.customEmojiId)
+            else -> return null
+        }
+
+        return MessageEntity(offset = offset, length = length, type = mappedType)
     }
 
     override suspend fun removeMessageReaction(chatId: Long, messageId: Long, reaction: String) {
@@ -1284,5 +1425,13 @@ class MessageRepositoryImpl(
 
         val cachedPath = cache.fileCache[file.id]?.local?.path
         return cachedPath?.takeIf { it.isNotBlank() && File(it).exists() }
+    }
+
+    private fun TextCompositionStyleModel.toEntity(): TextCompositionStyleEntity {
+        return TextCompositionStyleEntity(
+            name = name,
+            customEmojiId = customEmojiId,
+            title = title
+        )
     }
 }

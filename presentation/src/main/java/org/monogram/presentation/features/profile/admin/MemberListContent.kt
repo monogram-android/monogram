@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.profile.admin
 
 import androidx.compose.animation.*
@@ -36,7 +38,7 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemberListContent(component: MemberListComponent) {
     val state by component.state.subscribeAsState()
@@ -135,7 +137,7 @@ fun MemberListContent(component: MemberListComponent) {
     ) { padding ->
         if (state.isLoading && state.members.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                LoadingIndicator()
+                ContainedLoadingIndicator()
             }
         } else {
             LazyColumn(

@@ -86,7 +86,7 @@ fun ChannelVideoMessageBubble(
         topStart = topStart,
         topEnd = topEnd,
         bottomStart = bottomStart,
-        bottomEnd = bottomEnd
+        bottomEnd = if (showComments && msg.canGetMessageThread) 4.dp else bottomEnd
     )
 
     var videoPosition by remember { mutableStateOf(Offset.Zero) }

@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.InlineTextContent
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.text.contextmenu.builder.item
 import androidx.compose.foundation.text.contextmenu.data.TextContextMenuKeys
@@ -25,10 +24,10 @@ import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -312,39 +311,52 @@ fun InputTextField(
                         }
                     }
 
+                val textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    platformStyle = PlatformTextStyle(
+                        includeFontPadding = false
+                    ),
+                    lineHeightStyle = LineHeightStyle(
+                        alignment = LineHeightStyle.Alignment.Center,
+                        trim = LineHeightStyle.Trim.None
+                    )
+                )
+
                 BasicTextField(
                     value = textValue,
                     onValueChange = onValueChange,
                     modifier = fieldModifier,
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    textStyle = textStyle.copy(
                         color = if (shouldUseOverlayText) Color.Transparent else MaterialTheme.colorScheme.onSurface
                     ),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     minLines = 1,
                     maxLines = Int.MAX_VALUE,
-                    visualTransformation = { transformedTextState },
                     decorationBox = { innerTextField ->
-                        Box {
-                            if (shouldUseOverlayText) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (textValue.text.isEmpty()) {
                                 Text(
-                                    text = transformedTextState.text,
-                                    inlineContent = inlineContent,
-                                    style = MaterialTheme.typography.bodyLarge.copy(
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    ),
+                                    text = if (pendingMediaPaths.isNotEmpty())
+                                        stringResource(R.string.input_placeholder_caption)
+                                    else
+                                        stringResource(R.string.input_placeholder_message),
+                                    style = textStyle,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
-                            if (textValue.text.isEmpty()) {
+
+                            if (shouldUseOverlayText) {
                                 Text(
-                                    text = if (pendingMediaPaths.isNotEmpty()) stringResource(R.string.input_placeholder_caption) else stringResource(
-                                        R.string.input_placeholder_message
-                                    ),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = transformedTextState.text,
+                                    style = textStyle,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
+
                             innerTextField()
                         }
                     }

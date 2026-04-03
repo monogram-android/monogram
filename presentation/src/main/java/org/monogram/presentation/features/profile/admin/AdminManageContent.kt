@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.profile.admin
 
 import androidx.compose.foundation.layout.*
@@ -24,7 +26,7 @@ import org.monogram.presentation.features.chats.chatList.components.SettingsText
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminManageContent(component: AdminManageComponent) {
     val state by component.state.subscribeAsState()
@@ -72,7 +74,7 @@ fun AdminManageContent(component: AdminManageComponent) {
     ) { padding ->
         if (state.isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                LoadingIndicator()
+                ContainedLoadingIndicator()
             }
         } else {
             LazyColumn(

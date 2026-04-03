@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
 import android.net.Uri
@@ -16,19 +18,19 @@ import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -53,8 +55,8 @@ import org.monogram.presentation.features.stickers.ui.view.shimmerEffect
 import java.io.File
 import java.io.FileNotFoundException
 
-@OptIn(UnstableApi::class)
-@kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(UnstableApi::class, ExperimentalMaterial3ExpressiveApi::class)
+@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoNoteBubble(
     content: MessageContent.VideoNote,
@@ -271,16 +273,15 @@ fun VideoNoteBubble(
                     CircularWavyProgressIndicator(
                         progress = { content.uploadProgress },
                         color = Color.White,
-                        stroke = Stroke(width = with(LocalDensity.current) { 3.dp.toPx() }),
                         modifier = Modifier.size(48.dp),
                         trackColor = Color.White.copy(alpha = 0.3f)
                     )
                 }
             } else if (content.path != null && !hasError) {
+
                 CircularWavyProgressIndicator(
                     progress = { progress },
                     color = Color.White,
-                    stroke = Stroke(width = with(LocalDensity.current) { 2.dp.toPx() }),
                     modifier = Modifier.matchParentSize(),
                     trackColor = Color.Transparent
                 )

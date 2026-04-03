@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.profile.components
 
 import org.monogram.presentation.core.util.coRunCatching
@@ -42,7 +44,7 @@ import java.util.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsViewer(
     title: String,
@@ -339,7 +341,6 @@ fun ChannelStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Unit)
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun InteractionItem(interaction: ChatInteractionInfoModel) {
     var expanded by remember { mutableStateOf(false) }
@@ -763,7 +764,6 @@ private fun RevenueMetricCard(modifier: Modifier = Modifier, label: String, valu
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GraphSection(title: String, graph: StatisticsGraphModel, color: Color, onLoadGraph: (String) -> Unit) {
     if (graph is StatisticsGraphModel.Error) return
@@ -805,7 +805,7 @@ fun GraphSection(title: String, graph: StatisticsGraphModel, color: Color, onLoa
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             LoadingIndicator(
                                 modifier = Modifier.size(48.dp),
-                                color = color
+                                color = color,
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(

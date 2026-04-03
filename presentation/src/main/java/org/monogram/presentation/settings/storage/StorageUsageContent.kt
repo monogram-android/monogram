@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.storage
 
 import androidx.compose.animation.core.Animatable
@@ -56,7 +58,7 @@ private val ChartColors = listOf(
     Color(0xFF90A4AE)  // Blue Grey
 )
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StorageUsageContent(component: StorageUsageComponent) {
     val state by component.state.subscribeAsState()
@@ -96,7 +98,7 @@ fun StorageUsageContent(component: StorageUsageComponent) {
             Box(modifier = Modifier
                 .fillMaxSize()
                 .padding(padding), contentAlignment = Alignment.Center) {
-                LoadingIndicator()
+                ContainedLoadingIndicator()
             }
         } else {
             val usage = state.usage
@@ -563,7 +565,6 @@ fun StorageChartHeader(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun StorageItemRow(
     chatUsage: ChatStorageUsageModel,

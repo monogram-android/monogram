@@ -1,8 +1,11 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.stickers
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -17,11 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.StickyNote2
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.EmojiEmotions
-import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,11 +45,7 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.monogram.domain.models.StickerSetModel
 import org.monogram.presentation.R
-import org.monogram.presentation.core.ui.ConfirmationSheet
-import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.core.ui.SettingsTile
-import org.monogram.presentation.core.ui.StickerSetItem
-import org.monogram.presentation.core.ui.getItemShape
+import org.monogram.presentation.core.ui.*
 import org.monogram.presentation.features.stickers.ui.view.LocalIsScrolling
 import org.monogram.presentation.features.webapp.MiniAppViewer
 import kotlin.math.abs
@@ -60,7 +55,7 @@ private enum class StickerTab(val titleRes: Int, val icon: ImageVector) {
     Emoji(R.string.emoji_tab, Icons.Rounded.EmojiEmotions)
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StickersContent(component: StickersComponent) {
     val state by component.state.subscribeAsState()
@@ -123,8 +118,7 @@ fun StickersContent(component: StickersComponent) {
                     ) {
                         StickerTab.entries.forEachIndexed { index, tab ->
                             val selected = (state.selectedTabIndex == index)
-                            val count =
-                                if (index == 0) state.stickerSets.size else state.emojiSets.size
+                            val count = if (index == 0) state.stickerSets.size else state.emojiSets.size
 
                             val backgroundColor by animateColorAsState(
                                 if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
@@ -198,21 +192,20 @@ fun StickersContent(component: StickersComponent) {
                                 .padding(32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            LoadingIndicator()
+                            ContainedLoadingIndicator()
                         }
                     } else {
                         when (tabIndex) {
                             0 -> {
-                                val filteredSets =
-                                    remember(state.stickerSets, debouncedSearchQuery) {
-                                        if (debouncedSearchQuery.isEmpty()) state.stickerSets
-                                        else state.stickerSets.filter {
-                                            it.title.contains(
-                                                debouncedSearchQuery,
-                                                ignoreCase = true
-                                            )
-                                        }
+                                val filteredSets = remember(state.stickerSets, debouncedSearchQuery) {
+                                    if (debouncedSearchQuery.isEmpty()) state.stickerSets
+                                    else state.stickerSets.filter {
+                                        it.title.contains(
+                                            debouncedSearchQuery,
+                                            ignoreCase = true
+                                        )
                                     }
+                                }
                                 GenericStickerList(
                                     sets = filteredSets,
                                     archivedSets = state.archivedStickerSets,
@@ -384,18 +377,12 @@ private fun GenericStickerList(
                     onActiveChange = { },
                     placeholder = { Text(stringResource(R.string.search_packs_placeholder)) },
                     leadingIcon = {
-                        Icon(
-                            Icons.Rounded.Search,
-                            contentDescription = stringResource(R.string.action_search)
-                        )
+                        Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.action_search))
                     },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { onSearchQueryChange("") }) {
-                                Icon(
-                                    Icons.Rounded.Close,
-                                    contentDescription = stringResource(R.string.action_clear)
-                                )
+                                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_clear))
                             }
                         }
                     },
@@ -449,6 +436,11 @@ private fun GenericStickerList(
                         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                         label = "elevation"
                     )
+                    val scale by animateFloatAsState(
+                        targetValue = if (isDragging) 1.02f else 1f,
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        label = "scale"
+                    )
 
                     val position = when {
                         sets.size == 1 -> ItemPosition.STANDALONE
@@ -456,17 +448,31 @@ private fun GenericStickerList(
                         index == sets.size - 1 -> ItemPosition.BOTTOM
                         else -> ItemPosition.MIDDLE
                     }
+                    val effectivePosition = if (isDragging) ItemPosition.STANDALONE else position
 
                     Box(
                         modifier = Modifier
                             .zIndex(if (isDragging) 1f else 0f)
-                            .then(if (isDragging) Modifier else Modifier.animateItem())
+                            .then(
+                                if (isDragging) {
+                                    Modifier
+                                } else {
+                                    Modifier.animateItem(
+                                        fadeInSpec = null,
+                                        placementSpec = spring(
+                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        ),
+                                        fadeOutSpec = null
+                                    )
+                                }
+                            )
                             .graphicsLayer {
                                 translationY = if (isDragging) dragOffset else 0f
-                                scaleX = if (isDragging) 1.02f else 1f
-                                scaleY = if (isDragging) 1.02f else 1f
+                                scaleX = scale
+                                scaleY = scale
                             }
-                            .shadow(elevation, shape = getItemShape(position))
+                            .shadow(elevation, shape = getItemShape(effectivePosition))
                             .pointerInput(searchQuery) {
                                 if (searchQuery.isNotEmpty()) return@pointerInput
 
@@ -487,8 +493,7 @@ private fun GenericStickerList(
                                         totalDragDistance += dragAmount.y
 
                                         val currentItemInfo = listState.layoutInfo.visibleItemsInfo
-                                            .firstOrNull { it.key == set.id }
-                                            ?: return@detectDragGesturesAfterLongPress
+                                            .firstOrNull { it.key == set.id } ?: return@detectDragGesturesAfterLongPress
 
                                         val targetY = initialDragStartOffset + totalDragDistance
                                         dragOffset = targetY - currentItemInfo.offset
@@ -510,25 +515,17 @@ private fun GenericStickerList(
                                             }
                                         }
 
-                                        val viewPortHeight =
-                                            listState.layoutInfo.viewportSize.height
+                                        val viewPortHeight = listState.layoutInfo.viewportSize.height
                                         val topThreshold = 100.dp.toPx()
                                         val bottomThreshold = viewPortHeight - 100.dp.toPx()
                                         val pointerY = initialPointerY + totalDragDistance
 
                                         if (pointerY < topThreshold) {
-                                            val intensity =
-                                                ((topThreshold - pointerY) / topThreshold).coerceIn(
-                                                    0f,
-                                                    1f
-                                                )
+                                            val intensity = ((topThreshold - pointerY) / topThreshold).coerceIn(0f, 1f)
                                             autoScrollVelocity = -(6f + (18f * intensity))
                                         } else if (pointerY > bottomThreshold) {
                                             val intensity =
-                                                ((pointerY - bottomThreshold) / topThreshold).coerceIn(
-                                                    0f,
-                                                    1f
-                                                )
+                                                ((pointerY - bottomThreshold) / topThreshold).coerceIn(0f, 1f)
                                             autoScrollVelocity = 6f + (18f * intensity)
                                         } else {
                                             autoScrollVelocity = 0f
@@ -570,7 +567,7 @@ private fun GenericStickerList(
                     ) {
                         StickerSetItem(
                             stickerSet = set,
-                            position = position,
+                            position = effectivePosition,
                             onClick = { onSetClick(set) },
                             onToggle = { onSetToggle(set) },
                             onArchive = { onSetArchive(set) },

@@ -77,7 +77,7 @@ fun ChannelGifMessageBubble(
         topStart = if (isSameSenderAbove) smallCorner else cornerRadius,
         topEnd = cornerRadius,
         bottomStart = if (isSameSenderBelow) smallCorner else tailCorner,
-        bottomEnd = cornerRadius
+        bottomEnd = if (showComments && msg.canGetMessageThread) 4.dp else cornerRadius
     )
 
     var gifPosition by remember { mutableStateOf(Offset.Zero) }

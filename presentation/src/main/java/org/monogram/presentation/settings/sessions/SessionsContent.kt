@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.sessions
 
 import android.Manifest
@@ -32,7 +34,7 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.IntegratedQRScanner
 import org.monogram.presentation.core.ui.ItemPosition
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionsContent(component: SessionsComponent) {
     val state by component.state.subscribeAsState()
@@ -218,7 +220,7 @@ fun SessionsContent(component: SessionsComponent) {
             }
 
             if (state.isLoading) {
-                LoadingIndicator(Modifier.align(Alignment.Center))
+                ContainedLoadingIndicator(Modifier.align(Alignment.Center))
             }
         }
     }

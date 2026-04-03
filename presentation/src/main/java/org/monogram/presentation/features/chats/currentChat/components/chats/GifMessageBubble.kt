@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
+import androidx.annotation.OptIn
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -12,6 +15,8 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,8 +40,8 @@ import org.monogram.presentation.features.chats.currentChat.components.VideoPlay
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
 
-@androidx.annotation.OptIn(UnstableApi::class)
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(UnstableApi::class, ExperimentalMaterial3ExpressiveApi::class)
+@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun GifMessageBubble(
     content: MessageContent.Gif,
@@ -79,13 +84,7 @@ fun GifMessageBubble(
         }
     }
 
-    LaunchedEffect(
-        content.path,
-        content.isDownloading,
-        autoDownloadMobile,
-        autoDownloadWifi,
-        autoDownloadRoaming
-    ) {
+    LaunchedEffect(content.path, content.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
         if (content.path.isNullOrBlank() && !content.isDownloading && !isAutoDownloadSuppressed && !AutoDownloadSuppression.isSuppressed(
                 content.fileId
             )
@@ -130,11 +129,9 @@ fun GifMessageBubble(
             color = if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
             contentColor = if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
         ) {
-            Column(
-                modifier = Modifier
-                    .widthIn(min = 160.dp, max = 320.dp)
-                    .animateContentSize()
-            ) {
+            Column(modifier = Modifier
+                .widthIn(min = 160.dp, max = 320.dp)
+                .animateContentSize()) {
                 msg.forwardInfo?.let { forward ->
                     Box(
                         modifier = Modifier
@@ -168,10 +165,7 @@ fun GifMessageBubble(
                         .heightIn(min = 160.dp, max = 360.dp)
                         .aspectRatio(
                             if (content.width > 0 && content.height > 0)
-                                (content.width.toFloat() / content.height.toFloat()).coerceIn(
-                                    0.5f,
-                                    2f
-                                )
+                                (content.width.toFloat() / content.height.toFloat()).coerceIn(0.5f, 2f)
                             else 1f
                         )
                         .clipToBounds()
@@ -196,56 +190,53 @@ fun GifMessageBubble(
                         }
                 ) {
                     if (!stablePath.isNullOrBlank()) {
-                        if (autoplayGifs) {
-                            VideoStickerPlayer(
-                                path = stablePath ?: "",
-                                type = VideoType.Gif,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit,
-                                animate = !isAnyViewerOpen,
-                                videoPlayerPool = videoPlayerPool,
-                                thumbnailData = content.minithumbnail
-                            )
-                        } else {
-                            Image(
-                                painter = rememberAsyncImagePainter(stablePath),
-                                contentDescription = content.caption,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
-                            )
+                            if (autoplayGifs) {
+                                VideoStickerPlayer(
+                                    path = stablePath ?: "",
+                                    type = VideoType.Gif,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Fit,
+                                    animate = !isAnyViewerOpen,
+                                    videoPlayerPool = videoPlayerPool,
+                                    thumbnailData = content.minithumbnail
+                                )
+                            } else {
+                                Image(
+                                    painter = rememberAsyncImagePainter(stablePath),
+                                    contentDescription = content.caption,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Fit
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .size(48.dp)
+                                        .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Play",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                            }
 
                             Box(
                                 modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .size(48.dp)
-                                    .background(Color.Black.copy(alpha = 0.45f), CircleShape),
-                                contentAlignment = Alignment.Center
+                                    .align(Alignment.TopStart)
+                                    .padding(8.dp)
+                                    .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Play",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(32.dp)
+                                Text(
+                                    text = "GIF",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White
                                 )
                             }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(8.dp)
-                                .background(
-                                    Color.Black.copy(alpha = 0.45f),
-                                    RoundedCornerShape(6.dp)
-                                )
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "GIF",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White
-                            )
-                        }
                     } else {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -299,10 +290,7 @@ fun GifMessageBubble(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(6.dp)
-                                .background(
-                                    Color.Black.copy(alpha = 0.45f),
-                                    RoundedCornerShape(10.dp)
-                                )
+                                .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {

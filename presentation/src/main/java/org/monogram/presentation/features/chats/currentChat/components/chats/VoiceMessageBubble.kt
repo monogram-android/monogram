@@ -12,6 +12,8 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,10 +22,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.MessageContent
@@ -202,7 +202,6 @@ fun VoiceRow(
                     progress = { if (content.isDownloading) content.downloadProgress else content.uploadProgress },
                     modifier = Modifier.size(32.dp),
                     color = if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onPrimary,
-                    stroke = Stroke(width = with(LocalDensity.current) { 2.dp.toPx() }),
                     trackColor = (if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.onPrimary).copy(
                         alpha = 0.2f
                     ),

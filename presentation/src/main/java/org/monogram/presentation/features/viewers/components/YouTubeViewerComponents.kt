@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.viewers.components
 
 import android.os.Build
@@ -188,7 +190,7 @@ fun YouTubePlayerControlsUI(
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
                     // Buffered track
                     if (totalDuration > 0) {
-                        LinearProgressIndicator(
+                        LinearWavyProgressIndicator(
                             progress = { bufferedPosition.toFloat() / totalDuration.toFloat() },
                             modifier = Modifier
                                 .fillMaxWidth()

@@ -8,9 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -114,8 +112,7 @@ fun InvoiceDialog(
                             progress = { progress },
                             modifier = Modifier,
                             color = ProgressIndicatorDefaults.circularColor,
-                            stroke = Stroke(width = with(LocalDensity.current) { 4.dp.toPx() }, cap = ProgressIndicatorDefaults.CircularDeterminateStrokeCap),
-                            trackColor = ProgressIndicatorDefaults.circularIndeterminateTrackColor
+                            trackColor = ProgressIndicatorDefaults.circularIndeterminateTrackColor,
                         )
                     }
                 }
@@ -184,7 +181,7 @@ fun InvoiceDialog(
                     if (isPaying) {
                         LoadingIndicator(
                             modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = MaterialTheme.colorScheme.onPrimary,
                         )
                     } else {
                         Text(

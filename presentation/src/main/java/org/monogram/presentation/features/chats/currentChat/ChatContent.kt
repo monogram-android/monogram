@@ -23,7 +23,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Box
@@ -31,6 +30,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -42,6 +42,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -68,7 +71,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboard
@@ -97,6 +99,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.ReplyMarkupModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ConfirmationSheet
+import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentBackground
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentList
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentTopBar
@@ -118,19 +121,17 @@ import org.monogram.presentation.features.chats.currentChat.components.chats.Pol
 import org.monogram.presentation.features.chats.currentChat.components.pins.PinnedMessagesListSheet
 import org.monogram.presentation.features.chats.currentChat.editor.photo.PhotoEditorScreen
 import org.monogram.presentation.features.chats.currentChat.editor.video.VideoEditorScreen
-import org.monogram.presentation.root.RootComponent
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import kotlin.math.abs
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChatContent(
     component: ChatComponent,
     isOverlay: Boolean = false,
-    previousChild: RootComponent.Child? = null,
-    renderChild: @Composable (RootComponent.Child) -> Unit = {}
 ) {
     val state by component.state.collectAsState()
     val scrollState = rememberLazyListState()
@@ -492,7 +493,6 @@ fun ChatContent(
             (!state.viewAsTopics || state.currentTopicId != null)
 
     val isDragToBackEnabled by component.appPreferences.isDragToBackEnabled.collectAsState()
-    val dragOffsetX = remember { Animatable(0f) }
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
 
     val isCustomBackHandlingEnabled =
@@ -505,7 +505,7 @@ fun ChatContent(
                 .background(MaterialTheme.colorScheme.background)
                 .onGloballyPositioned { containerSize = it.size }
         ) {
-            if (isDragToBackEnabled && !isTablet && !isCustomBackHandlingEnabled && dragOffsetX.value > 0 && previousChild != null) {
+            /*if (isDragToBackEnabled && !isTablet && !isCustomBackHandlingEnabled && dragOffsetX.value > 0 && previousChild != null) {
                 Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -523,56 +523,11 @@ fun ChatContent(
                             )
                     )
                 }
-            }
+            }*/
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(
-                        if (isDragToBackEnabled && !isTablet && !isCustomBackHandlingEnabled) {
-                            Modifier.pointerInput(Unit) {
-                                var isDragging = false
-                                detectHorizontalDragGestures(
-                                    onDragStart = { offset ->
-                                        isDragging = offset.x > 48.dp.toPx()
-                                    },
-                                    onHorizontalDrag = { change, dragAmount ->
-                                        if (isDragging) {
-                                            change.consume()
-                                            coroutineScope.launch {
-                                                val newOffset = dragOffsetX.value + dragAmount
-                                                dragOffsetX.snapTo(newOffset.coerceAtLeast(0f))
-                                            }
-                                        }
-                                    },
-                                    onDragEnd = {
-                                        if (isDragging) {
-                                            val width = containerSize.width.toFloat()
-                                            coroutineScope.launch {
-                                                if (dragOffsetX.value > width * 0.15f) {
-                                                    dragOffsetX.animateTo(width, tween(200))
-                                                    component.onBackClicked()
-                                                } else {
-                                                    dragOffsetX.animateTo(0f, spring())
-                                                }
-                                            }
-                                            isDragging = false
-                                        }
-                                    },
-                                    onDragCancel = {
-                                        if (isDragging) {
-                                            coroutineScope.launch { dragOffsetX.animateTo(0f) }
-                                            isDragging = false
-                                        }
-                                    }
-                                )
-                            }
-                        } else Modifier
-                    )
-                    .graphicsLayer {
-                        translationX = dragOffsetX.value
-                        shadowElevation = if (dragOffsetX.value > 0) 20f else 0f
-                    }
             ) {
                 Box(
                     modifier = Modifier
@@ -743,24 +698,23 @@ fun ChatContent(
                                 stickerRepository = component.stickerRepository
                             )
                         } else if (!state.isMember && (state.isChannel || state.isGroup)) {
-                            Surface(
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { component.onJoinChat() },
-                                color = MaterialTheme.colorScheme.surface,
-                                tonalElevation = 2.dp
+                                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                                    .windowInsetsPadding(WindowInsets.navigationBars),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
+                                Button(
+                                    onClick = { component.onJoinChat() },
+                                    shapes = ExpressiveDefaults.largeButtonShapes(),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp)
-                                        .windowInsetsPadding(WindowInsets.navigationBars),
-                                    contentAlignment = Alignment.Center
+                                        .height(ButtonDefaults.LargeContainerHeight)
                                 ) {
                                     Text(
                                         text = stringResource(R.string.action_join),
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }

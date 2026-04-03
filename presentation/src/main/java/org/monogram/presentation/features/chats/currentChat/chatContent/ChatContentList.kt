@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -323,7 +325,7 @@ private fun PagingLoadingIndicator() {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 LoadingIndicator(
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(14.dp),
                 )
                 Text(
                     text = "Loading...",

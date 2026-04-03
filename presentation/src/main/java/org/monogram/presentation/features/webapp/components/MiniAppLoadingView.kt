@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -35,7 +35,7 @@ fun MiniAppLoadingView(
     }
 
     if (!isInitializing && (isLoading || progress < 100)) {
-        LinearProgressIndicator(
+        LinearWavyProgressIndicator(
             progress = { progress / 100f },
             modifier = Modifier
                 .fillMaxWidth()

@@ -60,17 +60,29 @@ fun InputBarSendButton(
     val isRecordingMode = isTextEmpty && editingMessage == null && pendingMediaPaths.isEmpty() && canSendVoice
 
     if (canWriteText || canSendVoice) {
+        val sendIcon = when {
+            pendingMediaPaths.isNotEmpty() -> Icons.AutoMirrored.Filled.Send
+            editingMessage != null -> Icons.Default.Check
+            !isTextEmpty -> Icons.AutoMirrored.Filled.Send
+            isVideoMessageMode -> Icons.Default.Videocam
+            else -> Icons.Outlined.Mic
+        }
+        val canShowOptions = editingMessage == null && canWriteText &&
+                (!isTextEmpty || (pendingMediaPaths.isNotEmpty() && canSendMedia)) &&
+                !isOverCharLimit
+
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .background(
-                    color = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = CircleShape
-                )
-                .clip(CircleShape)
                 .then(
                     if (isRecordingMode) {
-                        Modifier.pointerInput(isVideoMessageMode) {
+                        Modifier
+                            .size(48.dp)
+                            .background(
+                                color = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = CircleShape
+                            )
+                            .clip(CircleShape)
+                            .pointerInput(isVideoMessageMode) {
                             awaitEachGesture {
                                 try {
                                     awaitFirstDown()
@@ -135,39 +147,39 @@ fun InputBarSendButton(
                             }
                         }
                     } else {
-                        Modifier.combinedClickable(
-                            onClick = {
-                                if (!isOverCharLimit) {
-                                    onSendWithOptions(MessageSendOptions())
+                        Modifier
+                            .size(48.dp)
+                            .background(
+                                color = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                shape = CircleShape
+                            )
+                            .clip(CircleShape)
+                            .combinedClickable(
+                                onClick = {
+                                    if (isSendEnabled) {
+                                        onSendWithOptions(MessageSendOptions())
+                                    }
+                                },
+                                onLongClick = {
+                                    if (canShowOptions) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onShowSendOptionsMenu()
+                                    }
                                 }
-                            },
-                            onLongClick = {
-                                val canShowOptions = editingMessage == null && canWriteText &&
-                                        (!isTextEmpty || (pendingMediaPaths.isNotEmpty() && canSendMedia)) &&
-                                        !isOverCharLimit
-                                if (canShowOptions) {
-                                    onShowSendOptionsMenu()
-                                }
-                            }
-                        )
+                            )
                     }
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Crossfade(
-                targetState = when {
-                    pendingMediaPaths.isNotEmpty() -> Icons.AutoMirrored.Filled.Send
-                    editingMessage != null -> Icons.Default.Check
-                    !isTextEmpty -> Icons.AutoMirrored.Filled.Send
-                    isVideoMessageMode -> Icons.Default.Videocam
-                    else -> Icons.Outlined.Mic
-                },
-                label = "IconAnimation"
-            ) { icon ->
+            Crossfade(targetState = sendIcon, label = "IconAnimation") { icon ->
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = if (isSendEnabled || isVoiceRecordingActive) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 )
             }
         }

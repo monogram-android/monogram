@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.profile
 
 import android.Manifest
@@ -54,7 +56,7 @@ import java.util.*
 
 private const val MAP_STYLE = "https://tiles.openfreemap.org/styles/bright"
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileContent(component: EditProfileComponent) {
     val state by component.state.subscribeAsState()
@@ -770,7 +772,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                         LoadingIndicator(
                             modifier = Modifier
                                 .size(24.dp)
-                                .padding(end = 16.dp)
+                                .padding(end = 16.dp),
                         )
                     } else if (state.user != null) {
                         IconButton(onClick = component::onSave) {
@@ -793,7 +795,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                LoadingIndicator()
+                ContainedLoadingIndicator()
             }
         } else {
             LazyColumn(

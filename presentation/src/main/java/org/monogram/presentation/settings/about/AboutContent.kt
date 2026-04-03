@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.about
 
 import androidx.compose.animation.AnimatedContent
@@ -37,7 +39,7 @@ import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsItem
 import org.monogram.presentation.core.util.AppUtils
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutContent(component: AboutComponent) {
     val updateState by component.updateState.collectAsState()
@@ -336,7 +338,6 @@ private fun UpdateSection(state: UpdateState, component: AboutComponent) {
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun DownloadingUpdateItem(state: UpdateState.Downloading) {
     Surface(
@@ -390,7 +391,7 @@ private fun DownloadingUpdateItem(state: UpdateState.Downloading) {
                     .fillMaxWidth()
                     .height(6.dp),
                 color = Color(0xFFF9AB00),
-                trackColor = Color(0xFFF9AB00).copy(alpha = 0.2f),
+                trackColor = Color(0xFFF9AB00).copy(alpha = 0.2f)
             )
         }
     }

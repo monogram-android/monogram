@@ -48,6 +48,7 @@ fun PollMessageBubble(
     onShowVoters: (Int) -> Unit = {},
     onClosePoll: () -> Unit = {},
     onLongClick: (Offset) -> Unit = {},
+    hasCommentsButton: Boolean = false,
     toProfile: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -59,7 +60,11 @@ fun PollMessageBubble(
         topStart = if (!isOutgoing && isSameSenderAbove) smallCorner else cornerRadius,
         topEnd = if (isOutgoing && isSameSenderAbove) smallCorner else cornerRadius,
         bottomStart = if (!isOutgoing) (if (isSameSenderBelow) smallCorner else tailCorner) else cornerRadius,
-        bottomEnd = if (isOutgoing) (if (isSameSenderBelow) smallCorner else tailCorner) else cornerRadius
+        bottomEnd = if (isOutgoing) {
+            if (isSameSenderBelow) smallCorner else tailCorner
+        } else {
+            if (hasCommentsButton) 4.dp else cornerRadius
+        }
     )
 
     val containerColor =

@@ -51,6 +51,7 @@ fun ChannelPollMessageBubble(
             onShowVoters = onShowVoters,
             onClosePoll = onClosePoll,
             onLongClick = onLongClick,
+            hasCommentsButton = showComments && msg.canGetMessageThread,
             toProfile = toProfile,
             modifier = Modifier.fillMaxWidth()
         )

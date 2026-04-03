@@ -1,31 +1,19 @@
 package org.monogram.presentation.features.instantview.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -91,13 +79,13 @@ fun RichTextView(
 fun AsyncImageWithDownload(
     path: String?,
     fileId: Int,
-    modifier: Modifier = Modifier,
     minithumbnail: ByteArray? = null,
+    modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit
 ) {
     val messageRepository = LocalMessageRepository.current
     var currentPath by remember(fileId) { mutableStateOf(path) }
-    var progress by remember { mutableFloatStateOf(0f) }
+    var progress by remember { mutableStateOf(0f) }
 
     LaunchedEffect(path, fileId) {
         if (!path.isNullOrEmpty()) {
@@ -155,7 +143,6 @@ fun AsyncImageWithDownload(
                 CircularWavyProgressIndicator(
                     progress = { progress },
                     modifier = Modifier.size(32.dp),
-                    stroke = Stroke(width = with(LocalDensity.current) { 2.dp.toPx() }),
                     color = MaterialTheme.colorScheme.primary
                 )
             } else {
@@ -228,7 +215,6 @@ fun AsyncVideoWithDownload(
                 CircularWavyProgressIndicator(
                     progress = { progress },
                     modifier = Modifier.size(32.dp),
-                    stroke = Stroke(width = with(LocalDensity.current) { 2.dp.toPx() }),
                     color = MaterialTheme.colorScheme.primary
                 )
             } else {

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.networkUsage
 
 import androidx.compose.animation.AnimatedContent
@@ -45,7 +47,7 @@ private enum class NetworkTab(val titleRes: Int, val icon: ImageVector) {
     Other(R.string.other_tab, Icons.Rounded.DevicesOther)
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NetworkUsageContent(component: NetworkUsageComponent) {
     val state by component.state.subscribeAsState()
@@ -101,7 +103,7 @@ fun NetworkUsageContent(component: NetworkUsageComponent) {
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                LoadingIndicator()
+                ContainedLoadingIndicator()
             }
         } else {
             Column(
@@ -425,7 +427,6 @@ private fun NetworkTabBody(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun UsageRowItem(
     category: NetworkUsageCategory,

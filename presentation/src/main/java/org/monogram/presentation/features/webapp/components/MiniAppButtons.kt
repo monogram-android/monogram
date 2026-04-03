@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.webapp.components
 
 import androidx.compose.animation.core.*
@@ -73,7 +75,6 @@ private fun CustomEmojiIcon(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainButton(
     state: MainButtonState,
@@ -106,7 +107,7 @@ fun MainButton(
         if (state.isProgressVisible) {
             LoadingIndicator(
                 modifier = Modifier.size(20.dp),
-                color = state.textColor ?: defaultTextColor
+                color = state.textColor ?: defaultTextColor,
             )
         } else {
             if (state.iconCustomEmojiId?.toLongOrNull() != null) {
@@ -121,7 +122,6 @@ fun MainButton(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SecondaryButton(
     state: SecondaryButtonState,
@@ -154,7 +154,7 @@ fun SecondaryButton(
         if (state.isProgressVisible) {
             LoadingIndicator(
                 modifier = Modifier.size(20.dp),
-                color = state.textColor ?: defaultTextColor
+                color = state.textColor ?: defaultTextColor,
             )
         } else {
             if (state.iconCustomEmojiId?.toLongOrNull() != null) {

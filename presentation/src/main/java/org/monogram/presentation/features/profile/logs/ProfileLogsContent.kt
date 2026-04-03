@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.profile.logs
 
 import android.widget.Toast
@@ -36,7 +38,7 @@ import org.monogram.presentation.features.viewers.VideoViewer
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileLogsContent(component: ProfileLogsComponent) {
     val state by component.state.subscribeAsState()
@@ -98,7 +100,7 @@ fun ProfileLogsContent(component: ProfileLogsComponent) {
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 if (state.isLoading) {
-                    LoadingIndicator(modifier = Modifier.align(Alignment.Center))
+                    ContainedLoadingIndicator(modifier = Modifier.align(Alignment.Center))
                 } else if (state.logs.isEmpty()) {
                     Column(
                         modifier = Modifier.align(Alignment.Center),

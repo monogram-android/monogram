@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
 import androidx.compose.foundation.background
@@ -10,16 +12,16 @@ import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.*
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +31,7 @@ import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.components.channels.ChannelCommentsButton
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DocumentMessageBubble(
     content: MessageContent.Document,
@@ -214,7 +217,6 @@ fun DocumentMessageBubble(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DocumentRow(
     content: MessageContent.Document,
@@ -252,7 +254,6 @@ fun DocumentRow(
                     progress = { if (content.isDownloading) content.downloadProgress else content.uploadProgress },
                     modifier = Modifier.size(40.dp),
                     color = MaterialTheme.colorScheme.onPrimary,
-                    stroke = Stroke(width = with(LocalDensity.current) { 3.dp.toPx() }),
                     trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
                 )
                 Icon(

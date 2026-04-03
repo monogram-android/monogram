@@ -1,20 +1,12 @@
 package org.monogram.presentation.features.profile.components
 
 import android.content.Intent
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,8 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,6 +55,8 @@ private const val LOAD_MORE_THRESHOLD = 40
 @OptIn(ExperimentalFoundationApi::class)
 fun LazyGridScope.profileMediaSection(
     state: ProfileComponent.State,
+    isGroup: Boolean,
+    tabs: MutableList<@Composable (() -> String)>,
     videoPlayerPool: VideoPlayerPool,
     onTabSelected: (Int) -> Unit,
     onMessageClick: (MessageModel) -> Unit,
@@ -74,17 +66,6 @@ fun LazyGridScope.profileMediaSection(
     onMemberLongClick: (Long) -> Unit = {},
     onLoadMedia: (MessageModel) -> Unit = {}
 ) {
-    val isGroup = state.chat?.isGroup == true || state.chat?.isChannel == true
-    val tabs = mutableListOf<@Composable () -> String>({ stringResource(R.string.tab_media) })
-    if (isGroup) tabs.add { stringResource(R.string.tab_members) }
-    tabs.addAll(listOf(
-        { stringResource(R.string.tab_files) },
-        { stringResource(R.string.tab_audio) },
-        { stringResource(R.string.tab_voice) },
-        { stringResource(R.string.tab_links) },
-        { stringResource(R.string.tab_gifs) }
-    ))
-
     stickyHeader {
         Surface(
             color = MaterialTheme.colorScheme.background,
@@ -179,33 +160,24 @@ fun LazyGridScope.profileMediaSection(
         }
     }
 
-    val isMediaLoading = state.isLoadingMedia || state.isLoadingMoreMedia
-    val canLoadMedia = state.canLoadMoreMedia
-
-    item(span = { GridItemSpan(3) }) {
-        AnimatedContent(
-            targetState = state.selectedTabIndex,
-            transitionSpec = {
-                if (targetState > initialState) {
-                    slideInHorizontally { width -> width } + fadeIn() togetherWith
-                    slideOutHorizontally { width -> -width } + fadeOut()
-                } else {
-                    slideInHorizontally { width -> -width } + fadeIn() togetherWith
-                    slideOutHorizontally { width -> width } + fadeOut()
-                }
-            },
-            label = "tabs"
-        ) { tab ->
-            ProfileTabContent(
-                tab = tab,
-                state = state,
-                videoPlayerPool = videoPlayerPool,
-                onLoadMore = onLoadMore,
-                onMessageClick = onMessageClick,
-                onLoadMedia = onLoadMedia,
-                onMemberClick = onMemberClick,
-                onMemberLongClick = onMemberLongClick
-            )
+    if (isGroup) {
+        when (state.selectedTabIndex) {
+            0 -> mediaGrid(state.mediaMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick, onLoadMedia)
+            1 -> membersList(state.members, videoPlayerPool, state.isLoadingMembers, state.canLoadMoreMembers, onLoadMore, onMemberClick, onMemberLongClick)
+            2 -> filesList(state.fileMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            3 -> audioList(state.audioMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            4 -> voiceList(state.voiceMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            5 -> linksList(state.linkMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            6 -> gifsGrid(state.gifMessages, videoPlayerPool, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+        }
+    } else {
+        when (state.selectedTabIndex) {
+            0 -> mediaGrid(state.mediaMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick, onLoadMedia)
+            1 -> filesList(state.fileMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            2 -> audioList(state.audioMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            3 -> voiceList(state.voiceMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            4 -> linksList(state.linkMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
+            5 -> gifsGrid(state.gifMessages, videoPlayerPool, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
         }
     }
 
@@ -285,60 +257,6 @@ fun LazyGridScope.profileMediaSection(
         }
     }
 }
-
-@Composable
-fun ProfileTabContent(
-    tab: Int,
-    state: ProfileComponent.State,
-    videoPlayerPool: VideoPlayerPool,
-    onLoadMore: () -> Unit,
-    onMessageClick: (MessageModel) -> Unit,
-    onLoadMedia: (MessageModel) -> Unit,
-    onMemberClick: (Long) -> Unit,
-    onMemberLongClick: (Long) -> Unit
-) {
-    val gridState = rememberLazyGridState()
-    val viewportHeightPx = LocalWindowInfo.current.containerSize.height
-    val density = LocalDensity.current
-
-    val viewportHeightDp = with(density) { viewportHeightPx.toDp() }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 1.dp, max = viewportHeightDp)
-    ) {
-        LazyVerticalGrid(
-            modifier = Modifier.fillMaxSize(),
-            columns = GridCells.Fixed(3),
-            state = gridState
-        ) {
-            val isGroup = state.chat?.isGroup == true || state.chat?.isChannel == true
-
-            if (isGroup) {
-                when (tab) {
-                    0 -> mediaGrid(state.mediaMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick, onLoadMedia)
-                    1 -> membersList(state.members, videoPlayerPool, state.isLoadingMembers, state.canLoadMoreMembers, onLoadMore, onMemberClick, onMemberLongClick)
-                    2 -> filesList(state.fileMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    3 -> audioList(state.audioMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    4 -> voiceList(state.voiceMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    5 -> linksList(state.linkMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    6 -> gifsGrid(state.gifMessages, videoPlayerPool, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                }
-            } else {
-                when (tab) {
-                    0 -> mediaGrid(state.mediaMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick, onLoadMedia)
-                    1 -> filesList(state.fileMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    2 -> audioList(state.audioMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    3 -> voiceList(state.voiceMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    4 -> linksList(state.linkMessages, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                    5 -> gifsGrid(state.gifMessages, videoPlayerPool, state.isLoadingMedia, state.canLoadMoreMedia, onLoadMore, onMessageClick)
-                }
-            }
-        }
-    }
-}
-
 
 @Composable
 private fun ScrollableRow(

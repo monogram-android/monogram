@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.chats.currentChat.editor.photo
 
 import androidx.activity.compose.BackHandler
@@ -48,7 +50,7 @@ enum class EditorTool(val labelRes: Int, val icon: ImageVector) {
     ERASER(R.string.photo_editor_tool_eraser, Icons.Rounded.CleaningServices)
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhotoEditorScreen(
     imagePath: String,
@@ -236,8 +238,7 @@ fun PhotoEditorScreen(
                                     indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                                     selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             )
                         }
@@ -437,7 +438,7 @@ fun PhotoEditorScreen(
                         .background(Color.Black.copy(0.6f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    LoadingIndicator()
+                    ContainedLoadingIndicator()
                 }
             }
         }

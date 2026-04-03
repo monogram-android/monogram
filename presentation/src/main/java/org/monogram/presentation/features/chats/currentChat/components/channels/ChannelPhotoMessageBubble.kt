@@ -78,7 +78,7 @@ fun ChannelPhotoMessageBubble(
         topStart = topStart,
         topEnd = topEnd,
         bottomStart = bottomStart,
-        bottomEnd =  if (showComments && msg.canGetMessageThread) {bottomStart } else {bottomEnd}
+        bottomEnd = if (showComments && msg.canGetMessageThread) 4.dp else bottomEnd
     )
 
     var imagePosition by remember { mutableStateOf(Offset.Zero) }

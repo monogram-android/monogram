@@ -7,7 +7,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAddCheck
@@ -38,7 +37,7 @@ import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.presentation.features.viewers.components.ViewerSettingsDropdown
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChatTopBar(
     title: String,
@@ -121,108 +120,105 @@ fun ChatTopBar(
                 TopAppBar(
                     windowInsets = WindowInsets.statusBars,
                     title = {
-                        Box(modifier = Modifier.clip(RoundedCornerShape(12.dp))) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .clickable(onClick = onClick)
-                                    .semantics { contentDescription = "ChatHeaderButton" }
-                                    .padding(6.dp)
-
-                            ) {
-                                if (topicEmojiPath != null) {
-                                    StickerImage(
-                                        path = topicEmojiPath,
-                                        modifier = Modifier.size(40.dp),
-                                        animate = true
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clickable(onClick = onClick)
+                                .semantics { contentDescription = "ChatHeaderButton" }
+                                .padding(6.dp)
+                        ) {
+                            if (topicEmojiPath != null) {
+                                StickerImage(
+                                    path = topicEmojiPath,
+                                    modifier = Modifier.size(40.dp),
+                                    animate = true
+                                )
+                            } else {
+                                AvatarForChat(
+                                    path = avatarPath,
+                                    fallbackPath = personalAvatarPath,
+                                    name = title,
+                                    size = 40.dp,
+                                    isOnline = isOnline,
+                                    videoPlayerPool = videoPlayerPool
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.titleMediumEmphasized,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
                                     )
-                                } else {
-                                    AvatarForChat(
-                                        path = avatarPath,
-                                        fallbackPath = personalAvatarPath,
-                                        name = title,
-                                        size = 40.dp,
-                                        isOnline = isOnline,
-                                        videoPlayerPool = videoPlayerPool
-                                    )
-                                }
-                                Spacer(Modifier.width(12.dp))
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = title,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.weight(1f, fill = false)
+                                    if (isMuted) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Rounded.VolumeOff,
+                                            contentDescription = stringResource(R.string.cd_muted),
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
-                                        if (isMuted) {
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Rounded.VolumeOff,
-                                                contentDescription = stringResource(R.string.cd_muted),
-                                                modifier = Modifier.size(14.dp),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                        if (isVerified) {
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Icon(
-                                                imageVector = Icons.Rounded.Verified,
-                                                contentDescription = stringResource(R.string.cd_verified),
-                                                modifier = Modifier.size(18.dp),
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                        if (isSponsor) {
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Icon(
-                                                imageVector = Icons.Rounded.Favorite,
-                                                contentDescription = stringResource(R.string.cd_sponsor),
-                                                modifier = Modifier.size(18.dp),
-                                                tint = Color(0xFFE53935)
-                                            )
-                                        }
-                                        if (emojiStatusPath != null) {
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            StickerImage(
-                                                path = emojiStatusPath,
-                                                modifier = Modifier.size(18.dp),
-                                                animate = false
-                                            )
-                                        }
                                     }
+                                    if (isVerified) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Rounded.Verified,
+                                            contentDescription = stringResource(R.string.cd_verified),
+                                            modifier = Modifier.size(18.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                    if (isSponsor) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Rounded.Favorite,
+                                            contentDescription = stringResource(R.string.cd_sponsor),
+                                            modifier = Modifier.size(18.dp),
+                                            tint = Color(0xFFE53935)
+                                        )
+                                    }
+                                    if (emojiStatusPath != null) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        StickerImage(
+                                            path = emojiStatusPath,
+                                            modifier = Modifier.size(18.dp),
+                                            animate = false
+                                        )
+                                    }
+                                }
 
-                                    AnimatedContent(
-                                        targetState = statusText,
-                                        transitionSpec = {
-                                            fadeIn() togetherWith fadeOut()
-                                        },
-                                        label = "StatusAnimation"
-                                    ) { targetStatus ->
-                                        if (!targetStatus.isNullOrEmpty()) {
-                                            val isTyping = targetStatus.contains("печатает") ||
-                                                    targetStatus.contains("записывает") ||
-                                                    targetStatus.contains("отправляет") ||
-                                                    targetStatus.contains("выбирает") ||
-                                                    targetStatus.contains("играет")
+                                AnimatedContent(
+                                    targetState = statusText,
+                                    transitionSpec = {
+                                        fadeIn() togetherWith fadeOut()
+                                    },
+                                    label = "StatusAnimation"
+                                ) { targetStatus ->
+                                    if (!targetStatus.isNullOrEmpty()) {
+                                        val isTyping = targetStatus.contains("печатает") ||
+                                                targetStatus.contains("записывает") ||
+                                                targetStatus.contains("отправляет") ||
+                                                targetStatus.contains("выбирает") ||
+                                                targetStatus.contains("играет")
 
-                                            Row(verticalAlignment = Alignment.Bottom) {
-                                                Text(
-                                                    text = targetStatus,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = if (isOnline || isTyping) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
+                                        Row(verticalAlignment = Alignment.Bottom) {
+                                            Text(
+                                                text = targetStatus,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = if (isOnline || isTyping) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            if (isTyping) {
+                                                Spacer(Modifier.width(2.dp))
+                                                TypingDots(
+                                                    dotSize = 3.dp,
+                                                    dotColor = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.padding(bottom = 4.dp)
                                                 )
-                                                if (isTyping) {
-                                                    Spacer(Modifier.width(2.dp))
-                                                    TypingDots(
-                                                        dotSize = 3.dp,
-                                                        dotColor = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.padding(bottom = 4.dp)
-                                                    )
-                                                }
                                             }
                                         }
                                     }

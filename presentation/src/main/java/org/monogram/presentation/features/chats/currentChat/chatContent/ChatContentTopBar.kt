@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Report
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,6 +56,7 @@ import androidx.compose.ui.window.PopupProperties
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ConfirmationSheet
+import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.util.rememberUserStatusText
 import org.monogram.presentation.features.chats.currentChat.ChatComponent
 import org.monogram.presentation.features.chats.currentChat.components.ChatTopBar
@@ -62,7 +64,7 @@ import org.monogram.presentation.features.chats.currentChat.components.pins.Pinn
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.viewers.components.ViewerSettingsDropdown
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChatContentTopBar(
     state: ChatComponent.State,
@@ -84,6 +86,7 @@ fun ChatContentTopBar(
 
     var showDeleteSheet by remember { mutableStateOf(false) }
     var pendingUnpinMessage by remember { mutableStateOf<MessageModel?>(null) }
+    val iconButtonShapes = ExpressiveDefaults.iconButtonShapes()
 
     if (showDeleteSheet) {
         val selectedMessages = remember(state.messages, state.selectedMessageIds) {
@@ -136,7 +139,7 @@ fun ChatContentTopBar(
                         Text(text = "${state.selectedMessageIds.size}")
                     },
                     navigationIcon = {
-                        IconButton(onClick = { component.onClearSelection() }) {
+                        IconButton(onClick = { component.onClearSelection() }, shapes = iconButtonShapes) {
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = stringResource(R.string.cd_clear_selection)
@@ -144,19 +147,19 @@ fun ChatContentTopBar(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { component.onForwardSelectedMessages() }) {
+                        IconButton(onClick = { component.onForwardSelectedMessages() }, shapes = iconButtonShapes) {
                             Icon(
                                 Icons.AutoMirrored.Filled.Forward,
                                 contentDescription = stringResource(R.string.menu_forward)
                             )
                         }
-                        IconButton(onClick = { component.onCopySelectedMessages(localClipboard) }) {
+                        IconButton(onClick = { component.onCopySelectedMessages(localClipboard) }, shapes = iconButtonShapes) {
                             Icon(
                                 Icons.Default.ContentCopy,
                                 contentDescription = stringResource(R.string.menu_copy)
                             )
                         }
-                        IconButton(onClick = { showDeleteSheet = true }) {
+                        IconButton(onClick = { showDeleteSheet = true }, shapes = iconButtonShapes) {
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = stringResource(R.string.menu_delete)
@@ -167,7 +170,7 @@ fun ChatContentTopBar(
                             IconButton(onClick = {
                                 onOpenMenu()
                                 showMenu = true
-                            }) {
+                            }, shapes = iconButtonShapes) {
                                 Icon(
                                     Icons.Default.MoreVert,
                                     contentDescription = stringResource(R.string.menu_more)

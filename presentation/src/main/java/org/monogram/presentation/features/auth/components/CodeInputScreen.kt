@@ -40,6 +40,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -80,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import org.monogram.presentation.R
+import org.monogram.presentation.core.ui.ExpressiveDefaults
 import java.util.Locale
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -336,11 +338,11 @@ fun CodeInputScreen(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick = { onConfirm(code) },
+                    shapes = ExpressiveDefaults.extraLargeButtonShapes(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    enabled = code.length == maxCodeLength,
-                    shape = RoundedCornerShape(24.dp)
+                    enabled = code.length == maxCodeLength
                 ) {
                     Text(
                         stringResource(R.string.confirm_button),
@@ -367,6 +369,7 @@ fun CodeInputScreen(
                 } else if (nextCodeType != null) {
                     TextButton(
                         onClick = onResend,
+                        shapes = ExpressiveDefaults.largeButtonShapes(),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(
@@ -394,6 +397,7 @@ fun CodeInputScreen(
 
                 TextButton(
                     onClick = onBack,
+                    shapes = ExpressiveDefaults.largeButtonShapes(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(

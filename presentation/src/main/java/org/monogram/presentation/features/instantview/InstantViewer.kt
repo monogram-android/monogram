@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.instantview
 
 import androidx.activity.compose.BackHandler
@@ -50,9 +52,7 @@ import org.monogram.presentation.features.viewers.components.ViewerSettingsDropd
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class,
-    ExperimentalMaterial3ExpressiveApi::class
-)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun InstantViewer(
     url: String,
@@ -232,7 +232,7 @@ fun InstantViewer(
                         .padding(padding)
                 ) {
                     if (isLoading) {
-                        LoadingIndicator(modifier = Modifier.align(Alignment.Center))
+                        ContainedLoadingIndicator(modifier = Modifier.align(Alignment.Center))
                     } else if (instantView != null) {
                         val blocks = remember(instantView, searchQuery) {
                             if (searchQuery.isEmpty()) {

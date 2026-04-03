@@ -1,11 +1,14 @@
 package org.monogram.app
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseInBack
 import androidx.compose.animation.core.EaseOutBack
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -13,10 +16,17 @@ import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -27,9 +37,15 @@ import androidx.compose.ui.zIndex
 import androidx.window.core.layout.WindowWidthSizeClass
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.stack.Children
+import com.arkivanov.decompose.extensions.compose.stack.animation.fade
+import com.arkivanov.decompose.extensions.compose.stack.animation.plus
+import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.androidPredictiveBackAnimatableV2
 import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.predictiveBackAnimation
+import com.arkivanov.decompose.extensions.compose.stack.animation.slide
+import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.stack.ChildStack
+import kotlinx.coroutines.launch
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.presentation.features.auth.AuthContent
 import org.monogram.presentation.features.chats.chatList.ChatListContent
@@ -381,16 +397,97 @@ private fun isSettingsSelected(stack: ChildStack<*, RootComponent.Child>): Boole
 
 @OptIn(ExperimentalDecomposeApi::class)
 @Composable
-private fun MobileLayout(root: RootComponent) {
-    Children(
-        stack = root.childStack,
-        animation = predictiveBackAnimation(
-            backHandler = root.backHandler,
-            onBack = root::onBack,
-            fallbackAnimation = null
-        )
+fun MobileLayout(root: RootComponent) {
+    val stack by root.childStack.subscribeAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val dragOffsetX = remember { Animatable(0f) }
+    val previous = stack.items.dropLast(1).lastOrNull()?.instance
+    var swipeBackInProgress by remember { mutableStateOf(false) }
+    var widthPx by remember { mutableFloatStateOf(0f) }
+
+    if (dragOffsetX.value > 0 && previous != null) { // todo: isDragToBackEnabled
+        Box(modifier = Modifier.fillMaxSize()) {
+            RenderChild(previous)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Color.Black.copy(
+                            alpha = 0.3f * (1f - (dragOffsetX.value / widthPx).coerceIn(
+                                0f,
+                                1f
+                            ))
+                        )
+                    )
+            )
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged {
+                widthPx = it.width.toFloat()
+            }
+            .then(
+                if (stack.active.instance is RootComponent.Child.ChatDetailChild) {
+                    Modifier.pointerInput(Unit) {
+                        var isDragging = false
+                        detectHorizontalDragGestures(
+                            onDragStart = { offset ->
+                                isDragging = offset.x > 48.dp.toPx()
+                            },
+                            onHorizontalDrag = { change, dragAmount ->
+                                if (isDragging) {
+                                    change.consume()
+                                    coroutineScope.launch {
+                                        val newOffset = dragOffsetX.value + dragAmount
+                                        dragOffsetX.snapTo(newOffset.coerceAtLeast(0f))
+                                    }
+                                }
+                            },
+                            onDragEnd = {
+                                if (isDragging) {
+                                    coroutineScope.launch {
+                                        val width = size.width.toFloat()
+                                        if (dragOffsetX.value > width * 0.15f) {
+                                            swipeBackInProgress = true
+                                            dragOffsetX.animateTo(width, tween(200))
+                                            root.onBack()
+                                            dragOffsetX.snapTo(0f)
+                                            swipeBackInProgress = false
+                                        } else {
+                                            dragOffsetX.animateTo(0f, spring())
+                                        }
+                                    }
+                                    isDragging = false
+                                }
+                            },
+                            onDragCancel = {
+                                if (isDragging) {
+                                    coroutineScope.launch { dragOffsetX.animateTo(0f) }
+                                    isDragging = false
+                                }
+                            }
+                        )
+                    }
+                } else Modifier
+            )
+            .graphicsLayer {
+                translationX = dragOffsetX.value
+                shadowElevation = if (dragOffsetX.value > 0) 20f else 0f
+            }
     ) {
-        RenderChild(root, it.instance, isOverlay = true)
+        Children(
+            stack = root.childStack,
+            animation = predictiveBackAnimation(
+                backHandler = root.backHandler,
+                onBack = root::onBack,
+                fallbackAnimation = if (!swipeBackInProgress) stackAnimation(slide() + fade()) else null
+            )
+        ) {
+            RenderChild(it.instance, isOverlay = false)
+        }
     }
 }
 
@@ -420,7 +517,7 @@ private fun TabletLayout(root: RootComponent, childStack: ChildStack<*, RootComp
                 .fillMaxHeight()
         ) {
             if (listChild != null) {
-                RenderChild(root, listChild)
+                RenderChild(listChild)
             }
         }
 
@@ -440,7 +537,7 @@ private fun TabletLayout(root: RootComponent, childStack: ChildStack<*, RootComp
             val isListOnly = activeChild == listChild
 
             if (!isListOnly) {
-                RenderChild(root, activeChild)
+                RenderChild(activeChild)
             } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -458,20 +555,15 @@ private fun TabletLayout(root: RootComponent, childStack: ChildStack<*, RootComp
 }
 
 @Composable
-private fun RenderChild(root: RootComponent, child: RootComponent.Child, isOverlay: Boolean = false) {
-    val childStack by root.childStack.subscribeAsState()
-    val previousChild = childStack.items.getOrNull(childStack.items.lastIndex - 1)?.instance
-
+private fun RenderChild(child: RootComponent.Child, isOverlay: Boolean = false) {
     when (child) {
-        is RootComponent.Child.StartupChild -> StartupContent()
+        is RootComponent.Child.StartupChild -> StartupContent(child.component)
         is RootComponent.Child.AuthChild -> AuthContent(child.component)
         is RootComponent.Child.ChatsChild -> ChatListContent(child.component)
         is RootComponent.Child.NewChatChild -> NewChatContent(child.component)
         is RootComponent.Child.ChatDetailChild -> ChatContent(
             component = child.component,
             isOverlay = isOverlay,
-            previousChild = previousChild,
-            renderChild = { RenderChild(root, it) }
         )
         is RootComponent.Child.SettingsChild -> SettingsContent(child.component)
         is RootComponent.Child.EditProfileChild -> EditProfileContent(child.component)

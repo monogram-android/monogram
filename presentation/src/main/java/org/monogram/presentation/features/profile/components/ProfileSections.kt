@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.profile.components
 
 import android.content.ClipData
@@ -61,16 +63,16 @@ import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -98,14 +100,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
-import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.core.ui.SettingsSwitchTile
-import org.monogram.presentation.core.ui.SettingsTile
-import org.monogram.presentation.core.ui.StyledQRCode
-import org.monogram.presentation.core.ui.generatePureBitmap
-import org.monogram.presentation.core.ui.rememberShimmerBrush
-import org.monogram.presentation.core.ui.saveBitmapToGallery
-import org.monogram.presentation.core.ui.shareBitmap
+import org.monogram.presentation.core.ui.*
+import com.google.i18n.phonenumbers.PhoneNumberUtil
+import org.koin.compose.koinInject
 import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.core.util.OperatorManager
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
@@ -958,49 +955,44 @@ private fun ProfileQuickActions(
 ) {
     val chat = state.chat
 
-    val items = mutableListOf<@Composable (Modifier) -> Unit>()
+    data class QuickActionConfig(
+        val icon: ImageVector,
+        val label: String,
+        val onClick: () -> Unit
+    )
+
+    val items = mutableListOf<QuickActionConfig>()
 
     if (!isCurrentUser) {
-        items.add { mod ->
-            QuickActionItem(
-                if (chat?.isChannel == true) Icons.AutoMirrored.Rounded.OpenInNew else Icons.AutoMirrored.Filled.Chat,
-                if (chat?.isChannel == true) stringResource(R.string.action_open) else stringResource(R.string.action_message),
-                onClick = onSendMessage,
-                modifier = mod
-            )
-        }
+        items += QuickActionConfig(
+            icon = if (chat?.isChannel == true) Icons.AutoMirrored.Rounded.OpenInNew else Icons.AutoMirrored.Filled.Chat,
+            label = if (chat?.isChannel == true) stringResource(R.string.action_open) else stringResource(R.string.action_message),
+            onClick = onSendMessage
+        )
     }
 
     if (isGroupOrChannel) {
         if (chat?.isMember == true) {
-            items.add { mod ->
-                QuickActionItem(
-                    Icons.AutoMirrored.Rounded.Logout, stringResource(R.string.menu_leave),
-                    onClick = onLeave,
-                    modifier = mod
-                )
-            }
+            items += QuickActionConfig(
+                icon = Icons.AutoMirrored.Rounded.Logout,
+                label = stringResource(R.string.menu_leave),
+                onClick = onLeave
+            )
         } else {
-            items.add { mod ->
-                QuickActionItem(
-                    Icons.AutoMirrored.Rounded.Login,
-                    stringResource(R.string.action_join_chat),
-                    onClick = onJoin,
-                    modifier = mod
-                )
-            }
+            items += QuickActionConfig(
+                icon = Icons.AutoMirrored.Rounded.Login,
+                label = stringResource(R.string.action_join_chat),
+                onClick = onJoin
+            )
         }
     }
 
     if (!isCurrentUser) {
-        items.add { mod ->
-            QuickActionItem(
-                Icons.Default.QrCode,
-                stringResource(R.string.action_qr_code),
-                onClick = onShowQRCode,
-                modifier = mod
-            )
-        }
+        items += QuickActionConfig(
+            icon = Icons.Default.QrCode,
+            label = stringResource(R.string.action_qr_code),
+            onClick = onShowQRCode
+        )
     }
 
     AnimatedVisibility(
@@ -1010,7 +1002,7 @@ private fun ProfileQuickActions(
     ) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainer,
-            shape = RoundedCornerShape(24.dp),
+            shape = ShapeDefaults.LargeIncreased,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 2.dp)
@@ -1018,13 +1010,16 @@ private fun ProfileQuickActions(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items.forEach { item ->
-                    item(Modifier
-                        .weight(1f, fill = true)
-                        .widthIn(max = 100.dp))
+                    QuickActionItem(
+                        icon = item.icon,
+                        label = item.label,
+                        onClick = item.onClick,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }
@@ -1063,8 +1058,8 @@ fun QuickActionItem(icon: ImageVector, label: String, modifier: Modifier = Modif
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
             color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            maxLines = 2,
+            overflow = TextOverflow.Clip
         )
     }
 }
@@ -1083,7 +1078,7 @@ private fun SectionHeader(
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleMediumEmphasized,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold
         )
@@ -1352,7 +1347,7 @@ fun ProfilePermissionsDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileTOSDialog(
     state: ProfileComponent.State,
@@ -1406,7 +1401,7 @@ fun ProfileTOSDialog(
                         if (accepting) {
                             LoadingIndicator(
                                 modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
+                                color = MaterialTheme.colorScheme.onPrimary,
                             )
                         } else {
                             Text(

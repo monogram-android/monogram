@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.chatSettings
 
 import androidx.compose.animation.*
@@ -1171,7 +1173,7 @@ private fun nightModeLabel(mode: NightMode): String = when (mode) {
     NightMode.BRIGHTNESS -> stringResource(R.string.night_mode_brightness)
 }
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun EmojiStyleItem(
     style: EmojiStyle,
@@ -1261,7 +1263,7 @@ private fun EmojiStyleItem(
                     if (isDownloading) {
                         LoadingIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = Color.White
+                            color = Color.White,
                         )
                     } else {
                         Icon(

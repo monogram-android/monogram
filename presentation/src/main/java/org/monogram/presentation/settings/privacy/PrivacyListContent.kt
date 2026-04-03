@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.privacy
 
 import android.widget.Toast
@@ -35,7 +37,7 @@ import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.SettingsTile
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrivacyListContent(component: PrivacyListComponent) {
     val state by component.state.subscribeAsState()
@@ -103,7 +105,7 @@ fun PrivacyListContent(component: PrivacyListComponent) {
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    LoadingIndicator()
+                    ContainedLoadingIndicator()
                 }
             } else {
                 LazyColumn(

@@ -60,7 +60,7 @@ fun ChannelTextMessageBubble(
         topEnd = cornerRadius,
         bottomStart =
             if (isSameSenderBelow) smallCorner else tailCorner,
-        bottomEnd = if (showComments && msg.canGetMessageThread) {smallCorner } else {cornerRadius}
+        bottomEnd = if (showComments && msg.canGetMessageThread) 4.dp else cornerRadius
     )
 
     val revealedSpoilers = remember { mutableStateListOf<Int>() }

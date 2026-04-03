@@ -1,26 +1,38 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.settings.folders
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FolderSpecial
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -28,12 +40,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.monogram.domain.models.FolderModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
+import kotlin.math.abs
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoldersContent(component: FoldersComponent) {
     val state by component.state.subscribeAsState()
@@ -88,7 +105,7 @@ fun FoldersContent(component: FoldersComponent) {
                 .padding(top = padding.calculateTopPadding())
         ) {
             if (state.isLoading) {
-                LoadingIndicator(modifier = Modifier.align(Alignment.Center))
+                ContainedLoadingIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
                 FolderList(
                     systemFolders = systemFolders,
@@ -150,7 +167,6 @@ fun FoldersContent(component: FoldersComponent) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FolderList(
     systemFolders: List<FolderModel>,
@@ -160,6 +176,22 @@ fun FolderList(
     onReorder: (Int, Int) -> Unit
 ) {
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+
+    var draggedItemId by remember { mutableStateOf<Int?>(null) }
+    var dragOffset by remember { mutableStateOf(0f) }
+    var initialDragStartOffset by remember { mutableStateOf(0) }
+    var initialPointerY by remember { mutableStateOf(0f) }
+    var totalDragDistance by remember { mutableStateOf(0f) }
+    var autoScrollJob by remember { mutableStateOf<Job?>(null) }
+    var autoScrollVelocity by remember { mutableStateOf(0f) }
+
+    val userFoldersStartIndex = remember(systemFolders, userFolders) {
+        1 +
+                (if (systemFolders.isNotEmpty()) systemFolders.size + 2 else 0) +
+                (if (userFolders.isNotEmpty()) 1 else 0)
+    }
 
     LazyColumn(
         state = listState,
@@ -197,29 +229,157 @@ fun FolderList(
             item {
                 SectionHeader(stringResource(R.string.folders_custom_section))
             }
-            itemsIndexed(userFolders, key = { index, folder -> "user_${folder.id}_$index" }) { index, folder ->
+            itemsIndexed(userFolders, key = { _, folder -> "user_${folder.id}" }) { index, folder ->
+                val currentUserFolders by rememberUpdatedState(userFolders)
+                val currentIndex by rememberUpdatedState(index)
+                val currentOnReorder by rememberUpdatedState(onReorder)
+
+                val isDragging = draggedItemId == folder.id
+                val elevation by animateDpAsState(
+                    targetValue = if (isDragging) 8.dp else 0.dp,
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "elevation"
+                )
+                val scale by animateFloatAsState(
+                    targetValue = if (isDragging) 1.02f else 1f,
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "scale"
+                )
+
                 val position = when {
                     userFolders.size == 1 -> ItemPosition.STANDALONE
                     index == 0 -> ItemPosition.TOP
                     index == userFolders.size - 1 -> ItemPosition.BOTTOM
                     else -> ItemPosition.MIDDLE
                 }
+                val effectivePosition = if (isDragging) ItemPosition.STANDALONE else position
+                val shape = remember(effectivePosition) { getFolderShape(effectivePosition) }
 
-                SwipeToDeleteContainer(
-                    onDelete = { onDeleteClick(folder.id) }
+                Box(
+                    modifier = Modifier
+                        .zIndex(if (isDragging) 1f else 0f)
+                        .then(
+                            if (isDragging) {
+                                Modifier
+                            } else {
+                                Modifier.animateItem(
+                                    fadeInSpec = null,
+                                    placementSpec = spring(
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    ),
+                                    fadeOutSpec = null
+                                )
+                            }
+                        )
+                        .graphicsLayer {
+                            translationY = if (isDragging) dragOffset else 0f
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                        .shadow(elevation, shape = shape)
+                        .pointerInput(Unit) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { offset ->
+                                    draggedItemId = folder.id
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                                    val itemInfo = listState.layoutInfo.visibleItemsInfo
+                                        .firstOrNull { it.key == "user_${folder.id}" }
+                                    initialDragStartOffset = itemInfo?.offset ?: 0
+                                    initialPointerY = offset.y + (itemInfo?.offset ?: 0)
+                                    totalDragDistance = 0f
+                                    dragOffset = 0f
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    totalDragDistance += dragAmount.y
+
+                                    val currentItemInfo = listState.layoutInfo.visibleItemsInfo
+                                        .firstOrNull { it.key == "user_${folder.id}" }
+                                        ?: return@detectDragGesturesAfterLongPress
+
+                                    val targetY = initialDragStartOffset + totalDragDistance
+                                    dragOffset = targetY - currentItemInfo.offset
+
+                                    val draggedCenter = targetY + currentItemInfo.size / 2
+
+                                    val targetItem = listState.layoutInfo.visibleItemsInfo
+                                        .firstOrNull { item ->
+                                            draggedCenter > item.offset &&
+                                                    draggedCenter < item.offset + item.size &&
+                                                    item.index >= userFoldersStartIndex
+                                        }
+
+                                    if (targetItem != null) {
+                                        val targetIndex = targetItem.index - userFoldersStartIndex
+                                        if (targetIndex != currentIndex && targetIndex in currentUserFolders.indices) {
+                                            currentOnReorder(currentIndex, targetIndex)
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        }
+                                    }
+
+                                    val viewportHeight = listState.layoutInfo.viewportSize.height
+                                    val topThreshold = 100.dp.toPx()
+                                    val bottomThreshold = viewportHeight - 100.dp.toPx()
+                                    val pointerY = initialPointerY + totalDragDistance
+
+                                    if (pointerY < topThreshold) {
+                                        val intensity = ((topThreshold - pointerY) / topThreshold).coerceIn(0f, 1f)
+                                        autoScrollVelocity = -(6f + (18f * intensity))
+                                    } else if (pointerY > bottomThreshold) {
+                                        val intensity = ((pointerY - bottomThreshold) / topThreshold).coerceIn(0f, 1f)
+                                        autoScrollVelocity = 6f + (18f * intensity)
+                                    } else {
+                                        autoScrollVelocity = 0f
+                                        autoScrollJob?.cancel()
+                                        autoScrollJob = null
+                                    }
+
+                                    if (autoScrollJob == null && abs(autoScrollVelocity) > 0f) {
+                                        autoScrollJob = scope.launch {
+                                            while (abs(autoScrollVelocity) > 0f) {
+                                                listState.scrollBy(autoScrollVelocity)
+                                                delay(16)
+                                            }
+                                        }.also { job ->
+                                            job.invokeOnCompletion {
+                                                if (autoScrollJob === job) autoScrollJob = null
+                                            }
+                                        }
+                                    }
+                                },
+                                onDragEnd = {
+                                    draggedItemId = null
+                                    dragOffset = 0f
+                                    totalDragDistance = 0f
+                                    autoScrollVelocity = 0f
+                                    autoScrollJob?.cancel()
+                                    autoScrollJob = null
+                                },
+                                onDragCancel = {
+                                    draggedItemId = null
+                                    dragOffset = 0f
+                                    totalDragDistance = 0f
+                                    autoScrollVelocity = 0f
+                                    autoScrollJob?.cancel()
+                                    autoScrollJob = null
+                                }
+                            )
+                        }
                 ) {
-                    FolderItem(
-                        folder = folder,
-                        isSystem = false,
-                        position = position,
-                        onClick = { onFolderClick(folder.id) },
-                        onMoveUp = if (index > 0) {
-                            { onReorder(index, index - 1) }
-                        } else null,
-                        onMoveDown = if (index < userFolders.size - 1) {
-                            { onReorder(index, index + 1) }
-                        } else null
-                    )
+                    SwipeToDeleteContainer(
+                        onDelete = { onDeleteClick(folder.id) },
+                        enabled = draggedItemId == null
+                    ) {
+                        FolderItem(
+                            folder = folder,
+                            isSystem = false,
+                            position = effectivePosition,
+                            onClick = { onFolderClick(folder.id) },
+                            showReorder = true
+                        )
+                    }
                 }
             }
         }
@@ -229,6 +389,28 @@ fun FolderList(
         }
 
         item { Spacer(Modifier.height(80.dp)) }
+    }
+}
+
+private fun getFolderShape(position: ItemPosition): Shape {
+    val cornerRadius = 24.dp
+    return when (position) {
+        ItemPosition.TOP -> RoundedCornerShape(
+            topStart = cornerRadius,
+            topEnd = cornerRadius,
+            bottomStart = 4.dp,
+            bottomEnd = 4.dp
+        )
+
+        ItemPosition.MIDDLE -> RoundedCornerShape(4.dp)
+        ItemPosition.BOTTOM -> RoundedCornerShape(
+            bottomStart = cornerRadius,
+            bottomEnd = cornerRadius,
+            topStart = 4.dp,
+            topEnd = 4.dp
+        )
+
+        ItemPosition.STANDALONE -> RoundedCornerShape(cornerRadius)
     }
 }
 

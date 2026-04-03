@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.profile
 
 import android.content.ClipData
@@ -36,9 +38,9 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -92,7 +94,7 @@ import org.monogram.presentation.features.viewers.ImageViewer
 import org.monogram.presentation.features.viewers.VideoViewer
 import org.monogram.presentation.features.webapp.MiniAppViewer
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileContent(component: ProfileComponent) {
     val state by component.state.subscribeAsState()
@@ -256,6 +258,16 @@ fun ProfileContent(component: ProfileComponent) {
             },
             containerColor = dynamicContainerColor
         ) { padding ->
+            val isGroup = state.chat?.isGroup == true || state.chat?.isChannel == true
+            val tabs = mutableListOf<@Composable () -> String>({ stringResource(R.string.tab_media) })
+            if (isGroup) tabs.add { stringResource(R.string.tab_members) }
+            tabs.addAll(listOf(
+                { stringResource(R.string.tab_files) },
+                { stringResource(R.string.tab_audio) },
+                { stringResource(R.string.tab_voice) },
+                { stringResource(R.string.tab_links) },
+                { stringResource(R.string.tab_gifs) }
+            ))
             CollapsingToolbarScaffold(
                 modifier = Modifier
                     .fillMaxSize()
@@ -363,6 +375,8 @@ fun ProfileContent(component: ProfileComponent) {
 
                     profileMediaSection(
                         state = state,
+                        isGroup = isGroup,
+                        tabs = tabs,
                         onTabSelected = component::onTabSelected,
                         onMessageClick = component::onMessageClick,
                         onMessageLongClick = component::onMessageLongClick,

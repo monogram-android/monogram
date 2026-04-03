@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package org.monogram.presentation.features.viewers.components
 
 import androidx.compose.animation.*
@@ -29,7 +31,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -411,7 +412,6 @@ fun PageIndicator(modifier: Modifier = Modifier, current: Int, total: Int) {
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ZoomableImage(
     data: Any,
@@ -487,7 +487,6 @@ fun ZoomableImage(
                 CircularWavyProgressIndicator(
                     modifier = Modifier.size(48.dp),
                     color = Color.White,
-                    stroke = Stroke(width = with(LocalDensity.current) { 3.dp.toPx() }),
                     progress = {
                         if (isDownloading && downloadProgress in 0f..1f) {
                             downloadProgress

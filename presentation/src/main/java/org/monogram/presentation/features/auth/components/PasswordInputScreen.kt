@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.rounded.VpnKey
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -86,6 +87,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.RoundedPolygon
 import org.monogram.presentation.R
+import org.monogram.presentation.core.ui.ExpressiveDefaults
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -400,7 +402,10 @@ private fun PasswordContent(
             }
         }
 
-        IconButton(onClick = { onPasswordVisibleChange(!passwordVisible) }) {
+        IconButton(
+            onClick = { onPasswordVisibleChange(!passwordVisible) },
+            shapes = ExpressiveDefaults.iconButtonShapes()
+        ) {
             Icon(
                 imageVector = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
                 contentDescription = null,
@@ -413,11 +418,11 @@ private fun PasswordContent(
 
     Button(
         onClick = { onConfirm(password) },
+        shapes = ExpressiveDefaults.extraLargeButtonShapes(),
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
-        enabled = password.isNotBlank() && !isSubmitting,
-        shape = RoundedCornerShape(24.dp)
+        enabled = password.isNotBlank() && !isSubmitting
     ) {
         if (isSubmitting) {
             LoadingIndicator(

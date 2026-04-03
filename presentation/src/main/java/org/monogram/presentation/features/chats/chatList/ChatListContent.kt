@@ -95,7 +95,6 @@ fun ChatListContent(component: ChatListComponent) {
 
     val adaptiveInfo = currentWindowAdaptiveInfo()
     val isTablet = adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED
-    val wideRailState = rememberWideNavigationRailState(initialValue = WideNavigationRailValue.Expanded)
 
     val isCustomBackHandlingEnabled =
         state.isSearchActive || state.selectedChatIds.isNotEmpty() || state.selectedFolderId == -2 || state.isForwarding || state.instantViewUrl != null || state.webAppUrl != null || state.webViewUrl != null || showStatusMenu
@@ -691,44 +690,9 @@ fun ChatListContent(component: ChatListComponent) {
             color = if (isTablet) Color.Transparent else MaterialTheme.colorScheme.surface
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                if (isTablet) {
-                    WideNavigationRail(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .padding(start = 8.dp, top = 12.dp, bottom = 12.dp),
-                        state = wideRailState,
-                        shape = ShapeDefaults.ExtraLargeIncreased
-                    ) {
-                        WideNavigationRailItem(
-                            railExpanded = true,
-                            icon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                            label = { Text(stringResource(R.string.search_section_chats)) },
-                            selected = state.selectedFolderId != -2,
-                            onClick = {
-                                state.folders.firstOrNull()?.id?.let { component.onFolderClicked(it) }
-                            }
-                        )
-                        WideNavigationRailItem(
-                            railExpanded = true,
-                            icon = { Icon(Icons.Rounded.Delete, contentDescription = null) },
-                            label = { Text(stringResource(R.string.menu_archive)) },
-                            selected = state.selectedFolderId == -2,
-                            onClick = { component.onFolderClicked(-2) }
-                        )
-                        WideNavigationRailItem(
-                            railExpanded = true,
-                            icon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
-                            label = { Text(stringResource(R.string.settings)) },
-                            selected = false,
-                            onClick = component::onSettingsClicked
-                        )
-                    }
-                }
-
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = if (isTablet) 108.dp else 0.dp)
                 ) {
             if (state.isSearchActive || state.selectedFolderId == -2) {
                 var showAllGlobal by remember { mutableStateOf(false) }

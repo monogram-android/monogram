@@ -23,6 +23,7 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import kotlinx.coroutines.delay
@@ -81,6 +82,8 @@ fun MessageBubbleContainer(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
+    val fastReplyTriggerThreshold = -120f
+
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -140,7 +143,7 @@ fun MessageBubbleContainer(
                         }
                     },
                     onDragEnd = {
-                        if (dragOffsetX.value < -120f && canReply) {
+                        if (dragOffsetX.value < fastReplyTriggerThreshold && canReply) {
                             onReplySwipe(msg)
                         }
                         scope.launch {
@@ -148,8 +151,13 @@ fun MessageBubbleContainer(
                         }
                     }
                 )
+            }
+            .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { offset ->
+                        if (dragOffsetX.value < 0f) {
+                            return@detectTapGestures
+                        }
                         val clickPos = outerColumnPosition + offset
                         val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
@@ -157,6 +165,9 @@ fun MessageBubbleContainer(
                         }
                     },
                     onLongPress = { offset ->
+                        if (dragOffsetX.value < 0f) {
+                            return@detectTapGestures
+                        }
                         val clickPos = outerColumnPosition + offset
                         val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
@@ -179,6 +190,63 @@ fun MessageBubbleContainer(
                 toProfile = toProfile
             )
 
+            Box(
+                modifier = Modifier.wrapContentSize()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .width(IntrinsicSize.Max)
+                        .widthIn(max = maxWidth)
+                        .onGloballyPositioned { coordinates ->
+                            bubblePosition = coordinates.positionInWindow()
+                            bubbleSize = coordinates.size
+                            if (shouldReportPosition) {
+                                onPositionChange(msg.id, bubblePosition, bubbleSize)
+                            }
+                        },
+                    horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
+                ) {
+                    MessageContentSelector(
+                        msg = msg,
+                        newerMsg = newerMsg,
+                        isOutgoing = isOutgoing,
+                        isSameSenderAbove = isSameSenderAbove,
+                        isSameSenderBelow = isSameSenderBelow,
+                        isGroup = isGroup,
+                        fontSize = fontSize,
+                        letterSpacing = letterSpacing,
+                        bubbleRadius = bubbleRadius,
+                        stSize = stSize,
+                        autoDownloadMobile = autoDownloadMobile,
+                        autoDownloadWifi = autoDownloadWifi,
+                        autoDownloadRoaming = autoDownloadRoaming,
+                        autoDownloadFiles = autoDownloadFiles,
+                        autoplayGifs = autoplayGifs,
+                        autoplayVideos = autoplayVideos,
+                        showLinkPreviews = showLinkPreviews,
+                        onPhotoClick = onPhotoClick,
+                        onDownloadPhoto = onDownloadPhoto,
+                        onVideoClick = onVideoClick,
+                        onDocumentClick = onDocumentClick,
+                        onAudioClick = onAudioClick,
+                        onCancelDownload = onCancelDownload,
+                        onReplyClick = onReplyClick,
+                        onGoToReply = onGoToReply,
+                        onReactionClick = onReactionClick,
+                        onStickerClick = onStickerClick,
+                        onPollOptionClick = onPollOptionClick,
+                        onRetractVote = onRetractVote,
+                        onShowVoters = onShowVoters,
+                        onClosePoll = onClosePoll,
+                        onInstantViewClick = onInstantViewClick,
+                        onYouTubeClick = onYouTubeClick,
+                        toProfile = toProfile,
+                        bubblePosition = bubblePosition,
+                        bubbleSize = bubbleSize,
+                        downloadUtils = downloadUtils,
+                        videoPlayerPool = videoPlayerPool,
+                        isAnyViewerOpen = isAnyViewerOpen
+                    )
             Column(
                 modifier = Modifier
                     .width(IntrinsicSize.Max)
@@ -233,16 +301,26 @@ fun MessageBubbleContainer(
                     isAnyViewerOpen = isAnyViewerOpen
                 )
 
-                MessageReplyMarkup(
-                    msg = msg,
-                    onReplyMarkupButtonClick = onReplyMarkupButtonClick
-                )
+                    MessageReplyMarkup(
+                        msg = msg,
+                        onReplyMarkupButtonClick = onReplyMarkupButtonClick
+                    )
 
-                MessageViaBotAttribution(
-                    msg = msg,
+                    MessageViaBotAttribution(
+                        msg = msg,
+                        isOutgoing = isOutgoing,
+                        onViaBotClick = onViaBotClick,
+                        modifier = Modifier.align(if (isOutgoing) Alignment.End else Alignment.Start)
+                    )
+                }
+
+                FastReplyIndicator(
+                    modifier = Modifier
+                        .align(if (isOutgoing) Alignment.CenterEnd else Alignment.CenterStart),
+                    dragOffsetX = dragOffsetX,
                     isOutgoing = isOutgoing,
-                    onViaBotClick = onViaBotClick,
-                    modifier = Modifier.align(if (isOutgoing) Alignment.End else Alignment.Start)
+                    maxWidth = maxWidth,
+                    fastReplyTriggerThreshold = fastReplyTriggerThreshold
                 )
             }
         }

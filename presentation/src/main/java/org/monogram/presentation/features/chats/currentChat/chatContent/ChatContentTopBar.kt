@@ -341,7 +341,9 @@ fun ChatContentTopBar(
             }
         }
 
-        val showPinned = state.pinnedMessage != null && !isSelectionMode && state.rootMessage == null
+        // FIXME: tracker - https://github.com/monogram-android/monogram/issues/145
+        // val showPinned = state.pinnedMessage != null && !isSelectionMode && state.rootMessage == null
+        val showPinned = false
         AnimatedVisibility(
             visible = showPinned,
             enter = expandVertically(),

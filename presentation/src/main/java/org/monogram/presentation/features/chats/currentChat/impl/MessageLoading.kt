@@ -52,7 +52,8 @@ private fun mergeSenderVisuals(previous: MessageModel, incoming: MessageModel): 
         senderAvatar = mergedAvatar,
         senderPersonalAvatar = mergedPersonalAvatar,
         senderCustomTitle = incoming.senderCustomTitle ?: previous.senderCustomTitle,
-        senderStatusEmojiPath = incoming.senderStatusEmojiPath ?: previous.senderStatusEmojiPath
+        senderStatusEmojiPath = incoming.senderStatusEmojiPath ?: previous.senderStatusEmojiPath,
+        reactions = incoming.reactions.ifEmpty { previous.reactions }
     )
 }
 
@@ -126,6 +127,13 @@ private suspend fun DefaultChatComponent.updateMessagesUnsafe(
         } else {
             state.messages
         }
+        val existingReactionsById = if (replace) {
+            state.messages
+                .filter { it.reactions.isNotEmpty() }
+                .associate { it.id to it.reactions }
+        } else {
+            emptyMap()
+        }
 
         val isComments = state.rootMessage != null
 
@@ -136,8 +144,18 @@ private suspend fun DefaultChatComponent.updateMessagesUnsafe(
         filteredNewMessages.forEach { msg ->
             val previous = messageMap[msg.id]
             val mergedMessage = if (previous != null) mergeSenderVisuals(previous, msg) else msg
-            val old = messageMap.put(msg.id, mergedMessage)
-            if (old != mergedMessage) {
+            val restoredMessage = if (mergedMessage.reactions.isEmpty()) {
+                val previousReactions = existingReactionsById[msg.id]
+                if (!previousReactions.isNullOrEmpty()) {
+                    mergedMessage.copy(reactions = previousReactions)
+                } else {
+                    mergedMessage
+                }
+            } else {
+                mergedMessage
+            }
+            val old = messageMap.put(msg.id, restoredMessage)
+            if (old != restoredMessage) {
                 hasChanges = true
             }
         }

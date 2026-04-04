@@ -35,6 +35,7 @@ import kotlin.math.sqrt
 fun TelegramStarInteractive(
     resId: Int,
     starColor: Color = Color(0xFFFFD700),
+    backgroundColor: Color = Color.Transparent,
     alpha: Float = 1f
 ) {
     val context = LocalContext.current
@@ -48,8 +49,18 @@ fun TelegramStarInteractive(
     val starColorFloats = remember(starColor) {
         floatArrayOf(starColor.red, starColor.green, starColor.blue)
     }
+    val backgroundColorFloats = remember(backgroundColor) {
+        floatArrayOf(backgroundColor.red, backgroundColor.green, backgroundColor.blue, backgroundColor.alpha)
+    }
 
     val renderThreadRef = remember { mutableStateOf<StarRenderThread?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            renderThreadRef.value?.requestStopAndWait()
+            renderThreadRef.value = null
+        }
+    }
 
     LaunchedEffect(isInteracting) {
         if (!isInteracting) {
@@ -92,12 +103,12 @@ fun TelegramStarInteractive(
             },
         factory = { ctx ->
             TextureView(ctx).apply {
-                isOpaque = false
+                isOpaque = backgroundColor.alpha >= 0.99f
                 surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                     override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
                         val thread = StarRenderThread(st, geometry).apply {
                             updateSize(w, h)
-                            updateParams(rotX.value, rotY.value, starColorFloats, alpha)
+                            updateParams(rotX.value, rotY.value, starColorFloats, backgroundColorFloats, alpha)
                             start()
                         }
                         renderThreadRef.value = thread
@@ -108,7 +119,7 @@ fun TelegramStarInteractive(
                     }
 
                     override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
-                        renderThreadRef.value?.stopRendering()
+                        renderThreadRef.value?.requestStopAndWait()
                         renderThreadRef.value = null
                         return true
                     }
@@ -118,7 +129,7 @@ fun TelegramStarInteractive(
             }
         },
         update = {
-            renderThreadRef.value?.updateParams(rotX.value, rotY.value, starColorFloats, alpha)
+            renderThreadRef.value?.updateParams(rotX.value, rotY.value, starColorFloats, backgroundColorFloats, alpha)
         }
     )
 }
@@ -147,14 +158,15 @@ class StarRenderThread(
     @Volatile private var rotX = 0f
     @Volatile private var rotY = 0f
     @Volatile private var starColor = floatArrayOf(1f, 1f, 1f)
+    @Volatile private var clearColor = floatArrayOf(0f, 0f, 0f, 0f)
     @Volatile private var alpha = 1f
 
     private val particles = Array(15) { StarParticle() }
     private val random = Random()
     private var lastFrameTime = 0L
 
-    fun updateParams(rx: Float, ry: Float, sc: FloatArray, a: Float) {
-        rotX = rx; rotY = ry; starColor = sc; alpha = a
+    fun updateParams(rx: Float, ry: Float, sc: FloatArray, cc: FloatArray, a: Float) {
+        rotX = rx; rotY = ry; starColor = sc; clearColor = cc; alpha = a
     }
 
     fun updateSize(w: Int, h: Int) {
@@ -163,6 +175,14 @@ class StarRenderThread(
     }
 
     fun stopRendering() { running = false }
+
+    fun requestStopAndWait(timeoutMs: Long = 250) {
+        running = false
+        interrupt()
+        if (isAlive && Thread.currentThread() !== this) {
+            join(timeoutMs)
+        }
+    }
 
     override fun run() {
         val egl = EGLContext.getEGL() as EGL10
@@ -201,26 +221,49 @@ class StarRenderThread(
             precision mediump float;
             uniform vec3 uBaseColor;
             uniform float uAlpha;
+            uniform float uTime;
             varying vec3 vFragNormal;
             varying vec3 vFragPos;
             
             void main() {
-                vec3 lightPos = vec3(20.0, 50.0, 100.0);
                 vec3 viewPos = vec3(0.0, 0.0, 110.0);
+                vec3 lightPos = vec3(18.0, 48.0, 100.0);
+                vec3 fillLightPos = vec3(-28.0, 12.0, 82.0);
+                vec3 rimLightPos = vec3(0.0, -24.0, 72.0);
                 
                 vec3 norm = normalize(vFragNormal);
                 vec3 lightDir = normalize(lightPos - vFragPos);
+                vec3 fillLightDir = normalize(fillLightPos - vFragPos);
+                vec3 rimLightDir = normalize(rimLightPos - vFragPos);
                 vec3 viewDir = normalize(viewPos - vFragPos);
                 vec3 halfDir = normalize(lightDir + viewDir);
+                vec3 fillHalfDir = normalize(fillLightDir + viewDir);
+                vec3 rimHalfDir = normalize(rimLightDir + viewDir);
+
+                vec2 localPos = clamp(vFragPos.xy * 0.035 + vec2(0.5), 0.0, 1.0);
+                float gradientMix = clamp(distance(localPos, vec2(0.92, 0.88)), 0.0, 1.0);
+                float edgeTint = smoothstep(0.15, 1.0, 1.0 - localPos.y);
+                vec3 shadowGold = mix(uBaseColor * 0.58, vec3(0.67, 0.43, 0.86), 0.20);
+                vec3 midGold = mix(uBaseColor, vec3(1.0, 0.78, 0.33), 0.28);
+                vec3 highlightGold = vec3(1.0, 0.95, 0.72);
+                vec3 baseColor = mix(highlightGold, midGold, gradientMix);
+                baseColor = mix(baseColor, shadowGold, edgeTint * 0.38);
                 
                 float NdotL = dot(norm, lightDir);
-                float diff = NdotL * 0.6 + 0.4; 
+                float fillDiff = max(dot(norm, fillLightDir), 0.0);
+                float diff = NdotL * 0.58 + fillDiff * 0.22 + 0.38; 
                 
-                float spec = pow(max(dot(norm, halfDir), 0.0), 16.0);
+                float spec = pow(max(dot(norm, halfDir), 0.0), 64.0);
+                float fillSpec = pow(max(dot(norm, fillHalfDir), 0.0), 28.0);
+                float rimSpec = pow(max(dot(norm, rimHalfDir), 0.0), 14.0);
+                float fresnel = pow(1.0 - max(dot(norm, viewDir), 0.0), 2.8);
                 
-                vec3 ambient = uBaseColor * 0.5; 
-                vec3 diffuse = uBaseColor * diff * 0.8;
-                vec3 specular = vec3(1.0, 0.98, 0.9) * spec * 0.8; 
+                vec3 ambient = baseColor * 0.16; 
+                vec3 diffuse = baseColor * diff * 0.86;
+                vec3 specular = vec3(1.0, 0.98, 0.9) * spec * 1.15
+                    + vec3(1.0, 0.88, 0.52) * fillSpec * 0.42
+                    + vec3(1.0, 0.96, 0.82) * rimSpec * 0.18
+                    + vec3(1.0, 0.95, 0.8) * fresnel * 0.16; 
                 
                 gl_FragColor = vec4(ambient + diffuse + specular, uAlpha);
             }
@@ -250,6 +293,7 @@ class StarRenderThread(
         val uModelLoc = GLES20.glGetUniformLocation(program, "uModelMatrix")
         val uColorLoc = GLES20.glGetUniformLocation(program, "uBaseColor")
         val uAlphaLoc = GLES20.glGetUniformLocation(program, "uAlpha")
+        val uTimeLoc = GLES20.glGetUniformLocation(program, "uTime")
         val posHandle = GLES20.glGetAttribLocation(program, "vPosition")
         val normalHandle = GLES20.glGetAttribLocation(program, "vNormal")
 
@@ -267,7 +311,8 @@ class StarRenderThread(
 
             updateParticles(dt)
 
-            GLES20.glClearColor(0f, 0f, 0f, 0f)
+            val background = clearColor
+            GLES20.glClearColor(background[0], background[1], background[2], background[3])
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
 
             val curW = width
@@ -293,6 +338,7 @@ class StarRenderThread(
 
                     GLES20.glUniform3fv(uColorLoc, 1, starColor, 0)
                     GLES20.glUniform1f(uAlphaLoc, p.life)
+                    GLES20.glUniform1f(uTimeLoc, currentTime.toFloat())
 
                     GLES20.glDrawElements(
                         GLES20.GL_TRIANGLES,
@@ -313,11 +359,19 @@ class StarRenderThread(
             GLES20.glUniformMatrix4fv(uModelLoc, 1, false, modelMatrix, 0)
             GLES20.glUniform3fv(uColorLoc, 1, starColor, 0)
             GLES20.glUniform1f(uAlphaLoc, alpha)
+            GLES20.glUniform1f(uTimeLoc, currentTime.toFloat())
 
             GLES20.glDrawElements(GLES20.GL_TRIANGLES, geometry.indices.size, GLES20.GL_UNSIGNED_SHORT, indexBuffer)
 
-            egl.eglSwapBuffers(display, eglSurface)
-            try { sleep(16) } catch (e: Exception) {}
+            if (!egl.eglSwapBuffers(display, eglSurface)) {
+                break
+            }
+
+            try {
+                sleep(16)
+            } catch (_: InterruptedException) {
+                break
+            }
         }
 
         egl.eglMakeCurrent(display, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_CONTEXT)
@@ -352,21 +406,21 @@ class StarRenderThread(
 
         p.active = true
         p.life = 1f
-        p.scale = 0.2f + random.nextFloat() * 0.15f
+        p.scale = 0.1f + random.nextFloat() * 0.1f
 
-        p.x = (random.nextFloat() - 0.5f) * 5f
-        p.y = (random.nextFloat() - 0.5f) * 5f
+        p.x = (random.nextFloat() - 0.5f) * 2.6f
+        p.y = (random.nextFloat() - 0.5f) * 2.6f
         p.z = -5f
 
         val angle = random.nextFloat() * Math.PI * 2.0
-        val speed = 25f + random.nextFloat() * 15f
+        val speed = 12f + random.nextFloat() * 10f
 
         p.vx = (cos(angle) * speed).toFloat()
         p.vy = (sin(angle) * speed).toFloat()
         p.vz = 0f
 
         p.rotation = random.nextFloat() * 360f
-        p.rotSpeed = (random.nextFloat() - 0.5f) * 200f
+        p.rotSpeed = (random.nextFloat() - 0.5f) * 120f
     }
 }
 

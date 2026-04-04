@@ -1,7 +1,8 @@
-package org.monogram.data.utils
+package org.monogram.core.date.utils
 
 import junit.framework.TestCase.assertEquals
 import org.junit.Test
+import org.monogram.core.date.toDate
 
 /**
  * Test cases for date utils

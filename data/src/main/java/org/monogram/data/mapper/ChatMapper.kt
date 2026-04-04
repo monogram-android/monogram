@@ -29,7 +29,7 @@ class ChatMapper(private val stringProvider: StringProvider) {
         lastMessageText: String,
         lastMessageEntities: List<MessageEntity>,
         lastMessageTime: String,
-        lastMessageDate: Long,
+        lastMessageDate: Int,
         isMuted: Boolean,
         isAdmin: Boolean,
         isMember: Boolean,
@@ -362,7 +362,7 @@ class ChatMapper(private val stringProvider: StringProvider) {
             supergroupId = supergroupId,
             secretChatId = secretChatId,
             positionsCache = encodedPositions,
-            lastMessageDate = chat.lastMessage?.date?.toLong() ?: domain.lastMessageDate,
+            lastMessageDate = chat.lastMessage?.date ?: domain.lastMessageDate,
             lastMessageContentType = lastMessageContentType,
             lastMessageSenderName = lastMessageSenderName
         )

@@ -889,7 +889,7 @@ class UserRepositoryImpl(
             avatarPath = photo?.small?.local?.path,
             lastMessageText = (lastMessage?.content as? TdApi.MessageText)?.text?.text ?: "",
             lastMessageTime = (lastMessage?.date?.toLong() ?: 0L).toString(),
-            lastMessageDate = lastMessage?.date?.toLong() ?: 0L,
+            lastMessageDate = lastMessage?.date ?: 0,
             order = positions.firstOrNull()?.order ?: 0L,
             isPinned = positions.firstOrNull()?.isPinned ?: false,
             isMuted = notificationSettings.muteFor > 0,

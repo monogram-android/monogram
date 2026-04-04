@@ -1,7 +1,7 @@
 package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
-import org.monogram.data.utils.toDate
+import org.monogram.core.date.toDate
 import org.monogram.domain.models.SessionModel
 import org.monogram.domain.models.SessionType
 

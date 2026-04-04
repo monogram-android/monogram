@@ -81,7 +81,8 @@ fun MessageBubbleContainer(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
-    val fastReplyTriggerThreshold = -120f
+    val fadeInThreshold = -36f
+    val fastReplyTriggerThreshold = -120f + fadeInThreshold
 
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -124,7 +125,6 @@ fun MessageBubbleContainer(
     val scope = rememberCoroutineScope()
     val dragOffsetX = remember { Animatable(0f) }
 
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -139,7 +139,7 @@ fun MessageBubbleContainer(
                     onHorizontalDrag = { change, dragAmount ->
                         change.consume()
                         scope.launch {
-                            dragOffsetX.snapTo((dragOffsetX.value + dragAmount).coerceIn(-200f, 0f))
+                            dragOffsetX.snapTo((dragOffsetX.value + dragAmount).coerceIn(-200f + fadeInThreshold, 0f))
                         }
                     },
                     onDragEnd = {
@@ -266,7 +266,8 @@ fun MessageBubbleContainer(
                     dragOffsetX = dragOffsetX,
                     isOutgoing = isOutgoing,
                     maxWidth = maxWidth,
-                    fastReplyTriggerThreshold = fastReplyTriggerThreshold
+                    fadeInThreshold = fadeInThreshold,
+                    fastReplyTriggerThreshold = fastReplyTriggerThreshold,
                 )
             }
         }

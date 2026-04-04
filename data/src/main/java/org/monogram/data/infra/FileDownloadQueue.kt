@@ -10,7 +10,7 @@ import org.monogram.core.DispatcherProvider
 import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.core.coRunCatching
-import org.monogram.data.di.TdLibException
+import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit

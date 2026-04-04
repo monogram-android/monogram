@@ -10,6 +10,8 @@ class UpdateDispatcherImpl(
 ) : UpdateDispatcher {
     private val updates = gateway.updates
 
+    override val all = updates
+
     private inline fun <reified T : TdApi.Update> flow(): Flow<T> =
         updates.filterIsInstance<T>()
 

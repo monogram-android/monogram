@@ -4,18 +4,18 @@ import android.os.PowerManager
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.drinkless.tdlib.TdApi
 import org.json.JSONObject
 import org.koin.android.ext.android.inject
-import org.monogram.data.di.TdLibClient
+import org.monogram.data.gateway.TelegramGateway
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.PushProvider
 
 class FcmPushService : FirebaseMessagingService() {
-    private val tdLibClient: TdLibClient by inject()
+    private val gateway: TelegramGateway by inject()
     private val appPreferences: AppPreferencesProvider by inject()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -43,11 +43,9 @@ class FcmPushService : FirebaseMessagingService() {
                 }
                 val jsonPayload = json.toString()
 
-                tdLibClient.send(TdApi.ProcessPushNotification(jsonPayload)) {
-                    Log.d("FcmPushService", "ProcessPushNotification success")
-                }
-
                 runBlocking {
+                    gateway.execute(TdApi.ProcessPushNotification(jsonPayload))
+                    Log.d("FcmPushService", "ProcessPushNotification success")
                     delay(5000)
                 }
             } catch (e: Exception) {
@@ -66,15 +64,20 @@ class FcmPushService : FirebaseMessagingService() {
     }
 
     private fun registerToken(token: String) {
-        if (!tdLibClient.isAuthenticated.value) return
+        if (!gateway.isAuthenticated.value) return
 
-        tdLibClient.send(
-            TdApi.RegisterDevice(
-                TdApi.DeviceTokenFirebaseCloudMessaging(token, true),
-                longArrayOf()
-            )
-        ) { result ->
-            Log.d("FcmPushService", "RegisterDevice result: $result")
+        scope.launch {
+            try {
+                val result = gateway.execute(
+                    TdApi.RegisterDevice(
+                        TdApi.DeviceTokenFirebaseCloudMessaging(token, true),
+                        longArrayOf()
+                    )
+                )
+                Log.d("FcmPushService", "RegisterDevice result: $result")
+            } catch (e: Exception) {
+                Log.e("FcmPushService", "RegisterDevice failed", e)
+            }
         }
     }
 }

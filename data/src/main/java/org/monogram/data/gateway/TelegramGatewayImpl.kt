@@ -1,10 +1,11 @@
 package org.monogram.data.gateway
 
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.di.TdLibClient
 
-class TelegramGatewayImpl(
+internal class TelegramGatewayImpl(
     private val client: TdLibClient
 ) : TelegramGateway {
     override suspend fun <T : TdApi.Object> execute(function: TdApi.Function<T>): T =
@@ -12,4 +13,7 @@ class TelegramGatewayImpl(
 
     override val updates: SharedFlow<TdApi.Update>
         get() = client.updates
+
+    override val isAuthenticated: StateFlow<Boolean>
+        get() = client.isAuthenticated
 }

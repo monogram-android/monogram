@@ -4,6 +4,8 @@ import kotlinx.coroutines.flow.Flow
 import org.drinkless.tdlib.TdApi
 
 interface UpdateDispatcher {
+    val all: Flow<TdApi.Update>
+
     // Auth
     val authorizationState: Flow<TdApi.UpdateAuthorizationState>
 

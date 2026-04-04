@@ -12,8 +12,8 @@ import org.koin.core.context.startKoin
 import org.maplibre.android.MapLibre
 import org.maplibre.android.WellKnownTileServer
 import org.monogram.app.di.appModule
-import org.monogram.data.di.TdLibClient
 import org.monogram.data.di.TdNotificationManager
+import org.monogram.data.gateway.TelegramGateway
 import org.monogram.domain.managers.DistrManager
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.AuthRepository
@@ -22,6 +22,7 @@ import org.monogram.presentation.di.AppContainer
 import org.monogram.presentation.di.KoinAppContainer
 import java.io.PrintWriter
 import java.io.StringWriter
+import kotlin.jvm.java
 import kotlin.system.exitProcess
 
 class App : Application(), SingletonImageLoader.Factory {
@@ -68,7 +69,7 @@ class App : Application(), SingletonImageLoader.Factory {
     }
 
     private fun initTdLib() {
-        get<TdLibClient>()
+        get<TelegramGateway>()
         get<AuthRepository>()
         get<TdNotificationManager>()
     }

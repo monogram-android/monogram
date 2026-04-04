@@ -9,7 +9,7 @@ import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
 import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
-import org.monogram.data.di.TdLibException
+import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.mapper.MessageMapper

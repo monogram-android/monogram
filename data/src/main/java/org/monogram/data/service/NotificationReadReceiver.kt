@@ -7,13 +7,13 @@ import android.util.Log
 import org.drinkless.tdlib.TdApi
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import org.monogram.data.di.TdLibClient
-import org.monogram.data.di.TdLibException
 import org.monogram.data.di.TdNotificationManager
+import org.monogram.data.gateway.TdLibException
+import org.monogram.data.gateway.TelegramGateway
 
 class NotificationReadReceiver : BroadcastReceiver(), KoinComponent {
 
-    private val tdLibClient: TdLibClient by inject()
+    private val gateway: TelegramGateway by inject()
     private val notificationManager: TdNotificationManager by inject()
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -30,7 +30,7 @@ class NotificationReadReceiver : BroadcastReceiver(), KoinComponent {
                 }
 
                 val chat = try {
-                    tdLibClient.sendSuspend(TdApi.GetChat(chatId))
+                    gateway.execute(TdApi.GetChat(chatId))
                 } catch (e: TdLibException) {
                     if (e.error.message == "Not Found") {
                         Log.w("NotificationReadReceiver", "Chat $chatId not found")
@@ -42,7 +42,7 @@ class NotificationReadReceiver : BroadcastReceiver(), KoinComponent {
                 if (chat.unreadCount > 0) {
                     chat.lastMessage?.let { lastMessage ->
                         try {
-                            tdLibClient.sendSuspend(TdApi.ViewMessages(chatId, longArrayOf(lastMessage.id), null, true))
+                            gateway.execute(TdApi.ViewMessages(chatId, longArrayOf(lastMessage.id), null, true))
                         } catch (e: TdLibException) {
                             if (e.error.message == "Message is too old" || e.error.message == "Not Found") {
                                 Log.w("NotificationReadReceiver", "Failed to mark message as read: ${e.error.message}")

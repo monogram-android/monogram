@@ -34,7 +34,7 @@ import org.monogram.domain.repository.*
 val dataModule = module {
     single { CoroutineScope(SupervisorJob() + Dispatchers.IO) }
 
-    single { TdLibClient(androidContext()) }
+    single { TdLibClient() }
 
     single<DispatcherProvider> { DefaultDispatcherProvider() }
     single<ScopeProvider> { DefaultScopeProvider(get()) }
@@ -93,9 +93,9 @@ val dataModule = module {
 
     single<AuthRepository> {
         AuthRepositoryImpl(
+            context = androidContext(),
             remote = get(),
             updates = get(),
-            tdLibClient = get(),
             scopeProvider = get()
         )
     }
@@ -316,6 +316,7 @@ val dataModule = module {
         MessageRepositoryImpl(
             context = androidContext(),
             gateway = get(),
+            updates = get(),
             messageMapper = get(),
             messageRemoteDataSource = get(),
             cache = get(),

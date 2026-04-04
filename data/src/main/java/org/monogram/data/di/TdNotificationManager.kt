@@ -1,6 +1,5 @@
 package org.monogram.data.di
 
-import org.monogram.data.core.coRunCatching
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationChannelGroup
@@ -26,8 +25,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.NotificationSettingDao
 import org.monogram.data.db.model.NotificationSettingEntity
+import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.service.NotificationDismissReceiver
 import org.monogram.data.service.NotificationReadReceiver
@@ -41,7 +42,7 @@ import kotlin.math.min
 
 class TdNotificationManager(
     private val context: Context,
-    private val tdLibClient: TdLibClient,
+    private val gateway: TelegramGateway,
     private val appPreferences: AppPreferencesProvider,
     private val settingsRepository: SettingsRepository,
     private val notificationSettingDao: NotificationSettingDao,
@@ -101,7 +102,7 @@ class TdNotificationManager(
 
     private fun observeUpdates() {
         scope.launch {
-            tdLibClient.isAuthenticated.collect { authenticated ->
+            gateway.isAuthenticated.collect { authenticated ->
                 if (authenticated) {
                     loadedScopeSettings.clear()
                     scopeNotificationsEnabled.clear()
@@ -113,7 +114,7 @@ class TdNotificationManager(
         }
 
         scope.launch {
-            tdLibClient.updates.collect { update ->
+            gateway.updates.collect { update ->
                 when (update) {
                     is TdApi.UpdateNewMessage -> handleNewMessage(update.message)
                     is TdApi.UpdateUser -> userCache[update.user.id] = update.user
@@ -180,7 +181,7 @@ class TdNotificationManager(
     }
 
     private fun updatePushRegistration() {
-        if (!tdLibClient.isAuthenticated.value) return
+        if (!gateway.isAuthenticated.value) return
 
         when (appPreferences.pushProvider.value) {
             PushProvider.FCM -> {
@@ -188,12 +189,18 @@ class TdNotificationManager(
                     FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                         if (task.isSuccessful) {
                             val token = task.result
-                            tdLibClient.send(
-                                TdApi.RegisterDevice(
-                                    TdApi.DeviceTokenFirebaseCloudMessaging(token, true),
-                                    longArrayOf()
-                                )
-                            )
+                            scope.launch {
+                                try {
+                                    gateway.execute(
+                                        TdApi.RegisterDevice(
+                                            TdApi.DeviceTokenFirebaseCloudMessaging(token, true),
+                                            longArrayOf()
+                                        )
+                                    )
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "FCM token registration failed", e)
+                                }
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -202,18 +209,24 @@ class TdNotificationManager(
             }
 
             PushProvider.GMS_LESS -> {
-                tdLibClient.send(
-                    TdApi.RegisterDevice(
-                        TdApi.DeviceTokenFirebaseCloudMessaging("", false),
-                        longArrayOf()
-                    )
-                )
+                scope.launch {
+                    try {
+                        gateway.execute(
+                            TdApi.RegisterDevice(
+                                TdApi.DeviceTokenFirebaseCloudMessaging("", false),
+                                longArrayOf()
+                            )
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "GMS-less token registration failed", e)
+                    }
+                }
             }
         }
     }
 
     private fun fetchInitialExceptions() {
-        if (!tdLibClient.isAuthenticated.value) return
+        if (!gateway.isAuthenticated.value) return
 
         val scopes = listOf(
             TdApi.NotificationSettingsScopePrivateChats(),
@@ -222,20 +235,25 @@ class TdNotificationManager(
         )
 
         scopes.forEach { scope ->
-            tdLibClient.send(TdApi.GetChatNotificationSettingsExceptions(scope, true)) { result ->
-                if (result is TdApi.Chats) {
-                    result.chatIds.forEach { chatId ->
-                        getChat(chatId) { chat ->
-                            updateChatNotificationSettings(chat.id, chat.notificationSettings)
+            this.scope.launch {
+                try {
+                    val result = gateway.execute(TdApi.GetChatNotificationSettingsExceptions(scope, true))
+                    if (result is TdApi.Chats) {
+                        result.chatIds.forEach { chatId ->
+                            getChat(chatId) { chat ->
+                                updateChatNotificationSettings(chat.id, chat.notificationSettings)
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to fetch notification exceptions", e)
                 }
             }
         }
     }
 
     private suspend fun fetchScopeNotificationSettings() {
-        if (!tdLibClient.isAuthenticated.value) return
+        if (!gateway.isAuthenticated.value) return
 
         val scopes = listOf(
             NotificationScopeKey.PRIVATE to TdNotificationScope.PRIVATE_CHATS,
@@ -382,10 +400,15 @@ class TdNotificationManager(
                     callback(true)
                     return
                 }
-                tdLibClient.send(TdApi.GetBasicGroup(type.basicGroupId)) { result ->
-                    if (result is TdApi.BasicGroup) {
-                        callback(result.status is TdApi.ChatMemberStatusMember || result.status is TdApi.ChatMemberStatusCreator || result.status is TdApi.ChatMemberStatusAdministrator)
-                    } else {
+                scope.launch {
+                    try {
+                        val result = gateway.execute(TdApi.GetBasicGroup(type.basicGroupId))
+                        callback(
+                            result.status is TdApi.ChatMemberStatusMember ||
+                                    result.status is TdApi.ChatMemberStatusCreator ||
+                                    result.status is TdApi.ChatMemberStatusAdministrator
+                        )
+                    } catch (e: Exception) {
                         callback(true)
                     }
                 }
@@ -395,10 +418,15 @@ class TdNotificationManager(
                     callback(true)
                     return
                 }
-                tdLibClient.send(TdApi.GetSupergroup(type.supergroupId)) { result ->
-                    if (result is TdApi.Supergroup) {
-                        callback(result.status is TdApi.ChatMemberStatusMember || result.status is TdApi.ChatMemberStatusCreator || result.status is TdApi.ChatMemberStatusAdministrator)
-                    } else {
+                scope.launch {
+                    try {
+                        val result = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
+                        callback(
+                            result.status is TdApi.ChatMemberStatusMember ||
+                                    result.status is TdApi.ChatMemberStatusCreator ||
+                                    result.status is TdApi.ChatMemberStatusAdministrator
+                        )
+                    } catch (e: Exception) {
                         callback(true)
                     }
                 }
@@ -759,10 +787,12 @@ class TdNotificationManager(
             callback(it)
             return
         }
-        tdLibClient.send(TdApi.GetChat(chatId)) { result ->
-            if (result is TdApi.Chat) {
+        scope.launch {
+            try {
+                val result = gateway.execute(TdApi.GetChat(chatId))
                 chatCache[chatId] = result
                 callback(result)
+            } catch (_: Exception) {
             }
         }
     }
@@ -773,10 +803,12 @@ class TdNotificationManager(
             callback(it)
             return
         }
-        tdLibClient.send(TdApi.GetUser(userId)) { result ->
-            if (result is TdApi.User) {
+        scope.launch {
+            try {
+                val result = gateway.execute(TdApi.GetUser(userId))
                 userCache[result.id] = result
                 callback(result)
+            } catch (_: Exception) {
             }
         }
     }

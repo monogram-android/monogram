@@ -1,24 +1,20 @@
 package org.monogram.data.di
 
-import android.content.Context
 import android.util.Log
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.*
 import org.drinkless.tdlib.Client
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.gateway.TdLibException
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
-class TdLibException(val error: TdApi.Error) : Exception(error.message)
-
-class TdLibClient(private val context: Context) {
+internal class TdLibClient {
     private val TAG = "TdLibClient"
     private val globalRetryAfterUntilMs = AtomicLong(0L)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val updateChannel = Channel<TdApi.Update>(Channel.UNLIMITED)
 
     private val _isAuthenticated = MutableStateFlow(false)
     val isAuthenticated = _isAuthenticated.asStateFlow()
@@ -32,12 +28,9 @@ class TdLibClient(private val context: Context) {
         }
     }
 
-    private val _updates = MutableSharedFlow<TdApi.Update>(
-        replay = 10,
-        extraBufferCapacity = 1000,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
-    val updates = _updates
+    val updates = updateChannel
+        .receiveAsFlow()
+        .shareIn(scope, SharingStarted.Eagerly, replay = 10)
 
     private val client = Client.create(
         { result ->
@@ -45,7 +38,7 @@ class TdLibClient(private val context: Context) {
                 if (result is TdApi.UpdateAuthorizationState) {
                     _isAuthenticated.value = result.authorizationState is TdApi.AuthorizationStateReady
                 }
-                _updates.tryEmit(result)
+                updateChannel.trySend(result)
             }
         },
         { error ->
@@ -134,6 +127,4 @@ class TdLibClient(private val context: Context) {
             ?: 1L
         return (seconds * 1000L).coerceAtMost(60_000L)
     }
-
-    fun getContext() = context
 }

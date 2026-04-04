@@ -18,6 +18,7 @@ import org.monogram.data.datasource.remote.MessageRemoteDataSource
 import org.monogram.data.db.dao.TextCompositionStyleDao
 import org.monogram.data.db.model.TextCompositionStyleEntity
 import org.monogram.data.gateway.TelegramGateway
+import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.FileUpdateHandler
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.map
@@ -33,6 +34,7 @@ import java.io.File
 class MessageRepositoryImpl(
     private val context: Context,
     private val gateway: TelegramGateway,
+    private val updates: UpdateDispatcher,
     private val messageMapper: MessageMapper,
     private val messageRemoteDataSource: MessageRemoteDataSource,
     private val cache: ChatCache,
@@ -76,7 +78,7 @@ class MessageRepositoryImpl(
 
         scope.launch {
             try {
-                gateway.updates.collect { update ->
+                updates.all.collect { update ->
                     messageRemoteDataSource.handleUpdate(update)
                     when (update) {
                         is TdApi.UpdateNewMessage -> {

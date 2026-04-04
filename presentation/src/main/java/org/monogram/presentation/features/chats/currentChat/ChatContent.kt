@@ -649,7 +649,7 @@ fun ChatContent(
                                     shapes = ExpressiveDefaults.largeButtonShapes(),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(ButtonDefaults.LargeContainerHeight)
+                                        .height(ButtonDefaults.MediumContainerHeight)
                                 ) {
                                     Text(
                                         text = stringResource(R.string.action_join),

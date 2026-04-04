@@ -97,7 +97,7 @@ fun PremiumContent(component: PremiumComponent) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp)
-                                .height(ButtonDefaults.LargeContainerHeight),
+                                .height(ButtonDefaults.MediumContainerHeight),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFAF52DE)
                             )

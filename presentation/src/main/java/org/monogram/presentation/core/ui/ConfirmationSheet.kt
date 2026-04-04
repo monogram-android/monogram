@@ -40,7 +40,7 @@ fun ConfirmationSheet(
     onDismiss: () -> Unit,
     isDestructive: Boolean = true
 ) {
-    val buttonHeight = ButtonDefaults.LargeContainerHeight
+    val buttonHeight = ButtonDefaults.MediumContainerHeight
     val buttonShapes = ExpressiveDefaults.buttonShapesFor(buttonHeight)
 
     ModalBottomSheet(

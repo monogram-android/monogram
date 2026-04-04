@@ -433,7 +433,7 @@ private fun NotificationOptionSheet(
                 shapes = ExpressiveDefaults.largeButtonShapes(),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(ButtonDefaults.LargeContainerHeight)
+                    .height(ButtonDefaults.MediumContainerHeight)
             ) {
                 Text(stringResource(R.string.cancel_button), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }

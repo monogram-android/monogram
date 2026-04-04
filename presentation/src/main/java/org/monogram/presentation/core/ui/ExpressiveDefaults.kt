@@ -12,11 +12,11 @@ import androidx.compose.ui.unit.Dp
 object ExpressiveDefaults {
     @Composable
     fun largeButtonShapes(): ButtonShapes =
-        ButtonDefaults.shapesFor(ButtonDefaults.LargeContainerHeight)
+        ButtonDefaults.shapesFor(ButtonDefaults.MediumContainerHeight)
 
     @Composable
     fun extraLargeButtonShapes(): ButtonShapes =
-        ButtonDefaults.shapesFor(ButtonDefaults.ExtraLargeContainerHeight)
+        ButtonDefaults.shapesFor(ButtonDefaults.LargeContainerHeight)
 
     @Composable
     fun buttonShapesFor(height: Dp): ButtonShapes =

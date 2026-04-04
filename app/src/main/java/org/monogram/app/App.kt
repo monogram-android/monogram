@@ -46,7 +46,7 @@ class App : Application(), SingletonImageLoader.Factory {
         initKoin()
         initTdLib()
         initMapLibre()
-        checkGmsAvailability()
+        checkPushAvailability()
     }
 
     private fun initCrashHandler() {
@@ -90,12 +90,13 @@ class App : Application(), SingletonImageLoader.Factory {
         MapLibre.getInstance(this, null, WellKnownTileServer.MapLibre)
     }
 
-    private fun checkGmsAvailability() {
+    private fun checkPushAvailability() {
         val distrManager = get<DistrManager>()
         val isGmsAvailable = distrManager.isGmsAvailable()
+        val isFcmAvailable = distrManager.isFcmAvailable()
 
         val prefs = get<AppPreferencesProvider>()
-        if (!isGmsAvailable && prefs.pushProvider.value == PushProvider.FCM) {
+        if (!(isGmsAvailable && isFcmAvailable) && prefs.pushProvider.value == PushProvider.FCM) {
             prefs.setPushProvider(PushProvider.GMS_LESS)
         }
     }

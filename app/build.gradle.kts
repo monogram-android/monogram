@@ -1,6 +1,7 @@
 import com.android.build.VariantOutput
 import com.android.build.gradle.internal.api.ApkVariantOutputImpl
 import com.google.android.gms.oss.licenses.plugin.DependencyTask
+import com.google.gms.googleservices.GoogleServicesPlugin
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -124,4 +125,8 @@ tasks.withType(DependencyTask::class.java).configureEach {
             }
         }
     }
+}
+
+googleServices {
+    missingGoogleServicesStrategy = GoogleServicesPlugin.MissingGoogleServicesStrategy.WARN
 }

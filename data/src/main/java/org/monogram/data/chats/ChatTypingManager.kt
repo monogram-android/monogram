@@ -13,7 +13,7 @@ class ChatTypingManager(
     private val usersCache: Map<Long, TdApi.User>,
     private val allChats: Map<Long, TdApi.Chat>,
     private val stringProvider: StringProvider,
-    private val onUpdate: () -> Unit,
+    private val onUpdate: (Long) -> Unit,
     private val onUserNeeded: (Long) -> Unit
 ) {
     private val typingStates = ConcurrentHashMap<Long, ConcurrentHashMap<Long, String>>()
@@ -28,7 +28,7 @@ class ChatTypingManager(
 
         if (action is TdApi.ChatActionCancel) {
             removeTypingUser(chatId, userId)
-            onUpdate()
+            onUpdate(chatId)
             return
         }
 
@@ -57,9 +57,9 @@ class ChatTypingManager(
         chatJobs[userId] = scope.launch {
             delay(6000)
             removeTypingUser(chatId, userId)
-            onUpdate()
+            onUpdate(chatId)
         }
-        onUpdate()
+        onUpdate(chatId)
     }
 
     fun removeTypingUser(chatId: Long, userId: Long) {

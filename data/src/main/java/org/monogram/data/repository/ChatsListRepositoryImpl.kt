@@ -62,6 +62,7 @@ class ChatsListRepositoryImpl(
 ) : ChatsListRepository {
 
     private val TAG = "ChatsListRepo"
+    private val diagTag = "ChatListDiag"
     private val scope = scopeProvider.appScope
 
     private val fileManager = ChatFileManager(
@@ -76,7 +77,7 @@ class ChatsListRepositoryImpl(
         usersCache = cache.usersCache,
         allChats = cache.allChats,
         stringProvider = stringProvider,
-        onUpdate = { triggerUpdate() },
+        onUpdate = { chatId -> triggerUpdate(chatId) },
         onUserNeeded = { userId -> fetchUser(userId) }
     )
     private val listManager = ChatListManager(cache) { chatId ->
@@ -225,6 +226,7 @@ class ChatsListRepositoryImpl(
             activeRequestId
             val folderIdAtStart = activeFolderId
             val limitAtStart = currentLimit.coerceAtMost(maxChatListLimit)
+            val previousList = lastList
 
             val newList = listManager.rebuildChatList(limitAtStart, emptyList()) { chat, order, isPinned ->
                 val cached = modelCache[chat.id]
@@ -242,6 +244,10 @@ class ChatsListRepositoryImpl(
             }
 
             if (folderIdAtStart != activeFolderId) {
+                Log.d(
+                    diagTag,
+                    "rebuild skipped folder switched from=$folderIdAtStart to=$activeFolderId limit=$limitAtStart"
+                )
                 return@coRunCatching
             }
 
@@ -255,12 +261,25 @@ class ChatsListRepositoryImpl(
                 val pinnedInList = newList.asSequence().filter { it.isPinned }.map { it.id }.toSet()
                 if (pinnedInPositions.size != pinnedInList.size) {
                     Log.w(
-                        "PinnedDiag",
+                        diagTag,
                         "emit mismatch folder=$folderIdAtStart pinnedPositions=${pinnedInPositions.size} pinnedList=${pinnedInList.size} missingInList=${
                             (pinnedInPositions - pinnedInList).take(
                                 10
                             )
                         }"
+                    )
+                }
+                val prevSize = previousList?.size ?: 0
+                val newSize = newList.size
+                val positionsSize = cache.activeListPositions.size
+                val invalidatedSize = invalidatedModels.size
+                if (previousList != null && newSize < prevSize) {
+                    val previousIds = previousList.asSequence().map { it.id }.toHashSet()
+                    val newIds = newList.asSequence().map { it.id }.toHashSet()
+                    val lostIds = (previousIds - newIds).take(20)
+                    Log.w(
+                        diagTag,
+                        "emit shrunk folder=$folderIdAtStart prev=$prevSize new=$newSize positions=$positionsSize limit=$limitAtStart invalidated=$invalidatedSize lost=$lostIds"
                     )
                 }
                 _chatListFlow.value = newList
@@ -404,45 +423,56 @@ class ChatsListRepositoryImpl(
             }
             is TdApi.UpdateUserStatus -> {
                 cache.updateUser(update.userId) { it.status = update.status }
-                triggerUpdate()
+                cache.userIdToChatId[update.userId]?.let { chatId ->
+                    triggerUpdate(chatId)
+                }
             }
             is TdApi.UpdateUser -> {
                 cache.putUser(update.user)
                 if (update.user.id == myUserId) myUserId = update.user.id
-                triggerUpdate()
+                val privateChatId = cache.userIdToChatId[update.user.id]
+                if (privateChatId != null) {
+                    triggerUpdate(privateChatId)
+                }
                 refreshActiveForumTopics()
             }
             is TdApi.UpdateSupergroup -> {
                 cache.putSupergroup(update.supergroup)
                 saveChatsBySupergroupId(update.supergroup.id)
-                triggerUpdate()
+                cache.supergroupIdToChatId[update.supergroup.id]?.let { chatId ->
+                    triggerUpdate(chatId)
+                }
             }
             is TdApi.UpdateBasicGroup -> {
                 cache.putBasicGroup(update.basicGroup)
                 saveChatsByBasicGroupId(update.basicGroup.id)
-                triggerUpdate()
+                cache.basicGroupIdToChatId[update.basicGroup.id]?.let { chatId ->
+                    triggerUpdate(chatId)
+                }
             }
             is TdApi.UpdateSupergroupFullInfo -> {
                 cache.putSupergroupFullInfo(update.supergroupId, update.supergroupFullInfo)
+                val chatId = cache.supergroupIdToChatId[update.supergroupId]
                 scope.launch(dispatchers.io) {
-                    val chatId =
-                        cache.allChats.values.find { (it.type as? TdApi.ChatTypeSupergroup)?.supergroupId == update.supergroupId }?.id
                     if (chatId != null) {
                         chatLocalDataSource.insertChatFullInfo(update.supergroupFullInfo.toEntity(chatId))
                     }
                 }
-                triggerUpdate()
+                if (chatId != null) {
+                    triggerUpdate(chatId)
+                }
             }
             is TdApi.UpdateBasicGroupFullInfo -> {
                 cache.putBasicGroupFullInfo(update.basicGroupId, update.basicGroupFullInfo)
+                val chatId = cache.basicGroupIdToChatId[update.basicGroupId]
                 scope.launch(dispatchers.io) {
-                    val chatId =
-                        cache.allChats.values.find { (it.type as? TdApi.ChatTypeBasicGroup)?.basicGroupId == update.basicGroupId }?.id
                     if (chatId != null) {
                         chatLocalDataSource.insertChatFullInfo(update.basicGroupFullInfo.toEntity(chatId))
                     }
                 }
-                triggerUpdate()
+                if (chatId != null) {
+                    triggerUpdate(chatId)
+                }
             }
             is TdApi.UpdateSecretChat -> {
                 cache.putSecretChat(update.secretChat); triggerUpdate()
@@ -689,6 +719,15 @@ class ChatsListRepositoryImpl(
     }
 
     private fun updateActiveListPositionsFromCache() {
+        val before = cache.activeListPositions.size
+        val savedAuthoritative = HashMap<Long, TdApi.ChatPosition>()
+        cache.authoritativeActiveListChatIds.forEach { chatId ->
+            val currentPos = cache.activeListPositions[chatId] ?: return@forEach
+            if (currentPos.order != 0L && listManager.isSameChatList(currentPos.list, activeChatList)) {
+                savedAuthoritative[chatId] = currentPos
+            }
+        }
+
         cache.activeListPositions.clear()
         cache.authoritativeActiveListChatIds.clear()
         cache.protectedPinnedChatIds.clear()
@@ -701,6 +740,32 @@ class ChatsListRepositoryImpl(
                     }
                 }
             }
+        }
+
+        var restoredAuthoritative = 0
+        savedAuthoritative.forEach { (chatId, position) ->
+            if (cache.activeListPositions.putIfAbsent(chatId, position) == null) {
+                restoredAuthoritative += 1
+            }
+            cache.authoritativeActiveListChatIds.add(chatId)
+            if (position.isPinned) {
+                cache.protectedPinnedChatIds.add(chatId)
+            }
+        }
+
+        val after = cache.activeListPositions.size
+        if (restoredAuthoritative > 0) {
+            Log.w(
+                diagTag,
+                "positions rebuild restored authoritative folder=$activeFolderId restored=$restoredAuthoritative"
+            )
+        }
+        if (after != before) {
+            val level = if (after < before) "shrunk" else "expanded"
+            Log.w(
+                diagTag,
+                "positions rebuild $level folder=$activeFolderId before=$before after=$after chats=${cache.allChats.size}"
+            )
         }
     }
 
@@ -995,7 +1060,10 @@ class ChatsListRepositoryImpl(
                 coRunCatching {
                     val user = gateway.execute(TdApi.GetUser(userId))
                     cache.putUser(user)
-                    triggerUpdate()
+                    val privateChatId = cache.userIdToChatId[user.id]
+                    if (privateChatId != null) {
+                        triggerUpdate(privateChatId)
+                    }
                 }
                 cache.pendingUsers.remove(userId)
             }

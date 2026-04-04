@@ -161,7 +161,6 @@ fun ChatContent(
                 )
             }
         } else {
-            component.onClearMessages()
             component.onPinnedMessageClick(msg)
         }
     })

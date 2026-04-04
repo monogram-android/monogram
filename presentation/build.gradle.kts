@@ -78,6 +78,9 @@ dependencies {
     implementation(libs.play.services.oss.licenses)
     implementation(libs.play.services.location)
 
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+
     implementation(libs.libphonenumber)
 
     testImplementation(libs.junit)

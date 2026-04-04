@@ -61,6 +61,7 @@ fun MessageReactionsView(
             }
         }
     }
+    val seenReactionKeys = remember { mutableStateMapOf<Any, Boolean>() }
 
     AnimatedVisibility(
         visible = reactions.isNotEmpty(),
@@ -74,12 +75,16 @@ fun MessageReactionsView(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             reactions.forEachIndexed { index, reaction ->
-                key(reaction.emoji ?: reaction.customEmojiId) {
-                    var isVisible by remember { mutableStateOf(false) }
+                val reactionKey = reaction.emoji ?: reaction.customEmojiId ?: "unknown_$index"
+                key(reactionKey) {
+                    var isVisible by remember { mutableStateOf(seenReactionKeys[reactionKey] == true) }
 
                     LaunchedEffect(Unit) {
-                        delay(index * 35L)
-                        isVisible = true
+                        if (!isVisible) {
+                            delay(index * 35L)
+                            isVisible = true
+                        }
+                        seenReactionKeys[reactionKey] = true
                     }
 
                     AnimatedVisibility(

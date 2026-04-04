@@ -72,7 +72,7 @@ Follow these steps to set up the project locally.
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/monogram-android/monogram.git
+git clone --recurse-submodules https://github.com/monogram-android/monogram.git
 cd monogram
 ```
 
@@ -105,7 +105,15 @@ API_HASH=your_api_hash_here
 10. Click **Update** next to the FCM credentials section.
 11. Upload the service account JSON on the page that opens.
 
-### 4. Build and Run
+### 4. First Time Setup: Building libvpx
+
+The animations require libvpx to be compiled. This has to be done before starting a Gradle build or it will cause build failures.
+
+1. Change your working directory to `presentation/src/main/cpp`
+2. In `build.sh`, add your `ANDROID_NDK_HOME`
+3. Run `build.sh` and wait for it to finish
+
+### 5. Build and Run
 
 1. Open the project in **Android Studio**.
 2. Increase the IDE indexing limits so `TdApi.java` (the TDLib wrapper) is indexed correctly. In **Android Studio** or **IntelliJ IDEA**, open **Help → Edit Custom Properties...**, paste the lines below, and restart the IDE if prompted:

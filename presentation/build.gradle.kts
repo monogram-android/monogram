@@ -1,8 +1,3 @@
-import com.android.build.gradle.internal.tasks.factory.dependsOn
-import org.jetbrains.kotlin.gradle.internal.ensureParentDirsCreated
-import java.net.URI
-import java.net.URL
-
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)

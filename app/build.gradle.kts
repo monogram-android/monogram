@@ -88,7 +88,10 @@ androidComponents {
                     val buildType = variant.buildType
 
                     val originalApk = File(artifact.outputFile)
-                    val targetFile = File(targetDir, "monogram-$abi-${versionName}(${versionCode})-${buildType}.apk")
+                    val targetFile = File(
+                        targetDir,
+                        "monogram-$abi-${versionName}(${versionCode})-${buildType}.apk"
+                    )
 
                     originalApk.toPath().moveTo(targetFile.toPath(), overwrite = true)
                 }
@@ -128,7 +131,7 @@ dependencies {
 }
 
 tasks.withType(DependencyTask::class.java).configureEach {
-    if(name == "debugOssDependencyTask") {
+    if (name == "debugOssDependencyTask") {
         val releaseTaskProvider = project.tasks.named<DependencyTask>("releaseOssDependencyTask")
 
         dependsOn(releaseTaskProvider)
@@ -136,7 +139,7 @@ tasks.withType(DependencyTask::class.java).configureEach {
         doLast {
             val releaseJson = releaseTaskProvider.get().dependenciesJson.get().asFile
             val debugJson = dependenciesJson.get().asFile
-            if(releaseJson.exists()) releaseJson.copyTo(debugJson, overwrite = true)
+            if (releaseJson.exists()) releaseJson.copyTo(debugJson, overwrite = true)
         }
     }
 }

@@ -15,7 +15,7 @@ plugins {
 val localProperties by lazy {
     Properties().apply {
         val file = rootProject.file("local.properties")
-        if(file.exists()) file.inputStream().buffered().use(::load)
+        if (file.exists()) file.inputStream().buffered().use(::load)
     }
 }
 extra.set("localProperties", localProperties)

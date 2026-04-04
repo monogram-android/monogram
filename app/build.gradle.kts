@@ -128,17 +128,15 @@ dependencies {
 }
 
 tasks.withType(DependencyTask::class.java).configureEach {
-    if (name == "debugOssDependencyTask") {
-        dependsOn("releaseOssDependencyTask")
+    if(name == "debugOssDependencyTask") {
+        val releaseTaskProvider = project.tasks.named<DependencyTask>("releaseOssDependencyTask")
+
+        dependsOn(releaseTaskProvider)
+
         doLast {
-            val releaseJson = layout.buildDirectory
-                .file("generated/third_party_licenses/release/dependencies.json")
-                .get()
-                .asFile
+            val releaseJson = releaseTaskProvider.get().dependenciesJson.get().asFile
             val debugJson = dependenciesJson.get().asFile
-            if (releaseJson.exists()) {
-                releaseJson.copyTo(debugJson, overwrite = true)
-            }
+            if(releaseJson.exists()) releaseJson.copyTo(debugJson, overwrite = true)
         }
     }
 }

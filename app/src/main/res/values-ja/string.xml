@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lock Screen -->
+    <string name="lock_unlock_title">MonoGram のロックを解除</string>
+    <string name="lock_unlock_subtitle">生体認証情報を使用してログインします</string>
+    <string name="lock_use_passcode">パスコードを使用する</string>
+    <string name="lock_enter_passcode">パスコードを入力</string>
+    <string name="lock_messages_protected">あなたのメッセージは保護されています</string>
+    <string name="lock_invalid_passcode">無効なパスコード</string>
+    <string name="lock_biometric_unlock">生体認証でロックを解除</string>
+    <!-- Main Content / Proxy Confirm -->
+    <string name="proxy_details">プロキシの詳細</string>
+    <string name="proxy_add_connect">このプロキシサーバーを追加して接続します</string>
+    <string name="proxy_server">サーバー</string>
+    <string name="proxy_port">ポート</string>
+    <string name="proxy_type">タイプ</string>
+    <string name="proxy_unknown">不明</string>
+    <string name="cancel">キャンセル</string>
+    <string name="connect">接続</string>
+    <!-- Main Content / Chat Confirm -->
+    <string name="chat_join">参加</string>
+    <string name="chat_channel">チャンネル</string>
+    <string name="chat_group">グループ</string>
+    <plurals name="members_count">
+        <item quantity="other">%d 名のメンバー</item>
+    </plurals>
+    <!-- Tablet Layout -->
+    <string name="tablet_select_setting">設定を選択</string>
+    <string name="tablet_select_chat">メッセージを開始するにはチャットを開いてください</string>
+    <!-- Crash Activity -->
+    <string name="crash_log_label">クラッシュログ</string>
+    <string name="crash_copied_to_clipboard">クリップボードにコピーしました</string>
+    <string name="crash_share_title">クラッシュログを共有</string>
+    <string name="crash_share">共有</string>
+    <string name="crash_copy">コピー</string>
+    <string name="crash_restart">アプリを再起動</string>
+    <string name="crash_error_details">エラーの詳細</string>
+    <string name="crash_description">何らかの問題が発生しました。この問題を開発者に報告するには、以下のログを共有するかコピーしてください。</string>
+</resources>

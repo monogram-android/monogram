@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.RemoteInput
+import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -31,7 +32,9 @@ class NotificationReplyReceiver : BroadcastReceiver(), KoinComponent {
                     this.action = TdApi.ChatActionTyping()
                 }
 
-                gateway.execute(actionTyping)
+                launch {
+                    runCatching { gateway.execute(actionTyping) }
+                }
 
                 val chat = gateway.execute(TdApi.GetChat(chatId))
 

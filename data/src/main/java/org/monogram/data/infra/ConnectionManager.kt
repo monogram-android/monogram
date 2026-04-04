@@ -119,7 +119,8 @@ class ConnectionManager(
                                     appPreferences.setEnabledProxyId(savedProxyId)
                                     appPreferences.setSavedProxyBeforeVpn(null)
                                 } else {
-                                    Log.w(TAG, "enableProxy returned false for saved proxy $savedProxyId, auto-best/telega loop will select proxy")
+                                    Log.w(TAG, "enableProxy returned false for saved proxy $savedProxyId, clearing and letting auto-best handle it")
+                                    appPreferences.setSavedProxyBeforeVpn(null)
                                 }
                             }.onFailure { Log.e(TAG, "Failed to restore proxy after VPN", it) }
                         }

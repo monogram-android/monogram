@@ -89,6 +89,7 @@ class ExternalProxyRepositoryImpl(
     override suspend fun removeProxy(proxyId: Int): Boolean = coRunCatching {
         remote.removeProxy(proxyId)
         if (appPreferences.enabledProxyId.value == proxyId) appPreferences.setEnabledProxyId(null)
+        if (appPreferences.savedProxyBeforeVpn.value == proxyId) appPreferences.setSavedProxyBeforeVpn(null)
         true
     }.getOrDefault(false)
 

@@ -19,14 +19,10 @@ android {
             abiFilters += listOf("arm64-v8a")
         }
 
-        val properties = Properties()
-        val localPropertiesFile = project.rootProject.file("local.properties")
-        if (localPropertiesFile.exists()) {
-            localPropertiesFile.inputStream().use { properties.load(it) }
-        }
+        val localProperties: Properties by rootProject.extra
 
-        val apiId = properties.getProperty("API_ID") ?: "0"
-        val apiHash = properties.getProperty("API_HASH") ?: ""
+        val apiId = localProperties.getProperty("API_ID", "0")
+        val apiHash = localProperties.getProperty("API_HASH", "")
 
         buildConfigField("int", "API_ID", apiId)
         buildConfigField("String", "API_HASH", "\"$apiHash\"")

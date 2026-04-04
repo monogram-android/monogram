@@ -6,6 +6,7 @@ import org.monogram.core.DispatcherProvider
 import org.monogram.core.Logger
 import org.monogram.domain.managers.*
 import org.monogram.domain.repository.*
+import org.monogram.domain.infra.VpnDetector
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.components.ExoPlayerCache
@@ -49,6 +50,7 @@ interface UtilsContainer {
     val clipManager: ClipManager
     val dispatcherProvider: DispatcherProvider
     val logger: Logger
+    val vpnDetector: VpnDetector
     fun messageDisplayer(): MessageDisplayer
     fun externalNavigator(): ExternalNavigator
     fun phoneManager(): PhoneManager

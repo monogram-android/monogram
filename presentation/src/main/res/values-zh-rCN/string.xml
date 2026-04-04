@@ -468,6 +468,8 @@
     <string name="smart_switching_subtitle">自动使用速度最快的代理</string>
     <string name="prefer_ipv6_title">IPv6 优先</string>
     <string name="prefer_ipv6_subtitle">如果可用，优先使用 IPv6</string>
+    <string name="disable_proxy_on_vpn_title">VPN 连接时禁用代理</string>
+    <string name="disable_proxy_on_vpn_subtitle">系统 VPN 处于活动状态时，暂时禁用应用内代理</string>
     <string name="disable_proxy_title">禁用代理</string>
     <string name="connected_directly_subtitle">直接连接</string>
     <string name="switch_to_direct_subtitle">切换到直接连接</string>

@@ -493,6 +493,8 @@
     <string name="smart_switching_subtitle">Automaticky použiť najrýchlejšie proxy</string>
     <string name="prefer_ipv6_title">Uprednostniť IPv6</string>
     <string name="prefer_ipv6_subtitle">Použiť IPv6, keď je dostupné</string>
+    <string name="disable_proxy_on_vpn_title">Zakázať proxy pri VPN</string>
+    <string name="disable_proxy_on_vpn_subtitle">Dočasne zakázať proxy v aplikácii pri aktívnej systémovej VPN</string>
     <string name="disable_proxy_title">Vypnúť proxy</string>
     <string name="connected_directly_subtitle">Pripojené priamo</string>
     <string name="switch_to_direct_subtitle">Prepnúť na priame pripojenie</string>

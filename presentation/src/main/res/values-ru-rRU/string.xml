@@ -468,6 +468,8 @@
     <string name="smart_switching_subtitle">Автоматически выбирать самый быстрый прокси</string>
     <string name="prefer_ipv6_title">Предпочитать IPv6</string>
     <string name="prefer_ipv6_subtitle">Использовать IPv6 при наличии</string>
+    <string name="disable_proxy_on_vpn_title">Отключать прокси при VPN</string>
+    <string name="disable_proxy_on_vpn_subtitle">Временно отключать прокси приложения при активной системной VPN</string>
     <string name="disable_proxy_title">Отключить прокси</string>
     <string name="connected_directly_subtitle">Прямое подключение</string>
     <string name="switch_to_direct_subtitle">Переключиться на прямое соединение</string>

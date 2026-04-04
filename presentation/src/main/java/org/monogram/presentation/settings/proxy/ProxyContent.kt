@@ -137,6 +137,16 @@ fun ProxyContent(component: ProxyComponent) {
                         onCheckedChange = component::onPreferIpv6Toggled
                     )
 
+                    SettingsSwitchTile(
+                        icon = Icons.Rounded.Shield,
+                        title = stringResource(R.string.disable_proxy_on_vpn_title),
+                        subtitle = stringResource(R.string.disable_proxy_on_vpn_subtitle),
+                        checked = state.isVpnAutoDisableEnabled,
+                        iconColor = MaterialTheme.colorScheme.primary,
+                        position = ItemPosition.BOTTOM,
+                        onCheckedChange = component::onVpnAutoDisableToggled
+                    )
+
                     val isDirect = state.proxies.none { it.isEnabled } && state.telegaProxies.none { it.isEnabled }
                     SettingsTile(
                         icon = Icons.Rounded.LinkOff,

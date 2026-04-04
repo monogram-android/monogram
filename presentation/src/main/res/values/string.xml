@@ -482,6 +482,8 @@
     <string name="smart_switching_subtitle">Automatically use the fastest proxy</string>
     <string name="prefer_ipv6_title">Prefer IPv6</string>
     <string name="prefer_ipv6_subtitle">Use IPv6 when available</string>
+    <string name="disable_proxy_on_vpn_title">Disable Proxy on VPN</string>
+    <string name="disable_proxy_on_vpn_subtitle">Temporarily disable in-app proxy when system VPN is active</string>
     <string name="disable_proxy_title">Disable Proxy</string>
     <string name="connected_directly_subtitle">Connected directly</string>
     <string name="switch_to_direct_subtitle">Switch to direct connection</string>

@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
+import org.monogram.domain.infra.VpnDetector
 import org.monogram.domain.managers.PhoneManager
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.ProxyTypeModel
@@ -69,9 +70,9 @@ class DefaultRootComponent(
     private val updateRepository: UpdateRepository = container.repositories.updateRepository
     private val userRepository: UserRepository = container.repositories.userRepository
     private val cacheProvider: CacheProvider = container.cacheProvider
-
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
+    override val vpnDetector: VpnDetector = container.utils.vpnDetector
 
     private val navigation = StackNavigation<Config>()
     private val scope = componentScope
@@ -324,9 +325,14 @@ class DefaultRootComponent(
 
     override fun confirmProxy(server: String, port: Int, type: ProxyTypeModel) {
         scope.launch {
-            externalProxyRepository.addProxy(server, port, true, type)
+            val isVpnActive = vpnDetector.isVpnActive.value
+            externalProxyRepository.addProxy(server, port, !isVpnActive, type)
             dismissProxyConfirm()
-            messageDisplayer.show("Proxy added and enabled")
+            if (isVpnActive) {
+                messageDisplayer.show(container.utils.stringProvider().getString("proxy_saved_vpn_not_enabled"))
+            } else {
+                messageDisplayer.show(container.utils.stringProvider().getString("proxy_added_and_enabled"))
+            }
         }
     }
 

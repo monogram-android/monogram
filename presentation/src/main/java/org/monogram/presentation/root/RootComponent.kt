@@ -40,6 +40,7 @@ import org.monogram.presentation.settings.sessions.SessionsComponent
 import org.monogram.presentation.settings.settings.SettingsComponent
 import org.monogram.presentation.settings.stickers.StickersComponent
 import org.monogram.presentation.settings.storage.StorageUsageComponent
+import org.monogram.domain.infra.VpnDetector
 
 interface RootComponent {
     val backHandler: BackHandler
@@ -51,6 +52,7 @@ interface RootComponent {
     val isBiometricEnabled: StateFlow<Boolean>
     val videoPlayerPool: VideoPlayerPool
     val appPreferences: AppPreferences
+    val vpnDetector: VpnDetector
 
     fun onBack()
     fun handleLink(link: String)

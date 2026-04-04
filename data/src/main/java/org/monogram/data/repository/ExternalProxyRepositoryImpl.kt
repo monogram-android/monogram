@@ -4,6 +4,7 @@ import org.monogram.data.core.coRunCatching
 import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.repository.AppPreferencesProvider
+import org.monogram.domain.repository.EnableProxyResult
 import org.monogram.domain.repository.ExternalProxyRepository
 import kotlinx.coroutines.*
 import androidx.core.net.toUri
@@ -69,11 +70,15 @@ class ExternalProxyRepositoryImpl(
         proxy
     }.getOrNull()
 
-    override suspend fun enableProxy(proxyId: Int): Boolean = coRunCatching {
-        remote.enableProxy(proxyId)
-        appPreferences.setEnabledProxyId(proxyId)
-        true
-    }.getOrDefault(false)
+    override suspend fun enableProxy(proxyId: Int, enable: Boolean): EnableProxyResult = coRunCatching {
+        if (enable) {
+            remote.enableProxy(proxyId)
+            appPreferences.setEnabledProxyId(proxyId)
+            EnableProxyResult.Enabled
+        } else {
+            EnableProxyResult.Skipped
+        }
+    }.getOrDefault(EnableProxyResult.Error)
 
     override suspend fun disableProxy(): Boolean = coRunCatching {
         remote.disableProxy()

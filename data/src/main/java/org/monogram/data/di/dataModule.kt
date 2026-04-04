@@ -23,6 +23,7 @@ import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.TelegramGatewayImpl
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.gateway.UpdateDispatcherImpl
+import org.monogram.domain.infra.VpnDetector as VpnDetectorInterface
 import org.monogram.data.infra.*
 import org.monogram.data.mapper.ChatMapper
 import org.monogram.data.mapper.MessageMapper
@@ -181,7 +182,7 @@ val dataModule = module {
     single<ChatRemoteSource> {
         TdChatRemoteSource(
             gateway = get(),
-            connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
+            connectivityManager = androidContext().getSystemService(ConnectivityManager::class.java),
         )
     }
 
@@ -215,7 +216,7 @@ val dataModule = module {
 
     single {
         MessageMapper(
-            connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
+            connectivityManager = androidContext().getSystemService(ConnectivityManager::class.java),
             gateway = get(),
             userRepository = get(),
             customEmojiPaths = get<FileUpdateHandler>().customEmojiPaths,
@@ -227,6 +228,12 @@ val dataModule = module {
         )
     }
 
+    single<VpnDetectorInterface> {
+        VpnDetector(
+            connectivityManager = androidContext().getSystemService(ConnectivityManager::class.java)
+        )
+    }
+
     single {
         ConnectionManager(
             chatRemoteSource = get(),
@@ -234,7 +241,8 @@ val dataModule = module {
             updates = get(),
             appPreferences = get(),
             dispatchers = get(),
-            connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
+            connectivityManager = androidContext().getSystemService(ConnectivityManager::class.java),
+            vpnDetector = get(),
             scopeProvider = get()
         )
     }

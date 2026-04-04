@@ -7,6 +7,7 @@ import org.monogram.core.DispatcherProvider
 import org.monogram.core.Logger
 import org.monogram.domain.managers.*
 import org.monogram.domain.repository.*
+import org.monogram.domain.infra.VpnDetector
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.components.ExoPlayerCache
@@ -50,6 +51,7 @@ class KoinUtilsContainer(private val koin: Koin) : UtilsContainer {
     override val clipManager: ClipManager by lazy { koin.get() }
     override val dispatcherProvider: DispatcherProvider by lazy { koin.get() }
     override val logger: Logger by lazy { koin.get() }
+    override val vpnDetector: VpnDetector by lazy { koin.get() }
 
     override fun messageDisplayer(): MessageDisplayer = koin.get()
     override fun externalNavigator(): ExternalNavigator = koin.get()

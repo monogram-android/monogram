@@ -11,10 +11,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import org.json.JSONObject
+import org.monogram.domain.infra.VpnDetector
 import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.CacheProvider
+import org.monogram.domain.repository.EnableProxyResult
 import org.monogram.domain.repository.ExternalProxyRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
@@ -41,6 +43,7 @@ interface ProxyComponent {
     fun onAutoBestProxyToggled(enabled: Boolean)
     fun onTelegaProxyToggled(enabled: Boolean)
     fun onPreferIpv6Toggled(enabled: Boolean)
+    fun onVpnAutoDisableToggled(enabled: Boolean)
     fun onFetchTelegaProxies()
     fun onClearUnavailableProxies()
     fun onRemoveAllProxies()
@@ -58,6 +61,7 @@ interface ProxyComponent {
         val isAddingProxy: Boolean = false,
         val isAutoBestProxyEnabled: Boolean = false,
         val preferIpv6: Boolean = false,
+        val isVpnAutoDisableEnabled: Boolean = false,
         val proxyToEdit: ProxyModel? = null,
         val proxyToDelete: ProxyModel? = null,
         val testPing: Long? = null,
@@ -75,9 +79,24 @@ class DefaultProxyComponent(
     private val onBack: () -> Unit
 ) : ProxyComponent, AppComponentContext by context {
 
+    private data class ProxyPrefs(
+        val autoBest: Boolean,
+        val telega: Boolean,
+        val ipv6: Boolean,
+        val vpnAutoDisable: Boolean
+    )
+
     private val appPreferences: AppPreferencesProvider = container.preferences.appPreferences
     private val cacheProvider: CacheProvider = container.cacheProvider
     private val externalProxyRepository: ExternalProxyRepository = container.repositories.externalProxyRepository
+    private val vpnDetector: VpnDetector = container.utils.vpnDetector
+
+    private val vpnBlockActive: Boolean
+        get() = appPreferences.isVpnAutoDisableEnabled.value && vpnDetector.isVpnActive.value
+
+    private fun showVpnBlockToast() {
+        _state.update { it.copy(toastMessage = container.utils.stringProvider().getString("proxy_saved_vpn_not_enabled")) }
+    }
 
     private val _state = MutableValue(ProxyComponent.State())
     override val state: Value<ProxyComponent.State> = _state
@@ -93,18 +112,22 @@ class DefaultProxyComponent(
         combine(
             appPreferences.isAutoBestProxyEnabled,
             appPreferences.isTelegaProxyEnabled,
-            appPreferences.preferIpv6
-        ) { autoBest, telega, ipv6 -> Triple(autoBest, telega, ipv6) }
+            appPreferences.preferIpv6,
+            appPreferences.isVpnAutoDisableEnabled
+        ) { autoBest, telega, ipv6, vpnAutoDisable ->
+            ProxyPrefs(autoBest, telega, ipv6, vpnAutoDisable)
+        }
             .distinctUntilChanged()
-            .onEach { (autoBest, telega, ipv6) ->
-                if (telega && autoBest) {
+            .onEach { prefs ->
+                if (prefs.telega && prefs.autoBest) {
                     appPreferences.setAutoBestProxyEnabled(false)
                 }
                 _state.update {
                     it.copy(
-                        isAutoBestProxyEnabled = if (telega) false else autoBest,
-                        isTelegaProxyEnabled = telega,
-                        preferIpv6 = ipv6
+                        isAutoBestProxyEnabled = if (prefs.telega) false else prefs.autoBest,
+                        isTelegaProxyEnabled = prefs.telega,
+                        preferIpv6 = prefs.ipv6,
+                        isVpnAutoDisableEnabled = prefs.vpnAutoDisable
                     )
                 }
             }.launchIn(scope)
@@ -309,9 +332,18 @@ class DefaultProxyComponent(
 
     override fun onEnableProxy(proxyId: Int) {
         scope.launch {
-            if (externalProxyRepository.enableProxy(proxyId)) {
-                refreshProxies(shouldPing = false)
-                onPingProxy(proxyId)
+            when (externalProxyRepository.enableProxy(proxyId, !vpnBlockActive)) {
+                is EnableProxyResult.Enabled -> {
+                    refreshProxies(shouldPing = false)
+                    onPingProxy(proxyId)
+                }
+                is EnableProxyResult.Skipped -> {
+                    refreshProxies(shouldPing = false)
+                    showVpnBlockToast()
+                }
+                is EnableProxyResult.Error -> {
+                    // Toast handled by caller or silent
+                }
             }
         }
     }
@@ -388,12 +420,13 @@ class DefaultProxyComponent(
 
     override fun onAddProxy(server: String, port: Int, type: ProxyTypeModel) {
         scope.launch {
-            val proxy = externalProxyRepository.addProxy(server, port, true, type)
+            val proxy = externalProxyRepository.addProxy(server, port, !vpnBlockActive, type)
             if (proxy != null) {
                 addProxyToBackup(proxy)
                 _state.update { it.copy(isAddingProxy = false) }
                 refreshProxies(shouldPing = false)
                 onPingProxy(proxy.id)
+                if (vpnBlockActive) showVpnBlockToast()
             }
         }
     }
@@ -401,12 +434,13 @@ class DefaultProxyComponent(
     override fun onEditProxy(proxyId: Int, server: String, port: Int, type: ProxyTypeModel) {
         scope.launch {
             val oldProxy = (_state.value.proxies + _state.value.telegaProxies).find { it.id == proxyId }
-            val proxy = externalProxyRepository.editProxy(proxyId, server, port, true, type)
+            val proxy = externalProxyRepository.editProxy(proxyId, server, port, !vpnBlockActive, type)
             if (proxy != null) {
                 replaceProxyInBackup(oldProxy, proxy)
                 _state.update { it.copy(proxyToEdit = null) }
                 refreshProxies(shouldPing = false)
                 onPingProxy(proxy.id)
+                if (vpnBlockActive) showVpnBlockToast()
             }
         }
     }
@@ -454,6 +488,10 @@ class DefaultProxyComponent(
 
     override fun onPreferIpv6Toggled(enabled: Boolean) {
         externalProxyRepository.setPreferIpv6(enabled)
+    }
+
+    override fun onVpnAutoDisableToggled(enabled: Boolean) {
+        appPreferences.setVpnAutoDisableEnabled(enabled)
     }
 
     override fun onFetchTelegaProxies() {

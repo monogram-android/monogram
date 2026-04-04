@@ -346,6 +346,13 @@ class AppPreferences(
     private val _userProxyBackups = MutableStateFlow(prefs.getStringSet(KEY_USER_PROXY_BACKUPS, emptySet()) ?: emptySet())
     override val userProxyBackups: StateFlow<Set<String>> = _userProxyBackups
 
+    private val _isVpnAutoDisableEnabled = MutableStateFlow(prefs.getBoolean(KEY_VPN_AUTO_DISABLE_PROXY, false))
+    override val isVpnAutoDisableEnabled: StateFlow<Boolean> = _isVpnAutoDisableEnabled
+
+    private val _savedProxyBeforeVpn =
+        MutableStateFlow(if (prefs.contains(KEY_SAVED_PROXY_BEFORE_VPN)) prefs.getInt(KEY_SAVED_PROXY_BEFORE_VPN, 0) else null)
+    override val savedProxyBeforeVpn: StateFlow<Int?> = _savedProxyBeforeVpn
+
     private val _isBiometricEnabled = MutableStateFlow(securePrefs.getBoolean(KEY_BIOMETRIC_ENABLED, false))
     override val isBiometricEnabled: StateFlow<Boolean> = _isBiometricEnabled
 
@@ -853,6 +860,20 @@ class AppPreferences(
         _userProxyBackups.value = backups
     }
 
+    override fun setVpnAutoDisableEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_VPN_AUTO_DISABLE_PROXY, enabled).apply()
+        _isVpnAutoDisableEnabled.value = enabled
+    }
+
+    override fun setSavedProxyBeforeVpn(proxyId: Int?) {
+        if (proxyId != null) {
+            prefs.edit().putInt(KEY_SAVED_PROXY_BEFORE_VPN, proxyId).apply()
+        } else {
+            prefs.edit().remove(KEY_SAVED_PROXY_BEFORE_VPN).apply()
+        }
+        _savedProxyBeforeVpn.value = proxyId
+    }
+
     override fun setBiometricEnabled(enabled: Boolean) {
         securePrefs.edit().putBoolean(KEY_BIOMETRIC_ENABLED, enabled).apply()
         _isBiometricEnabled.value = enabled
@@ -967,6 +988,8 @@ class AppPreferences(
         _telegaProxyUrls.value = emptySet()
         _preferIpv6.value = false
         _userProxyBackups.value = emptySet()
+        _isVpnAutoDisableEnabled.value = false
+        _savedProxyBeforeVpn.value = null
         _isPermissionRequested.value = false
     }
 
@@ -1082,6 +1105,8 @@ class AppPreferences(
         private const val KEY_TELEGA_PROXY_URLS = "telega_proxy_urls"
         private const val KEY_PREFER_IPV6 = "prefer_ipv6"
         private const val KEY_USER_PROXY_BACKUPS = "user_proxy_backups"
+        private const val KEY_VPN_AUTO_DISABLE_PROXY = "vpn_auto_disable_proxy"
+        private const val KEY_SAVED_PROXY_BEFORE_VPN = "saved_proxy_before_vpn"
 
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
         private const val KEY_PASSCODE = "passcode"

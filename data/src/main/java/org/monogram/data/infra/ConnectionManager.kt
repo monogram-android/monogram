@@ -18,6 +18,7 @@ import org.monogram.core.ScopeProvider
 import org.monogram.data.datasource.remote.ChatRemoteSource
 import org.monogram.data.datasource.remote.ProxyRemoteDataSource
 import org.monogram.data.gateway.UpdateDispatcher
+import org.monogram.domain.infra.VpnDetector
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.ConnectionStatus
 import kotlin.random.Random
@@ -29,16 +30,24 @@ class ConnectionManager(
     private val appPreferences: AppPreferencesProvider,
     private val dispatchers: DispatcherProvider,
     private val connectivityManager: ConnectivityManager,
+    private val vpnDetector: VpnDetector,
     scopeProvider: ScopeProvider
 ) {
     private val TAG = "ConnectionManager"
     private val scope = scopeProvider.appScope
+
+    private data class ProxyModeState(
+        val autoBest: Boolean,
+        val telega: Boolean,
+        val vpnBlocking: Boolean
+    )
 
     private val _connectionStateFlow = MutableStateFlow<ConnectionStatus>(ConnectionStatus.Connecting)
     val connectionStateFlow = _connectionStateFlow.asStateFlow()
 
     private var retryJob: Job? = null
     private var proxyModeWatcherJob: Job? = null
+    private var vpnMonitoringJob: Job? = null
     private var autoBestJob: Job? = null
     private var telegaSwitchJob: Job? = null
     private var watchdogJob: Job? = null
@@ -67,10 +76,57 @@ class ConnectionManager(
         registerNetworkCallback()
         startWatchdog()
         startProxyManagement()
+        startVpnMonitoring()
 
         scope.launch(dispatchers.default) {
             runReconnectAttempt("bootstrap", force = true)
             syncConnectionStateFromTdlib("bootstrap")
+        }
+    }
+
+    private fun startVpnMonitoring() {
+        vpnMonitoringJob?.cancel()
+        vpnDetector.stopMonitoring()
+        vpnDetector.startMonitoring()
+
+        vpnMonitoringJob = scope.launch {
+            combine(
+                appPreferences.isVpnAutoDisableEnabled,
+                vpnDetector.isVpnActive
+            ) { enabled, vpnActive -> enabled to vpnActive }
+                .distinctUntilChanged()
+                .collect { (enabled, vpnActive) ->
+                    if (!enabled) return@collect
+
+                    if (vpnActive) {
+                        val currentProxyId = appPreferences.enabledProxyId.value
+                        if (currentProxyId != null) {
+                            appPreferences.setSavedProxyBeforeVpn(currentProxyId)
+                            Log.d(TAG, "VPN detected active, disabling in-app proxy (saved proxy: $currentProxyId)")
+                            coRunCatching {
+                                proxyRemoteSource.disableProxy()
+                                appPreferences.setEnabledProxyId(null)
+                            }.onFailure { Log.e(TAG, "Failed to disable proxy for VPN", it) }
+                        }
+                        autoBestJob?.cancel()
+                        telegaSwitchJob?.cancel()
+                    } else {
+                        val savedProxyId = appPreferences.savedProxyBeforeVpn.value
+                        if (savedProxyId != null) {
+                            Log.d(TAG, "VPN disconnected, restoring proxy: $savedProxyId")
+                            coRunCatching {
+                                if (proxyRemoteSource.enableProxy(savedProxyId)) {
+                                    appPreferences.setEnabledProxyId(savedProxyId)
+                                    appPreferences.setSavedProxyBeforeVpn(null)
+                                } else {
+                                    Log.w(TAG, "enableProxy returned false for saved proxy $savedProxyId, auto-best/telega loop will select proxy")
+                                }
+                            }.onFailure { Log.e(TAG, "Failed to restore proxy after VPN", it) }
+                        }
+                        // Do NOT restart jobs here — startProxyManagement owns job lifecycle
+                        // and will restart them reactively when VPN state changes.
+                    }
+                }
         }
     }
 
@@ -215,16 +271,25 @@ class ConnectionManager(
 
             combine(
                 appPreferences.isAutoBestProxyEnabled,
-                appPreferences.isTelegaProxyEnabled
-            ) { autoBest, telega -> autoBest to telega }
+                appPreferences.isTelegaProxyEnabled,
+                appPreferences.isVpnAutoDisableEnabled,
+                vpnDetector.isVpnActive
+            ) { autoBest, telega, vpnEnabled, vpnActive ->
+                ProxyModeState(autoBest, telega, vpnEnabled && vpnActive)
+            }
                 .distinctUntilChanged()
-                .collect { (autoBest, telega) ->
+                .collect { modeState ->
                     autoBestJob?.cancel()
                     telegaSwitchJob?.cancel()
 
-                    if (telega) {
+                    if (modeState.vpnBlocking) {
+                        // VPN is active and auto-disable is enabled — do not start proxy jobs
+                        return@collect
+                    }
+
+                    if (modeState.telega) {
                         telegaSwitchJob = launchTelegaSwitchLoop()
-                    } else if (autoBest) {
+                    } else if (modeState.autoBest) {
                         autoBestJob = launchAutoBestLoop()
                     }
                 }
@@ -248,6 +313,11 @@ class ConnectionManager(
     }
 
     private suspend fun selectBestProxy(telegaOnly: Boolean = false) {
+        if (appPreferences.isVpnAutoDisableEnabled.value && vpnDetector.isVpnActive.value) {
+            Log.d(TAG, "Skipping proxy selection — VPN is active")
+            return
+        }
+
         val allProxies = proxyRemoteSource.getProxies()
         val proxies = if (telegaOnly) {
             val telegaIds = getTelegaIdentifiers()
@@ -281,6 +351,10 @@ class ConnectionManager(
         val currentEnabled = proxies.find { it.isEnabled }
         if (best.first.id != currentEnabled?.id) {
             Log.d(TAG, "Switching to better proxy: ${best.first.server}:${best.first.port} (ping: ${best.second}ms)")
+            if (appPreferences.isVpnAutoDisableEnabled.value && vpnDetector.isVpnActive.value) {
+                Log.d(TAG, "VPN became active during proxy selection, aborting")
+                return
+            }
             if (proxyRemoteSource.enableProxy(best.first.id)) {
                 appPreferences.setEnabledProxyId(best.first.id)
             }
@@ -353,6 +427,20 @@ class ConnectionManager(
         }
     }
 
+
+    fun close() {
+        vpnDetector.stopMonitoring()
+        vpnMonitoringJob?.cancel()
+        retryJob?.cancel()
+        proxyModeWatcherJob?.cancel()
+        autoBestJob?.cancel()
+        telegaSwitchJob?.cancel()
+        watchdogJob?.cancel()
+        networkCallback?.let {
+            runCatching { connectivityManager.unregisterNetworkCallback(it) }
+            networkCallback = null
+        }
+    }
     private fun onNetworkChanged(reason: String) {
         scope.launch(dispatchers.default) {
             runReconnectAttempt("network_$reason", force = true)

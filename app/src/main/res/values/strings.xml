@@ -15,8 +15,13 @@
     <string name="proxy_port">Port</string>
     <string name="proxy_type">Type</string>
     <string name="proxy_unknown">Unknown</string>
+    <string name="proxy_saved_vpn_not_enabled">Proxy saved but not enabled due to active VPN</string>
+    <string name="proxy_enable_failed_vpn_active">Cannot enable proxy: VPN is active</string>
+    <string name="proxy_added_and_enabled">Proxy added and enabled</string>
     <string name="cancel">Cancel</string>
     <string name="connect">Connect</string>
+    <string name="save">Save</string>
+    <string name="proxy_save_for_later">Save for Later</string>
 
     <!-- Main Content / Chat Confirm -->
     <string name="chat_join">Join</string>

@@ -2,11 +2,18 @@ package org.monogram.presentation.features.auth.components
 
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.EaseOutBack
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -40,7 +47,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -65,6 +71,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalConfiguration
@@ -111,6 +118,7 @@ fun CodeInputScreen(
     val nativeClipboard = localClipboard.nativeClipboard
     var isFocused by remember { mutableStateOf(false) }
     var showPasteMenu by remember { mutableStateOf(false) }
+    var isPasted by remember { mutableStateOf(false) }
 
     val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val isInputMode = isKeyboardVisible || isFocused
@@ -231,6 +239,8 @@ fun CodeInputScreen(
             BasicTextField(
                 value = code,
                 onValueChange = {
+                    isPasted = (it.length - code.length) > 1
+
                     if (it.length <= maxCodeLength && it.all { char -> char.isDigit() }) {
                         code = it
                         if (code.length == maxCodeLength) {
@@ -280,27 +290,12 @@ fun CodeInputScreen(
                     val char = code.getOrNull(index)?.toString() ?: ""
                     val isBoxFocused = code.length == index && isFocused
 
-                    Surface(
-                        modifier = Modifier.size(width = 50.dp, height = 64.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = if (isBoxFocused) MaterialTheme.colorScheme.primaryContainer.copy(
-                            alpha = 0.3f
-                        )
-                        else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        border = if (isBoxFocused) BorderStroke(
-                            2.dp,
-                            MaterialTheme.colorScheme.primary
-                        ) else null
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = char,
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
+                    AnimatedOtpBox(
+                        index = index,
+                        char = char,
+                        isBoxFocused = isBoxFocused,
+                        isPasted = isPasted
+                    )
                 }
             }
 
@@ -315,6 +310,7 @@ fun CodeInputScreen(
                         val pastedText = nativeClipboard.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
                         val digits = pastedText.filter { it.isDigit() }.take(maxCodeLength)
                         if (digits.isNotEmpty()) {
+                            isPasted = true
                             code = digits
                             if (code.length == maxCodeLength) {
                                 onConfirm(code)
@@ -456,4 +452,77 @@ fun CodeInputScreen(
             }
         }
     }
+
+    LaunchedEffect(isPasted) {
+        if (isPasted) {
+            val totalDelay = (maxCodeLength * PASTE_CASCADE_DELAY_MS) + SCALE_ANIMATION_DURATION_MS
+            delay(totalDelay)
+            isPasted = false
+        }
+    }
 }
+
+@Composable
+private fun AnimatedOtpBox(
+    index: Int,
+    char: String,
+    isBoxFocused: Boolean,
+    isPasted: Boolean
+) {
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isBoxFocused) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        },
+        label = "backgroundColor"
+    )
+
+    val borderColor by animateColorAsState(
+        targetValue = if (isBoxFocused) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            Color.Transparent
+        },
+        label = "borderColor"
+    )
+
+    Surface(
+        modifier = Modifier.size(width = 50.dp, height = 64.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = backgroundColor,
+        border = BorderStroke(2.dp, borderColor)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            val delayMillis = if (isPasted) (index * PASTE_CASCADE_DELAY_MS).toInt() else 0
+
+            AnimatedVisibility(
+                visible = char.isNotEmpty(),
+                enter = scaleIn(
+                    initialScale = 0.5f,
+                    animationSpec = tween(
+                        durationMillis = 400,
+                        delayMillis = delayMillis,
+                        easing = EaseOutBack
+                    )
+                ) + fadeIn(
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        delayMillis = delayMillis
+                    )
+                ),
+                exit = scaleOut() + fadeOut()
+            ) {
+                Text(
+                    text = char,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    }
+}
+
+private const val PASTE_CASCADE_DELAY_MS = 50L
+private const val SCALE_ANIMATION_DURATION_MS = 400L

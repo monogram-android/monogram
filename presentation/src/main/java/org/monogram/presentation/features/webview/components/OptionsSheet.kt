@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.sp
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
-import org.monogram.presentation.settings.sessions.SectionHeader
+import org.monogram.presentation.core.ui.SectionHeader
 
 @Composable
 fun OptionsSheet(

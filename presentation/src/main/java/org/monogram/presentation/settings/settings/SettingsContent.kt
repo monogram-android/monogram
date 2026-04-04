@@ -131,7 +131,7 @@ import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.features.stickers.ui.menu.EmojisGrid
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
-import org.monogram.presentation.settings.sessions.SectionHeader
+import org.monogram.presentation.core.ui.SectionHeader
 import java.util.Locale
 import kotlin.math.roundToInt
 

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -35,6 +36,7 @@ import org.monogram.presentation.core.util.toShortRelativeDate
 @Composable
 internal fun SessionItem(
     session: SessionModel,
+    modifier: Modifier = Modifier,
     isPending: Boolean = false,
     position: ItemPosition = ItemPosition.STANDALONE,
     onTerminate: (() -> Unit)?
@@ -42,7 +44,9 @@ internal fun SessionItem(
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
         shape = position.toShape(),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(modifier)
     ) {
         Row(
             modifier = Modifier

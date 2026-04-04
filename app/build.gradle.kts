@@ -5,7 +5,6 @@ import com.google.gms.googleservices.GoogleServicesPlugin
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.oss.licenses)
     alias(libs.plugins.google.services)
@@ -41,6 +40,9 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            buildFeatures {
+                resValues = true
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -51,6 +53,9 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             isMinifyEnabled = false
+            buildFeatures {
+                resValues = true
+            }
             resValue("string", "app_name", "MonoGram Debug")
         }
     }

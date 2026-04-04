@@ -244,62 +244,8 @@ fun MessageBubbleContainer(
                         bubblePosition = bubblePosition,
                         bubbleSize = bubbleSize,
                         downloadUtils = downloadUtils,
-                        videoPlayerPool = videoPlayerPool,
                         isAnyViewerOpen = isAnyViewerOpen
                     )
-            Column(
-                modifier = Modifier
-                    .width(IntrinsicSize.Max)
-                    .widthIn(max = maxWidth)
-                    .onGloballyPositioned { coordinates ->
-                        bubblePosition = coordinates.positionInWindow()
-                        bubbleSize = coordinates.size
-                        if (shouldReportPosition) {
-                            onPositionChange(msg.id, bubblePosition, bubbleSize)
-                        }
-                    },
-                horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
-            ) {
-                MessageContentSelector(
-                    msg = msg,
-                    newerMsg = newerMsg,
-                    isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    isGroup = isGroup,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
-                    bubbleRadius = bubbleRadius,
-                    stSize = stSize,
-                    autoDownloadMobile = autoDownloadMobile,
-                    autoDownloadWifi = autoDownloadWifi,
-                    autoDownloadRoaming = autoDownloadRoaming,
-                    autoDownloadFiles = autoDownloadFiles,
-                    autoplayGifs = autoplayGifs,
-                    autoplayVideos = autoplayVideos,
-                    showLinkPreviews = showLinkPreviews,
-                    onPhotoClick = onPhotoClick,
-                    onDownloadPhoto = onDownloadPhoto,
-                    onVideoClick = onVideoClick,
-                    onDocumentClick = onDocumentClick,
-                    onAudioClick = onAudioClick,
-                    onCancelDownload = onCancelDownload,
-                    onReplyClick = onReplyClick,
-                    onGoToReply = onGoToReply,
-                    onReactionClick = onReactionClick,
-                    onStickerClick = onStickerClick,
-                    onPollOptionClick = onPollOptionClick,
-                    onRetractVote = onRetractVote,
-                    onShowVoters = onShowVoters,
-                    onClosePoll = onClosePoll,
-                    onInstantViewClick = onInstantViewClick,
-                    onYouTubeClick = onYouTubeClick,
-                    toProfile = toProfile,
-                    bubblePosition = bubblePosition,
-                    bubbleSize = bubbleSize,
-                    downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
-                )
 
                     MessageReplyMarkup(
                         msg = msg,

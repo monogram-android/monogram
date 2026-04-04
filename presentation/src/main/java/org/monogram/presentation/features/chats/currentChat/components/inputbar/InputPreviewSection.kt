@@ -40,6 +40,8 @@ import coil3.compose.AsyncImage
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
+import org.monogram.presentation.features.chats.currentChat.components.chats.buildAnnotatedMessageTextWithEmoji
+import org.monogram.presentation.features.chats.currentChat.components.chats.rememberMessageInlineContent
 import java.io.File
 import java.util.*
 
@@ -142,19 +144,36 @@ private fun ReplyPreview(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+
+            val (previewText, previewEntities) = when (val content = message.content) {
+                is MessageContent.Text -> content.text to content.entities
+                else -> {
+                    val fallback = when (content) {
+                        is MessageContent.Photo -> stringResource(R.string.media_type_photo)
+                        is MessageContent.Video -> stringResource(R.string.media_type_video)
+                        is MessageContent.Sticker -> stringResource(R.string.media_type_sticker)
+                        is MessageContent.Voice -> stringResource(R.string.media_type_voice)
+                        is MessageContent.VideoNote -> stringResource(R.string.media_type_video_note)
+                        is MessageContent.Gif -> stringResource(R.string.media_type_gif)
+                        is MessageContent.Location -> stringResource(R.string.media_type_location)
+                        is MessageContent.Venue -> content.title
+                        else -> stringResource(R.string.media_type_message)
+                    }
+                    fallback to emptyList()
+                }
+            }
+            val annotatedPreviewText = buildAnnotatedMessageTextWithEmoji(
+                text = previewText,
+                entities = previewEntities
+            )
+            val previewInlineContent = rememberMessageInlineContent(
+                entities = previewEntities,
+                fontSize = MaterialTheme.typography.bodySmall.fontSize.value
+            )
+
             Text(
-                text = when (val content = message.content) {
-                    is MessageContent.Text -> content.text
-                    is MessageContent.Photo -> stringResource(R.string.media_type_photo)
-                    is MessageContent.Video -> stringResource(R.string.media_type_video)
-                    is MessageContent.Sticker -> stringResource(R.string.media_type_sticker)
-                    is MessageContent.Voice -> stringResource(R.string.media_type_voice)
-                    is MessageContent.VideoNote -> stringResource(R.string.media_type_video_note)
-                    is MessageContent.Gif -> stringResource(R.string.media_type_gif)
-                    is MessageContent.Location -> stringResource(R.string.media_type_location)
-                    is MessageContent.Venue -> content.title
-                    else -> stringResource(R.string.media_type_message)
-                },
+                text = annotatedPreviewText,
+                inlineContent = previewInlineContent,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -209,11 +228,23 @@ private fun EditPreview(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+
+            val (previewText, previewEntities) = when (val content = message.content) {
+                is MessageContent.Text -> content.text to content.entities
+                else -> stringResource(R.string.media_type_message) to emptyList()
+            }
+            val annotatedPreviewText = buildAnnotatedMessageTextWithEmoji(
+                text = previewText,
+                entities = previewEntities
+            )
+            val previewInlineContent = rememberMessageInlineContent(
+                entities = previewEntities,
+                fontSize = MaterialTheme.typography.bodySmall.fontSize.value
+            )
+
             Text(
-                text = when (val content = message.content) {
-                    is MessageContent.Text -> content.text
-                    else -> stringResource(R.string.media_type_message)
-                },
+                text = annotatedPreviewText,
+                inlineContent = previewInlineContent,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

@@ -607,7 +607,11 @@ fun ChatInputBar(
                     showFullScreenEditor = false
                 },
                 onEditorFocus = { isStickerMenuVisible = false },
-                onDraftAutosave = actions.onDraftChange
+                onDraftAutosave = { text ->
+                    if (state.editingMessage == null) {
+                        actions.onDraftChange(text)
+                    }
+                }
             )
 
             if (showScheduleDatePicker) {

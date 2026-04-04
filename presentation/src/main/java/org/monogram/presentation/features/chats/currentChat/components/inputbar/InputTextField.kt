@@ -87,7 +87,7 @@ fun InputTextField(
     var preLanguageValue by remember { mutableStateOf("") }
 
     val emojiSize = 20.sp
-    remember(knownCustomEmojis.size) {
+    val inlineContentMap = remember(knownCustomEmojis.size, knownCustomEmojis.hashCode()) {
         knownCustomEmojis.map { (id, sticker) ->
             id.toString() to InlineTextContent(
                 Placeholder(emojiSize, emojiSize, PlaceholderVerticalAlign.Center)
@@ -356,6 +356,7 @@ fun InputTextField(
                             if (shouldUseOverlayText) {
                                 Text(
                                     text = transformedTextState.text,
+                                    inlineContent = inlineContentMap,
                                     style = textStyle,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.fillMaxWidth()

@@ -8,6 +8,8 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Subject
@@ -26,14 +28,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
@@ -47,6 +49,7 @@ import org.monogram.domain.repository.*
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
+import org.monogram.presentation.features.chats.currentChat.components.chats.addEmojiStyle
 import org.monogram.presentation.features.profile.logs.components.calculateDiff
 import org.monogram.presentation.features.stickers.ui.menu.StickerEmojiMenu
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
@@ -211,11 +214,77 @@ fun FullScreenEditorSheet(
     val readingMinutes = remember(wordCount) { ((wordCount + 179) / 180).coerceAtLeast(1) }
 
     val previewPrimaryColor = MaterialTheme.colorScheme.primary
-    val previewText = remember(textValue.annotatedString, knownCustomEmojis.size, previewPrimaryColor) {
-        buildEditorPreviewAnnotatedString(
-            source = textValue.annotatedString,
+    val previewInlineContent = remember(knownCustomEmojis.size, knownCustomEmojis.hashCode()) {
+        val emojiSize = 20.sp
+        knownCustomEmojis.map { (id, sticker) ->
+            id.toString() to InlineTextContent(
+                Placeholder(emojiSize, emojiSize, PlaceholderVerticalAlign.Center)
+            ) {
+                StickerImage(
+                    path = sticker.path,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }.toMap()
+    }
+
+    fun buildPreviewForDisplay(source: AnnotatedString): AnnotatedString {
+        val previewAnnotated = buildEditorPreviewAnnotatedString(
+            source = source,
             primaryColor = previewPrimaryColor
         )
+        val customEmojiAnnotations = source
+            .getStringAnnotations(CUSTOM_EMOJI_TAG, 0, source.length)
+            .sortedBy { it.start }
+
+        val previewWithCustomEmojis = if (customEmojiAnnotations.isEmpty()) {
+            previewAnnotated
+        } else {
+            buildAnnotatedString {
+                var lastIndex = 0
+
+                customEmojiAnnotations.forEach { annotation ->
+                    if (annotation.start < lastIndex) return@forEach
+                    if (annotation.start > previewAnnotated.length || annotation.end > previewAnnotated.length) return@forEach
+
+                    append(previewAnnotated.subSequence(lastIndex, annotation.start))
+
+                    val stickerId = annotation.item.toLongOrNull()
+                    val originalEmoji = previewAnnotated.text.substring(annotation.start, annotation.end)
+
+                    if (stickerId != null && knownCustomEmojis.containsKey(stickerId)) {
+                        appendInlineContent(stickerId.toString(), originalEmoji)
+                    } else {
+                        append(previewAnnotated.subSequence(annotation.start, annotation.end))
+                    }
+
+                    lastIndex = annotation.end
+                }
+
+                if (lastIndex < previewAnnotated.length) {
+                    append(previewAnnotated.subSequence(lastIndex, previewAnnotated.length))
+                }
+            }
+        }
+
+        return if (emojiFontFamily == FontFamily.Default) {
+            previewWithCustomEmojis
+        } else {
+            buildAnnotatedString {
+                append(previewWithCustomEmojis)
+                addEmojiStyle(previewWithCustomEmojis.text, emojiFontFamily)
+            }
+        }
+    }
+
+    val previewText = remember(
+        textValue.annotatedString,
+        knownCustomEmojis.size,
+        knownCustomEmojis.hashCode(),
+        previewPrimaryColor,
+        emojiFontFamily
+    ) {
+        buildPreviewForDisplay(textValue.annotatedString)
     }
 
     fun applyEditorChange(newValue: TextFieldValue, trackHistory: Boolean = true) {
@@ -255,10 +324,7 @@ fun FullScreenEditorSheet(
         )
         aiShowDiffMode = true
         aiResultTextValue = mappedTextValue
-        aiResultText = buildEditorPreviewAnnotatedString(
-            source = mappedTextValue.annotatedString,
-            primaryColor = previewPrimaryColor
-        )
+        aiResultText = buildPreviewForDisplay(mappedTextValue.annotatedString)
     }
 
     fun runAiRequest(request: suspend () -> FormattedTextResult?) {
@@ -454,6 +520,7 @@ fun FullScreenEditorSheet(
                     if (isPreviewMode) {
                         Text(
                             text = previewText,
+                            inlineContent = previewInlineContent,
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontSize = MaterialTheme.typography.bodyLarge.fontSize * fontScale.coerceIn(0.8f, 1.6f)
                             ),
@@ -623,6 +690,8 @@ fun FullScreenEditorSheet(
             selectedStyleName = aiSelectedStyle,
             translateLanguage = aiTranslateLanguage,
             addEmojis = aiAddEmojis,
+            emojiFontFamily = emojiFontFamily,
+            inlineContent = previewInlineContent,
             originalText = textValue.text,
             resultText = aiResultText,
             resultPlainText = aiResultTextValue?.text,
@@ -870,6 +939,8 @@ private fun FullScreenEditorAiSheet(
     selectedStyleName: String,
     translateLanguage: String,
     addEmojis: Boolean,
+    emojiFontFamily: FontFamily,
+    inlineContent: Map<String, InlineTextContent>,
     originalText: String,
     resultText: AnnotatedString?,
     resultPlainText: String?,
@@ -910,6 +981,38 @@ private fun FullScreenEditorAiSheet(
                 addedColor = addedDiffColor,
                 removedColor = removedDiffColor
             )
+        }
+    }
+    val formattedOriginalText = remember(originalText, emojiFontFamily) {
+        buildAnnotatedString {
+            append(originalText)
+            if (emojiFontFamily != FontFamily.Default) {
+                addEmojiStyle(originalText, emojiFontFamily)
+            }
+        }
+    }
+    val formattedDiffText = remember(diffText, emojiFontFamily) {
+        diffText?.let { annotated ->
+            if (emojiFontFamily == FontFamily.Default) {
+                annotated
+            } else {
+                buildAnnotatedString {
+                    append(annotated)
+                    addEmojiStyle(annotated.text, emojiFontFamily)
+                }
+            }
+        }
+    }
+    val formattedResultText = remember(resultText, emojiFontFamily) {
+        resultText?.let { annotated ->
+            if (emojiFontFamily == FontFamily.Default) {
+                annotated
+            } else {
+                buildAnnotatedString {
+                    append(annotated)
+                    addEmojiStyle(annotated.text, emojiFontFamily)
+                }
+            }
         }
     }
     val actionButtonText = if (resultText != null) stringResource(R.string.editor_ai_apply_result) else runButtonText
@@ -1173,7 +1276,7 @@ private fun FullScreenEditorAiSheet(
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = originalText,
+                                    text = formattedOriginalText,
                                     style = MaterialTheme.typography.bodyMedium,
                                     maxLines = 4,
                                     overflow = TextOverflow.Ellipsis
@@ -1182,7 +1285,7 @@ private fun FullScreenEditorAiSheet(
                         }
                     } else {
                         AnimatedContent(targetState = showDiffMode, label = "ai_result_view_mode") { isDiffMode ->
-                            if (isDiffMode && diffText != null) {
+                            if (isDiffMode && formattedDiffText != null) {
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -1220,7 +1323,7 @@ private fun FullScreenEditorAiSheet(
                                             }
                                         }
                                         Text(
-                                            text = diffText,
+                                            text = formattedDiffText,
                                             style = MaterialTheme.typography.bodyMedium
                                         )
                                     }
@@ -1243,7 +1346,7 @@ private fun FullScreenEditorAiSheet(
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                             Text(
-                                                text = originalText,
+                                                text = formattedOriginalText,
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 maxLines = 6,
                                                 overflow = TextOverflow.Ellipsis
@@ -1288,7 +1391,8 @@ private fun FullScreenEditorAiSheet(
                                                 }
                                             }
                                             Text(
-                                                text = resultText ?: AnnotatedString(""),
+                                                text = formattedResultText ?: AnnotatedString(""),
+                                                inlineContent = inlineContent,
                                                 style = MaterialTheme.typography.bodyMedium
                                             )
                                         }
@@ -1593,7 +1697,7 @@ private fun insertSnippetAtSelection(value: TextFieldValue, snippet: String): Te
         start = rawSelection.start.coerceIn(0, maxLength),
         end = rawSelection.end.coerceIn(0, maxLength)
     )
-    val newAnnotated = androidx.compose.ui.text.buildAnnotatedString {
+    val newAnnotated = buildAnnotatedString {
         append(value.annotatedString.subSequence(0, selection.start))
         append(snippet)
         append(value.annotatedString.subSequence(selection.end, value.annotatedString.length))
@@ -1625,7 +1729,7 @@ private fun insertMentionAtSelection(value: TextFieldValue): TextFieldValue {
     )
     val insertion =
         if (selection.start == selection.end) "@" else "@${value.text.substring(selection.start, selection.end)}"
-    val newAnnotated = androidx.compose.ui.text.buildAnnotatedString {
+    val newAnnotated = buildAnnotatedString {
         append(value.annotatedString.subSequence(0, selection.start))
         append(insertion)
         append(value.annotatedString.subSequence(selection.end, value.annotatedString.length))

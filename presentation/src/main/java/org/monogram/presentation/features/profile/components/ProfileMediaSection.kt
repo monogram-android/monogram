@@ -450,11 +450,7 @@ private fun LazyGridScope.mediaGrid(
             Box(
                 modifier = Modifier
                     .aspectRatio(1f)
-                    .clip(when (index) {
-                        0 -> RoundedCornerShape(topStart = 20.dp)
-                        2 -> RoundedCornerShape(topEnd = 20.dp)
-                        else -> RoundedCornerShape(0.dp)
-                    })
+                    .clip(RoundedCornerShape(0.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { onMessageClick(msg) }
             ) {
@@ -864,11 +860,7 @@ private fun LazyGridScope.gifsGrid(
                 modifier = Modifier
                     .aspectRatio(1f)
                     .padding(1.dp)
-                    .clip(when (index) {
-                        0 -> RoundedCornerShape(topStart = 20.dp)
-                        2 -> RoundedCornerShape(topEnd = 20.dp)
-                        else -> RoundedCornerShape(2.dp)
-                    })
+                    .clip(RoundedCornerShape(2.dp))
                     .clickable { onMessageClick(msg) }
                     .background(Color.Black)
             ) {

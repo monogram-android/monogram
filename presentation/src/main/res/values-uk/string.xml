@@ -78,6 +78,7 @@
     <string name="phone_number_placeholder">000 00 00</string>
     <string name="continue_button">Продовжити</string>
     <string name="select_country_title">Виберіть країну</string>
+    <string name="unknown_country">Невідома країна</string>
     <string name="search_country_hint">Пошук країни або коду…</string>
     <string name="verification_delivery_telegram">Код підтвердження надіслано через Telegram на інший Ваш пристрій.</string>
     <string name="verification_delivery_sms">Ми надіслали СМС із кодом підтвердження на Ваш номер.</string>

@@ -52,6 +52,7 @@ class FcmPushService : FirebaseMessagingService() {
                         Log.d("FcmPushService", "ProcessPushNotification success")
                         delay(5000)
                     } catch (e: Exception) {
+                        if (e is CancellationException) throw e
                         Log.e("FcmPushService", "Error processing push", e)
                     } finally {
                         if (wakeLock.isHeld) {
@@ -85,6 +86,7 @@ class FcmPushService : FirebaseMessagingService() {
             )
             Log.d("FcmPushService", "RegisterDevice result: $result")
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e("FcmPushService", "RegisterDevice failed", e)
         }
     }

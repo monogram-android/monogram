@@ -21,6 +21,7 @@ import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.*
+import kotlinx.coroutines.tasks.await
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.NotificationSettingDao
@@ -35,8 +36,6 @@ import org.monogram.domain.repository.PushProvider
 import org.monogram.domain.repository.SettingsRepository
 import org.monogram.domain.repository.SettingsRepository.TdNotificationScope
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 import kotlin.math.min
 
 class TdNotificationManager(
@@ -185,7 +184,7 @@ class TdNotificationManager(
         when (appPreferences.pushProvider.value) {
             PushProvider.FCM -> {
                 coRunCatching {
-                    val token = awaitFcmToken()
+                    val token = FirebaseMessaging.getInstance().token.await()
                     gateway.execute(
                         TdApi.RegisterDevice(
                             TdApi.DeviceTokenFirebaseCloudMessaging(token, true),
@@ -406,16 +405,6 @@ class TdNotificationManager(
 
             else -> true
         }
-    }
-
-    private suspend fun awaitFcmToken(): String = suspendCancellableCoroutine { cont ->
-        FirebaseMessaging.getInstance().token
-            .addOnSuccessListener { token ->
-                if (cont.isActive) cont.resume(token)
-            }
-            .addOnFailureListener { error ->
-                if (cont.isActive) cont.resumeWithException(error)
-            }
     }
 
     fun appendMessageToNotification(

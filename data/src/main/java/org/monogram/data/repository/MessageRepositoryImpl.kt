@@ -75,13 +75,18 @@ class MessageRepositoryImpl(
             }
         }
 
-        scope.launch {
-            coRunCatching {
-                observeMessageUpdatesFlow().collect { }
-            }.onFailure {
-                Log.e("TdLibUpdates", "CRITICAL: Update loop died", it)
+        updates.all
+            .map { update ->
+                messageRemoteDataSource.handleUpdate(update)
+                update
             }
-        }
+            .onEach { update ->
+                processCachedUpdate(update)
+            }
+            .catch { error ->
+                Log.e("TdLibUpdates", "CRITICAL: Update loop died", error)
+            }
+            .launchIn(scope)
 
         scope.launch(dispatcherProvider.io) {
             val ninetyDaysAgo = System.currentTimeMillis() - (90L * 24 * 60 * 60 * 1000)
@@ -97,15 +102,6 @@ class MessageRepositoryImpl(
             }
         }
     }
-
-    private fun observeMessageUpdatesFlow(): Flow<TdApi.Update> = updates.all
-        .map { update ->
-            messageRemoteDataSource.handleUpdate(update)
-            update
-        }
-        .onEach { update ->
-            processCachedUpdate(update)
-        }
 
     private suspend fun processCachedUpdate(update: TdApi.Update) {
         when (update) {

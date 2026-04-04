@@ -20,10 +20,7 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.google.firebase.messaging.FirebaseMessaging
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.NotificationSettingDao
@@ -38,6 +35,8 @@ import org.monogram.domain.repository.PushProvider
 import org.monogram.domain.repository.SettingsRepository
 import org.monogram.domain.repository.SettingsRepository.TdNotificationScope
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.math.min
 
 class TdNotificationManager(
@@ -180,52 +179,36 @@ class TdNotificationManager(
         }
     }
 
-    private fun updatePushRegistration() {
+    private suspend fun updatePushRegistration() {
         if (!gateway.isAuthenticated.value) return
 
         when (appPreferences.pushProvider.value) {
             PushProvider.FCM -> {
-                try {
-                    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            val token = task.result
-                            scope.launch {
-                                try {
-                                    gateway.execute(
-                                        TdApi.RegisterDevice(
-                                            TdApi.DeviceTokenFirebaseCloudMessaging(token, true),
-                                            longArrayOf()
-                                        )
-                                    )
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "FCM token registration failed", e)
-                                }
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "FCM registration failed", e)
-                }
+                coRunCatching {
+                    val token = awaitFcmToken()
+                    gateway.execute(
+                        TdApi.RegisterDevice(
+                            TdApi.DeviceTokenFirebaseCloudMessaging(token, true),
+                            longArrayOf()
+                        )
+                    )
+                }.onFailure { Log.e(TAG, "FCM token registration failed", it) }
             }
 
             PushProvider.GMS_LESS -> {
-                scope.launch {
-                    try {
-                        gateway.execute(
-                            TdApi.RegisterDevice(
-                                TdApi.DeviceTokenFirebaseCloudMessaging("", false),
-                                longArrayOf()
-                            )
+                coRunCatching {
+                    gateway.execute(
+                        TdApi.RegisterDevice(
+                            TdApi.DeviceTokenFirebaseCloudMessaging("", false),
+                            longArrayOf()
                         )
-                    } catch (e: Exception) {
-                        Log.e(TAG, "GMS-less token registration failed", e)
-                    }
-                }
+                    )
+                }.onFailure { Log.e(TAG, "GMS-less token registration failed", it) }
             }
         }
     }
 
-    private fun fetchInitialExceptions() {
+    private suspend fun fetchInitialExceptions() {
         if (!gateway.isAuthenticated.value) return
 
         val scopes = listOf(
@@ -234,19 +217,21 @@ class TdNotificationManager(
             TdApi.NotificationSettingsScopeChannelChats()
         )
 
-        scopes.forEach { scope ->
-            this.scope.launch {
-                try {
-                    val result = gateway.execute(TdApi.GetChatNotificationSettingsExceptions(scope, true))
-                    if (result is TdApi.Chats) {
-                        result.chatIds.forEach { chatId ->
-                            getChat(chatId) { chat ->
-                                updateChatNotificationSettings(chat.id, chat.notificationSettings)
+        coroutineScope {
+            scopes.forEach { scope ->
+                launch {
+                    coRunCatching {
+                        val result = gateway.execute(TdApi.GetChatNotificationSettingsExceptions(scope, true))
+                        if (result is TdApi.Chats) {
+                            result.chatIds.forEach { chatId ->
+                                getChat(chatId) { chat ->
+                                    updateChatNotificationSettings(chat.id, chat.notificationSettings)
+                                }
                             }
                         }
+                    }.onFailure {
+                        Log.w(TAG, "Failed to fetch notification exceptions", it)
                     }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to fetch notification exceptions", e)
                 }
             }
         }
@@ -343,18 +328,19 @@ class TdNotificationManager(
         lastMessageIds[message.chatId] = message.id
 
         getChat(message.chatId) { chat ->
-            checkMembership(chat) { isMember ->
+            scope.launch {
+                val isMember = checkMembership(chat)
                 if (!isMember) {
                     Log.d(TAG, "Skipping notification for chat ${chat.id}: user is not a member")
-                    return@checkMembership
+                    return@launch
                 }
 
-                if (isChatMuted(chat)) return@checkMembership
+                if (isChatMuted(chat)) return@launch
 
                 val contentText =
                     if (appPreferences.showSenderOnly.value) "Новое сообщение" else getMessageText(message.content)
 
-                if (contentText.isBlank()) return@checkMembership
+                if (contentText.isBlank()) return@launch
 
                 val timestamp = message.date.toLong() * 1000
 
@@ -392,47 +378,44 @@ class TdNotificationManager(
         }
     }
 
-    private fun checkMembership(chat: TdApi.Chat, callback: (Boolean) -> Unit) {
-        when (val type = chat.type) {
-            is TdApi.ChatTypePrivate -> callback(true)
+    private suspend fun checkMembership(chat: TdApi.Chat): Boolean {
+        return when (val type = chat.type) {
+            is TdApi.ChatTypePrivate -> true
             is TdApi.ChatTypeBasicGroup -> {
                 if (type.basicGroupId == 0L) {
-                    callback(true)
-                    return
+                    return true
                 }
-                scope.launch {
-                    try {
+                coRunCatching {
                         val result = gateway.execute(TdApi.GetBasicGroup(type.basicGroupId))
-                        callback(
-                            result.status is TdApi.ChatMemberStatusMember ||
-                                    result.status is TdApi.ChatMemberStatusCreator ||
-                                    result.status is TdApi.ChatMemberStatusAdministrator
-                        )
-                    } catch (e: Exception) {
-                        callback(true)
-                    }
-                }
+                    result.status is TdApi.ChatMemberStatusMember ||
+                            result.status is TdApi.ChatMemberStatusCreator ||
+                            result.status is TdApi.ChatMemberStatusAdministrator
+                }.getOrDefault(true)
             }
             is TdApi.ChatTypeSupergroup -> {
                 if (type.supergroupId == 0L) {
-                    callback(true)
-                    return
+                    return true
                 }
-                scope.launch {
-                    try {
+                coRunCatching {
                         val result = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
-                        callback(
-                            result.status is TdApi.ChatMemberStatusMember ||
-                                    result.status is TdApi.ChatMemberStatusCreator ||
-                                    result.status is TdApi.ChatMemberStatusAdministrator
-                        )
-                    } catch (e: Exception) {
-                        callback(true)
-                    }
-                }
+                    result.status is TdApi.ChatMemberStatusMember ||
+                            result.status is TdApi.ChatMemberStatusCreator ||
+                            result.status is TdApi.ChatMemberStatusAdministrator
+                }.getOrDefault(true)
             }
-            else -> callback(true)
+
+            else -> true
         }
+    }
+
+    private suspend fun awaitFcmToken(): String = suspendCancellableCoroutine { cont ->
+        FirebaseMessaging.getInstance().token
+            .addOnSuccessListener { token ->
+                if (cont.isActive) cont.resume(token)
+            }
+            .addOnFailureListener { error ->
+                if (cont.isActive) cont.resumeWithException(error)
+            }
     }
 
     fun appendMessageToNotification(

@@ -1,6 +1,5 @@
 package org.monogram.data.infra
 
-import org.monogram.data.core.coRunCatching
 import android.util.Log
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -8,6 +7,7 @@ import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
 import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
+import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.*
 import org.monogram.data.db.model.ChatEntity
 import org.monogram.data.db.model.UserEntity
@@ -34,11 +34,18 @@ class OfflineWarmup(
 ) {
     private val scope = scopeProvider.appScope
 
+    @Volatile
+    private var warmupStarted = false
+
     init {
         scope.launch(dispatchers.io) {
-            delay(1800)
-            coRunCatching { warmup() }
-                .onFailure { Log.e(TAG, "Offline warmup failed", it) }
+            gateway.isAuthenticated.collect { authenticated ->
+                if (!authenticated || warmupStarted) return@collect
+                warmupStarted = true
+                delay(1800)
+                coRunCatching { warmup() }
+                    .onFailure { Log.e(TAG, "Offline warmup failed", it) }
+            }
         }
     }
 

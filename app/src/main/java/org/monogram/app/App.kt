@@ -12,11 +12,8 @@ import org.koin.core.context.startKoin
 import org.maplibre.android.MapLibre
 import org.maplibre.android.WellKnownTileServer
 import org.monogram.app.di.appModule
-import org.monogram.data.di.TdNotificationManager
-import org.monogram.data.gateway.TelegramGateway
 import org.monogram.domain.managers.DistrManager
 import org.monogram.domain.repository.AppPreferencesProvider
-import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.PushProvider
 import org.monogram.presentation.di.AppContainer
 import org.monogram.presentation.di.KoinAppContainer
@@ -32,7 +29,6 @@ class App : Application(), SingletonImageLoader.Factory {
         super.onCreate()
         initCrashHandler()
         initKoin()
-        initTdLib()
         initMapLibre()
         checkPushAvailability()
     }
@@ -66,12 +62,6 @@ class App : Application(), SingletonImageLoader.Factory {
             modules(appModule)
         }.koin
         container = KoinAppContainer(koin)
-    }
-
-    private fun initTdLib() {
-        get<TelegramGateway>()
-        get<AuthRepository>()
-        get<TdNotificationManager>()
     }
 
     private fun initMapLibre() {

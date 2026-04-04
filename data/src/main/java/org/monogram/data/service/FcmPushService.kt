@@ -21,7 +21,9 @@ class FcmPushService : FirebaseMessagingService() {
         super.onNewToken(token)
         Log.d("FcmPushService", "New FCM token: $token")
         if (appPreferences.pushProvider.value == PushProvider.FCM) {
-            registerToken(token)
+            scope.launch {
+                registerToken(token)
+            }
         }
     }
 
@@ -43,14 +45,22 @@ class FcmPushService : FirebaseMessagingService() {
                 }
                 val jsonPayload = json.toString()
 
-                runBlocking {
-                    gateway.execute(TdApi.ProcessPushNotification(jsonPayload))
-                    Log.d("FcmPushService", "ProcessPushNotification success")
-                    delay(5000)
+                wakeLock.acquire(10_000L)
+                scope.launch {
+                    try {
+                        gateway.execute(TdApi.ProcessPushNotification(jsonPayload))
+                        Log.d("FcmPushService", "ProcessPushNotification success")
+                        delay(5000)
+                    } catch (e: Exception) {
+                        Log.e("FcmPushService", "Error processing push", e)
+                    } finally {
+                        if (wakeLock.isHeld) {
+                            wakeLock.release()
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("FcmPushService", "Error processing push", e)
-            } finally {
                 if (wakeLock.isHeld) {
                     wakeLock.release()
                 }
@@ -63,21 +73,19 @@ class FcmPushService : FirebaseMessagingService() {
         Log.d("FcmPushService", "FCM messages deleted")
     }
 
-    private fun registerToken(token: String) {
+    private suspend fun registerToken(token: String) {
         if (!gateway.isAuthenticated.value) return
 
-        scope.launch {
-            try {
-                val result = gateway.execute(
-                    TdApi.RegisterDevice(
-                        TdApi.DeviceTokenFirebaseCloudMessaging(token, true),
-                        longArrayOf()
-                    )
+        try {
+            val result = gateway.execute(
+                TdApi.RegisterDevice(
+                    TdApi.DeviceTokenFirebaseCloudMessaging(token, true),
+                    longArrayOf()
                 )
-                Log.d("FcmPushService", "RegisterDevice result: $result")
-            } catch (e: Exception) {
-                Log.e("FcmPushService", "RegisterDevice failed", e)
-            }
+            )
+            Log.d("FcmPushService", "RegisterDevice result: $result")
+        } catch (e: Exception) {
+            Log.e("FcmPushService", "RegisterDevice failed", e)
         }
     }
 }

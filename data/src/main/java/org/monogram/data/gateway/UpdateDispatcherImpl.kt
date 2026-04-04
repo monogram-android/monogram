@@ -1,6 +1,7 @@
 package org.monogram.data.gateway
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import org.drinkless.tdlib.TdApi
@@ -10,7 +11,7 @@ class UpdateDispatcherImpl(
 ) : UpdateDispatcher {
     private val updates = gateway.updates
 
-    override val all = updates
+    override val all: SharedFlow<TdApi.Update> = updates
 
     private inline fun <reified T : TdApi.Update> flow(): Flow<T> =
         updates.filterIsInstance<T>()

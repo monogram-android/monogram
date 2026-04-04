@@ -2,8 +2,7 @@ package org.monogram.data.repository
 
 import android.content.Context
 import android.util.Log
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.drinkless.tdlib.TdApi
@@ -77,76 +76,10 @@ class MessageRepositoryImpl(
         }
 
         scope.launch {
-            try {
-                updates.all.collect { update ->
-                    messageRemoteDataSource.handleUpdate(update)
-                    when (update) {
-                        is TdApi.UpdateNewMessage -> {
-                            val entity = messageMapper.mapToEntity(update.message, ::resolveSenderName)
-                            chatLocalDataSource.insertMessage(entity)
-                        }
-
-                        is TdApi.UpdateMessageContent -> {
-                            val extracted = messageMapper.extractCachedContent(update.newContent)
-                            chatLocalDataSource.updateMessageContent(
-                                messageId = update.messageId,
-                                content = extracted.text,
-                                contentType = extracted.type,
-                                contentMeta = extracted.meta,
-                                mediaFileId = extracted.fileId,
-                                mediaPath = extracted.path,
-                                editDate = 0
-                            )
-                        }
-
-                        is TdApi.UpdateMessageEdited -> {
-                            val updated = messageRemoteDataSource.getMessage(update.chatId, update.messageId)
-                            if (updated != null) {
-                                chatLocalDataSource.insertMessage(
-                                    messageMapper.mapToEntity(
-                                        updated,
-                                        ::resolveSenderName
-                                    )
-                                )
-                            }
-                        }
-
-                        is TdApi.UpdateMessageInteractionInfo -> {
-                            chatLocalDataSource.updateInteractionInfo(
-                                messageId = update.messageId,
-                                viewCount = update.interactionInfo?.viewCount ?: 0,
-                                forwardCount = update.interactionInfo?.forwardCount ?: 0,
-                                replyCount = update.interactionInfo?.replyInfo?.replyCount ?: 0
-                            )
-                        }
-
-                        is TdApi.UpdateChatReadInbox -> {
-                            chatLocalDataSource.markAsRead(update.chatId, update.lastReadInboxMessageId)
-                        }
-
-                        is TdApi.UpdateDeleteMessages -> {
-                            if (update.isPermanent) {
-                                update.messageIds.forEach { messageId ->
-                                    chatLocalDataSource.deleteMessage(messageId)
-                                }
-                            }
-                        }
-
-                        is TdApi.UpdateTextCompositionStyles -> {
-                            val styles = update.styles.orEmpty().map { style ->
-                                TextCompositionStyleModel(
-                                    name = style.name,
-                                    customEmojiId = style.customEmojiId,
-                                    title = style.title
-                                )
-                            }
-                            _textCompositionStyles.value = styles
-                            textCompositionStyleDao.replaceAll(styles.map { it.toEntity() })
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("TdLibUpdates", "CRITICAL: Update loop died", e)
+            coRunCatching {
+                observeMessageUpdatesFlow().collect { }
+            }.onFailure {
+                Log.e("TdLibUpdates", "CRITICAL: Update loop died", it)
             }
         }
 
@@ -161,6 +94,82 @@ class MessageRepositoryImpl(
                 if (fileId != 0 && path.isNotBlank()) {
                     chatLocalDataSource.updateMediaPath(fileId, path)
                 }
+            }
+        }
+    }
+
+    private fun observeMessageUpdatesFlow(): Flow<TdApi.Update> = updates.all
+        .map { update ->
+            messageRemoteDataSource.handleUpdate(update)
+            update
+        }
+        .onEach { update ->
+            processCachedUpdate(update)
+        }
+
+    private suspend fun processCachedUpdate(update: TdApi.Update) {
+        when (update) {
+            is TdApi.UpdateNewMessage -> {
+                val entity = messageMapper.mapToEntity(update.message, ::resolveSenderName)
+                chatLocalDataSource.insertMessage(entity)
+            }
+
+            is TdApi.UpdateMessageContent -> {
+                val extracted = messageMapper.extractCachedContent(update.newContent)
+                chatLocalDataSource.updateMessageContent(
+                    messageId = update.messageId,
+                    content = extracted.text,
+                    contentType = extracted.type,
+                    contentMeta = extracted.meta,
+                    mediaFileId = extracted.fileId,
+                    mediaPath = extracted.path,
+                    editDate = 0
+                )
+            }
+
+            is TdApi.UpdateMessageEdited -> {
+                val updated = messageRemoteDataSource.getMessage(update.chatId, update.messageId)
+                if (updated != null) {
+                    chatLocalDataSource.insertMessage(
+                        messageMapper.mapToEntity(
+                            updated,
+                            ::resolveSenderName
+                        )
+                    )
+                }
+            }
+
+            is TdApi.UpdateMessageInteractionInfo -> {
+                chatLocalDataSource.updateInteractionInfo(
+                    messageId = update.messageId,
+                    viewCount = update.interactionInfo?.viewCount ?: 0,
+                    forwardCount = update.interactionInfo?.forwardCount ?: 0,
+                    replyCount = update.interactionInfo?.replyInfo?.replyCount ?: 0
+                )
+            }
+
+            is TdApi.UpdateChatReadInbox -> {
+                chatLocalDataSource.markAsRead(update.chatId, update.lastReadInboxMessageId)
+            }
+
+            is TdApi.UpdateDeleteMessages -> {
+                if (update.isPermanent) {
+                    update.messageIds.forEach { messageId ->
+                        chatLocalDataSource.deleteMessage(messageId)
+                    }
+                }
+            }
+
+            is TdApi.UpdateTextCompositionStyles -> {
+                val styles = update.styles.orEmpty().map { style ->
+                    TextCompositionStyleModel(
+                        name = style.name,
+                        customEmojiId = style.customEmojiId,
+                        title = style.title
+                    )
+                }
+                _textCompositionStyles.value = styles
+                textCompositionStyleDao.replaceAll(styles.map { it.toEntity() })
             }
         }
     }

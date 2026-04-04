@@ -34,7 +34,7 @@ import org.monogram.domain.repository.*
 val dataModule = module {
     single { CoroutineScope(SupervisorJob() + Dispatchers.IO) }
 
-    single { TdLibClient() }
+    single(createdAtStart = true) { TdLibClient() }
 
     single<DispatcherProvider> { DefaultDispatcherProvider() }
     single<ScopeProvider> { DefaultScopeProvider(get()) }
@@ -64,7 +64,7 @@ val dataModule = module {
     }
 
     single { ChatCache() }
-    single<TelegramGateway> {
+    single<TelegramGateway>(createdAtStart = true) {
         TelegramGatewayImpl(get())
     }
     single<UpdateDispatcher> {
@@ -91,7 +91,7 @@ val dataModule = module {
         )
     }
 
-    single<AuthRepository> {
+    single<AuthRepository>(createdAtStart = true) {
         AuthRepositoryImpl(
             context = androidContext(),
             remote = get(),
@@ -437,5 +437,5 @@ val dataModule = module {
         )
     }
 
-    single { TdNotificationManager(androidContext(), get(), get(), get(), get(), get()) }
+    single(createdAtStart = true) { TdNotificationManager(androidContext(), get(), get(), get(), get(), get()) }
 }

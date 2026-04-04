@@ -1,7 +1,8 @@
-import com.android.build.VariantOutput
-import com.android.build.gradle.internal.api.ApkVariantOutputImpl
+import com.android.build.api.artifact.SingleArtifact
+import com.android.build.api.variant.FilterConfiguration
 import com.google.android.gms.oss.licenses.plugin.DependencyTask
 import com.google.gms.googleservices.GoogleServicesPlugin
+import kotlin.io.path.moveTo
 
 plugins {
     alias(libs.plugins.android.application)
@@ -30,15 +31,6 @@ android {
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86_64")
             isUniversalApk = true
-        }
-    }
-
-    applicationVariants.all {
-        val variant = this
-        variant.outputs.all {
-            val output = this as ApkVariantOutputImpl
-            val abi = output.getFilter(VariantOutput.FilterType.ABI) ?: "universal"
-            output.outputFileName = "monogram-$abi-${variant.versionName}(${variant.versionCode})-${variant.buildType.name}.apk"
         }
     }
 
@@ -72,6 +64,40 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        val apkDirProvider = variant.artifacts.get(SingleArtifact.APK)
+        val artifactsLoader = variant.artifacts.getBuiltArtifactsLoader()
+
+        val renameTask = tasks.register("rename${variant.name.capitalize()}Apk") {
+            inputs.dir(apkDirProvider)
+
+            doLast {
+                val builtArtifacts = artifactsLoader.load(apkDirProvider.get())!!
+                val targetDir = apkDirProvider.get().asFile
+
+                builtArtifacts.elements.forEach { artifact ->
+                    val abi = artifact.filters.find {
+                        it.filterType == FilterConfiguration.FilterType.ABI
+                    }?.identifier ?: "universal"
+                    val versionName = artifact.versionName
+                    val versionCode = artifact.versionCode
+                    val buildType = variant.buildType
+
+                    val originalApk = File(artifact.outputFile)
+                    val targetFile = File(targetDir, "monogram-$abi-${versionName}(${versionCode})-${buildType}.apk")
+
+                    originalApk.toPath().moveTo(targetFile.toPath(), overwrite = true)
+                }
+            }
+        }
+
+        project.tasks.matching { it.name == "assemble${variant.name.capitalize()}" }.configureEach {
+            finalizedBy(renameTask)
+        }
     }
 }
 

@@ -1,20 +1,20 @@
 package org.monogram.data.repository
 
-import org.monogram.data.core.coRunCatching
 import androidx.core.net.toUri
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.domain.models.ProxyTypeModel
+import org.monogram.domain.repository.ChatInfoRepository
 import org.monogram.domain.repository.ChatsListRepository
 import org.monogram.domain.repository.LinkAction
 import org.monogram.domain.repository.LinkHandlerRepository
-import org.monogram.domain.repository.UserRepository
 
 class LinkHandlerRepositoryImpl(
     private val gateway: TelegramGateway,
     private val chatsListRepository: ChatsListRepository,
-    private val userRepository: UserRepository,
+    private val chatInfoRepository: ChatInfoRepository,
     private val fileQueue: FileDownloadQueue
 ) : LinkHandlerRepository {
 
@@ -179,7 +179,7 @@ class LinkHandlerRepositoryImpl(
         if (!needsConfirm) return LinkAction.OpenChat(chat.id)
 
         val chatModel = chatsListRepository.getChatById(chat.id)
-        val fullInfo = userRepository.getChatFullInfo(chat.id)
+        val fullInfo = chatInfoRepository.getChatFullInfo(chat.id)
         return if (chatModel != null && fullInfo != null) {
             LinkAction.ConfirmJoinChat(chatModel, fullInfo)
         } else {

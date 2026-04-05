@@ -11,6 +11,7 @@ import org.monogram.data.datasource.remote.MessageFileApi
 import org.monogram.data.datasource.remote.TdMessageRemoteDataSource
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.domain.models.*
+import org.monogram.domain.repository.ChatInfoRepository
 import org.monogram.domain.repository.SettingsRepository
 import org.monogram.domain.repository.UserRepository
 import java.io.File
@@ -20,6 +21,7 @@ class MessageMapper(
     private val connectivityManager: ConnectivityManager,
     private val gateway: TelegramGateway,
     private val userRepository: UserRepository,
+    private val chatInfoRepository: ChatInfoRepository,
     private val customEmojiPaths: ConcurrentHashMap<Long, String>,
     private val fileIdToCustomEmojiId: ConcurrentHashMap<Int, Long>,
     private val fileApi: MessageFileApi,
@@ -313,7 +315,7 @@ class MessageMapper(
                         senderCustomTitle = cachedRank.takeUnless { it == NO_RANK_SENTINEL }
                     } else {
                         val member = try {
-                            withTimeout(500) { userRepository.getChatMember(msg.chatId, senderId) }
+                            withTimeout(500) { chatInfoRepository.getChatMember(msg.chatId, senderId) }
                         } catch (e: Exception) {
                             null
                         }

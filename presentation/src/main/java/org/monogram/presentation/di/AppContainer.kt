@@ -31,6 +31,13 @@ interface RepositoriesContainer {
     val chatsListRepository: ChatsListRepository
     val messageRepository: MessageRepository
     val userRepository: UserRepository
+    val userProfileEditRepository: UserProfileEditRepository
+    val profilePhotoRepository: ProfilePhotoRepository
+    val chatInfoRepository: ChatInfoRepository
+    val premiumRepository: PremiumRepository
+    val botRepository: BotRepository
+    val chatStatisticsRepository: ChatStatisticsRepository
+    val sponsorRepository: SponsorRepository
     val settingsRepository: SettingsRepository
     val locationRepository: LocationRepository
     val privacyRepository: PrivacyRepository

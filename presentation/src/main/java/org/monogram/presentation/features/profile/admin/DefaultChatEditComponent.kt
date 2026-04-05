@@ -4,8 +4,8 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.launch
+import org.monogram.domain.repository.ChatInfoRepository
 import org.monogram.domain.repository.ChatsListRepository
-import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -20,7 +20,7 @@ class DefaultChatEditComponent(
 ) : ChatEditComponent, AppComponentContext by context {
 
     private val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
-    private val userRepository: UserRepository = container.repositories.userRepository
+    private val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
 
     private val scope = componentScope
     private val _state = MutableValue(ChatEditComponent.State(chatId = chatId))
@@ -34,7 +34,7 @@ class DefaultChatEditComponent(
         scope.launch {
             _state.update { it.copy(isLoading = true) }
             val chat = chatsListRepository.getChatById(chatId)
-            val fullInfo = userRepository.getChatFullInfo(chatId)
+            val fullInfo = chatInfoRepository.getChatFullInfo(chatId)
             if (chat != null) {
                 _state.update {
                     it.copy(
@@ -100,7 +100,7 @@ class DefaultChatEditComponent(
             if (currentState.title != currentState.chat?.title) {
                 chatsListRepository.setChatTitle(chatId, currentState.title)
             }
-            val fullInfo = userRepository.getChatFullInfo(chatId)
+            val fullInfo = chatInfoRepository.getChatFullInfo(chatId)
             if (currentState.description != (fullInfo?.description ?: "")) {
                 chatsListRepository.setChatDescription(chatId, currentState.description)
             }

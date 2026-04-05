@@ -12,10 +12,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.UpdateState
-import org.monogram.domain.repository.ChatsListRepository
-import org.monogram.domain.repository.SettingsRepository
-import org.monogram.domain.repository.UpdateRepository
-import org.monogram.domain.repository.UserRepository
+import org.monogram.domain.repository.*
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
@@ -39,6 +36,8 @@ class DefaultChatListComponent(
 
     private val repository: ChatsListRepository = container.repositories.chatsListRepository
     private val repositoryUser: UserRepository = container.repositories.userRepository
+    private val userProfileEditRepository: UserProfileEditRepository = container.repositories.userProfileEditRepository
+    private val botRepository: BotRepository = container.repositories.botRepository
     private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
     private val updateRepository: UpdateRepository = container.repositories.updateRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
@@ -153,7 +152,7 @@ class DefaultChatListComponent(
 
                 bots.firstOrNull()?.let { bot ->
                     if (bot.botUserId != 0L) {
-                        val botInfo = repositoryUser.getBotInfo(bot.botUserId)
+                        val botInfo = botRepository.getBotInfo(bot.botUserId)
                         val menuButton = botInfo?.menuButton
                         if (menuButton is BotMenuButtonModel.WebApp) {
                             _state.update {
@@ -362,7 +361,7 @@ class DefaultChatListComponent(
 
         scope.launch(Dispatchers.IO) {
             coRunCatching {
-                repositoryUser.setEmojiStatus(customEmojiId)
+                userProfileEditRepository.setEmojiStatus(customEmojiId)
             }
         }
     }

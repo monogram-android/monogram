@@ -25,7 +25,7 @@ internal fun DefaultChatComponent.handleMentionQueryChange(
                 val canLoadMembers = !currentState.isChannel || currentState.isAdmin
                 if (canLoadMembers && (currentState.isGroup || currentState.isChannel)) {
                     try {
-                        val members = userRepository.getChatMembers(chatId, 0, 200, ChatMembersFilter.Recent)
+                        val members = chatInfoRepository.getChatMembers(chatId, 0, 200, ChatMembersFilter.Recent)
                             .map { it.user }
                         onMembersUpdated(members)
                         members
@@ -103,7 +103,7 @@ internal fun DefaultChatComponent.handleInlineQueryChange(botUsername: String, q
         }
 
         try {
-            val botId = cachedBotId ?: userRepository.searchPublicChat(normalizedUsername)
+            val botId = cachedBotId ?: chatInfoRepository.searchPublicChat(normalizedUsername)
                 ?.id
 
             if (!isActive) return@launch

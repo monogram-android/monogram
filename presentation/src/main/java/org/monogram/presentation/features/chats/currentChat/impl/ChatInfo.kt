@@ -20,7 +20,7 @@ internal fun DefaultChatComponent.loadChatInfo() {
 
             val isBot = chat.type == ChatType.PRIVATE && chat.isBot
             if (isBot) {
-                val botInfo = userRepository.getBotInfo(chatId)
+                val botInfo = botRepository.getBotInfo(chatId)
                 if (botInfo != null) {
                     _state.update {
                         it.copy(
@@ -170,14 +170,14 @@ internal fun DefaultChatComponent.handleDeleteChat() {
 
 internal fun DefaultChatComponent.handleJoinChat() {
     scope.launch {
-        userRepository.setChatMemberStatus(chatId, userRepository.getMe().id, ChatMemberStatus.Member)
+        chatInfoRepository.setChatMemberStatus(chatId, userRepository.getMe().id, ChatMemberStatus.Member)
     }
 }
 
 internal fun DefaultChatComponent.handleBlockUser(userId: Long) {
     scope.launch {
         if (_state.value.isGroup || _state.value.isChannel) {
-            userRepository.setChatMemberStatus(chatId, userId, ChatMemberStatus.Banned())
+            chatInfoRepository.setChatMemberStatus(chatId, userId, ChatMemberStatus.Banned())
         } else {
             privacyRepository.blockUser(userId)
         }
@@ -196,7 +196,7 @@ internal fun DefaultChatComponent.handleConfirmRestrict(
 ) {
     val userId = _state.value.restrictUserId ?: return
     scope.launch {
-        userRepository.setChatMemberStatus(
+        chatInfoRepository.setChatMemberStatus(
             chatId,
             userId,
             ChatMemberStatus.Restricted(isMember = true, restrictedUntilDate = untilDate, permissions = permissions)

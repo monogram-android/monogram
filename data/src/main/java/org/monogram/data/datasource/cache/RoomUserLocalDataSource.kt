@@ -5,6 +5,7 @@ import org.monogram.data.db.dao.UserDao
 import org.monogram.data.db.dao.UserFullInfoDao
 import org.monogram.data.db.model.UserEntity
 import org.monogram.data.db.model.UserFullInfoEntity
+import org.monogram.data.mapper.user.extractPersonalAvatarPath
 import org.monogram.data.mapper.user.toEntity
 import org.monogram.data.mapper.user.toTdApi
 import java.util.concurrent.ConcurrentHashMap
@@ -70,74 +71,18 @@ class RoomUserLocalDataSource(
         userFullInfoDao.deleteExpired(timestamp)
     }
 
-    suspend fun saveUser(user: UserEntity) = userDao.insertUser(user)
-    suspend fun loadUser(userId: Long): UserEntity? {
+    override suspend fun saveUser(user: UserEntity) = userDao.insertUser(user)
+
+    override suspend fun loadUser(userId: Long): UserEntity? {
         val entity = userDao.getUser(userId)
         entity?.let { users[it.id] = it.toTdApi() }
         return entity
     }
+
     suspend fun deleteUser(userId: Long) = userDao.deleteUser(userId)
-    suspend fun clearDatabase() {
+
+    override suspend fun clearDatabase() {
         userDao.clearAll()
         userFullInfoDao.clearAll()
-    }
-
-    private fun TdApi.User.toEntity(personalAvatarPath: String?): UserEntity {
-        val usernamesData = buildString {
-            append(usernames?.activeUsernames?.joinToString("|").orEmpty())
-            append('\n')
-            append(usernames?.disabledUsernames?.joinToString("|").orEmpty())
-            append('\n')
-            append(usernames?.editableUsername.orEmpty())
-            append('\n')
-            append(usernames?.collectibleUsernames?.joinToString("|").orEmpty())
-        }
-
-        val statusType = when (status) {
-            is TdApi.UserStatusOnline -> "ONLINE"
-            is TdApi.UserStatusRecently -> "RECENTLY"
-            is TdApi.UserStatusLastWeek -> "LAST_WEEK"
-            is TdApi.UserStatusLastMonth -> "LAST_MONTH"
-            else -> "OFFLINE"
-        }
-
-        val statusEmojiId = when (val type = emojiStatus?.type) {
-            is TdApi.EmojiStatusTypeCustomEmoji -> type.customEmojiId
-            is TdApi.EmojiStatusTypeUpgradedGift -> type.modelCustomEmojiId
-            else -> 0L
-        }
-
-        return UserEntity(
-            id = id,
-            firstName = firstName,
-            lastName = lastName.ifEmpty { null },
-            phoneNumber = phoneNumber.ifEmpty { null },
-            avatarPath = profilePhoto?.big?.local?.path?.ifEmpty { null }
-                ?: profilePhoto?.small?.local?.path?.ifEmpty { null },
-            personalAvatarPath = personalAvatarPath,
-            isPremium = isPremium,
-            isVerified = verificationStatus?.isVerified ?: false,
-            isSupport = isSupport,
-            isContact = isContact,
-            isMutualContact = isMutualContact,
-            isCloseFriend = isCloseFriend,
-            haveAccess = haveAccess,
-            username = usernames?.activeUsernames?.firstOrNull(),
-            usernamesData = usernamesData,
-            statusType = statusType,
-            accentColorId = accentColorId,
-            profileAccentColorId = profileAccentColorId,
-            statusEmojiId = statusEmojiId,
-            languageCode = languageCode.ifEmpty { null },
-            lastSeen = (status as? TdApi.UserStatusOffline)?.wasOnline?.toLong() ?: 0L,
-            createdAt = System.currentTimeMillis()
-        )
-    }
-
-    private fun TdApi.UserFullInfo.extractPersonalAvatarPath(): String? {
-        val bestPhotoSize = personalPhoto?.sizes?.maxByOrNull { it.width.toLong() * it.height.toLong() }
-            ?: personalPhoto?.sizes?.lastOrNull()
-        return personalPhoto?.animation?.file?.local?.path?.ifEmpty { null }
-            ?: bestPhotoSize?.photo?.local?.path?.ifEmpty { null }
     }
 }

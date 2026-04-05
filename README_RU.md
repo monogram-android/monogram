@@ -72,7 +72,7 @@
 ### 1. Клонирование репозитория
 
 ```bash
-git clone https://github.com/monogram-android/monogram.git
+git clone --recurse-submodules https://github.com/monogram-android/monogram.git
 cd monogram
 ```
 
@@ -105,7 +105,15 @@ API_HASH=your_api_hash_here
 10. Нажмите **Update** рядом с разделом FCM credentials.
 11. Загрузите JSON сервисного аккаунта на открывшейся странице.
 
-### 4. Сборка и запуск
+### 4. Первичная настройка: сборка libvpx
+
+Для анимаций требуется собрать libvpx. Это нужно сделать до запуска сборки Gradle, иначе сборка завершится с ошибками.
+
+1. Перейдите в директорию `presentation/src/main/cpp`
+2. В `build.sh` укажите ваш `ANDROID_NDK_HOME`
+3. Запустите `build.sh` и дождитесь завершения
+
+### 5. Сборка и запуск
 
 1. Откройте проект в **Android Studio**.
 2. Увеличьте лимиты индексации IDE, чтобы `TdApi.java` (обёртка над TDLib) корректно индексировался. В **Android Studio** или **IntelliJ IDEA** откройте **Help → Edit Custom Properties...**, вставьте строки ниже и при необходимости перезапустите IDE:

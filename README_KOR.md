@@ -71,7 +71,7 @@
 ### 1. 저장소 클론
 
 ```bash
-git clone https://github.com/monogram-android/monogram.git
+git clone --recurse-submodules https://github.com/monogram-android/monogram.git
 cd monogram
 ```
 
@@ -104,7 +104,15 @@ API_HASH=your_api_hash_here
 10. FCM 자격 증명 섹션 옆의 **Update**를 클릭합니다.
 11. 열린 페이지에서 다운로드한 서비스 계정 JSON 파일을 업로드합니다.
 
-### 4. 빌드 및 실행
+### 4. 최초 설정: libvpx 빌드
+
+애니메이션을 사용하려면 libvpx를 먼저 컴파일해야 합니다. Gradle 빌드를 시작하기 전에 이 작업을 하지 않으면 빌드가 실패할 수 있습니다.
+
+1. 작업 디렉터리를 `presentation/src/main/cpp`로 이동합니다.
+2. `build.sh`에 `ANDROID_NDK_HOME`을 추가합니다.
+3. `build.sh`를 실행하고 완료될 때까지 기다립니다.
+
+### 5. 빌드 및 실행
 
 1. **Android Studio**에서 프로젝트를 엽니다.
 2. `TdApi.java`(TDLib 래퍼)가 올바르게 인덱싱되도록 IDE 인덱싱 제한을 늘립니다. **Android Studio** 또는 **IntelliJ IDEA**에서 **Help → Edit Custom Properties...**를 열고 아래 줄을 붙여넣은 후, 메시지가 나타나면 IDE를 다시 시작합니다:

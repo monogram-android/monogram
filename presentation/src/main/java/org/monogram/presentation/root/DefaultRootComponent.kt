@@ -58,7 +58,7 @@ class DefaultRootComponent(
 
     private val authRepository: AuthRepository = container.repositories.authRepository
     private val messageRepository: MessageRepository = container.repositories.messageRepository
-    private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
+    private val storageRepository: StorageRepository = container.repositories.storageRepository
     private val linkHandlerRepository: LinkHandlerRepository = container.repositories.linkHandlerRepository
     private val externalProxyRepository: ExternalProxyRepository = container.repositories.externalProxyRepository
     private val stickerRepository: StickerRepository = container.repositories.stickerRepository
@@ -155,7 +155,7 @@ class DefaultRootComponent(
             limit to time
         }.onEach { (limit, time) ->
             val ttl = if (time > 0) time * 24 * 60 * 60 else -1
-            settingsRepository.setDatabaseMaintenanceSettings(limit, ttl)
+            storageRepository.setDatabaseMaintenanceSettings(limit, ttl)
         }.launchIn(scope)
     }
 
@@ -187,7 +187,7 @@ class DefaultRootComponent(
         val countryCode = phoneManager.getSimCountryIso()
         if (!countryCode.isNullOrBlank()) {
             scope.launch {
-                settingsRepository.setCachedSimCountryIso(countryCode)
+                userRepository.setCachedSimCountryIso(countryCode)
             }
         }
     }

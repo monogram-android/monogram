@@ -4,7 +4,8 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.launch
-import org.monogram.domain.repository.ChatsListRepository
+import org.monogram.domain.repository.ChatListRepository
+import org.monogram.domain.repository.ChatSettingsRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -14,7 +15,8 @@ class DefaultChatPermissionsComponent(
     private val onBackClicked: () -> Unit
 ) : ChatPermissionsComponent, AppComponentContext by context {
 
-    private val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
+    private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
+    private val chatSettingsRepository: ChatSettingsRepository = container.repositories.chatSettingsRepository
     private val scope = componentScope
     private val _state = MutableValue(ChatPermissionsComponent.State(chatId = chatId))
     override val state: Value<ChatPermissionsComponent.State> = _state
@@ -25,7 +27,7 @@ class DefaultChatPermissionsComponent(
 
     private fun loadPermissions() {
         scope.launch {
-            val chat = chatsListRepository.getChatById(chatId)
+            val chat = chatListRepository.getChatById(chatId)
             if (chat != null) {
                 _state.update { it.copy(permissions = chat.permissions) }
             }
@@ -36,7 +38,7 @@ class DefaultChatPermissionsComponent(
 
     override fun onSave() {
         scope.launch {
-            chatsListRepository.setChatPermissions(chatId, _state.value.permissions)
+            chatSettingsRepository.setChatPermissions(chatId, _state.value.permissions)
             onBackClicked()
         }
     }

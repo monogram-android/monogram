@@ -37,6 +37,10 @@ class TdChatRemoteSource(
         return coRunCatching { gateway.execute(TdApi.GetChat(chatId)) }.getOrNull()
     }
 
+    override suspend fun getUser(userId: Long): TdApi.User? {
+        return coRunCatching { gateway.execute(TdApi.GetUser(userId)) }.getOrNull()
+    }
+
     override suspend fun createGroup(title: String, userIds: List<Long>, messageAutoDeleteTime: Int): Long {
         return coRunCatching {
             gateway.execute(TdApi.CreateNewBasicGroupChat(userIds.toLongArray(), title, messageAutoDeleteTime)).chatId

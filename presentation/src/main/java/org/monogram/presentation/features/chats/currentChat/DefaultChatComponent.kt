@@ -8,56 +8,17 @@ import com.arkivanov.essenty.lifecycle.doOnStop
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
 import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.withContext
 import org.monogram.core.DispatcherProvider
 import org.monogram.domain.managers.DistrManager
-import org.monogram.domain.models.BotMenuButtonModel
-import org.monogram.domain.models.ChatPermissionsModel
-import org.monogram.domain.models.GifModel
-import org.monogram.domain.models.InlineKeyboardButtonModel
-import org.monogram.domain.models.KeyboardButtonModel
-import org.monogram.domain.models.MessageContent
-import org.monogram.domain.models.MessageEntity
-import org.monogram.domain.models.MessageModel
-import org.monogram.domain.models.MessageSendOptions
-import org.monogram.domain.models.MessageViewerModel
-import org.monogram.domain.models.UserModel
-import org.monogram.domain.models.WallpaperModel
-import org.monogram.domain.repository.BotPreferencesProvider
-import org.monogram.domain.repository.CacheProvider
-import org.monogram.domain.repository.ChatMembersFilter
-import org.monogram.domain.repository.ChatsListRepository
-import org.monogram.domain.repository.MessageDisplayer
-import org.monogram.domain.repository.MessageRepository
-import org.monogram.domain.repository.PrivacyRepository
-import org.monogram.domain.repository.SettingsRepository
-import org.monogram.domain.repository.StickerRepository
-import org.monogram.domain.repository.UserRepository
+import org.monogram.domain.models.*
+import org.monogram.domain.repository.*
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.componentScope
-import org.monogram.presentation.features.chats.currentChat.impl.loadChatInfo
-import org.monogram.presentation.features.chats.currentChat.impl.loadDraft
-import org.monogram.presentation.features.chats.currentChat.impl.loadMessages
-import org.monogram.presentation.features.chats.currentChat.impl.loadPinnedMessage
-import org.monogram.presentation.features.chats.currentChat.impl.loadScheduledMessages
-import org.monogram.presentation.features.chats.currentChat.impl.loadWallpapers
-import org.monogram.presentation.features.chats.currentChat.impl.observePreferences
-import org.monogram.presentation.features.chats.currentChat.impl.observeUserUpdates
-import org.monogram.presentation.features.chats.currentChat.impl.setupMessageCollectors
-import org.monogram.presentation.features.chats.currentChat.impl.setupPinnedMessageCollector
+import org.monogram.presentation.features.chats.currentChat.impl.*
 import org.monogram.presentation.root.AppComponentContext
 import org.monogram.presentation.settings.storage.CacheController
 import java.io.File
@@ -74,15 +35,22 @@ class DefaultChatComponent(
     private val initialMessageId: Long? = null
 ) : ChatComponent, AppComponentContext by context {
 
-    internal val settingsRepository: SettingsRepository = container.repositories.settingsRepository
+    internal val wallpaperRepository: WallpaperRepository = container.repositories.wallpaperRepository
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
     internal val userRepository: UserRepository = container.repositories.userRepository
+    internal val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
+    internal val botRepository: BotRepository = container.repositories.botRepository
     override val stickerRepository: StickerRepository = container.repositories.stickerRepository
+    internal val gifRepository: GifRepository = container.repositories.gifRepository
     internal val privacyRepository: PrivacyRepository = container.repositories.privacyRepository
     internal val botPreferences: BotPreferencesProvider = container.preferences.botPreferencesProvider
     internal val toastMessageDisplayer: MessageDisplayer = container.utils.messageDisplayer()
-    internal val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
+    internal val chatListRepository: ChatListRepository = container.repositories.chatListRepository
+    internal val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
+    internal val forumTopicsRepository: ForumTopicsRepository = container.repositories.forumTopicsRepository
     override val repositoryMessage: MessageRepository = container.repositories.messageRepository
+    internal val inlineBotRepository: InlineBotRepository = container.repositories.inlineBotRepository
+    internal val paymentRepository: PaymentRepository = container.repositories.paymentRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     internal val cacheProvider: CacheProvider = container.cacheProvider
     internal val cacheController: CacheController = container.utils.cacheController
@@ -274,7 +242,7 @@ class DefaultChatComponent(
                 if (currentState.isChannel && !currentState.isAdmin) return@launch
 
                 try {
-                    allMembers = userRepository.getChatMembers(chatId, 0, 200, ChatMembersFilter.Recent)
+                    allMembers = chatInfoRepository.getChatMembers(chatId, 0, 200, ChatMembersFilter.Recent)
                         .map { it.user }
                 } catch (e: Exception) {
                     Log.e("DefaultChatComponent", "Failed to load members", e)
@@ -549,7 +517,7 @@ class DefaultChatComponent(
     override fun onSendInlineResult(resultId: String) = store.accept(ChatStore.Intent.SendInlineResult(resultId))
     override fun onOpenAttachBot(botUserId: Long, fallbackName: String) {
         scope.launch {
-            val botInfo = userRepository.getBotInfo(botUserId)
+            val botInfo = botRepository.getBotInfo(botUserId)
             val menuButton = botInfo?.menuButton
             if (menuButton is BotMenuButtonModel.WebApp) {
                 onOpenMiniApp(

@@ -139,7 +139,7 @@ internal fun DefaultChatComponent.observePreferences(availableWallpapers: List<W
 }
 
 internal fun DefaultChatComponent.loadWallpapers(onLoaded: (List<WallpaperModel>) -> Unit) {
-    settingsRepository.getWallpapers()
+    wallpaperRepository.getWallpapers()
         .onEach { wallpapers ->
             onLoaded(wallpapers)
             val currentWallpaper = appPreferences.wallpaper.value

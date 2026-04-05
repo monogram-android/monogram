@@ -7,7 +7,7 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.models.ChatEventActionModel
 import org.monogram.domain.models.ChatEventLogFiltersModel
 import org.monogram.domain.models.MessageSenderModel
-import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.ChatEventLogRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.componentScope
@@ -21,7 +21,7 @@ class DefaultProfileLogsComponent(
     override val downloadUtils: IDownloadUtils
 ) : ProfileLogsComponent, AppComponentContext by context {
 
-    override val messageRepository: MessageRepository = container.repositories.messageRepository
+    override val messageRepository: ChatEventLogRepository = container.repositories.chatEventLogRepository
     private val userRepository: UserRepository = container.repositories.userRepository
 
     private val scope = componentScope

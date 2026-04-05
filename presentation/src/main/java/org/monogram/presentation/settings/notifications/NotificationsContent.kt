@@ -22,8 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import org.monogram.domain.repository.NotificationSettingsRepository.TdNotificationScope
 import org.monogram.domain.repository.PushProvider
-import org.monogram.domain.repository.SettingsRepository.TdNotificationScope
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.ui.ItemPosition

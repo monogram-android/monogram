@@ -11,7 +11,8 @@ import org.monogram.data.datasource.remote.MessageFileApi
 import org.monogram.data.datasource.remote.TdMessageRemoteDataSource
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.domain.models.*
-import org.monogram.domain.repository.SettingsRepository
+import org.monogram.domain.repository.AppPreferencesProvider
+import org.monogram.domain.repository.ChatInfoRepository
 import org.monogram.domain.repository.UserRepository
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -20,10 +21,11 @@ class MessageMapper(
     private val connectivityManager: ConnectivityManager,
     private val gateway: TelegramGateway,
     private val userRepository: UserRepository,
+    private val chatInfoRepository: ChatInfoRepository,
     private val customEmojiPaths: ConcurrentHashMap<Long, String>,
     private val fileIdToCustomEmojiId: ConcurrentHashMap<Int, Long>,
     private val fileApi: MessageFileApi,
-    private val settingsRepository: SettingsRepository,
+    private val appPreferences: AppPreferencesProvider,
     private val cache: ChatCache,
     scopeProvider: ScopeProvider
 ) {
@@ -88,10 +90,10 @@ class MessageMapper(
 
     private fun isNetworkAutoDownloadEnabled(): Boolean {
         return when (getCurrentNetworkType()) {
-            is TdApi.NetworkTypeWiFi -> settingsRepository.autoDownloadWifi.value
-            is TdApi.NetworkTypeMobile -> settingsRepository.autoDownloadMobile.value
-            is TdApi.NetworkTypeMobileRoaming -> settingsRepository.autoDownloadRoaming.value
-            else -> settingsRepository.autoDownloadWifi.value
+            is TdApi.NetworkTypeWiFi -> appPreferences.autoDownloadWifi.value
+            is TdApi.NetworkTypeMobile -> appPreferences.autoDownloadMobile.value
+            is TdApi.NetworkTypeMobileRoaming -> appPreferences.autoDownloadRoaming.value
+            else -> appPreferences.autoDownloadWifi.value
         }
     }
 
@@ -313,7 +315,7 @@ class MessageMapper(
                         senderCustomTitle = cachedRank.takeUnless { it == NO_RANK_SENTINEL }
                     } else {
                         val member = try {
-                            withTimeout(500) { userRepository.getChatMember(msg.chatId, senderId) }
+                            withTimeout(500) { chatInfoRepository.getChatMember(msg.chatId, senderId) }
                         } catch (e: Exception) {
                             null
                         }
@@ -793,8 +795,8 @@ class MessageMapper(
                 TdMessageRemoteDataSource.DownloadType.DEFAULT -> {
                     if (linkPreviewType == WebPage.LinkPreviewType.Document) false else networkAutoDownload
                 }
-                TdMessageRemoteDataSource.DownloadType.STICKER -> networkAutoDownload && settingsRepository.autoDownloadStickers.value
-                TdMessageRemoteDataSource.DownloadType.VIDEO_NOTE -> networkAutoDownload && settingsRepository.autoDownloadVideoNotes.value
+                TdMessageRemoteDataSource.DownloadType.STICKER -> networkAutoDownload && appPreferences.autoDownloadStickers.value
+                TdMessageRemoteDataSource.DownloadType.VIDEO_NOTE -> networkAutoDownload && appPreferences.autoDownloadVideoNotes.value
                 else -> networkAutoDownload
             }
 
@@ -1133,7 +1135,7 @@ class MessageMapper(
                 val videoPath = videoFile.local.path.takeIf { isValidPath(it) }
                 fileApi.registerFileForMessage(videoFile.id, msg.chatId, msg.id)
 
-                if (videoPath == null && networkAutoDownload && settingsRepository.autoDownloadVideoNotes.value) {
+                if (videoPath == null && networkAutoDownload && appPreferences.autoDownloadVideoNotes.value) {
                     fileApi.enqueueDownload(videoFile.id, 1, TdMessageRemoteDataSource.DownloadType.VIDEO_NOTE, 0, 0, false)
                 }
 
@@ -1175,7 +1177,7 @@ class MessageMapper(
                 val path = stickerFile.local.path.takeIf { isValidPath(it) }
 
                 fileApi.registerFileForMessage(stickerFile.id, msg.chatId, msg.id)
-                if (path == null && networkAutoDownload && settingsRepository.autoDownloadStickers.value) {
+                if (path == null && networkAutoDownload && appPreferences.autoDownloadStickers.value) {
                     fileApi.enqueueDownload(stickerFile.id, 1, TdMessageRemoteDataSource.DownloadType.STICKER, 0, 0, false)
                 }
 

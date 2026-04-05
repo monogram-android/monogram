@@ -6,9 +6,7 @@ import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.BirthdateModel
 import org.monogram.domain.models.BusinessOpeningHoursModel
-import org.monogram.domain.repository.ChatsListRepository
-import org.monogram.domain.repository.LocationRepository
-import org.monogram.domain.repository.UserRepository
+import org.monogram.domain.repository.*
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -18,7 +16,9 @@ class DefaultEditProfileComponent(
 ) : EditProfileComponent, AppComponentContext by context {
 
     private val userRepository: UserRepository = container.repositories.userRepository
-    private val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
+    private val userProfileEditRepository: UserProfileEditRepository = container.repositories.userProfileEditRepository
+    private val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
+    private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     private val locationRepository: LocationRepository = container.repositories.locationRepository
 
     private val _state = MutableValue(EditProfileComponent.State())
@@ -30,9 +30,9 @@ class DefaultEditProfileComponent(
             _state.update { it.copy(isLoading = true) }
             try {
                 val me = userRepository.getMe()
-                val fullInfo = userRepository.getChatFullInfo(me.id)
+                val fullInfo = chatInfoRepository.getChatFullInfo(me.id)
                 val linkedChat =
-                    fullInfo?.linkedChatId?.let { if (it != 0L) chatsListRepository.getChatById(it) else null }
+                    fullInfo?.linkedChatId?.let { if (it != 0L) chatListRepository.getChatById(it) else null }
 
                 _state.update {
                     it.copy(
@@ -87,7 +87,7 @@ class DefaultEditProfileComponent(
         _state.update { it.copy(personalChatId = chatId) }
         if (chatId != 0L) {
             scope.launch {
-                val chat = chatsListRepository.getChatById(chatId)
+                val chat = chatListRepository.getChatById(chatId)
                 _state.update { it.copy(linkedChat = chat) }
             }
         } else {
@@ -117,7 +117,7 @@ class DefaultEditProfileComponent(
         _state.update { it.copy(avatarPath = path) }
         scope.launch {
             try {
-                userRepository.setProfilePhoto(path)
+                userProfileEditRepository.setProfilePhoto(path)
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message) }
             }
@@ -150,7 +150,7 @@ class DefaultEditProfileComponent(
     override fun onToggleUsername(username: String, active: Boolean) {
         scope.launch {
             try {
-                userRepository.toggleUsernameIsActive(username, active)
+                userProfileEditRepository.toggleUsernameIsActive(username, active)
                 val me = userRepository.getMe()
                 _state.update { it.copy(user = me) }
             } catch (e: Exception) {
@@ -162,7 +162,7 @@ class DefaultEditProfileComponent(
     override fun onReorderUsernames(usernames: List<String>) {
         scope.launch {
             try {
-                userRepository.reorderActiveUsernames(usernames)
+                userProfileEditRepository.reorderActiveUsernames(usernames)
                 val me = userRepository.getMe()
                 _state.update { it.copy(user = me, username = me.username ?: "") }
             } catch (e: Exception) {
@@ -179,35 +179,35 @@ class DefaultEditProfileComponent(
                 val user = currentState.user ?: return@launch
 
                 if (currentState.firstName != user.firstName || currentState.lastName != (user.lastName ?: "")) {
-                    userRepository.setName(currentState.firstName, currentState.lastName)
+                    userProfileEditRepository.setName(currentState.firstName, currentState.lastName)
                 }
 
-                val fullInfo = userRepository.getChatFullInfo(user.id)
+                val fullInfo = chatInfoRepository.getChatFullInfo(user.id)
                 if (currentState.bio != (fullInfo?.description ?: "")) {
-                    userRepository.setBio(currentState.bio)
+                    userProfileEditRepository.setBio(currentState.bio)
                 }
 
                 if (currentState.username != (user.username ?: "")) {
-                    userRepository.setUsername(currentState.username)
+                    userProfileEditRepository.setUsername(currentState.username)
                 }
 
                 if (currentState.birthdate != fullInfo?.birthdate) {
-                    userRepository.setBirthdate(currentState.birthdate)
+                    userProfileEditRepository.setBirthdate(currentState.birthdate)
                 }
 
                 if (currentState.personalChatId != (fullInfo?.linkedChatId ?: 0L)) {
-                    userRepository.setPersonalChat(currentState.personalChatId)
+                    userProfileEditRepository.setPersonalChat(currentState.personalChatId)
                 }
 
                 if (currentState.businessBio != (fullInfo?.businessInfo?.startPage?.message ?: "")) {
-                    userRepository.setBusinessBio(currentState.businessBio)
+                    userProfileEditRepository.setBusinessBio(currentState.businessBio)
                 }
 
                 if (currentState.businessAddress != (fullInfo?.businessInfo?.location?.address ?: "") ||
                     currentState.businessLatitude != (fullInfo?.businessInfo?.location?.latitude ?: 0.0) ||
                     currentState.businessLongitude != (fullInfo?.businessInfo?.location?.longitude ?: 0.0)
                 ) {
-                    userRepository.setBusinessLocation(
+                    userProfileEditRepository.setBusinessLocation(
                         currentState.businessAddress,
                         currentState.businessLatitude,
                         currentState.businessLongitude
@@ -215,7 +215,7 @@ class DefaultEditProfileComponent(
                 }
 
                 if (currentState.businessOpeningHours != fullInfo?.businessInfo?.openingHours) {
-                    userRepository.setBusinessOpeningHours(currentState.businessOpeningHours)
+                    userProfileEditRepository.setBusinessOpeningHours(currentState.businessOpeningHours)
                 }
 
                 onBack()

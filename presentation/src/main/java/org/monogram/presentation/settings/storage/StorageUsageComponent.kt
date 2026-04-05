@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.StorageUsageModel
-import org.monogram.domain.repository.SettingsRepository
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.StorageRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
@@ -39,7 +39,7 @@ class DefaultStorageUsageComponent(
     private val onBack: () -> Unit
 ) : StorageUsageComponent, AppComponentContext by context {
 
-    private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
+    private val storageRepository: StorageRepository = container.repositories.storageRepository
     private val appPreferences: AppPreferences = container.preferences.appPreferences
     private val stickerRepository: StickerRepository = container.repositories.stickerRepository
     private val cacheController: CacheController = container.utils.cacheController
@@ -59,7 +59,7 @@ class DefaultStorageUsageComponent(
         }.launchIn(scope)
 
         scope.launch {
-            val enabled = settingsRepository.getStorageOptimizerEnabled()
+            val enabled = storageRepository.getStorageOptimizerEnabled()
             _state.update { it.copy(isStorageOptimizerEnabled = enabled) }
         }
     }
@@ -67,7 +67,7 @@ class DefaultStorageUsageComponent(
     private fun loadStatistics() {
         _state.update { it.copy(isLoading = true) }
         scope.launch {
-            val usage = settingsRepository.getStorageUsage()
+            val usage = storageRepository.getStorageUsage()
             _state.update { it.copy(usage = usage, isLoading = false) }
         }
     }
@@ -78,7 +78,7 @@ class DefaultStorageUsageComponent(
     ) {
         scope.launch {
             val ttl = if (time > 0) time * 24 * 60 * 60 else -1
-            settingsRepository.setDatabaseMaintenanceSettings(limit, ttl)
+            storageRepository.setDatabaseMaintenanceSettings(limit, ttl)
             loadStatistics()
         }
     }
@@ -90,7 +90,7 @@ class DefaultStorageUsageComponent(
     @OptIn(UnstableApi::class, ExperimentalCoilApi::class)
     override fun onClearAllClicked() {
         scope.launch {
-            val success = settingsRepository.clearStorage()
+            val success = storageRepository.clearStorage()
             if (success) {
                 stickerRepository.clearCache()
                 cacheController.clearAllCache()
@@ -101,7 +101,7 @@ class DefaultStorageUsageComponent(
 
     override fun onClearChatClicked(chatId: Long) {
         scope.launch {
-            val success = settingsRepository.clearStorage(chatId)
+            val success = storageRepository.clearStorage(chatId)
             if (success) {
                 loadStatistics()
             }
@@ -120,7 +120,7 @@ class DefaultStorageUsageComponent(
 
     override fun onStorageOptimizerChanged(enabled: Boolean) {
         scope.launch {
-            settingsRepository.setStorageOptimizerEnabled(enabled)
+            storageRepository.setStorageOptimizerEnabled(enabled)
             _state.update { it.copy(isStorageOptimizerEnabled = enabled) }
         }
     }

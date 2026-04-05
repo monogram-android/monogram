@@ -32,7 +32,9 @@ import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import kotlinx.coroutines.delay
+import org.koin.compose.koinInject
 import org.monogram.domain.models.GifModel
+import org.monogram.domain.repository.GifRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
@@ -45,7 +47,8 @@ fun GifsView(
     onGifSelected: (GifModel) -> Unit,
     onSearchFocused: (Boolean) -> Unit,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    stickerRepository: StickerRepository
+    stickerRepository: StickerRepository,
+    gifRepository: GifRepository = koinInject()
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var debouncedSearchQuery by remember { mutableStateOf("") }
@@ -53,11 +56,10 @@ fun GifsView(
     var searchResults by remember { mutableStateOf<List<GifModel>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var isFocused by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val gridState = rememberLazyGridState()
 
     LaunchedEffect(Unit) {
-        savedGifs = stickerRepository.getSavedGifs()
+        savedGifs = gifRepository.getSavedGifs()
     }
 
     LaunchedEffect(searchQuery) {
@@ -74,7 +76,7 @@ fun GifsView(
 
     LaunchedEffect(debouncedSearchQuery) {
         if (debouncedSearchQuery.isNotEmpty()) {
-            searchResults = stickerRepository.searchGifs(debouncedSearchQuery)
+            searchResults = gifRepository.searchGifs(debouncedSearchQuery)
             isLoading = false
         } else {
             searchResults = emptyList()
@@ -101,7 +103,7 @@ fun GifsView(
         }
     }
 
-    val onGifClick: (GifModel) -> Unit = remember(scope, stickerRepository, onGifSelected) {
+    val onGifClick: (GifModel) -> Unit = remember(onGifSelected) {
         { gif: GifModel ->
             onGifSelected(gif)
         }
@@ -167,6 +169,7 @@ fun GifsView(
                     ) { index, gif ->
                         GifItem(
                             gif = gif,
+                            gifRepository = gifRepository,
                             stickerRepository = stickerRepository,
                             onGifSelected = onGifClick,
                             animate = index in visibleRange
@@ -286,6 +289,7 @@ fun GifSearchBar(
 @Composable
 fun GifItem(
     gif: GifModel,
+    gifRepository: GifRepository,
     stickerRepository: StickerRepository,
     onGifSelected: (GifModel) -> Unit,
     animate: Boolean = true
@@ -295,7 +299,7 @@ fun GifItem(
 
     LaunchedEffect(gif, animate) {
         if (animate) {
-            stickerRepository.getGifFile(gif).collect {
+            gifRepository.getGifFile(gif).collect {
                 gifPath = it
             }
         }

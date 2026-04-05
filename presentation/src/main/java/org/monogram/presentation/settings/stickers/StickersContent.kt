@@ -288,7 +288,7 @@ fun StickersContent(component: StickersComponent) {
                     botUserId = state.miniAppBotUserId,
                     baseUrl = state.miniAppUrl!!,
                     botName = state.miniAppName!!,
-                    messageRepository = koinInject(),
+                    webAppRepository = koinInject(),
                     onDismiss = { component.onDismissMiniApp() }
                 )
             }

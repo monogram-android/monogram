@@ -9,6 +9,7 @@ interface ChatRemoteSource {
     suspend fun searchPublicChats(query: String): TdApi.Chats?
     suspend fun searchMessages(query: String, offset: String, limit: Int): TdApi.FoundMessages?
     suspend fun getChat(chatId: Long): TdApi.Chat?
+    suspend fun getUser(userId: Long): TdApi.User?
     suspend fun createGroup(title: String, userIds: List<Long>, messageAutoDeleteTime: Int): Long
     suspend fun createChannel(title: String, description: String, isMegagroup: Boolean, messageAutoDeleteTime: Int): Long
     suspend fun setChatPhoto(chatId: Long, photoPath: String)

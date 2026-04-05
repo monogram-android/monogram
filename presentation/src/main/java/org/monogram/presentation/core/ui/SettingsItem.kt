@@ -25,7 +25,7 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.filter
 import org.koin.compose.koinInject
 import org.monogram.domain.models.FileModel
-import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.FileRepository
 import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -89,13 +89,13 @@ fun SettingsItem(
                         tint = iconBackgroundColor
                     )
                 } else if (icon is FileModel) {
-                    val messageRepository: MessageRepository = koinInject()
+                    val fileRepository: FileRepository = koinInject()
                     var localPath by remember(icon.id) { mutableStateOf(icon.local.path) }
 
                     LaunchedEffect(icon.id) {
                         if (localPath.isEmpty() || !File(localPath).exists()) {
-                            messageRepository.downloadFile(icon.id, 32)
-                            messageRepository.messageDownloadCompletedFlow
+                            fileRepository.downloadFile(icon.id, 32)
+                            fileRepository.messageDownloadCompletedFlow
                                 .filter { it.first == icon.id.toLong() }
                                 .collect { (_, _, completedPath) -> localPath = completedPath }
                         }

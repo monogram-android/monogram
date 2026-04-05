@@ -1,5 +1,6 @@
 package org.monogram.domain.models
 
+import androidx.compose.runtime.Stable
 import kotlinx.serialization.Serializable
 
 data class MessageModel(
@@ -26,7 +27,7 @@ data class MessageModel(
     val readDate: Int = 0,
     val reactions: List<MessageReactionModel> = emptyList(),
     val isSenderVerified: Boolean = false,
-    val threadId: Int? = null,
+    val threadId: Long? = null,
     val canBeEdited: Boolean = false,
     val canBeForwarded: Boolean = true,
     val canBeDeletedOnlyForSelf: Boolean = true,
@@ -106,7 +107,7 @@ sealed interface MessageContent {
             if (thumbnailPath != other.thumbnailPath) return false
             if (caption != other.caption) return false
             if (entities != other.entities) return false
-            if (!minithumbnail.contentEquals(other.minithumbnail)) return false
+            if (!(minithumbnail contentEquals other.minithumbnail)) return false
 
             return true
         }
@@ -169,7 +170,7 @@ sealed interface MessageContent {
             if (thumbnailPath != other.thumbnailPath) return false
             if (caption != other.caption) return false
             if (entities != other.entities) return false
-            if (!minithumbnail.contentEquals(other.minithumbnail)) return false
+            if (!(minithumbnail contentEquals other.minithumbnail)) return false
 
             return true
         }
@@ -220,7 +221,7 @@ sealed interface MessageContent {
             if (downloadError != other.downloadError) return false
             if (fileId != other.fileId) return false
             if (path != other.path) return false
-            if (!waveform.contentEquals(other.waveform)) return false
+            if (!(waveform contentEquals other.waveform)) return false
 
             return true
         }
@@ -332,7 +333,7 @@ sealed interface MessageContent {
             if (path != other.path) return false
             if (caption != other.caption) return false
             if (entities != other.entities) return false
-            if (!minithumbnail.contentEquals(other.minithumbnail)) return false
+            if (!(minithumbnail contentEquals other.minithumbnail)) return false
 
             return true
         }
@@ -477,7 +478,7 @@ data class WebPage(
             if (height != other.height) return false
             if (fileId != other.fileId) return false
             if (path != other.path) return false
-            if (!minithumbnail.contentEquals(other.minithumbnail)) return false
+            if (!(minithumbnail contentEquals other.minithumbnail)) return false
 
             return true
         }
@@ -587,6 +588,7 @@ data class MessageReactionModel(
     val recentSenders: List<ReactionSender> = emptyList()
 )
 
+@Stable
 data class ReactionSender(
     val id: Long,
     val name: String = "",

@@ -568,7 +568,8 @@ class MessageMapper(
             }?.awaitAll()?.filterNotNull() ?: emptyList()
 
         val threadId = when (val topic = msg.topicId) {
-            is TdApi.MessageTopicForum -> topic.forumTopicId
+            is TdApi.MessageTopicForum -> topic.forumTopicId.toLong()
+            is TdApi.MessageTopicThread -> topic.messageThreadId
             else -> null
         }
 
@@ -980,7 +981,7 @@ class MessageMapper(
         readDate: Int = 0,
         reactions: List<MessageReactionModel> = emptyList(),
         isSenderVerified: Boolean = false,
-        threadId: Int? = null,
+        threadId: Long? = null,
         replyCount: Int = 0,
         isReply: Boolean = false,
         viaBotUserId: Long = 0L,

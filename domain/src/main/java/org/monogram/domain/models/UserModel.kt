@@ -1,5 +1,8 @@
 package org.monogram.domain.models
 
+import androidx.compose.runtime.Stable
+
+@Stable
 data class UserModel(
     val id: Long,
     val firstName: String,

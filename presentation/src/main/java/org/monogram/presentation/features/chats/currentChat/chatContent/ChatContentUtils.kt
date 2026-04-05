@@ -1,11 +1,16 @@
 package org.monogram.presentation.features.chats.currentChat.chatContent
 
+import androidx.compose.runtime.Immutable
 import org.monogram.domain.models.MessageModel
 import java.text.SimpleDateFormat
 import java.util.*
 
+@Immutable
 sealed class GroupedMessageItem {
+    @Immutable
     data class Single(val message: MessageModel) : GroupedMessageItem()
+
+    @Immutable
     data class Album(val albumId: Long, val messages: List<MessageModel>) : GroupedMessageItem()
 
     val firstMessageId: Long

@@ -23,8 +23,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material3.*
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -183,6 +181,12 @@ fun ChatContentList(
                         is GroupedMessageItem.Single -> "msg_${item.message.id}"
                         is GroupedMessageItem.Album -> "album_${item.albumId}"
                     }
+                },
+                contentType = { _, item ->
+                    when (item) {
+                        is GroupedMessageItem.Single -> "single"
+                        is GroupedMessageItem.Album -> "album"
+                    }
                 }
             ) { index, item ->
                 val olderMsg = remember(groupedMessages, index) { getMessageAt(groupedMessages, index - 1) }
@@ -249,6 +253,12 @@ fun ChatContentList(
                     when (item) {
                         is GroupedMessageItem.Single -> "msg_${item.message.id}"
                         is GroupedMessageItem.Album -> "album_${item.albumId}"
+                    }
+                },
+                contentType = { _, item ->
+                    when (item) {
+                        is GroupedMessageItem.Single -> "single"
+                        is GroupedMessageItem.Album -> "album"
                     }
                 }
             ) { index, item ->

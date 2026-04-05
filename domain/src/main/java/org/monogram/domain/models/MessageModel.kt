@@ -561,6 +561,8 @@ sealed interface MessageEntityType {
     object Underline : MessageEntityType
     object Strikethrough : MessageEntityType
     object Spoiler : MessageEntityType
+    object BlockQuote : MessageEntityType
+    object BlockQuoteExpandable: MessageEntityType
     object Code : MessageEntityType
     data class Pre(val language: String = "") : MessageEntityType
     data class TextUrl(val url: String) : MessageEntityType
@@ -573,7 +575,7 @@ sealed interface MessageEntityType {
     object PhoneNumber : MessageEntityType
     object BankCardNumber : MessageEntityType
     data class CustomEmoji(val emojiId: Long, val path: String? = null) : MessageEntityType
-    object Other : MessageEntityType
+    data class Other(val srcEntity: String) : MessageEntityType
 }
 
 data class MessageReactionModel(

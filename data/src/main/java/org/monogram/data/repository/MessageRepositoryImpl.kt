@@ -621,6 +621,8 @@ class MessageRepositoryImpl(
                 is MessageEntityType.Strikethrough -> TdApi.TextEntityTypeStrikethrough()
                 is MessageEntityType.Spoiler -> TdApi.TextEntityTypeSpoiler()
                 is MessageEntityType.Code -> TdApi.TextEntityTypeCode()
+                is MessageEntityType.BlockQuote -> TdApi.TextEntityTypeBlockQuote()
+                is MessageEntityType.BlockQuoteExpandable -> TdApi.TextEntityTypeExpandableBlockQuote()
                 is MessageEntityType.Pre -> if (value.language.isBlank()) TdApi.TextEntityTypePre() else TdApi.TextEntityTypePreCode(
                     value.language
                 )

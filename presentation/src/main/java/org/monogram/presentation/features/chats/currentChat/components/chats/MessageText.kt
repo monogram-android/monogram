@@ -2,6 +2,7 @@ package org.monogram.presentation.features.chats.currentChat.components.chats
 
 import android.content.ClipData
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.core.withInfiniteAnimationFrameMillis
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -27,7 +28,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import org.monogram.domain.models.MessageEntity
-import org.monogram.domain.models.MessageEntityType
+import org.monogram.presentation.features.chats.currentChat.components.chats.model.isBlockElement
 
 @Composable
 fun MessageText(
@@ -48,7 +49,7 @@ fun MessageText(
     val linkHandler = LocalLinkHandler.current
 
     val blockEntities = entities
-        .filter { it.type is MessageEntityType.Pre }
+        .filter { it.type.isBlockElement() }
         .sortedBy { it.offset }
 
     Column(modifier = modifier) {
@@ -91,13 +92,10 @@ fun MessageText(
                     }
                 }
 
-                val codeType = entity.type as MessageEntityType.Pre
-                val codeRawText = text.text.substring(entity.offset, entity.offset + entity.length)
-
-                CodeBlock(
-                    text = codeRawText,
-                    language = codeType.language,
-                    isOutgoing = isOutgoing
+                TextBlocks(
+                    text = text.text,
+                    entity = entity,
+                    isOutgoing = isOutgoing,
                 )
 
                 lastOffset = entity.offset + entity.length
@@ -166,7 +164,8 @@ private fun DefaultTextRender(
         modifier = Modifier
             .drawBehind {
                 layoutResult.value?.let { result ->
-                    val unrevealedSpoilers = text.getStringAnnotations("SPOILER_UNREVEALED", 0, text.length)
+                    val unrevealedSpoilers =
+                        text.getStringAnnotations("SPOILER_UNREVEALED", 0, text.length)
                     unrevealedSpoilers.forEach { spoilerAnnotation ->
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && shader != null) {
                             drawSpoilerEffectApi33(
@@ -195,16 +194,25 @@ private fun DefaultTextRender(
                         var consumed = false
                         layoutResult.value?.let { result ->
                             val rawPosition = result.getOffsetForPosition(offset)
-                            val position = if (text.isNotEmpty()) rawPosition.coerceIn(0, text.length - 1) else 0
+                            val position = if (text.isNotEmpty()) rawPosition.coerceIn(
+                                0,
+                                text.length - 1
+                            ) else 0
                             val annotations = buildList {
-                                addAll(text.getStringAnnotations(position, (position + 1).coerceAtMost(text.length)))
+                                addAll(
+                                    text.getStringAnnotations(
+                                        position,
+                                        (position + 1).coerceAtMost(text.length)
+                                    )
+                                )
                                 if (position > 0) {
                                     addAll(text.getStringAnnotations(position - 1, position))
                                 }
                             }
 
-                            val annotation = annotations.firstOrNull { it.tag.startsWith("SPOILER") }
-                                ?: annotations.firstOrNull()
+                            val annotation =
+                                annotations.firstOrNull { it.tag.startsWith("SPOILER") }
+                                    ?: annotations.firstOrNull()
 
                             annotation?.let {
                                 when (annotation.tag) {
@@ -223,9 +231,16 @@ private fun DefaultTextRender(
 
                                     "COPY" -> {
                                         localClipboard.nativeClipboard.setPrimaryClip(
-                                            ClipData.newPlainText("", AnnotatedString(annotation.item))
+                                            ClipData.newPlainText(
+                                                "",
+                                                AnnotatedString(annotation.item)
+                                            )
                                         )
-                                        Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(
+                                            context,
+                                            "Copied to clipboard",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                         consumed = true
                                     }
 

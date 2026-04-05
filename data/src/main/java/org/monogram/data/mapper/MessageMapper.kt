@@ -675,6 +675,8 @@ class MessageMapper(
                 is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email
                 is TdApi.TextEntityTypePhoneNumber -> MessageEntityType.PhoneNumber
                 is TdApi.TextEntityTypeBankCardNumber -> MessageEntityType.BankCardNumber
+                is TdApi.TextEntityTypeBlockQuote -> MessageEntityType.BlockQuote
+                is TdApi.TextEntityTypeExpandableBlockQuote -> MessageEntityType.BlockQuoteExpandable
                 is TdApi.TextEntityTypeCustomEmoji -> {
                     val emojiId = entityType.customEmojiId
                     val path = customEmojiPaths[emojiId].takeIf { isValidPath(it) }
@@ -686,7 +688,7 @@ class MessageMapper(
                     MessageEntityType.CustomEmoji(emojiId, path)
                 }
 
-                else -> MessageEntityType.Other
+                else -> MessageEntityType.Other(entityType.javaClass.simpleName)
             }
             MessageEntity(entity.offset, entity.length, type)
         }

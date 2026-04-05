@@ -28,7 +28,9 @@ class DefaultProfileComponent(
     private val onMemberLongClicked: (Long, Long) -> Unit = { _, _ -> }
 ) : ProfileComponent, AppComponentContext by context {
 
-    private val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
+    private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
+    private val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
+    private val chatSettingsRepository: ChatSettingsRepository = container.repositories.chatSettingsRepository
     private val userRepository: UserRepository = container.repositories.userRepository
     private val profilePhotoRepository: ProfilePhotoRepository = container.repositories.profilePhotoRepository
     private val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
@@ -64,7 +66,7 @@ class DefaultProfileComponent(
         scope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val chat = coRunCatching { chatsListRepository.getChatById(chatId) }.getOrNull()
+                val chat = coRunCatching { chatListRepository.getChatById(chatId) }.getOrNull()
                 val user = if (chat == null || (!chat.isGroup && !chat.isChannel)) {
                     userRepository.getUser(chatId)
                 } else null
@@ -95,7 +97,7 @@ class DefaultProfileComponent(
 
                 val linkedChatId = fullInfo?.linkedChatId?.takeIf { it != 0L }
                 val linkedChat = linkedChatId?.let {
-                    coRunCatching { chatsListRepository.getChatById(it) }.getOrNull()
+                    coRunCatching { chatListRepository.getChatById(it) }.getOrNull()
                 }
 
                 _state.update {
@@ -711,7 +713,7 @@ class DefaultProfileComponent(
         val shouldMute = !chat.isMuted
 
         scope.launch {
-            chatsListRepository.toggleMuteChats(setOf(chatId), shouldMute)
+            chatOperationsRepository.toggleMuteChats(setOf(chatId), shouldMute)
             updateChat(chatId)
         }
     }
@@ -748,7 +750,7 @@ class DefaultProfileComponent(
 
     override fun onDeleteChat() {
         scope.launch {
-            chatsListRepository.deleteChats(setOf(chatId))
+            chatOperationsRepository.deleteChats(setOf(chatId))
         }
     }
 
@@ -825,7 +827,7 @@ class DefaultProfileComponent(
 
     override fun onLeave() {
         scope.launch {
-            chatsListRepository.leaveChat(chatId)
+            chatOperationsRepository.leaveChat(chatId)
             updateChat(chatId)
         }
     }
@@ -839,7 +841,7 @@ class DefaultProfileComponent(
 
     override fun onReport(reason: String) {
         scope.launch(Dispatchers.IO) {
-            chatsListRepository.reportChat(chatId, reason)
+            chatOperationsRepository.reportChat(chatId, reason)
             withContext(Dispatchers.Main) {
                 _state.update { it.copy(isReportVisible = false) }
             }
@@ -860,7 +862,7 @@ class DefaultProfileComponent(
 
     override fun onMemberClick(userId: Long) {
         scope.launch {
-            val chat = chatsListRepository.getChatById(userId)
+            val chat = chatListRepository.getChatById(userId)
             if (chat != null && (chat.isGroup || chat.isChannel)) {
                 onMemberClicked(userId)
             } else {
@@ -880,35 +882,35 @@ class DefaultProfileComponent(
 
     override fun onUpdateChatTitle(title: String) {
         scope.launch {
-            chatsListRepository.setChatTitle(chatId, title)
+            chatSettingsRepository.setChatTitle(chatId, title)
             updateChat(chatId)
         }
     }
 
     override fun onUpdateChatDescription(description: String) {
         scope.launch {
-            chatsListRepository.setChatDescription(chatId, description)
+            chatSettingsRepository.setChatDescription(chatId, description)
             loadData()
         }
     }
 
     override fun onUpdateChatUsername(username: String) {
         scope.launch {
-            chatsListRepository.setChatUsername(chatId, username)
+            chatSettingsRepository.setChatUsername(chatId, username)
             loadData()
         }
     }
 
     override fun onUpdateChatPermissions(permissions: ChatPermissionsModel) {
         scope.launch {
-            chatsListRepository.setChatPermissions(chatId, permissions)
+            chatSettingsRepository.setChatPermissions(chatId, permissions)
             updateChat(chatId)
         }
     }
 
     override fun onUpdateChatSlowModeDelay(delay: Int) {
         scope.launch {
-            chatsListRepository.setChatSlowModeDelay(chatId, delay)
+            chatSettingsRepository.setChatSlowModeDelay(chatId, delay)
             loadData()
         }
     }
@@ -1152,7 +1154,7 @@ class DefaultProfileComponent(
 
     private fun updateChat(chatId: Long) {
         scope.launch {
-            val updatedChat = chatsListRepository.getChatById(chatId)
+            val updatedChat = chatListRepository.getChatById(chatId)
             withContext(Dispatchers.Main) {
                 _state.update {
                     it.copy(

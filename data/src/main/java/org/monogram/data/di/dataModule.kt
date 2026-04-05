@@ -293,12 +293,10 @@ val dataModule = module {
         )
     }
 
-    single<ChatsListRepository> {
+    single {
         ChatsListRepositoryImpl(
             remoteDataSource = get(),
-            cacheDataSource = get(),
             chatRemoteSource = get(),
-            proxyRemoteSource = get(),
             updates = get(),
             appPreferences = get(),
             cacheProvider = get(),
@@ -318,6 +316,13 @@ val dataModule = module {
             stringProvider = get()
         )
     }
+    single<ChatListRepository> { get<ChatsListRepositoryImpl>() }
+    single<ChatFolderRepository> { get<ChatsListRepositoryImpl>() }
+    single<ChatOperationsRepository> { get<ChatsListRepositoryImpl>() }
+    single<ChatSearchRepository> { get<ChatsListRepositoryImpl>() }
+    single<ForumTopicsRepository> { get<ChatsListRepositoryImpl>() }
+    single<ChatSettingsRepository> { get<ChatsListRepositoryImpl>() }
+    single<ChatCreationRepository> { get<ChatsListRepositoryImpl>() }
 
     factory<SettingsRemoteDataSource> {
         TdSettingsRemoteDataSource(
@@ -357,7 +362,7 @@ val dataModule = module {
             gateway = get(),
             messageMapper = get(),
             userRepository = get(),
-            chatsListRepository = get(),
+            chatListRepository = get(),
             cache = get(),
             pollRepository = get(),
             fileDownloadQueue = get(),

@@ -29,7 +29,13 @@ class KoinPreferencesContainer(private val koin: Koin) : PreferencesContainer {
 
 class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer {
     override val authRepository: AuthRepository by lazy { koin.get() }
-    override val chatsListRepository: ChatsListRepository by lazy { koin.get() }
+    override val chatListRepository: ChatListRepository by lazy { koin.get() }
+    override val chatFolderRepository: ChatFolderRepository by lazy { koin.get() }
+    override val chatOperationsRepository: ChatOperationsRepository by lazy { koin.get() }
+    override val chatSearchRepository: ChatSearchRepository by lazy { koin.get() }
+    override val forumTopicsRepository: ForumTopicsRepository by lazy { koin.get() }
+    override val chatSettingsRepository: ChatSettingsRepository by lazy { koin.get() }
+    override val chatCreationRepository: ChatCreationRepository by lazy { koin.get() }
     override val messageRepository: MessageRepository by lazy { koin.get() }
     override val inlineBotRepository: InlineBotRepository by lazy { koin.get() }
     override val chatEventLogRepository: ChatEventLogRepository by lazy { koin.get() }

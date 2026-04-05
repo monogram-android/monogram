@@ -208,7 +208,7 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
             } else if (savedScrollPosition != 0L) {
                 loadAroundMessage(savedScrollPosition, threadId, shouldHighlight = false)
             } else {
-                val chat = chatsListRepository.getChatById(chatId)
+                val chat = chatListRepository.getChatById(chatId)
                 val firstUnreadId = chat?.lastReadInboxMessageId?.let { lastRead ->
                     if (chat.unreadCount > 0) {
                         repositoryMessage.getMessagesNewer(chatId, lastRead, 1, threadId).firstOrNull()?.id

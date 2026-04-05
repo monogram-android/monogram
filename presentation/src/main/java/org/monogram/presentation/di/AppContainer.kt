@@ -28,7 +28,13 @@ interface PreferencesContainer {
 
 interface RepositoriesContainer {
     val authRepository: AuthRepository
-    val chatsListRepository: ChatsListRepository
+    val chatListRepository: ChatListRepository
+    val chatFolderRepository: ChatFolderRepository
+    val chatOperationsRepository: ChatOperationsRepository
+    val chatSearchRepository: ChatSearchRepository
+    val forumTopicsRepository: ForumTopicsRepository
+    val chatSettingsRepository: ChatSettingsRepository
+    val chatCreationRepository: ChatCreationRepository
     val messageRepository: MessageRepository
     val inlineBotRepository: InlineBotRepository
     val chatEventLogRepository: ChatEventLogRepository

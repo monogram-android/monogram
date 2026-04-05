@@ -7,13 +7,13 @@ import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.repository.ChatInfoRepository
-import org.monogram.domain.repository.ChatsListRepository
+import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.LinkAction
 import org.monogram.domain.repository.LinkHandlerRepository
 
 class LinkHandlerRepositoryImpl(
     private val gateway: TelegramGateway,
-    private val chatsListRepository: ChatsListRepository,
+    private val chatListRepository: ChatListRepository,
     private val chatInfoRepository: ChatInfoRepository,
     private val fileQueue: FileDownloadQueue
 ) : LinkHandlerRepository {
@@ -178,7 +178,7 @@ class LinkHandlerRepositoryImpl(
         val needsConfirm = chat.type is TdApi.ChatTypeSupergroup && chat.positions.isEmpty()
         if (!needsConfirm) return LinkAction.OpenChat(chat.id)
 
-        val chatModel = chatsListRepository.getChatById(chat.id)
+        val chatModel = chatListRepository.getChatById(chat.id)
         val fullInfo = chatInfoRepository.getChatFullInfo(chat.id)
         return if (chatModel != null && fullInfo != null) {
             LinkAction.ConfirmJoinChat(chatModel, fullInfo)

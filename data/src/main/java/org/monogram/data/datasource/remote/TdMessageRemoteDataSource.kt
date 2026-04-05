@@ -24,7 +24,7 @@ class TdMessageRemoteDataSource(
     private val gateway: TelegramGateway,
     private val messageMapper: MessageMapper,
     private val userRepository: UserRepository,
-    private val chatsListRepository: ChatsListRepository,
+    private val chatListRepository: ChatListRepository,
     private val cache: ChatCache,
     private val pollRepository: PollRepository,
     private val fileDownloadQueue: FileDownloadQueue,
@@ -321,7 +321,7 @@ class TdMessageRemoteDataSource(
                     if (cachedChat != null) {
                         UserModel(id = cachedChat.id, firstName = cachedChat.title, lastName = "", username = null, avatarPath = cachedChat.photo?.small?.local?.path)
                     } else {
-                        val chat = chatsListRepository.getChatById(sender.chatId)
+                        val chat = chatListRepository.getChatById(sender.chatId)
                         if (chat != null) UserModel(id = chat.id, firstName = chat.title, lastName = "", username = null, avatarPath = chat.avatarPath)
                         else null
                     }

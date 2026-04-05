@@ -5,7 +5,9 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.repository.ChatInfoRepository
-import org.monogram.domain.repository.ChatsListRepository
+import org.monogram.domain.repository.ChatListRepository
+import org.monogram.domain.repository.ChatOperationsRepository
+import org.monogram.domain.repository.ChatSettingsRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -19,7 +21,9 @@ class DefaultChatEditComponent(
     private val onManagePermissionsClicked: (Long) -> Unit
 ) : ChatEditComponent, AppComponentContext by context {
 
-    private val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
+    private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
+    private val chatSettingsRepository: ChatSettingsRepository = container.repositories.chatSettingsRepository
+    private val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
     private val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
 
     private val scope = componentScope
@@ -33,7 +37,7 @@ class DefaultChatEditComponent(
     private fun loadChatData() {
         scope.launch {
             _state.update { it.copy(isLoading = true) }
-            val chat = chatsListRepository.getChatById(chatId)
+            val chat = chatListRepository.getChatById(chatId)
             val fullInfo = chatInfoRepository.getChatFullInfo(chatId)
             if (chat != null) {
                 _state.update {
@@ -75,21 +79,21 @@ class DefaultChatEditComponent(
     override fun onToggleTopics(enabled: Boolean) {
         _state.update { it.copy(isForum = enabled) }
         scope.launch {
-            chatsListRepository.toggleChatIsForum(chatId, enabled)
+            chatSettingsRepository.toggleChatIsForum(chatId, enabled)
         }
     }
 
     override fun onToggleAutoTranslate(enabled: Boolean) {
         _state.update { it.copy(isTranslatable = enabled) }
         scope.launch {
-            chatsListRepository.toggleChatIsTranslatable(chatId, enabled)
+            chatSettingsRepository.toggleChatIsTranslatable(chatId, enabled)
         }
     }
 
     override fun onChangeAvatar(path: String) {
         _state.update { it.copy(avatarPath = path) }
         scope.launch {
-            chatsListRepository.setChatPhoto(chatId, path)
+            chatSettingsRepository.setChatPhoto(chatId, path)
         }
     }
 
@@ -98,14 +102,14 @@ class DefaultChatEditComponent(
             _state.update { it.copy(isLoading = true) }
             val currentState = _state.value
             if (currentState.title != currentState.chat?.title) {
-                chatsListRepository.setChatTitle(chatId, currentState.title)
+                chatSettingsRepository.setChatTitle(chatId, currentState.title)
             }
             val fullInfo = chatInfoRepository.getChatFullInfo(chatId)
             if (currentState.description != (fullInfo?.description ?: "")) {
-                chatsListRepository.setChatDescription(chatId, currentState.description)
+                chatSettingsRepository.setChatDescription(chatId, currentState.description)
             }
             if (currentState.username != (currentState.chat?.username ?: "")) {
-                chatsListRepository.setChatUsername(chatId, currentState.username)
+                chatSettingsRepository.setChatUsername(chatId, currentState.username)
             }
             onBackClicked()
         }
@@ -113,7 +117,7 @@ class DefaultChatEditComponent(
 
     override fun onDeleteChat() {
         scope.launch {
-            chatsListRepository.deleteChats(setOf(chatId))
+            chatOperationsRepository.deleteChats(setOf(chatId))
             onBackClicked()
         }
     }

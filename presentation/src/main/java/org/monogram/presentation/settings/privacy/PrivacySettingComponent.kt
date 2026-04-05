@@ -9,7 +9,7 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.PrivacyValue
 import org.monogram.domain.models.UserModel
-import org.monogram.domain.repository.ChatsListRepository
+import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.PrivacyKey
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.UserRepository
@@ -50,7 +50,7 @@ class DefaultPrivacySettingComponent(
 
     private val userRepository: UserRepository = container.repositories.userRepository
     private val privacyRepository: PrivacyRepository = container.repositories.privacyRepository
-    private val chatsRepository: ChatsListRepository = container.repositories.chatsListRepository
+    private val chatsRepository: ChatListRepository = container.repositories.chatListRepository
 
     private val _state =
         MutableValue(PrivacySettingComponent.State(titleRes = getTitleRes(privacyKey), privacyKey = privacyKey))

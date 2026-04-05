@@ -5,8 +5,8 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.repository.ChatInfoRepository
+import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.ChatMemberStatus
-import org.monogram.domain.repository.ChatsListRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -18,7 +18,7 @@ class DefaultAdminManageComponent(
 ) : AdminManageComponent, AppComponentContext by context {
 
     private val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
-    private val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
+    private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
 
     private val scope = componentScope
     private val _state = MutableValue(AdminManageComponent.State(chatId = chatId, userId = userId))
@@ -32,7 +32,7 @@ class DefaultAdminManageComponent(
         scope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val chat = chatsListRepository.getChatById(chatId)
+                val chat = chatListRepository.getChatById(chatId)
                 val member = chatInfoRepository.getChatMember(chatId, userId)
                 val initialStatus = when (val status = member?.status) {
                     is ChatMemberStatus.Administrator -> status

@@ -11,7 +11,7 @@ import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
 
 internal fun DefaultChatComponent.loadChatInfo() {
     scope.launch {
-        val chat = chatsListRepository.getChatById(chatId)
+        val chat = chatListRepository.getChatById(chatId)
         if (chat != null) {
             updateChatState(chat)
             if (chat.viewAsTopics && _state.value.topics.isEmpty()) {
@@ -34,7 +34,7 @@ internal fun DefaultChatComponent.loadChatInfo() {
         }
     }
 
-    chatsListRepository.chatListFlow
+    chatListRepository.chatListFlow
         .map { chats -> chats.find { it.id == chatId } }
         .filterNotNull()
         .distinctUntilChanged { old, new ->
@@ -65,7 +65,7 @@ internal fun DefaultChatComponent.loadChatInfo() {
         }
         .launchIn(scope)
 
-    chatsListRepository.forumTopicsFlow
+    forumTopicsRepository.forumTopicsFlow
         .filter { it.first == chatId }
         .onEach { (_, topics) ->
             _state.update { it.copy(topics = topics) }
@@ -78,7 +78,7 @@ internal fun DefaultChatComponent.loadTopics() {
     scope.launch {
         _state.update { it.copy(isLoadingTopics = true) }
         try {
-            val topics = chatsListRepository.getForumTopics(chatId)
+            val topics = forumTopicsRepository.getForumTopics(chatId)
             _state.update { it.copy(topics = topics) }
         } finally {
             _state.update { it.copy(isLoadingTopics = false) }
@@ -140,7 +140,7 @@ internal fun DefaultChatComponent.updateChatState(chat: ChatModel) {
 }
 
 internal fun DefaultChatComponent.handleToggleMute() {
-    chatsListRepository.toggleMuteChats(setOf(chatId), !_state.value.isMuted)
+    chatOperationsRepository.toggleMuteChats(setOf(chatId), !_state.value.isMuted)
 }
 
 internal fun DefaultChatComponent.handleAddToAdBlockWhitelist() {
@@ -160,11 +160,11 @@ internal fun DefaultChatComponent.handleRemoveFromAdBlockWhitelist() {
 }
 
 internal fun DefaultChatComponent.handleClearHistory() {
-    chatsListRepository.clearChatHistory(chatId, true)
+    chatOperationsRepository.clearChatHistory(chatId, true)
 }
 
 internal fun DefaultChatComponent.handleDeleteChat() {
-    chatsListRepository.deleteChats(setOf(chatId))
+    chatOperationsRepository.deleteChats(setOf(chatId))
     onBackClicked()
 }
 

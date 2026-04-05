@@ -18,7 +18,7 @@ class DefaultEditProfileComponent(
     private val userRepository: UserRepository = container.repositories.userRepository
     private val userProfileEditRepository: UserProfileEditRepository = container.repositories.userProfileEditRepository
     private val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
-    private val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
+    private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     private val locationRepository: LocationRepository = container.repositories.locationRepository
 
     private val _state = MutableValue(EditProfileComponent.State())
@@ -32,7 +32,7 @@ class DefaultEditProfileComponent(
                 val me = userRepository.getMe()
                 val fullInfo = chatInfoRepository.getChatFullInfo(me.id)
                 val linkedChat =
-                    fullInfo?.linkedChatId?.let { if (it != 0L) chatsListRepository.getChatById(it) else null }
+                    fullInfo?.linkedChatId?.let { if (it != 0L) chatListRepository.getChatById(it) else null }
 
                 _state.update {
                     it.copy(
@@ -87,7 +87,7 @@ class DefaultEditProfileComponent(
         _state.update { it.copy(personalChatId = chatId) }
         if (chatId != 0L) {
             scope.launch {
-                val chat = chatsListRepository.getChatById(chatId)
+                val chat = chatListRepository.getChatById(chatId)
                 _state.update { it.copy(linkedChat = chat) }
             }
         } else {

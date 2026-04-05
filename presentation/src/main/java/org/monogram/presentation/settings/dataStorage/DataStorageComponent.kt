@@ -5,6 +5,7 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import org.monogram.domain.repository.ChatCreationRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
@@ -47,7 +48,7 @@ class DefaultDataStorageComponent(
 ) : DataStorageComponent, AppComponentContext by context {
 
     private val appPreferences: AppPreferences = container.preferences.appPreferences
-    private val chatsRepository = container.repositories.chatsListRepository
+    private val chatCreationRepository: ChatCreationRepository = container.repositories.chatCreationRepository
     private val _state = MutableValue(DataStorageComponent.State())
     override val state: Value<DataStorageComponent.State> = _state
     private val scope = componentScope
@@ -93,7 +94,7 @@ class DefaultDataStorageComponent(
     }
 
     private fun updateDatabaseSize() {
-        val size = chatsRepository.getDatabaseSize()
+        val size = chatCreationRepository.getDatabaseSize()
         _state.update { it.copy(databaseSize = formatSize(size)) }
     }
 
@@ -153,7 +154,7 @@ class DefaultDataStorageComponent(
     }
 
     override fun onClearDatabaseClicked() {
-        chatsRepository.clearDatabase()
+        chatCreationRepository.clearDatabase()
         updateDatabaseSize()
     }
 }

@@ -2,11 +2,8 @@ package org.monogram.presentation.features.chats.currentChat.components.channels
 
 import android.content.res.Configuration
 import androidx.compose.animation.Animatable
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,10 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
@@ -29,14 +23,14 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.chatContent.shouldShowDate
-import org.monogram.presentation.core.ui.FastReplyIndicator
+import org.monogram.presentation.features.chats.currentChat.components.FastReplyIndicator
 import org.monogram.presentation.features.chats.currentChat.components.chats.*
+import org.monogram.presentation.features.chats.currentChat.components.fastReplyPointer
 
 @Composable
 fun ChannelMessageBubbleContainer(
@@ -84,9 +78,6 @@ fun ChannelMessageBubbleContainer(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false,
 ) {
-    val fadeInThreshold = -36f
-    val fastReplyTriggerThreshold = -120f + fadeInThreshold
-
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -118,7 +109,6 @@ fun ChannelMessageBubbleContainer(
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
     var bubbleSize by remember { mutableStateOf(IntSize.Zero) }
 
-    val scope = rememberCoroutineScope()
     val dragOffsetX = remember { androidx.compose.animation.core.Animatable(0f) }
 
     Column(
@@ -128,50 +118,13 @@ fun ChannelMessageBubbleContainer(
             .onGloballyPositioned { outerColumnPosition = it.positionInWindow() }
             .padding(top = topSpacing)
             .offset { IntOffset(dragOffsetX.value.toInt(), 0) }
-            .pointerInput(canReply) {
-                if (!canReply) return@pointerInput
-
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    var isDragging = false
-                    var totalDragX = 0f
-
-                    while (true) {
-                        val event = awaitPointerEvent(pass = PointerEventPass.Main)
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-
-                        if (change.changedToUp()) break
-
-                        val deltaX = change.positionChange().x
-                        totalDragX += deltaX
-
-                        if (!isDragging) {
-                            if (totalDragX < -48f) {
-                                isDragging = true
-                            } else if (totalDragX > 48f) {
-                                break
-                            }
-                        }
-
-                        if (isDragging) {
-                            change.consume()
-                            val newOffset = dragOffsetX.value + deltaX
-                            scope.launch {
-                                dragOffsetX.snapTo(newOffset.coerceIn(-200f + fadeInThreshold, 0f))
-                            }
-                        }
-                    }
-
-                    if (isDragging) {
-                        if (dragOffsetX.value < fastReplyTriggerThreshold) {
-                            onReplySwipe(msg)
-                        }
-                        scope.launch {
-                            dragOffsetX.animateTo(0f, spring())
-                        }
-                    }
-                }
-            }
+            .fastReplyPointer(
+                canReply = canReply,
+                dragOffsetX = dragOffsetX,
+                scope = rememberCoroutineScope(),
+                onReplySwipe = { onReplySwipe(msg) },
+                maxWidth = maxWidth.value
+            )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { offset ->
@@ -468,8 +421,6 @@ fun ChannelMessageBubbleContainer(
                     modifier = Modifier.align(Alignment.CenterStart),
                     dragOffsetX = dragOffsetX,
                     maxWidth = maxWidth,
-                    fadeInThreshold = fadeInThreshold,
-                    fastReplyTriggerThreshold = fastReplyTriggerThreshold,
                 )
             }
         }

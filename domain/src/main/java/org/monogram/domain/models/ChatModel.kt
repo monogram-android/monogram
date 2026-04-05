@@ -1,5 +1,6 @@
 package org.monogram.domain.models
 
+import androidx.compose.runtime.Stable
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -70,6 +71,7 @@ enum class ChatType {
     PRIVATE, BASIC_GROUP, SUPERGROUP, SECRET
 }
 @Serializable
+@Stable
 data class ChatPermissionsModel(
     val canSendBasicMessages: Boolean = true,
     val canSendAudios: Boolean = true,

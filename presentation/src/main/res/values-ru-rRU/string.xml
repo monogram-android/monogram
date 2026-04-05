@@ -1331,7 +1331,7 @@
     <string name="viewer_loading_original">Загружается оригинал...</string>
 
     <!-- Selection: Viewer Actions -->
-    <string name="action_download">Загрузить</string>
+    <string name="action_download">Скачать</string>
     <string name="action_download_video">Скачать видео</string>
     <string name="action_copy_image">Копировать фото</string>
     <string name="action_copy_text">Копировать текст</string>
@@ -1348,10 +1348,10 @@
 
     <!-- Selection: Viewer Settings -->
     <string name="settings_title">Настройки</string>
-    <string name="settings_playback_speed">Скорость воспроизведения</string>
-    <string name="settings_scale_mode">Режим масштабирования</string>
-    <string name="settings_scale_fit">Вписать</string>
-    <string name="settings_scale_zoom">Заполнить</string>
+    <string name="settings_playback_speed">Скорость</string>
+    <string name="settings_scale_mode">Масштаб</string>
+    <string name="settings_scale_fit">По размеру</string>
+    <string name="settings_scale_zoom">На весь экран</string>
     <string name="settings_rotate_screen">Поворот экрана</string>
     <string name="settings_pip">Картинка в картинке</string>
     <string name="settings_screenshot">Скриншот</string>
@@ -1366,7 +1366,7 @@
     <string name="settings_speed_normal">Обычная</string>
 
     <!-- Selection: Picture-in-Picture -->
-    <string name="pip_play">Играть</string>
+    <string name="pip_play">Воспроизвести</string>
     <string name="pip_pause">Пауза</string>
     <string name="pip_rewind">Назад</string>
     <string name="pip_forward">Вперёд</string>

@@ -1415,7 +1415,7 @@
     <string name="settings_playback_speed">Rýchlosť prehrávania</string>
     <string name="settings_scale_mode">Režim mierky</string>
     <string name="settings_scale_fit">Prispôsobiť</string>
-    <string name="settings_scale_zoom">Priblížiť</string>
+    <string name="settings_scale_zoom">Vyplniť</string>
     <string name="settings_rotate_screen">Otočiť obrazovku</string>
     <string name="settings_pip">Obraz v obraze</string>
     <string name="settings_screenshot">Snímka obrazovky</string>

@@ -1,17 +1,12 @@
 package org.monogram.domain.models
 
-import androidx.compose.runtime.Stable
-
-@Stable
 data class BotCommandModel(
     val command: String,
     val description: String
 )
 
-@Stable
 sealed interface BotMenuButtonModel {
     object Commands : BotMenuButtonModel
-    @Stable
     data class WebApp(val text: String, val url: String) : BotMenuButtonModel
     object Default : BotMenuButtonModel
 }

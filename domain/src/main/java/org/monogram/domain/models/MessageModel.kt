@@ -1,6 +1,5 @@
 package org.monogram.domain.models
 
-import androidx.compose.runtime.Stable
 import kotlinx.serialization.Serializable
 
 data class MessageModel(
@@ -588,7 +587,6 @@ data class MessageReactionModel(
     val recentSenders: List<ReactionSender> = emptyList()
 )
 
-@Stable
 data class ReactionSender(
     val id: Long,
     val name: String = "",

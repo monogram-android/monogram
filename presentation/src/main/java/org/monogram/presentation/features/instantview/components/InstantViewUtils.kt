@@ -13,13 +13,13 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import org.monogram.domain.models.webapp.PageBlock
 import org.monogram.domain.models.webapp.RichText
-import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.FileRepository
 import java.text.SimpleDateFormat
 import java.util.*
 
 val LocalOnUrlClick = staticCompositionLocalOf<(String) -> Unit> { { } }
-val LocalMessageRepository =
-    staticCompositionLocalOf<MessageRepository> { error("No MessageRepository provided") }
+val LocalFileRepository =
+    staticCompositionLocalOf<FileRepository> { error("No FileRepository provided") }
 
 fun renderRichText(richText: RichText, linkColor: Color = Color(0xFF2196F3)): AnnotatedString {
     return buildAnnotatedString {

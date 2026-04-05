@@ -384,6 +384,13 @@ val dataModule = module {
         )
     }
 
+    single<InlineBotRepository> { get<MessageRepository>() }
+    single<ChatEventLogRepository> { get<MessageRepository>() }
+    single<MessageAiRepository> { get<MessageRepository>() }
+    single<PaymentRepository> { get<MessageRepository>() }
+    single<FileRepository> { get<MessageRepository>() }
+    single<WebAppRepository> { get<MessageRepository>() }
+
     factory<StickerRemoteSource> {
         TdStickerRemoteSource(
             gateway = get()

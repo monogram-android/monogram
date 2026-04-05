@@ -26,10 +26,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.koin.compose.koinInject
 import org.monogram.domain.models.webapp.ThemeParams
-import org.monogram.domain.repository.BotPreferencesProvider
-import org.monogram.domain.repository.LocationRepository
-import org.monogram.domain.repository.MessageRepository
-import org.monogram.domain.repository.UserRepository
+import org.monogram.domain.repository.*
 import org.monogram.presentation.core.util.CryptoManager
 import org.monogram.presentation.features.webapp.components.*
 import java.util.*
@@ -44,7 +41,7 @@ fun MiniAppViewer(
     baseUrl: String,
     botName: String,
     botAvatarPath: String? = null,
-    messageRepository: MessageRepository,
+    webAppRepository: WebAppRepository,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -55,6 +52,8 @@ fun MiniAppViewer(
     val locationRepository: LocationRepository = koinInject()
     val botPreferences: BotPreferencesProvider = koinInject()
     val userRepository: UserRepository = koinInject()
+    val paymentRepository: PaymentRepository = koinInject()
+    val fileRepository: FileRepository = koinInject()
     val isDark = isSystemInDarkTheme()
     val scope = rememberCoroutineScope()
     val currentUser by userRepository.currentUserFlow.collectAsState()
@@ -91,7 +90,7 @@ fun MiniAppViewer(
         botUserId = botUserId,
         botName = botName,
         botAvatarPath = botAvatarPath,
-        messageRepository = messageRepository,
+        webAppRepository = webAppRepository,
         locationRepository = locationRepository,
         botPreferences = botPreferences,
         userRepository = userRepository,
@@ -226,7 +225,7 @@ fun MiniAppViewer(
         if (!state.isTOSVisible) {
             if (botUserId != 0L) {
                 state.isInitializing = true
-                val result = messageRepository.openWebApp(chatId, botUserId, baseUrl, themeParams)
+                val result = webAppRepository.openWebApp(chatId, botUserId, baseUrl, themeParams)
                 if (result != null) {
                     state.launchId = result.launchId
                     state.currentUrl = result.url
@@ -289,7 +288,7 @@ fun MiniAppViewer(
                 state.showClosingConfirmation = false
                 if (state.launchId != 0L) {
                     scope.launch {
-                        messageRepository.closeWebApp(state.launchId)
+                        webAppRepository.closeWebApp(state.launchId)
                     }
                 }
 
@@ -302,7 +301,8 @@ fun MiniAppViewer(
     if (state.activeInvoiceSlug != null) {
         InvoiceDialog(
             slug = state.activeInvoiceSlug!!,
-            messageRepository = messageRepository,
+            paymentRepository = paymentRepository,
+            fileRepository = fileRepository,
             onDismiss = { status ->
                 val slug = state.activeInvoiceSlug
                 state.activeInvoiceSlug = null

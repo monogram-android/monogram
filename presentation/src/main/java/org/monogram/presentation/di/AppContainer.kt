@@ -30,6 +30,12 @@ interface RepositoriesContainer {
     val authRepository: AuthRepository
     val chatsListRepository: ChatsListRepository
     val messageRepository: MessageRepository
+    val inlineBotRepository: InlineBotRepository
+    val chatEventLogRepository: ChatEventLogRepository
+    val messageAiRepository: MessageAiRepository
+    val paymentRepository: PaymentRepository
+    val fileRepository: FileRepository
+    val webAppRepository: WebAppRepository
     val userRepository: UserRepository
     val userProfileEditRepository: UserProfileEditRepository
     val profilePhotoRepository: ProfilePhotoRepository

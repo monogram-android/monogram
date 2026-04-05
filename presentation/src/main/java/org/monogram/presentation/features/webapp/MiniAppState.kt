@@ -41,8 +41,8 @@ import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppPopupButton
 import org.monogram.domain.repository.BotPreferencesProvider
 import org.monogram.domain.repository.LocationRepository
-import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.UserRepository
+import org.monogram.domain.repository.WebAppRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.toHex
@@ -56,7 +56,7 @@ class MiniAppState(
     val botUserId: Long,
     val botName: String,
     val botAvatarPath: String?,
-    val messageRepository: MessageRepository,
+    val webAppRepository: WebAppRepository,
     val locationRepository: LocationRepository,
     val botPreferences: BotPreferencesProvider,
     val userRepository: UserRepository,
@@ -151,7 +151,7 @@ class MiniAppState(
         } else {
             if (launchId != 0L) {
                 scope.launch {
-                    messageRepository.closeWebApp(launchId)
+                    webAppRepository.closeWebApp(launchId)
                 }
             }
             onDismiss()
@@ -642,7 +642,7 @@ class MiniAppState(
         override fun onSendWebViewData(data: String) {
             if (launchId != 0L) {
                 scope.launch {
-                    messageRepository.sendWebAppResult(launchId, data)
+                    webAppRepository.sendWebAppResult(launchId, data)
                 }
                 onDismiss()
             }
@@ -1178,7 +1178,7 @@ fun rememberMiniAppState(
     botUserId: Long,
     botName: String,
     botAvatarPath: String?,
-    messageRepository: MessageRepository,
+    webAppRepository: WebAppRepository,
     locationRepository: LocationRepository,
     botPreferences: BotPreferencesProvider,
     userRepository: UserRepository,
@@ -1190,7 +1190,7 @@ fun rememberMiniAppState(
         botUserId,
         botName,
         botAvatarPath,
-        messageRepository,
+        webAppRepository,
         locationRepository,
         botPreferences,
         userRepository,

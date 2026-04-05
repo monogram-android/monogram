@@ -46,6 +46,8 @@ class DefaultChatComponent(
     internal val toastMessageDisplayer: MessageDisplayer = container.utils.messageDisplayer()
     internal val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
     override val repositoryMessage: MessageRepository = container.repositories.messageRepository
+    internal val inlineBotRepository: InlineBotRepository = container.repositories.inlineBotRepository
+    internal val paymentRepository: PaymentRepository = container.repositories.paymentRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     internal val cacheProvider: CacheProvider = container.cacheProvider
     internal val cacheController: CacheController = container.utils.cacheController

@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.webapp.InstantViewModel
 import org.monogram.domain.models.webapp.PageBlock
 import org.monogram.domain.models.webapp.RichText
+import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.components.chats.normalizeUrl
@@ -56,6 +57,7 @@ import java.util.*
 fun InstantViewer(
     url: String,
     messageRepository: MessageRepository,
+    fileRepository: FileRepository,
     onDismiss: () -> Unit,
     onOpenWebView: (String) -> Unit
 ) {
@@ -111,7 +113,7 @@ fun InstantViewer(
 
     CompositionLocalProvider(
         LocalOnUrlClick provides { newUrl -> urlStack.add(newUrl) },
-        LocalMessageRepository provides messageRepository
+        LocalFileRepository provides fileRepository
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(

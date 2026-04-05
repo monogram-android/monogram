@@ -113,7 +113,7 @@ internal fun DefaultChatComponent.handleInlineQueryChange(botUsername: String, q
                 return@launch
             }
 
-            val results = repositoryMessage.getInlineBotResults(botId, chatId, normalizedQuery)
+            val results = inlineBotRepository.getInlineBotResults(botId, chatId, normalizedQuery)
             if (!isActive) return@launch
 
             _state.update { liveState ->
@@ -161,7 +161,7 @@ internal fun DefaultChatComponent.handleLoadMoreInlineResults(offset: String) {
     inlineBotJob = scope.launch {
         _state.update { it.copy(isInlineBotLoading = true) }
         try {
-            val results = repositoryMessage.getInlineBotResults(botId, chatId, query, offset)
+            val results = inlineBotRepository.getInlineBotResults(botId, chatId, query, offset)
             if (!isActive) return@launch
 
             if (results != null) {
@@ -204,7 +204,7 @@ internal fun DefaultChatComponent.handleSendInlineResult(resultId: String) {
     val results = _state.value.inlineBotResults ?: return
     scope.launch {
         try {
-            repositoryMessage.sendInlineBotResult(
+            inlineBotRepository.sendInlineBotResult(
                 chatId = chatId,
                 queryId = results.queryId,
                 resultId = resultId,
@@ -276,7 +276,7 @@ private suspend fun DefaultChatComponent.refreshInlinePreviews(
         delay(500L + attempt * 350L)
 
         val refreshed = try {
-            repositoryMessage.getInlineBotResults(botId, chatId, query)
+            inlineBotRepository.getInlineBotResults(botId, chatId, query)
         } catch (e: Exception) {
             Log.w("DefaultChatComponent", "Inline preview refresh failed", e)
             null
@@ -357,7 +357,7 @@ internal fun DefaultChatComponent.handleReplyMarkupButtonClick(
     scope.launch {
         when (val type = button.type) {
             is InlineKeyboardButtonType.Callback -> {
-                repositoryMessage.onCallbackQuery(chatId, messageId, type.data)
+                inlineBotRepository.onCallbackQuery(chatId, messageId, type.data)
             }
 
             is InlineKeyboardButtonType.Url -> {
@@ -369,7 +369,7 @@ internal fun DefaultChatComponent.handleReplyMarkupButtonClick(
             }
 
             is InlineKeyboardButtonType.Buy -> {
-                repositoryMessage.onCallbackQueryBuy(chatId, messageId)
+                paymentRepository.onCallbackQueryBuy(chatId, messageId)
             }
 
             is InlineKeyboardButtonType.User -> {

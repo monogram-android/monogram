@@ -3,12 +3,12 @@ package org.monogram.presentation.features.profile.logs
 import com.arkivanov.decompose.value.Value
 import org.monogram.domain.models.ChatEventLogFiltersModel
 import org.monogram.domain.models.ChatEventModel
-import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.ChatEventLogRepository
 import org.monogram.presentation.core.util.IDownloadUtils
 
 interface ProfileLogsComponent {
     val state: Value<State>
-    val messageRepository: MessageRepository
+    val messageRepository: ChatEventLogRepository
     val downloadUtils: IDownloadUtils
 
     fun onBack()

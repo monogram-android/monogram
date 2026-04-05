@@ -50,6 +50,7 @@ Support the project on [**Boosty**](https://boosty.to/monogram).
 
 ## Key Features
 
+- **Independent Client** — Not a fork of Telegram for Android. MonoGram is built entirely from scratch as a standalone project.
 - **Material Design 3** — A beautiful, adaptive UI that looks great on phones, tablets, and foldables.
 - **Secure** — Built-in biometric locking and encrypted local storage.
 - **Media Rich** — High-performance media playback with ExoPlayer and Coil 3.

@@ -54,6 +54,8 @@ Ayuda al proyecto en [**Boosty**](https://boosty.to/monogram).
 
 ## Características Clave
 
+- **Cliente Independiente** — No es un fork de Telegram para Android. MonoGram
+  está construido completamente desde cero como un proyecto independiente.
 - **Material Design 3** — Una bonita y adaptativa UI que se ve grandiosa en
   celulares, tablets y plegables.
 - **Seguro** — Almacenamiento local encriptado y bloqueo biométrico incluido.

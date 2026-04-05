@@ -31,10 +31,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.components.channels.formatDuration
 import org.monogram.presentation.features.chats.currentChat.components.channels.formatViews
@@ -291,8 +294,12 @@ fun PhotoItem(
     contentScale: ContentScale = ContentScale.Crop,
     downloadUtils: IDownloadUtils
 ) {
+    val context = LocalContext.current
     var stablePath by remember(msg.id) { mutableStateOf(photo.path) }
     val hasPath = !stablePath.isNullOrBlank()
+    val photoCacheKey = remember(stablePath, photo.fileId) {
+        namespacedCacheKey("mosaic_photo:${photo.fileId}", stablePath)
+    }
     var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
 
     LaunchedEffect(photo.path) {
@@ -328,7 +335,18 @@ fun PhotoItem(
         ) { resolved ->
             if (resolved && !stablePath.isNullOrBlank()) {
                 Image(
-                    painter = rememberAsyncImagePainter(stablePath),
+                    painter = rememberAsyncImagePainter(
+                        model = ImageRequest.Builder(context)
+                            .data(stablePath)
+                            .apply {
+                                photoCacheKey?.let {
+                                    memoryCacheKey(it)
+                                    diskCacheKey(it)
+                                }
+                            }
+                            .crossfade(true)
+                            .build()
+                    ),
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxSize()
@@ -415,8 +433,15 @@ fun VideoItem(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
+    val context = LocalContext.current
     var stablePath by remember(msg.id) { mutableStateOf(video.path) }
     val hasPath = !stablePath.isNullOrBlank()
+    val videoCacheKey = remember(stablePath, video.fileId) {
+        namespacedCacheKey("mosaic_video:${video.fileId}", stablePath)
+    }
+    val videoMiniCacheKey = remember(video.minithumbnail, video.fileId) {
+        video.minithumbnail?.let { namespacedCacheKey("mosaic_video_mini:${video.fileId}", it) }
+    }
     var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
 
     LaunchedEffect(video.path) {
@@ -476,7 +501,18 @@ fun VideoItem(
                 } else {
                     if (hasPath) {
                         Image(
-                            painter = rememberAsyncImagePainter(stablePath),
+                            painter = rememberAsyncImagePainter(
+                                model = ImageRequest.Builder(context)
+                                    .data(stablePath)
+                                    .apply {
+                                        videoCacheKey?.let {
+                                            memoryCacheKey(it)
+                                            diskCacheKey(it)
+                                        }
+                                    }
+                                    .crossfade(true)
+                                    .build()
+                            ),
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxSize()
@@ -495,7 +531,17 @@ fun VideoItem(
                     } else {
                         if (video.minithumbnail != null) {
                             Image(
-                                painter = rememberAsyncImagePainter(video.minithumbnail),
+                                painter = rememberAsyncImagePainter(
+                                    model = ImageRequest.Builder(context)
+                                        .data(video.minithumbnail)
+                                        .apply {
+                                            videoMiniCacheKey?.let {
+                                                memoryCacheKey(it)
+                                                diskCacheKey(it)
+                                            }
+                                        }
+                                        .build()
+                                ),
                                 contentDescription = null,
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -606,6 +652,7 @@ fun VideoNoteItem(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
+    val context = LocalContext.current
     var stablePath by remember(msg.id) { mutableStateOf(videoNote.path) }
     !stablePath.isNullOrBlank()
     var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
@@ -659,8 +706,22 @@ fun VideoNoteItem(
                     )
                 } else {
                     val model = videoNote.thumbnail ?: path
+                    val videoNoteCacheKey = remember(model, videoNote.fileId) {
+                        namespacedCacheKey("mosaic_video_note:${videoNote.fileId}", model)
+                    }
                     Image(
-                        painter = rememberAsyncImagePainter(model),
+                        painter = rememberAsyncImagePainter(
+                            model = ImageRequest.Builder(context)
+                                .data(model)
+                                .apply {
+                                    videoNoteCacheKey?.let {
+                                        memoryCacheKey(it)
+                                        diskCacheKey(it)
+                                    }
+                                }
+                                .crossfade(true)
+                                .build()
+                        ),
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxSize()

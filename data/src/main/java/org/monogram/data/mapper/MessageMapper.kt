@@ -10,6 +10,7 @@ import org.monogram.data.chats.ChatCache
 import org.monogram.data.datasource.remote.MessageFileApi
 import org.monogram.data.datasource.remote.TdMessageRemoteDataSource
 import org.monogram.data.gateway.TelegramGateway
+import org.monogram.data.infra.FileUpdateHandler
 import org.monogram.domain.models.*
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.ChatInfoRepository
@@ -22,14 +23,15 @@ class MessageMapper(
     private val gateway: TelegramGateway,
     private val userRepository: UserRepository,
     private val chatInfoRepository: ChatInfoRepository,
-    private val customEmojiPaths: ConcurrentHashMap<Long, String>,
-    private val fileIdToCustomEmojiId: ConcurrentHashMap<Int, Long>,
+    private val fileUpdateHandler: FileUpdateHandler,
     private val fileApi: MessageFileApi,
     private val appPreferences: AppPreferencesProvider,
     private val cache: ChatCache,
     scopeProvider: ScopeProvider
 ) {
     val scope = scopeProvider.appScope
+    private val customEmojiPaths = fileUpdateHandler.customEmojiPaths
+    private val fileIdToCustomEmojiId = fileUpdateHandler.fileIdToCustomEmojiId
 
     private data class SenderUserSnapshot(
         val name: String,
@@ -125,12 +127,14 @@ class MessageMapper(
     }
 
     private fun resolveCachedPath(fileId: Int, storedPath: String?): String? {
-        val fromCache = fileId.takeIf { it != 0 }
+        val fromStored = storedPath
+            ?.takeIf { it.isNotBlank() }
+            ?.takeIf { isValidPath(it) }
+        if (fromStored != null) return fromStored
+
+        return fileId.takeIf { it != 0 }
             ?.let { cache.fileCache[it]?.local?.path }
             ?.takeIf { isValidPath(it) }
-        if (fromCache != null) return fromCache
-
-        return storedPath?.takeIf { it.isNotBlank() }?.takeIf { isValidPath(it) }
     }
 
     private fun registerCachedFile(fileId: Int, chatId: Long, messageId: Long) {

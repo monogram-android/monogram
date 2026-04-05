@@ -61,6 +61,7 @@ import kotlinx.coroutines.isActive
 import org.monogram.domain.repository.PlayerDataSourceFactory
 import org.monogram.presentation.core.util.LocalVideoPlayerPool
 import org.monogram.presentation.core.util.getMimeType
+import org.monogram.presentation.core.util.namespacedCacheKey
 import java.io.File
 import java.io.FileNotFoundException
 import java.util.concurrent.ArrayBlockingQueue
@@ -252,15 +253,20 @@ fun VideoStickerPlayer(
             exit = fadeOut(tween(250)),
             modifier = Modifier.fillMaxSize()
         ) {
+            val thumbnailCacheKey = remember(currentPath, thumbnailData, fileId) {
+                namespacedCacheKey("video_sticker_thumb:$fileId", thumbnailData ?: currentPath)
+            }
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(thumbnailData ?: currentPath)
                     .apply {
+                        thumbnailCacheKey?.let {
+                            memoryCacheKey(it)
+                            diskCacheKey(it)
+                        }
                         if (thumbnailData == null) {
                             decoderFactory(VideoFrameDecoder.Factory())
                             videoFrameMillis(0)
-                            memoryCacheKey(currentPath)
-                            diskCacheKey(currentPath)
                         }
                     }
                     .crossfade(false)

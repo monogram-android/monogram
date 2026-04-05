@@ -41,6 +41,7 @@ import org.monogram.presentation.features.chats.currentChat.impl.handlePinMessag
 import org.monogram.presentation.features.chats.currentChat.impl.handlePinnedMessageClick
 import org.monogram.presentation.features.chats.currentChat.impl.handlePollOptionClick
 import org.monogram.presentation.features.chats.currentChat.impl.handleRemoveFromAdBlockWhitelist
+import org.monogram.presentation.features.chats.currentChat.impl.handleRepeatMessage
 import org.monogram.presentation.features.chats.currentChat.impl.handleReplyMarkupButtonClick
 import org.monogram.presentation.features.chats.currentChat.impl.handleReportMessage
 import org.monogram.presentation.features.chats.currentChat.impl.handleReportReasonSelected
@@ -148,6 +149,7 @@ class ChatStoreFactory(
                         component.handleClearSelection()
                     }
                 }
+                is Intent.RepeatMessage -> component.handleRepeatMessage(intent.message)
 
                 is Intent.DeleteMessage -> component.handleDeleteMessage(intent.message, intent.revoke)
                 is Intent.EditMessage -> component._state.update {

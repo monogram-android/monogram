@@ -231,6 +231,7 @@
     <string name="menu_pin">Закріпити</string>
     <string name="menu_unpin">Відкріпити</string>
     <string name="menu_forward">Переслати</string>
+    <string name="menu_repeat">+1</string>
     <string name="menu_select">Вибрати</string>
     <string name="menu_more">Ще</string>
     <string name="menu_delete">Видалити</string>

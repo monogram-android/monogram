@@ -233,6 +233,7 @@
     <string name="menu_pin">Fixar</string>
     <string name="menu_unpin">Desafixar</string>
     <string name="menu_forward">Encaminhar</string>
+    <string name="menu_repeat">+1</string>
     <string name="menu_select">Selecionar</string>
     <string name="menu_more">Mais</string>
     <string name="menu_delete">Excluir</string>

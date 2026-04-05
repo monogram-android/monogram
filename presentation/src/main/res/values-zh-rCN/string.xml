@@ -231,6 +231,7 @@
     <string name="menu_pin">置顶</string>
     <string name="menu_unpin">取消置顶</string>
     <string name="menu_forward">转发</string>
+    <string name="menu_repeat">+1</string>
     <string name="menu_select">选择</string>
     <string name="menu_more">更多</string>
     <string name="menu_delete">删除</string>

@@ -84,6 +84,7 @@ interface ChatComponent {
     fun onVideoRecorded(file: File)
     fun onForwardMessage(message: MessageModel)
     fun onForwardSelectedMessages()
+    fun onRepeatMessage(message: MessageModel)
     fun onDeleteMessage(message: MessageModel, revoke: Boolean = false)
     fun onEditMessage(message: MessageModel)
     fun onCancelEdit()

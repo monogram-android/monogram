@@ -232,6 +232,7 @@
     <string name="menu_pin">Fijar</string>
     <string name="menu_unpin">Desfijar</string>
     <string name="menu_forward">Reenviar</string>
+    <string name="menu_repeat">+1</string>
     <string name="menu_select">Seleccionar</string>
     <string name="menu_more">Más</string>
     <string name="menu_delete">Eliminar</string>
@@ -723,7 +724,7 @@
     </string>
 
 
-       <!-- Stickers and Emoji -->
+    <!-- Stickers and Emoji -->
     <string name="stickers_emoji_header">Stickers y Emoji</string>
     <string name="stickers_tab">Stickers</string>
     <string name="emoji_tab">Emoji</string>
@@ -833,7 +834,7 @@
     <string name="privacy_search_users_placeholder">Buscar usuarios</string>
     <string name="privacy_no_users_found">No se encontraron usuarios</string>
 
-        <!-- Passcode -->
+    <!-- Passcode -->
     <string name="passcode_change_title">Cambiar Código de Acceso</string>
     <string name="passcode_set_title">Establecer Código de Acceso</string>
     <string name="passcode_change_description">Tu aplicación está protegida actualmente con un código de acceso. Ingresa uno nuevo para cambiarlo.
@@ -949,7 +950,7 @@
     <string name="add_photo_cd">Añadir foto</string>
     <string name="change_photo_cd">Cambiar foto</string>
 
-        <!-- Permissions -->
+    <!-- Permissions -->
     <string name="permissions_required_title">Permisos Requeridos</string>
     <string name="permissions_required_description">Para proporcionar la mejor experiencia, MonoGram necesita los siguientes permisos.</string>
     <string name="permission_notifications_title">Notificaciones</string>

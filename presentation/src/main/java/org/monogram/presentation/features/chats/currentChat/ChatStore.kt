@@ -66,6 +66,7 @@ interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Lab
         data class VideoRecorded(val file: File) : Intent()
         data class ForwardMessage(val message: MessageModel) : Intent()
         object ForwardSelectedMessages : Intent()
+        data class RepeatMessage(val message: MessageModel) : Intent()
         data class DeleteMessage(val message: MessageModel, val revoke: Boolean = false) : Intent()
         data class EditMessage(val message: MessageModel) : Intent()
         object CancelEdit : Intent()

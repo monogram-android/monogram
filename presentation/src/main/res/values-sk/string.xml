@@ -241,6 +241,7 @@
     <string name="menu_pin">Pripnúť</string>
     <string name="menu_unpin">Odopnúť</string>
     <string name="menu_forward">Preposlať</string>
+    <string name="menu_repeat">+1</string>
     <string name="menu_select">Vybrať</string>
     <string name="menu_more">Viac</string>
     <string name="menu_delete">Odstrániť</string>

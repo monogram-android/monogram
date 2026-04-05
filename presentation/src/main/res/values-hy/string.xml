@@ -223,6 +223,7 @@
     <string name="menu_pin">Ամրացնել</string>
     <string name="menu_unpin">Ապաամրացնել</string>
     <string name="menu_forward">Վերահասցեագրել</string>
+    <string name="menu_repeat">+1</string>
     <string name="menu_select">Ընտրել</string>
     <string name="menu_more">Ավելին</string>
     <string name="menu_delete">Ջնջել</string>

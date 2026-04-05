@@ -67,6 +67,7 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Gavel
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.PlusOne
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Report
 import androidx.compose.material.icons.rounded.Translate
@@ -188,7 +189,8 @@ fun MessageOptionsMenu(
     onReport: () -> Unit = {},
     onBlock: () -> Unit = {},
     onRestrict: () -> Unit = {},
-    onDismiss: () -> Unit
+    onRepeat: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
@@ -759,6 +761,14 @@ fun MessageOptionsMenu(
                             )
                         }
 
+                        if (sections.hasRepeatAction) {
+                            InternalMenuOptionItem(
+                                icon = Icons.Rounded.PlusOne,
+                                text = stringResource(R.string.menu_repeat),
+                                onClick = { animateOutAndDismiss(onRepeat) }
+                            )
+                        }
+
                         if (sections.hasDownloadAction) {
                             InternalMenuOptionItem(
                                 icon = Icons.Rounded.Download,
@@ -927,7 +937,8 @@ private data class MessageMenuSections(
     val hasRestrictAction: Boolean,
     val hasTelegramSummaryAction: Boolean,
     val hasTelegramTranslatorAction: Boolean,
-    val hasRestoreOriginalTextAction: Boolean
+    val hasRestoreOriginalTextAction: Boolean,
+    val hasRepeatAction: Boolean,
 ) {
     fun merge(other: MessageMenuSections): MessageMenuSections {
         return MessageMenuSections(
@@ -948,7 +959,8 @@ private data class MessageMenuSections(
             hasRestrictAction = hasRestrictAction || other.hasRestrictAction,
             hasTelegramSummaryAction = hasTelegramSummaryAction || other.hasTelegramSummaryAction,
             hasTelegramTranslatorAction = hasTelegramTranslatorAction || other.hasTelegramTranslatorAction,
-            hasRestoreOriginalTextAction = hasRestoreOriginalTextAction || other.hasRestoreOriginalTextAction
+            hasRestoreOriginalTextAction = hasRestoreOriginalTextAction || other.hasRestoreOriginalTextAction,
+            hasRepeatAction = hasRepeatAction || other.hasRepeatAction,
         )
     }
 
@@ -973,7 +985,8 @@ private data class MessageMenuSections(
                     it.hasRestrictAction,
                     it.hasTelegramSummaryAction,
                     it.hasTelegramTranslatorAction,
-                    it.hasRestoreOriginalTextAction
+                    it.hasRestoreOriginalTextAction,
+                    it.hasRepeatAction,
                 )
             },
             restore = { values ->
@@ -995,7 +1008,8 @@ private data class MessageMenuSections(
                     hasRestrictAction = values[14],
                     hasTelegramSummaryAction = values[15],
                     hasTelegramTranslatorAction = values[16],
-                    hasRestoreOriginalTextAction = values[17]
+                    hasRestoreOriginalTextAction = values[17],
+                    hasRepeatAction = values[18],
                 )
             }
         )
@@ -1039,7 +1053,8 @@ private fun buildMenuSections(
         hasRestrictAction = canBlock && canRestrict,
         hasTelegramSummaryAction = showTelegramSummary,
         hasTelegramTranslatorAction = showTelegramTranslator,
-        hasRestoreOriginalTextAction = showRestoreOriginalText
+        hasRestoreOriginalTextAction = showRestoreOriginalText,
+        hasRepeatAction = message.canBeForwarded && canWrite,
     )
 }
 

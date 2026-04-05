@@ -376,6 +376,8 @@ class DefaultChatComponent(
 
     override fun onForwardSelectedMessages() = store.accept(ChatStore.Intent.ForwardSelectedMessages)
 
+    override fun onRepeatMessage(message: MessageModel) = store.accept(ChatStore.Intent.RepeatMessage(message))
+
     override fun onDeleteMessage(message: MessageModel, revoke: Boolean) =
         store.accept(ChatStore.Intent.DeleteMessage(message, revoke))
 

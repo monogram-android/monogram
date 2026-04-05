@@ -233,6 +233,7 @@
     <string name="menu_pin">Pin</string>
     <string name="menu_unpin">Unpin</string>
     <string name="menu_forward">Forward</string>
+    <string name="menu_repeat">+1</string>
     <string name="menu_select">Select</string>
     <string name="menu_more">More</string>
     <string name="menu_delete">Delete</string>

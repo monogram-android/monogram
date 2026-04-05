@@ -423,7 +423,11 @@ fun ChatMessageOptionsMenu(
             }
             onDismiss()
         },
-        onDismiss = onDismiss
+        onRepeat = {
+            component.onRepeatMessage(selectedMessage)
+            onDismiss()
+        },
+        onDismiss = onDismiss,
     )
 }
 

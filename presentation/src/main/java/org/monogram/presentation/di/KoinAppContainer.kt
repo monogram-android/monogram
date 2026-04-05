@@ -62,6 +62,8 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val linkHandlerRepository: LinkHandlerRepository by lazy { koin.get() }
     override val externalProxyRepository: ExternalProxyRepository by lazy { koin.get() }
     override val stickerRepository: StickerRepository by lazy { koin.get() }
+    override val gifRepository: GifRepository by lazy { koin.get() }
+    override val emojiRepository: EmojiRepository by lazy { koin.get() }
     override val updateRepository: UpdateRepository by lazy { koin.get() }
 }
 

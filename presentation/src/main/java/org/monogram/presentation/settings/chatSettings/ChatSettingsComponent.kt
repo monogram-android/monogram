@@ -14,6 +14,7 @@ import org.json.JSONObject
 import org.monogram.domain.managers.AssetsManager
 import org.monogram.domain.managers.DistrManager
 import org.monogram.domain.models.WallpaperModel
+import org.monogram.domain.repository.EmojiRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.presentation.core.util.*
@@ -164,6 +165,7 @@ class DefaultChatSettingsComponent(
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
     private val wallpaperRepository: WallpaperRepository = container.repositories.wallpaperRepository
     private val stickerRepository: StickerRepository = container.repositories.stickerRepository
+    private val emojiRepository: EmojiRepository = container.repositories.emojiRepository
     private val distrManager: DistrManager = container.utils.distrManager()
     private val assetsManager: AssetsManager = container.utils.assetsManager()
 
@@ -698,7 +700,7 @@ class DefaultChatSettingsComponent(
 
     override fun onClearRecentEmojis() {
         scope.launch {
-            stickerRepository.clearRecentEmojis()
+            emojiRepository.clearRecentEmojis()
         }
     }
 

@@ -41,6 +41,7 @@ class DefaultChatComponent(
     internal val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
     internal val botRepository: BotRepository = container.repositories.botRepository
     override val stickerRepository: StickerRepository = container.repositories.stickerRepository
+    internal val gifRepository: GifRepository = container.repositories.gifRepository
     internal val privacyRepository: PrivacyRepository = container.repositories.privacyRepository
     internal val botPreferences: BotPreferencesProvider = container.preferences.botPreferencesProvider
     internal val toastMessageDisplayer: MessageDisplayer = container.utils.messageDisplayer()

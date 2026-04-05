@@ -61,6 +61,8 @@ interface RepositoriesContainer {
     val linkHandlerRepository: LinkHandlerRepository
     val externalProxyRepository: ExternalProxyRepository
     val stickerRepository: StickerRepository
+    val gifRepository: GifRepository
+    val emojiRepository: EmojiRepository
     val updateRepository: UpdateRepository
 }
 

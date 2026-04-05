@@ -30,6 +30,7 @@ import org.monogram.data.mapper.NetworkMapper
 import org.monogram.data.mapper.StorageMapper
 import org.monogram.data.repository.*
 import org.monogram.data.repository.user.UserRepositoryImpl
+import org.monogram.data.stickers.StickerFileManager
 import org.monogram.domain.repository.*
 
 val dataModule = module {
@@ -156,6 +157,14 @@ val dataModule = module {
             messageDao = get(),
             chatFullInfoDao = get(),
             topicDao = get()
+        )
+    }
+
+    single<StickerLocalDataSource> {
+        RoomStickerLocalDataSource(
+            stickerSetDao = get(),
+            recentEmojiDao = get(),
+            stickerPathDao = get()
         )
     }
 
@@ -442,6 +451,18 @@ val dataModule = module {
         )
     }
 
+    factory<GifRemoteSource> {
+        TdGifRemoteSource(
+            gateway = get()
+        )
+    }
+
+    factory<EmojiRemoteSource> {
+        TdEmojiRemoteSource(
+            gateway = get()
+        )
+    }
+
     single {
         FileMessageRegistry()
     }
@@ -465,19 +486,44 @@ val dataModule = module {
         )
     }
 
+    single {
+        StickerFileManager(
+            localDataSource = get(),
+            fileQueue = get(),
+            fileUpdateHandler = get(),
+            dispatchers = get(),
+            scopeProvider = get()
+        )
+    }
+
     single<StickerRepository> {
         StickerRepositoryImpl(
             remote = get(),
-            fileQueue = get(),
-            fileUpdateHandler = get(),
+            fileManager = get(),
             updates = get(),
             cacheProvider = get(),
             dispatchers = get(),
+            localDataSource = get(),
+            scopeProvider = get()
+        )
+    }
+
+    single<GifRepository> {
+        GifRepositoryImpl(
+            remote = get(),
+            cacheProvider = get(),
+            stickerFileManager = get()
+        )
+    }
+
+    single<EmojiRepository> {
+        EmojiRepositoryImpl(
+            remote = get(),
+            localDataSource = get(),
+            cacheProvider = get(),
+            dispatchers = get(),
             context = androidContext(),
-            scopeProvider = get(),
-            stickerSetDao = get(),
-            recentEmojiDao = get(),
-            stickerPathDao = get()
+            scopeProvider = get()
         )
     }
 

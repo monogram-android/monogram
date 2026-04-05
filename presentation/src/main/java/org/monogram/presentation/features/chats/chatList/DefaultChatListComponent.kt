@@ -41,7 +41,7 @@ class DefaultChatListComponent(
     private val repositoryUser: UserRepository = container.repositories.userRepository
     private val userProfileEditRepository: UserProfileEditRepository = container.repositories.userProfileEditRepository
     private val botRepository: BotRepository = container.repositories.botRepository
-    private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
+    private val attachMenuBotRepository: AttachMenuBotRepository = container.repositories.attachMenuBotRepository
     private val updateRepository: UpdateRepository = container.repositories.updateRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
 
@@ -149,7 +149,7 @@ class DefaultChatListComponent(
             }
             .launchIn(scope)
 
-        settingsRepository.getAttachMenuBots()
+        attachMenuBotRepository.getAttachMenuBots()
             .onEach { bots ->
                 _state.update { it.copy(attachMenuBots = bots) }
 

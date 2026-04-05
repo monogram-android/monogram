@@ -21,4 +21,5 @@ interface UserRepository {
     suspend fun searchContacts(query: String): List<UserModel>
     suspend fun addContact(user: UserModel)
     suspend fun removeContact(userId: Long)
+    suspend fun setCachedSimCountryIso(iso: String?)
 }

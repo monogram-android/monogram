@@ -50,7 +50,12 @@ interface RepositoriesContainer {
     val botRepository: BotRepository
     val chatStatisticsRepository: ChatStatisticsRepository
     val sponsorRepository: SponsorRepository
-    val settingsRepository: SettingsRepository
+    val notificationSettingsRepository: NotificationSettingsRepository
+    val sessionRepository: SessionRepository
+    val wallpaperRepository: WallpaperRepository
+    val storageRepository: StorageRepository
+    val networkStatisticsRepository: NetworkStatisticsRepository
+    val attachMenuBotRepository: AttachMenuBotRepository
     val locationRepository: LocationRepository
     val privacyRepository: PrivacyRepository
     val linkHandlerRepository: LinkHandlerRepository

@@ -5,7 +5,7 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.SessionModel
-import org.monogram.domain.repository.SettingsRepository
+import org.monogram.domain.repository.SessionRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -33,7 +33,7 @@ class DefaultSessionsComponent(
     private val onBack: () -> Unit
 ) : SessionsComponent, AppComponentContext by context {
 
-    private val repository: SettingsRepository = container.repositories.settingsRepository
+    private val repository: SessionRepository = container.repositories.sessionRepository
     private val _state = MutableValue(SessionsComponent.State())
     override val state: Value<SessionsComponent.State> = _state
     private val scope = componentScope

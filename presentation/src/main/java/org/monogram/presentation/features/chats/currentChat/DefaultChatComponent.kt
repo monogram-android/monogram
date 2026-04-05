@@ -35,7 +35,7 @@ class DefaultChatComponent(
     private val initialMessageId: Long? = null
 ) : ChatComponent, AppComponentContext by context {
 
-    internal val settingsRepository: SettingsRepository = container.repositories.settingsRepository
+    internal val wallpaperRepository: WallpaperRepository = container.repositories.wallpaperRepository
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
     internal val userRepository: UserRepository = container.repositories.userRepository
     internal val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository

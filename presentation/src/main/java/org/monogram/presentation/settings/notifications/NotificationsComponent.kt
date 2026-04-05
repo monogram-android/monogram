@@ -12,9 +12,9 @@ import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 import org.monogram.domain.managers.DistrManager
 import org.monogram.domain.models.ChatModel
+import org.monogram.domain.repository.NotificationSettingsRepository
+import org.monogram.domain.repository.NotificationSettingsRepository.TdNotificationScope
 import org.monogram.domain.repository.PushProvider
-import org.monogram.domain.repository.SettingsRepository
-import org.monogram.domain.repository.SettingsRepository.TdNotificationScope
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
@@ -78,7 +78,8 @@ class DefaultNotificationsComponent(
 ) : NotificationsComponent, AppComponentContext by context {
 
     private val appPreferences: AppPreferences = container.preferences.appPreferences
-    private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
+    private val notificationSettingsRepository: NotificationSettingsRepository =
+        container.repositories.notificationSettingsRepository
     private val distrManager: DistrManager = container.utils.distrManager()
 
     private val scope = componentScope
@@ -169,13 +170,14 @@ class DefaultNotificationsComponent(
 
     private fun syncSettings() {
         scope.launch {
-            val privateEnabled = settingsRepository.getNotificationSettings(TdNotificationScope.PRIVATE_CHATS)
+            val privateEnabled =
+                notificationSettingsRepository.getNotificationSettings(TdNotificationScope.PRIVATE_CHATS)
             appPreferences.setPrivateChatsNotifications(privateEnabled)
 
-            val groupsEnabled = settingsRepository.getNotificationSettings(TdNotificationScope.GROUPS)
+            val groupsEnabled = notificationSettingsRepository.getNotificationSettings(TdNotificationScope.GROUPS)
             appPreferences.setGroupsNotifications(groupsEnabled)
 
-            val channelsEnabled = settingsRepository.getNotificationSettings(TdNotificationScope.CHANNELS)
+            val channelsEnabled = notificationSettingsRepository.getNotificationSettings(TdNotificationScope.CHANNELS)
             appPreferences.setChannelsNotifications(channelsEnabled)
         }
     }
@@ -190,7 +192,7 @@ class DefaultNotificationsComponent(
                 }
             }
 
-            val exceptions = settingsRepository.getExceptions(scope)
+            val exceptions = notificationSettingsRepository.getExceptions(scope)
 
             _state.update {
                 when (scope) {
@@ -213,21 +215,21 @@ class DefaultNotificationsComponent(
     override fun onPrivateChatsToggled(enabled: Boolean) {
         appPreferences.setPrivateChatsNotifications(enabled)
         scope.launch {
-            settingsRepository.setNotificationSettings(TdNotificationScope.PRIVATE_CHATS, enabled)
+            notificationSettingsRepository.setNotificationSettings(TdNotificationScope.PRIVATE_CHATS, enabled)
         }
     }
 
     override fun onGroupsToggled(enabled: Boolean) {
         appPreferences.setGroupsNotifications(enabled)
         scope.launch {
-            settingsRepository.setNotificationSettings(TdNotificationScope.GROUPS, enabled)
+            notificationSettingsRepository.setNotificationSettings(TdNotificationScope.GROUPS, enabled)
         }
     }
 
     override fun onChannelsToggled(enabled: Boolean) {
         appPreferences.setChannelsNotifications(enabled)
         scope.launch {
-            settingsRepository.setNotificationSettings(TdNotificationScope.CHANNELS, enabled)
+            notificationSettingsRepository.setNotificationSettings(TdNotificationScope.CHANNELS, enabled)
         }
     }
 
@@ -304,7 +306,7 @@ class DefaultNotificationsComponent(
 
     override fun onChatExceptionToggled(chatId: Long, enabled: Boolean) {
         scope.launch {
-            settingsRepository.setChatNotificationSettings(chatId, enabled)
+            notificationSettingsRepository.setChatNotificationSettings(chatId, enabled)
             val currentChild = childStack.value.active.instance
             if (currentChild is NotificationsComponent.Child.Exceptions) {
                 loadExceptions(currentChild.scope)
@@ -314,7 +316,7 @@ class DefaultNotificationsComponent(
 
     override fun onChatExceptionReset(chatId: Long) {
         scope.launch {
-            settingsRepository.resetChatNotificationSettings(chatId)
+            notificationSettingsRepository.resetChatNotificationSettings(chatId)
             val currentChild = childStack.value.active.instance
             if (currentChild is NotificationsComponent.Child.Exceptions) {
                 loadExceptions(currentChild.scope)

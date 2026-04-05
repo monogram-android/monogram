@@ -1,7 +1,7 @@
 package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
-import org.monogram.domain.repository.SettingsRepository.TdNotificationScope
+import org.monogram.domain.repository.NotificationSettingsRepository.TdNotificationScope
 
 fun TdNotificationScope.toApi(): TdApi.NotificationSettingsScope = when (this) {
     TdNotificationScope.PRIVATE_CHATS -> TdApi.NotificationSettingsScopePrivateChats()

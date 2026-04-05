@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.datasource.cache.UserLocalDataSource
+import org.monogram.data.db.dao.KeyValueDao
 import org.monogram.data.gateway.UpdateDispatcher
 import java.util.concurrent.ConcurrentHashMap
 
@@ -11,10 +12,12 @@ internal class UserUpdateSynchronizer(
     private val scope: CoroutineScope,
     private val updates: UpdateDispatcher,
     private val userLocal: UserLocalDataSource,
+    private val keyValueDao: KeyValueDao,
     private val emojiPathCache: ConcurrentHashMap<Long, String>,
     private val fileIdToUserIdMap: ConcurrentHashMap<Int, Long>,
     private val onUserUpdated: suspend (TdApi.User) -> Unit,
-    private val onUserIdChanged: suspend (Long) -> Unit
+    private val onUserIdChanged: suspend (Long) -> Unit,
+    private val onCachedSimCountryIsoChanged: suspend (String?) -> Unit
 ) {
     fun start() {
         scope.launch {
@@ -59,5 +62,15 @@ internal class UserUpdateSynchronizer(
                 }
             }
         }
+
+        scope.launch {
+            keyValueDao.observeValue(KEY_CACHED_SIM_COUNTRY_ISO).collect { entity ->
+                onCachedSimCountryIsoChanged(entity?.value)
+            }
+        }
+    }
+
+    companion object {
+        private const val KEY_CACHED_SIM_COUNTRY_ISO = "cached_sim_country_iso"
     }
 }

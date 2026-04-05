@@ -21,6 +21,7 @@ import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.mapper.user.*
 import org.monogram.domain.models.ChatFullInfoModel
 import org.monogram.domain.models.UserModel
+import org.monogram.domain.repository.CacheProvider
 import org.monogram.domain.repository.UserRepository
 import java.util.concurrent.ConcurrentHashMap
 
@@ -33,6 +34,7 @@ class UserRepositoryImpl(
     private val updates: UpdateDispatcher,
     fileQueue: FileDownloadQueue,
     private val keyValueDao: KeyValueDao,
+    private val cacheProvider: CacheProvider,
     scopeProvider: ScopeProvider
 ) : UserRepository {
 
@@ -62,10 +64,12 @@ class UserRepositoryImpl(
             scope = scope,
             updates = updates,
             userLocal = userLocal,
+            keyValueDao = keyValueDao,
             emojiPathCache = mediaResolver.emojiPathCache,
             fileIdToUserIdMap = mediaResolver.fileIdToUserIdMap,
             onUserUpdated = { user -> handleUserUpdated(user) },
-            onUserIdChanged = { userId -> handleUserIdUpdated(userId) }
+            onUserIdChanged = { userId -> handleUserIdUpdated(userId) },
+            onCachedSimCountryIsoChanged = { iso -> cacheProvider.setCachedSimCountryIso(iso) }
         ).start()
     }
 
@@ -285,6 +289,14 @@ class UserRepositoryImpl(
         _userUpdateFlow.emit(userId)
     }
 
+    override suspend fun setCachedSimCountryIso(iso: String?) {
+        if (iso != null) {
+            keyValueDao.insertValue(KeyValueEntity(KEY_CACHED_SIM_COUNTRY_ISO, iso))
+        } else {
+            keyValueDao.deleteValue(KEY_CACHED_SIM_COUNTRY_ISO)
+        }
+    }
+
     override fun logOut() {
         scope.launch { coRunCatching { remote.logout() } }
         scope.launch { userLocal.clearAll() }
@@ -300,6 +312,7 @@ class UserRepositoryImpl(
     companion object {
         private const val NEGATIVE_CACHE_TTL_MS = 5 * 60 * 1000L
         private const val KEY_CURRENT_USER_ID = "current_user_id"
+        private const val KEY_CACHED_SIM_COUNTRY_ISO = "cached_sim_country_iso"
         private const val USER_UPDATE_BUFFER_SIZE = 10
     }
 }

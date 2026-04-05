@@ -51,7 +51,12 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val botRepository: BotRepository by lazy { koin.get() }
     override val chatStatisticsRepository: ChatStatisticsRepository by lazy { koin.get() }
     override val sponsorRepository: SponsorRepository by lazy { koin.get() }
-    override val settingsRepository: SettingsRepository by lazy { koin.get() }
+    override val notificationSettingsRepository: NotificationSettingsRepository by lazy { koin.get() }
+    override val sessionRepository: SessionRepository by lazy { koin.get() }
+    override val wallpaperRepository: WallpaperRepository by lazy { koin.get() }
+    override val storageRepository: StorageRepository by lazy { koin.get() }
+    override val networkStatisticsRepository: NetworkStatisticsRepository by lazy { koin.get() }
+    override val attachMenuBotRepository: AttachMenuBotRepository by lazy { koin.get() }
     override val locationRepository: LocationRepository by lazy { koin.get() }
     override val privacyRepository: PrivacyRepository by lazy { koin.get() }
     override val linkHandlerRepository: LinkHandlerRepository by lazy { koin.get() }

@@ -169,7 +169,8 @@ val dataModule = module {
             scopeProvider = get(),
             gateway = get(),
             fileQueue = get(),
-            keyValueDao = get()
+            keyValueDao = get(),
+            cacheProvider = get()
         )
     }
 
@@ -275,7 +276,7 @@ val dataModule = module {
             customEmojiPaths = get<FileUpdateHandler>().customEmojiPaths,
             fileIdToCustomEmojiId = get<FileUpdateHandler>().fileIdToCustomEmojiId,
             fileApi = get(),
-            settingsRepository = get(),
+            appPreferences = get(),
             cache = get(),
             scopeProvider = get()
         )
@@ -335,24 +336,63 @@ val dataModule = module {
         InMemorySettingsCacheDataSource()
     }
 
-    single<SettingsRepository> {
-        SettingsRepositoryImpl(
+    single<NotificationSettingsRepository> {
+        NotificationSettingsRepositoryImpl(
             remote = get(),
             cache = get(),
             chatsRemote = get(),
             updates = get(),
-            appPreferences = get(),
-            cacheProvider = get(),
             scopeProvider = get(),
-            dispatchers = get(),
-            attachBotDao = get(),
-            keyValueDao = get(),
+            dispatchers = get()
+        )
+    }
+
+    single<SessionRepository> {
+        SessionRepositoryImpl(
+            remote = get()
+        )
+    }
+
+    single<WallpaperRepository> {
+        WallpaperRepositoryImpl(
+            remote = get(),
+            updates = get(),
             wallpaperDao = get(),
+            dispatchers = get(),
+            scopeProvider = get()
+        )
+    }
+
+    single<StorageRepository> {
+        StorageRepositoryImpl(
+            remote = get(),
+            cache = get(),
+            chatsRemote = get(),
+            dispatchers = get(),
             storageMapper = get(),
-            stringProvider = get(),
+            stringProvider = get()
+        )
+    }
+
+    single<NetworkStatisticsRepository> {
+        NetworkStatisticsRepositoryImpl(
+            remote = get(),
             networkMapper = get()
         )
     }
+
+    single<AttachMenuBotRepository> {
+        AttachMenuBotRepositoryImpl(
+            remote = get(),
+            cache = get(),
+            cacheProvider = get(),
+            updates = get(),
+            dispatchers = get(),
+            attachBotDao = get(),
+            scopeProvider = get()
+        )
+    }
+
     single<PollRepository> {
         PollRepositoryImpl()
     }

@@ -20,7 +20,6 @@
     <!-- Startup -->
     <string name="startup_connecting">Conectando a Telegram…</string>
 
-
     <!-- About Screen -->
     <string name="about_title">Acerca de</string>
     <string name="cd_back">Atrás</string>
@@ -104,7 +103,6 @@
     <string name="loading_please_wait">Por favor, espera un momento</string>
     <string name="loading_taking_too_long">¿Está tardando demasiado?</string>
     <string name="loading_reset_connection">Restablecer Conexión</string>
-</resources>
 
     <!-- Chat List -->
     <string name="forward_to_title">Reenviar a...</string>
@@ -975,8 +973,6 @@
     <string name="media_type_gif">GIF</string>
     <string name="media_type_location">Ubicación</string>
     <string name="media_type_message">Mensaje</string>
-
-
 
     <!-- Actions -->
     <string name="action_cancel_reply">Cancelar respuesta</string>

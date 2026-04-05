@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.ui.Avatar
+import org.monogram.presentation.core.ui.FastReplyIndicator
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.chatContent.shouldShowDate
 import org.monogram.presentation.features.chats.currentChat.components.channels.ChannelAlbumMessageBubble

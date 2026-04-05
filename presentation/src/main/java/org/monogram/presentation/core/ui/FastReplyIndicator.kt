@@ -1,4 +1,4 @@
-package org.monogram.presentation.features.chats.currentChat.components
+package org.monogram.presentation.core.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D

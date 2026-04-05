@@ -113,6 +113,12 @@ val dataModule = module {
         )
     }
 
+    factory<LinkRemoteDataSource> {
+        TdLinkRemoteDataSource(
+            gateway = get()
+        )
+    }
+
     // Database
     single {
         Room.databaseBuilder(
@@ -541,8 +547,12 @@ val dataModule = module {
         )
     }
 
+    single {
+        LinkParser()
+    }
+
     single<LinkHandlerRepository> {
-        LinkHandlerRepositoryImpl(get(), get(), get(), get())
+        LinkHandlerRepositoryImpl(get(), get(), get(), get(), get())
     }
 
     single<StreamingRepository> {

@@ -6,7 +6,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,7 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
@@ -131,33 +135,54 @@ fun MessageBubbleContainer(
             .background(animatedColor.value, RoundedCornerShape(12.dp))
             .onGloballyPositioned { outerColumnPosition = it.positionInWindow() }
             .padding(top = topSpacing)
-            .offset {
-                IntOffset(dragOffsetX.value.toInt(), 0)
-            }
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onHorizontalDrag = { change, dragAmount ->
-                        change.consume()
-                        scope.launch {
-                            dragOffsetX.snapTo((dragOffsetX.value + dragAmount).coerceIn(-200f + fadeInThreshold, 0f))
+            .offset { IntOffset(dragOffsetX.value.toInt(), 0) }
+            .pointerInput(canReply) {
+                if (!canReply) return@pointerInput
+
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    var isDragging = false
+                    var totalDragX = 0f
+
+                    while (true) {
+                        val event = awaitPointerEvent(pass = PointerEventPass.Main)
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                        if (change.changedToUp()) break
+
+                        val deltaX = change.positionChange().x
+                        totalDragX += deltaX
+
+                        if (!isDragging) {
+                            if (totalDragX < -48f) {
+                                isDragging = true
+                            } else if (totalDragX > 48f) {
+                                break
+                            }
                         }
-                    },
-                    onDragEnd = {
-                        if (dragOffsetX.value < fastReplyTriggerThreshold && canReply) {
+
+                        if (isDragging) {
+                            change.consume()
+                            val newOffset = dragOffsetX.value + deltaX
+                            scope.launch {
+                                dragOffsetX.snapTo(newOffset.coerceIn(-200f + fadeInThreshold, 0f))
+                            }
+                        }
+                    }
+
+                    if (isDragging) {
+                        if (dragOffsetX.value < fastReplyTriggerThreshold) {
                             onReplySwipe(msg)
                         }
                         scope.launch {
                             dragOffsetX.animateTo(0f, spring())
                         }
                     }
-                )
+                }
             }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { offset ->
-                        if (dragOffsetX.value < 0f) {
-                            return@detectTapGestures
-                        }
                         val clickPos = outerColumnPosition + offset
                         val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
@@ -165,9 +190,6 @@ fun MessageBubbleContainer(
                         }
                     },
                     onLongPress = { offset ->
-                        if (dragOffsetX.value < 0f) {
-                            return@detectTapGestures
-                        }
                         val clickPos = outerColumnPosition + offset
                         val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {

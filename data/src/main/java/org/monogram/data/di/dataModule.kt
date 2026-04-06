@@ -22,10 +22,10 @@ import org.monogram.data.gateway.TelegramGatewayImpl
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.gateway.UpdateDispatcherImpl
 import org.monogram.data.infra.*
-import org.monogram.data.mapper.ChatMapper
-import org.monogram.data.mapper.MessageMapper
-import org.monogram.data.mapper.NetworkMapper
-import org.monogram.data.mapper.StorageMapper
+import org.monogram.data.mapper.*
+import org.monogram.data.mapper.message.MessageContentMapper
+import org.monogram.data.mapper.message.MessagePersistenceMapper
+import org.monogram.data.mapper.message.MessageSenderResolver
 import org.monogram.data.repository.*
 import org.monogram.data.repository.user.UserRepositoryImpl
 import org.monogram.data.stickers.StickerFileManager
@@ -280,16 +280,67 @@ val dataModule = module {
     }
 
     single {
-        MessageMapper(
+        TdFileHelper(
             connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
+            fileApi = get(),
+            appPreferences = get(),
+            cache = get()
+        )
+    }
+
+    single {
+        CustomEmojiLoader(
+            gateway = get(),
+            fileApi = get(),
+            fileUpdateHandler = get(),
+            fileHelper = get()
+        )
+    }
+
+    single {
+        WebPageMapper(
+            fileHelper = get(),
+            appPreferences = get()
+        )
+    }
+
+    single {
+        MessageContentMapper(
+            fileHelper = get(),
+            appPreferences = get(),
+            customEmojiLoader = get(),
+            webPageMapper = get(),
+            scope = get()
+        )
+    }
+
+    single {
+        MessageSenderResolver(
             gateway = get(),
             userRepository = get(),
             chatInfoRepository = get(),
-            fileUpdateHandler = get(),
-            fileApi = get(),
-            appPreferences = get(),
             cache = get(),
-            scope = get()
+            fileHelper = get()
+        )
+    }
+
+    single {
+        MessagePersistenceMapper(
+            cache = get(),
+            fileHelper = get()
+        )
+    }
+
+    single {
+        MessageMapper(
+            gateway = get(),
+            userRepository = get(),
+            cache = get(),
+            fileHelper = get(),
+            senderResolver = get(),
+            contentMapper = get(),
+            persistenceMapper = get(),
+            customEmojiLoader = get()
         )
     }
 
@@ -432,6 +483,7 @@ val dataModule = module {
             messageMapper = get(),
             messageRemoteDataSource = get(),
             cache = get(),
+            fileHelper = get(),
             dispatcherProvider = get(),
             scope = get(),
             fileDataSource = get(),

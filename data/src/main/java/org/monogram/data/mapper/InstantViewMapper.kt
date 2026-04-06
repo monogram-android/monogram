@@ -144,7 +144,7 @@ private fun TdApi.PageBlockRelatedArticle.toRelatedArticle() = PageBlockRelatedA
 private fun TdApi.Photo.toPhoto(): WebPage.Photo {
     val size = sizes.lastOrNull()
     return WebPage.Photo(
-        path = size?.photo?.local?.path?.ifEmpty { null },
+        path = size?.photo?.local?.path?.takeIf { isValidFilePath(it) },
         width = size?.width ?: 0,
         height = size?.height ?: 0,
         fileId = size?.photo?.id ?: 0,
@@ -153,7 +153,7 @@ private fun TdApi.Photo.toPhoto(): WebPage.Photo {
 }
 
 private fun TdApi.Animation.toAnimation() = WebPage.Animation(
-    path = animation.local.path.ifEmpty { null },
+    path = animation.local.path.takeIf { isValidFilePath(it) },
     width = width,
     height = height,
     duration = duration,
@@ -161,7 +161,7 @@ private fun TdApi.Animation.toAnimation() = WebPage.Animation(
 )
 
 private fun TdApi.Audio.toAudio() = WebPage.Audio(
-    path = audio.local.path.ifEmpty { null },
+    path = audio.local.path.takeIf { isValidFilePath(it) },
     duration = duration,
     title = title,
     performer = performer,
@@ -169,7 +169,7 @@ private fun TdApi.Audio.toAudio() = WebPage.Audio(
 )
 
 private fun TdApi.Video.toVideo() = WebPage.Video(
-    path = video.local.path.ifEmpty { null },
+    path = video.local.path.takeIf { isValidFilePath(it) },
     width = width,
     height = height,
     duration = duration,
@@ -177,7 +177,7 @@ private fun TdApi.Video.toVideo() = WebPage.Video(
 )
 
 private fun TdApi.Document.toDocument() = WebPage.Document(
-    path = document.local.path.ifEmpty { null },
+    path = document.local.path.takeIf { isValidFilePath(it) },
     fileName = fileName,
     mimeType = mimeType,
     size = document.size,

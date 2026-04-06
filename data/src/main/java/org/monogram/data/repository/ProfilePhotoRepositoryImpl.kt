@@ -13,6 +13,7 @@ import org.monogram.data.datasource.remote.UserRemoteDataSource
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.FileDownloadQueue
+import org.monogram.data.mapper.isValidFilePath
 import org.monogram.data.mapper.toEntity
 import org.monogram.data.mapper.user.toTdApiChat
 import org.monogram.domain.repository.ProfilePhotoRepository
@@ -134,7 +135,7 @@ class ProfilePhotoRepositoryImpl(
             photoInfo?.small ?: photoInfo?.big
         } ?: return null
 
-        val directPath = preferredFile.local.path.ifEmpty { null }
+        val directPath = preferredFile.local.path.takeIf { isValidFilePath(it) }
         if (directPath != null) {
             if (!ensureFullRes && bigId != null && bigId != preferredFile.id) {
                 fileQueue.enqueue(
@@ -206,7 +207,7 @@ class ProfilePhotoRepositoryImpl(
         ensureFullRes: Boolean
     ): String? {
         val animationFile = photo.animation?.file
-        val animationPath = animationFile?.local?.path?.ifEmpty { null }
+        val animationPath = animationFile?.local?.path?.takeIf { isValidFilePath(it) }
         if (animationPath != null) return animationPath
 
         val bestPhotoFile = photo.sizes
@@ -215,7 +216,7 @@ class ProfilePhotoRepositoryImpl(
             ?: photo.sizes.lastOrNull()?.photo
             ?: return null
 
-        val directPath = bestPhotoFile.local.path.ifEmpty { null }
+        val directPath = bestPhotoFile.local.path.takeIf { isValidFilePath(it) }
         if (directPath != null) return directPath
 
         if (!ensureFullRes) {
@@ -226,7 +227,7 @@ class ProfilePhotoRepositoryImpl(
                 ?: photo.sizes.find { it.type == "a" }?.photo
                 ?: photo.sizes.firstOrNull()?.photo
 
-            val fallbackDirectPath = fallbackFile?.local?.path?.ifEmpty { null }
+            val fallbackDirectPath = fallbackFile?.local?.path?.takeIf { isValidFilePath(it) }
             if (fallbackDirectPath != null) return fallbackDirectPath
 
             val fallbackDownloadedPath = resolveDownloadedFilePath(fallbackFile?.id)
@@ -252,7 +253,11 @@ class ProfilePhotoRepositoryImpl(
     private suspend fun resolveDownloadedFilePath(fileId: Int?): String? {
         if (fileId == null || fileId == 0) return null
         val file = coRunCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull() ?: return null
-        return if (file.local.isDownloadingCompleted) file.local.path.ifEmpty { null } else null
+        return if (file.local.isDownloadingCompleted) {
+            file.local.path.takeIf { isValidFilePath(it) }
+        } else {
+            null
+        }
     }
 
     companion object {

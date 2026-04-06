@@ -6,12 +6,16 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.datasource.remote.SettingsRemoteDataSource
 import org.monogram.data.db.dao.WallpaperDao
 import org.monogram.data.db.model.WallpaperEntity
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.mapper.mapBackgrounds
+import org.monogram.data.mapper.toBackgroundType
+import org.monogram.data.mapper.toDomain
+import org.monogram.data.mapper.toInputBackground
 import org.monogram.domain.models.WallpaperModel
 import org.monogram.domain.repository.WallpaperRepository
 
@@ -73,6 +77,38 @@ class WallpaperRepositoryImpl(
 
     override suspend fun downloadWallpaper(fileId: Int) {
         remote.downloadFile(fileId, 1)
+    }
+
+    override suspend fun setDefaultWallpaper(
+        wallpaper: WallpaperModel,
+        isBlurred: Boolean,
+        isMoving: Boolean
+    ): WallpaperModel? {
+        val background = wallpaper.toInputBackground()
+        val type = wallpaper.toBackgroundType(isBlurred = isBlurred, isMoving = isMoving)
+        val result = remote.setDefaultBackground(
+            background = background,
+            type = type,
+            forDarkTheme = false
+        ) ?: return null
+
+        wallpaperUpdates.emit(Unit)
+        return result.toDomain()
+    }
+
+    override suspend fun uploadWallpaper(
+        filePath: String,
+        isBlurred: Boolean,
+        isMoving: Boolean
+    ): WallpaperModel? {
+        val result = remote.setDefaultBackground(
+            background = TdApi.InputBackgroundLocal(TdApi.InputFileLocal(filePath)),
+            type = TdApi.BackgroundTypeWallpaper(isBlurred, isMoving),
+            forDarkTheme = false
+        ) ?: return null
+
+        wallpaperUpdates.emit(Unit)
+        return result.toDomain()
     }
 
     private suspend fun saveWallpapersToDb(wallpapers: List<WallpaperModel>) {

@@ -12,7 +12,7 @@ fun TdApi.Sticker.toDomain(): StickerModel = StickerModel(
     width = width,
     height = height,
     emoji = emoji,
-    path = sticker.local.path.ifEmpty { null },
+    path = sticker.local.path.takeIf { isValidFilePath(it) },
     format = format.toDomain()
 )
 
@@ -27,7 +27,7 @@ fun TdApi.StickerSet.toDomain(): StickerSetModel = StickerSetModel(
             width = thumb.width,
             height = thumb.height,
             emoji = "",
-            path = thumb.file.local.path.ifEmpty { null },
+            path = thumb.file.local.path.takeIf { isValidFilePath(it) },
             format = stickers.firstOrNull()?.format.toDomain()
         )
     },

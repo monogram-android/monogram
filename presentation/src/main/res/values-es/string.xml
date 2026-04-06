@@ -573,6 +573,7 @@
     <string name="reset_button">Restablecer</string>
     <string name="chat_wallpaper_header">Fondo de Pantalla del Chat</string>
     <string name="reset_wallpaper_cd">Restablecer Fondo de Pantalla</string>
+    <string name="upload_wallpaper_cd">Subir fondo de pantalla</string>
     <string name="emoji_style_header">Estilo de Emoji</string>
     <string name="theme_header">Tema</string>
     <string name="night_mode_title">Modo Nocturno</string>

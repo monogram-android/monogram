@@ -7,16 +7,12 @@ import org.monogram.core.DispatcherProvider
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.UserFullInfoDao
 import org.monogram.data.gateway.TelegramGateway
-import org.monogram.data.mapper.ChatMapper
-import org.monogram.data.mapper.isForcedVerifiedChat
-import org.monogram.data.mapper.isForcedVerifiedUser
-import org.monogram.data.mapper.isSponsoredUser
+import org.monogram.data.mapper.*
 import org.monogram.data.mapper.user.toEntity
 import org.monogram.data.mapper.user.toTdApi
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.UsernamesModel
 import org.monogram.domain.repository.AppPreferencesProvider
-import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 class ChatModelFactory(
@@ -295,12 +291,12 @@ class ChatModelFactory(
         }
 
         val localPath = photoFile.local.path
-        if (isValidPath(localPath)) {
+        if (isValidFilePath(localPath)) {
             return localPath
         }
 
         val cachedPath = photoFile.id.takeIf { it != 0 }?.let { fileManager.getFilePath(it) }
-        if (isValidPath(cachedPath)) {
+        if (isValidFilePath(cachedPath)) {
             return cachedPath
         }
 
@@ -328,10 +324,6 @@ class ChatModelFactory(
         val onlineCount = Regex("""oc:(\d+)""").find(clientData)?.groupValues?.getOrNull(1)?.toIntOrNull()
         if (memberCount == null && onlineCount == null) return null
         return (memberCount ?: 0) to (onlineCount ?: 0)
-    }
-
-    private fun isValidPath(path: String?): Boolean {
-        return !path.isNullOrBlank() && File(path).exists()
     }
 
     companion object {

@@ -2,7 +2,6 @@ package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
 import org.monogram.domain.models.MessageEntity
-import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.models.RichText
 import org.monogram.domain.models.UpdateInfo
 
@@ -45,27 +44,7 @@ fun TdApi.FormattedText.toChangelog(): List<RichText> {
 }
 
 fun TdApi.TextEntity.toDomain(): MessageEntity? {
-    val type = when (val t = this.type) {
-        is TdApi.TextEntityTypeBold -> MessageEntityType.Bold
-        is TdApi.TextEntityTypeItalic -> MessageEntityType.Italic
-        is TdApi.TextEntityTypeUnderline -> MessageEntityType.Underline
-        is TdApi.TextEntityTypeStrikethrough -> MessageEntityType.Strikethrough
-        is TdApi.TextEntityTypeSpoiler -> MessageEntityType.Spoiler
-        is TdApi.TextEntityTypeCode -> MessageEntityType.Code
-        is TdApi.TextEntityTypePre -> MessageEntityType.Pre()
-        is TdApi.TextEntityTypeTextUrl -> MessageEntityType.TextUrl(t.url)
-        is TdApi.TextEntityTypeMention -> MessageEntityType.Mention
-        is TdApi.TextEntityTypeMentionName -> MessageEntityType.TextMention(t.userId)
-        is TdApi.TextEntityTypeHashtag -> MessageEntityType.Hashtag
-        is TdApi.TextEntityTypeBotCommand -> MessageEntityType.BotCommand
-        is TdApi.TextEntityTypeUrl -> MessageEntityType.Url
-        is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email
-        is TdApi.TextEntityTypePhoneNumber -> MessageEntityType.PhoneNumber
-        is TdApi.TextEntityTypeBankCardNumber -> MessageEntityType.BankCardNumber
-        is TdApi.TextEntityTypeCustomEmoji -> MessageEntityType.CustomEmoji(t.customEmojiId)
-        else -> return null
-    }
-    return MessageEntity(this.offset, this.length, type)
+    return toMessageEntityOrNull()
 }
 
 fun TdApi.MessageDocument.toUpdateInfo(): UpdateInfo? {

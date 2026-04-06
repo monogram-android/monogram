@@ -544,6 +544,7 @@
     <string name="reset_button">Վերակայել</string>
     <string name="chat_wallpaper_header">Չատի պաստառ</string>
     <string name="reset_wallpaper_cd">Վերակայել պաստառը</string>
+    <string name="upload_wallpaper_cd">Վերբեռնել պաստառ</string>
     <string name="emoji_style_header">Էմոջիների ոճը</string>
     <string name="theme_header">Թեմա</string>
     <string name="night_mode_title">Գիշերային ռեժիմ</string>

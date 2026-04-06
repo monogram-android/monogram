@@ -560,6 +560,7 @@
     <string name="reset_button">Скинути</string>
     <string name="chat_wallpaper_header">Шпалери чату</string>
     <string name="reset_wallpaper_cd">Скинути шпалери</string>
+    <string name="upload_wallpaper_cd">Завантажити шпалери</string>
     <string name="emoji_style_header">Стиль емодзі</string>
     <string name="theme_header">Тема</string>
     <string name="night_mode_title">Нічний режим</string>

@@ -293,8 +293,9 @@ fun ChatInputBarComposerSection(
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
+                val markup = replyMarkup as? ReplyMarkupModel.ShowKeyboard ?: return@AnimatedVisibility
                 KeyboardMarkupView(
-                    markup = replyMarkup as ReplyMarkupModel.ShowKeyboard,
+                    markup = markup,
                     onButtonClick = onReplyMarkupButtonClick,
                     onOpenMiniApp = onOpenMiniApp
                 )

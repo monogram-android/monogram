@@ -15,6 +15,7 @@ import java.io.File
 
 private const val PAGE_SIZE = 50
 private const val MAX_DOWNLOAD_RETRIES = 3
+private const val DEFAULT_SENDER_NAME = "User"
 
 private fun isUsableAvatarPath(path: String?): Boolean {
     if (path.isNullOrBlank()) return false
@@ -55,6 +56,33 @@ private fun mergeSenderVisuals(previous: MessageModel, incoming: MessageModel): 
         senderStatusEmojiPath = incoming.senderStatusEmojiPath ?: previous.senderStatusEmojiPath,
         reactions = incoming.reactions.ifEmpty { previous.reactions }
     )
+}
+
+private fun MessageModel.needsSenderRefresh(): Boolean {
+    if (senderId <= 0L) return false
+    val hasPlaceholderName = senderName.isBlank() || senderName == DEFAULT_SENDER_NAME
+    val hasNoAvatar = senderAvatar.isNullOrBlank() && senderPersonalAvatar.isNullOrBlank()
+    return hasPlaceholderName || hasNoAvatar
+}
+
+internal fun DefaultChatComponent.requestSenderRefreshIfNeeded(message: MessageModel) {
+    if (!message.needsSenderRefresh()) return
+    requestSenderRefresh(message.senderId)
+}
+
+internal fun DefaultChatComponent.requestSenderRefresh(senderId: Long) {
+    if (senderId <= 0L) return
+    if (!pendingSenderRefreshes.add(senderId)) return
+
+    scope.launch {
+        try {
+            repositoryMessage.invalidateSenderCache(senderId)
+            val user = userRepository.getUser(senderId) ?: return@launch
+            refreshMessagesForSender(senderId, user)
+        } finally {
+            pendingSenderRefreshes.remove(senderId)
+        }
+    }
 }
 
 private fun reactionsSemanticEqual(
@@ -247,6 +275,7 @@ internal suspend fun DefaultChatComponent.loadComments(threadId: Long) {
         )
     }
     updateMessages(messages, replace = true)
+    refreshCachedSenderProfiles(messages)
 }
 
 private suspend fun DefaultChatComponent.loadBottomMessages(threadId: Long?) {
@@ -291,6 +320,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(threadId: Long?) {
     }
     val shouldReplaceCachedPreview = !hasCachedPreview || messages.isNotEmpty()
     updateMessages(messages, replace = shouldReplaceCachedPreview)
+    refreshCachedSenderProfiles(messages)
     if (!isOldestLoaded) {
         delay(100)
         loadMoreMessages()
@@ -316,6 +346,7 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
             )
         }
         updateMessages(messages, replace = true)
+        refreshCachedSenderProfiles(messages)
         delay(100)
         loadMoreMessages()
         loadNewerMessages()
@@ -389,6 +420,7 @@ internal fun DefaultChatComponent.loadMoreMessages() {
 
                 if (olderMessages.isNotEmpty()) {
                     updateMessages(olderMessages)
+                    refreshCachedSenderProfiles(olderMessages)
                 }
 
                 val afterSize = _state.value.messages.size
@@ -461,6 +493,7 @@ internal fun DefaultChatComponent.loadNewerMessages() {
 
             if (newerMessages.isNotEmpty()) {
                 updateMessages(newerMessages)
+                refreshCachedSenderProfiles(newerMessages)
                 lastLoadedNewerId = anchorId
             }
 
@@ -535,6 +568,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                     _state.value.currentTopicId == null || message.threadId == _state.value.currentTopicId
                 if (isCorrectThread) {
                     updateMessages(listOf(message))
+                    requestSenderRefreshIfNeeded(message)
                     _state.update { state ->
                         state.copy(
                             isLatestLoaded = if (message.isOutgoing || state.isAtBottom) true else state.isLatestLoaded
@@ -591,6 +625,11 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                             isLatestLoaded = if (newMessage.isOutgoing || state.isAtBottom) true else state.isLatestLoaded
                         )
                     }
+                }
+
+                val isCurrentThread = _state.value.currentTopicId == null || newMessage.threadId == _state.value.currentTopicId
+                if (isCurrentThread) {
+                    requestSenderRefreshIfNeeded(newMessage)
                 }
             }
         }
@@ -855,6 +894,10 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                 updateInlineResultsWithFile(messageId.toInt(), path)
             }
 
+            if (path.isNotEmpty() && messageId == downloadedFileId.toLong()) {
+                refreshCachedSenderProfiles(_state.value.messages)
+            }
+
             fileIdToRetry?.let {
                 if (it != 0) {
                     val suppressed = AutoDownloadSuppression.isSuppressed(it)
@@ -1006,17 +1049,16 @@ private fun DefaultChatComponent.observeSenderUpdates() {
         .launchIn(scope)
 }
 
-private suspend fun DefaultChatComponent.refreshCachedSenderProfiles(messages: List<MessageModel>) {
+private fun DefaultChatComponent.refreshCachedSenderProfiles(messages: List<MessageModel>) {
     val senderIds = messages.asSequence()
+        .filter { it.needsSenderRefresh() }
         .map { it.senderId }
         .filter { it > 0L }
         .distinct()
         .toList()
 
     senderIds.forEach { senderId ->
-        repositoryMessage.invalidateSenderCache(senderId)
-        val user = userRepository.getUser(senderId) ?: return@forEach
-        refreshMessagesForSender(senderId, user)
+        requestSenderRefresh(senderId)
     }
 }
 

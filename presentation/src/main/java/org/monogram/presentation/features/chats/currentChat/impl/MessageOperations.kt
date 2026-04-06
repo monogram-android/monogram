@@ -18,6 +18,12 @@ internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
             repositoryMessage.markAllMentionsAsRead(chatId)
             repositoryMessage.markAllReactionsAsRead(chatId)
         }
+
+        _state.value.messages
+            .firstOrNull { it.id == messageId }
+            ?.let { visibleMessage ->
+                requestSenderRefreshIfNeeded(visibleMessage)
+            }
     }
 }
 

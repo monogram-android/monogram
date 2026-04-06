@@ -1,11 +1,11 @@
 package org.monogram.data.repository
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.datasource.cache.StickerLocalDataSource
 import org.monogram.data.datasource.remote.EmojiRemoteSource
 import org.monogram.data.infra.EmojiLoader
@@ -20,10 +20,8 @@ class EmojiRepositoryImpl(
     private val cacheProvider: CacheProvider,
     private val dispatchers: DispatcherProvider,
     private val context: Context,
-    scopeProvider: ScopeProvider
+    private val scope: CoroutineScope
 ) : EmojiRepository {
-
-    private val scope = scopeProvider.appScope
 
     override val recentEmojis: Flow<List<RecentEmojiModel>> = cacheProvider.recentEmojis
 

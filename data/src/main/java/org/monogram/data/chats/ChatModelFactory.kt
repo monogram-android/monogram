@@ -1,10 +1,10 @@
 package org.monogram.data.chats
 
-import org.monogram.data.core.coRunCatching
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
+import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.UserFullInfoDao
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.mapper.ChatMapper
@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
 class ChatModelFactory(
     private val gateway: TelegramGateway,
     private val dispatchers: DispatcherProvider,
-    scopeProvider: ScopeProvider,
+    private val scope: CoroutineScope,
     private val cache: ChatCache,
     private val chatMapper: ChatMapper,
     private val fileManager: ChatFileManager,
@@ -32,7 +32,6 @@ class ChatModelFactory(
     private val triggerUpdate: (Long?) -> Unit,
     private val fetchUser: (Long) -> Unit
 ) {
-    private val scope = scopeProvider.appScope
     private val missingUserFullInfoUntilMs = ConcurrentHashMap<Long, Long>()
 
     fun mapChatToModel(

@@ -1,13 +1,9 @@
 package org.monogram.data.repository.user
 
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
-import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.cache.ChatLocalDataSource
@@ -35,10 +31,8 @@ class UserRepositoryImpl(
     fileQueue: FileDownloadQueue,
     private val keyValueDao: KeyValueDao,
     private val cacheProvider: CacheProvider,
-    scopeProvider: ScopeProvider
+    private val scope: CoroutineScope
 ) : UserRepository {
-
-    private val scope = scopeProvider.appScope
     private val mediaResolver = UserMediaResolver(gateway = gateway, fileQueue = fileQueue)
     private var currentUserId: Long = 0L
     private val userRequests = ConcurrentHashMap<Long, Deferred<TdApi.User?>>()

@@ -1,12 +1,8 @@
 package org.monogram.data.repository
 
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.datasource.cache.SettingsCacheDataSource
 import org.monogram.data.datasource.remote.ChatsRemoteDataSource
 import org.monogram.data.datasource.remote.SettingsRemoteDataSource
@@ -22,11 +18,9 @@ class NotificationSettingsRepositoryImpl(
     private val cache: SettingsCacheDataSource,
     private val chatsRemote: ChatsRemoteDataSource,
     private val updates: UpdateDispatcher,
-    scopeProvider: ScopeProvider,
+    private val scope: CoroutineScope,
     private val dispatchers: DispatcherProvider
 ) : NotificationSettingsRepository {
-
-    private val scope = scopeProvider.appScope
 
     init {
         scope.launch {

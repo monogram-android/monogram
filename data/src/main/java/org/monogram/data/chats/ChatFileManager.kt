@@ -1,9 +1,9 @@
 package org.monogram.data.chats
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
@@ -17,11 +17,9 @@ class ChatFileManager(
     private val dispatchers: DispatcherProvider,
     private val fileQueue: FileDownloadQueue,
     private val fileUpdateHandler: FileUpdateHandler,
-    scopeProvider: ScopeProvider,
+    private val scope: CoroutineScope,
     private val onUpdate: () -> Unit
 ) {
-    private val scope = scopeProvider.appScope
-
     private val downloadingFiles: MutableSet<Int> = Collections.newSetFromMap(ConcurrentHashMap())
     private val loadingEmojis: MutableSet<Long> = Collections.newSetFromMap(ConcurrentHashMap())
     private val filePaths = ConcurrentHashMap<Int, String>()

@@ -1,9 +1,5 @@
 package org.monogram.data.repository
 
-import org.monogram.core.ScopeProvider
-import org.monogram.domain.models.PrivacyRule
-import org.monogram.domain.repository.PrivacyKey
-import org.monogram.domain.repository.PrivacyRepository
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import org.drinkless.tdlib.TdApi
@@ -11,14 +7,14 @@ import org.monogram.data.datasource.remote.PrivacyRemoteDataSource
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.mapper.toApi
 import org.monogram.data.mapper.toDomain
+import org.monogram.domain.models.PrivacyRule
+import org.monogram.domain.repository.PrivacyKey
+import org.monogram.domain.repository.PrivacyRepository
 
 class PrivacyRepositoryImpl(
     private val remote: PrivacyRemoteDataSource,
-    private val updates: UpdateDispatcher,
-    scopeProvider: ScopeProvider
+    private val updates: UpdateDispatcher
 ) : PrivacyRepository {
-
-    private val scope = scopeProvider.appScope
 
     override fun getPrivacyRules(key: PrivacyKey): Flow<List<PrivacyRule>> = callbackFlow {
         val setting = key.toApi()

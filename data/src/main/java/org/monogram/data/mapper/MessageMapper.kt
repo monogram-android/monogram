@@ -5,7 +5,6 @@ import android.net.NetworkCapabilities
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import org.drinkless.tdlib.TdApi
-import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.datasource.remote.MessageFileApi
 import org.monogram.data.datasource.remote.TdMessageRemoteDataSource
@@ -27,9 +26,8 @@ class MessageMapper(
     private val fileApi: MessageFileApi,
     private val appPreferences: AppPreferencesProvider,
     private val cache: ChatCache,
-    scopeProvider: ScopeProvider
+    val scope: CoroutineScope
 ) {
-    val scope = scopeProvider.appScope
     private val customEmojiPaths = fileUpdateHandler.customEmojiPaths
     private val fileIdToCustomEmojiId = fileUpdateHandler.fileIdToCustomEmojiId
 

@@ -1,11 +1,11 @@
 package org.monogram.data.infra
 
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.*
@@ -20,7 +20,7 @@ import org.monogram.domain.repository.StickerRepository
 private const val TAG = "OfflineWarmup"
 
 class OfflineWarmup(
-    private val scopeProvider: ScopeProvider,
+    private val scope: CoroutineScope,
     private val dispatchers: DispatcherProvider,
     private val gateway: TelegramGateway,
     private val chatDao: ChatDao,
@@ -32,8 +32,6 @@ class OfflineWarmup(
     private val chatCache: ChatCache,
     private val stickerRepository: StickerRepository
 ) {
-    private val scope = scopeProvider.appScope
-
     @Volatile
     private var warmupStarted = false
 

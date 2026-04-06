@@ -309,7 +309,11 @@ class DefaultNotificationsComponent(
             notificationSettingsRepository.setChatNotificationSettings(chatId, enabled)
             val currentChild = childStack.value.active.instance
             if (currentChild is NotificationsComponent.Child.Exceptions) {
-                loadExceptions(currentChild.scope)
+                updateExceptionsState(currentChild.scope) { exceptions ->
+                    exceptions.map { chat ->
+                        if (chat.id == chatId) chat.copy(isMuted = !enabled) else chat
+                    }
+                }
             }
         }
     }
@@ -319,7 +323,30 @@ class DefaultNotificationsComponent(
             notificationSettingsRepository.resetChatNotificationSettings(chatId)
             val currentChild = childStack.value.active.instance
             if (currentChild is NotificationsComponent.Child.Exceptions) {
-                loadExceptions(currentChild.scope)
+                updateExceptionsState(currentChild.scope) { exceptions ->
+                    exceptions.filterNot { it.id == chatId }
+                }
+            }
+        }
+    }
+
+    private fun updateExceptionsState(
+        scope: TdNotificationScope,
+        transform: (List<ChatModel>) -> List<ChatModel>
+    ) {
+        _state.update { state ->
+            when (scope) {
+                TdNotificationScope.PRIVATE_CHATS -> state.copy(
+                    privateExceptions = state.privateExceptions?.let(transform)
+                )
+
+                TdNotificationScope.GROUPS -> state.copy(
+                    groupExceptions = state.groupExceptions?.let(transform)
+                )
+
+                TdNotificationScope.CHANNELS -> state.copy(
+                    channelExceptions = state.channelExceptions?.let(transform)
+                )
             }
         }
     }

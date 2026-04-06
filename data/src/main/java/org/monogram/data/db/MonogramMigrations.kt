@@ -161,6 +161,31 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_28_29 = object : Migration(28, 29) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `notification_exceptions` (
+                    `chatId` INTEGER NOT NULL,
+                    `scope` TEXT NOT NULL,
+                    `title` TEXT NOT NULL,
+                    `avatarPath` TEXT,
+                    `personalAvatarPath` TEXT,
+                    `isMuted` INTEGER NOT NULL,
+                    `isGroup` INTEGER NOT NULL,
+                    `isChannel` INTEGER NOT NULL,
+                    `type` TEXT NOT NULL,
+                    `updatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`chatId`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_notification_exceptions_scope` ON `notification_exceptions` (`scope`)"
+            )
+        }
+    }
+
     private fun SupportSQLiteDatabase.addColumn(table: String, column: String, definition: String) {
         execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
     }

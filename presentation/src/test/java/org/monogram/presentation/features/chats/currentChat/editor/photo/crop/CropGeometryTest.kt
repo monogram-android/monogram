@@ -109,6 +109,30 @@ class CropGeometryTest {
         )
     }
 
+    @Test
+    fun `quarter turn transformed bounds stay covered by image`() {
+        val baseBounds = Rect(left = 0f, top = 0f, right = 200f, bottom = 100f)
+        val pivot = baseBounds.center
+        val cropRect = calculateScalarTransformedBounds(
+            baseBounds = baseBounds,
+            scale = 1f,
+            rotationDegrees = 90f,
+            offset = Offset.Zero,
+            pivot = pivot
+        )
+
+        assertTrue(
+            isCropRectCoveredByImage(
+                baseBounds = baseBounds,
+                cropRect = cropRect,
+                scale = 1f,
+                rotationDegrees = 90f,
+                offset = Offset.Zero,
+                pivot = pivot
+            )
+        )
+    }
+
     private fun rotatedVisibleBounds(baseBounds: Rect): Rect {
         return calculateScalarTransformedBounds(
             baseBounds = baseBounds,

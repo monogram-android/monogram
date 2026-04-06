@@ -32,6 +32,7 @@ interface ChatSettingsComponent {
     fun onStickerSizeChanged(size: Float)
     fun onWallpaperChanged(wallpaper: String?)
     fun onWallpaperSelected(wallpaper: WallpaperModel)
+    fun onWallpaperUpload(path: String)
     fun onWallpaperBlurChanged(wallpaper: WallpaperModel, isBlurred: Boolean)
     fun onWallpaperBlurIntensityChanged(intensity: Int)
     fun onWallpaperMotionChanged(wallpaper: WallpaperModel, isMoving: Boolean)
@@ -98,6 +99,7 @@ interface ChatSettingsComponent {
         val isWallpaperMoving: Boolean = false,
         val wallpaperDimming: Int = 0,
         val isWallpaperGrayscale: Boolean = false,
+        val isWallpaperUploading: Boolean = false,
         val availableWallpapers: List<WallpaperModel> = emptyList(),
         val selectedWallpaper: WallpaperModel? = null,
         val isPlayerGesturesEnabled: Boolean = true,
@@ -612,6 +614,29 @@ class DefaultChatSettingsComponent(
             .launchIn(scope)
     }
 
+    private fun wallpaperPreferenceKey(wallpaper: WallpaperModel): String? = when {
+        wallpaper.slug.isNotEmpty() -> wallpaper.slug
+        !wallpaper.localPath.isNullOrEmpty() -> wallpaper.localPath
+        else -> null
+    }
+
+    private fun syncWallpaperOnServer(
+        wallpaper: WallpaperModel,
+        isBlurred: Boolean,
+        isMoving: Boolean
+    ) {
+        scope.launch {
+            wallpaperRepository.setDefaultWallpaper(
+                wallpaper = wallpaper,
+                isBlurred = isBlurred,
+                isMoving = isMoving
+            )?.let { syncedWallpaper ->
+                wallpaperPreferenceKey(syncedWallpaper)?.let { appPreferences.setWallpaper(it) }
+                _state.update { it.copy(selectedWallpaper = syncedWallpaper) }
+            }
+        }
+    }
+
     override fun onBackClicked() {
         onBack()
     }
@@ -639,24 +664,50 @@ class DefaultChatSettingsComponent(
     override fun onWallpaperSelected(wallpaper: WallpaperModel) {
         _state.update { it.copy(selectedWallpaper = wallpaper) }
 
+        val currentBlur = _state.value.isWallpaperBlurred
+        val currentMoving = _state.value.isWallpaperMoving
+
         if (!wallpaper.isDownloaded && wallpaper.documentId != 0L) {
             scope.launch {
                 wallpaperRepository.downloadWallpaper(wallpaper.documentId.toInt())
             }
         }
 
-        val key = when {
-            wallpaper.slug.isNotEmpty() -> wallpaper.slug
-            !wallpaper.localPath.isNullOrEmpty() -> wallpaper.localPath
-            else -> null
-        }
+        wallpaperPreferenceKey(wallpaper)?.let { appPreferences.setWallpaper(it) }
+        syncWallpaperOnServer(wallpaper, currentBlur, currentMoving)
+    }
 
-        key?.let { appPreferences.setWallpaper(it) }
+    override fun onWallpaperUpload(path: String) {
+        val currentBlur = _state.value.isWallpaperBlurred
+        val currentMoving = _state.value.isWallpaperMoving
+
+        appPreferences.setWallpaper(path)
+        _state.update { it.copy(isWallpaperUploading = true) }
+
+        scope.launch {
+            val uploaded = wallpaperRepository.uploadWallpaper(
+                filePath = path,
+                isBlurred = currentBlur,
+                isMoving = currentMoving
+            )
+
+            if (uploaded != null) {
+                _state.update { it.copy(selectedWallpaper = uploaded) }
+                wallpaperPreferenceKey(uploaded)?.let { appPreferences.setWallpaper(it) }
+                if (!uploaded.isDownloaded && uploaded.documentId != 0L) {
+                    wallpaperRepository.downloadWallpaper(uploaded.documentId.toInt())
+                }
+            }
+
+            _state.update { it.copy(isWallpaperUploading = false) }
+        }
     }
 
     override fun onWallpaperBlurChanged(wallpaper: WallpaperModel, isBlurred: Boolean) {
+        val currentMoving = _state.value.isWallpaperMoving
         _state.update { it.copy(isWallpaperBlurred = isBlurred) }
         appPreferences.setWallpaperBlurred(isBlurred)
+        syncWallpaperOnServer(wallpaper, isBlurred, currentMoving)
     }
 
     override fun onWallpaperBlurIntensityChanged(intensity: Int) {
@@ -664,8 +715,10 @@ class DefaultChatSettingsComponent(
     }
 
     override fun onWallpaperMotionChanged(wallpaper: WallpaperModel, isMoving: Boolean) {
+        val currentBlur = _state.value.isWallpaperBlurred
         _state.update { it.copy(isWallpaperMoving = isMoving) }
         appPreferences.setWallpaperMoving(isMoving)
+        syncWallpaperOnServer(wallpaper, currentBlur, isMoving)
     }
 
     override fun onWallpaperDimmingChanged(dimming: Int) {

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,8 +43,11 @@ fun InputBarSendButton(
     isOverCharLimit: Boolean,
     canWriteText: Boolean,
     canSendVoice: Boolean,
+    canSendVideoNotes: Boolean,
     canSendMedia: Boolean,
     isVideoMessageMode: Boolean,
+    isSlowModeActive: Boolean,
+    slowModeRemainingSeconds: Int,
     onSendWithOptions: (MessageSendOptions) -> Unit,
     onShowSendOptionsMenu: () -> Unit,
     onCameraClick: () -> Unit,
@@ -54,34 +58,48 @@ fun InputBarSendButton(
 ) {
     val haptic = LocalHapticFeedback.current
     val isTextEmpty = textValue.text.isBlank()
+    val canSendContent = canWriteText || (pendingMediaPaths.isNotEmpty() && canSendMedia)
+    val isSlowModeBlocked = isSlowModeActive && editingMessage == null
     val isSendEnabled =
-        (!isTextEmpty || editingMessage != null || pendingMediaPaths.isNotEmpty()) && canWriteText && !isOverCharLimit
+        (!isTextEmpty || editingMessage != null || pendingMediaPaths.isNotEmpty()) &&
+                canSendContent &&
+                !isOverCharLimit &&
+                !isSlowModeBlocked
 
     var isVoiceRecordingActive by remember { mutableStateOf(false) }
-    val isRecordingMode = isTextEmpty && editingMessage == null && pendingMediaPaths.isEmpty() && canSendVoice
+    val effectiveVideoMode = when {
+        !canSendVideoNotes -> false
+        !canSendVoice -> true
+        else -> isVideoMessageMode
+    }
+    val canUseRecording = canSendVoice || canSendVideoNotes
+    val canToggleRecordingMode = canSendVoice && canSendVideoNotes
+    val isRecordingMode =
+        isTextEmpty && editingMessage == null && pendingMediaPaths.isEmpty() && canUseRecording && !isSlowModeBlocked
 
     val backgroundColor by animateColorAsState(
-        targetValue = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+        targetValue = if (isSendEnabled || isVoiceRecordingActive || isSlowModeBlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
         animationSpec = tween(250),
         label = "BackgroundColor"
     )
     val contentColor by animateColorAsState(
-        targetValue = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        targetValue = if (isSendEnabled || isVoiceRecordingActive || isSlowModeBlocked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = tween(250),
         label = "ContentColor"
     )
 
-    if (canWriteText || canSendVoice) {
+    if (canWriteText || canSendVoice || canSendVideoNotes) {
         val sendIcon = when {
             pendingMediaPaths.isNotEmpty() -> Icons.AutoMirrored.Filled.Send
             editingMessage != null -> Icons.Default.Check
             !isTextEmpty -> Icons.AutoMirrored.Filled.Send
-            isVideoMessageMode -> Icons.Default.Videocam
+            effectiveVideoMode -> Icons.Default.Videocam
             else -> Icons.Outlined.Mic
         }
         val canShowOptions = editingMessage == null && canWriteText &&
                 (!isTextEmpty || (pendingMediaPaths.isNotEmpty() && canSendMedia)) &&
-                !isOverCharLimit
+                !isOverCharLimit &&
+                !isSlowModeBlocked
 
         Box(
             modifier = Modifier
@@ -90,7 +108,7 @@ fun InputBarSendButton(
                 .clip(CircleShape)
                 .then(
                     if (isRecordingMode) {
-                        Modifier.pointerInput(isVideoMessageMode) {
+                        Modifier.pointerInput(effectiveVideoMode, canToggleRecordingMode) {
                             awaitEachGesture {
                                 try {
                                     awaitFirstDown()
@@ -101,7 +119,7 @@ fun InputBarSendButton(
                                     }
 
                                     if (up == null) {
-                                        if (isVideoMessageMode) {
+                                        if (effectiveVideoMode) {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             onCameraClick()
                                             waitForUpOrCancellation()
@@ -143,8 +161,10 @@ fun InputBarSendButton(
                                             }
                                         }
                                     } else {
-                                        onVideoModeToggle()
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        if (canToggleRecordingMode) {
+                                            onVideoModeToggle()
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        }
                                     }
                                 } finally {
                                     if (isVoiceRecordingActive) {
@@ -172,54 +192,78 @@ fun InputBarSendButton(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            AnimatedContent(
-                targetState = sendIcon,
-                transitionSpec = {
-                    val enteringSend = targetState == Icons.AutoMirrored.Filled.Send || targetState == Icons.Default.Check
-                    val leavingSend = initialState == Icons.AutoMirrored.Filled.Send || initialState == Icons.Default.Check
-
-                    when {
-                        enteringSend && !leavingSend -> {
-                            (fadeIn(animationSpec = tween(220, delayMillis = 50)) + scaleIn(
-                                initialScale = 0.4f,
-                                animationSpec = tween(220, delayMillis = 50)
-                            ) + slideInVertically { it / 2 })
-                                .togetherWith(
-                                    fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 0.4f,
-                                        animationSpec = tween(180)
-                                    ) + slideOutVertically { -it / 2 })
-                        }
-
-                        !enteringSend && leavingSend -> {
-                            (fadeIn(animationSpec = tween(220, delayMillis = 50)) + scaleIn(
-                                initialScale = 0.4f,
-                                animationSpec = tween(220, delayMillis = 50)
-                            ) + slideInVertically { -it / 2 })
-                                .togetherWith(
-                                    fadeOut(animationSpec = tween(180)) + scaleOut(
-                                        targetScale = 0.4f,
-                                        animationSpec = tween(180)
-                                    ) + slideOutVertically { it / 2 })
-                        }
-
-                        else -> {
-                            (fadeIn(animationSpec = tween(200)) + scaleIn(initialScale = 0.8f)).togetherWith(
-                                fadeOut(
-                                    animationSpec = tween(200)
-                                ) + scaleOut(targetScale = 0.8f)
-                            )
-                        }
-                    }.using(SizeTransform(clip = false))
-                },
-                label = "IconAnimation"
-            ) { icon ->
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(24.dp)
+            if (isSlowModeBlocked) {
+                Text(
+                    text = formatSlowModeCountdown(slowModeRemainingSeconds),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = contentColor
                 )
+            } else {
+                AnimatedContent(
+                    targetState = sendIcon,
+                    transitionSpec = {
+                        val enteringSend =
+                            targetState == Icons.AutoMirrored.Filled.Send || targetState == Icons.Default.Check
+                        val leavingSend =
+                            initialState == Icons.AutoMirrored.Filled.Send || initialState == Icons.Default.Check
+
+                        when {
+                            enteringSend && !leavingSend -> {
+                                (fadeIn(animationSpec = tween(220, delayMillis = 50)) + scaleIn(
+                                    initialScale = 0.4f,
+                                    animationSpec = tween(220, delayMillis = 50)
+                                ) + slideInVertically { it / 2 })
+                                    .togetherWith(
+                                        fadeOut(animationSpec = tween(180)) + scaleOut(
+                                            targetScale = 0.4f,
+                                            animationSpec = tween(180)
+                                        ) + slideOutVertically { -it / 2 })
+                            }
+
+                            !enteringSend && leavingSend -> {
+                                (fadeIn(animationSpec = tween(220, delayMillis = 50)) + scaleIn(
+                                    initialScale = 0.4f,
+                                    animationSpec = tween(220, delayMillis = 50)
+                                ) + slideInVertically { -it / 2 })
+                                    .togetherWith(
+                                        fadeOut(animationSpec = tween(180)) + scaleOut(
+                                            targetScale = 0.4f,
+                                            animationSpec = tween(180)
+                                        ) + slideOutVertically { it / 2 })
+                            }
+
+                            else -> {
+                                (fadeIn(animationSpec = tween(200)) + scaleIn(initialScale = 0.8f)).togetherWith(
+                                    fadeOut(
+                                        animationSpec = tween(200)
+                                    ) + scaleOut(targetScale = 0.8f)
+                                )
+                            }
+                        }.using(SizeTransform(clip = false))
+                    },
+                    label = "IconAnimation"
+                ) { icon ->
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
+    }
+}
+
+private fun formatSlowModeCountdown(totalSeconds: Int): String {
+    val clamped = totalSeconds.coerceAtLeast(0)
+    val hours = clamped / 3600
+    val minutes = (clamped % 3600) / 60
+    val seconds = clamped % 60
+
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%d:%02d".format(minutes, seconds)
     }
 }

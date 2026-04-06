@@ -517,6 +517,10 @@ fun ChatContent(
                                     isClosed = state.topics.find { it.id.toLong() == state.currentTopicId }?.isClosed
                                         ?: false,
                                     permissions = state.permissions,
+                                    slowModeDelay = state.slowModeDelay,
+                                    slowModeDelayExpiresIn = state.slowModeDelayExpiresIn,
+                                    isCurrentUserRestricted = state.isCurrentUserRestricted,
+                                    restrictedUntilDate = state.restrictedUntilDate,
                                     isAdmin = state.isAdmin,
                                     isChannel = state.isChannel,
                                     isBot = state.isBot,

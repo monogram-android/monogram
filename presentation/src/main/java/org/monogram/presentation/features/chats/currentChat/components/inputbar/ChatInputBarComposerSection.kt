@@ -45,6 +45,7 @@ fun ChatInputBarComposerSection(
     canSendMedia: Boolean,
     canSendStickers: Boolean,
     canSendVoice: Boolean,
+    canSendVideoNotes: Boolean,
     isStickerMenuVisible: Boolean,
     closeStickerMenuWithoutSlide: Boolean,
     isKeyboardVisible: Boolean,
@@ -57,6 +58,8 @@ fun ChatInputBarComposerSection(
     maxMessageLength: Int,
     isOverMessageLimit: Boolean,
     isVideoMessageMode: Boolean,
+    isSlowModeActive: Boolean,
+    slowModeRemainingSeconds: Int,
     replyMarkup: ReplyMarkupModel?,
     showSendOptionsSheet: Boolean,
     stickerRepository: StickerRepository,
@@ -248,8 +251,11 @@ fun ChatInputBarComposerSection(
                                 isOverCharLimit = isOverMessageLimit,
                                 canWriteText = canWriteText,
                                 canSendVoice = canSendVoice,
+                                canSendVideoNotes = canSendVideoNotes,
                                 canSendMedia = canSendMedia,
                                 isVideoMessageMode = isVideoMessageMode,
+                                isSlowModeActive = isSlowModeActive,
+                                slowModeRemainingSeconds = slowModeRemainingSeconds,
                                 onSendWithOptions = onSendWithOptions,
                                 onShowSendOptionsMenu = onShowSendOptionsMenu,
                                 onCameraClick = onCameraClick,
@@ -329,6 +335,7 @@ fun ChatInputBarComposerSection(
                     onGifSelected = onGifClick,
                     onSearchFocused = onGifSearchFocusedChange,
                     panelHeight = stickerMenuHeight,
+                    canSendStickers = canSendStickers,
                     stickerRepository = stickerRepository
                 )
             }

@@ -6,9 +6,14 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.*
@@ -19,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.delay
 import org.monogram.domain.models.*
 import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.domain.repository.StickerRepository
@@ -28,7 +34,9 @@ import org.monogram.presentation.features.camera.CameraScreen
 import org.monogram.presentation.features.chats.currentChat.components.chats.getEmojiFontFamily
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.*
 import org.monogram.presentation.features.gallery.GalleryScreen
+import java.text.DateFormat
 import java.util.*
+import kotlin.math.ceil
 
 @Immutable
 data class ChatInputBarState(
@@ -38,6 +46,10 @@ data class ChatInputBarState(
     val pendingMediaPaths: List<String> = emptyList(),
     val isClosed: Boolean = false,
     val permissions: ChatPermissionsModel = ChatPermissionsModel(),
+    val slowModeDelay: Int = 0,
+    val slowModeDelayExpiresIn: Double = 0.0,
+    val isCurrentUserRestricted: Boolean = false,
+    val restrictedUntilDate: Int = 0,
     val isAdmin: Boolean = false,
     val isChannel: Boolean = false,
     val isBot: Boolean = false,
@@ -88,6 +100,12 @@ data class ChatInputBarActions(
     val onSendScheduledNow: (MessageModel) -> Unit = {},
 )
 
+private enum class InputBarMode {
+    Composer,
+    SlowMode,
+    Restricted
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatInputBar(
@@ -101,10 +119,6 @@ fun ChatInputBar(
         return
     }
 
-    val context = LocalContext.current
-    val emojiStyle by appPreferences.emojiStyle.collectAsState()
-    val emojiFontFamily = remember(context, emojiStyle) { getEmojiFontFamily(context, emojiStyle) }
-
     val canWriteText = remember(state.isChannel, state.isAdmin, state.permissions.canSendBasicMessages) {
         if (state.isChannel) true else (state.isAdmin || state.permissions.canSendBasicMessages)
     }
@@ -113,9 +127,18 @@ fun ChatInputBar(
         state.isAdmin,
         state.permissions.canSendPhotos,
         state.permissions.canSendVideos,
-        state.permissions.canSendDocuments
+        state.permissions.canSendDocuments,
+        state.permissions.canSendAudios
     ) {
-        if (state.isChannel) true else (state.isAdmin || (state.permissions.canSendPhotos || state.permissions.canSendVideos || state.permissions.canSendDocuments))
+        if (state.isChannel) {
+            true
+        } else {
+            state.isAdmin ||
+                    state.permissions.canSendPhotos ||
+                    state.permissions.canSendVideos ||
+                    state.permissions.canSendDocuments ||
+                    state.permissions.canSendAudios
+        }
     }
     val canSendStickers = remember(state.isChannel, state.isAdmin, state.permissions.canSendOtherMessages) {
         if (state.isChannel) true else (state.isAdmin || state.permissions.canSendOtherMessages)
@@ -123,6 +146,16 @@ fun ChatInputBar(
     val canSendVoice = remember(state.isChannel, state.isAdmin, state.permissions.canSendVoiceNotes) {
         if (state.isChannel) true else (state.isAdmin || state.permissions.canSendVoiceNotes)
     }
+    val canSendVideoNotes = remember(state.isChannel, state.isAdmin, state.permissions.canSendVideoNotes) {
+        if (state.isChannel) true else (state.isAdmin || state.permissions.canSendVideoNotes)
+    }
+    val canSendAnything = remember(canWriteText, canSendMedia, canSendStickers, canSendVoice, canSendVideoNotes) {
+        canWriteText || canSendMedia || canSendStickers || canSendVoice || canSendVideoNotes
+    }
+
+    val context = LocalContext.current
+    val emojiStyle by appPreferences.emojiStyle.collectAsState()
+    val emojiFontFamily = remember(context, emojiStyle) { getEmojiFontFamily(context, emojiStyle) }
 
     var textValue by remember { mutableStateOf(TextFieldValue(state.draftText)) }
     var isStickerMenuVisible by remember { mutableStateOf(false) }
@@ -196,9 +229,54 @@ fun ChatInputBar(
         }
     }
 
+    LaunchedEffect(canSendStickers) {
+        if (!canSendStickers && isStickerMenuVisible) {
+            isStickerMenuVisible = false
+        }
+    }
+
+    LaunchedEffect(canSendVideoNotes, canSendVoice) {
+        if (!canSendVideoNotes && isVideoMessageMode) {
+            isVideoMessageMode = false
+        }
+        if (!canSendVoice && canSendVideoNotes) {
+            isVideoMessageMode = true
+        }
+    }
+
     var lastEditingMessageId by remember { mutableStateOf<Long?>(null) }
 
-    val voiceRecorder = rememberVoiceRecorder(onRecordingFinished = actions.onSendVoice)
+    var slowModeRemainingSeconds by remember {
+        mutableIntStateOf(0)
+    }
+    LaunchedEffect(state.slowModeDelay, state.slowModeDelayExpiresIn, state.isAdmin) {
+        slowModeRemainingSeconds = if (!state.isAdmin && state.slowModeDelay > 0) {
+            ceil(state.slowModeDelayExpiresIn).toInt().coerceAtLeast(0)
+        } else {
+            0
+        }
+    }
+    LaunchedEffect(slowModeRemainingSeconds, state.slowModeDelay, state.isAdmin) {
+        if (!state.isAdmin && state.slowModeDelay > 0 && slowModeRemainingSeconds > 0) {
+            delay(1000)
+            slowModeRemainingSeconds = (slowModeRemainingSeconds - 1).coerceAtLeast(0)
+        }
+    }
+    val isSlowModeActive = remember(state.isAdmin, state.slowModeDelay, slowModeRemainingSeconds) {
+        !state.isAdmin && state.slowModeDelay > 0 && slowModeRemainingSeconds > 0
+    }
+
+    fun activateSlowModeCooldown() {
+        if (!state.isAdmin && state.slowModeDelay > 0) {
+            slowModeRemainingSeconds = state.slowModeDelay
+        }
+    }
+
+    val voiceRecorder = rememberVoiceRecorder { path, duration, waveform ->
+        if (!canSendVoice || isSlowModeActive) return@rememberVoiceRecorder
+        actions.onSendVoice(path, duration, waveform)
+        activateSlowModeCooldown()
+    }
     val maxMessageLength = remember(state.pendingMediaPaths, state.isPremiumUser) {
         if (state.pendingMediaPaths.isNotEmpty() && !state.isPremiumUser) 1024 else 4096
     }
@@ -209,11 +287,25 @@ fun ChatInputBar(
         if (isOverMessageLimit) return@sendWithOptions
         val isTextEmpty = textValue.text.isBlank()
         val captionEntities = extractEntities(textValue.annotatedString, knownCustomEmojis)
+        val isScheduling = it.scheduleDate != null
+        var sentInstantMessage = false
+
+        val canSendNow = when {
+            state.pendingMediaPaths.isNotEmpty() && canSendMedia -> true
+            state.editingMessage != null -> false
+            canWriteText && !isTextEmpty -> true
+            else -> false
+        }
+
+        if (isSlowModeActive && canSendNow && !isScheduling) {
+            return@sendWithOptions
+        }
 
         if (state.pendingMediaPaths.isNotEmpty() && canSendMedia) {
             actions.onSendMedia(state.pendingMediaPaths, textValue.text, captionEntities, it)
             textValue = TextFieldValue("")
             knownCustomEmojis.clear()
+            sentInstantMessage = !isScheduling
         } else if (state.editingMessage != null && canWriteText) {
             if (!isTextEmpty) {
                 actions.onSaveEdit(textValue.text, captionEntities)
@@ -222,6 +314,11 @@ fun ChatInputBar(
             actions.onSend(textValue.text, captionEntities, it)
             textValue = TextFieldValue("")
             knownCustomEmojis.clear()
+            sentInstantMessage = !isScheduling
+        }
+
+        if (sentInstantMessage) {
+            activateSlowModeCooldown()
         }
 
         if (it.scheduleDate != null) {
@@ -421,6 +518,26 @@ fun ChatInputBar(
         if (granted) showCamera = true
     }
 
+    val inputBarMode = remember(
+        canSendAnything,
+        isSlowModeActive,
+        textValue.text,
+        state.pendingMediaPaths,
+        state.editingMessage,
+        voiceRecorder.isRecording
+    ) {
+        when {
+            !canSendAnything -> InputBarMode.Restricted
+            isSlowModeActive &&
+                    textValue.text.isBlank() &&
+                    state.pendingMediaPaths.isEmpty() &&
+                    state.editingMessage == null &&
+                    !voiceRecorder.isRecording -> InputBarMode.SlowMode
+
+            else -> InputBarMode.Composer
+        }
+    }
+
     if (showCamera) {
         CameraScreen(
             onImageCaptured = { uri ->
@@ -434,157 +551,203 @@ fun ChatInputBar(
         )
     } else {
         Box {
-            ChatInputBarComposerSection(
-                editingMessage = state.editingMessage,
-                replyMessage = state.replyMessage,
-                pendingMediaPaths = state.pendingMediaPaths,
-                mentionSuggestions = state.mentionSuggestions,
-                filteredCommands = filteredCommands,
-                currentInlineBotUsername = state.currentInlineBotUsername,
-                isInlineBotLoading = state.isInlineBotLoading,
-                inlineBotResults = state.inlineBotResults,
-                isBot = state.isBot,
-                botMenuButton = state.botMenuButton,
-                botCommands = state.botCommands,
-                scheduledMessagesCount = state.scheduledMessages.size,
-                textValue = textValue,
-                onTextValueChange = { textValue = it },
-                knownCustomEmojis = knownCustomEmojis,
-                emojiFontFamily = emojiFontFamily,
-                focusRequester = focusRequester,
-                canWriteText = canWriteText,
-                canSendMedia = canSendMedia,
-                canSendStickers = canSendStickers,
-                canSendVoice = canSendVoice,
-                isStickerMenuVisible = isStickerMenuVisible,
-                closeStickerMenuWithoutSlide = closeStickerMenuWithoutSlide,
-                isKeyboardVisible = isKeyboardVisible,
-                transitionHoldBottomInset = transitionHoldBottomInset,
-                stickerMenuHeight = stickerMenuHeight,
-                voiceRecorder = voiceRecorder,
-                isGifSearchFocused = isGifSearchFocused,
-                showFullScreenEditor = showFullScreenEditor,
-                currentMessageLength = currentMessageLength,
-                maxMessageLength = maxMessageLength,
-                isOverMessageLimit = isOverMessageLimit,
-                isVideoMessageMode = isVideoMessageMode,
-                replyMarkup = state.replyMarkup,
-                showSendOptionsSheet = showSendOptionsSheet,
-                stickerRepository = stickerRepository,
-                onCancelEdit = actions.onCancelEdit,
-                onCancelReply = actions.onCancelReply,
-                onCancelMedia = actions.onCancelMedia,
-                onMediaOrderChange = actions.onMediaOrderChange,
-                onMediaClick = actions.onMediaClick,
-                onMentionClick = { user ->
-                    textValue = applyMentionSuggestion(textValue, user)
+            AnimatedContent(
+                targetState = inputBarMode,
+                transitionSpec = {
+                    (fadeIn(animationSpec = tween(220)) + slideInVertically(animationSpec = tween(220)) { it / 4 })
+                        .togetherWith(
+                            fadeOut(animationSpec = tween(150)) + slideOutVertically(animationSpec = tween(150)) { it / 4 }
+                        )
                 },
-                onMentionQueryClear = { actions.onMentionQueryChange(null) },
-                onInlineResultClick = { resultId ->
-                    actions.onSendInlineResult(resultId)
-                    textValue = TextFieldValue("")
-                },
-                onInlineSwitchPmClick = { text ->
-                    state.currentInlineBotUsername?.let { username ->
-                        actions.onInlineSwitchPm(username, text)
-                    }
-                },
-                onLoadMoreInlineResults = actions.onLoadMoreInlineResults,
-                onCommandClick = { command ->
-                    actions.onSend("/$command", emptyList(), MessageSendOptions())
-                    textValue = TextFieldValue("")
-                },
-                onAttachClick = {
-                    openStickerMenuAfterKeyboardClosed = false
-                    openKeyboardAfterStickerMenuClosed = false
-                    closeStickerMenuWithoutSlide = false
-                    isStickerMenuVisible = false
-                    hideKeyboardAndClearFocus()
-                    showGallery = true
-                },
-                onStickerMenuToggle = {
-                    if (isStickerMenuVisible) {
-                        openStickerMenuAfterKeyboardClosed = false
-                        openKeyboardAfterStickerMenuClosed = true
-                        closeStickerMenuWithoutSlide = true
-                        isStickerMenuVisible = false
-                        focusRequester.requestFocus()
-                    } else {
-                        openKeyboardAfterStickerMenuClosed = false
-                        closeStickerMenuWithoutSlide = false
-                        if (isKeyboardVisible) {
-                            openStickerMenuAfterKeyboardClosed = true
-                            hideKeyboardAndClearFocus()
-                        } else {
+                label = "InputBarModeTransition"
+            ) { mode ->
+                when (mode) {
+                    InputBarMode.Composer -> ChatInputBarComposerSection(
+                        editingMessage = state.editingMessage,
+                        replyMessage = state.replyMessage,
+                        pendingMediaPaths = state.pendingMediaPaths,
+                        mentionSuggestions = state.mentionSuggestions,
+                        filteredCommands = filteredCommands,
+                        currentInlineBotUsername = state.currentInlineBotUsername,
+                        isInlineBotLoading = state.isInlineBotLoading,
+                        inlineBotResults = state.inlineBotResults,
+                        isBot = state.isBot,
+                        botMenuButton = state.botMenuButton,
+                        botCommands = state.botCommands,
+                        scheduledMessagesCount = state.scheduledMessages.size,
+                        textValue = textValue,
+                        onTextValueChange = { textValue = it },
+                        knownCustomEmojis = knownCustomEmojis,
+                        emojiFontFamily = emojiFontFamily,
+                        focusRequester = focusRequester,
+                        canWriteText = canWriteText,
+                        canSendMedia = canSendMedia,
+                        canSendStickers = canSendStickers,
+                        canSendVoice = canSendVoice,
+                        canSendVideoNotes = canSendVideoNotes,
+                        isStickerMenuVisible = isStickerMenuVisible,
+                        closeStickerMenuWithoutSlide = closeStickerMenuWithoutSlide,
+                        isKeyboardVisible = isKeyboardVisible,
+                        transitionHoldBottomInset = transitionHoldBottomInset,
+                        stickerMenuHeight = stickerMenuHeight,
+                        voiceRecorder = voiceRecorder,
+                        isGifSearchFocused = isGifSearchFocused,
+                        showFullScreenEditor = showFullScreenEditor,
+                        currentMessageLength = currentMessageLength,
+                        maxMessageLength = maxMessageLength,
+                        isOverMessageLimit = isOverMessageLimit,
+                        isVideoMessageMode = isVideoMessageMode,
+                        isSlowModeActive = isSlowModeActive,
+                        slowModeRemainingSeconds = slowModeRemainingSeconds,
+                        replyMarkup = state.replyMarkup,
+                        showSendOptionsSheet = showSendOptionsSheet,
+                        stickerRepository = stickerRepository,
+                        onCancelEdit = actions.onCancelEdit,
+                        onCancelReply = actions.onCancelReply,
+                        onCancelMedia = actions.onCancelMedia,
+                        onMediaOrderChange = actions.onMediaOrderChange,
+                        onMediaClick = actions.onMediaClick,
+                        onMentionClick = { user ->
+                            textValue = applyMentionSuggestion(textValue, user)
+                        },
+                        onMentionQueryClear = { actions.onMentionQueryChange(null) },
+                        onInlineResultClick = { resultId ->
+                            if (!canSendStickers || isSlowModeActive) return@ChatInputBarComposerSection
+                            actions.onSendInlineResult(resultId)
+                            textValue = TextFieldValue("")
+                            activateSlowModeCooldown()
+                        },
+                        onInlineSwitchPmClick = { text ->
+                            state.currentInlineBotUsername?.let { username ->
+                                actions.onInlineSwitchPm(username, text)
+                            }
+                        },
+                        onLoadMoreInlineResults = actions.onLoadMoreInlineResults,
+                        onCommandClick = { command ->
+                            if (isSlowModeActive || !canWriteText) return@ChatInputBarComposerSection
+                            actions.onSend("/$command", emptyList(), MessageSendOptions())
+                            textValue = TextFieldValue("")
+                            activateSlowModeCooldown()
+                        },
+                        onAttachClick = {
                             openStickerMenuAfterKeyboardClosed = false
-                            isStickerMenuVisible = true
-                            focusManager.clearFocus()
+                            openKeyboardAfterStickerMenuClosed = false
+                            closeStickerMenuWithoutSlide = false
+                            isStickerMenuVisible = false
+                            hideKeyboardAndClearFocus()
+                            showGallery = true
+                        },
+                        onStickerMenuToggle = {
+                            if (isStickerMenuVisible) {
+                                openStickerMenuAfterKeyboardClosed = false
+                                openKeyboardAfterStickerMenuClosed = true
+                                closeStickerMenuWithoutSlide = true
+                                isStickerMenuVisible = false
+                                focusRequester.requestFocus()
+                            } else {
+                                openKeyboardAfterStickerMenuClosed = false
+                                closeStickerMenuWithoutSlide = false
+                                if (isKeyboardVisible) {
+                                    openStickerMenuAfterKeyboardClosed = true
+                                    hideKeyboardAndClearFocus()
+                                } else {
+                                    openStickerMenuAfterKeyboardClosed = false
+                                    isStickerMenuVisible = true
+                                    focusManager.clearFocus()
+                                }
+                            }
+                        },
+                        onShowBotCommands = {
+                            openStickerMenuAfterKeyboardClosed = false
+                            openKeyboardAfterStickerMenuClosed = false
+                            closeStickerMenuWithoutSlide = false
+                            isStickerMenuVisible = false
+                            hideKeyboardAndClearFocus()
+                            actions.onShowBotCommands()
+                        },
+                        onOpenMiniApp = actions.onOpenMiniApp,
+                        onInputFocus = {
+                            openStickerMenuAfterKeyboardClosed = false
+                            openKeyboardAfterStickerMenuClosed = false
+                            if (isStickerMenuVisible) {
+                                closeStickerMenuWithoutSlide = true
+                            }
+                            isStickerMenuVisible = false
+                        },
+                        onOpenFullScreenEditor = { showFullScreenEditor = true },
+                        onOpenScheduledMessages = {
+                            actions.onRefreshScheduledMessages()
+                            showScheduledMessagesSheet = true
+                        },
+                        onSendWithOptions = sendWithOptions,
+                        onShowSendOptionsMenu = {
+                            openStickerMenuAfterKeyboardClosed = false
+                            openKeyboardAfterStickerMenuClosed = false
+                            closeStickerMenuWithoutSlide = false
+                            isStickerMenuVisible = false
+                            hideKeyboardAndClearFocus()
+                            showSendOptionsSheet = true
+                            actions.onRefreshScheduledMessages()
+                        },
+                        onCameraClick = {
+                            hideKeyboardAndClearFocus()
+                            actions.onCameraClick()
+                        },
+                        onVideoModeToggle = {
+                            if (canSendVideoNotes) {
+                                isVideoMessageMode = !isVideoMessageMode
+                            }
+                        },
+                        onVoiceStart = {
+                            hideKeyboardAndClearFocus()
+                            voiceRecorder.startRecording()
+                        },
+                        onVoiceStop = { cancel -> voiceRecorder.stopRecording(cancel) },
+                        onVoiceLock = { voiceRecorder.lockRecording() },
+                        onSendSilent = {
+                            showSendOptionsSheet = false
+                            sendWithOptions(MessageSendOptions(silent = true))
+                        },
+                        onScheduleMessage = {
+                            showSendOptionsSheet = false
+                            pendingScheduleDateMillis = null
+                            showScheduleDatePicker = true
+                        },
+                        onOpenScheduledMessagesFromPopup = {
+                            showSendOptionsSheet = false
+                            showScheduledMessagesSheet = true
+                            actions.onRefreshScheduledMessages()
+                        },
+                        onDismissSendOptions = { showSendOptionsSheet = false },
+                        onStickerClick = { stickerPath ->
+                            if (!canSendStickers || isSlowModeActive) return@ChatInputBarComposerSection
+                            actions.onStickerClick(stickerPath)
+                            activateSlowModeCooldown()
+                        },
+                        onGifClick = { gif ->
+                            if (!canSendStickers || isSlowModeActive) return@ChatInputBarComposerSection
+                            actions.onGifClick(gif)
+                            activateSlowModeCooldown()
+                        },
+                        onGifSearchFocusedChange = { isGifSearchFocused = it },
+                        onReplyMarkupButtonClick = actions.onReplyMarkupButtonClick
+                    )
+
+                    InputBarMode.SlowMode -> SlowModeInputBar(
+                        remainingSeconds = slowModeRemainingSeconds,
+                        scheduledMessagesCount = state.scheduledMessages.size,
+                        onOpenScheduledMessages = {
+                            actions.onRefreshScheduledMessages()
+                            showScheduledMessagesSheet = true
                         }
-                    }
-                },
-                onShowBotCommands = {
-                    openStickerMenuAfterKeyboardClosed = false
-                    openKeyboardAfterStickerMenuClosed = false
-                    closeStickerMenuWithoutSlide = false
-                    isStickerMenuVisible = false
-                    hideKeyboardAndClearFocus()
-                    actions.onShowBotCommands()
-                },
-                onOpenMiniApp = actions.onOpenMiniApp,
-                onInputFocus = {
-                    openStickerMenuAfterKeyboardClosed = false
-                    openKeyboardAfterStickerMenuClosed = false
-                    if (isStickerMenuVisible) {
-                        closeStickerMenuWithoutSlide = true
-                    }
-                    isStickerMenuVisible = false
-                },
-                onOpenFullScreenEditor = { showFullScreenEditor = true },
-                onOpenScheduledMessages = {
-                    actions.onRefreshScheduledMessages()
-                    showScheduledMessagesSheet = true
-                },
-                onSendWithOptions = sendWithOptions,
-                onShowSendOptionsMenu = {
-                    openStickerMenuAfterKeyboardClosed = false
-                    openKeyboardAfterStickerMenuClosed = false
-                    closeStickerMenuWithoutSlide = false
-                    isStickerMenuVisible = false
-                    hideKeyboardAndClearFocus()
-                    showSendOptionsSheet = true
-                    actions.onRefreshScheduledMessages()
-                },
-                onCameraClick = {
-                    hideKeyboardAndClearFocus()
-                    actions.onCameraClick()
-                },
-                onVideoModeToggle = { isVideoMessageMode = !isVideoMessageMode },
-                onVoiceStart = {
-                    hideKeyboardAndClearFocus()
-                    voiceRecorder.startRecording()
-                },
-                onVoiceStop = { cancel -> voiceRecorder.stopRecording(cancel) },
-                onVoiceLock = { voiceRecorder.lockRecording() },
-                onSendSilent = {
-                    showSendOptionsSheet = false
-                    sendWithOptions(MessageSendOptions(silent = true))
-                },
-                onScheduleMessage = {
-                    showSendOptionsSheet = false
-                    pendingScheduleDateMillis = null
-                    showScheduleDatePicker = true
-                },
-                onOpenScheduledMessagesFromPopup = {
-                    showSendOptionsSheet = false
-                    showScheduledMessagesSheet = true
-                    actions.onRefreshScheduledMessages()
-                },
-                onDismissSendOptions = { showSendOptionsSheet = false },
-                onStickerClick = actions.onStickerClick,
-                onGifClick = actions.onGifClick,
-                onGifSearchFocusedChange = { isGifSearchFocused = it },
-                onReplyMarkupButtonClick = actions.onReplyMarkupButtonClick
-            )
+                    )
+
+                    InputBarMode.Restricted -> RestrictedInputBar(
+                        isCurrentUserRestricted = state.isCurrentUserRestricted,
+                        restrictedUntilDate = state.restrictedUntilDate
+                    )
+                }
+            }
 
             FullScreenEditorSheet(
                 visible = showFullScreenEditor,
@@ -744,5 +907,154 @@ private fun ClosedTopicBar() {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+@Composable
+private fun SlowModeInputBar(
+    remainingSeconds: Int,
+    scheduledMessagesCount: Int,
+    onOpenScheduledMessages: () -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .windowInsetsPadding(WindowInsets.navigationBars),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.slow_mode_title),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            AnimatedContent(
+                targetState = remainingSeconds.coerceAtLeast(0),
+                transitionSpec = {
+                    (fadeIn(animationSpec = tween(200)) + slideInVertically(animationSpec = tween(200)) { it / 2 })
+                        .togetherWith(
+                            fadeOut(animationSpec = tween(120)) + slideOutVertically(animationSpec = tween(120)) { -it / 2 }
+                        )
+                },
+                label = "SlowModeRemaining"
+            ) { seconds ->
+                Text(
+                    text = formatSlowModeDuration(seconds),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            if (scheduledMessagesCount > 0) {
+                IconButton(onClick = onOpenScheduledMessages) {
+                    Icon(
+                        imageVector = Icons.Default.Schedule,
+                        contentDescription = stringResource(R.string.action_scheduled_messages),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RestrictedInputBar(
+    isCurrentUserRestricted: Boolean,
+    restrictedUntilDate: Int
+) {
+    val restrictionDetails = remember(isCurrentUserRestricted, restrictedUntilDate) {
+        if (!isCurrentUserRestricted) {
+            null
+        } else if (restrictedUntilDate <= 0) {
+            RestrictionDetails.Permanent
+        } else {
+            RestrictionDetails.Until(formatRestrictedUntilDate(restrictedUntilDate))
+        }
+    }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .windowInsetsPadding(WindowInsets.navigationBars),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.input_error_not_allowed),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            AnimatedVisibility(
+                visible = restrictionDetails != null,
+                enter = fadeIn(animationSpec = tween(220)) + expandVertically(animationSpec = tween(220)),
+                exit = fadeOut(animationSpec = tween(140)) + shrinkVertically(animationSpec = tween(140))
+            ) {
+                val detailsText = when (restrictionDetails) {
+                    is RestrictionDetails.Until -> stringResource(
+                        R.string.logs_restricted_until,
+                        restrictionDetails.value
+                    )
+
+                    RestrictionDetails.Permanent -> stringResource(R.string.logs_restricted_permanently)
+                    null -> ""
+                }
+
+                Text(
+                    text = detailsText,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+private sealed interface RestrictionDetails {
+    data class Until(val value: String) : RestrictionDetails
+    data object Permanent : RestrictionDetails
+}
+
+private fun formatRestrictedUntilDate(epochSeconds: Int): String {
+    val formatter = DateFormat.getDateTimeInstance(
+        DateFormat.MEDIUM,
+        DateFormat.SHORT,
+        Locale.getDefault()
+    )
+    return formatter.format(Date(epochSeconds.toLong() * 1000L))
+}
+
+private fun formatSlowModeDuration(totalSeconds: Int): String {
+    val clamped = totalSeconds.coerceAtLeast(0)
+    val hours = clamped / 3600
+    val minutes = (clamped % 3600) / 60
+    val seconds = clamped % 60
+
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%d:%02d".format(minutes, seconds)
     }
 }

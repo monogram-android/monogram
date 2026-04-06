@@ -1,0 +1,39 @@
+<resources>
+    <string name="lock_unlock_title">Բացել MonoGram-ը</string>
+    <string name="lock_unlock_subtitle">Մուտք գործեք կենսաչափական տվյալներով</string>
+    <string name="lock_use_passcode">Օգտագործել գաղտնագիրը</string>
+    <string name="lock_enter_passcode">Մուտքագրեք գաղտնագիրը</string>
+    <string name="lock_messages_protected">Ձեր հաղորդագրությունները պաշտպանված են</string>
+    <string name="lock_invalid_passcode">Սխալ գաղտնագիր</string>
+    <string name="lock_biometric_unlock">Կենսաչափական հաստատում</string>
+
+    <string name="proxy_details">Պրոքսիի տվյալները</string>
+    <string name="proxy_add_connect">Ավելացնել և միանալ այս պրոքսի սերվերին</string>
+    <string name="proxy_server">Սերվեր</string>
+    <string name="proxy_port">Պորտ</string>
+    <string name="proxy_type">Տեսակ</string>
+    <string name="proxy_unknown">Անհայտ</string>
+    <string name="cancel">Չեղարկել</string>
+    <string name="connect">Միանալ</string>
+
+    <string name="chat_join">Միանալ</string>
+    <string name="chat_channel">Ալիք</string>
+    <string name="chat_group">Խումբ</string>
+    <plurals name="members_count">
+        <item quantity="one">%d անդամ</item>
+        <item quantity="other">%d անդամ</item>
+    </plurals>
+
+    <string name="tablet_select_setting">Ընտրեք կարգավորումը</string>
+    <string name="tablet_select_chat">Ընտրեք չատը՝ զրույցը սկսելու համար</string>
+
+    <string name="crash_log_label">Սխալների մատյան (Log)</string>
+    <string name="crash_copied_to_clipboard">Պատճենված է</string>
+    <string name="crash_share_title">Տարածել սխալի մատյանը</string>
+    <string name="crash_share">Տարածել</string>
+    <string name="crash_copy">Պատճենել</string>
+    <string name="crash_restart">Վերագործարկել հավելվածը</string>
+    <string name="crash_error_details">Սխալի մանրամասները</string>
+    <string name="crash_description">Ինչ-որ բան այն չէ: Խնդրում ենք տարածել կամ պատճենել սխալի մատյանը՝ ծրագրավորողներին խնդրի մասին հայտնելու համար:</string>
+
+</resources>

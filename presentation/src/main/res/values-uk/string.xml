@@ -78,6 +78,7 @@
     <string name="phone_number_placeholder">000 00 00</string>
     <string name="continue_button">Продовжити</string>
     <string name="select_country_title">Виберіть країну</string>
+    <string name="unknown_country">Невідома країна</string>
     <string name="search_country_hint">Пошук країни або коду…</string>
     <string name="verification_delivery_telegram">Код підтвердження надіслано через Telegram на інший Ваш пристрій.</string>
     <string name="verification_delivery_sms">Ми надіслали СМС із кодом підтвердження на Ваш номер.</string>
@@ -1347,10 +1348,10 @@
 
     <!-- Selection: Viewer Settings -->
     <string name="settings_title">Налаштування</string>
-    <string name="settings_playback_speed">Швидкість відтворення</string>
-    <string name="settings_scale_mode">Режим масштабування</string>
-    <string name="settings_scale_fit">Вписати</string>
-    <string name="settings_scale_zoom">Заповнити</string>
+    <string name="settings_playback_speed">Швидкість</string>
+    <string name="settings_scale_mode">Масштаб</string>
+    <string name="settings_scale_fit">За розміром</string>
+    <string name="settings_scale_zoom">На весь екран</string>
     <string name="settings_rotate_screen">Поворот екрана</string>
     <string name="settings_pip">Картинка в картинці</string>
     <string name="settings_screenshot">Скріншот</string>
@@ -1365,7 +1366,7 @@
     <string name="settings_speed_normal">Звичайна</string>
 
     <!-- Selection: Picture-in-Picture -->
-    <string name="pip_play">Грати</string>
+    <string name="pip_play">Відтворити</string>
     <string name="pip_pause">Пауза</string>
     <string name="pip_rewind">Назад</string>
     <string name="pip_forward">Вперед</string>

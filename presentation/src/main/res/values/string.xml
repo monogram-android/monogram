@@ -78,6 +78,7 @@
     <string name="phone_number_placeholder">000 00 00</string>
     <string name="continue_button">Continue</string>
     <string name="select_country_title">Select Country</string>
+    <string name="unknown_country">Unknown country</string>
     <string name="search_country_hint">Search country or code...</string>
     <string name="verification_delivery_telegram">We\'ve sent the code to the Telegram app on your other device.
     </string>

@@ -649,7 +649,7 @@ fun ChatContent(
                                     shapes = ExpressiveDefaults.largeButtonShapes(),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(ButtonDefaults.LargeContainerHeight)
+                                        .height(ButtonDefaults.MediumContainerHeight)
                                 ) {
                                     Text(
                                         text = stringResource(R.string.action_join),
@@ -681,22 +681,30 @@ fun ChatContent(
                                     translationY = contentOffset.toPx()
                                 }
                         ) {
-                            ChatContentList(
-                                showNavPadding = false,
-                                state = state,
-                                component = component,
-                                scrollState = scrollState,
-                                groupedMessages = groupedMessages,
-                                onPhotoDownload = { fileId -> if (fileId != 0) component.onDownloadFile(fileId) },
-                                onPhotoClick = { msg, paths, captions, messageIds, index ->
+                            val currentKeyboardController = rememberUpdatedState(keyboardController)
+                            val currentFocusManager = rememberUpdatedState(focusManager)
+                            val currentIsVisible = rememberUpdatedState(isVisible)
+                            val currentShowInitialLoading = rememberUpdatedState(showInitialLoading)
+
+                            val onPhotoDownloadStable: (Int) -> Unit = remember(component) {
+                                { fileId: Int ->
+                                    if (fileId != 0) {
+                                        component.onDownloadFile(fileId)
+                                    }
+                                }
+                            }
+
+                            val onPhotoClickStable: (MessageModel, List<String>, List<String?>, List<Long>, Int) -> Unit =
+                                remember(component) {
+                                    { msg: MessageModel, paths: List<String>, captions: List<String?>, messageIds: List<Long>, index: Int ->
                                     val content = msg.content as? MessageContent.Photo
                                     val clickedPath = paths.getOrNull(index)
                                         ?.takeIf { it.isNotBlank() && File(it).exists() }
                                         ?: content?.path?.takeIf { File(it).exists() }
 
                                     if (clickedPath != null) {
-                                        keyboardController?.hide()
-                                        focusManager.clearFocus()
+                                        currentKeyboardController.value?.hide()
+                                        currentFocusManager.value.clearFocus()
 
                                         val validItems = paths.mapIndexedNotNull { itemIndex, path ->
                                             val validPath = path.takeIf { it.isNotBlank() && File(it).exists() }
@@ -726,19 +734,23 @@ fun ChatContent(
                                     } else {
                                         content?.fileId?.takeIf { it != 0 }?.let(component::onDownloadFile)
                                     }
-                                },
-                                    onVideoClick = { msg, path, caption ->
-                                        if (!isVisible || showInitialLoading || scrollState.isScrollInProgress) {
-                                            return@ChatContentList
-                                        }
+                                        Unit
+                                    }
+                                }
 
+                            val onVideoClickStable: (MessageModel, String?, String?) -> Unit =
+                                remember(component, scrollState) {
+                                    { msg: MessageModel, path: String?, caption: String? ->
+                                        if (!currentIsVisible.value || currentShowInitialLoading.value || scrollState.isScrollInProgress) {
+                                            Unit
+                                        } else {
                                         val videoContent = msg.content as? MessageContent.Video
                                         val supportsStreaming = videoContent?.supportsStreaming ?: false
                                         val validPath = path?.takeIf { File(it).exists() }
 
                                         if (validPath != null || supportsStreaming) {
-                                            keyboardController?.hide()
-                                            focusManager.clearFocus()
+                                            currentKeyboardController.value?.hide()
+                                            currentFocusManager.value.clearFocus()
                                             component.onOpenVideo(path = validPath, messageId = msg.id, caption = caption)
                                         } else {
                                             val fileId = when (val c = msg.content) {
@@ -747,23 +759,23 @@ fun ChatContent(
                                                 else -> 0
                                             }
                                             if (fileId != 0) {
-                                                when (msg.content) {
-                                                    is MessageContent.Video -> "video"
-                                                    is MessageContent.Gif -> "gif"
-                                                    else -> "unknown"
-                                                }
                                                 component.onDownloadFile(fileId)
                                             }
                                         }
-                                    },
-                                    onDocumentClick = { msg ->
-                                        val doc = msg.content as? MessageContent.Document ?: return@ChatContentList
+                                        }
+                                    }
+                                }
+
+                            val onDocumentClickStable: (MessageModel) -> Unit = remember(component) {
+                                { msg: MessageModel ->
+                                    val doc = msg.content as? MessageContent.Document
+                                    if (doc != null) {
                                         val validDocPath = doc.path?.takeIf { File(it).exists() }
                                         if (validDocPath != null) {
                                             val path = validDocPath.lowercase()
                                             if (path.endsWith(".jpg") || path.endsWith(".png")) {
-                                                keyboardController?.hide()
-                                                focusManager.clearFocus()
+                                                currentKeyboardController.value?.hide()
+                                                currentFocusManager.value.clearFocus()
                                                 component.onOpenImages(
                                                     images = listOf(validDocPath),
                                                     captions = listOf(doc.caption),
@@ -772,49 +784,101 @@ fun ChatContent(
                                                     messageIds = listOf(msg.id)
                                                 )
                                             } else if (path.endsWith(".mp4")) {
-                                                keyboardController?.hide()
-                                                focusManager.clearFocus()
+                                                currentKeyboardController.value?.hide()
+                                                currentFocusManager.value.clearFocus()
                                                 component.onOpenVideo(
                                                     path = validDocPath,
                                                     messageId = msg.id,
                                                     caption = doc.caption
                                                 )
-                                            } else component.downloadUtils.openFile(validDocPath)
-                                        } else component.onDownloadFile(doc.fileId)
-                                    },
-                                    onAudioClick = { msg ->
-                                        val audio = msg.content as? MessageContent.Audio ?: return@ChatContentList
+                                            } else {
+                                                component.downloadUtils.openFile(validDocPath)
+                                            }
+                                        } else {
+                                            component.onDownloadFile(doc.fileId)
+                                        }
+                                    }
+                                    Unit
+                                }
+                            }
+
+                            val onAudioClickStable: (MessageModel) -> Unit = remember(component) {
+                                { msg: MessageModel ->
+                                    val audio = msg.content as? MessageContent.Audio
+                                    if (audio != null) {
                                         val validAudioPath = audio.path?.takeIf { File(it).exists() }
                                         if (validAudioPath != null) {
-                                            keyboardController?.hide()
-                                            focusManager.clearFocus()
+                                            currentKeyboardController.value?.hide()
+                                            currentFocusManager.value.clearFocus()
                                             component.onOpenVideo(
                                                 path = validAudioPath,
                                                 messageId = msg.id,
                                                 caption = audio.caption
                                             )
-                                        } else component.onDownloadFile(audio.fileId)
-                                    },
-                                    onMessageOptionsClick = { msg, pos, size, clickPos ->
-                                        keyboardController?.hide()
-                                        focusManager.clearFocus(force = true)
+                                        } else {
+                                            component.onDownloadFile(audio.fileId)
+                                        }
+                                    }
+                                    Unit
+                                }
+                            }
+
+                            val onMessageOptionsClickStable: (MessageModel, Offset, IntSize, Offset) -> Unit =
+                                remember(component) {
+                                    { msg: MessageModel, pos: Offset, size: IntSize, clickPos: Offset ->
+                                        currentKeyboardController.value?.hide()
+                                        currentFocusManager.value.clearFocus(force = true)
                                         selectedMessageId = msg.id
-                                        menuOffset = pos; menuMessageSize = size; clickOffset = clickPos
-                                    },
-                                    onGoToReply = { scrollToMessageState.value(it) },
-                                    selectedMessageId = selectedMessageId,
-                                    onMessagePositionChange = { pos, size ->
                                         menuOffset = pos
                                         menuMessageSize = size
-                                    },
-                                    onViaBotClick = { botUsername ->
-                                        val prefill = "@$botUsername "
-                                        component.onDraftChange(prefill)
-                                        component.onInlineQueryChange("", "")
-                                    },
-                                    toProfile = {
-                                        it.let { component.toProfile(it) }
-                                    },
+                                        clickOffset = clickPos
+                                    }
+                                }
+
+                            val onGoToReplyStable: (MessageModel) -> Unit = remember(scrollToMessageState) {
+                                { msg: MessageModel ->
+                                    scrollToMessageState.value(msg)
+                                }
+                            }
+
+                            val onMessagePositionChangeStable: (Offset, IntSize) -> Unit = remember {
+                                { pos: Offset, size: IntSize ->
+                                    menuOffset = pos
+                                    menuMessageSize = size
+                                }
+                            }
+
+                            val onViaBotClickStable: (String) -> Unit = remember(component) {
+                                { botUsername: String ->
+                                    val prefill = "@$botUsername "
+                                    component.onDraftChange(prefill)
+                                    component.onInlineQueryChange("", "")
+                                }
+                            }
+
+                            val toProfileStable: (Long) -> Unit = remember(component) {
+                                { userId: Long ->
+                                    component.toProfile(userId)
+                                }
+                            }
+
+                            ChatContentList(
+                                showNavPadding = false,
+                                state = state,
+                                component = component,
+                                scrollState = scrollState,
+                                groupedMessages = groupedMessages,
+                                onPhotoDownload = onPhotoDownloadStable,
+                                onPhotoClick = onPhotoClickStable,
+                                onVideoClick = onVideoClickStable,
+                                onDocumentClick = onDocumentClickStable,
+                                onAudioClick = onAudioClickStable,
+                                onMessageOptionsClick = onMessageOptionsClickStable,
+                                onGoToReply = onGoToReplyStable,
+                                selectedMessageId = selectedMessageId,
+                                onMessagePositionChange = onMessagePositionChangeStable,
+                                onViaBotClick = onViaBotClickStable,
+                                toProfile = toProfileStable,
                                     downloadUtils = component.downloadUtils,
                                     isAnyViewerOpen = isAnyViewerOpen
                                 )

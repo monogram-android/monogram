@@ -11,7 +11,7 @@ import kotlinx.coroutines.withContext
 import org.monogram.domain.managers.AssetsManager
 import org.monogram.domain.managers.ClipManager
 import org.monogram.domain.models.ChatModel
-import org.monogram.domain.repository.ChatsListRepository
+import org.monogram.domain.repository.ChatListRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
@@ -48,7 +48,7 @@ class DefaultAdBlockComponent(
 ) : AdBlockComponent, AppComponentContext by context {
 
     private val appPreferences: AppPreferences = container.preferences.appPreferences
-    private val chatsRepository: ChatsListRepository = container.repositories.chatsListRepository
+    private val chatsRepository: ChatListRepository = container.repositories.chatListRepository
     private val clipManager: ClipManager = container.utils.clipManager
     private val assetsManager: AssetsManager = container.utils.assetsManager()
 

@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
@@ -54,6 +55,8 @@ fun InputTextFieldContainer(
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
+        val isTablet = LocalConfiguration.current.screenWidthDp >= 600
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp)
@@ -99,7 +102,7 @@ fun InputTextFieldContainer(
 
             if (canWriteText) {
                 AnimatedVisibility(
-                    visible = textValue.text.contains('\n') || textValue.text.length > 150,
+                    visible = isTablet || textValue.text.contains('\n') || textValue.text.length > 150,
                     enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
                     exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End)
                 ) {

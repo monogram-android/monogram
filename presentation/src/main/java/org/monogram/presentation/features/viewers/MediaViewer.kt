@@ -21,6 +21,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.launch
 import org.monogram.presentation.core.util.IDownloadUtils
@@ -95,6 +98,33 @@ fun MediaViewer(
         rootState.resetInstant(scope)
         showSettingsMenu = false
         currentVideoInPipMode = false
+    }
+
+    LaunchedEffect(showControls, currentVideoInPipMode) {
+        if (!showControls) {
+            showSettingsMenu = false
+        }
+
+        val activity = context.findActivity()
+        activity?.let {
+            val insetsController = WindowCompat.getInsetsController(it.window, it.window.decorView)
+            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+            if (showControls && !currentVideoInPipMode) {
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            } else {
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    DisposableEffect(context) {
+        onDispose {
+            context.findActivity()?.let {
+                WindowCompat.getInsetsController(it.window, it.window.decorView)
+                    .show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
     }
 
     BackHandler {

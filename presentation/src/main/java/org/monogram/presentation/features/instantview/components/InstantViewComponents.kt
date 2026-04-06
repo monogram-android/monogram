@@ -82,7 +82,7 @@ fun AsyncImageWithDownload(
     minithumbnail: ByteArray? = null,
     contentScale: ContentScale = ContentScale.Fit
 ) {
-    val messageRepository = LocalMessageRepository.current
+    val fileRepository = LocalFileRepository.current
     var currentPath by remember(fileId) { mutableStateOf(path) }
     var progress by remember { mutableFloatStateOf(0f) }
 
@@ -91,22 +91,22 @@ fun AsyncImageWithDownload(
             currentPath = path
         }
         if (currentPath == null) {
-            messageRepository.downloadFile(fileId)
+            fileRepository.downloadFile(fileId)
 
             val progressJob = launch {
-                messageRepository.messageDownloadProgressFlow
+                fileRepository.messageDownloadProgressFlow
                     .filter { it.first == fileId.toLong() }
                     .collect { progress = it.second }
             }
 
             val completedPath = withTimeoutOrNull(60_000L) {
-                messageRepository.messageDownloadCompletedFlow
+                fileRepository.messageDownloadCompletedFlow
                     .filter { it.first == fileId.toLong() }
                     .mapNotNull { (_, _, candidatePath) -> candidatePath.takeIf { it.isNotEmpty() } }
                     .first()
             }
 
-            currentPath = completedPath ?: messageRepository.getFilePath(fileId)
+            currentPath = completedPath ?: fileRepository.getFilePath(fileId)
             progressJob.cancel()
         }
     }
@@ -163,7 +163,7 @@ fun AsyncVideoWithDownload(
     shouldLoop: Boolean = true,
     contentScale: ContentScale = ContentScale.Fit
 ) {
-    val messageRepository = LocalMessageRepository.current
+    val fileRepository = LocalFileRepository.current
     var currentPath by remember(fileId) { mutableStateOf(path) }
     var progress by remember { mutableFloatStateOf(0f) }
 
@@ -172,22 +172,22 @@ fun AsyncVideoWithDownload(
             currentPath = path
         }
         if (currentPath == null) {
-            messageRepository.downloadFile(fileId)
+            fileRepository.downloadFile(fileId)
 
             val progressJob = launch {
-                messageRepository.messageDownloadProgressFlow
+                fileRepository.messageDownloadProgressFlow
                     .filter { it.first == fileId.toLong() }
                     .collect { progress = it.second }
             }
 
             val completedPath = withTimeoutOrNull(60_000L) {
-                messageRepository.messageDownloadCompletedFlow
+                fileRepository.messageDownloadCompletedFlow
                     .filter { it.first == fileId.toLong() }
                     .mapNotNull { (_, _, candidatePath) -> candidatePath.takeIf { it.isNotEmpty() } }
                     .first()
             }
 
-            currentPath = completedPath ?: messageRepository.getFilePath(fileId)
+            currentPath = completedPath ?: fileRepository.getFilePath(fileId)
             progressJob.cancel()
         }
     }

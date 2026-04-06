@@ -37,6 +37,7 @@ import org.koin.compose.koinInject
 import org.monogram.domain.models.RecentEmojiModel
 import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.StickerSetModel
+import org.monogram.domain.repository.EmojiRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.AppPreferences
@@ -52,12 +53,13 @@ fun EmojisGrid(
     onSearchFocused: (Boolean) -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(0.dp),
     stickerRepository: StickerRepository = koinInject(),
+    emojiRepository: EmojiRepository = koinInject(),
     appPreferences: AppPreferences = koinInject()
 ) {
     var standardEmojis by remember { mutableStateOf<List<String>>(emptyList()) }
     val customEmojiSets by stickerRepository.customEmojiStickerSets.collectAsState(initial = emptyList())
     var selectedSetId by remember { mutableLongStateOf(-1L) } // -1 for recent, -2 for standard
-    val recentEmojis by stickerRepository.recentEmojis.collectAsState(initial = emptyList())
+    val recentEmojis by emojiRepository.recentEmojis.collectAsState(initial = emptyList())
     var searchQuery by remember { mutableStateOf("") }
     var debouncedSearchQuery by remember { mutableStateOf("") }
     var isSearchFocused by remember { mutableStateOf(false) }
@@ -79,7 +81,7 @@ fun EmojisGrid(
     }
 
     LaunchedEffect(Unit) {
-        standardEmojis = stickerRepository.getDefaultEmojis()
+        standardEmojis = emojiRepository.getDefaultEmojis()
         stickerRepository.loadCustomEmojiStickerSets()
     }
 
@@ -97,9 +99,9 @@ fun EmojisGrid(
             searchResultsEmojis = if (emojiOnlyMode) {
                 emptyList()
             } else {
-                stickerRepository.searchEmojis(debouncedSearchQuery)
+                emojiRepository.searchEmojis(debouncedSearchQuery)
             }
-            searchResultsCustomEmojis = stickerRepository.searchCustomEmojis(debouncedSearchQuery)
+            searchResultsCustomEmojis = emojiRepository.searchCustomEmojis(debouncedSearchQuery)
         } else {
             searchResultsEmojis = emptyList()
             searchResultsCustomEmojis = emptyList()
@@ -225,7 +227,7 @@ fun EmojisGrid(
                             itemsIndexed(searchResultsEmojis, key = { index, emoji -> "search_emoji_${index}_$emoji" }) { _, emoji ->
                                 EmojiGridItem(emoji, emojiFontFamily) {
                                     onEmojiSelected(emoji, null)
-                                    scope.launch { stickerRepository.addRecentEmoji(RecentEmojiModel(emoji)) }
+                                    scope.launch { emojiRepository.addRecentEmoji(RecentEmojiModel(emoji)) }
                                 }
                             }
                         }
@@ -257,7 +259,7 @@ fun EmojisGrid(
                             itemsIndexed(localSearchFallbackResults, key = { index, emoji -> "search_local_${index}_$emoji" }) { _, emoji ->
                                 EmojiGridItem(emoji, emojiFontFamily) {
                                     onEmojiSelected(emoji, null)
-                                    scope.launch { stickerRepository.addRecentEmoji(RecentEmojiModel(emoji)) }
+                                    scope.launch { emojiRepository.addRecentEmoji(RecentEmojiModel(emoji)) }
                                 }
                             }
                         }
@@ -315,7 +317,7 @@ fun EmojisGrid(
                             ) { _, emoji ->
                                 EmojiGridItem(emoji, emojiFontFamily) {
                                     onEmojiSelected(emoji, null)
-                                    scope.launch { stickerRepository.addRecentEmoji(RecentEmojiModel(emoji)) }
+                                    scope.launch { emojiRepository.addRecentEmoji(RecentEmojiModel(emoji)) }
                                 }
                             }
                         }

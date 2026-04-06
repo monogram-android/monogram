@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Forward10
+import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Replay10
 import androidx.compose.material3.*
@@ -36,7 +37,8 @@ fun ViewerTopBar(
     onBack: () -> Unit,
     onActionClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isActionActive: Boolean = false
+    isActionActive: Boolean = false,
+    onLockClick: (() -> Unit)? = null
 ) {
     Box(
         modifier = modifier
@@ -67,17 +69,34 @@ fun ViewerTopBar(
                 )
             }
 
-            IconButton(
-                onClick = onActionClick,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = if (isActionActive) Color.White.copy(alpha = 0.2f) else Color.Transparent,
-                    contentColor = Color.White
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.MoreVert,
-                    contentDescription = stringResource(R.string.viewer_options)
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onLockClick != null) {
+                    IconButton(
+                        onClick = onLockClick,
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.White.copy(alpha = 0.16f),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.LockOpen,
+                            contentDescription = stringResource(R.string.settings_lock_controls)
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onActionClick,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = if (isActionActive) Color.White.copy(alpha = 0.2f) else Color.Transparent,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.MoreVert,
+                        contentDescription = stringResource(R.string.viewer_options)
+                    )
+                }
             }
         }
     }

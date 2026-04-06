@@ -176,6 +176,7 @@ fun TextMessageBubble(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                     }
+
                     Text(
                         text = formatTime(msg.date),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),

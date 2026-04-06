@@ -1,9 +1,13 @@
 package org.monogram.data.di
 
 import android.util.Log
-import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.drinkless.tdlib.Client
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TdLibException
@@ -13,8 +17,11 @@ import kotlin.coroutines.resume
 internal class TdLibClient {
     private val TAG = "TdLibClient"
     private val globalRetryAfterUntilMs = AtomicLong(0L)
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val updateChannel = Channel<TdApi.Update>(Channel.UNLIMITED)
+    private val _updates = MutableSharedFlow<TdApi.Update>(
+        replay = 10,
+        extraBufferCapacity = 1000,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
 
     private val _isAuthenticated = MutableStateFlow(false)
     val isAuthenticated = _isAuthenticated.asStateFlow()
@@ -28,9 +35,7 @@ internal class TdLibClient {
         }
     }
 
-    val updates = updateChannel
-        .receiveAsFlow()
-        .shareIn(scope, SharingStarted.Eagerly, replay = 10)
+    val updates: SharedFlow<TdApi.Update> = _updates
 
     private val client = Client.create(
         { result ->
@@ -38,7 +43,7 @@ internal class TdLibClient {
                 if (result is TdApi.UpdateAuthorizationState) {
                     _isAuthenticated.value = result.authorizationState is TdApi.AuthorizationStateReady
                 }
-                updateChannel.trySend(result)
+                _updates.tryEmit(result)
             }
         },
         { error ->

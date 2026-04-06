@@ -50,6 +50,7 @@
 
 ## اہم خصوصیات
 
+- **آزاد کلائنٹ (Independent Client)** — یہ Telegram for Android کا فورک نہیں ہے۔ MonoGram ایک مکمل طور پر نئے سرے سے بنایا گیا آزاد پروجیکٹ ہے۔
 - **Material Design 3** — ایک خوبصورت، موافق (adaptive) UI جو فونز، ٹیبلیٹس، اور فولڈ ایبلز پر بہترین نظر آتا ہے۔
 - **محفوظ (Secure)** — بائیو میٹرک لاکنگ اور انکرپٹڈ لوکل اسٹوریج شامل ہے۔
 - **میڈیا سے بھرپور (Media Rich)** — ExoPlayer اور Coil 3 کے ساتھ اعلیٰ کارکردگی والا میڈیا پلے بیک۔
@@ -72,7 +73,7 @@
 ### 1. ریپوزٹری کلون کریں
 
 ```bash
-git clone https://github.com/monogram-android/monogram.git
+git clone --recurse-submodules https://github.com/monogram-android/monogram.git
 cd monogram
 ```
 
@@ -105,7 +106,15 @@ API_HASH=your_api_hash_here
 10. FCM اسناد والے سیکشن کے آگے **Update** پر کلک کریں۔
 11. کھلنے والے پیج پر سروس اکاؤنٹ JSON اپ لوڈ کریں۔
 
-### 4. بلڈ اور رن
+### 4. پہلی مرتبہ سیٹ اپ: libvpx کی تعمیر
+
+اینیمیشنز کے لیے libvpx کو کمپائل کرنا ضروری ہے۔ یہ کام Gradle بلڈ شروع کرنے سے پہلے کرنا ہوگا، ورنہ بلڈ ناکام ہو سکتی ہے۔
+
+1. اپنی ورکنگ ڈائرکٹری `presentation/src/main/cpp` پر لے جائیں۔
+2. `build.sh` میں اپنا `ANDROID_NDK_HOME` شامل کریں۔
+3. `build.sh` چلائیں اور مکمل ہونے تک انتظار کریں۔
+
+### 5. بلڈ اور رن
 
 1. **Android Studio** میں پروجیکٹ کھولیں۔
 2. IDE کی انڈیکسنگ کی حد میں اضافہ کریں تاکہ `TdApi.java` (TDLib ریپر) صحیح طرح انڈیکس ہو سکے۔ **Android Studio** یا **IntelliJ IDEA** میں، **Help → Edit Custom Properties...** کھولیں، نیچے دی گئی لائنز پیسٹ کریں، اور اگر کہا جائے تو IDE کو ری اسٹارٹ کریں:

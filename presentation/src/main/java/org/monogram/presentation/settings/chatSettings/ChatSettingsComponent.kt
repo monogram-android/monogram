@@ -1,8 +1,7 @@
 package org.monogram.presentation.settings.chatSettings
 
-import org.monogram.presentation.core.util.coRunCatching
-import android.graphics.Color.colorToHSV
 import android.graphics.Color.HSVToColor
+import android.graphics.Color.colorToHSV
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
@@ -11,14 +10,15 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import org.monogram.domain.managers.AssetsManager
 import org.monogram.domain.managers.DistrManager
 import org.monogram.domain.models.WallpaperModel
-import org.monogram.domain.repository.SettingsRepository
+import org.monogram.domain.repository.EmojiRepository
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.presentation.core.util.*
 import org.monogram.presentation.root.AppComponentContext
-import org.json.JSONObject
 import java.io.File
 import java.net.URL
 
@@ -163,8 +163,9 @@ class DefaultChatSettingsComponent(
 
     private val appPreferences: AppPreferences = container.preferences.appPreferences
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
-    private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
+    private val wallpaperRepository: WallpaperRepository = container.repositories.wallpaperRepository
     private val stickerRepository: StickerRepository = container.repositories.stickerRepository
+    private val emojiRepository: EmojiRepository = container.repositories.emojiRepository
     private val distrManager: DistrManager = container.utils.distrManager()
     private val assetsManager: AssetsManager = container.utils.assetsManager()
 
@@ -604,7 +605,7 @@ class DefaultChatSettingsComponent(
     }
 
     private fun loadWallpapers() {
-        settingsRepository.getWallpapers()
+        wallpaperRepository.getWallpapers()
             .onEach { wallpapers ->
                 _state.update { it.copy(availableWallpapers = wallpapers) }
             }
@@ -640,7 +641,7 @@ class DefaultChatSettingsComponent(
 
         if (!wallpaper.isDownloaded && wallpaper.documentId != 0L) {
             scope.launch {
-                settingsRepository.downloadWallpaper(wallpaper.documentId.toInt())
+                wallpaperRepository.downloadWallpaper(wallpaper.documentId.toInt())
             }
         }
 
@@ -699,7 +700,7 @@ class DefaultChatSettingsComponent(
 
     override fun onClearRecentEmojis() {
         scope.launch {
-            stickerRepository.clearRecentEmojis()
+            emojiRepository.clearRecentEmojis()
         }
     }
 

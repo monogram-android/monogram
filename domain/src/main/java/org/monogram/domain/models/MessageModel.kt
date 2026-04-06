@@ -26,7 +26,7 @@ data class MessageModel(
     val readDate: Int = 0,
     val reactions: List<MessageReactionModel> = emptyList(),
     val isSenderVerified: Boolean = false,
-    val threadId: Int? = null,
+    val threadId: Long? = null,
     val canBeEdited: Boolean = false,
     val canBeForwarded: Boolean = true,
     val canBeDeletedOnlyForSelf: Boolean = true,
@@ -106,7 +106,7 @@ sealed interface MessageContent {
             if (thumbnailPath != other.thumbnailPath) return false
             if (caption != other.caption) return false
             if (entities != other.entities) return false
-            if (!minithumbnail.contentEquals(other.minithumbnail)) return false
+            if (!(minithumbnail contentEquals other.minithumbnail)) return false
 
             return true
         }
@@ -169,7 +169,7 @@ sealed interface MessageContent {
             if (thumbnailPath != other.thumbnailPath) return false
             if (caption != other.caption) return false
             if (entities != other.entities) return false
-            if (!minithumbnail.contentEquals(other.minithumbnail)) return false
+            if (!(minithumbnail contentEquals other.minithumbnail)) return false
 
             return true
         }
@@ -220,7 +220,7 @@ sealed interface MessageContent {
             if (downloadError != other.downloadError) return false
             if (fileId != other.fileId) return false
             if (path != other.path) return false
-            if (!waveform.contentEquals(other.waveform)) return false
+            if (!(waveform contentEquals other.waveform)) return false
 
             return true
         }
@@ -332,7 +332,7 @@ sealed interface MessageContent {
             if (path != other.path) return false
             if (caption != other.caption) return false
             if (entities != other.entities) return false
-            if (!minithumbnail.contentEquals(other.minithumbnail)) return false
+            if (!(minithumbnail contentEquals other.minithumbnail)) return false
 
             return true
         }
@@ -477,7 +477,7 @@ data class WebPage(
             if (height != other.height) return false
             if (fileId != other.fileId) return false
             if (path != other.path) return false
-            if (!minithumbnail.contentEquals(other.minithumbnail)) return false
+            if (!(minithumbnail contentEquals other.minithumbnail)) return false
 
             return true
         }
@@ -561,6 +561,8 @@ sealed interface MessageEntityType {
     object Underline : MessageEntityType
     object Strikethrough : MessageEntityType
     object Spoiler : MessageEntityType
+    object BlockQuote : MessageEntityType
+    object BlockQuoteExpandable: MessageEntityType
     object Code : MessageEntityType
     data class Pre(val language: String = "") : MessageEntityType
     data class TextUrl(val url: String) : MessageEntityType
@@ -573,7 +575,7 @@ sealed interface MessageEntityType {
     object PhoneNumber : MessageEntityType
     object BankCardNumber : MessageEntityType
     data class CustomEmoji(val emojiId: Long, val path: String? = null) : MessageEntityType
-    object Other : MessageEntityType
+    data class Other(val srcEntity: String) : MessageEntityType
 }
 
 data class MessageReactionModel(

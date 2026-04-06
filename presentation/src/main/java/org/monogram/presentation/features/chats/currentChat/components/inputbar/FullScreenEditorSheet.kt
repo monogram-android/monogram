@@ -178,7 +178,7 @@ fun FullScreenEditorSheet(
     var aiLoading by remember { mutableStateOf(false) }
 
     val snippetProvider: EditorSnippetProvider = koinInject()
-    val messageRepository: MessageRepository = koinInject()
+    val messageRepository: MessageAiRepository = koinInject()
     val textCompositionStyles by messageRepository.textCompositionStyles.collectAsState()
     val effectiveAiStyles = remember(textCompositionStyles) {
         if (textCompositionStyles.isEmpty()) DEFAULT_AI_STYLES else textCompositionStyles

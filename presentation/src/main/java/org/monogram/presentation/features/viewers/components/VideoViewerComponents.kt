@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
 package org.monogram.presentation.features.viewers.components
 
@@ -27,7 +27,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -40,6 +43,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.*
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.DefaultExtractorsFactory
@@ -60,7 +64,7 @@ import kotlin.math.max
 private const val TAG = "VideoPage"
 
 @OptIn(UnstableApi::class)
-@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoPage(
     path: String,
@@ -140,7 +144,10 @@ fun VideoPage(
             .setConstantBitrateSeekingEnabled(true)
             .setMp4ExtractorFlags(Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
 
-        val playerBuilder = ExoPlayer.Builder(context)
+        val renderersFactory = DefaultRenderersFactory(context)
+            .setEnableDecoderFallback(true)
+
+        val playerBuilder = ExoPlayer.Builder(context, renderersFactory)
             .setAudioAttributes(audioAttributes, true)
 
         val dataSourceFactory = if (supportsStreaming && fileId != 0) {
@@ -415,7 +422,13 @@ fun VideoPage(
                     onRewind = {
                         exoPlayer.seekTo(max(0, exoPlayer.currentPosition - seekDurationMs))
                     },
-                    onSettingsToggle = currentOnToggleSettings
+                    onSettingsToggle = currentOnToggleSettings,
+                    onLockToggle = {
+                        isLocked = true
+                        if (showSettingsMenu) {
+                            currentOnToggleSettings()
+                        }
+                    }
                 )
 
                 AnimatedVisibility(
@@ -452,10 +465,6 @@ fun VideoPage(
                             },
                             onMuteToggle = {
                                 isMuted = !isMuted
-                            },
-                            onLockToggle = {
-                                isLocked = true
-                                currentOnToggleSettings()
                             },
                             onRotationToggle = {
                                 val activity = context.findActivity()
@@ -515,7 +524,7 @@ fun VideoPage(
     }
 }
 
-@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoPlayerControls(
     visible: Boolean,
@@ -532,7 +541,8 @@ fun VideoPlayerControls(
     onBack: () -> Unit,
     onForward: () -> Unit,
     onRewind: () -> Unit,
-    onSettingsToggle: () -> Unit
+    onSettingsToggle: () -> Unit,
+    onLockToggle: () -> Unit
 ) {
     var isDragging by remember { mutableStateOf(false) }
     var sliderPosition by remember { mutableFloatStateOf(0f) }
@@ -553,7 +563,12 @@ fun VideoPlayerControls(
             exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
-            ViewerTopBar(onBack = onBack, onActionClick = onSettingsToggle, isActionActive = isSettingsOpen)
+            ViewerTopBar(
+                onBack = onBack,
+                onActionClick = onSettingsToggle,
+                isActionActive = isSettingsOpen,
+                onLockClick = onLockToggle
+            )
         }
 
         AnimatedVisibility(
@@ -701,7 +716,6 @@ fun VideoSettingsMenu(
     onRepeatToggle: () -> Unit,
     onResizeToggle: () -> Unit,
     onMuteToggle: () -> Unit,
-    onLockToggle: () -> Unit,
     onRotationToggle: () -> Unit,
     onEnterPip: () -> Unit,
     onDownload: () -> Unit,
@@ -729,16 +743,6 @@ fun VideoSettingsMenu(
             when (screen) {
                 SettingsScreen.MAIN -> {
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                        Text(
-                            text = stringResource(R.string.settings_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                        )
                         MenuOptionRow(
                             icon = Icons.Rounded.Speed,
                             title = stringResource(R.string.settings_playback_speed),
@@ -772,10 +776,6 @@ fun VideoSettingsMenu(
                                 trailingIcon = Icons.AutoMirrored.Rounded.KeyboardArrowRight
                             )
                         }
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                        )
                         MenuToggleRow(
                             icon = if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
                             title = stringResource(R.string.settings_loop_video),
@@ -807,13 +807,6 @@ fun VideoSettingsMenu(
                             onClick = onCopyLink
                         )
                         MenuOptionRow(icon = Icons.AutoMirrored.Rounded.Forward, title = stringResource(R.string.action_forward), onClick = onForward)
-                        MenuOptionRow(
-                            icon = Icons.Rounded.Lock,
-                            title = stringResource(R.string.settings_lock_controls),
-                            onClick = onLockToggle,
-                            iconTint = MaterialTheme.colorScheme.primary,
-                            textColor = MaterialTheme.colorScheme.primary
-                        )
                         if (onDelete != null) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),

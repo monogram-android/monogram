@@ -54,6 +54,8 @@ Ayuda al proyecto en [**Boosty**](https://boosty.to/monogram).
 
 ## Características Clave
 
+- **Cliente Independiente** — No es un fork de Telegram para Android. MonoGram
+  está construido completamente desde cero como un proyecto independiente.
 - **Material Design 3** — Una bonita y adaptativa UI que se ve grandiosa en
   celulares, tablets y plegables.
 - **Seguro** — Almacenamiento local encriptado y bloqueo biométrico incluido.
@@ -82,7 +84,7 @@ Sigue estos pasos para configurar el proyecto localmente.
 ### 1. Clona el Repositorio
 
 ```bash
-git clone https://github.com/monogram-android/monogram.git
+git clone --recurse-submodules https://github.com/monogram-android/monogram.git
 cd monogram
 ```
 
@@ -124,7 +126,15 @@ API_HASH=your_api_hash_here
 10. Clickea en **Update** después de la sección FCM credentials.
 11. Sube el service account JSON en la página que se abre.
 
-### 4. Compilar y Ejecutar
+### 4. Primera Configuración: Compilar libvpx
+
+Las animaciones requieren que libvpx esté compilado. Esto debe hacerse antes de iniciar una compilación de Gradle; de lo contrario, la compilación fallará.
+
+1. Cambia tu directorio de trabajo a `presentation/src/main/cpp`.
+2. En `build.sh`, añade tu `ANDROID_NDK_HOME`.
+3. Ejecuta `build.sh` y espera a que termine.
+
+### 5. Compilar y Ejecutar
 
 1. Abre el proyecto en **Android Studio**.
 2. Aumenta los límites de indexado del IDE para que `TdApi.java` (el wrapper de

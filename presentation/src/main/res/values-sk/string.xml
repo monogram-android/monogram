@@ -80,6 +80,7 @@
     <string name="phone_number_placeholder">000 00 00</string>
     <string name="continue_button">Pokračovať</string>
     <string name="select_country_title">Vybrať krajinu</string>
+    <string name="unknown_country">Neznáma krajina</string>
     <string name="search_country_hint">Hľadať krajinu alebo kód...</string>
     <string name="verification_delivery_telegram">Kód sme odoslali do aplikácie Telegram na vašom inom zariadení.
     </string>
@@ -1414,7 +1415,7 @@
     <string name="settings_playback_speed">Rýchlosť prehrávania</string>
     <string name="settings_scale_mode">Režim mierky</string>
     <string name="settings_scale_fit">Prispôsobiť</string>
-    <string name="settings_scale_zoom">Priblížiť</string>
+    <string name="settings_scale_zoom">Vyplniť</string>
     <string name="settings_rotate_screen">Otočiť obrazovku</string>
     <string name="settings_pip">Obraz v obraze</string>
     <string name="settings_screenshot">Snímka obrazovky</string>

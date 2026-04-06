@@ -2,19 +2,8 @@ package org.monogram.presentation.features.chats.currentChat.chatContent
 
 import android.content.ClipData
 import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.animation.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.text.AnnotatedString
 import org.monogram.domain.models.MessageContent
@@ -44,6 +33,7 @@ fun ChatContentViewers(
             InstantViewer(
                 url = url,
                 messageRepository = component.repositoryMessage,
+                fileRepository = component.repositoryMessage,
                 onDismiss = { component.onDismissInstantView() },
                 onOpenWebView = { component.onOpenWebView(it) }
             )
@@ -93,7 +83,7 @@ fun ChatContentViewers(
                 baseUrl = state.miniAppUrl,
                 botName = state.chatTitle,
                 botAvatarPath = state.chatAvatar,
-                messageRepository = component.repositoryMessage,
+                webAppRepository = component.repositoryMessage,
                 onDismiss = { component.onDismissMiniApp() }
             )
         }
@@ -367,7 +357,8 @@ fun ChatContentViewers(
             slug = state.invoiceSlug,
             chatId = state.chatId,
             messageId = state.invoiceMessageId,
-            messageRepository = component.repositoryMessage,
+            paymentRepository = component.repositoryMessage,
+            fileRepository = component.repositoryMessage,
             onDismiss = { status -> component.onDismissInvoice(status) }
         )
     }

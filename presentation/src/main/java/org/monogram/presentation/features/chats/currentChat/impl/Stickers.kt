@@ -19,6 +19,6 @@ internal fun DefaultChatComponent.handleStickerClick(setId: Long) {
 
 internal fun DefaultChatComponent.handleAddToGifs(path: String) {
     scope.launch {
-        stickerRepository.addSavedGif(path)
+        gifRepository.addSavedGif(path)
     }
 }

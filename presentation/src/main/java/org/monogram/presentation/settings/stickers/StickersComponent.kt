@@ -6,6 +6,7 @@ import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.StickerSetModel
+import org.monogram.domain.repository.EmojiRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
@@ -46,6 +47,7 @@ class DefaultStickersComponent(
 ) : StickersComponent, AppComponentContext by context {
 
     private val stickerRepository: StickerRepository = container.repositories.stickerRepository
+    private val emojiRepository: EmojiRepository = container.repositories.emojiRepository
     private val _state = MutableValue(
         StickersComponent.State(
             stickerSets = stickerRepository.installedStickerSets.value,
@@ -136,7 +138,7 @@ class DefaultStickersComponent(
 
     override fun onClearRecentEmojis() {
         scope.launch {
-            stickerRepository.clearRecentEmojis()
+            emojiRepository.clearRecentEmojis()
         }
     }
 

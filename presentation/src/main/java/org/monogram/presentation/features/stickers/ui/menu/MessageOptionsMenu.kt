@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
 package org.monogram.presentation.features.stickers.ui.menu
 
@@ -45,7 +45,7 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageViewerModel
 import org.monogram.domain.models.RecentEmojiModel
-import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.EmojiRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.AppPreferences
@@ -107,7 +107,7 @@ fun MessageOptionsMenu(
     val configuration = LocalConfiguration.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-    val stickerRepository: StickerRepository = koinInject()
+    val emojiRepository: EmojiRepository = koinInject()
 
     val screenHeight = with(density) { configuration.screenHeightDp.dp.toPx() }.toInt()
     val windowInsets = WindowInsets.systemBars.union(WindowInsets.ime)
@@ -198,7 +198,7 @@ fun MessageOptionsMenu(
     var availableReactions by remember(message.chatId, message.id) { mutableStateOf<List<String>>(emptyList()) }
 
     LaunchedEffect(message.chatId, message.id) {
-        availableReactions = stickerRepository.getMessageAvailableReactions(message.chatId, message.id)
+        availableReactions = emojiRepository.getMessageAvailableReactions(message.chatId, message.id)
     }
 
     fun animateOutAndDismiss(action: (() -> Unit)? = null) {

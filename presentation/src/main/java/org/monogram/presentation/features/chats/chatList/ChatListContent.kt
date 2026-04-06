@@ -1250,6 +1250,7 @@ fun ChatListContent(component: ChatListComponent) {
             InstantViewer(
                 url = url,
                 messageRepository = koinInject(),
+                fileRepository = koinInject(),
                 onDismiss = { component.onDismissInstantView() },
                 onOpenWebView = { component.onOpenWebView(it) }
             )
@@ -1273,7 +1274,7 @@ fun ChatListContent(component: ChatListComponent) {
                 botUserId = botUserId,
                 baseUrl = webAppUrl ?: "",
                 botName = botName ?: stringResource(R.string.mini_app_default_name),
-                messageRepository = koinInject(),
+                webAppRepository = koinInject(),
                 onDismiss = { component.onDismissWebApp() }
             )
         }

@@ -78,6 +78,7 @@
     <string name="phone_number_placeholder">000 00 00</string>
     <string name="continue_button">继续</string>
     <string name="select_country_title">选择国家</string>
+    <string name="unknown_country">未知国家</string>
     <string name="search_country_hint">搜索国家或代码…</string>
     <string name="verification_delivery_telegram">我们已通过 Telegram 发送验证码到您的其他设备。</string>
     <string name="verification_delivery_sms">我们已通过短信发送验证码。</string>

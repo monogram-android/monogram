@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.presentation.R
@@ -112,6 +113,55 @@ fun PhotoEditorScreen(
         imageRotation = imageRotation,
         imageOffset = imageOffset
     )
+    var transformAnimationJob by remember { mutableStateOf<Job?>(null) }
+
+    fun animateTransformTo(
+        targetCropRect: Rect,
+        targetRotation: Float,
+        targetScale: Float,
+        targetOffset: Offset,
+        durationMillis: Int = 180
+    ) {
+        val startCrop = cropState.cropRect
+        val startRotation = imageRotation
+        val startScale = imageScale
+        val startOffset = imageOffset
+
+        if (
+            startCrop == targetCropRect &&
+            startRotation == targetRotation &&
+            startScale == targetScale &&
+            startOffset == targetOffset
+        ) {
+            cropState.setCropRect(targetCropRect)
+            imageRotation = targetRotation
+            imageScale = targetScale
+            imageOffset = targetOffset
+            return
+        }
+
+        transformAnimationJob?.cancel()
+        transformAnimationJob = scope.launch {
+            val anim = androidx.compose.animation.core.Animatable(0f)
+            anim.animateTo(1f, androidx.compose.animation.core.tween(durationMillis)) {
+                val t = value
+                cropState.setCropRect(
+                    Rect(
+                        left = startCrop.left + (targetCropRect.left - startCrop.left) * t,
+                        top = startCrop.top + (targetCropRect.top - startCrop.top) * t,
+                        right = startCrop.right + (targetCropRect.right - startCrop.right) * t,
+                        bottom = startCrop.bottom + (targetCropRect.bottom - startCrop.bottom) * t
+                    )
+                )
+                imageRotation = startRotation + (targetRotation - startRotation) * t
+                imageScale = startScale + (targetScale - startScale) * t
+                imageOffset = Offset(
+                    x = startOffset.x + (targetOffset.x - startOffset.x) * t,
+                    y = startOffset.y + (targetOffset.y - startOffset.y) * t
+                )
+            }
+        }
+    }
 
     
     fun fillAreaAfterResize() {
@@ -159,28 +209,13 @@ fun PhotoEditorScreen(
         )
 
         
-        scope.launch {
-            val startCrop = crop
-            val startScale = imageScale
-            val startOffset = imageOffset
-            val anim = androidx.compose.animation.core.Animatable(0f)
-            anim.animateTo(1f, androidx.compose.animation.core.tween(200)) {
-                val t = value
-                cropState.setCropRect(
-                    Rect(
-                        left = startCrop.left + (safeTargetCropRect.left - startCrop.left) * t,
-                        top = startCrop.top + (safeTargetCropRect.top - startCrop.top) * t,
-                        right = startCrop.right + (safeTargetCropRect.right - startCrop.right) * t,
-                        bottom = startCrop.bottom + (safeTargetCropRect.bottom - startCrop.bottom) * t
-                    )
-                )
-                imageScale = startScale + (targetScale - startScale) * t
-                imageOffset = Offset(
-                    x = startOffset.x + (targetOffset.x - startOffset.x) * t,
-                    y = startOffset.y + (targetOffset.y - startOffset.y) * t
-                )
-            }
-        }
+        animateTransformTo(
+            targetCropRect = safeTargetCropRect,
+            targetRotation = imageRotation,
+            targetScale = targetScale,
+            targetOffset = targetOffset,
+            durationMillis = 200
+        )
     }
 
     val shouldConstrain by remember(currentTool) {
@@ -250,14 +285,10 @@ fun PhotoEditorScreen(
     }
 
     fun rotateClockwise() {
-        val targetRotation = rotateClockwiseToNextRightAngle(imageRotation)
+        val targetRotation = rotateClockwiseAnimationTarget(imageRotation)
 
-        imageRotation = targetRotation
-        imageScale = 1f
-        imageOffset = Offset.Zero
-
-        cropState.setCropRect(
-            if (cropState.imageBounds == Rect.Zero) {
+        animateTransformTo(
+            targetCropRect = if (cropState.imageBounds == Rect.Zero) {
                 Rect.Zero
             } else {
                 calculateScalarTransformedBounds(
@@ -267,7 +298,10 @@ fun PhotoEditorScreen(
                     offset = Offset.Zero,
                     pivot = pivot
                 )
-            }
+            },
+            targetRotation = targetRotation,
+            targetScale = 1f,
+            targetOffset = Offset.Zero
         )
     }
 

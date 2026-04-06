@@ -190,9 +190,13 @@ internal fun normalizeRotationDegrees(value: Float): Float {
     return normalized
 }
 
-internal fun rotateClockwiseToNextRightAngle(value: Float): Float {
+internal fun rotateClockwiseAnimationTarget(value: Float): Float {
     val snappedRotation = (value / 90f).roundToInt() * 90f
-    return normalizeRotationDegrees(snappedRotation + 90f)
+    return snappedRotation + 90f
+}
+
+internal fun rotateClockwiseToNextRightAngle(value: Float): Float {
+    return normalizeRotationDegrees(rotateClockwiseAnimationTarget(value))
 }
 
 private fun closestEquivalentAngle(normalizedAngle: Float, referenceAngle: Float): Float {

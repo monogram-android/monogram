@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.chats.currentChat.components.inputbar
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -59,6 +60,17 @@ fun InputBarSendButton(
     var isVoiceRecordingActive by remember { mutableStateOf(false) }
     val isRecordingMode = isTextEmpty && editingMessage == null && pendingMediaPaths.isEmpty() && canSendVoice
 
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+        animationSpec = tween(250),
+        label = "BackgroundColor"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(250),
+        label = "ContentColor"
+    )
+
     if (canWriteText || canSendVoice) {
         val sendIcon = when {
             pendingMediaPaths.isNotEmpty() -> Icons.AutoMirrored.Filled.Send
@@ -73,16 +85,12 @@ fun InputBarSendButton(
 
         Box(
             modifier = Modifier
+                .size(48.dp)
+                .background(color = backgroundColor, shape = CircleShape)
+                .clip(CircleShape)
                 .then(
                     if (isRecordingMode) {
-                        Modifier
-                            .size(48.dp)
-                            .background(
-                                color = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                shape = CircleShape
-                            )
-                            .clip(CircleShape)
-                            .pointerInput(isVideoMessageMode) {
+                        Modifier.pointerInput(isVideoMessageMode) {
                             awaitEachGesture {
                                 try {
                                     awaitFirstDown()
@@ -147,39 +155,69 @@ fun InputBarSendButton(
                             }
                         }
                     } else {
-                        Modifier
-                            .size(48.dp)
-                            .background(
-                                color = if (isSendEnabled || isVoiceRecordingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                shape = CircleShape
-                            )
-                            .clip(CircleShape)
-                            .combinedClickable(
-                                onClick = {
-                                    if (isSendEnabled) {
-                                        onSendWithOptions(MessageSendOptions())
-                                    }
-                                },
-                                onLongClick = {
-                                    if (canShowOptions) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onShowSendOptionsMenu()
-                                    }
+                        Modifier.combinedClickable(
+                            onClick = {
+                                if (isSendEnabled) {
+                                    onSendWithOptions(MessageSendOptions())
                                 }
-                            )
+                            },
+                            onLongClick = {
+                                if (canShowOptions) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onShowSendOptionsMenu()
+                                }
+                            }
+                        )
                     }
                 ),
             contentAlignment = Alignment.Center
         ) {
-            Crossfade(targetState = sendIcon, label = "IconAnimation") { icon ->
+            AnimatedContent(
+                targetState = sendIcon,
+                transitionSpec = {
+                    val enteringSend = targetState == Icons.AutoMirrored.Filled.Send || targetState == Icons.Default.Check
+                    val leavingSend = initialState == Icons.AutoMirrored.Filled.Send || initialState == Icons.Default.Check
+
+                    when {
+                        enteringSend && !leavingSend -> {
+                            (fadeIn(animationSpec = tween(220, delayMillis = 50)) + scaleIn(
+                                initialScale = 0.4f,
+                                animationSpec = tween(220, delayMillis = 50)
+                            ) + slideInVertically { it / 2 })
+                                .togetherWith(
+                                    fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 0.4f,
+                                        animationSpec = tween(180)
+                                    ) + slideOutVertically { -it / 2 })
+                        }
+
+                        !enteringSend && leavingSend -> {
+                            (fadeIn(animationSpec = tween(220, delayMillis = 50)) + scaleIn(
+                                initialScale = 0.4f,
+                                animationSpec = tween(220, delayMillis = 50)
+                            ) + slideInVertically { -it / 2 })
+                                .togetherWith(
+                                    fadeOut(animationSpec = tween(180)) + scaleOut(
+                                        targetScale = 0.4f,
+                                        animationSpec = tween(180)
+                                    ) + slideOutVertically { it / 2 })
+                        }
+
+                        else -> {
+                            (fadeIn(animationSpec = tween(200)) + scaleIn(initialScale = 0.8f)).togetherWith(
+                                fadeOut(
+                                    animationSpec = tween(200)
+                                ) + scaleOut(targetScale = 0.8f)
+                            )
+                        }
+                    }.using(SizeTransform(clip = false))
+                },
+                label = "IconAnimation"
+            ) { icon ->
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (isSendEnabled || isVoiceRecordingActive) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+                    tint = contentColor,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }

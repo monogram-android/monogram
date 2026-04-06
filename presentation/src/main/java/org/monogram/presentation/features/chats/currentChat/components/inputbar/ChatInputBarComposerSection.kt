@@ -166,8 +166,8 @@ fun ChatInputBarComposerSection(
                 ) {
                     AnimatedVisibility(
                         visible = !voiceRecorder.isRecording,
-                        enter = fadeIn() + expandHorizontally(),
-                        exit = fadeOut() + shrinkHorizontally()
+                        enter = fadeIn(tween(250)) + expandHorizontally(tween(250)),
+                        exit = fadeOut(tween(200)) + shrinkHorizontally(tween(200))
                     ) {
                         InputBarLeadingIcons(
                             editingMessage = editingMessage,

@@ -42,10 +42,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.presentation.R
-import org.monogram.presentation.features.chats.currentChat.editor.photo.casino.CasinoSpinOverlay
-import org.monogram.presentation.features.chats.currentChat.editor.photo.casino.normalizeCasinoRotation
-import org.monogram.presentation.features.chats.currentChat.editor.photo.casino.rememberCasinoSpinVisualState
-import org.monogram.presentation.features.chats.currentChat.editor.photo.casino.runCasinoSpin
 import org.monogram.presentation.features.chats.currentChat.editor.photo.components.*
 import org.monogram.presentation.features.chats.currentChat.editor.photo.crop.*
 import java.io.File
@@ -87,7 +83,6 @@ fun PhotoEditorScreen(
     var imageRotation by remember { mutableFloatStateOf(0f) }
     var imageScale by remember { mutableFloatStateOf(1f) }
     var imageOffset by remember { mutableStateOf(Offset.Zero) }
-    var isCasinoSpinRunning by remember { mutableStateOf(false) }
 
     var showTextDialog by remember { mutableStateOf(false) }
     var editingTextElement by remember { mutableStateOf<TextElement?>(null) }
@@ -192,12 +187,6 @@ fun PhotoEditorScreen(
         derivedStateOf { currentTool == EditorTool.TRANSFORM || currentTool == EditorTool.NONE }
     }
 
-    val casinoSpinVisuals = rememberCasinoSpinVisualState(isCasinoSpinRunning)
-
-    
-    
-    
-
     fun applyTransform(centroid: Offset, pan: Offset, zoom: Float) {
         val effectiveMinScale = if (shouldConstrain && cropState.cropRect != Rect.Zero && cropState.imageBounds != Rect.Zero) {
             minimumScaleToCoverCrop(
@@ -266,7 +255,7 @@ fun PhotoEditorScreen(
                     textElements.isNotEmpty() ||
                     currentFilter != null ||
                     (cropState.cropRect != Rect.Zero && cropState.cropRect != cropState.defaultCropRect) ||
-                    normalizeCasinoRotation(imageRotation) != 0f ||
+                    normalizeRotationDegrees(imageRotation) != 0f ||
                     imageScale != 1f ||
                     imageOffset != Offset.Zero
         }
@@ -290,7 +279,7 @@ fun PhotoEditorScreen(
             EditorTopBar(
                 onClose = handleBack,
                 onSave = {
-                    if (!isSaving && !isCasinoSpinRunning) {
+                    if (!isSaving) {
                         scope.launch {
                             isSaving = true
                             val result = saveImage(
@@ -302,7 +291,7 @@ fun PhotoEditorScreen(
                                 canvasSize,
                                 cropState.cropRect,
                                 pivot,
-                                normalizeCasinoRotation(imageRotation),
+                                normalizeRotationDegrees(imageRotation),
                                 imageScale,
                                 imageOffset
                             )
@@ -349,24 +338,7 @@ fun PhotoEditorScreen(
                                 EditorTool.TRANSFORM -> {
                                     TransformControls(
                                         rotation = imageRotation,
-                                        onRotationChange = { newRotation ->
-                                            applyRotation(newRotation)
-                                        },
-                                        onSpin = {
-                                            if (!isCasinoSpinRunning) {
-                                                scope.launch {
-                                                    isCasinoSpinRunning = true
-                                                    try {
-                                                        imageRotation = runCasinoSpin(imageRotation) { frameRotation ->
-                                                            imageRotation = frameRotation
-                                                        }
-                                                    } finally {
-                                                        isCasinoSpinRunning = false
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        isSpinning = isCasinoSpinRunning,
+                                        onRotationChange = { newRotation -> applyRotation(newRotation) },
                                         onReset = {
                                             imageRotation = 0f
                                             imageScale = 1f
@@ -450,15 +422,15 @@ fun PhotoEditorScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer(
-                            scaleX = imageScale * casinoSpinVisuals.contentScale,
-                            scaleY = imageScale * casinoSpinVisuals.contentScale,
+                            scaleX = imageScale,
+                            scaleY = imageScale,
                             rotationZ = imageRotation,
                             translationX = imageOffset.x,
                             translationY = imageOffset.y,
                             transformOrigin = TransformOrigin.Center
                         )
-                        .pointerInput(currentTool, isCasinoSpinRunning) {
-                            if (!isCasinoSpinRunning && currentTool == EditorTool.NONE) {
+                        .pointerInput(currentTool) {
+                            if (currentTool == EditorTool.NONE) {
                                 detectTransformGestures { centroid, pan, zoom, _ ->
                                     applyTransform(centroid, pan, zoom)
                                 }
@@ -586,15 +558,6 @@ fun PhotoEditorScreen(
                             }
                         }
                     }
-                }
-
-                if (casinoSpinVisuals.overlayAlpha > 0.01f) {
-                    CasinoSpinOverlay(
-                        state = casinoSpinVisuals,
-                        modifier = Modifier
-                            .matchParentSize()
-                            .graphicsLayer(alpha = casinoSpinVisuals.overlayAlpha)
-                    )
                 }
             }
 

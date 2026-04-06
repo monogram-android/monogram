@@ -1,6 +1,5 @@
 package org.monogram.presentation.features.chats.currentChat.editor.photo.components
 
-import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -20,20 +19,13 @@ import kotlin.math.absoluteValue
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
-private const val ResetEasterEggTapCount = 5
-private const val ResetEasterEggTapWindowMs = 450L
-
 @Composable
 fun TransformControls(
     rotation: Float,
     onRotationChange: (Float) -> Unit,
-    onSpin: () -> Unit,
-    isSpinning: Boolean,
     onReset: () -> Unit
 ) {
-    val normalizedRotation = normalizeRotation(rotation)
-    var rapidResetTapCount by remember { mutableIntStateOf(0) }
-    var lastResetTapAtMs by remember { mutableLongStateOf(0L) }
+    val normalizedRotation = normalizeRotationDegrees(rotation)
 
     Column(
         modifier = Modifier
@@ -59,7 +51,6 @@ fun TransformControls(
                 RotationWheel(
                     angle = rotation,
                     onAngleChange = onRotationChange,
-                    enabled = !isSpinning,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -67,30 +58,10 @@ fun TransformControls(
             Spacer(modifier = Modifier.width(12.dp))
 
             OutlinedIconButton(
-                onClick = {
-                    val now = SystemClock.uptimeMillis()
-                    val tapCount = if (now - lastResetTapAtMs <= ResetEasterEggTapWindowMs) {
-                        rapidResetTapCount + 1
-                    } else {
-                        1
-                    }
-
-                    lastResetTapAtMs = now
-                    rapidResetTapCount = tapCount
-                    onReset()
-
-                    if (tapCount >= ResetEasterEggTapCount) {
-                        rapidResetTapCount = 0
-                        lastResetTapAtMs = 0L
-                        onSpin()
-                    }
-                },
-                enabled = !isSpinning,
+                onClick = onReset,
                 colors = IconButtonDefaults.outlinedIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    contentColor = MaterialTheme.colorScheme.onSurface
                 )
             ) {
                 Icon(
@@ -106,7 +77,6 @@ fun TransformControls(
 private fun RotationWheel(
     angle: Float,
     onAngleChange: (Float) -> Unit,
-    enabled: Boolean,
     modifier: Modifier = Modifier
 ) {
     val onSurface = MaterialTheme.colorScheme.onSurface
@@ -130,7 +100,6 @@ private fun RotationWheel(
                     shape = MaterialTheme.shapes.large
                 )
                 .pointerInput(Unit) {
-                    if (!enabled) return@pointerInput
                     var dragAngle = visualAngle
                     detectDragGestures(
                         onDragStart = {
@@ -195,7 +164,7 @@ private fun RotationWheel(
     }
 }
 
-private fun normalizeRotation(value: Float): Float {
+internal fun normalizeRotationDegrees(value: Float): Float {
     var normalized = value % 360f
     if (normalized > 180f) normalized -= 360f
     if (normalized < -180f) normalized += 360f

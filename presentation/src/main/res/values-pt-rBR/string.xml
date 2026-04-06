@@ -574,6 +574,7 @@
     <string name="reset_button">Redefinir</string>
     <string name="chat_wallpaper_header">Papel de parede do chat</string>
     <string name="reset_wallpaper_cd">Redefinir papel de parede</string>
+    <string name="upload_wallpaper_cd">Carregar papel de parede</string>
     <string name="emoji_style_header">Estilo de emoji</string>
     <string name="theme_header">Tema</string>
     <string name="night_mode_title">Modo noturno</string>

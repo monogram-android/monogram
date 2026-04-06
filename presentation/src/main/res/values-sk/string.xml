@@ -590,6 +590,7 @@
     <string name="reset_button">Obnoviť</string>
     <string name="chat_wallpaper_header">Tapeta chatu</string>
     <string name="reset_wallpaper_cd">Obnoviť tapetu</string>
+    <string name="upload_wallpaper_cd">Nahrať tapetu</string>
     <string name="emoji_style_header">Štýl emoji</string>
     <string name="theme_header">Téma</string>
     <string name="night_mode_title">Nočný režim</string>

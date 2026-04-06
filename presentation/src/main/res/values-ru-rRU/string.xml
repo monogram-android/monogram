@@ -560,6 +560,7 @@
     <string name="reset_button">Сбросить</string>
     <string name="chat_wallpaper_header">Обои чата</string>
     <string name="reset_wallpaper_cd">Сбросить обои</string>
+    <string name="upload_wallpaper_cd">Загрузить обои</string>
     <string name="emoji_style_header">Стиль эмодзи</string>
     <string name="theme_header">Тема</string>
     <string name="night_mode_title">Ночной режим</string>

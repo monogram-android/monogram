@@ -5,8 +5,7 @@ import org.monogram.data.db.model.ChatEntity
 import org.monogram.data.db.model.ChatFullInfoEntity
 import org.monogram.data.db.model.UserEntity
 import org.monogram.data.db.model.UserFullInfoEntity
-import org.monogram.data.mapper.isForcedVerifiedUser
-import org.monogram.data.mapper.isSponsoredUser
+import org.monogram.data.mapper.*
 import org.monogram.domain.models.*
 import org.monogram.domain.repository.ChatMemberStatus
 import org.monogram.domain.repository.ChatMembersFilter
@@ -21,8 +20,8 @@ fun TdApi.User.toDomain(
     val personalAvatarPath = fullInfo?.personalPhoto?.let { personalPhoto ->
         val bestPhotoSize = personalPhoto.sizes.maxByOrNull { it.width.toLong() * it.height.toLong() }
             ?: personalPhoto.sizes.lastOrNull()
-        personalPhoto.animation?.file?.local?.path?.ifEmpty { null }
-            ?: bestPhotoSize?.photo?.local?.path?.ifEmpty { null }
+        personalPhoto.animation?.file?.local?.path?.takeIf { isValidFilePath(it) }
+            ?: bestPhotoSize?.photo?.local?.path?.takeIf { isValidFilePath(it) }
     }
 
     val lastSeen = (status as? TdApi.UserStatusOffline)
@@ -150,7 +149,7 @@ fun TdApi.ChatMemberStatus.toDomain(): ChatMemberStatus {
         is TdApi.ChatMemberStatusRestricted -> ChatMemberStatus.Restricted(
             isMember = isMember,
             restrictedUntilDate = restrictedUntilDate,
-            permissions = permissions.toDomain()
+            permissions = permissions.toDomainChatPermissions()
         )
         is TdApi.ChatMemberStatusBanned -> ChatMemberStatus.Banned(bannedUntilDate)
         is TdApi.ChatMemberStatusLeft -> ChatMemberStatus.Left
@@ -159,18 +158,16 @@ fun TdApi.ChatMemberStatus.toDomain(): ChatMemberStatus {
 }
 
 fun TdApi.Chat.toDomain(): ChatModel {
-    val isChannel = type is TdApi.ChatTypeSupergroup &&
-            (type as TdApi.ChatTypeSupergroup).isChannel
+    val isChannel = type.isChannelType()
     return ChatModel(
         id = id,
         title = title,
-        avatarPath = photo?.small?.local?.path?.ifEmpty { null },
+        avatarPath = photo?.small?.local?.path?.takeIf { isValidFilePath(it) },
         unreadCount = unreadCount,
         isMuted = notificationSettings.muteFor > 0,
         isChannel = isChannel,
-        isGroup = type is TdApi.ChatTypeBasicGroup ||
-                (type is TdApi.ChatTypeSupergroup && !isChannel),
-        type = type.toDomain(),
+        isGroup = type.isGroupType(),
+        type = type.toDomainChatType(),
         lastMessageText = (lastMessage?.content as? TdApi.MessageText)?.text?.text ?: ""
     )
 }
@@ -214,7 +211,7 @@ fun ChatMemberStatus.toApi(): TdApi.ChatMemberStatus {
         is ChatMemberStatus.Restricted -> TdApi.ChatMemberStatusRestricted(
             isMember,
             restrictedUntilDate,
-            permissions.toApi()
+            permissions.toTdApiChatPermissions()
         )
         is ChatMemberStatus.Left -> TdApi.ChatMemberStatusLeft()
         is ChatMemberStatus.Banned -> TdApi.ChatMemberStatusBanned(bannedUntilDate)
@@ -222,17 +219,9 @@ fun ChatMemberStatus.toApi(): TdApi.ChatMemberStatus {
     }
 }
 
-private fun TdApi.ChatType.toDomain(): ChatType = when (this) {
-    is TdApi.ChatTypePrivate -> ChatType.PRIVATE
-    is TdApi.ChatTypeBasicGroup -> ChatType.BASIC_GROUP
-    is TdApi.ChatTypeSupergroup -> ChatType.SUPERGROUP
-    is TdApi.ChatTypeSecret -> ChatType.SECRET
-    else -> ChatType.PRIVATE
-}
-
 private fun TdApi.User.resolveAvatarPath(): String? {
-    val big = profilePhoto?.big?.local?.path?.ifEmpty { null }
-    val small = profilePhoto?.small?.local?.path?.ifEmpty { null }
+    val big = profilePhoto?.big?.local?.path?.takeIf { isValidFilePath(it) }
+    val small = profilePhoto?.small?.local?.path?.takeIf { isValidFilePath(it) }
     return big ?: small
 }
 
@@ -289,49 +278,14 @@ private fun TdApi.BusinessInfo.toDomain(): BusinessInfoModel {
             )
         },
         startPage = startPage?.let {
-            BusinessStartPageModel(it.title, it.message, it.sticker?.sticker?.local?.path)
+            BusinessStartPageModel(
+                title = it.title,
+                message = it.message,
+                stickerPath = it.sticker?.sticker?.local?.path?.takeIf { path -> isValidFilePath(path) }
+            )
         },
         nextOpenIn = nextOpenIn,
         nextCloseIn = nextCloseIn
-    )
-}
-
-private fun TdApi.ChatPermissions.toDomain(): ChatPermissionsModel {
-    return ChatPermissionsModel(
-        canSendBasicMessages = canSendBasicMessages,
-        canSendAudios = canSendAudios,
-        canSendDocuments = canSendDocuments,
-        canSendPhotos = canSendPhotos,
-        canSendVideos = canSendVideos,
-        canSendVideoNotes = canSendVideoNotes,
-        canSendVoiceNotes = canSendVoiceNotes,
-        canSendPolls = canSendPolls,
-        canSendOtherMessages = canSendOtherMessages,
-       canAddLinkPreviews = canAddLinkPreviews,
-        canChangeInfo = canChangeInfo,
-        canInviteUsers = canInviteUsers,
-        canPinMessages = canPinMessages,
-       canCreateTopics = canCreateTopics
-    )
-}
-
-private fun ChatPermissionsModel.toApi(): TdApi.ChatPermissions {
-    return TdApi.ChatPermissions(
-        canSendBasicMessages,
-        canSendAudios,
-        canSendDocuments,
-        canSendPhotos,
-        canSendVideos,
-        canSendVideoNotes,
-        canSendVoiceNotes,
-        canSendPolls,
-        canSendOtherMessages,
-        canAddLinkPreviews,
-        canEditTag,
-        canChangeInfo,
-        canInviteUsers,
-        canPinMessages,
-        canCreateTopics
     )
 }
 
@@ -340,9 +294,9 @@ fun TdApi.UserFullInfo.toEntity(userId: Long): UserFullInfoEntity {
     val businessOpeningHours = businessInfo?.openingHours
     val businessStartPage = businessInfo?.startPage
     val birth = birthdate
-    val personalPhotoPath = personalPhoto?.animation?.file?.local?.path?.ifEmpty { null }
+    val personalPhotoPath = personalPhoto?.animation?.file?.local?.path?.takeIf { isValidFilePath(it) }
         ?: (personalPhoto?.sizes?.maxByOrNull { it.width.toLong() * it.height.toLong() }
-            ?: personalPhoto?.sizes?.lastOrNull())?.photo?.local?.path?.ifEmpty { null }
+            ?: personalPhoto?.sizes?.lastOrNull())?.photo?.local?.path?.takeIf { isValidFilePath(it) }
 
     return UserFullInfoEntity(
         userId = userId,

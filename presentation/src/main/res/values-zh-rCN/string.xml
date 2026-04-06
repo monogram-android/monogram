@@ -560,6 +560,7 @@
     <string name="reset_button">重置</string>
     <string name="chat_wallpaper_header">会话壁纸</string>
     <string name="reset_wallpaper_cd">重置壁纸</string>
+    <string name="upload_wallpaper_cd">上传壁纸</string>
     <string name="emoji_style_header">表情风格</string>
     <string name="theme_header">主题</string>
     <string name="night_mode_title">夜间模式</string>

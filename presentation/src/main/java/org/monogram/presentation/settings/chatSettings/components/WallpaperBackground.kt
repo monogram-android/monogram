@@ -5,7 +5,6 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.util.Log
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -14,8 +13,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -23,6 +24,7 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.WallpaperModel
+import org.monogram.domain.models.WallpaperType
 import java.io.File
 
 @Composable
@@ -137,16 +139,31 @@ fun WallpaperBackground(
 
     Box(modifier = modifier) {
         val settings = wallpaper.settings
-
-        val hasColors = remember(settings) {
-            settings?.let {
-                it.backgroundColor != null || it.secondBackgroundColor != null ||
-                        it.thirdBackgroundColor != null || it.fourthBackgroundColor != null
-            } ?: false
+        val wallpaperType = remember(
+            wallpaper.type,
+            wallpaper.pattern,
+            wallpaper.slug,
+            wallpaper.documentId
+        ) {
+            wallpaper.resolveType()
         }
 
-        val isFullImage = remember(wallpaper) {
-            !wallpaper.pattern && !wallpaper.slug.startsWith("emoji") && (wallpaper.documentId != 0L || wallpaper.slug == "built-in")
+        val colors = remember(settings) {
+            listOfNotNull(
+                settings?.backgroundColor?.let { Color(it or 0xFF000000.toInt()) },
+                settings?.secondBackgroundColor?.let { Color(it or 0xFF000000.toInt()) },
+                settings?.thirdBackgroundColor?.let { Color(it or 0xFF000000.toInt()) },
+                settings?.fourthBackgroundColor?.let { Color(it or 0xFF000000.toInt()) }
+            )
+        }
+
+        val hasColors = remember(colors) {
+            colors.isNotEmpty()
+        }
+
+        val isFullImage = remember(wallpaperType, wallpaper.documentId, wallpaper.slug) {
+            wallpaperType == WallpaperType.WALLPAPER &&
+                    (wallpaper.documentId != 0L || wallpaper.slug == "built-in")
         }
 
         val isBackgroundDisabled = remember(isFullImage, hasColors) {
@@ -156,49 +173,21 @@ fun WallpaperBackground(
         val shouldShowBackground = !isBackgroundDisabled || isChatSettings
 
         if (shouldShowBackground) {
-            val colors = remember(settings) {
-                listOfNotNull(
-                    settings?.backgroundColor?.let { Color(it or 0xFF000000.toInt()) },
-                    settings?.secondBackgroundColor?.let { Color(it or 0xFF000000.toInt()) },
-                    settings?.thirdBackgroundColor?.let { Color(it or 0xFF000000.toInt()) },
-                    settings?.fourthBackgroundColor?.let { Color(it or 0xFF000000.toInt()) }
-                )
-            }
-
             val bgMod = Modifier.fillMaxSize()
-            if (colors.isNotEmpty()) {
-                if (colors.size == 1) {
-                    Box(modifier = bgMod.background(colors[0]))
-                } else {
-                    val rotation = settings?.rotation ?: 0
-                    Box(
-                        modifier = bgMod.background(
-                            Brush.linearGradient(
-                                colors = colors,
-                                start = Offset(0f, 0f),
-                                end = when (rotation) {
-                                    45 -> Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-                                    90 -> Offset(Float.POSITIVE_INFINITY, 0f)
-                                    135 -> Offset(Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY)
-                                    180 -> Offset(0f, Float.NEGATIVE_INFINITY)
-                                    225 -> Offset(Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY)
-                                    270 -> Offset(Float.NEGATIVE_INFINITY, 0f)
-                                    315 -> Offset(Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY)
-                                    else -> Offset(0f, Float.POSITIVE_INFINITY)
-                                }
-                            )
-                        )
-                    )
-                }
-            } else {
-                Box(modifier = bgMod.background(MaterialTheme.colorScheme.surface))
-            }
+            val baseColor = colors.firstOrNull() ?: MaterialTheme.colorScheme.surface
+            Box(modifier = bgMod.background(baseColor))
         }
 
-        val imagePath = if (wallpaper.isDownloaded && !wallpaper.localPath.isNullOrEmpty()) {
-            wallpaper.localPath
+        val supportsImageLayer = wallpaperType == WallpaperType.WALLPAPER || wallpaperType == WallpaperType.PATTERN
+
+        val imagePath = if (supportsImageLayer) {
+            if (wallpaper.isDownloaded && !wallpaper.localPath.isNullOrEmpty()) {
+                wallpaper.localPath
+            } else {
+                wallpaper.thumbnail?.localPath
+            }
         } else {
-            wallpaper.thumbnail?.localPath
+            null
         }
 
         if (imagePath != null && File(imagePath).exists()) {
@@ -227,7 +216,7 @@ fun WallpaperBackground(
                     if (animatedBlur > 0f) it.blur((animatedBlur / 4f).dp) else it
                 }
 
-            if (wallpaper.pattern) {
+            if (wallpaperType == WallpaperType.PATTERN) {
                 val intensity = (settings?.intensity ?: 50) / 100f
                 AsyncImage(
                     model = file,
@@ -245,9 +234,6 @@ fun WallpaperBackground(
                     colorFilter = colorFilter
                 )
             }
-        } else if (wallpaper.slug.startsWith("emoji")) {
-            // TODO: Implement rendering with gradient and emojis
-            Log.d("WallpaperBackground", "Emoji wallpaper rendering not implemented for slug: ${wallpaper.slug}")
         } else if (!shouldShowBackground) {
             Box(modifier = Modifier
                 .fillMaxSize()
@@ -264,4 +250,12 @@ fun WallpaperBackground(
             )
         }
     }
+}
+
+private fun WallpaperModel.resolveType(): WallpaperType = when {
+    type == WallpaperType.PATTERN || pattern -> WallpaperType.PATTERN
+    type == WallpaperType.CHAT_THEME || slug.startsWith("emoji") -> WallpaperType.CHAT_THEME
+    type == WallpaperType.FILL -> WallpaperType.FILL
+    documentId != 0L || slug == "built-in" -> WallpaperType.WALLPAPER
+    else -> WallpaperType.FILL
 }

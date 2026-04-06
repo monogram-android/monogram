@@ -9,6 +9,7 @@ import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 import org.monogram.core.DispatcherProvider
+import org.monogram.data.BuildConfig
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.PlayerDataSourceFactoryImpl
@@ -124,7 +125,10 @@ val dataModule = module {
             "monogram_db"
         )
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-            .addMigrations(MonogramMigrations.MIGRATION_26_27)
+            .addMigrations(
+                MonogramMigrations.MIGRATION_26_27,
+                MonogramMigrations.MIGRATION_27_28
+            )
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
@@ -540,6 +544,22 @@ val dataModule = module {
             updates = get(),
             scope = get()
         )
+    }
+
+    single {
+        DataMemoryPressureHandler(
+            chatsListRepository = get(),
+            fileUpdateHandler = get()
+        )
+    }
+
+    if (BuildConfig.DEBUG) {
+        single(createdAtStart = true) {
+            DataMemoryDiagnostics(
+                scope = get(),
+                memoryPressureHandler = get()
+            )
+        }
     }
 
     single {

@@ -1298,6 +1298,12 @@
     <string name="empty_links">No se encontraron enlaces</string>
     <string name="empty_gifs">No se encontraron GIFs</string>
     <string name="label_bot_badge">BOT</string>
+    <string name="label_scam_badge">ESTAFA</string>
+    <string name="label_fake_badge">FALSO</string>
+    <string name="unofficial_app_title">Usa app no oficial</string>
+    <string name="unofficial_app_subtitle">Esta cuenta está usando un cliente no oficial de Telegram</string>
+    <string name="bot_verification_title">Verificación del bot</string>
+    <string name="bot_verification_subtitle">Verificado por un bot de terceros</string>
     <string name="opening_hours_closed">Cerrado</string>
     <string name="label_id">ID</string>
 

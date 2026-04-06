@@ -18,8 +18,8 @@ internal class TdLibClient {
     private val TAG = "TdLibClient"
     private val globalRetryAfterUntilMs = AtomicLong(0L)
     private val _updates = MutableSharedFlow<TdApi.Update>(
-        replay = 10,
-        extraBufferCapacity = 1000,
+        replay = 3,
+        extraBufferCapacity = 64,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 

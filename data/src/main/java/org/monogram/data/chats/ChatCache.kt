@@ -147,10 +147,18 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                 if (user.profilePhoto != null || existing.profilePhoto == null) {
                     existing.profilePhoto = user.profilePhoto
                 }
+                existing.accentColorId = user.accentColorId
+                existing.backgroundCustomEmojiId = user.backgroundCustomEmojiId
+                existing.profileAccentColorId = user.profileAccentColorId
+                existing.profileBackgroundCustomEmojiId = user.profileBackgroundCustomEmojiId
                 existing.emojiStatus = user.emojiStatus
                 existing.isPremium = user.isPremium
                 existing.verificationStatus = user.verificationStatus
                 existing.isSupport = user.isSupport
+                existing.restrictionInfo = user.restrictionInfo
+                existing.activeStoryState = user.activeStoryState
+                existing.restrictsNewChats = user.restrictsNewChats
+                existing.paidMessageStarCount = user.paidMessageStarCount
                 existing.haveAccess = user.haveAccess
                 existing.type = user.type
                 existing.languageCode = user.languageCode

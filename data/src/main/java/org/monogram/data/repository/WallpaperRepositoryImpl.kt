@@ -1,6 +1,7 @@
 package org.monogram.data.repository
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -27,13 +28,16 @@ class WallpaperRepositoryImpl(
     private val scope: CoroutineScope
 ) : WallpaperRepository {
 
-    private val wallpaperUpdates = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val wallpaperUpdates = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     private val wallpapers = MutableStateFlow<List<WallpaperModel>>(emptyList())
 
     init {
         scope.launch {
-            updates.file.collect {
-                wallpaperUpdates.emit(Unit)
+            updates.file.collectLatest {
+                wallpaperUpdates.tryEmit(Unit)
             }
         }
 

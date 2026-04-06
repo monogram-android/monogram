@@ -260,6 +260,8 @@ class OfflineWarmup(
             else -> 0L
         }
 
+        val botType = type as? TdApi.UserTypeBot
+
         return UserEntity(
             id = id,
             firstName = firstName,
@@ -269,18 +271,44 @@ class OfflineWarmup(
             personalAvatarPath = personalAvatarPath,
             isPremium = isPremium,
             isVerified = verificationStatus?.isVerified ?: false,
+            isScam = verificationStatus?.isScam ?: false,
+            isFake = verificationStatus?.isFake ?: false,
+            botVerificationIconCustomEmojiId = verificationStatus?.botVerificationIconCustomEmojiId ?: 0L,
             isSupport = isSupport,
             isContact = isContact,
             isMutualContact = isMutualContact,
             isCloseFriend = isCloseFriend,
+            botTypeCanBeEdited = botType?.canBeEdited ?: false,
+            botTypeCanJoinGroups = botType?.canJoinGroups ?: false,
+            botTypeCanReadAllGroupMessages = botType?.canReadAllGroupMessages ?: false,
+            botTypeHasMainWebApp = botType?.hasMainWebApp ?: false,
+            botTypeHasTopics = botType?.hasTopics ?: false,
+            botTypeAllowsUsersToCreateTopics = botType?.allowsUsersToCreateTopics ?: false,
+            botTypeCanManageBots = botType?.canManageBots ?: false,
+            botTypeIsInline = botType?.isInline ?: false,
+            botTypeInlineQueryPlaceholder = botType?.inlineQueryPlaceholder?.ifEmpty { null },
+            botTypeNeedLocation = botType?.needLocation ?: false,
+            botTypeCanConnectToBusiness = botType?.canConnectToBusiness ?: false,
+            botTypeCanBeAddedToAttachmentMenu = botType?.canBeAddedToAttachmentMenu ?: false,
+            botTypeActiveUserCount = botType?.activeUserCount ?: 0,
+            userType = type.toTypeString(),
+            restrictionReason = restrictionInfo?.restrictionReason?.ifEmpty { null },
+            hasSensitiveContent = restrictionInfo?.hasSensitiveContent ?: false,
+            activeStoryStateType = activeStoryState.toTypeString(),
+            activeStoryId = (activeStoryState as? TdApi.ActiveStoryStateLive)?.storyId ?: 0,
+            restrictsNewChats = restrictsNewChats,
+            paidMessageStarCount = paidMessageStarCount,
             haveAccess = haveAccess,
             username = usernames?.activeUsernames?.firstOrNull(),
             usernamesData = usernamesData,
             statusType = statusType,
             accentColorId = accentColorId,
+            backgroundCustomEmojiId = backgroundCustomEmojiId,
             profileAccentColorId = profileAccentColorId,
+            profileBackgroundCustomEmojiId = profileBackgroundCustomEmojiId,
             statusEmojiId = statusEmojiId,
             languageCode = languageCode.ifEmpty { null },
+            addedToAttachmentMenu = addedToAttachmentMenu,
             lastSeen = (status as? TdApi.UserStatusOffline)?.wasOnline?.toLong() ?: 0L,
             createdAt = System.currentTimeMillis()
         )
@@ -291,6 +319,24 @@ class OfflineWarmup(
             ?: personalPhoto?.sizes?.lastOrNull()
         return personalPhoto?.animation?.file?.local?.path?.ifEmpty { null }
             ?: bestPhotoSize?.photo?.local?.path?.ifEmpty { null }
+    }
+
+    private fun TdApi.ActiveStoryState?.toTypeString(): String? {
+        return when (this) {
+            is TdApi.ActiveStoryStateLive -> "LIVE"
+            is TdApi.ActiveStoryStateUnread -> "UNREAD"
+            is TdApi.ActiveStoryStateRead -> "READ"
+            else -> null
+        }
+    }
+
+    private fun TdApi.UserType?.toTypeString(): String {
+        return when (this) {
+            is TdApi.UserTypeRegular -> "REGULAR"
+            is TdApi.UserTypeBot -> "BOT"
+            is TdApi.UserTypeDeleted -> "DELETED"
+            else -> "UNKNOWN"
+        }
     }
 
     private companion object {

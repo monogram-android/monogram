@@ -12,6 +12,7 @@ import org.koin.core.context.startKoin
 import org.maplibre.android.MapLibre
 import org.maplibre.android.WellKnownTileServer
 import org.monogram.app.di.appModule
+import org.monogram.data.infra.DataMemoryPressureHandler
 import org.monogram.domain.managers.DistrManager
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.PushProvider
@@ -31,6 +32,19 @@ class App : Application(), SingletonImageLoader.Factory {
         initKoin()
         initMapLibre()
         checkPushAvailability()
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_RUNNING_LOW) {
+            trimInMemoryCaches("onTrimMemory:$level")
+        }
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        trimInMemoryCaches("onLowMemory")
     }
 
     private fun initCrashHandler() {
@@ -79,7 +93,26 @@ class App : Application(), SingletonImageLoader.Factory {
         }
     }
 
+    private fun trimInMemoryCaches(reason: String) {
+        if (!::container.isInitialized) return
+        runCatching {
+            get<DataMemoryPressureHandler>().clearDataCaches(reason)
+        }.onFailure { error ->
+            Log.w(TAG, "Failed to clear data caches for $reason", error)
+        }
+
+        runCatching {
+            get<ImageLoader>().memoryCache?.clear()
+        }.onFailure { error ->
+            Log.w(TAG, "Failed to clear Coil memory cache for $reason", error)
+        }
+    }
+
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         return get<ImageLoader>()
+    }
+
+    companion object {
+        private const val TAG = "App"
     }
 }

@@ -1,23 +1,57 @@
 package org.monogram.app.components
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.window.layout.FoldingFeature
+import androidx.window.layout.WindowLayoutInfo
 import com.arkivanov.decompose.router.stack.ChildStack
 import org.monogram.app.R
 import org.monogram.presentation.root.RootComponent
 
 @Composable
-fun TabletLayout(root: RootComponent, childStack: ChildStack<*, RootComponent.Child>) {
+fun TabletLayout(
+    childStack: ChildStack<*, RootComponent.Child>,
+    windowLayoutInfo: WindowLayoutInfo?
+) {
     val activeChild = childStack.active.instance
     val isSettings = isSettingsSelected(childStack)
+    val density = LocalDensity.current
+    val windowInfo = LocalWindowInfo.current
+    val screenWidthDp = with(density) { windowInfo.containerSize.width.toDp() }
+
+    val foldingFeature = windowLayoutInfo?.displayFeatures
+        ?.filterIsInstance<FoldingFeature>()
+        ?.find { it.orientation == FoldingFeature.Orientation.VERTICAL }
+
+    val targetListWidth = remember(foldingFeature, screenWidthDp) {
+        if (foldingFeature != null && foldingFeature.isSeparating) {
+            val hingeBounds = foldingFeature.bounds
+            if (hingeBounds.left > 0) {
+                with(density) { hingeBounds.left.toDp() }
+            } else {
+                screenWidthDp / 2
+            }
+        } else {
+            350.dp
+        }
+    }
+
+    val animatedWidth by animateDpAsState(
+        targetValue = targetListWidth,
+        animationSpec = tween(durationMillis = 500),
+        label = "ListPaneWidth"
+    )
 
     val listChild = remember(childStack) {
         val settingsChild = childStack.backStack.find {
@@ -37,7 +71,7 @@ fun TabletLayout(root: RootComponent, childStack: ChildStack<*, RootComponent.Ch
     Row(Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
-                .width(350.dp)
+                .width(animatedWidth)
                 .fillMaxHeight(),
         ) {
             if (listChild != null) {

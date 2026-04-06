@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -30,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.UserModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.AvatarHeader
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
@@ -45,6 +48,9 @@ fun ProfileHeaderTransformed(
     isOnline: Boolean,
     isVerified: Boolean,
     isSponsor: Boolean,
+    isBot: Boolean,
+    isScam: Boolean,
+    isFake: Boolean,
     statusEmojiPath: String?,
     progress: Float,
     contentPadding: PaddingValues,
@@ -149,23 +155,49 @@ fun ProfileHeaderTransformed(
                             )
                         }
 
-                        userModel?.let { user ->
-                            if (!user.statusEmojiPath.isNullOrEmpty()) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                StickerImage(
-                                    path = user.statusEmojiPath,
-                                    modifier = Modifier.size(26.dp),
-                                    animate = false
-                                )
-                            } else if (user.isPremium) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(28.dp),
-                                    tint = Color(0xFF31A6FD)
-                                )
-                            }
+                        val displayedStatusEmojiPath = statusEmojiPath ?: userModel?.statusEmojiPath
+                        if (!displayedStatusEmojiPath.isNullOrEmpty()) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            StickerImage(
+                                path = displayedStatusEmojiPath,
+                                modifier = Modifier.size(26.dp),
+                                animate = false
+                            )
+                        } else if (userModel?.isPremium == true) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = Color(0xFF31A6FD)
+                            )
+                        }
+
+                        if (isBot) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            HeaderStatusBadge(
+                                text = stringResource(R.string.label_bot_badge),
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+
+                        if (isScam) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            HeaderStatusBadge(
+                                text = stringResource(R.string.label_scam_badge),
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+
+                        if (isFake) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            HeaderStatusBadge(
+                                text = stringResource(R.string.label_fake_badge),
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            )
                         }
                     }
 
@@ -199,6 +231,25 @@ fun ProfileHeaderTransformed(
                         topEnd = (30 * progress).dp
                     )
                 )
+        )
+    }
+}
+
+@Composable
+private fun HeaderStatusBadge(
+    text: String,
+    containerColor: Color,
+    contentColor: Color
+) {
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
         )
     }
 }

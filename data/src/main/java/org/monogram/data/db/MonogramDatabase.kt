@@ -25,7 +25,7 @@ import org.monogram.data.db.model.*
         SponsorEntity::class,
         TextCompositionStyleEntity::class
     ],
-    version = 27,
+    version = 28,
     exportSchema = false
 )
 abstract class MonogramDatabase : RoomDatabase() {

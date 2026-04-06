@@ -4,7 +4,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
@@ -58,22 +59,22 @@ class ProfilePhotoRepositoryImpl(
         return listOfNotNull(currentPath)
     }
 
-    override fun getUserProfilePhotosFlow(userId: Long): Flow<List<String>> = flow {
+    override fun getUserProfilePhotosFlow(userId: Long): Flow<List<String>> = channelFlow {
         if (userId <= 0) {
-            emit(emptyList())
-            return@flow
+            send(emptyList())
+            return@channelFlow
         }
-        emit(getUserProfilePhotos(userId))
-        updates.file.collect { emit(getUserProfilePhotos(userId)) }
+        send(getUserProfilePhotos(userId))
+        updates.file.collectLatest { send(getUserProfilePhotos(userId)) }
     }
 
-    override fun getChatProfilePhotosFlow(chatId: Long): Flow<List<String>> = flow {
+    override fun getChatProfilePhotosFlow(chatId: Long): Flow<List<String>> = channelFlow {
         if (chatId == 0L) {
-            emit(emptyList())
-            return@flow
+            send(emptyList())
+            return@channelFlow
         }
-        emit(getChatProfilePhotos(chatId))
-        updates.file.collect { emit(getChatProfilePhotos(chatId)) }
+        send(getChatProfilePhotos(chatId))
+        updates.file.collectLatest { send(getChatProfilePhotos(chatId)) }
     }
 
     private suspend fun loadChatPhotoHistoryPaths(

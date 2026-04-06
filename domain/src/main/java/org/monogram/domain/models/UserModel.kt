@@ -14,6 +14,9 @@ data class UserModel(
     val lastSeen: Long = 0L,
     val isPremium: Boolean = false,
     val isVerified: Boolean = false,
+    val isScam: Boolean = false,
+    val isFake: Boolean = false,
+    val botVerificationIconCustomEmojiId: Long = 0L,
     val isSponsor: Boolean = false,
     val isSupport: Boolean = false,
     val userStatus: UserStatusType = UserStatusType.OFFLINE,
@@ -23,8 +26,16 @@ data class UserModel(
     val isMutualContact: Boolean = false,
     val isCloseFriend: Boolean = false,
     val type: UserTypeEnum = UserTypeEnum.REGULAR,
+    val botTypeInfo: UserTypeBotInfoModel? = null,
+    val restrictionInfo: RestrictionInfoModel? = null,
+    val activeStoryState: ActiveStoryStateModel? = null,
+    val restrictsNewChats: Boolean = false,
+    val paidMessageStarCount: Long = 0L,
     val haveAccess: Boolean = true,
-    val languageCode: String? = null
+    val languageCode: String? = null,
+    val backgroundCustomEmojiId: Long = 0L,
+    val profileBackgroundCustomEmojiId: Long = 0L,
+    val addedToAttachmentMenu: Boolean = false
 )
 
 enum class UserStatusType {

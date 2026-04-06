@@ -20,6 +20,7 @@ import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.ConnectionManager
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.infra.FileUpdateHandler
+import org.monogram.data.infra.SynchronizedLruMap
 import org.monogram.data.mapper.ChatMapper
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.domain.models.ChatModel
@@ -194,7 +195,7 @@ class ChatsListRepositoryImpl(
     private val initialChatListLimit = 50
     private var currentLimit = initialChatListLimit
 
-    private val modelCache = ConcurrentHashMap<Long, ChatModel>()
+    private val modelCache = SynchronizedLruMap<Long, ChatModel>(MODEL_CACHE_SIZE)
     private val invalidatedModels = ConcurrentHashMap.newKeySet<Long>()
     private var lastList: List<ChatModel>? = null
     private var lastListFolderId: Int = -1
@@ -701,6 +702,23 @@ class ChatsListRepositoryImpl(
         }
     }
 
+    fun clearMemoryCaches() {
+        modelCache.clear()
+        invalidatedModels.clear()
+    }
+
+    fun memoryCacheSnapshot(): MemoryCacheSnapshot {
+        return MemoryCacheSnapshot(
+            modelCacheSize = modelCache.size(),
+            invalidatedModelsSize = invalidatedModels.size
+        )
+    }
+
+    data class MemoryCacheSnapshot(
+        val modelCacheSize: Int,
+        val invalidatedModelsSize: Int
+    )
+
     private fun fetchUser(userId: Long) {
         if (userId == 0L) return
         if (cache.pendingUsers.add(userId)) {
@@ -731,5 +749,6 @@ class ChatsListRepositoryImpl(
     companion object {
         private const val TAG = "ChatsListRepository"
         private const val REBUILD_THROTTLE_MS = 250L
+        private const val MODEL_CACHE_SIZE = 256
     }
 }

@@ -1260,6 +1260,12 @@
     <string name="empty_links">Посилань не знайдено</string>
     <string name="empty_gifs">GIF не знайдено</string>
     <string name="label_bot_badge">БОТ</string>
+    <string name="label_scam_badge">ШАХРАЙСТВО</string>
+    <string name="label_fake_badge">ФЕЙК</string>
+    <string name="unofficial_app_title">Використовує неофіційний застосунок</string>
+    <string name="unofficial_app_subtitle">Цей акаунт використовує неофіційний клієнт Telegram</string>
+    <string name="bot_verification_title">Перевірка бота</string>
+    <string name="bot_verification_subtitle">Підтверджено стороннім ботом</string>
     <string name="opening_hours_closed">Зачинено</string>
     <string name="label_id">ID</string>
 

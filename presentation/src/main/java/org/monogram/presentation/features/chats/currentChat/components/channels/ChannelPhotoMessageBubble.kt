@@ -34,6 +34,7 @@ import coil3.request.crossfade
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.components.chats.*
 
@@ -86,6 +87,9 @@ fun ChannelPhotoMessageBubble(
 
     var stablePath by remember(msg.id) { mutableStateOf(content.path) }
     val hasPath = !stablePath.isNullOrBlank()
+    val photoCacheKey = remember(stablePath, content.fileId) {
+        namespacedCacheKey("channel_photo:${content.fileId}", stablePath)
+    }
     var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
     var isFullImageReady by remember(msg.id) { mutableStateOf(false) }
     val mediaAlpha by animateFloatAsState(
@@ -203,6 +207,12 @@ fun ChannelPhotoMessageBubble(
                                 AsyncImage(
                                     model = ImageRequest.Builder(context)
                                         .data(stablePath)
+                                        .apply {
+                                            photoCacheKey?.let {
+                                                memoryCacheKey(it)
+                                                diskCacheKey(it)
+                                            }
+                                        }
                                         .crossfade(true)
                                         .build(),
                                     contentDescription = content.caption,

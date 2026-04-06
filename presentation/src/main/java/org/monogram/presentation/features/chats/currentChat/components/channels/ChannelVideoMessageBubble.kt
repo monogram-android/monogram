@@ -37,9 +37,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
@@ -100,6 +103,12 @@ fun ChannelVideoMessageBubble(
 
     var stablePath by remember(msg.id) { mutableStateOf(content.path) }
     val hasPath = !stablePath.isNullOrBlank()
+    val videoCacheKey = remember(stablePath, content.fileId) {
+        namespacedCacheKey("channel_video:${content.fileId}", stablePath)
+    }
+    val videoMiniCacheKey = remember(content.minithumbnail, content.fileId) {
+        content.minithumbnail?.let { namespacedCacheKey("channel_video_mini:${content.fileId}", it) }
+    }
     var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
     val hasCaption = content.caption.isNotEmpty()
 
@@ -233,7 +242,18 @@ fun ChannelVideoMessageBubble(
                             } else {
                                 if (hasPath) {
                                     Image(
-                                        painter = rememberAsyncImagePainter(stablePath),
+                                        painter = rememberAsyncImagePainter(
+                                            model = ImageRequest.Builder(context)
+                                                .data(stablePath)
+                                                .apply {
+                                                    videoCacheKey?.let {
+                                                        memoryCacheKey(it)
+                                                        diskCacheKey(it)
+                                                    }
+                                                }
+                                                .crossfade(true)
+                                                .build()
+                                        ),
                                         contentDescription = null,
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Fit
@@ -241,7 +261,17 @@ fun ChannelVideoMessageBubble(
                                 } else {
                                     if (content.minithumbnail != null) {
                                         Image(
-                                            painter = rememberAsyncImagePainter(content.minithumbnail),
+                                            painter = rememberAsyncImagePainter(
+                                                model = ImageRequest.Builder(context)
+                                                    .data(content.minithumbnail)
+                                                    .apply {
+                                                        videoMiniCacheKey?.let {
+                                                            memoryCacheKey(it)
+                                                            diskCacheKey(it)
+                                                        }
+                                                    }
+                                                    .build()
+                                            ),
                                             contentDescription = null,
                                             modifier = Modifier
                                                 .fillMaxSize()

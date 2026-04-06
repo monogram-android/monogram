@@ -10,12 +10,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.CircularWavyProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -23,9 +20,12 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
+import org.monogram.presentation.core.util.namespacedCacheKey
 
 @Composable
 fun MediaLoadingBackground(
@@ -34,6 +34,10 @@ fun MediaLoadingBackground(
     modifier: Modifier = Modifier,
     previewBlur: Dp = 10.dp
 ) {
+    val context = LocalContext.current
+    val previewCacheKey = remember(previewData) {
+        namespacedCacheKey("media_loading_preview", previewData)
+    }
     val pulse = rememberInfiniteTransition(label = "MediaLoadingPulse")
     val pulseAlpha = pulse.animateFloat(
         initialValue = 0.06f,
@@ -53,7 +57,17 @@ fun MediaLoadingBackground(
     ) {
         if (previewData != null) {
             Image(
-                painter = rememberAsyncImagePainter(previewData),
+                painter = rememberAsyncImagePainter(
+                    model = ImageRequest.Builder(context)
+                        .data(previewData)
+                        .apply {
+                            previewCacheKey?.let {
+                                memoryCacheKey(it)
+                                diskCacheKey(it)
+                            }
+                        }
+                        .build()
+                ),
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()

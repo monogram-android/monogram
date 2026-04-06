@@ -288,8 +288,7 @@ val dataModule = module {
             gateway = get(),
             userRepository = get(),
             chatInfoRepository = get(),
-            customEmojiPaths = get<FileUpdateHandler>().customEmojiPaths,
-            fileIdToCustomEmojiId = get<FileUpdateHandler>().fileIdToCustomEmojiId,
+            fileUpdateHandler = get(),
             fileApi = get(),
             appPreferences = get(),
             cache = get(),
@@ -329,6 +328,7 @@ val dataModule = module {
             chatFolderDao = get(),
             userFullInfoDao = get(),
             fileQueue = get(),
+            fileUpdateHandler = get(),
             stringProvider = get()
         )
     }
@@ -421,6 +421,7 @@ val dataModule = module {
             cache = get(),
             pollRepository = get(),
             fileDownloadQueue = get(),
+            fileUpdateHandler = get(),
             dispatcherProvider = get(),
             scopeProvider = get()
         )

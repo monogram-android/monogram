@@ -24,6 +24,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.monogram.domain.models.WebPage
+import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.viewers.extractYouTubeId
 
 @Composable
@@ -209,6 +210,8 @@ private fun LinkPreviewTextContent(
 private fun LinkPreviewSmallImage(webPage: WebPage) {
     val photo = webPage.photo
     val context = LocalContext.current
+    val modelData = remember(photo) { photo?.path ?: photo?.minithumbnail }
+    val cacheKey = remember(modelData) { namespacedCacheKey("link_preview_small", modelData) }
 
     Box(
         modifier = Modifier
@@ -218,7 +221,13 @@ private fun LinkPreviewSmallImage(webPage: WebPage) {
     ) {
         AsyncImage(
             model = ImageRequest.Builder(context)
-                .data(photo?.path ?: photo?.minithumbnail)
+                .data(modelData)
+                .apply {
+                    cacheKey?.let {
+                        memoryCacheKey(it)
+                        diskCacheKey(it)
+                    }
+                }
                 .crossfade(true)
                 .build(),
             contentDescription = null,
@@ -262,10 +271,17 @@ private fun LinkPreviewLargeMedia(
                 photo?.path ?: photo?.minithumbnail ?: video?.path
             }
         }
+        val cacheKey = remember(modelData) { namespacedCacheKey("link_preview_large", modelData) }
 
         AsyncImage(
             model = ImageRequest.Builder(context)
                 .data(modelData)
+                .apply {
+                    cacheKey?.let {
+                        memoryCacheKey(it)
+                        diskCacheKey(it)
+                    }
+                }
                 .crossfade(true)
                 .build(),
             contentDescription = null,

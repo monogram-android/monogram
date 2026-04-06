@@ -1,12 +1,13 @@
 package org.monogram.data.chats
 
-import org.monogram.data.core.coRunCatching
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
 import org.monogram.core.ScopeProvider
+import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
+import org.monogram.data.infra.FileUpdateHandler
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -15,6 +16,7 @@ class ChatFileManager(
     private val gateway: TelegramGateway,
     private val dispatchers: DispatcherProvider,
     private val fileQueue: FileDownloadQueue,
+    private val fileUpdateHandler: FileUpdateHandler,
     scopeProvider: ScopeProvider,
     private val onUpdate: () -> Unit
 ) {
@@ -23,13 +25,11 @@ class ChatFileManager(
     private val downloadingFiles: MutableSet<Int> = Collections.newSetFromMap(ConcurrentHashMap())
     private val loadingEmojis: MutableSet<Long> = Collections.newSetFromMap(ConcurrentHashMap())
     private val filePaths = ConcurrentHashMap<Int, String>()
-    private val emojiPathsCache = ConcurrentHashMap<Long, String>()
-    private val fileIdToEmojiId = ConcurrentHashMap<Int, Long>()
     private val chatPhotoIds = ConcurrentHashMap<Int, Long>()
     private val trackedFileIds = Collections.newSetFromMap(ConcurrentHashMap<Int, Boolean>())
 
     fun getFilePath(fileId: Int): String? = filePaths[fileId]
-    fun getEmojiPath(emojiId: Long): String? = emojiPathsCache[emojiId]
+    fun getEmojiPath(emojiId: Long): String? = fileUpdateHandler.customEmojiPaths[emojiId]
     fun getChatIdByPhotoId(fileId: Int): Long? = chatPhotoIds[fileId]
 
     fun registerChatPhoto(fileId: Int, chatId: Long) {
@@ -51,8 +51,8 @@ class ChatFileManager(
     private fun handleFileUpdated(fileId: Int, path: String): Boolean {
         if (path.isEmpty()) return false
         var updated = false
-        fileIdToEmojiId[fileId]?.let { emojiId ->
-            emojiPathsCache[emojiId] = path
+        fileUpdateHandler.fileIdToCustomEmojiId[fileId]?.let { emojiId ->
+            fileUpdateHandler.customEmojiPaths[emojiId] = path
             updated = true
         }
         if (chatPhotoIds.containsKey(fileId)) updated = true
@@ -74,7 +74,7 @@ class ChatFileManager(
     }
 
     fun loadEmoji(emojiId: Long) {
-        if (emojiId == 0L || emojiPathsCache.containsKey(emojiId)) return
+        if (emojiId == 0L || fileUpdateHandler.customEmojiPaths.containsKey(emojiId)) return
         if (loadingEmojis.add(emojiId)) {
             scope.launch(dispatchers.io) {
                 coRunCatching {
@@ -82,9 +82,9 @@ class ChatFileManager(
                     val sticker = result.stickers.firstOrNull() ?: return@launch
                     val file = sticker.sticker
                     val path = file.local.path.ifEmpty { filePaths[file.id] ?: "" }
-                    fileIdToEmojiId[file.id] = emojiId
+                    fileUpdateHandler.fileIdToCustomEmojiId[file.id] = emojiId
                     if (path.isNotEmpty()) {
-                        emojiPathsCache[emojiId] = path
+                        fileUpdateHandler.customEmojiPaths[emojiId] = path
                         onUpdate()
                     } else {
                         downloadFile(file.id, 32)

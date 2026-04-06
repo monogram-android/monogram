@@ -23,6 +23,7 @@ import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.ConnectionManager
 import org.monogram.data.infra.FileDownloadQueue
+import org.monogram.data.infra.FileUpdateHandler
 import org.monogram.data.mapper.ChatMapper
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.domain.models.ChatModel
@@ -53,6 +54,7 @@ class ChatsListRepositoryImpl(
     private val chatFolderDao: ChatFolderDao,
     private val userFullInfoDao: UserFullInfoDao,
     private val fileQueue: FileDownloadQueue,
+    private val fileUpdateHandler: FileUpdateHandler,
     private val stringProvider: StringProvider
 ) : ChatListRepository,
     ChatFolderRepository,
@@ -96,6 +98,7 @@ class ChatsListRepositoryImpl(
         dispatchers = dispatchers,
         scopeProvider = scopeProvider,
         fileQueue = fileQueue,
+        fileUpdateHandler = fileUpdateHandler,
         onUpdate = {
             triggerUpdate()
             refreshActiveForumTopics()

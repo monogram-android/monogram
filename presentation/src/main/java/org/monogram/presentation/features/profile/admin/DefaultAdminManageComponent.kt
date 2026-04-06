@@ -4,9 +4,9 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.launch
+import org.monogram.domain.repository.ChatInfoRepository
+import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.ChatMemberStatus
-import org.monogram.domain.repository.ChatsListRepository
-import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -17,8 +17,8 @@ class DefaultAdminManageComponent(
     private val onBackClicked: () -> Unit
 ) : AdminManageComponent, AppComponentContext by context {
 
-    private val userRepository: UserRepository = container.repositories.userRepository
-    private val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
+    private val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
+    private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
 
     private val scope = componentScope
     private val _state = MutableValue(AdminManageComponent.State(chatId = chatId, userId = userId))
@@ -32,8 +32,8 @@ class DefaultAdminManageComponent(
         scope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val chat = chatsListRepository.getChatById(chatId)
-                val member = userRepository.getChatMember(chatId, userId)
+                val chat = chatListRepository.getChatById(chatId)
+                val member = chatInfoRepository.getChatMember(chatId, userId)
                 val initialStatus = when (val status = member?.status) {
                     is ChatMemberStatus.Administrator -> status
                     is ChatMemberStatus.Creator -> ChatMemberStatus.Administrator(
@@ -84,7 +84,7 @@ class DefaultAdminManageComponent(
         _state.update { it.copy(isLoading = true) }
         scope.launch {
             try {
-                userRepository.setChatMemberStatus(chatId, userId, status)
+                chatInfoRepository.setChatMemberStatus(chatId, userId, status)
                 onBackClicked()
             } catch (e: Exception) {
                 e.printStackTrace()

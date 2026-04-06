@@ -29,15 +29,41 @@ class KoinPreferencesContainer(private val koin: Koin) : PreferencesContainer {
 
 class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer {
     override val authRepository: AuthRepository by lazy { koin.get() }
-    override val chatsListRepository: ChatsListRepository by lazy { koin.get() }
+    override val chatListRepository: ChatListRepository by lazy { koin.get() }
+    override val chatFolderRepository: ChatFolderRepository by lazy { koin.get() }
+    override val chatOperationsRepository: ChatOperationsRepository by lazy { koin.get() }
+    override val chatSearchRepository: ChatSearchRepository by lazy { koin.get() }
+    override val forumTopicsRepository: ForumTopicsRepository by lazy { koin.get() }
+    override val chatSettingsRepository: ChatSettingsRepository by lazy { koin.get() }
+    override val chatCreationRepository: ChatCreationRepository by lazy { koin.get() }
     override val messageRepository: MessageRepository by lazy { koin.get() }
+    override val inlineBotRepository: InlineBotRepository by lazy { koin.get() }
+    override val chatEventLogRepository: ChatEventLogRepository by lazy { koin.get() }
+    override val messageAiRepository: MessageAiRepository by lazy { koin.get() }
+    override val paymentRepository: PaymentRepository by lazy { koin.get() }
+    override val fileRepository: FileRepository by lazy { koin.get() }
+    override val webAppRepository: WebAppRepository by lazy { koin.get() }
     override val userRepository: UserRepository by lazy { koin.get() }
-    override val settingsRepository: SettingsRepository by lazy { koin.get() }
+    override val userProfileEditRepository: UserProfileEditRepository by lazy { koin.get() }
+    override val profilePhotoRepository: ProfilePhotoRepository by lazy { koin.get() }
+    override val chatInfoRepository: ChatInfoRepository by lazy { koin.get() }
+    override val premiumRepository: PremiumRepository by lazy { koin.get() }
+    override val botRepository: BotRepository by lazy { koin.get() }
+    override val chatStatisticsRepository: ChatStatisticsRepository by lazy { koin.get() }
+    override val sponsorRepository: SponsorRepository by lazy { koin.get() }
+    override val notificationSettingsRepository: NotificationSettingsRepository by lazy { koin.get() }
+    override val sessionRepository: SessionRepository by lazy { koin.get() }
+    override val wallpaperRepository: WallpaperRepository by lazy { koin.get() }
+    override val storageRepository: StorageRepository by lazy { koin.get() }
+    override val networkStatisticsRepository: NetworkStatisticsRepository by lazy { koin.get() }
+    override val attachMenuBotRepository: AttachMenuBotRepository by lazy { koin.get() }
     override val locationRepository: LocationRepository by lazy { koin.get() }
     override val privacyRepository: PrivacyRepository by lazy { koin.get() }
     override val linkHandlerRepository: LinkHandlerRepository by lazy { koin.get() }
     override val externalProxyRepository: ExternalProxyRepository by lazy { koin.get() }
     override val stickerRepository: StickerRepository by lazy { koin.get() }
+    override val gifRepository: GifRepository by lazy { koin.get() }
+    override val emojiRepository: EmojiRepository by lazy { koin.get() }
     override val updateRepository: UpdateRepository by lazy { koin.get() }
 }
 

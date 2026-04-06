@@ -532,7 +532,9 @@ class ChatMapper(private val stringProvider: StringProvider) {
                 is TdApi.TextEntityTypePhoneNumber -> MessageEntityType.PhoneNumber
                 is TdApi.TextEntityTypeBankCardNumber -> MessageEntityType.BankCardNumber
                 is TdApi.TextEntityTypeCustomEmoji -> MessageEntityType.CustomEmoji((entity.type as TdApi.TextEntityTypeCustomEmoji).customEmojiId)
-                else -> MessageEntityType.Other
+                is TdApi.TextEntityTypeBlockQuote -> MessageEntityType.BlockQuote
+                is TdApi.TextEntityTypeExpandableBlockQuote -> MessageEntityType.BlockQuoteExpandable
+                else -> MessageEntityType.Other(entity.type.javaClass.simpleName)
             }
         )
     }

@@ -9,11 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material3.CircularWavyProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +32,7 @@ import coil3.request.crossfade
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -71,6 +68,9 @@ fun PhotoMessageBubble(
 
     var stablePath by remember(msg.id, content.fileId) { mutableStateOf(content.path) }
     val hasPath = !stablePath.isNullOrBlank()
+    val photoCacheKey = remember(stablePath, content.fileId) {
+        namespacedCacheKey("chat_photo:${content.fileId}", stablePath)
+    }
     var isFullImageReady by remember(msg.id, content.fileId) { mutableStateOf(false) }
     val mediaAlpha by animateFloatAsState(
         targetValue = if (hasPath && isFullImageReady) 1f else 0f,
@@ -222,6 +222,12 @@ fun PhotoMessageBubble(
                             AsyncImage(
                                 model = ImageRequest.Builder(context)
                                     .data(stablePath)
+                                    .apply {
+                                        photoCacheKey?.let {
+                                            memoryCacheKey(it)
+                                            diskCacheKey(it)
+                                        }
+                                    }
                                     .crossfade(true)
                                     .build(),
                                 contentDescription = content.caption,

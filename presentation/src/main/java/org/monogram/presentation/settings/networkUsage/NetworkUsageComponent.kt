@@ -5,7 +5,7 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.NetworkUsageModel
-import org.monogram.domain.repository.SettingsRepository
+import org.monogram.domain.repository.NetworkStatisticsRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -27,7 +27,8 @@ class DefaultNetworkUsageComponent(
     private val onBack: () -> Unit
 ) : NetworkUsageComponent, AppComponentContext by context {
 
-    private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
+    private val networkStatisticsRepository: NetworkStatisticsRepository =
+        container.repositories.networkStatisticsRepository
     private val _state = MutableValue(NetworkUsageComponent.State())
     override val state: Value<NetworkUsageComponent.State> = _state
     private val scope = componentScope
@@ -39,8 +40,8 @@ class DefaultNetworkUsageComponent(
     private fun loadStatistics() {
         _state.update { it.copy(isLoading = true) }
         scope.launch {
-            val isEnabled = settingsRepository.getNetworkStatisticsEnabled()
-            val usage = if (isEnabled) settingsRepository.getNetworkUsage() else null
+            val isEnabled = networkStatisticsRepository.getNetworkStatisticsEnabled()
+            val usage = if (isEnabled) networkStatisticsRepository.getNetworkUsage() else null
             _state.update { it.copy(usage = usage, isLoading = false, isNetworkStatsEnabled = isEnabled) }
         }
     }
@@ -51,7 +52,7 @@ class DefaultNetworkUsageComponent(
 
     override fun onResetClicked() {
         scope.launch {
-            val success = settingsRepository.resetNetworkStatistics()
+            val success = networkStatisticsRepository.resetNetworkStatistics()
             if (success) {
                 loadStatistics()
             }
@@ -60,9 +61,9 @@ class DefaultNetworkUsageComponent(
 
     override fun onToggleNetworkStats(enabled: Boolean) {
         scope.launch {
-            settingsRepository.setNetworkStatisticsEnabled(enabled)
+            networkStatisticsRepository.setNetworkStatisticsEnabled(enabled)
             if (!enabled) {
-                settingsRepository.resetNetworkStatistics()
+                networkStatisticsRepository.resetNetworkStatistics()
             }
             _state.update { it.copy(isNetworkStatsEnabled = enabled) }
             if (enabled) {

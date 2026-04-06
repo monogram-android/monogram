@@ -32,9 +32,9 @@ import org.monogram.data.service.NotificationDismissReceiver
 import org.monogram.data.service.NotificationReadReceiver
 import org.monogram.data.service.NotificationReplyReceiver
 import org.monogram.domain.repository.AppPreferencesProvider
+import org.monogram.domain.repository.NotificationSettingsRepository
+import org.monogram.domain.repository.NotificationSettingsRepository.TdNotificationScope
 import org.monogram.domain.repository.PushProvider
-import org.monogram.domain.repository.SettingsRepository
-import org.monogram.domain.repository.SettingsRepository.TdNotificationScope
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.min
 
@@ -42,7 +42,7 @@ class TdNotificationManager(
     private val context: Context,
     private val gateway: TelegramGateway,
     private val appPreferences: AppPreferencesProvider,
-    private val settingsRepository: SettingsRepository,
+    private val notificationSettingsRepository: NotificationSettingsRepository,
     private val notificationSettingDao: NotificationSettingDao,
     private val fileQueue: FileDownloadQueue
 ) {
@@ -246,7 +246,7 @@ class TdNotificationManager(
         )
 
         scopes.forEach { (key, scope) ->
-            val enabled = coRunCatching { settingsRepository.getNotificationSettings(scope) }
+            val enabled = coRunCatching { notificationSettingsRepository.getNotificationSettings(scope) }
                 .getOrDefault(false)
 
             scopeNotificationsEnabled[key] = enabled

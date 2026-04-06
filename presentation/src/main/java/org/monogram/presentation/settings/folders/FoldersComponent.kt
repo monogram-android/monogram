@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.FolderModel
-import org.monogram.domain.repository.ChatsListRepository
+import org.monogram.domain.repository.ChatFolderRepository
+import org.monogram.domain.repository.ChatListRepository
+import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -39,7 +41,9 @@ class DefaultFoldersComponent(
     private val onBack: () -> Unit
 ) : FoldersComponent, AppComponentContext by context {
 
-    private val repository: ChatsListRepository = container.repositories.chatsListRepository
+    private val folderRepository: ChatFolderRepository = container.repositories.chatFolderRepository
+    private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
+    private val searchRepository: ChatSearchRepository = container.repositories.chatSearchRepository
 
     private val _state = MutableValue(FoldersComponent.State())
     override val state: Value<FoldersComponent.State> = _state
@@ -47,11 +51,11 @@ class DefaultFoldersComponent(
     private val scope = componentScope
 
     init {
-        repository.foldersFlow.onEach { folders ->
+        folderRepository.foldersFlow.onEach { folders ->
             _state.update { it.copy(folders = folders) }
         }.launchIn(scope)
 
-        repository.chatListFlow.onEach { chats ->
+        chatListRepository.chatListFlow.onEach { chats ->
             _state.update { it.copy(availableChats = chats) }
         }.launchIn(scope)
     }
@@ -79,21 +83,21 @@ class DefaultFoldersComponent(
 
     override fun onDeleteFolder(folderId: Int) {
         scope.launch {
-            repository.deleteFolder(folderId)
+            folderRepository.deleteFolder(folderId)
             _state.update { it.copy(showEditFolderDialog = false, selectedFolder = null) }
         }
     }
 
     override fun onEditFolder(folderId: Int, newTitle: String, iconName: String?, includedChatIds: List<Long>) {
         scope.launch {
-            repository.updateFolder(folderId, newTitle, iconName, includedChatIds)
+            folderRepository.updateFolder(folderId, newTitle, iconName, includedChatIds)
             _state.update { it.copy(showEditFolderDialog = false, selectedFolder = null) }
         }
     }
 
     override fun onAddFolder(title: String, iconName: String?, includedChatIds: List<Long>) {
         scope.launch {
-            repository.createFolder(title, iconName, includedChatIds)
+            folderRepository.createFolder(title, iconName, includedChatIds)
             _state.update { it.copy(showAddFolderDialog = false) }
         }
     }
@@ -112,13 +116,13 @@ class DefaultFoldersComponent(
                 .filter { it.id >= 0 }
                 .map { it.id }
 
-            repository.reorderFolders(newUserFolderIds)
+            folderRepository.reorderFolders(newUserFolderIds)
         }
     }
 
     override fun onSearchChats(query: String) {
         scope.launch {
-            val results = repository.searchChats(query)
+            val results = searchRepository.searchChats(query)
             _state.update { it.copy(availableChats = results) }
         }
     }

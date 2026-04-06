@@ -208,7 +208,7 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
             } else if (savedScrollPosition != 0L) {
                 loadAroundMessage(savedScrollPosition, threadId, shouldHighlight = false)
             } else {
-                val chat = chatsListRepository.getChatById(chatId)
+                val chat = chatListRepository.getChatById(chatId)
                 val firstUnreadId = chat?.lastReadInboxMessageId?.let { lastRead ->
                     if (chat.unreadCount > 0) {
                         repositoryMessage.getMessagesNewer(chatId, lastRead, 1, threadId).firstOrNull()?.id
@@ -532,7 +532,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                     return@onEach
                 }
                 val isCorrectThread =
-                    _state.value.currentTopicId == null || message.threadId?.toLong() == _state.value.currentTopicId
+                    _state.value.currentTopicId == null || message.threadId == _state.value.currentTopicId
                 if (isCorrectThread) {
                     updateMessages(listOf(message))
                     _state.update { state ->
@@ -556,7 +556,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                 messageMutex.withLock {
                     _state.update { state ->
                         val isCorrectThread =
-                            state.currentTopicId == null || newMessage.threadId?.toLong() == state.currentTopicId
+                            state.currentTopicId == null || newMessage.threadId == state.currentTopicId
                         if (!isCorrectThread) {
                             return@update state
                         }

@@ -12,10 +12,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.UpdateState
-import org.monogram.domain.repository.ChatsListRepository
-import org.monogram.domain.repository.SettingsRepository
-import org.monogram.domain.repository.UpdateRepository
-import org.monogram.domain.repository.UserRepository
+import org.monogram.domain.repository.*
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
@@ -37,9 +34,14 @@ class DefaultChatListComponent(
     activeChatId: Value<Long>
 ) : ChatListComponent, AppComponentContext by context {
 
-    private val repository: ChatsListRepository = container.repositories.chatsListRepository
+    private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
+    private val chatFolderRepository: ChatFolderRepository = container.repositories.chatFolderRepository
+    private val chatSearchRepository: ChatSearchRepository = container.repositories.chatSearchRepository
+    private val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
     private val repositoryUser: UserRepository = container.repositories.userRepository
-    private val settingsRepository: SettingsRepository = container.repositories.settingsRepository
+    private val userProfileEditRepository: UserProfileEditRepository = container.repositories.userProfileEditRepository
+    private val botRepository: BotRepository = container.repositories.botRepository
+    private val attachMenuBotRepository: AttachMenuBotRepository = container.repositories.attachMenuBotRepository
     private val updateRepository: UpdateRepository = container.repositories.updateRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
 
@@ -81,7 +83,7 @@ class DefaultChatListComponent(
             repositoryUser.getMe()
         }
 
-        repository.folderChatsFlow
+        chatFolderRepository.folderChatsFlow
             .onEach { update ->
                 val distinctList = update.chats.distinctBy { it.id }
                 val pinnedCount = distinctList.count { it.isPinned }
@@ -101,13 +103,13 @@ class DefaultChatListComponent(
             }
             .launchIn(scope)
 
-        repository.foldersFlow
+        chatFolderRepository.foldersFlow
             .onEach { folders ->
                 _state.update { it.copy(folders = folders) }
             }
             .launchIn(scope)
 
-        repository.folderLoadingFlow
+        chatFolderRepository.folderLoadingFlow
             .onEach { update ->
                 _state.update {
                     val newLoadingByFolder = it.isLoadingByFolder.toMutableMap()
@@ -117,7 +119,7 @@ class DefaultChatListComponent(
             }
             .launchIn(scope)
 
-        repository.connectionStateFlow
+        chatListRepository.connectionStateFlow
             .onEach { status ->
                 _state.update { it.copy(connectionStatus = status) }
             }
@@ -129,31 +131,31 @@ class DefaultChatListComponent(
             }
             .launchIn(scope)
 
-        repository.isArchivePinned
+        chatOperationsRepository.isArchivePinned
             .onEach { isPinned ->
                 _state.update { it.copy(isArchivePinned = isPinned) }
             }
             .launchIn(scope)
 
-        repository.isArchiveAlwaysVisible
+        chatOperationsRepository.isArchiveAlwaysVisible
             .onEach { alwaysVisible ->
                 _state.update { it.copy(isArchiveAlwaysVisible = alwaysVisible) }
             }
             .launchIn(scope)
 
-        repository.searchHistory
+        chatSearchRepository.searchHistory
             .onEach { history ->
                 _state.update { it.copy(searchHistory = history) }
             }
             .launchIn(scope)
 
-        settingsRepository.getAttachMenuBots()
+        attachMenuBotRepository.getAttachMenuBots()
             .onEach { bots ->
                 _state.update { it.copy(attachMenuBots = bots) }
 
                 bots.firstOrNull()?.let { bot ->
                     if (bot.botUserId != 0L) {
-                        val botInfo = repositoryUser.getBotInfo(bot.botUserId)
+                        val botInfo = botRepository.getBotInfo(bot.botUserId)
                         val menuButton = botInfo?.menuButton
                         if (menuButton is BotMenuButtonModel.WebApp) {
                             _state.update {
@@ -183,12 +185,12 @@ class DefaultChatListComponent(
         }.launchIn(scope)
 
         scope.launch(Dispatchers.IO) {
-            repository.selectFolder(_state.value.selectedFolderId)
+            chatListRepository.selectFolder(_state.value.selectedFolderId)
         }
     }
 
     override fun retryConnection() {
-        repository.retryConnection()
+        chatListRepository.retryConnection()
     }
 
     override fun onFolderClicked(id: Int) {
@@ -204,7 +206,7 @@ class DefaultChatListComponent(
         }
 
         scope.launch(Dispatchers.IO) {
-            repository.selectFolder(id)
+            chatListRepository.selectFolder(id)
         }
     }
 
@@ -216,7 +218,7 @@ class DefaultChatListComponent(
             if (folderId != null && folderId != _state.value.selectedFolderId) {
                 return@launch
             }
-            repository.loadNextChunk(20)
+            chatListRepository.loadNextChunk(20)
         }
     }
 
@@ -226,7 +228,7 @@ class DefaultChatListComponent(
         isFetchingMoreMessages = true
         val query = _state.value.searchQuery
         scope.launch(Dispatchers.IO) {
-            val result = repository.searchMessages(query, offset = nextMessagesOffset)
+            val result = chatSearchRepository.searchMessages(query, offset = nextMessagesOffset)
             nextMessagesOffset = result.nextOffset
             _state.update {
                 it.copy(
@@ -245,7 +247,7 @@ class DefaultChatListComponent(
             toggleSelection(id)
         } else {
             if (_state.value.isSearchActive) {
-                repository.addSearchChatId(id)
+                chatSearchRepository.addSearchChatId(id)
             }
             onSelect(id, null)
         }
@@ -262,7 +264,7 @@ class DefaultChatListComponent(
             toggleSelection(chatId)
         } else {
             if (_state.value.isSearchActive) {
-                repository.addSearchChatId(chatId)
+                chatSearchRepository.addSearchChatId(chatId)
             }
             onSelect(chatId, messageId)
         }
@@ -321,13 +323,13 @@ class DefaultChatListComponent(
                     return@launch
                 }
 
-                val localResults = repository.searchChats(query)
+                val localResults = chatSearchRepository.searchChats(query)
                 _state.update { it.copy(searchResults = localResults) }
 
-                val globalResults = repository.searchPublicChats(query)
+                val globalResults = chatSearchRepository.searchPublicChats(query)
                 _state.update { it.copy(globalSearchResults = globalResults) }
 
-                val messageResults = repository.searchMessages(query)
+                val messageResults = chatSearchRepository.searchMessages(query)
                 nextMessagesOffset = messageResults.nextOffset
                 _state.update {
                     it.copy(
@@ -362,17 +364,17 @@ class DefaultChatListComponent(
 
         scope.launch(Dispatchers.IO) {
             coRunCatching {
-                repositoryUser.setEmojiStatus(customEmojiId)
+                userProfileEditRepository.setEmojiStatus(customEmojiId)
             }
         }
     }
 
     override fun onClearSearchHistory() {
-        repository.clearSearchHistory()
+        chatSearchRepository.clearSearchHistory()
     }
 
     override fun onRemoveSearchHistoryItem(chatId: Long) {
-        repository.removeSearchChatId(chatId)
+        chatSearchRepository.removeSearchChatId(chatId)
     }
 
     override fun onMuteSelected(mute: Boolean) {
@@ -381,7 +383,7 @@ class DefaultChatListComponent(
         val shouldMute = selectedChats.any { !it.isMuted }
 
         scope.launch(Dispatchers.IO) {
-            repository.toggleMuteChats(selectedIds, shouldMute)
+            chatOperationsRepository.toggleMuteChats(selectedIds, shouldMute)
             clearSelection()
         }
     }
@@ -389,7 +391,7 @@ class DefaultChatListComponent(
     override fun onArchiveSelected(archive: Boolean) {
         val selectedIds = _state.value.selectedChatIds
         scope.launch(Dispatchers.IO) {
-            repository.toggleArchiveChats(selectedIds, archive)
+            chatOperationsRepository.toggleArchiveChats(selectedIds, archive)
             clearSelection()
         }
     }
@@ -401,7 +403,7 @@ class DefaultChatListComponent(
         val folderId = _state.value.selectedFolderId
 
         scope.launch(Dispatchers.IO) {
-            repository.togglePinChats(selectedIds, shouldPin, folderId)
+            chatOperationsRepository.togglePinChats(selectedIds, shouldPin, folderId)
             clearSelection()
         }
     }
@@ -412,7 +414,7 @@ class DefaultChatListComponent(
         val shouldMarkUnread = selectedChats.any { !it.isMarkedAsUnread }
 
         scope.launch(Dispatchers.IO) {
-            repository.toggleReadChats(selectedIds, shouldMarkUnread)
+            chatOperationsRepository.toggleReadChats(selectedIds, shouldMarkUnread)
             clearSelection()
         }
     }
@@ -420,13 +422,13 @@ class DefaultChatListComponent(
     override fun onDeleteSelected() {
         val selectedIds = _state.value.selectedChatIds
         scope.launch(Dispatchers.IO) {
-            repository.deleteChats(selectedIds)
+            chatOperationsRepository.deleteChats(selectedIds)
             clearSelection()
         }
     }
 
     override fun onArchivePinToggle() {
-        repository.setArchivePinned(!_state.value.isArchivePinned)
+        chatOperationsRepository.setArchivePinned(!_state.value.isArchivePinned)
     }
 
     override fun onConfirmForwarding() {
@@ -451,7 +453,7 @@ class DefaultChatListComponent(
         if (folderId <= 0) return
 
         scope.launch(Dispatchers.IO) {
-            repository.deleteFolder(folderId)
+            chatFolderRepository.deleteFolder(folderId)
             if (_state.value.selectedFolderId == folderId) {
                 onFolderClicked(-1)
             }

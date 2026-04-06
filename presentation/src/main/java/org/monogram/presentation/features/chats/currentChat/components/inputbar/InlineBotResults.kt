@@ -17,8 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.*
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +36,7 @@ import org.monogram.domain.models.InlineQueryResultModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.namespacedCacheKey
 
 private enum class InlineResultsMode {
     Loading,
@@ -335,9 +334,16 @@ private fun rememberMediaModel(result: InlineQueryResultModel): Any? {
     return remember(contentPath, result.thumbUrl) {
         val data = if (!contentPath.isNullOrBlank()) contentPath else result.thumbUrl
         if (data == null) return@remember null
+        val cacheKey = namespacedCacheKey("inline_result:${result.id}", data)
 
         ImageRequest.Builder(context)
             .data(data)
+            .apply {
+                cacheKey?.let {
+                    memoryCacheKey(it)
+                    diskCacheKey(it)
+                }
+            }
             .crossfade(true)
             .build()
     }

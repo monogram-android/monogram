@@ -1,29 +1,24 @@
 package org.monogram.data.repository
 
-import android.content.Context
-import android.os.Build
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.ScopeProvider
-import org.monogram.data.BuildConfig
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.remote.AuthRemoteDataSource
-import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.UpdateDispatcher
+import org.monogram.data.gateway.toUserMessage
+import org.monogram.data.infra.TdLibParametersProvider
 import org.monogram.data.mapper.toDomain
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
-import java.io.File
-import java.util.*
 
 class AuthRepositoryImpl(
-    private val context: Context,
+    private val parametersProvider: TdLibParametersProvider,
     private val remote: AuthRemoteDataSource,
     private val updates: UpdateDispatcher,
     scopeProvider: ScopeProvider
 ) : AuthRepository {
-
     private val scope = scopeProvider.appScope
 
     private val _authState = MutableStateFlow<AuthStep>(AuthStep.Loading)
@@ -45,57 +40,34 @@ class AuthRepositoryImpl(
     }
 
     private suspend fun sendTdLibParameters() {
-        coRunCatching {
-            val parameters = TdApi.SetTdlibParameters().apply {
-                databaseDirectory = File(context.filesDir, "td-db").absolutePath
-                filesDirectory = File(context.filesDir, "td-files").absolutePath
-                databaseEncryptionKey = byteArrayOf()
-                apiId = BuildConfig.API_ID
-                apiHash = BuildConfig.API_HASH
-                systemLanguageCode = Locale.getDefault().language
-                deviceModel = "${Build.MANUFACTURER} ${Build.MODEL}"
-                systemVersion = Build.VERSION.RELEASE
-                applicationVersion = try {
-                    context.packageManager.getPackageInfo(context.packageName, 0).versionName
-                } catch (e: Exception) {
-                    "1.0"
-                }
-                useMessageDatabase = true
-                useFileDatabase = true
-                useChatInfoDatabase = true
-            }
-            remote.setTdlibParameters(parameters)
-        }.onFailure { emitError(it) }
+        coRunCatching { remote.setTdlibParameters(parametersProvider.create()) }
+            .onFailure { emitError(it) }
+    }
+
+    private fun launchAuthAction(action: suspend () -> Unit) {
+        scope.launch {
+            coRunCatching { action() }
+                .onFailure { emitError(it) }
+        }
     }
 
     override fun sendPhone(phone: String) {
-        scope.launch {
-            coRunCatching { remote.setPhoneNumber(phone) }
-                .onFailure { emitError(it) }
-        }
+        launchAuthAction { remote.setPhoneNumber(phone) }
     }
 
     override fun resendCode() {
-        scope.launch {
-            coRunCatching { remote.resendCode() }
-                .onFailure { emitError(it) }
-        }
+        launchAuthAction { remote.resendCode() }
     }
 
     override fun sendCode(code: String) {
-        scope.launch {
+        launchAuthAction {
             val isEmail = (_authState.value as? AuthStep.InputCode)?.isEmailCode == true
-            coRunCatching {
-                if (isEmail) remote.checkEmailCode(code) else remote.setAuthCode(code)
-            }.onFailure { emitError(it) }
+            if (isEmail) remote.checkEmailCode(code) else remote.setAuthCode(code)
         }
     }
 
     override fun sendPassword(password: String) {
-        scope.launch {
-            coRunCatching { remote.checkPassword(password) }
-                .onFailure { emitError(it) }
-        }
+        launchAuthAction { remote.checkPassword(password) }
     }
 
     override fun reset() {
@@ -103,10 +75,6 @@ class AuthRepositoryImpl(
     }
 
     private fun emitError(t: Throwable) {
-        val error = (t as? TdLibException)?.error
-        val errorMessage = error?.message ?: ""
-
-        val message = errorMessage.ifEmpty { t.message ?: "Unknown error" }
-        _errors.tryEmit(message)
+        _errors.tryEmit(t.toUserMessage())
     }
 }

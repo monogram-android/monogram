@@ -28,15 +28,41 @@ interface PreferencesContainer {
 
 interface RepositoriesContainer {
     val authRepository: AuthRepository
-    val chatsListRepository: ChatsListRepository
+    val chatListRepository: ChatListRepository
+    val chatFolderRepository: ChatFolderRepository
+    val chatOperationsRepository: ChatOperationsRepository
+    val chatSearchRepository: ChatSearchRepository
+    val forumTopicsRepository: ForumTopicsRepository
+    val chatSettingsRepository: ChatSettingsRepository
+    val chatCreationRepository: ChatCreationRepository
     val messageRepository: MessageRepository
+    val inlineBotRepository: InlineBotRepository
+    val chatEventLogRepository: ChatEventLogRepository
+    val messageAiRepository: MessageAiRepository
+    val paymentRepository: PaymentRepository
+    val fileRepository: FileRepository
+    val webAppRepository: WebAppRepository
     val userRepository: UserRepository
-    val settingsRepository: SettingsRepository
+    val userProfileEditRepository: UserProfileEditRepository
+    val profilePhotoRepository: ProfilePhotoRepository
+    val chatInfoRepository: ChatInfoRepository
+    val premiumRepository: PremiumRepository
+    val botRepository: BotRepository
+    val chatStatisticsRepository: ChatStatisticsRepository
+    val sponsorRepository: SponsorRepository
+    val notificationSettingsRepository: NotificationSettingsRepository
+    val sessionRepository: SessionRepository
+    val wallpaperRepository: WallpaperRepository
+    val storageRepository: StorageRepository
+    val networkStatisticsRepository: NetworkStatisticsRepository
+    val attachMenuBotRepository: AttachMenuBotRepository
     val locationRepository: LocationRepository
     val privacyRepository: PrivacyRepository
     val linkHandlerRepository: LinkHandlerRepository
     val externalProxyRepository: ExternalProxyRepository
     val stickerRepository: StickerRepository
+    val gifRepository: GifRepository
+    val emojiRepository: EmojiRepository
     val updateRepository: UpdateRepository
 }
 

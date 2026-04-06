@@ -28,8 +28,14 @@ class DefaultProfileComponent(
     private val onMemberLongClicked: (Long, Long) -> Unit = { _, _ -> }
 ) : ProfileComponent, AppComponentContext by context {
 
-    private val chatsListRepository: ChatsListRepository = container.repositories.chatsListRepository
+    private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
+    private val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
+    private val chatSettingsRepository: ChatSettingsRepository = container.repositories.chatSettingsRepository
     private val userRepository: UserRepository = container.repositories.userRepository
+    private val profilePhotoRepository: ProfilePhotoRepository = container.repositories.profilePhotoRepository
+    private val chatInfoRepository: ChatInfoRepository = container.repositories.chatInfoRepository
+    private val botRepository: BotRepository = container.repositories.botRepository
+    private val chatStatisticsRepository: ChatStatisticsRepository = container.repositories.chatStatisticsRepository
     private val privacyRepository: PrivacyRepository = container.repositories.privacyRepository
     override val messageRepository: MessageRepository = container.repositories.messageRepository
     private val locationRepository: LocationRepository = container.repositories.locationRepository
@@ -60,7 +66,7 @@ class DefaultProfileComponent(
         scope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val chat = coRunCatching { chatsListRepository.getChatById(chatId) }.getOrNull()
+                val chat = coRunCatching { chatListRepository.getChatById(chatId) }.getOrNull()
                 val user = if (chat == null || (!chat.isGroup && !chat.isChannel)) {
                     userRepository.getUser(chatId)
                 } else null
@@ -69,7 +75,7 @@ class DefaultProfileComponent(
                 } else {
                     chat?.blockList == true
                 }
-                val fullInfo = coRunCatching { userRepository.getChatFullInfo(chatId) }.getOrNull()
+                val fullInfo = coRunCatching { chatInfoRepository.getChatFullInfo(chatId) }.getOrNull()
                 val description = fullInfo?.description
                 val link = fullInfo?.inviteLink
                     ?: chat?.username?.let { "https://t.me/$it" }
@@ -80,7 +86,7 @@ class DefaultProfileComponent(
                 var isTOSAccepted = false
 
                 if (user?.type == UserTypeEnum.BOT) {
-                    val botInfo = userRepository.getBotInfo(chatId)
+                    val botInfo = botRepository.getBotInfo(chatId)
                     val menuButton = botInfo?.menuButton
                     if (menuButton is BotMenuButtonModel.WebApp) {
                         botWebAppUrl = menuButton.url
@@ -91,7 +97,7 @@ class DefaultProfileComponent(
 
                 val linkedChatId = fullInfo?.linkedChatId?.takeIf { it != 0L }
                 val linkedChat = linkedChatId?.let {
-                    coRunCatching { chatsListRepository.getChatById(it) }.getOrNull()
+                    coRunCatching { chatListRepository.getChatById(it) }.getOrNull()
                 }
 
                 _state.update {
@@ -237,7 +243,8 @@ class DefaultProfileComponent(
             _state.update { it.copy(isLoadingMembers = true) }
             try {
                 val limit = 20
-                val newMembers = userRepository.getChatMembers(chatId, membersOffset, limit, ChatMembersFilter.Recent)
+                val newMembers =
+                    chatInfoRepository.getChatMembers(chatId, membersOffset, limit, ChatMembersFilter.Recent)
 
                 if (newMembers.isEmpty()) {
                     _state.update { it.copy(canLoadMoreMembers = false) }
@@ -450,9 +457,9 @@ class DefaultProfileComponent(
 
     private fun observeProfilePhotos() {
         val profilePhotosFlow = if (isGroupOrChannelProfile()) {
-            userRepository.getChatProfilePhotosFlow(chatId)
+            profilePhotoRepository.getChatProfilePhotosFlow(chatId)
         } else {
-            userRepository.getUserProfilePhotosFlow(chatId)
+            profilePhotoRepository.getUserProfilePhotosFlow(chatId)
         }
 
         profilePhotosFlow
@@ -606,7 +613,7 @@ class DefaultProfileComponent(
             try {
                 val refreshedPhotos = if (isGroupOrChannel) {
                     coRunCatching {
-                        userRepository.getChatProfilePhotos(
+                        profilePhotoRepository.getChatProfilePhotos(
                             chatId = snapshot.chatId,
                             offset = 0,
                             limit = PROFILE_PHOTOS_LIMIT,
@@ -617,7 +624,7 @@ class DefaultProfileComponent(
                     val userId = snapshot.user?.id?.takeIf { it > 0 } ?: snapshot.chatId.takeIf { it > 0 }
                     if (userId == null) return@launch
                     coRunCatching {
-                        userRepository.getUserProfilePhotos(
+                        profilePhotoRepository.getUserProfilePhotos(
                             userId = userId,
                             offset = 0,
                             limit = PROFILE_PHOTOS_LIMIT,
@@ -706,7 +713,7 @@ class DefaultProfileComponent(
         val shouldMute = !chat.isMuted
 
         scope.launch {
-            chatsListRepository.toggleMuteChats(setOf(chatId), shouldMute)
+            chatOperationsRepository.toggleMuteChats(setOf(chatId), shouldMute)
             updateChat(chatId)
         }
     }
@@ -743,7 +750,7 @@ class DefaultProfileComponent(
 
     override fun onDeleteChat() {
         scope.launch {
-            chatsListRepository.deleteChats(setOf(chatId))
+            chatOperationsRepository.deleteChats(setOf(chatId))
         }
     }
 
@@ -820,7 +827,7 @@ class DefaultProfileComponent(
 
     override fun onLeave() {
         scope.launch {
-            chatsListRepository.leaveChat(chatId)
+            chatOperationsRepository.leaveChat(chatId)
             updateChat(chatId)
         }
     }
@@ -834,7 +841,7 @@ class DefaultProfileComponent(
 
     override fun onReport(reason: String) {
         scope.launch(Dispatchers.IO) {
-            chatsListRepository.reportChat(chatId, reason)
+            chatOperationsRepository.reportChat(chatId, reason)
             withContext(Dispatchers.Main) {
                 _state.update { it.copy(isReportVisible = false) }
             }
@@ -855,7 +862,7 @@ class DefaultProfileComponent(
 
     override fun onMemberClick(userId: Long) {
         scope.launch {
-            val chat = chatsListRepository.getChatById(userId)
+            val chat = chatListRepository.getChatById(userId)
             if (chat != null && (chat.isGroup || chat.isChannel)) {
                 onMemberClicked(userId)
             } else {
@@ -866,7 +873,7 @@ class DefaultProfileComponent(
 
     override fun onMemberLongClick(userId: Long) {
         scope.launch {
-            val member = userRepository.getChatMember(chatId, userId)
+            val member = chatInfoRepository.getChatMember(chatId, userId)
             if (member?.status is ChatMemberStatus.Administrator || member?.status is ChatMemberStatus.Creator) {
                 onMemberLongClicked(chatId, userId)
             }
@@ -875,42 +882,42 @@ class DefaultProfileComponent(
 
     override fun onUpdateChatTitle(title: String) {
         scope.launch {
-            chatsListRepository.setChatTitle(chatId, title)
+            chatSettingsRepository.setChatTitle(chatId, title)
             updateChat(chatId)
         }
     }
 
     override fun onUpdateChatDescription(description: String) {
         scope.launch {
-            chatsListRepository.setChatDescription(chatId, description)
+            chatSettingsRepository.setChatDescription(chatId, description)
             loadData()
         }
     }
 
     override fun onUpdateChatUsername(username: String) {
         scope.launch {
-            chatsListRepository.setChatUsername(chatId, username)
+            chatSettingsRepository.setChatUsername(chatId, username)
             loadData()
         }
     }
 
     override fun onUpdateChatPermissions(permissions: ChatPermissionsModel) {
         scope.launch {
-            chatsListRepository.setChatPermissions(chatId, permissions)
+            chatSettingsRepository.setChatPermissions(chatId, permissions)
             updateChat(chatId)
         }
     }
 
     override fun onUpdateChatSlowModeDelay(delay: Int) {
         scope.launch {
-            chatsListRepository.setChatSlowModeDelay(chatId, delay)
+            chatSettingsRepository.setChatSlowModeDelay(chatId, delay)
             loadData()
         }
     }
 
     override fun onUpdateMemberStatus(userId: Long, status: ChatMemberStatus) {
         scope.launch {
-            userRepository.setChatMemberStatus(chatId, userId, status)
+            chatInfoRepository.setChatMemberStatus(chatId, userId, status)
             membersOffset = 0
             _state.update { it.copy(members = emptyList(), canLoadMoreMembers = true) }
             loadMembersNextPage()
@@ -919,7 +926,7 @@ class DefaultProfileComponent(
 
     override fun onShowStatistics() {
         scope.launch {
-            val stats = userRepository.getChatStatistics(chatId, false)
+            val stats = chatStatisticsRepository.getChatStatistics(chatId, false)
             if (stats != null) {
                 val enrichedStats = enrichInteractionPreviews(stats)
                 _state.update { it.copy(statistics = enrichedStats, isStatisticsVisible = true) }
@@ -931,7 +938,7 @@ class DefaultProfileComponent(
 
     override fun onShowRevenueStatistics() {
         scope.launch {
-            val stats = userRepository.getChatRevenueStatistics(chatId, false)
+            val stats = chatStatisticsRepository.getChatRevenueStatistics(chatId, false)
             if (stats != null) {
                 _state.update {
                     it.copy(revenueStatistics = stats, isRevenueStatisticsVisible = true)
@@ -955,7 +962,7 @@ class DefaultProfileComponent(
 
     override fun onLoadStatisticsGraph(token: String) {
         scope.launch {
-            val graph = userRepository.loadStatisticsGraph(chatId, token, 0L)
+            val graph = chatStatisticsRepository.loadStatisticsGraph(chatId, token, 0L)
 
             if (graph != null) {
                 _state.update { state ->
@@ -1147,7 +1154,7 @@ class DefaultProfileComponent(
 
     private fun updateChat(chatId: Long) {
         scope.launch {
-            val updatedChat = chatsListRepository.getChatById(chatId)
+            val updatedChat = chatListRepository.getChatById(chatId)
             withContext(Dispatchers.Main) {
                 _state.update {
                     it.copy(

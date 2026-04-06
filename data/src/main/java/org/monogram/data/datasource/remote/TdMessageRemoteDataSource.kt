@@ -12,6 +12,7 @@ import org.monogram.data.chats.ChatCache
 import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
+import org.monogram.data.infra.FileUpdateHandler
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.toApi
 import org.monogram.domain.models.*
@@ -24,10 +25,11 @@ class TdMessageRemoteDataSource(
     private val gateway: TelegramGateway,
     private val messageMapper: MessageMapper,
     private val userRepository: UserRepository,
-    private val chatsListRepository: ChatsListRepository,
+    private val chatListRepository: ChatListRepository,
     private val cache: ChatCache,
     private val pollRepository: PollRepository,
     private val fileDownloadQueue: FileDownloadQueue,
+    private val fileUpdateHandler: FileUpdateHandler,
     private val dispatcherProvider: DispatcherProvider,
     scopeProvider: ScopeProvider
 ) : MessageRemoteDataSource {
@@ -69,8 +71,6 @@ class TdMessageRemoteDataSource(
     enum class DownloadType { VIDEO, GIF, STICKER, VIDEO_NOTE, DEFAULT }
 
     private val fileIdToMessageMap = fileDownloadQueue.registry.fileIdToMessageMap
-    val customEmojiPaths = ConcurrentHashMap<Long, String>()
-    val fileIdToCustomEmojiId = ConcurrentHashMap<Int, Long>()
     private val messageUpdateJobs = ConcurrentHashMap<Pair<Long, Long>, Job>()
     private val lastProgressMap = ConcurrentHashMap<Int, Int>()
     private val lastDownloadActiveMap = ConcurrentHashMap<Int, Boolean>()
@@ -321,7 +321,7 @@ class TdMessageRemoteDataSource(
                     if (cachedChat != null) {
                         UserModel(id = cachedChat.id, firstName = cachedChat.title, lastName = "", username = null, avatarPath = cachedChat.photo?.small?.local?.path)
                     } else {
-                        val chat = chatsListRepository.getChatById(sender.chatId)
+                        val chat = chatListRepository.getChatById(sender.chatId)
                         if (chat != null) UserModel(id = chat.id, firstName = chat.title, lastName = "", username = null, avatarPath = chat.avatarPath)
                         else null
                     }
@@ -806,6 +806,8 @@ class TdMessageRemoteDataSource(
             is MessageEntityType.Strikethrough -> TdApi.TextEntityTypeStrikethrough()
             is MessageEntityType.Spoiler -> TdApi.TextEntityTypeSpoiler()
             is MessageEntityType.Code -> TdApi.TextEntityTypeCode()
+            is MessageEntityType.BlockQuote -> TdApi.TextEntityTypeBlockQuote()
+            is MessageEntityType.BlockQuoteExpandable -> TdApi.TextEntityTypeExpandableBlockQuote()
             is MessageEntityType.Pre -> {
                 if (value.language.isBlank()) TdApi.TextEntityTypePre()
                 else TdApi.TextEntityTypePreCode(value.language)
@@ -1355,8 +1357,8 @@ class TdMessageRemoteDataSource(
         if (isDC) {
             fileDownloadQueue.notifyDownloadComplete(file.id)
             lastProgressMap.remove(file.id)
-            fileIdToCustomEmojiId[file.id]?.let { customEmojiId ->
-                customEmojiPaths[customEmojiId] = file.local?.path ?: ""
+            fileUpdateHandler.fileIdToCustomEmojiId[file.id]?.let { customEmojiId ->
+                fileUpdateHandler.customEmojiPaths[customEmojiId] = file.local?.path ?: ""
             }
 
             val entries = fileIdToMessageMap[file.id]

@@ -11,7 +11,7 @@ class DefaultDebugComponent(
     private val messageDisplayer = container.utils.messageDisplayer()
     private val assetsManager = container.utils.assetsManager()
     private val externalNavigator = container.utils.externalNavigator()
-    private val userRepository = container.repositories.userRepository
+    private val sponsorRepository = container.repositories.sponsorRepository
 
     override fun onBackClicked() {
         onBack()
@@ -26,7 +26,7 @@ class DefaultDebugComponent(
     }
 
     override fun onForceSponsorSyncClicked() {
-        userRepository.forceSponsorSync()
+        sponsorRepository.forceSponsorSync()
         messageDisplayer.show("Sponsor sync started")
     }
 

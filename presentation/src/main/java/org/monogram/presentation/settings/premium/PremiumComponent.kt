@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.models.PremiumFeatureType
 import org.monogram.domain.models.PremiumLimitType
 import org.monogram.domain.models.PremiumSource
+import org.monogram.domain.repository.PremiumRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
@@ -39,6 +40,7 @@ class DefaultPremiumComponent(
 ) : PremiumComponent, AppComponentContext by context {
 
     private val userRepository: UserRepository = container.repositories.userRepository
+    private val premiumRepository: PremiumRepository = container.repositories.premiumRepository
     private val stringProvider = container.utils.stringProvider()
     private val scope = componentScope
 
@@ -59,8 +61,8 @@ class DefaultPremiumComponent(
         scope.launch {
             _state.update { it.copy(isLoading = true) }
 
-            val premiumState = userRepository.getPremiumState()
-            val features = userRepository.getPremiumFeatures(PremiumSource.SETTINGS)
+            val premiumState = premiumRepository.getPremiumState()
+            val features = premiumRepository.getPremiumFeatures(PremiumSource.SETTINGS)
 
             val mappedFeatures = features.mapNotNull { featureType ->
                 mapToPremiumFeature(featureType)
@@ -79,10 +81,10 @@ class DefaultPremiumComponent(
     private suspend fun mapToPremiumFeature(featureType: PremiumFeatureType): PremiumComponent.PremiumFeature? {
         return when (featureType) {
             PremiumFeatureType.DOUBLE_LIMITS -> {
-                val channels = userRepository.getPremiumLimit(PremiumLimitType.SUPERGROUP_COUNT)
-                val folders = userRepository.getPremiumLimit(PremiumLimitType.CHAT_FOLDER_COUNT)
-                val pins = userRepository.getPremiumLimit(PremiumLimitType.PINNED_CHAT_COUNT)
-                val publicLinks = userRepository.getPremiumLimit(PremiumLimitType.CREATED_PUBLIC_CHAT_COUNT)
+                val channels = premiumRepository.getPremiumLimit(PremiumLimitType.SUPERGROUP_COUNT)
+                val folders = premiumRepository.getPremiumLimit(PremiumLimitType.CHAT_FOLDER_COUNT)
+                val pins = premiumRepository.getPremiumLimit(PremiumLimitType.PINNED_CHAT_COUNT)
+                val publicLinks = premiumRepository.getPremiumLimit(PremiumLimitType.CREATED_PUBLIC_CHAT_COUNT)
                 PremiumComponent.PremiumFeature(
                     icon = "star",
                     title = stringProvider.getString("premium_feature_doubled_limits_title"),

@@ -1,31 +1,13 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
 package org.monogram.presentation.features.profile
 
 import android.content.ClipData
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -36,23 +18,8 @@ import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,25 +38,11 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
-import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
-import org.monogram.presentation.core.ui.ConfirmationSheet
-import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.core.ui.rememberCollapsingToolbarScaffoldState
-import org.monogram.presentation.core.ui.rememberShimmerBrush
+import org.monogram.presentation.core.ui.*
 import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.core.util.getUserStatusText
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
-import org.monogram.presentation.features.profile.components.LocationViewer
-import org.monogram.presentation.features.profile.components.ProfileHeaderTransformed
-import org.monogram.presentation.features.profile.components.ProfileInfoSection
-import org.monogram.presentation.features.profile.components.ProfileInfoSectionSkeleton
-import org.monogram.presentation.features.profile.components.ProfilePermissionsDialog
-import org.monogram.presentation.features.profile.components.ProfileQRDialog
-import org.monogram.presentation.features.profile.components.ProfileReportDialog
-import org.monogram.presentation.features.profile.components.ProfileTOSDialog
-import org.monogram.presentation.features.profile.components.ProfileTopBar
-import org.monogram.presentation.features.profile.components.StatisticsViewer
-import org.monogram.presentation.features.profile.components.profileMediaSection
+import org.monogram.presentation.features.profile.components.*
 import org.monogram.presentation.features.viewers.ImageViewer
 import org.monogram.presentation.features.viewers.VideoViewer
 import org.monogram.presentation.features.webapp.MiniAppViewer
@@ -515,7 +468,7 @@ fun ProfileContent(component: ProfileComponent) {
                     onDismiss = { component.onDismissMiniApp() },
                     chatId = state.chatId,
                     botUserId = state.user!!.id,
-                    messageRepository = component.messageRepository,
+                    webAppRepository = component.messageRepository,
                 )
             }
         }

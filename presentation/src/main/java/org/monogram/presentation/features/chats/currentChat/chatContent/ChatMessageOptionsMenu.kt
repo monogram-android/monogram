@@ -2,13 +2,7 @@ package org.monogram.presentation.features.chats.currentChat.chatContent
 
 import android.content.ClipData
 import android.util.Log
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.Clipboard
@@ -26,13 +20,13 @@ import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageViewerModel
-import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.MessageAiRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.features.chats.currentChat.ChatComponent
 import org.monogram.presentation.features.stickers.ui.menu.MessageOptionsMenu
-import java.util.Locale
+import java.util.*
 
 @Composable
 fun ChatMessageOptionsMenu(
@@ -53,7 +47,7 @@ fun ChatMessageOptionsMenu(
     onDismiss: () -> Unit
 ) {
     val nativeClipboard = localClipboard.nativeClipboard
-    val messageRepository: MessageRepository = koinInject()
+    val messageRepository: MessageAiRepository = koinInject()
     val canCheckViewersList = remember(state.isChannel, state.isGroup, state.memberCount) {
         !state.isChannel && (!state.isGroup || state.memberCount in 1 until 100)
     }

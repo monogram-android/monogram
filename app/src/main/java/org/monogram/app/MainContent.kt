@@ -21,6 +21,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.zIndex
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowLayoutInfo
@@ -30,7 +31,9 @@ import org.monogram.app.components.LockScreen
 import org.monogram.app.components.MobileLayout
 import org.monogram.app.components.ProxyConfirmSheet
 import org.monogram.app.components.TabletLayout
+import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentViewers
 import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
+import org.monogram.presentation.features.profile.ProfileViewers
 import org.monogram.presentation.features.stickers.core.toDomain
 import org.monogram.presentation.root.RootComponent
 
@@ -43,6 +46,7 @@ fun MainContent(
 ) {
     val childStack by root.childStack.subscribeAsState()
     val isLocked by root.isLocked.collectAsState()
+    val localClipboard = LocalClipboard.current
     
     val isExpanded = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact ||
             windowLayoutInfo?.displayFeatures?.filterIsInstance<FoldingFeature>()?.any {
@@ -111,6 +115,26 @@ fun MainContent(
                 .zIndex(1000f)
         ) {
             LockScreen(root)
+        }
+
+        // Hoisted Viewers
+        when (activeChild) {
+            is RootComponent.Child.ChatDetailChild -> {
+                val chatState by activeChild.component.state.collectAsState()
+                ChatContentViewers(
+                    state = chatState,
+                    component = activeChild.component,
+                    localClipboard = localClipboard
+                )
+            }
+            is RootComponent.Child.ProfileChild -> {
+                val profileState by activeChild.component.state.subscribeAsState()
+                ProfileViewers(
+                    state = profileState,
+                    component = activeChild.component
+                )
+            }
+            else -> {}
         }
     }
 }

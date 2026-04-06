@@ -1039,12 +1039,6 @@ fun ChatContent(
                 )
             }
 
-            ChatContentViewers(
-                state = state,
-                component = component,
-                localClipboard = localClipboard
-            )
-
             selectedMessage?.let { msg ->
                 ChatMessageOptionsMenu(
                     state = state,

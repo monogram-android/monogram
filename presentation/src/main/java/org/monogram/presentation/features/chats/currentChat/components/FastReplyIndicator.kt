@@ -32,14 +32,16 @@ import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-const val REPLY_TRIGGER_FRACTION = 0.4f
+const val REPLY_TRIGGER_FRACTION = 0.35f
 const val MAX_SWIPE_FRACTION = 0.7f
+const val ICON_OFFSET_FRACTION = 0.1f
 
 @Composable
 fun FastReplyIndicator(
     modifier: Modifier = Modifier,
     dragOffsetX: Animatable<Float, AnimationVector1D>,
     isOutgoing: Boolean = false,
+    inverseOffset: Boolean = false,
     maxWidth: Dp,
 ) {
     val triggerDistance = maxWidth.value * REPLY_TRIGGER_FRACTION
@@ -55,14 +57,19 @@ fun FastReplyIndicator(
         targetValue = lerp(0.5f, 1f, progress),
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
     )
+    val iconOffset = maxWidth * ICON_OFFSET_FRACTION
 
     if (dragged > 48.dp.value) {
         Box(
             modifier = modifier
-                .offset(x = if (isOutgoing) (-38).dp else maxWidth) // todo: fix this shit
+                .offset(x = if (isOutgoing) iconOffset else maxWidth)
                 .size(30.dp)
                 .graphicsLayer {
-                    translationX = if (isOutgoing) dragged * 0.5f else -dragged // todo: fix this shit too
+                    translationX = when {
+                        isOutgoing -> (-dragOffsetX.value - iconOffset.value) * 0.5f
+                        inverseOffset -> -iconOffset.value
+                        else -> iconOffset.value
+                    }
                     scaleX = iconScale
                     scaleY = iconScale
                     alpha = iconAlpha

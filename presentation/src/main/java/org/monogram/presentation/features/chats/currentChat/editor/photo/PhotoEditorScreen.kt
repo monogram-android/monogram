@@ -249,6 +249,28 @@ fun PhotoEditorScreen(
         }
     }
 
+    fun rotateClockwise() {
+        val targetRotation = rotateClockwiseToNextRightAngle(imageRotation)
+
+        imageRotation = targetRotation
+        imageScale = 1f
+        imageOffset = Offset.Zero
+
+        cropState.setCropRect(
+            if (cropState.imageBounds == Rect.Zero) {
+                Rect.Zero
+            } else {
+                calculateScalarTransformedBounds(
+                    baseBounds = cropState.imageBounds,
+                    scale = 1f,
+                    rotationDegrees = targetRotation,
+                    offset = Offset.Zero,
+                    pivot = pivot
+                )
+            }
+        )
+    }
+
     val hasChanges by remember {
         derivedStateOf {
             paths.isNotEmpty() ||
@@ -339,6 +361,7 @@ fun PhotoEditorScreen(
                                     TransformControls(
                                         rotation = imageRotation,
                                         onRotationChange = { newRotation -> applyRotation(newRotation) },
+                                        onRotateClockwise = { rotateClockwise() },
                                         onReset = {
                                             imageRotation = 0f
                                             imageScale = 1f

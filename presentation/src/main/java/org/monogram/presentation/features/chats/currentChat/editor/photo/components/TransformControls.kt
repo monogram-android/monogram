@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Rotate90DegreesCw
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import kotlin.math.roundToInt
 fun TransformControls(
     rotation: Float,
     onRotationChange: (Float) -> Unit,
+    onRotateClockwise: () -> Unit,
     onReset: () -> Unit
 ) {
     val normalizedRotation = normalizeRotationDegrees(rotation)
@@ -57,17 +59,34 @@ fun TransformControls(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            OutlinedIconButton(
-                onClick = onReset,
-                colors = IconButtonDefaults.outlinedIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    Icons.Rounded.Refresh,
-                    contentDescription = stringResource(R.string.photo_editor_action_reset)
-                )
+                OutlinedIconButton(
+                    onClick = onRotateClockwise,
+                    colors = IconButtonDefaults.outlinedIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Icon(
+                        Icons.Rounded.Rotate90DegreesCw,
+                        contentDescription = stringResource(R.string.photo_editor_action_rotate_right)
+                    )
+                }
+
+                OutlinedIconButton(
+                    onClick = onReset,
+                    colors = IconButtonDefaults.outlinedIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Icon(
+                        Icons.Rounded.Refresh,
+                        contentDescription = stringResource(R.string.photo_editor_action_reset)
+                    )
+                }
             }
         }
     }
@@ -169,6 +188,11 @@ internal fun normalizeRotationDegrees(value: Float): Float {
     if (normalized > 180f) normalized -= 360f
     if (normalized < -180f) normalized += 360f
     return normalized
+}
+
+internal fun rotateClockwiseToNextRightAngle(value: Float): Float {
+    val snappedRotation = (value / 90f).roundToInt() * 90f
+    return normalizeRotationDegrees(snappedRotation + 90f)
 }
 
 private fun closestEquivalentAngle(normalizedAngle: Float, referenceAngle: Float): Float {

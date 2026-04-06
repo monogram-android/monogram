@@ -29,11 +29,20 @@ import org.monogram.presentation.root.RootComponent
 @Composable
 fun MobileLayout(root: RootComponent) {
     val stack by root.childStack.subscribeAsState()
+    val isDragToBackEnabled by root.appPreferences.isDragToBackEnabled.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val dragOffsetX = remember { Animatable(0f) }
     val previous = stack.items.dropLast(1).lastOrNull()?.instance
     var swipeBackInProgress by remember { mutableStateOf(false) }
     var widthPx by remember { mutableFloatStateOf(0f) }
+    val canUseDragToBack =
+        isDragToBackEnabled && stack.active.instance is RootComponent.Child.ChatDetailChild
+
+    LaunchedEffect(canUseDragToBack) {
+        if (!canUseDragToBack && dragOffsetX.value > 0f) {
+            dragOffsetX.snapTo(0f)
+        }
+    }
 
     if (dragOffsetX.value > 0 && previous != null) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -57,8 +66,8 @@ fun MobileLayout(root: RootComponent) {
                 widthPx = it.width.toFloat()
             }
             .then(
-                if (stack.active.instance is RootComponent.Child.ChatDetailChild) {
-                    Modifier.pointerInput(Unit) {
+                if (canUseDragToBack) {
+                    Modifier.pointerInput(canUseDragToBack) {
                         var isDragging = false
                         detectHorizontalDragGestures(
                             onDragStart = { offset ->

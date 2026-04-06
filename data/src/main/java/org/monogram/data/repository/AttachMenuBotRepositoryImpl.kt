@@ -1,12 +1,12 @@
 package org.monogram.data.repository
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.datasource.cache.SettingsCacheDataSource
 import org.monogram.data.datasource.remote.SettingsRemoteDataSource
 import org.monogram.data.db.dao.AttachBotDao
@@ -24,10 +24,8 @@ class AttachMenuBotRepositoryImpl(
     private val updates: UpdateDispatcher,
     private val dispatchers: DispatcherProvider,
     private val attachBotDao: AttachBotDao,
-    scopeProvider: ScopeProvider
+    private val scope: CoroutineScope
 ) : AttachMenuBotRepository {
-
-    private val scope = scopeProvider.appScope
     private val attachMenuBots = MutableStateFlow<List<AttachMenuBotModel>>(cacheProvider.attachBots.value)
 
     init {

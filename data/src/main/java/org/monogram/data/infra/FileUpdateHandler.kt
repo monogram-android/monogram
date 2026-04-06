@@ -1,11 +1,11 @@
 package org.monogram.data.infra
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
-import org.monogram.core.ScopeProvider
 import org.monogram.data.gateway.UpdateDispatcher
 import java.util.concurrent.ConcurrentHashMap
 
@@ -13,7 +13,7 @@ class FileUpdateHandler(
     private val registry: FileMessageRegistry,
     private val queue: FileDownloadQueue,
     private val updates: UpdateDispatcher,
-    private val scope: ScopeProvider
+    private val scope: CoroutineScope
 ) {
     val customEmojiPaths = ConcurrentHashMap<Long, String>()
     val fileIdToCustomEmojiId = ConcurrentHashMap<Int, Long>()
@@ -33,7 +33,7 @@ class FileUpdateHandler(
     val uploadProgress = _uploadProgress.asSharedFlow()
 
     init {
-        scope.appScope.launch {
+        scope.launch {
             updates.file.collect { update -> handle(update.file) }
         }
     }
@@ -52,7 +52,7 @@ class FileUpdateHandler(
 
         val entries = registry.getMessages(file.id)
         if (entries.isNotEmpty()) {
-            scope.appScope.launch {
+            scope.launch {
                 if (downloadDone) {
                     handleCustomEmoji(file.id, file.local?.path ?: "")
                     _fileDownloadCompleted.emit(file.id.toLong() to (file.local?.path ?: ""))
@@ -74,7 +74,7 @@ class FileUpdateHandler(
                 }
             }
         } else if (registry.standaloneFileIds.contains(file.id)) {
-            scope.appScope.launch {
+            scope.launch {
                 if (downloadDone) {
                     _fileDownloadCompleted.emit(file.id.toLong() to (file.local?.path ?: ""))
                     _fileDownloadProgress.emit(file.id.toLong() to 1f)
@@ -88,7 +88,7 @@ class FileUpdateHandler(
                 }
             }
         } else {
-            scope.appScope.launch {
+            scope.launch {
                 if (downloadDone) {
                     _fileDownloadCompleted.emit(file.id.toLong() to (file.local?.path ?: ""))
                     _fileDownloadProgress.emit(file.id.toLong() to 1f)

@@ -1,16 +1,12 @@
 package org.monogram.data.repository
 
 import android.util.Log
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.*
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.cache.ChatLocalDataSource
@@ -46,7 +42,7 @@ class ChatsListRepositoryImpl(
     private val chatMapper: ChatMapper,
     private val messageMapper: MessageMapper,
     private val gateway: TelegramGateway,
-    scopeProvider: ScopeProvider,
+    private val scope: CoroutineScope,
     private val chatLocalDataSource: ChatLocalDataSource,
     private val connectionManager: ConnectionManager,
     private val databaseFile: File,
@@ -63,8 +59,6 @@ class ChatsListRepositoryImpl(
     ForumTopicsRepository,
     ChatSettingsRepository,
     ChatCreationRepository {
-
-    private val scope = scopeProvider.appScope
 
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
     override val chatListFlow: StateFlow<List<ChatModel>> = _chatListFlow.asStateFlow()
@@ -96,7 +90,7 @@ class ChatsListRepositoryImpl(
     private val fileManager = ChatFileManager(
         gateway = gateway,
         dispatchers = dispatchers,
-        scopeProvider = scopeProvider,
+        scope = scope,
         fileQueue = fileQueue,
         fileUpdateHandler = fileUpdateHandler,
         onUpdate = {
@@ -126,7 +120,7 @@ class ChatsListRepositoryImpl(
     private val modelFactory = ChatModelFactory(
         gateway = gateway,
         dispatchers = dispatchers,
-        scopeProvider = scopeProvider,
+        scope = scope,
         cache = cache,
         chatMapper = chatMapper,
         fileManager = fileManager,
@@ -151,7 +145,7 @@ class ChatsListRepositoryImpl(
     private val folderManager = ChatFolderManager(
         gateway = gateway,
         dispatchers = dispatchers,
-        scopeProvider = scopeProvider,
+        scope = scope,
         foldersFlow = _foldersFlow,
         cacheProvider = cacheProvider,
         chatFolderDao = chatFolderDao

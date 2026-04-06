@@ -2,12 +2,12 @@ package org.monogram.data.repository
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.FileDataSource
@@ -39,13 +39,12 @@ class MessageRepositoryImpl(
     private val cache: ChatCache,
     private val fileDataSource: FileDataSource,
     private val dispatcherProvider: DispatcherProvider,
-    scopeProvider: ScopeProvider,
+    private val scope: CoroutineScope,
     private val chatLocalDataSource: ChatLocalDataSource,
     private val userLocalDataSource: UserLocalDataSource,
     private val fileUpdateHandler: FileUpdateHandler,
     private val textCompositionStyleDao: TextCompositionStyleDao
 ) : MessageRepository {
-    private val scope = scopeProvider.appScope
     private val _textCompositionStyles = MutableStateFlow<List<TextCompositionStyleModel>>(emptyList())
 
     override val newMessageFlow = messageRemoteDataSource.newMessageFlow

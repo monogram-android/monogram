@@ -1,12 +1,12 @@
 package org.monogram.data.repository
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.datasource.remote.SettingsRemoteDataSource
 import org.monogram.data.db.dao.WallpaperDao
 import org.monogram.data.db.model.WallpaperEntity
@@ -20,10 +20,8 @@ class WallpaperRepositoryImpl(
     private val updates: UpdateDispatcher,
     private val wallpaperDao: WallpaperDao,
     private val dispatchers: DispatcherProvider,
-    scopeProvider: ScopeProvider
+    private val scope: CoroutineScope
 ) : WallpaperRepository {
-
-    private val scope = scopeProvider.appScope
 
     private val wallpaperUpdates = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private val wallpapers = MutableStateFlow<List<WallpaperModel>>(emptyList())

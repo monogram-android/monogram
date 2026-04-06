@@ -1,12 +1,12 @@
 package org.monogram.data.stickers
 
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.cache.StickerLocalDataSource
 import org.monogram.data.infra.FileDownloadQueue
@@ -23,10 +23,8 @@ class StickerFileManager(
     private val fileQueue: FileDownloadQueue,
     private val fileUpdateHandler: FileUpdateHandler,
     private val dispatchers: DispatcherProvider,
-    scopeProvider: ScopeProvider
+    private val scope: CoroutineScope
 ) {
-    private val scope = scopeProvider.appScope
-
     private val tgsCache = mutableMapOf<String, String>()
     private val filePathsCache = ConcurrentHashMap<Long, String>()
 

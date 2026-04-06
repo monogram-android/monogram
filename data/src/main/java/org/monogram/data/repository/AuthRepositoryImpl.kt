@@ -1,9 +1,9 @@
 package org.monogram.data.repository
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
-import org.monogram.core.ScopeProvider
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.remote.AuthRemoteDataSource
 import org.monogram.data.gateway.UpdateDispatcher
@@ -17,10 +17,8 @@ class AuthRepositoryImpl(
     private val parametersProvider: TdLibParametersProvider,
     private val remote: AuthRemoteDataSource,
     private val updates: UpdateDispatcher,
-    scopeProvider: ScopeProvider
+    private val scope: CoroutineScope
 ) : AuthRepository {
-    private val scope = scopeProvider.appScope
-
     private val _authState = MutableStateFlow<AuthStep>(AuthStep.Loading)
     override val authState = _authState.asStateFlow()
 

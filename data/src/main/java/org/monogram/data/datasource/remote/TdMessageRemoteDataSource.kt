@@ -7,7 +7,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
@@ -31,10 +30,9 @@ class TdMessageRemoteDataSource(
     private val fileDownloadQueue: FileDownloadQueue,
     private val fileUpdateHandler: FileUpdateHandler,
     private val dispatcherProvider: DispatcherProvider,
-    scopeProvider: ScopeProvider
+    val scope: CoroutineScope
 ) : MessageRemoteDataSource {
 
-    val scope = scopeProvider.appScope
     private val chatRequests = ConcurrentHashMap<Long, Deferred<TdApi.Chat?>>()
     private val messageRequests = ConcurrentHashMap<Pair<Long, Long>, Deferred<TdApi.Message?>>()
     private val refreshJobs = ConcurrentHashMap<Pair<Long, Long>, Job>()

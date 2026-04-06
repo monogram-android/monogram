@@ -1,12 +1,12 @@
 package org.monogram.data.infra
 
-import org.monogram.data.core.coRunCatching
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
-import org.monogram.core.ScopeProvider
+import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.SponsorDao
 import org.monogram.data.db.model.SponsorEntity
 import org.monogram.data.gateway.TelegramGateway
@@ -26,7 +26,7 @@ private const val POST_LOGIN_SYNC_DELAY_MS = 60L * 1000L
 private const val ONE_DAY_MS = 24L * 60L * 60L * 1000L
 
 class SponsorSyncManager(
-    private val scopeProvider: ScopeProvider,
+    private val scope: CoroutineScope,
     private val gateway: TelegramGateway,
     private val sponsorDao: SponsorDao,
     private val authRepository: AuthRepository
@@ -41,7 +41,7 @@ class SponsorSyncManager(
     fun start() {
         if (!started.compareAndSet(false, true)) return
 
-        scopeProvider.appScope.launch(Dispatchers.IO) {
+        scope.launch(Dispatchers.IO) {
             loadFromDatabase()
 
             var wasAuthorized = authRepository.authState.value is AuthStep.Ready
@@ -78,7 +78,7 @@ class SponsorSyncManager(
     }
 
     fun forceSync() {
-        scopeProvider.appScope.launch(Dispatchers.IO) {
+        scope.launch(Dispatchers.IO) {
             syncOnce(force = true)
         }
     }

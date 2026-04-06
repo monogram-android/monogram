@@ -1,13 +1,13 @@
 package org.monogram.data.chats
 
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.ChatFolderDao
 import org.monogram.data.db.model.ChatFolderEntity
@@ -21,13 +21,11 @@ private const val TAG = "ChatFolderManager"
 class ChatFolderManager(
     private val gateway: TelegramGateway,
     private val dispatchers: DispatcherProvider,
-    scopeProvider: ScopeProvider,
+    private val scope: CoroutineScope,
     private val foldersFlow: MutableStateFlow<List<FolderModel>>,
     private val cacheProvider: CacheProvider,
     private val chatFolderDao: ChatFolderDao
 ) {
-    private val scope = scopeProvider.appScope
-
     private val chatUnreadCounts = ConcurrentHashMap<Long, Int>()
     private val folderChatIds = ConcurrentHashMap<Int, List<Long>>()
     private val folderPinnedChatIds = ConcurrentHashMap<Int, List<Long>>()

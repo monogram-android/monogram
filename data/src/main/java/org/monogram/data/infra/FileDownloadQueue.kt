@@ -7,7 +7,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TdLibException
@@ -20,7 +19,7 @@ class FileDownloadQueue(
     private val gateway: TelegramGateway,
     val registry: FileMessageRegistry,
     private val cache: ChatCache,
-    private val scope: ScopeProvider,
+    private val scope: CoroutineScope,
     private val dispatcherProvider: DispatcherProvider
 ) {
     enum class DownloadType { VIDEO, GIF, STICKER, VIDEO_NOTE, DEFAULT }
@@ -84,7 +83,7 @@ class FileDownloadQueue(
     private val trigger = Channel<Unit>(Channel.CONFLATED)
 
     init {
-        scope.appScope.launch(dispatcherProvider.default) {
+        scope.launch(dispatcherProvider.default) {
             while (isActive) {
                 trigger.receive()
                 coRunCatching { dispatchTasks() }
@@ -92,7 +91,7 @@ class FileDownloadQueue(
             }
         }
 
-        scope.appScope.launch(dispatcherProvider.default) {
+        scope.launch(dispatcherProvider.default) {
             while (isActive) {
                 delay(TimeUnit.MINUTES.toMillis(1))
                 coRunCatching { retryFailedDownloads() }
@@ -100,7 +99,7 @@ class FileDownloadQueue(
             }
         }
 
-        scope.appScope.launch(dispatcherProvider.default) {
+        scope.launch(dispatcherProvider.default) {
             while (isActive) {
                 delay(15_000)
                 coRunCatching { recoverStalledDownloads() }
@@ -108,7 +107,7 @@ class FileDownloadQueue(
             }
         }
 
-        scope.appScope.launch(dispatcherProvider.default) {
+        scope.launch(dispatcherProvider.default) {
             while (isActive) {
                 delay(TimeUnit.MINUTES.toMillis(5))
                 coRunCatching { cleanupDeadState() }
@@ -165,7 +164,7 @@ class FileDownloadQueue(
 
         for (task in tasksToStart) {
             throttleTaskStart()
-            scope.appScope.launch(dispatcherProvider.io) {
+            scope.launch(dispatcherProvider.io) {
                 processDownload(task)
             }
         }
@@ -279,7 +278,7 @@ class FileDownloadQueue(
                 failedRequests.remove(req.fileId)
             }
             trigger.trySend(Unit)
-            scope.appScope.launch(dispatcherProvider.default) {
+            scope.launch(dispatcherProvider.default) {
                 delay(backoffMs)
                 trigger.trySend(Unit)
             }
@@ -304,7 +303,7 @@ class FileDownloadQueue(
                 failedRequests.remove(req.fileId)
             }
             trigger.trySend(Unit)
-            scope.appScope.launch(dispatcherProvider.default) {
+            scope.launch(dispatcherProvider.default) {
                 delay(cooldownMs)
                 trigger.trySend(Unit)
             }
@@ -375,7 +374,7 @@ class FileDownloadQueue(
                 if (now - recoveredAt < stalledRecoveryCooldownMs) return@forEach
                 stalledRecoveryAt[req.fileId] = now
 
-                scope.appScope.launch(dispatcherProvider.default) {
+                scope.launch(dispatcherProvider.default) {
                     val recovered = stateMutex.withLock {
                         val active = activeRequests[req.fileId] ?: return@withLock false
                         if (active.createdAt != req.createdAt || active.availableAt != req.availableAt) return@withLock false
@@ -431,14 +430,14 @@ class FileDownloadQueue(
             failedRequests.remove(file.id)
             stalledRecoveryAt.remove(file.id)
             lastProgressAt.remove(file.id)
-            scope.appScope.launch {
+            scope.launch {
                 stateMutex.withLock { pendingRequests.remove(file.id) }
             }
             notifyDownloadComplete(file.id)
         } else if (oldFile?.local?.isDownloadingActive == true && !file.local.isDownloadingActive) {
             val type = fileDownloadTypes[file.id]
             if (type == DownloadType.STICKER || manualDownloadIds.contains(file.id)) {
-                scope.appScope.launch(dispatcherProvider.default) {
+                scope.launch(dispatcherProvider.default) {
                     enqueue(
                         fileId = file.id,
                         priority = if (type == DownloadType.STICKER) 32 else calculatePriority(file.id),
@@ -477,7 +476,7 @@ class FileDownloadQueue(
         nearbyMessageIds[chatId] = nearby.toSet()
         activeChatId = chatId
 
-        scope.appScope.launch(dispatcherProvider.default) {
+        scope.launch(dispatcherProvider.default) {
             cancelIrrelevantDownloads()
             (visible + nearby).forEach { messageId ->
                 registry.getFileIdsForMessage(chatId, messageId).forEach { fileId ->
@@ -498,7 +497,7 @@ class FileDownloadQueue(
         synchronous: Boolean = false,
         ignoreSuppression: Boolean = false
     ) {
-        scope.appScope.launch(dispatcherProvider.default) {
+        scope.launch(dispatcherProvider.default) {
             if (!ignoreSuppression && suppressedAutoDownloadIds.contains(fileId)) {
                 return@launch
             }
@@ -556,7 +555,7 @@ class FileDownloadQueue(
                     val shouldKick = merged != active || cache.fileCache[fileId]?.local?.isDownloadingActive != true
                     if (shouldKick) {
                         activeRequests[fileId] = merged
-                        scope.appScope.launch(dispatcherProvider.io) {
+                        scope.launch(dispatcherProvider.io) {
                             try {
                                 gateway.execute(
                                     TdApi.DownloadFile(
@@ -600,7 +599,7 @@ class FileDownloadQueue(
             suppressedAutoDownloadIds.add(fileId)
         }
 
-        scope.appScope.launch(dispatcherProvider.io) {
+        scope.launch(dispatcherProvider.io) {
             try {
                 gateway.execute(TdApi.CancelDownloadFile(fileId, false))
             } catch (_: Exception) {
@@ -709,7 +708,7 @@ class FileDownloadQueue(
     }
 
     private fun cancelIrrelevantDownloads() {
-        scope.appScope.launch(dispatcherProvider.default) {
+        scope.launch(dispatcherProvider.default) {
             val toCancel = mutableListOf<Int>()
 
             for ((fileId, _) in pendingRequests) {
@@ -721,7 +720,7 @@ class FileDownloadQueue(
     }
 
     private fun flushIrrelevantBackgroundDownloads() {
-        scope.appScope.launch(dispatcherProvider.default) {
+        scope.launch(dispatcherProvider.default) {
             val toCancel = mutableListOf<Int>()
 
             stateMutex.withLock {

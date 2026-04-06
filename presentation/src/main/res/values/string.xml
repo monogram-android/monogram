@@ -580,6 +580,7 @@
     <string name="reset_button">Reset</string>
     <string name="chat_wallpaper_header">Chat Wallpaper</string>
     <string name="reset_wallpaper_cd">Reset Wallpaper</string>
+    <string name="upload_wallpaper_cd">Upload Wallpaper</string>
     <string name="emoji_style_header">Emoji Style</string>
     <string name="theme_header">Theme</string>
     <string name="night_mode_title">Night Mode</string>
@@ -1338,6 +1339,12 @@
     <string name="empty_links">No links found</string>
     <string name="empty_gifs">No GIFs found</string>
     <string name="label_bot_badge">BOT</string>
+    <string name="label_scam_badge">SCAM</string>
+    <string name="label_fake_badge">FAKE</string>
+    <string name="unofficial_app_title">Uses unofficial app</string>
+    <string name="unofficial_app_subtitle">This account is using an unofficial Telegram client</string>
+    <string name="bot_verification_title">Bot verification</string>
+    <string name="bot_verification_subtitle">Verified by a third-party bot</string>
     <string name="opening_hours_closed">Closed</string>
     <string name="label_id">ID</string>
 

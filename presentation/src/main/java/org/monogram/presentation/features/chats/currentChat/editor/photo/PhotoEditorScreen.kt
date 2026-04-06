@@ -1,7 +1,8 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
 package org.monogram.presentation.features.chats.currentChat.editor.photo
 
+import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -23,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -36,9 +38,12 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.editor.photo.components.*
+import org.monogram.presentation.features.chats.currentChat.editor.photo.crop.*
 import java.io.File
 
 enum class EditorTool(val labelRes: Int, val icon: ImageVector) {
@@ -50,6 +55,9 @@ enum class EditorTool(val labelRes: Int, val icon: ImageVector) {
     ERASER(R.string.photo_editor_tool_eraser, Icons.Rounded.CleaningServices)
 }
 
+private const val MinImageScale = 0.5f
+private const val MaxImageScale = 10f
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhotoEditorScreen(
@@ -59,8 +67,9 @@ fun PhotoEditorScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
 
-    var currentTool by remember { mutableStateOf(EditorTool.NONE) }
+    var currentTool by remember { mutableStateOf(EditorTool.TRANSFORM) }
 
     val paths = remember { mutableStateListOf<DrawnPath>() }
     val pathsRedo = remember { mutableStateListOf<DrawnPath>() }
@@ -70,6 +79,7 @@ fun PhotoEditorScreen(
     var brushSize by remember { mutableFloatStateOf(15f) }
     var currentFilter by remember { mutableStateOf<ImageFilter?>(null) }
 
+    
     var imageRotation by remember { mutableFloatStateOf(0f) }
     var imageScale by remember { mutableFloatStateOf(1f) }
     var imageOffset by remember { mutableStateOf(Offset.Zero) }
@@ -81,12 +91,171 @@ fun PhotoEditorScreen(
     var isSaving by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
 
+    val imageSize by produceState(initialValue = IntSize.Zero, key1 = imagePath) {
+        value = withContext(Dispatchers.IO) {
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(imagePath, options)
+            IntSize(options.outWidth.coerceAtLeast(0), options.outHeight.coerceAtLeast(0))
+        }
+    }
+
+    
+    val pivot by remember(canvasSize) {
+        derivedStateOf { Offset(canvasSize.width / 2f, canvasSize.height / 2f) }
+    }
+
+    val cropState = rememberCropEditorState(
+        canvasSize = canvasSize,
+        imageSize = imageSize,
+        transformPivot = pivot,
+        imageScale = imageScale,
+        imageRotation = imageRotation,
+        imageOffset = imageOffset
+    )
+
+    
+    fun fillAreaAfterResize() {
+        val crop = cropState.cropRect
+        if (crop.width <= 0f || crop.height <= 0f || canvasSize.width <= 0 || canvasSize.height <= 0) return
+
+        val currentAspect = crop.width / crop.height
+        val targetCropRect = calculateTargetFillRect(canvasSize, currentAspect)
+        if (targetCropRect == Rect.Zero) return
+
+        
+        val scaleFactor = maxOf(
+            targetCropRect.width / crop.width,
+            targetCropRect.height / crop.height
+        )
+        val targetScale = (imageScale * scaleFactor).coerceIn(MinImageScale, MaxImageScale)
+        val z = if (imageScale != 0f) targetScale / imageScale else 1f
+
+        
+        
+        
+        
+        val targetOffset = Offset(
+            x = (targetCropRect.center.x - pivot.x) - z * (crop.center.x - pivot.x - imageOffset.x),
+            y = (targetCropRect.center.y - pivot.y) - z * (crop.center.y - pivot.y - imageOffset.y)
+        )
+
+        val targetImageBounds = calculateScalarTransformedBounds(
+            baseBounds = cropState.imageBounds,
+            scale = targetScale,
+            rotationDegrees = imageRotation,
+            offset = targetOffset,
+            pivot = pivot
+        )
+        val safeTargetCropRect = constrainCropRectToImage(
+            currentCropRect = crop,
+            candidateRect = targetCropRect,
+            visibleBounds = targetImageBounds,
+            minCropSizePx = cropState.minCropSizePx,
+            baseBounds = cropState.imageBounds,
+            scale = targetScale,
+            rotationDegrees = imageRotation,
+            offset = targetOffset,
+            pivot = pivot
+        )
+
+        
+        scope.launch {
+            val startCrop = crop
+            val startScale = imageScale
+            val startOffset = imageOffset
+            val anim = androidx.compose.animation.core.Animatable(0f)
+            anim.animateTo(1f, androidx.compose.animation.core.tween(200)) {
+                val t = value
+                cropState.setCropRect(
+                    Rect(
+                        left = startCrop.left + (safeTargetCropRect.left - startCrop.left) * t,
+                        top = startCrop.top + (safeTargetCropRect.top - startCrop.top) * t,
+                        right = startCrop.right + (safeTargetCropRect.right - startCrop.right) * t,
+                        bottom = startCrop.bottom + (safeTargetCropRect.bottom - startCrop.bottom) * t
+                    )
+                )
+                imageScale = startScale + (targetScale - startScale) * t
+                imageOffset = Offset(
+                    x = startOffset.x + (targetOffset.x - startOffset.x) * t,
+                    y = startOffset.y + (targetOffset.y - startOffset.y) * t
+                )
+            }
+        }
+    }
+
+    val shouldConstrain by remember(currentTool) {
+        derivedStateOf { currentTool == EditorTool.TRANSFORM || currentTool == EditorTool.NONE }
+    }
+
+    fun applyTransform(centroid: Offset, pan: Offset, zoom: Float) {
+        val effectiveMinScale = if (shouldConstrain && cropState.cropRect != Rect.Zero && cropState.imageBounds != Rect.Zero) {
+            minimumScaleToCoverCrop(
+                baseBounds = cropState.imageBounds,
+                cropRect = cropState.cropRect,
+                currentScale = imageScale,
+                rotationDegrees = imageRotation,
+                offset = imageOffset,
+                pivot = pivot
+            ).coerceAtLeast(MinImageScale)
+        } else {
+            MinImageScale
+        }
+
+        val newScale = (imageScale * zoom).coerceIn(effectiveMinScale, MaxImageScale)
+        val actualZoom = if (imageScale != 0f) newScale / imageScale else 1f
+
+        val offsetAfterZoom = offsetForZoomAroundAnchor(imageOffset, pivot, centroid, actualZoom)
+        val newOffset = offsetAfterZoom + pan
+
+        imageScale = newScale
+        imageOffset = if (shouldConstrain && cropState.cropRect != Rect.Zero && cropState.imageBounds != Rect.Zero) {
+            clampOffsetToCoverCrop(
+                baseBounds = cropState.imageBounds,
+                cropRect = cropState.cropRect,
+                scale = newScale,
+                rotationDegrees = imageRotation,
+                offset = newOffset,
+                pivot = pivot
+            )
+        } else {
+            newOffset
+        }
+    }
+
+    fun applyRotation(newRotation: Float) {
+        val deltaAngle = newRotation - imageRotation
+        
+        val anchor = if (cropState.cropRect != Rect.Zero) cropState.cropRect.center else pivot
+        val newOffset = offsetForRotationAroundAnchor(imageOffset, pivot, anchor, deltaAngle)
+
+        imageRotation = newRotation
+
+        
+        if (shouldConstrain && cropState.cropRect != Rect.Zero && cropState.imageBounds != Rect.Zero) {
+            val (fittedScale, fittedOffset) = fitContentInBounds(
+                baseBounds = cropState.imageBounds,
+                cropRect = cropState.cropRect,
+                scale = imageScale,
+                rotationDegrees = newRotation,
+                offset = newOffset,
+                pivot = pivot,
+                minScale = MinImageScale,
+                maxScale = MaxImageScale
+            )
+            imageScale = fittedScale
+            imageOffset = fittedOffset
+        } else {
+            imageOffset = newOffset
+        }
+    }
+
     val hasChanges by remember {
         derivedStateOf {
             paths.isNotEmpty() ||
                     textElements.isNotEmpty() ||
                     currentFilter != null ||
-                    imageRotation != 0f ||
+                    (cropState.cropRect != Rect.Zero && cropState.cropRect != cropState.defaultCropRect) ||
+                    normalizeRotationDegrees(imageRotation) != 0f ||
                     imageScale != 1f ||
                     imageOffset != Offset.Zero
         }
@@ -120,7 +289,9 @@ fun PhotoEditorScreen(
                                 textElements,
                                 currentFilter,
                                 canvasSize,
-                                imageRotation,
+                                cropState.cropRect,
+                                pivot,
+                                normalizeRotationDegrees(imageRotation),
                                 imageScale,
                                 imageOffset
                             )
@@ -151,9 +322,7 @@ fun PhotoEditorScreen(
                 tonalElevation = 3.dp,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
             ) {
-                Column(
-                    modifier = Modifier.navigationBarsPadding()
-                ) {
+                Column(modifier = Modifier.navigationBarsPadding()) {
                     AnimatedContent(
                         targetState = currentTool,
                         label = "ToolOptions",
@@ -162,24 +331,22 @@ fun PhotoEditorScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 100.dp),
+                                .heightIn(min = 84.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             when (tool) {
                                 EditorTool.TRANSFORM -> {
                                     TransformControls(
                                         rotation = imageRotation,
-                                        scale = imageScale,
-                                        onRotationChange = { imageRotation = it },
-                                        onScaleChange = { imageScale = it },
+                                        onRotationChange = { newRotation -> applyRotation(newRotation) },
                                         onReset = {
                                             imageRotation = 0f
                                             imageScale = 1f
                                             imageOffset = Offset.Zero
+                                            cropState.reset()
                                         }
                                     )
                                 }
-
                                 EditorTool.DRAW, EditorTool.ERASER -> {
                                     DrawControls(
                                         isEraser = tool == EditorTool.ERASER,
@@ -189,7 +356,6 @@ fun PhotoEditorScreen(
                                         onSizeChange = { brushSize = it }
                                     )
                                 }
-
                                 EditorTool.FILTER -> {
                                     FilterControls(
                                         imagePath = imagePath,
@@ -197,7 +363,6 @@ fun PhotoEditorScreen(
                                         onFilterSelect = { currentFilter = it }
                                     )
                                 }
-
                                 EditorTool.TEXT -> {
                                     Button(
                                         onClick = {
@@ -211,7 +376,6 @@ fun PhotoEditorScreen(
                                         Text(stringResource(R.string.photo_editor_action_add_text))
                                     }
                                 }
-
                                 else -> {
                                     Text(
                                         stringResource(R.string.photo_editor_label_select_tool),
@@ -223,10 +387,7 @@ fun PhotoEditorScreen(
                         }
                     }
 
-                    NavigationBar(
-                        containerColor = Color.Transparent,
-                        tonalElevation = 0.dp
-                    ) {
+                    NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
                         EditorTool.entries.forEach { tool ->
                             val label = stringResource(tool.labelRes)
                             NavigationBarItem(
@@ -255,180 +416,168 @@ fun PhotoEditorScreen(
                 .background(Color.Black)
                 .onGloballyPositioned { canvasSize = it.size }
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer(
-                        scaleX = imageScale,
-                        scaleY = imageScale,
-                        rotationZ = imageRotation,
-                        translationX = imageOffset.x,
-                        translationY = imageOffset.y
-                    )
-                    .pointerInput(currentTool) {
-                        if (currentTool == EditorTool.TRANSFORM || currentTool == EditorTool.NONE) {
-                            detectTransformGestures { _, pan, zoom, rotation ->
-                                imageScale *= zoom
-                                imageRotation += rotation
-                                imageOffset += pan
-                            }
-                        }
-                    }
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(File(imagePath))
-                        .build(),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit,
-                    colorFilter = currentFilter?.let { ColorFilter.colorMatrix(it.colorMatrix) }
-                )
-
-                Canvas(
+            Box(modifier = Modifier.fillMaxSize()) {
+                
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .graphicsLayer(
+                            scaleX = imageScale,
+                            scaleY = imageScale,
+                            rotationZ = imageRotation,
+                            translationX = imageOffset.x,
+                            translationY = imageOffset.y,
+                            transformOrigin = TransformOrigin.Center
+                        )
                         .pointerInput(currentTool) {
-                            if (currentTool == EditorTool.DRAW || currentTool == EditorTool.ERASER) {
-                                detectDragGestures(
-                                    onDragStart = { offset ->
-                                        val path = Path().apply { moveTo(offset.x, offset.y) }
-                                        paths.add(
-                                            DrawnPath(
-                                                path = path,
-                                                color = if (currentTool == EditorTool.ERASER) Color.Transparent else selectedColor,
-                                                strokeWidth = brushSize,
-                                                isEraser = currentTool == EditorTool.ERASER
-                                            )
-                                        )
-                                        pathsRedo.clear()
-                                    },
-                                    onDrag = { change, _ ->
-                                        change.consume()
-                                        val index = paths.lastIndex
-                                        if (index == -1) return@detectDragGestures
-
-                                        val currentPathData = paths[index]
-                                        val x1 = change.previousPosition.x
-                                        val y1 = change.previousPosition.y
-                                        val x2 = change.position.x
-                                        val y2 = change.position.y
-
-                                        currentPathData.path.quadraticTo(
-                                            x1, y1, (x1 + x2) / 2, (y1 + y2) / 2
-                                        )
-
-                                        paths.add(paths.removeAt(index))
-                                    }
-                                )
+                            if (currentTool == EditorTool.NONE) {
+                                detectTransformGestures { centroid, pan, zoom, _ ->
+                                    applyTransform(centroid, pan, zoom)
+                                }
                             }
                         }
                 ) {
-                    paths.forEach { pathData ->
-                        drawPath(
-                            path = pathData.path,
-                            color = pathData.color,
-                            alpha = pathData.alpha,
-                            style = Stroke(
-                                width = pathData.strokeWidth,
-                                cap = StrokeCap.Round,
-                                join = StrokeJoin.Round
-                            ),
-                            blendMode = if (pathData.isEraser) BlendMode.Clear else BlendMode.SrcOver
-                        )
-                    }
-                }
+                    AsyncImage(
+                        model = ImageRequest.Builder(context).data(File(imagePath)).build(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit,
+                        colorFilter = currentFilter?.let { ColorFilter.colorMatrix(it.colorMatrix) }
+                    )
 
-                textElements.forEach { element ->
-                    val density = LocalDensity.current
-
-                    var currentOffset by remember(element.id) {
-                        mutableStateOf(
-                            if (element.offset == Offset.Zero) Offset(
-                                canvasSize.width / 2f,
-                                canvasSize.height / 2f
-                            ) else element.offset
-                        )
-                    }
-                    var currentScale by remember(element.id) { mutableStateOf(element.scale) }
-                    var currentRotation by remember(element.id) { mutableStateOf(element.rotation) }
-
-                    Box(
+                    Canvas(
                         modifier = Modifier
-                            .offset(
-                                x = with(density) { currentOffset.x.toDp() },
-                                y = with(density) { currentOffset.y.toDp() }
-                            )
-                            .graphicsLayer(
-                                scaleX = currentScale,
-                                scaleY = currentScale,
-                                rotationZ = currentRotation,
-                                translationX = -with(density) { 100.dp.toPx() },
-                                translationY = -with(density) { 25.dp.toPx() }
-                            )
-                            .pointerInput(currentTool, element.id) {
-                                if (currentTool == EditorTool.TEXT || currentTool == EditorTool.NONE) {
-                                    detectTransformGestures(
-                                        onGesture = { _, pan, zoom, rotation ->
-                                            currentOffset += pan
-                                            currentScale *= zoom
-                                            currentRotation += rotation
+                            .fillMaxSize()
+                            .pointerInput(currentTool) {
+                                if (currentTool == EditorTool.DRAW || currentTool == EditorTool.ERASER) {
+                                    detectDragGestures(
+                                        onDragStart = { offset ->
+                                            val path = Path().apply { moveTo(offset.x, offset.y) }
+                                            paths.add(
+                                                DrawnPath(
+                                                    path = path,
+                                                    color = if (currentTool == EditorTool.ERASER) Color.Transparent else selectedColor,
+                                                    strokeWidth = brushSize,
+                                                    isEraser = currentTool == EditorTool.ERASER
+                                                )
+                                            )
+                                            pathsRedo.clear()
+                                        },
+                                        onDrag = { change, _ ->
+                                            change.consume()
+                                            val index = paths.lastIndex
+                                            if (index == -1) return@detectDragGestures
+                                            val cur = paths[index]
+                                            val x1 = change.previousPosition.x
+                                            val y1 = change.previousPosition.y
+                                            val x2 = change.position.x
+                                            val y2 = change.position.y
+                                            cur.path.quadraticTo(x1, y1, (x1 + x2) / 2, (y1 + y2) / 2)
+                                            paths.add(paths.removeAt(index))
                                         }
                                     )
                                 }
                             }
-                            .pointerInput(currentTool, element.id) {
-                                if (currentTool == EditorTool.TEXT || currentTool == EditorTool.NONE) {
-                                    detectTapGestures(onTap = {
-                                        if (currentTool == EditorTool.TEXT) {
-                                            editingTextElement = element
-                                            selectedColor = element.color
-                                            showTextDialog = true
+                    ) {
+                        paths.forEach { pathData ->
+                            drawPath(
+                                path = pathData.path,
+                                color = pathData.color,
+                                alpha = pathData.alpha,
+                                style = Stroke(width = pathData.strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round),
+                                blendMode = if (pathData.isEraser) BlendMode.Clear else BlendMode.SrcOver
+                            )
+                        }
+                    }
+
+                    textElements.forEach { element ->
+                        var currentOffset by remember(element.id) {
+                            mutableStateOf(
+                                if (element.offset == Offset.Zero) Offset(canvasSize.width / 2f, canvasSize.height / 2f)
+                                else element.offset
+                            )
+                        }
+                        var currentScale by remember(element.id) { mutableStateOf(element.scale) }
+                        var currentRotation by remember(element.id) { mutableStateOf(element.rotation) }
+
+                        Box(
+                            modifier = Modifier
+                                .offset(
+                                    x = with(density) { currentOffset.x.toDp() },
+                                    y = with(density) { currentOffset.y.toDp() }
+                                )
+                                .graphicsLayer(
+                                    scaleX = currentScale,
+                                    scaleY = currentScale,
+                                    rotationZ = currentRotation,
+                                    translationX = -with(density) { 100.dp.toPx() },
+                                    translationY = -with(density) { 25.dp.toPx() }
+                                )
+                                .pointerInput(currentTool, element.id) {
+                                    if (currentTool == EditorTool.TEXT || currentTool == EditorTool.NONE) {
+                                        detectTransformGestures { _, pan, zoom, rotation ->
+                                            currentOffset += pan
+                                            currentScale *= zoom
+                                            currentRotation += rotation
                                         }
-                                    })
+                                    }
+                                }
+                                .pointerInput(currentTool, element.id) {
+                                    if (currentTool == EditorTool.TEXT || currentTool == EditorTool.NONE) {
+                                        detectTapGestures(onTap = {
+                                            if (currentTool == EditorTool.TEXT) {
+                                                editingTextElement = element
+                                                selectedColor = element.color
+                                                showTextDialog = true
+                                            }
+                                        })
+                                    }
+                                }
+                        ) {
+                            LaunchedEffect(currentOffset, currentScale, currentRotation) {
+                                val idx = textElements.indexOfFirst { it.id == element.id }
+                                if (idx != -1 && (textElements[idx].offset != currentOffset || textElements[idx].rotation != currentRotation)) {
+                                    textElements[idx] = textElements[idx].copy(
+                                        offset = currentOffset, scale = currentScale, rotation = currentRotation
+                                    )
                                 }
                             }
-                    ) {
-                        LaunchedEffect(currentOffset, currentScale, currentRotation) {
-                            val idx = textElements.indexOfFirst { it.id == element.id }
-                            if (idx != -1 && (textElements[idx].offset != currentOffset || textElements[idx].rotation != currentRotation)) {
-                                textElements[idx] = textElements[idx].copy(
-                                    offset = currentOffset,
-                                    scale = currentScale,
-                                    rotation = currentRotation
+                            Text(
+                                text = element.text,
+                                color = element.color,
+                                style = MaterialTheme.typography.headlineLarge.copy(
+                                    shadow = Shadow(color = Color.Black, offset = Offset(2f, 2f), blurRadius = 4f)
+                                )
+                            )
+                            if (currentTool == EditorTool.TEXT) {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
                                 )
                             }
-                        }
-
-                        Text(
-                            text = element.text,
-                            color = element.color,
-                            style = MaterialTheme.typography.headlineLarge.copy(
-                                shadow = Shadow(
-                                    color = Color.Black,
-                                    offset = Offset(2f, 2f),
-                                    blurRadius = 4f
-                                )
-                            )
-                        )
-
-                        if (currentTool == EditorTool.TEXT) {
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                            )
                         }
                     }
                 }
             }
 
+            if (currentTool == EditorTool.TRANSFORM && cropState.cropRect != Rect.Zero) {
+                CropScrim(cropRect = cropState.cropRect)
+            }
+
             AnimatedVisibility(
-                visible = currentTool == EditorTool.TRANSFORM,
+                visible = currentTool == EditorTool.TRANSFORM && cropState.cropRect != Rect.Zero,
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
-                CropOverlay()
+                CropOverlay(
+                    cropRect = cropState.cropRect,
+                    bounds = cropState.currentImageBounds,
+                    minCropSizePx = cropState.minCropSizePx,
+                    onCropRectChange = cropState.updateCropRect,
+                    onContentTransform = { centroid, pan, zoom -> applyTransform(centroid, pan, zoom) },
+                    onResizeEnded = { fillAreaAfterResize() }
+                )
             }
 
             if (isSaving) {

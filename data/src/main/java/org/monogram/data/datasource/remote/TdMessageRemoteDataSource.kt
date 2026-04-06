@@ -3,6 +3,7 @@ package org.monogram.data.datasource.remote
 import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.drinkless.tdlib.TdApi
@@ -41,29 +42,29 @@ class TdMessageRemoteDataSource(
     override val messageEditedFlow = MutableSharedFlow<MessageModel>()
     override val messageReadFlow = MutableSharedFlow<ReadUpdate>(
         replay = 1,
-        extraBufferCapacity = 100,
-        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.SUSPEND
+        extraBufferCapacity = 32,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     override val messageUploadProgressFlow = MutableSharedFlow<Pair<Long, Float>>()
     override val messageDownloadProgressFlow = MutableSharedFlow<Pair<Long, Float>>()
     override val messageDownloadCancelledFlow = MutableSharedFlow<Long>()
     override val messageDeletedFlow = MutableSharedFlow<Pair<Long, List<Long>>>(
-        extraBufferCapacity = 100,
-        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.SUSPEND
+        extraBufferCapacity = 32,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     override val messageIdUpdateFlow = MutableSharedFlow<Triple<Long, Long, MessageModel>>(
-        extraBufferCapacity = 100,
-        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.SUSPEND
+        extraBufferCapacity = 32,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     override val messageDownloadCompletedFlow = MutableSharedFlow<Triple<Long, Int, String>>()
     override val pinnedMessageFlow = MutableSharedFlow<Long>(
         extraBufferCapacity = 10,
-        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.SUSPEND
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     override val mediaUpdateFlow = MutableSharedFlow<Unit>(
         replay = 0,
         extraBufferCapacity = 10,
-        onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
     enum class DownloadType { VIDEO, GIF, STICKER, VIDEO_NOTE, DEFAULT }

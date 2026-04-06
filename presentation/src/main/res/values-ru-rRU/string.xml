@@ -560,6 +560,7 @@
     <string name="reset_button">Сбросить</string>
     <string name="chat_wallpaper_header">Обои чата</string>
     <string name="reset_wallpaper_cd">Сбросить обои</string>
+    <string name="upload_wallpaper_cd">Загрузить обои</string>
     <string name="emoji_style_header">Стиль эмодзи</string>
     <string name="theme_header">Тема</string>
     <string name="night_mode_title">Ночной режим</string>
@@ -1259,6 +1260,12 @@
     <string name="empty_links">Ссылки не найдены</string>
     <string name="empty_gifs">GIF не найдены</string>
     <string name="label_bot_badge">БОТ</string>
+    <string name="label_scam_badge">СКАМ</string>
+    <string name="label_fake_badge">ФЕЙК</string>
+    <string name="unofficial_app_title">Использует неофициальное приложение</string>
+    <string name="unofficial_app_subtitle">Этот аккаунт использует неофициальный клиент Telegram</string>
+    <string name="bot_verification_title">Проверка бота</string>
+    <string name="bot_verification_subtitle">Подтверждено сторонним ботом</string>
     <string name="opening_hours_closed">Закрыто</string>
     <string name="label_id">ID</string>
 

@@ -1,6 +1,5 @@
 package org.monogram.data.mapper
 
-import android.text.format.DateUtils
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.db.model.ChatEntity
 import org.monogram.domain.models.*
@@ -19,6 +18,17 @@ class ChatMapper(private val stringProvider: StringProvider) {
         isOnline: Boolean,
         userStatus: String,
         isVerified: Boolean,
+        isScam: Boolean,
+        isFake: Boolean,
+        botVerificationIconCustomEmojiId: Long,
+        restrictionReason: String?,
+        hasSensitiveContent: Boolean,
+        activeStoryStateType: String?,
+        activeStoryId: Int,
+        boostLevel: Int,
+        hasForumTabs: Boolean,
+        isAdministeredDirectMessagesGroup: Boolean,
+        paidMessageStarCount: Long,
         isSponsor: Boolean,
         isForum: Boolean,
         isBot: Boolean,
@@ -40,30 +50,14 @@ class ChatMapper(private val stringProvider: StringProvider) {
         hasAutomaticTranslation: Boolean = false,
         personalAvatarPath: String? = null
     ): ChatModel {
-        val p = chat.permissions ?: TdApi.ChatPermissions()
-        val permissions = ChatPermissionsModel(
-            canSendBasicMessages = p.canSendBasicMessages,
-            canSendAudios = p.canSendAudios,
-            canSendDocuments = p.canSendDocuments,
-            canSendPhotos = p.canSendPhotos,
-            canSendVideos = p.canSendVideos,
-            canSendVideoNotes = p.canSendVideoNotes,
-            canSendVoiceNotes = p.canSendVoiceNotes,
-            canSendPolls = p.canSendPolls,
-            canSendOtherMessages = p.canSendOtherMessages,
-            canAddLinkPreviews = p.canAddLinkPreviews,
-            canEditTag = p.canEditTag,
-            canChangeInfo = p.canChangeInfo,
-            canInviteUsers = p.canInviteUsers,
-            canPinMessages = p.canPinMessages,
-            canCreateTopics = p.canCreateTopics,
-        )
-
-        val isChannel = (chat.type as? TdApi.ChatTypeSupergroup)?.isChannel ?: false
+        val permissions = chat.permissions.toDomainChatPermissions()
+        val isChannel = chat.type.isChannelType()
 
         val draft = chat.draftMessage?.inputMessageText as? TdApi.InputMessageText
         val draftText = draft?.text?.text
-        val draftEntities = draft?.text?.entities?.map { mapEntity(it) } ?: emptyList()
+        val draftEntities = draft?.text?.entities
+            ?.mapNotNull { it.toMessageEntityOrNull(mapUnsupportedToOther = true) }
+            ?: emptyList()
 
         return ChatModel(
             id = chat.id,
@@ -78,7 +72,7 @@ class ChatMapper(private val stringProvider: StringProvider) {
             lastMessageTime = lastMessageTime,
             lastMessageDate = lastMessageDate,
             order = order,
-            isGroup = chat.type is TdApi.ChatTypeBasicGroup || (chat.type is TdApi.ChatTypeSupergroup && !isChannel),
+            isGroup = chat.type.isGroupType(),
             isSupergroup = chat.type is TdApi.ChatTypeSupergroup,
             isChannel = isChannel,
             memberCount = memberCount,
@@ -118,6 +112,17 @@ class ChatMapper(private val stringProvider: StringProvider) {
             },
             blockList = chat.blockList != null,
             isVerified = isVerified || isForcedVerifiedChat(chat.id),
+            isScam = isScam,
+            isFake = isFake,
+            botVerificationIconCustomEmojiId = botVerificationIconCustomEmojiId,
+            restrictionReason = restrictionReason,
+            hasSensitiveContent = hasSensitiveContent,
+            activeStoryStateType = activeStoryStateType,
+            activeStoryId = activeStoryId,
+            boostLevel = boostLevel,
+            hasForumTabs = hasForumTabs,
+            isAdministeredDirectMessagesGroup = isAdministeredDirectMessagesGroup,
+            paidMessageStarCount = paidMessageStarCount,
             isSponsor = isSponsor,
             viewAsTopics = chat.viewAsTopics,
             isForum = isForum,
@@ -126,13 +131,7 @@ class ChatMapper(private val stringProvider: StringProvider) {
             usernames = usernames,
             description = description,
             inviteLink = inviteLink,
-            type = when (chat.type) {
-                is TdApi.ChatTypePrivate -> ChatType.PRIVATE
-                is TdApi.ChatTypeBasicGroup -> ChatType.BASIC_GROUP
-                is TdApi.ChatTypeSupergroup -> ChatType.SUPERGROUP
-                is TdApi.ChatTypeSecret -> ChatType.SECRET
-                else -> ChatType.PRIVATE
-            },
+            type = chat.type.toDomainChatType(),
             permissions = permissions,
             isMember = isMember
         )
@@ -184,6 +183,17 @@ class ChatMapper(private val stringProvider: StringProvider) {
             typingAction = entity.typingAction,
             draftMessage = entity.draftMessage,
             isVerified = entity.isVerified || isForcedVerifiedChat(entity.id),
+            isScam = entity.isScam,
+            isFake = entity.isFake,
+            botVerificationIconCustomEmojiId = entity.botVerificationIconCustomEmojiId,
+            restrictionReason = entity.restrictionReason,
+            hasSensitiveContent = entity.hasSensitiveContent,
+            activeStoryStateType = entity.activeStoryStateType,
+            activeStoryId = entity.activeStoryId,
+            boostLevel = entity.boostLevel,
+            hasForumTabs = entity.hasForumTabs,
+            isAdministeredDirectMessagesGroup = entity.isAdministeredDirectMessagesGroup,
+            paidMessageStarCount = entity.paidMessageStarCount,
             isSponsor = entity.isSponsor || (entity.privateUserId != 0L && isSponsoredUser(entity.privateUserId)),
             viewAsTopics = entity.viewAsTopics,
             isForum = entity.isForum,
@@ -192,23 +202,7 @@ class ChatMapper(private val stringProvider: StringProvider) {
             username = entity.username,
             description = entity.description,
             inviteLink = entity.inviteLink,
-            permissions = ChatPermissionsModel(
-                canSendBasicMessages = entity.permissionCanSendBasicMessages,
-                canSendAudios = entity.permissionCanSendAudios,
-                canSendDocuments = entity.permissionCanSendDocuments,
-                canSendPhotos = entity.permissionCanSendPhotos,
-                canSendVideos = entity.permissionCanSendVideos,
-                canSendVideoNotes = entity.permissionCanSendVideoNotes,
-                canSendVoiceNotes = entity.permissionCanSendVoiceNotes,
-                canSendPolls = entity.permissionCanSendPolls,
-                canSendOtherMessages = entity.permissionCanSendOtherMessages,
-                canAddLinkPreviews = entity.permissionCanAddLinkPreviews,
-                canEditTag = entity.permissionCanEditTag,
-                canChangeInfo = entity.permissionCanChangeInfo,
-                canInviteUsers = entity.permissionCanInviteUsers,
-                canPinMessages = entity.permissionCanPinMessages,
-                canCreateTopics = entity.permissionCanCreateTopics
-            )
+            permissions = entity.toDomainChatPermissionsModel()
         )
     }
 
@@ -263,6 +257,17 @@ class ChatMapper(private val stringProvider: StringProvider) {
             typingAction = domain.typingAction,
             draftMessage = domain.draftMessage,
             isVerified = domain.isVerified || isForcedVerifiedChat(domain.id),
+            isScam = domain.isScam,
+            isFake = domain.isFake,
+            botVerificationIconCustomEmojiId = domain.botVerificationIconCustomEmojiId,
+            restrictionReason = domain.restrictionReason,
+            hasSensitiveContent = domain.hasSensitiveContent,
+            activeStoryStateType = domain.activeStoryStateType,
+            activeStoryId = domain.activeStoryId,
+            boostLevel = domain.boostLevel,
+            hasForumTabs = domain.hasForumTabs,
+            isAdministeredDirectMessagesGroup = domain.isAdministeredDirectMessagesGroup,
+            paidMessageStarCount = domain.paidMessageStarCount,
             isSponsor = domain.isSponsor,
             viewAsTopics = domain.viewAsTopics,
             isForum = domain.isForum,
@@ -271,65 +276,15 @@ class ChatMapper(private val stringProvider: StringProvider) {
             username = domain.username,
             description = domain.description,
             inviteLink = domain.inviteLink,
-            permissionCanSendBasicMessages = domain.permissions.canSendBasicMessages,
-            permissionCanSendAudios = domain.permissions.canSendAudios,
-            permissionCanSendDocuments = domain.permissions.canSendDocuments,
-            permissionCanSendPhotos = domain.permissions.canSendPhotos,
-            permissionCanSendVideos = domain.permissions.canSendVideos,
-            permissionCanSendVideoNotes = domain.permissions.canSendVideoNotes,
-            permissionCanSendVoiceNotes = domain.permissions.canSendVoiceNotes,
-            permissionCanSendPolls = domain.permissions.canSendPolls,
-            permissionCanSendOtherMessages = domain.permissions.canSendOtherMessages,
-            permissionCanAddLinkPreviews = domain.permissions.canAddLinkPreviews,
-            permissionCanEditTag = domain.permissions.canEditTag,
-            permissionCanChangeInfo = domain.permissions.canChangeInfo,
-            permissionCanInviteUsers = domain.permissions.canInviteUsers,
-            permissionCanPinMessages = domain.permissions.canPinMessages,
-            permissionCanCreateTopics = domain.permissions.canCreateTopics,
             lastMessageContentType = "text",
             lastMessageSenderName = "",
             createdAt = System.currentTimeMillis()
-        )
+        ).withPermissions(domain.permissions)
     }
 
     fun mapToEntity(chat: TdApi.Chat, domain: ChatModel): ChatEntity {
-        val privateUserId: Long
-        val basicGroupId: Long
-        val supergroupId: Long
-        val secretChatId: Int
-        when (val t = chat.type) {
-            is TdApi.ChatTypePrivate -> {
-                privateUserId = t.userId
-                basicGroupId = 0L
-                supergroupId = 0L
-                secretChatId = 0
-            }
-            is TdApi.ChatTypeBasicGroup -> {
-                privateUserId = 0L
-                basicGroupId = t.basicGroupId
-                supergroupId = 0L
-                secretChatId = 0
-            }
-            is TdApi.ChatTypeSupergroup -> {
-                privateUserId = 0L
-                basicGroupId = 0L
-                supergroupId = t.supergroupId
-                secretChatId = 0
-            }
-            is TdApi.ChatTypeSecret -> {
-                privateUserId = 0L
-                basicGroupId = 0L
-                supergroupId = 0L
-                secretChatId = t.secretChatId
-            }
-            else -> {
-                privateUserId = 0L
-                basicGroupId = 0L
-                supergroupId = 0L
-                secretChatId = 0
-            }
-        }
-        val encodedPositions = encodePositions(chat.positions)
+        val typeIds = chat.type.extractTypeIds()
+        val encodedPositions = encodeChatPositions(chat.positions)
         val (lastMessageContentType, lastMessageSenderName) = chat.lastMessage?.let { message ->
             val type = when (message.content) {
                 is TdApi.MessageText -> "text"
@@ -357,32 +312,15 @@ class ChatMapper(private val stringProvider: StringProvider) {
         } ?: ("text" to "")
 
         return mapToEntity(domain).copy(
-            privateUserId = privateUserId,
-            basicGroupId = basicGroupId,
-            supergroupId = supergroupId,
-            secretChatId = secretChatId,
+            privateUserId = typeIds.privateUserId,
+            basicGroupId = typeIds.basicGroupId,
+            supergroupId = typeIds.supergroupId,
+            secretChatId = typeIds.secretChatId,
             positionsCache = encodedPositions,
             lastMessageDate = chat.lastMessage?.date ?: domain.lastMessageDate,
             lastMessageContentType = lastMessageContentType,
             lastMessageSenderName = lastMessageSenderName
         )
-    }
-
-    private fun encodePositions(positions: Array<TdApi.ChatPosition>): String? {
-        if (positions.isEmpty()) return null
-
-        val encoded = positions.mapNotNull { pos ->
-            if (pos.order == 0L) return@mapNotNull null
-            val pinned = if (pos.isPinned) 1 else 0
-            when (val list = pos.list) {
-                is TdApi.ChatListMain -> "m:${pos.order}:$pinned"
-                is TdApi.ChatListArchive -> "a:${pos.order}:$pinned"
-                is TdApi.ChatListFolder -> "f:${list.chatFolderId}:${pos.order}:$pinned"
-                else -> null
-            }
-        }
-
-        return if (encoded.isEmpty()) null else encoded.joinToString("|")
     }
 
     fun formatMessageInfo(
@@ -396,7 +334,9 @@ class ChatMapper(private val stringProvider: StringProvider) {
         fun captionOrFallback(caption: TdApi.FormattedText?, emojiPrefix: String, fallbackKey: String): String {
             val text = caption?.text?.trim().orEmpty()
             if (text.isNotEmpty()) {
-                entities = caption?.entities?.map { mapEntity(it) } ?: emptyList()
+                entities = caption?.entities
+                    ?.mapNotNull { it.toMessageEntityOrNull(mapUnsupportedToOther = true) }
+                    ?: emptyList()
                 return "$emojiPrefix$text"
             }
             return stringProvider.getString(fallbackKey)
@@ -404,7 +344,8 @@ class ChatMapper(private val stringProvider: StringProvider) {
 
         var txt = when (val c = lastMsg.content) {
             is TdApi.MessageText -> {
-                entities = c.text.entities.map { mapEntity(it) }
+                entities = c.text.entities
+                    .mapNotNull { it.toMessageEntityOrNull(mapUnsupportedToOther = true) }
                 c.text.text
             }
             is TdApi.MessagePhoto -> captionOrFallback(c.caption, "📷 ", "chat_mapper_photo")
@@ -510,79 +451,11 @@ class ChatMapper(private val stringProvider: StringProvider) {
         return String(chars)
     }
 
-    private fun mapEntity(entity: TdApi.TextEntity): MessageEntity {
-        return MessageEntity(
-            offset = entity.offset,
-            length = entity.length,
-            type = when (entity.type) {
-                is TdApi.TextEntityTypeBold -> MessageEntityType.Bold
-                is TdApi.TextEntityTypeItalic -> MessageEntityType.Italic
-                is TdApi.TextEntityTypeUnderline -> MessageEntityType.Underline
-                is TdApi.TextEntityTypeStrikethrough -> MessageEntityType.Strikethrough
-                is TdApi.TextEntityTypeSpoiler -> MessageEntityType.Spoiler
-                is TdApi.TextEntityTypeCode -> MessageEntityType.Code
-                is TdApi.TextEntityTypePre -> MessageEntityType.Pre()
-                is TdApi.TextEntityTypeTextUrl -> MessageEntityType.TextUrl((entity.type as TdApi.TextEntityTypeTextUrl).url)
-                is TdApi.TextEntityTypeMention -> MessageEntityType.Mention
-                is TdApi.TextEntityTypeMentionName -> MessageEntityType.TextMention((entity.type as TdApi.TextEntityTypeMentionName).userId)
-                is TdApi.TextEntityTypeHashtag -> MessageEntityType.Hashtag
-                is TdApi.TextEntityTypeBotCommand -> MessageEntityType.BotCommand
-                is TdApi.TextEntityTypeUrl -> MessageEntityType.Url
-                is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email
-                is TdApi.TextEntityTypePhoneNumber -> MessageEntityType.PhoneNumber
-                is TdApi.TextEntityTypeBankCardNumber -> MessageEntityType.BankCardNumber
-                is TdApi.TextEntityTypeCustomEmoji -> MessageEntityType.CustomEmoji((entity.type as TdApi.TextEntityTypeCustomEmoji).customEmojiId)
-                is TdApi.TextEntityTypeBlockQuote -> MessageEntityType.BlockQuote
-                is TdApi.TextEntityTypeExpandableBlockQuote -> MessageEntityType.BlockQuoteExpandable
-                else -> MessageEntityType.Other(entity.type.javaClass.simpleName)
-            }
-        )
-    }
-
     fun formatUserStatus(status: TdApi.UserStatus, isBot: Boolean = false): String {
-        if (isBot) return stringProvider.getString("chat_mapper_bot")
-        return when (status) {
-            is TdApi.UserStatusOnline -> stringProvider.getString("chat_mapper_online")
-            is TdApi.UserStatusOffline -> {
-                val wasOnline = status.wasOnline.toLong() * 1000L
-                if (wasOnline == 0L) return stringProvider.getString("chat_mapper_offline")
-                val now = System.currentTimeMillis()
-                val diff = now - wasOnline
-                when {
-                    diff < 60 * 1000 -> stringProvider.getString("chat_mapper_seen_just_now")
-                    diff < 60 * 60 * 1000 -> {
-                        val minutes = diff / (60 * 1000L)
-                        if (minutes == 1L) stringProvider.getString("chat_mapper_seen_minutes_ago", 1)
-                        else stringProvider.getString("chat_mapper_seen_minutes_ago_plural", minutes)
-                    }
-                    DateUtils.isToday(wasOnline) -> {
-                        val date = Date(wasOnline)
-                        val format = SimpleDateFormat("HH:mm", Locale.getDefault())
-                        stringProvider.getString("chat_mapper_seen_at", format.format(date))
-                    }
-
-                    isYesterday(wasOnline) -> {
-                        val date = Date(wasOnline)
-                        val format = SimpleDateFormat("HH:mm", Locale.getDefault())
-                        stringProvider.getString("chat_mapper_seen_yesterday", format.format(date))
-                    }
-                    else -> {
-                        val date = Date(wasOnline)
-                        val format = SimpleDateFormat("dd.MM.yy", Locale.getDefault())
-                        stringProvider.getString("chat_mapper_seen_date", format.format(date))
-                    }
-                }
-            }
-
-            is TdApi.UserStatusRecently -> stringProvider.getString("chat_mapper_seen_recently")
-            is TdApi.UserStatusLastWeek -> stringProvider.getString("chat_mapper_seen_week")
-            is TdApi.UserStatusLastMonth -> stringProvider.getString("chat_mapper_seen_month")
-            is TdApi.UserStatusEmpty -> stringProvider.getString("chat_mapper_offline")
-            else -> ""
-        }
-    }
-
-    private fun isYesterday(timestamp: Long): Boolean {
-        return DateUtils.isToday(timestamp + DateUtils.DAY_IN_MILLIS)
+        return formatChatUserStatus(
+            status = status,
+            stringProvider = stringProvider,
+            isBot = isBot
+        )
     }
 }

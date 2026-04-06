@@ -1,8 +1,8 @@
 package org.monogram.data.datasource.remote
 
-import org.monogram.data.core.coRunCatching
 import android.util.Log
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
 
@@ -27,6 +27,21 @@ class TdSettingsRemoteDataSource(
                     if (file.local.path.isEmpty()) {
                         fileQueue.enqueue(file.id, 1, FileDownloadQueue.DownloadType.DEFAULT)
                     }
+                }
+            }
+            result
+        }.getOrNull()
+
+    override suspend fun setDefaultBackground(
+        background: TdApi.InputBackground?,
+        type: TdApi.BackgroundType?,
+        forDarkTheme: Boolean
+    ): TdApi.Background? =
+        coRunCatching {
+            val result = gateway.execute(TdApi.SetDefaultBackground(background, type, forDarkTheme))
+            result.document?.thumbnail?.file?.let { file ->
+                if (file.local.path.isEmpty()) {
+                    fileQueue.enqueue(file.id, 1, FileDownloadQueue.DownloadType.DEFAULT)
                 }
             }
             result

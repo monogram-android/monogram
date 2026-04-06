@@ -63,6 +63,17 @@ data class ChatModel(
     val isBot: Boolean = false,
     val isMember: Boolean = true,
     val isArchived: Boolean = false,
+    val isScam: Boolean = false,
+    val isFake: Boolean = false,
+    val botVerificationIconCustomEmojiId: Long = 0L,
+    val restrictionReason: String? = null,
+    val hasSensitiveContent: Boolean = false,
+    val activeStoryStateType: String? = null,
+    val activeStoryId: Int = 0,
+    val boostLevel: Int = 0,
+    val hasForumTabs: Boolean = false,
+    val isAdministeredDirectMessagesGroup: Boolean = false,
+    val paidMessageStarCount: Long = 0L,
 )
 
 @Serializable

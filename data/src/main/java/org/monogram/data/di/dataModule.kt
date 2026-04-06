@@ -9,6 +9,7 @@ import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 import org.monogram.core.DispatcherProvider
+import org.monogram.data.BuildConfig
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.PlayerDataSourceFactoryImpl
@@ -22,10 +23,10 @@ import org.monogram.data.gateway.TelegramGatewayImpl
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.gateway.UpdateDispatcherImpl
 import org.monogram.data.infra.*
-import org.monogram.data.mapper.ChatMapper
-import org.monogram.data.mapper.MessageMapper
-import org.monogram.data.mapper.NetworkMapper
-import org.monogram.data.mapper.StorageMapper
+import org.monogram.data.mapper.*
+import org.monogram.data.mapper.message.MessageContentMapper
+import org.monogram.data.mapper.message.MessagePersistenceMapper
+import org.monogram.data.mapper.message.MessageSenderResolver
 import org.monogram.data.repository.*
 import org.monogram.data.repository.user.UserRepositoryImpl
 import org.monogram.data.stickers.StickerFileManager
@@ -124,7 +125,10 @@ val dataModule = module {
             "monogram_db"
         )
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-            .addMigrations(MonogramMigrations.MIGRATION_26_27)
+            .addMigrations(
+                MonogramMigrations.MIGRATION_26_27,
+                MonogramMigrations.MIGRATION_27_28
+            )
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
@@ -280,16 +284,67 @@ val dataModule = module {
     }
 
     single {
-        MessageMapper(
+        TdFileHelper(
             connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
+            fileApi = get(),
+            appPreferences = get(),
+            cache = get()
+        )
+    }
+
+    single {
+        CustomEmojiLoader(
+            gateway = get(),
+            fileApi = get(),
+            fileUpdateHandler = get(),
+            fileHelper = get()
+        )
+    }
+
+    single {
+        WebPageMapper(
+            fileHelper = get(),
+            appPreferences = get()
+        )
+    }
+
+    single {
+        MessageContentMapper(
+            fileHelper = get(),
+            appPreferences = get(),
+            customEmojiLoader = get(),
+            webPageMapper = get(),
+            scope = get()
+        )
+    }
+
+    single {
+        MessageSenderResolver(
             gateway = get(),
             userRepository = get(),
             chatInfoRepository = get(),
-            fileUpdateHandler = get(),
-            fileApi = get(),
-            appPreferences = get(),
             cache = get(),
-            scope = get()
+            fileHelper = get()
+        )
+    }
+
+    single {
+        MessagePersistenceMapper(
+            cache = get(),
+            fileHelper = get()
+        )
+    }
+
+    single {
+        MessageMapper(
+            gateway = get(),
+            userRepository = get(),
+            cache = get(),
+            fileHelper = get(),
+            senderResolver = get(),
+            contentMapper = get(),
+            persistenceMapper = get(),
+            customEmojiLoader = get()
         )
     }
 
@@ -432,6 +487,7 @@ val dataModule = module {
             messageMapper = get(),
             messageRemoteDataSource = get(),
             cache = get(),
+            fileHelper = get(),
             dispatcherProvider = get(),
             scope = get(),
             fileDataSource = get(),
@@ -488,6 +544,22 @@ val dataModule = module {
             updates = get(),
             scope = get()
         )
+    }
+
+    single {
+        DataMemoryPressureHandler(
+            chatsListRepository = get(),
+            fileUpdateHandler = get()
+        )
+    }
+
+    if (BuildConfig.DEBUG) {
+        single(createdAtStart = true) {
+            DataMemoryDiagnostics(
+                scope = get(),
+                memoryPressureHandler = get()
+            )
+        }
     }
 
     single {

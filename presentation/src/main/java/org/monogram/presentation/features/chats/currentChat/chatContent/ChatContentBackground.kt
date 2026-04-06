@@ -32,27 +32,28 @@ fun ChatContentBackground(
             isGrayscale = state.isWallpaperGrayscale
         )
     } else if (state.wallpaper != null) {
-        if (File(state.wallpaper!!).exists()) {
-            var imageModifier = Modifier.fillMaxSize()
+        val file = File(state.wallpaper)
+        if (file.exists()) {
+            var imageModifier = modifier.fillMaxSize()
             if (state.isWallpaperBlurred && state.wallpaperBlurIntensity > 0) {
                 imageModifier = imageModifier.blur((state.wallpaperBlurIntensity / 4f).dp)
             }
             AsyncImage(
-                model = File(state.wallpaper!!),
+                model = file,
                 contentDescription = null,
                 modifier = imageModifier,
                 contentScale = ContentScale.Crop
             )
         } else {
             Box(
-                modifier = Modifier
+                modifier = modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.surface)
             )
         }
     } else {
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
         )

@@ -110,6 +110,9 @@ fun ProfileContent(component: ProfileComponent) {
     }
 
     val isOnline = user?.type != UserTypeEnum.BOT && user?.userStatus == UserStatusType.ONLINE
+    val isBot = user?.type == UserTypeEnum.BOT || chat?.isBot == true
+    val isScam = user?.isScam == true || chat?.isScam == true
+    val isFake = user?.isFake == true || chat?.isFake == true
 
     val collapsedColor = MaterialTheme.colorScheme.surface
     val expandedColor = MaterialTheme.colorScheme.background
@@ -170,6 +173,9 @@ fun ProfileContent(component: ProfileComponent) {
                     chatModel = chat,
                     isVerified = user?.isVerified == true || chat?.isVerified == true,
                     isSponsor = user?.isSponsor == true,
+                    isBot = isBot,
+                    isScam = isScam,
+                    isFake = isFake,
                     canSearch = false,
                     canShare = canShareTopBar,
                     canEdit = canEditTopBar,
@@ -268,6 +274,9 @@ fun ProfileContent(component: ProfileComponent) {
                                 isOnline = isOnline,
                                 isVerified = user?.isVerified == true || chat?.isVerified == true,
                                 isSponsor = user?.isSponsor == true,
+                                isBot = isBot,
+                                isScam = isScam,
+                                isFake = isFake,
                                 statusEmojiPath = user?.statusEmojiPath,
                                 progress = progress,
                                 contentPadding = PaddingValues(

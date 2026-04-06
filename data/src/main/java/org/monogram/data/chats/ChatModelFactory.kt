@@ -2,6 +2,8 @@ package org.monogram.data.chats
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.core.coRunCatching
@@ -29,6 +31,7 @@ class ChatModelFactory(
     private val fetchUser: (Long) -> Unit
 ) {
     private val missingUserFullInfoUntilMs = ConcurrentHashMap<Long, Long>()
+    private val userFullInfoSemaphore = Semaphore(permits = 3)
 
     fun mapChatToModel(
         chat: TdApi.Chat,
@@ -180,6 +183,10 @@ class ChatModelFactory(
                         if (!isUserFullInfoTemporarilyMissing(type.userId)) {
                             lazyLoad(cache.pendingUserFullInfo, type.userId) {
                                 if (type.userId == 0L) return@lazyLoad
+                                cache.userFullInfoCache[type.userId]?.let {
+                                    triggerUpdate(chat.id)
+                                    return@lazyLoad
+                                }
                                 val cachedInfo = coRunCatching {
                                     userFullInfoDao.getUserFullInfo(type.userId)?.toTdApi()
                                 }.getOrNull()
@@ -189,7 +196,11 @@ class ChatModelFactory(
                                     triggerUpdate(chat.id)
                                     return@lazyLoad
                                 }
-                                val result = coRunCatching { gateway.execute(TdApi.GetUserFullInfo(type.userId)) }.getOrNull()
+                                val result = userFullInfoSemaphore.withPermit {
+                                    cache.userFullInfoCache[type.userId] ?: coRunCatching {
+                                        gateway.execute(TdApi.GetUserFullInfo(type.userId))
+                                    }.getOrNull()
+                                }
                                 if (result != null) {
                                     cache.putUserFullInfo(type.userId, result)
                                     coRunCatching { userFullInfoDao.insertUserFullInfo(result.toEntity(type.userId)) }

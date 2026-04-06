@@ -127,7 +127,8 @@ val dataModule = module {
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .addMigrations(
                 MonogramMigrations.MIGRATION_26_27,
-                MonogramMigrations.MIGRATION_27_28
+                MonogramMigrations.MIGRATION_27_28,
+                MonogramMigrations.MIGRATION_28_29
             )
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
@@ -145,6 +146,7 @@ val dataModule = module {
     single { get<MonogramDatabase>().attachBotDao() }
     single { get<MonogramDatabase>().keyValueDao() }
     single { get<MonogramDatabase>().notificationSettingDao() }
+    single { get<MonogramDatabase>().notificationExceptionDao() }
     single { get<MonogramDatabase>().wallpaperDao() }
     single { get<MonogramDatabase>().stickerPathDao() }
     single { get<MonogramDatabase>().sponsorDao() }
@@ -408,6 +410,7 @@ val dataModule = module {
             remote = get(),
             cache = get(),
             chatsRemote = get(),
+            notificationExceptionDao = get(),
             updates = get(),
             scope = get(),
             dispatchers = get()

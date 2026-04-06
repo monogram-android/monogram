@@ -81,8 +81,12 @@ internal class TdLibClient {
             if (result.code == 429 && retries < 3) {
                 retries++
                 val retryAfterMs = parseRetryAfterMs(result.message)
-                updateGlobalRetryWindow(retryAfterMs)
                 Log.w(TAG, "Rate limited for $function, retrying in ${retryAfterMs}ms (attempt $retries)")
+                if (function is TdApi.GetUserFullInfo) {
+                    delay(retryAfterMs)
+                } else {
+                    updateGlobalRetryWindow(retryAfterMs)
+                }
                 continue
             }
 

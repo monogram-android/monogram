@@ -340,8 +340,8 @@ class OfflineWarmup(
     }
 
     private companion object {
-        private const val USER_WARMUP_LIMIT = 30
-        private const val USER_WARMUP_DELAY_MS = 75L
+        private const val USER_WARMUP_LIMIT = 15
+        private const val USER_WARMUP_DELAY_MS = 150L
         private const val ONE_DAY_MS = 24L * 60 * 60 * 1000
         private const val SEVEN_DAYS_MS = 7L * ONE_DAY_MS
     }

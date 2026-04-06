@@ -20,12 +20,13 @@ import org.monogram.data.db.model.*
         AttachBotEntity::class,
         KeyValueEntity::class,
         NotificationSettingEntity::class,
+        NotificationExceptionEntity::class,
         WallpaperEntity::class,
         StickerPathEntity::class,
         SponsorEntity::class,
         TextCompositionStyleEntity::class
     ],
-    version = 28,
+    version = 29,
     exportSchema = false
 )
 abstract class MonogramDatabase : RoomDatabase() {
@@ -42,6 +43,7 @@ abstract class MonogramDatabase : RoomDatabase() {
     abstract fun attachBotDao(): AttachBotDao
     abstract fun keyValueDao(): KeyValueDao
     abstract fun notificationSettingDao(): NotificationSettingDao
+    abstract fun notificationExceptionDao(): NotificationExceptionDao
     abstract fun wallpaperDao(): WallpaperDao
     abstract fun stickerPathDao(): StickerPathDao
     abstract fun sponsorDao(): SponsorDao

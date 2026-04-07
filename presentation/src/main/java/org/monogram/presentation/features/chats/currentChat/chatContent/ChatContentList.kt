@@ -494,6 +494,7 @@ private fun MessageBubbleSwitcher(
     isAnyViewerOpen: Boolean = false
 ) {
     val isChannel = state.isChannel && state.currentTopicId == null
+    val isTopicClosed = state.topics.find { it.id.toLong() == state.currentTopicId }?.isClosed?: false
 
     when (item) {
         is GroupedMessageItem.Single -> {
@@ -696,7 +697,7 @@ private fun MessageBubbleSwitcher(
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     toProfile = toProfile,
                     onViaBotClick = onViaBotClick,
-                    canReply = state.canWrite && !isSelectionMode,
+                    canReply = state.canWrite && !isSelectionMode && !isTopicClosed,
                     onReplySwipe = { component.onReplyMessage(it) },
                     swipeEnabled = !isSelectionMode,
                     downloadUtils = downloadUtils,
@@ -764,7 +765,7 @@ private fun MessageBubbleSwitcher(
                 onCommentsClick = { component.onCommentsClick(it) },
                 toProfile = toProfile,
                 onViaBotClick = onViaBotClick,
-                canReply = state.canWrite && !isSelectionMode,
+                canReply = state.canWrite && !isSelectionMode && !isTopicClosed,
                 onReplySwipe = { component.onReplyMessage(it) },
                 swipeEnabled = !isSelectionMode,
                 downloadUtils = downloadUtils,

@@ -357,11 +357,11 @@ class TelegramWebviewProxy(
                 "accelerometer"
             )
 
-            is WebAppEvent.StopAccelerometer -> stopSensor("accelerometer", Sensor.TYPE_ACCELEROMETER)
+            is WebAppEvent.StopAccelerometer -> stopSensors("accelerometer", Sensor.TYPE_ACCELEROMETER)
             is WebAppEvent.StartGyroscope -> startSensor(Sensor.TYPE_GYROSCOPE, event.refreshRate, "gyroscope")
-            is WebAppEvent.StopGyroscope -> stopSensor("gyroscope", Sensor.TYPE_GYROSCOPE)
+            is WebAppEvent.StopGyroscope -> stopSensors("gyroscope", Sensor.TYPE_GYROSCOPE)
             is WebAppEvent.StartDeviceOrientation -> startDeviceOrientation(event.refreshRate, event.needAbsolute)
-            is WebAppEvent.StopDeviceOrientation -> stopSensor(
+            is WebAppEvent.StopDeviceOrientation -> stopSensors(
                 "device_orientation",
                 Sensor.TYPE_ACCELEROMETER,
                 Sensor.TYPE_MAGNETIC_FIELD,
@@ -500,7 +500,7 @@ class TelegramWebviewProxy(
     private fun startSensor(type: Int, refreshMs: Long, eventName: String) {
         val clampedRefreshMs = refreshMs.coerceIn(20, 1000)
 
-        stopSensor(eventName, type)
+        stopSensors(eventName, type)
 
         val listener = object : SensorEventListener {
             private var lastUpdateTimestamp = 0L
@@ -558,7 +558,7 @@ class TelegramWebviewProxy(
             intArrayOf(Sensor.TYPE_GAME_ROTATION_VECTOR)
         }
 
-        stopSensor(
+        stopSensors(
             "device_orientation",
             Sensor.TYPE_ROTATION_VECTOR,
             Sensor.TYPE_GAME_ROTATION_VECTOR,
@@ -655,7 +655,7 @@ class TelegramWebviewProxy(
         }
     }
 
-    private fun stopSensor(eventName: String, vararg types: Int) {
+    private fun stopSensors(eventName: String, vararg types: Int) {
         var shouldSendStoppedEvent = false
 
         types.forEach { type ->

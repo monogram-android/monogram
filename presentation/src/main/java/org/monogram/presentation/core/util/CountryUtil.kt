@@ -287,8 +287,8 @@ object CountryManager {
     /**
      * Get example phone number for a country with digits masked as zeros
      *
-     * @param iso country ISO code (for example, RU, UA)
-     * @return formatted example number with body digits replaced by zeros (for example, +7 000 000-00-00),
+     * @param iso country ISO code
+     * @return formatted example number with body digits replaced by zeros,
      * or throws if no example number is available for the given ISO
      **/
     fun getExampleNumber(iso: String): String =
@@ -296,6 +296,19 @@ object CountryManager {
             phoneUtil.getExampleNumberForType(iso, PhoneNumberUtil.PhoneNumberType.MOBILE),
             PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL
         ).let { it.substringBefore(" ") + " " + it.substringAfter(" ").replace(Regex("\\d"), "0") }
+
+    /**
+     * Get country ISO code from the device's SIM card
+     *
+     * @param context Android context
+     * @return uppercase ISO code of the SIM card's country,
+     * or 'null' if no SIM is present or the country cannot be determined
+     **/
+    fun getSimIso(context: android.content.Context): String? {
+        val tm = context.getSystemService(android.content.Context.TELEPHONY_SERVICE)
+                as android.telephony.TelephonyManager
+        return tm.simCountryIso?.uppercase()?.takeIf { it.isNotEmpty() }
+    }
 
     private fun countryCodeToEmoji(countryCode: String): String {
         if (countryCode == "FT") return "⭐"

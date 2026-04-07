@@ -80,6 +80,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -125,10 +126,11 @@ fun PhoneInputScreen(
         }
     }
 
+    val context = LocalContext.current
     val defaultCountry = remember {
-        val currentIso = Locale.getDefault().country
-        countries.find { it.iso == currentIso } ?: countries.find { it.code == "380" }
-        ?: countries.first()
+        val iso = if (isPreview) "US" else
+            (CountryManager.getSimIso(context) ?: Locale.getDefault().country)
+        countries.find { it.iso == iso } ?: countries.find { it.code == "380" } ?: countries.first()
     }
 
     var phoneBody by remember { mutableStateOf("") }
@@ -397,7 +399,7 @@ fun PhoneInputScreen(
                             codeInput = digits
                             codeFieldValue = newValue.copy(text = digits)
 
-                            val newCountry = countries.find { it.code == digits }
+                            val newCountry = CountryManager.getCountryForPhone(digits)
                             selectedCountry = newCountry
 
                             phoneDisplay = newCountry?.let {

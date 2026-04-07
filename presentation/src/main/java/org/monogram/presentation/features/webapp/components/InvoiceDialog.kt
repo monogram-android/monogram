@@ -1,10 +1,34 @@
 package org.monogram.presentation.features.webapp.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ProgressIndicatorDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -14,8 +38,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
+import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.webapp.InvoiceModel
 import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.PaymentRepository
@@ -50,13 +74,19 @@ fun InvoiceDialog(
                 if (photoPath == null) {
                     fileRepository.downloadFile(fileId)
                     launch {
-                        fileRepository.messageDownloadProgressFlow
-                            .filter { it.first == fileId.toLong() }
-                            .collect { progress = it.second }
+                        fileRepository.fileDownloadFlow
+                            .collect { event ->
+                                if (event is FileDownloadEvent.Progress && event.fileId == fileId) {
+                                    progress = event.progress
+                                }
+                            }
                     }
-                    fileRepository.messageDownloadCompletedFlow
-                        .filter { it.first == fileId.toLong() }
-                        .collect { (_, _, completedPath) -> photoPath = completedPath }
+                    fileRepository.fileDownloadFlow
+                        .collect { event ->
+                            if (event is FileDownloadEvent.Completed && event.fileId == fileId) {
+                                photoPath = event.path
+                            }
+                        }
                 }
             } else {
                 photoPath = fileIdStr

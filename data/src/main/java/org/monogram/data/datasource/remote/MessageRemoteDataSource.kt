@@ -3,7 +3,16 @@ package org.monogram.data.datasource.remote
 import kotlinx.coroutines.flow.Flow
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.datasource.remote.TdMessageRemoteDataSource.DownloadType
-import org.monogram.domain.models.*
+import org.monogram.domain.models.FileDownloadEvent
+import org.monogram.domain.models.MessageDeletedEvent
+import org.monogram.domain.models.MessageDownloadEvent
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageIdUpdatedEvent
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageSendOptions
+import org.monogram.domain.models.MessageUploadProgressEvent
+import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
 import org.monogram.domain.repository.OlderMessagesPage
@@ -11,15 +20,14 @@ import org.monogram.domain.repository.ReadUpdate
 import org.monogram.domain.repository.SearchChatMessagesResult
 
 interface MessageRemoteDataSource {
+    val fileDownloadFlow: Flow<FileDownloadEvent>
     val newMessageFlow: Flow<MessageModel>
     val messageEditedFlow: Flow<MessageModel>
     val messageReadFlow: Flow<ReadUpdate>
-    val messageUploadProgressFlow: Flow<Pair<Long, Float>>
-    val messageDownloadProgressFlow: Flow<Pair<Long, Float>>
-    val messageDownloadCancelledFlow: Flow<Long>
-    val messageDeletedFlow: Flow<Pair<Long, List<Long>>>
-    val messageIdUpdateFlow: Flow<Triple<Long, Long, MessageModel>>
-    val messageDownloadCompletedFlow: Flow<Triple<Long, Int, String>>
+    val messageUploadProgressFlow: Flow<MessageUploadProgressEvent>
+    val messageDownloadFlow: Flow<MessageDownloadEvent>
+    val messageDeletedFlow: Flow<MessageDeletedEvent>
+    val messageIdUpdateFlow: Flow<MessageIdUpdatedEvent>
     val pinnedMessageFlow: Flow<Long>
     val mediaUpdateFlow: Flow<Unit>
     fun registerFileForMessage(fileId: Int, chatId: Long, messageId: Long)

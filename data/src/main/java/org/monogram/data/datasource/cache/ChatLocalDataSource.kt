@@ -23,6 +23,7 @@ interface ChatLocalDataSource {
     suspend fun insertMessages(messages: List<MessageEntity>)
     suspend fun markAsRead(chatId: Long, upToMessageId: Long)
     suspend fun updateMessageContent(
+        chatId: Long,
         messageId: Long,
         content: String,
         contentType: String,
@@ -34,8 +35,15 @@ interface ChatLocalDataSource {
 
     suspend fun updateMediaPath(fileId: Int, path: String)
 
-    suspend fun updateInteractionInfo(messageId: Long, viewCount: Int, forwardCount: Int, replyCount: Int)
-    suspend fun deleteMessage(messageId: Long)
+    suspend fun updateInteractionInfo(
+        chatId: Long,
+        messageId: Long,
+        viewCount: Int,
+        forwardCount: Int,
+        replyCount: Int
+    )
+
+    suspend fun deleteMessage(chatId: Long, messageId: Long)
     suspend fun clearMessagesForChat(chatId: Long)
 
     suspend fun getChatFullInfo(chatId: Long): ChatFullInfoEntity?

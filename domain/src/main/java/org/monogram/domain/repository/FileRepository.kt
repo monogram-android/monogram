@@ -1,12 +1,13 @@
 package org.monogram.domain.repository
 
 import kotlinx.coroutines.flow.Flow
+import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.FileModel
+import org.monogram.domain.models.MessageDownloadEvent
 
 interface FileRepository {
-    val messageDownloadProgressFlow: Flow<Pair<Long, Float>>
-    val messageDownloadCancelledFlow: Flow<Long>
-    val messageDownloadCompletedFlow: Flow<Triple<Long, Int, String>>
+    val fileDownloadFlow: Flow<FileDownloadEvent>
+    val messageDownloadFlow: Flow<MessageDownloadEvent>
 
     fun downloadFile(
         fileId: Int,

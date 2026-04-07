@@ -90,6 +90,7 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
     }
 
     override suspend fun updateMessageContent(
+        chatId: Long,
         messageId: Long,
         content: String,
         contentType: String,
@@ -98,18 +99,17 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
         mediaPath: String?,
         editDate: Int
     ) {
-        messages.values.forEach { flow ->
-            val current = flow.value[messageId] ?: return@forEach
-            flow.update {
-                it + (messageId to current.copy(
-                    content = content,
-                    contentType = contentType,
-                    contentMeta = contentMeta,
-                    mediaFileId = mediaFileId,
-                    mediaPath = mediaPath,
-                    editDate = editDate
-                ))
-            }
+        val flow = messages[chatId] ?: return
+        val current = flow.value[messageId] ?: return
+        flow.update {
+            it + (messageId to current.copy(
+                content = content,
+                contentType = contentType,
+                contentMeta = contentMeta,
+                mediaFileId = mediaFileId,
+                mediaPath = mediaPath,
+                editDate = editDate
+            ))
         }
     }
 
@@ -127,17 +127,26 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
         }
     }
 
-    override suspend fun updateInteractionInfo(messageId: Long, viewCount: Int, forwardCount: Int, replyCount: Int) {
-        messages.values.forEach { flow ->
-            val current = flow.value[messageId] ?: return@forEach
-            flow.update {
-                it + (messageId to current.copy(viewCount = viewCount, forwardCount = forwardCount, replyCount = replyCount))
-            }
+    override suspend fun updateInteractionInfo(
+        chatId: Long,
+        messageId: Long,
+        viewCount: Int,
+        forwardCount: Int,
+        replyCount: Int
+    ) {
+        val flow = messages[chatId] ?: return
+        val current = flow.value[messageId] ?: return
+        flow.update {
+            it + (messageId to current.copy(
+                viewCount = viewCount,
+                forwardCount = forwardCount,
+                replyCount = replyCount
+            ))
         }
     }
 
-    override suspend fun deleteMessage(messageId: Long) {
-        messages.values.forEach { flow ->
+    override suspend fun deleteMessage(chatId: Long, messageId: Long) {
+        messages[chatId]?.let { flow ->
             if (flow.value.containsKey(messageId)) {
                 flow.update { it - messageId }
             }

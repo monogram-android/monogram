@@ -2,10 +2,10 @@ package org.monogram.data.db.model
 
 import androidx.room.Entity
 import androidx.room.Index
-import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "messages",
+    primaryKeys = ["chatId", "id"],
     indices = [
         Index(value = ["chatId", "date"]),
         Index(value = ["chatId", "id"]),
@@ -13,7 +13,7 @@ import androidx.room.PrimaryKey
     ]
 )
 data class MessageEntity(
-    @PrimaryKey val id: Long,
+    val id: Long,
     val chatId: Long,
     val senderId: Long,
     val senderName: String = "",

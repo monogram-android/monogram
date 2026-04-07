@@ -1,7 +1,15 @@
 package org.monogram.domain.repository
 
 import kotlinx.coroutines.flow.Flow
-import org.monogram.domain.models.*
+import org.monogram.domain.models.ChatPermissionsModel
+import org.monogram.domain.models.MessageDeletedEvent
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageIdUpdatedEvent
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageSendOptions
+import org.monogram.domain.models.MessageUploadProgressEvent
+import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.InstantViewModel
 
 sealed interface ReadUpdate {
@@ -40,10 +48,10 @@ interface MessageRepository :
     val newMessageFlow: Flow<MessageModel>
     val senderUpdateFlow: Flow<Long>
     val messageReadFlow: Flow<ReadUpdate>
-    val messageUploadProgressFlow: Flow<Pair<Long, Float>>
-    val messageDeletedFlow: Flow<Pair<Long, List<Long>>>
+    val messageUploadProgressFlow: Flow<MessageUploadProgressEvent>
+    val messageDeletedFlow: Flow<MessageDeletedEvent>
     val messageEditedFlow: Flow<MessageModel>
-    val messageIdUpdateFlow: Flow<Triple<Long, Long, MessageModel>>
+    val messageIdUpdateFlow: Flow<MessageIdUpdatedEvent>
     val pinnedMessageFlow: Flow<Long>
     val mediaUpdateFlow: Flow<Unit>
     suspend fun getHighResFileId(chatId: Long, messageId: Long): Int?

@@ -3,12 +3,41 @@ package org.monogram.presentation.features.profile
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import org.monogram.domain.models.*
-import org.monogram.domain.repository.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import org.monogram.domain.models.BotMenuButtonModel
+import org.monogram.domain.models.ChatInteractionType
+import org.monogram.domain.models.ChatPermissionsModel
+import org.monogram.domain.models.ChatRevenueStatisticsModel
+import org.monogram.domain.models.ChatStatisticsModel
+import org.monogram.domain.models.FileDownloadEvent
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.StatisticsGraphModel
+import org.monogram.domain.models.UserTypeEnum
+import org.monogram.domain.repository.BotPreferencesProvider
+import org.monogram.domain.repository.BotRepository
+import org.monogram.domain.repository.ChatInfoRepository
+import org.monogram.domain.repository.ChatListRepository
+import org.monogram.domain.repository.ChatMemberStatus
+import org.monogram.domain.repository.ChatMembersFilter
+import org.monogram.domain.repository.ChatOperationsRepository
+import org.monogram.domain.repository.ChatSettingsRepository
+import org.monogram.domain.repository.ChatStatisticsRepository
+import org.monogram.domain.repository.LocationRepository
+import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.PrivacyRepository
+import org.monogram.domain.repository.ProfileMediaFilter
+import org.monogram.domain.repository.ProfilePhotoRepository
+import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
@@ -763,12 +792,12 @@ class DefaultProfileComponent(
         }
 
         val completed = withTimeoutOrNull(timeoutMs) {
-            messageRepository.messageDownloadCompletedFlow.first { (_, completedFileId, path) ->
-                completedFileId == fileId && path.isNotEmpty()
-            }
+            messageRepository.fileDownloadFlow
+                .filterIsInstance<FileDownloadEvent.Completed>()
+                .first { event -> event.fileId == fileId && event.path.isNotEmpty() }
         }
         if (completed != null) {
-            return completed.third
+            return completed.path
         }
 
         val fallback = messageRepository.getFileInfo(fileId)

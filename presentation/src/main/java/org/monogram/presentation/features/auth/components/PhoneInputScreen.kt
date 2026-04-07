@@ -208,6 +208,18 @@ fun PhoneInputScreen(
         }
     }
 
+    val phonePlaceholder = remember(selectedCountry) {
+        selectedCountry?.let { country ->
+            try {
+                val example = CountryManager.getExampleNumber(country.iso)
+                val prefix = "+${country.code}"
+                if (example.startsWith(prefix)) example.removePrefix(prefix).trim() else example
+            } catch (_: Exception) {
+                ""
+            }
+        } ?: ""
+    }
+
     val fullNumber = "+$codeInput$phoneBody"
     val isFormValid = remember(fullNumber, selectedCountry?.iso) {
         val iso = selectedCountry?.iso
@@ -483,7 +495,9 @@ fun PhoneInputScreen(
                     ) {
                         Column {
                             Text(
-                                text = if (phoneBody.isEmpty()) stringResource(R.string.phone_number_placeholder) else phoneDisplay,
+                                text = if (phoneBody.isEmpty())
+                                    phonePlaceholder.ifEmpty { stringResource(R.string.phone_number_placeholder) }
+                                else phoneDisplay,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = if (phoneBody.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(
                                     alpha = 0.5f

@@ -1,6 +1,5 @@
 package org.monogram.presentation.core.util
 
-import android.util.Log
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import org.monogram.presentation.core.util.Country.Companion.FALLBACK_LENGTH
 
@@ -284,6 +283,19 @@ object CountryManager {
         }
         return result
     }
+
+    /**
+     * Get example phone number for a country with digits masked as zeros
+     *
+     * @param iso country ISO code (for example, RU, UA)
+     * @return formatted example number with body digits replaced by zeros (for example, +7 000 000-00-00),
+     * or throws if no example number is available for the given ISO
+     **/
+    fun getExampleNumber(iso: String): String =
+        phoneUtil.format(
+            phoneUtil.getExampleNumberForType(iso, PhoneNumberUtil.PhoneNumberType.MOBILE),
+            PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL
+        ).let { it.substringBefore(" ") + " " + it.substringAfter(" ").replace(Regex("\\d"), "0") }
 
     private fun countryCodeToEmoji(countryCode: String): String {
         if (countryCode == "FT") return "⭐"

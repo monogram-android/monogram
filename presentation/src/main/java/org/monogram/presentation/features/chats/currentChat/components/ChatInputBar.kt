@@ -8,7 +8,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.*
@@ -18,6 +20,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowSizeClass
 import androidx.core.content.ContextCompat
 import org.monogram.domain.models.*
 import org.monogram.domain.repository.InlineBotResultsModel
@@ -149,7 +152,6 @@ fun ChatInputBar(
         keyboardController?.hide()
         focusManager.clearFocus(force = force)
     }
-    val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val imeBottomPx = WindowInsets.ime.getBottom(density)
     val isKeyboardVisible = imeBottomPx > 0
@@ -159,9 +161,10 @@ fun ChatInputBar(
             lastImeHeightPx = imeBottomPx
         }
     }
+    val containerSize = LocalWindowInfo.current.containerSize
     val stickerMenuHeight = with(density) {
         val imeHeightDp = maxOf(imeBottomPx, lastImeHeightPx).toDp()
-        val fallbackHeightDp = maxOf(configuration.screenHeightDp.dp * 0.42f, 320.dp)
+        val fallbackHeightDp = maxOf(containerSize.height.toDp() * 0.42f, 320.dp)
         maxOf(imeHeightDp, fallbackHeightDp)
     }
     val transitionHoldBottomInset = with(density) {
@@ -421,6 +424,8 @@ fun ChatInputBar(
         if (granted) showCamera = true
     }
 
+    val isTablet = currentWindowAdaptiveInfo().windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+
     if (showCamera) {
         CameraScreen(
             onImageCaptured = { uri ->
@@ -433,8 +438,19 @@ fun ChatInputBar(
             onDismiss = { showCamera = false }
         )
     } else {
-        Box {
+        Box(
+            modifier = if (isTablet) {
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = 12.dp)
+            } else {
+                Modifier.fillMaxWidth()
+            },
+            contentAlignment = Alignment.BottomCenter
+        ) {
             ChatInputBarComposerSection(
+                modifier = if (isTablet) Modifier.widthIn(max = 800.dp) else Modifier.fillMaxWidth(),
                 editingMessage = state.editingMessage,
                 replyMessage = state.replyMessage,
                 pendingMediaPaths = state.pendingMediaPaths,
@@ -471,6 +487,7 @@ fun ChatInputBar(
                 replyMarkup = state.replyMarkup,
                 showSendOptionsSheet = showSendOptionsSheet,
                 stickerRepository = stickerRepository,
+                isTablet = isTablet,
                 onCancelEdit = actions.onCancelEdit,
                 onCancelReply = actions.onCancelReply,
                 onCancelMedia = actions.onCancelMedia,

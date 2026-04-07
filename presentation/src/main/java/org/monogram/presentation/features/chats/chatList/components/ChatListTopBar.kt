@@ -12,9 +12,11 @@ import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.ShieldMoon
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.*
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInRoot
@@ -50,6 +52,9 @@ fun ChatListTopBar(
     val iconButtonShapes = ExpressiveDefaults.iconButtonShapes()
     val motionScheme = MaterialTheme.motionScheme
 
+    val adaptiveInfo = currentWindowAdaptiveInfo()
+    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+
     AnimatedContent(
         targetState = isSearchActive,
         transitionSpec = {
@@ -65,7 +70,7 @@ fun ChatListTopBar(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
+                    .run { if (isTablet) this else statusBarsPadding() }
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 SearchBar(
@@ -105,7 +110,7 @@ fun ChatListTopBar(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
+                    .run { if (isTablet) this else statusBarsPadding() }
             ) {
                 Row(
                     modifier = Modifier

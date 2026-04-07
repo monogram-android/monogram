@@ -17,9 +17,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -75,9 +75,9 @@ fun MediaViewer(
 
     val context = LocalContext.current
 
-    val config = LocalConfiguration.current
+    val containerSize = LocalWindowInfo.current.containerSize
     val density = LocalDensity.current
-    val screenHeightPx = with(density) { config.screenHeightDp.dp.toPx() }
+    val screenHeightPx = containerSize.height.toFloat()
     val dismissDistancePx = with(density) { 160.dp.toPx() }
     val dismissVelocityThreshold = with(density) { 1000.dp.toPx() }
 

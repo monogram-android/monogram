@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.windowsizeclass.WindowSizeClass
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.window.core.layout.WindowSizeClass as WindowSizeClassCore
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,14 +41,13 @@ import org.monogram.presentation.root.RootComponent
 @Composable
 fun MainContent(
     root: RootComponent,
-    windowSizeClass: WindowSizeClass,
     windowLayoutInfo: WindowLayoutInfo?
 ) {
     val childStack by root.childStack.subscribeAsState()
     val isLocked by root.isLocked.collectAsState()
     val localClipboard = LocalClipboard.current
     
-    val isExpanded = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact ||
+    val isExpanded = currentWindowAdaptiveInfo().windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClassCore.WIDTH_DP_MEDIUM_LOWER_BOUND) ||
             windowLayoutInfo?.displayFeatures?.filterIsInstance<FoldingFeature>()?.any {
                 it.orientation == FoldingFeature.Orientation.VERTICAL && it.isSeparating
             } == true

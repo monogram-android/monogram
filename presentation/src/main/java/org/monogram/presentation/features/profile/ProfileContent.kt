@@ -5,7 +5,6 @@ package org.monogram.presentation.features.profile
 import android.content.ClipData
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -25,8 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -34,7 +34,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
@@ -43,9 +42,6 @@ import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.core.util.getUserStatusText
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
 import org.monogram.presentation.features.profile.components.*
-import org.monogram.presentation.features.viewers.ImageViewer
-import org.monogram.presentation.features.viewers.VideoViewer
-import org.monogram.presentation.features.webapp.MiniAppViewer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -153,7 +149,7 @@ fun ProfileContent(component: ProfileComponent) {
     val canReportTopBar = isGroupOrChannel && !isCurrentUserProfile
     val canBlockTopBar = !isCurrentUserProfile && !isGroupOrChannel && user?.type != UserTypeEnum.BOT
     val canEditContactTopBar = !isCurrentUserProfile && !isGroupOrChannel && user?.isContact == true
-    val canDeleteTopBar = !isCurrentUserProfile && (!isGroupOrChannel || chat?.isMember == true)
+    val canDeleteTopBar = !isCurrentUserProfile && (!isGroupOrChannel || chat.isMember)
     var showLeaveSheet by remember { mutableStateOf(false) }
     var showDeleteChatSheet by remember { mutableStateOf(false) }
     var showBlockSheet by remember { mutableStateOf(false) }
@@ -518,7 +514,8 @@ private fun ProfileHeaderSkeleton(
     contentPadding: PaddingValues
 ) {
     val shimmer = rememberShimmerBrush()
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val containerSize = LocalWindowInfo.current.containerSize
+    val screenHeight = with(LocalDensity.current) { containerSize.height.toDp() }
     val titleWidth = androidx.compose.ui.unit.lerp(220.dp, 124.dp, progress)
     val subtitleWidth = androidx.compose.ui.unit.lerp(132.dp, 88.dp, progress)
     val avatarCornerPercent = (100 * (1f - progress)).toInt()

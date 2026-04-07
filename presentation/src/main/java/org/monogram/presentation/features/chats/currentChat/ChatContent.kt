@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.zIndex
-import androidx.window.core.layout.WindowWidthSizeClass
+import androidx.window.core.layout.WindowSizeClass
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -83,7 +83,7 @@ fun ChatContent(
     val coroutineScope = rememberCoroutineScope()
 
     val adaptiveInfo = currentWindowAdaptiveInfo()
-    val isTablet = adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED
+    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
 
     var isVisible by remember { mutableStateOf(false) }
     var showInitialLoading by remember { mutableStateOf(false) }
@@ -348,11 +348,14 @@ fun ChatContent(
                 visibleIds.distinct() to nearbyIds.distinct().filterNot { it in visibleIds }
             }
             .distinctUntilChanged()
-            .debounce(100)
-            .collect { (visibleIds, nearbyIds) ->
-                (component as? DefaultChatComponent)?.let {
-                    it.repositoryMessage.updateVisibleRange(it.chatId, visibleIds, nearbyIds)
-                }
+            .apply {
+                @OptIn(kotlinx.coroutines.FlowPreview::class)
+                debounce(100)
+                    .collect { (visibleIds, nearbyIds) ->
+                        (component as? DefaultChatComponent)?.let {
+                            it.repositoryMessage.updateVisibleRange(it.chatId, visibleIds, nearbyIds)
+                        }
+                    }
             }
     }
 
@@ -431,9 +434,7 @@ fun ChatContent(
             !isRecordingVideo &&
             state.selectedMessageIds.isEmpty() &&
             (!state.viewAsTopics || state.currentTopicId != null)
-
-    var containerSize by remember { mutableStateOf(IntSize.Zero) }
-
+    
     val isCustomBackHandlingEnabled =
         (editingPhotoPath != null || editingVideoPath != null || selectedMessageId != null || state.selectedMessageIds.isNotEmpty() || state.currentTopicId != null || state.showBotCommands || state.restrictUserId != null || state.fullScreenImages != null || state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null || state.miniAppUrl != null || state.webViewUrl != null || state.instantViewUrl != null || state.youtubeUrl != null)
 
@@ -441,8 +442,7 @@ fun ChatContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .onGloballyPositioned { containerSize = it.size }
+                .background(if (isTablet) Color.Transparent else MaterialTheme.colorScheme.background)
         ) {
             /*if (isDragToBackEnabled && !isTablet && !isCustomBackHandlingEnabled && dragOffsetX.value > 0 && previousChild != null) {
                 Box(
@@ -734,34 +734,33 @@ fun ChatContent(
                                     } else {
                                         content?.fileId?.takeIf { it != 0 }?.let(component::onDownloadFile)
                                     }
-                                        Unit
-                                    }
                                 }
+                            }
 
                             val onVideoClickStable: (MessageModel, String?, String?) -> Unit =
                                 remember(component, scrollState) {
                                     { msg: MessageModel, path: String?, caption: String? ->
                                         if (!currentIsVisible.value || currentShowInitialLoading.value || scrollState.isScrollInProgress) {
-                                            Unit
+                                            // do nothing
                                         } else {
-                                        val videoContent = msg.content as? MessageContent.Video
-                                        val supportsStreaming = videoContent?.supportsStreaming ?: false
-                                        val validPath = path?.takeIf { File(it).exists() }
+                                            val videoContent = msg.content as? MessageContent.Video
+                                            val supportsStreaming = videoContent?.supportsStreaming ?: false
+                                            val validPath = path?.takeIf { File(it).exists() }
 
-                                        if (validPath != null || supportsStreaming) {
-                                            currentKeyboardController.value?.hide()
-                                            currentFocusManager.value.clearFocus()
-                                            component.onOpenVideo(path = validPath, messageId = msg.id, caption = caption)
-                                        } else {
-                                            val fileId = when (val c = msg.content) {
-                                                is MessageContent.Video -> c.fileId
-                                                is MessageContent.Gif -> c.fileId
-                                                else -> 0
+                                            if (validPath != null || supportsStreaming) {
+                                                currentKeyboardController.value?.hide()
+                                                currentFocusManager.value.clearFocus()
+                                                component.onOpenVideo(path = validPath, messageId = msg.id, caption = caption)
+                                            } else {
+                                                val fileId = when (val c = msg.content) {
+                                                    is MessageContent.Video -> c.fileId
+                                                    is MessageContent.Gif -> c.fileId
+                                                    else -> 0
+                                                }
+                                                if (fileId != 0) {
+                                                    component.onDownloadFile(fileId)
+                                                }
                                             }
-                                            if (fileId != 0) {
-                                                component.onDownloadFile(fileId)
-                                            }
-                                        }
                                         }
                                     }
                                 }
@@ -798,7 +797,6 @@ fun ChatContent(
                                             component.onDownloadFile(doc.fileId)
                                         }
                                     }
-                                    Unit
                                 }
                             }
 
@@ -819,7 +817,6 @@ fun ChatContent(
                                             component.onDownloadFile(audio.fileId)
                                         }
                                     }
-                                    Unit
                                 }
                             }
 

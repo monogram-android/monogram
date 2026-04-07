@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.automirrored.rounded.ExitToApp
 import androidx.compose.material.icons.filled.MoreVert
@@ -47,7 +48,6 @@ import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.DataUsage
 import androidx.compose.material.icons.rounded.Edit
@@ -99,10 +99,10 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -135,7 +135,6 @@ import org.monogram.presentation.core.ui.SectionHeader
 import java.util.Locale
 import kotlin.math.roundToInt
 
-val QrBackgroundColor = Color(0xFFEFF1E6)
 val QrDarkGreen = Color(0xFF3E4D36)
 val QrSurfaceShapeColor = Color(0xFFE3E6D8)
 
@@ -514,7 +513,7 @@ fun SettingsContent(component: SettingsComponent) {
                     ) {
                         IconButton(onClick = component::onBackClicked) {
                             Icon(
-                                Icons.Rounded.ArrowBack,
+                                Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = stringResource(R.string.cd_back),
                                 tint = iconTint
                             )
@@ -565,16 +564,13 @@ fun SettingsContent(component: SettingsComponent) {
             )
         }
     ) { padding ->
-        var safeTopPadding by remember { mutableStateOf(0.dp) }
         var safeBottomPadding by remember { mutableStateOf(0.dp) }
         val language = remember {
             Locale.getDefault().displayLanguage
                 .replaceFirstChar { it.uppercase() }
         }
-        val currentTop = padding.calculateTopPadding()
         val currentBottom = padding.calculateBottomPadding()
 
-        if (currentTop > 0.dp) safeTopPadding = currentTop
         if (currentBottom > 0.dp) safeBottomPadding = currentBottom
 
         CollapsingToolbarScaffold(
@@ -601,8 +597,8 @@ fun SettingsContent(component: SettingsComponent) {
                     val sidePadding = lerp(24.dp, 0.dp, progress)
                     val topPadding = 0.dp
 
-                    val configuration = LocalConfiguration.current
-                    val screenHeight = configuration.screenHeightDp.dp
+                    val containerSize = LocalWindowInfo.current.containerSize
+                    val screenHeight = with(LocalDensity.current) { containerSize.height.toDp() }
                     val headerHeight = maxWidth.coerceAtMost(screenHeight * 0.6f)
 
                     Box(

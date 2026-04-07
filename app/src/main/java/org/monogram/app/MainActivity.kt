@@ -5,8 +5,6 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.fragment.app.FragmentActivity
@@ -29,7 +27,7 @@ class MainActivity : FragmentActivity() {
     private lateinit var root: RootComponent
     private val appPreferences: AppPreferencesProvider by inject()
 
-    @OptIn(ExperimentalDecomposeApi::class, ExperimentalMaterial3WindowSizeClassApi::class)
+    @OptIn(ExperimentalDecomposeApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -49,7 +47,6 @@ class MainActivity : FragmentActivity() {
         val windowInfoTracker = WindowInfoTracker.getOrCreate(this)
 
         setContent {
-            val windowSizeClass = calculateWindowSizeClass(this)
             val windowLayoutInfo by windowInfoTracker.windowLayoutInfo(this)
                 .collectAsStateWithLifecycle(initialValue = null)
 
@@ -60,7 +57,6 @@ class MainActivity : FragmentActivity() {
                 ) {
                     MainContent(
                         root = root,
-                        windowSizeClass = windowSizeClass,
                         windowLayoutInfo = windowLayoutInfo
                     )
                 }

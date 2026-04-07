@@ -2,13 +2,14 @@ package org.monogram.app.components
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
@@ -68,28 +69,33 @@ fun TabletLayout(
         }
     }
 
-    Row(Modifier.fillMaxSize()) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+    ) {
         Box(
             modifier = Modifier
                 .width(animatedWidth)
-                .fillMaxHeight(),
+                .fillMaxHeight()
+                .padding(start = 12.dp, top = 12.dp, bottom = 12.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface),
         ) {
             if (listChild != null) {
                 RenderChild(listChild)
             }
         }
 
-        HorizontalDivider(
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(1.dp),
-            color = MaterialTheme.colorScheme.outlineVariant,
-        )
+        Spacer(modifier = Modifier.width(12.dp))
 
         Box(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxHeight(),
+                .fillMaxHeight()
+                .padding(end = 12.dp, top = 12.dp, bottom = 12.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface),
         ) {
             val isListOnly = activeChild == listChild
 

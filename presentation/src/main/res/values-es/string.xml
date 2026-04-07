@@ -570,7 +570,6 @@
     <string name="message_letter_spacing_title">Espaciado de letras del mensaje</string>
     <string name="bubble_rounding_title">Redondeo de burbuja</string>
     <string name="sticker_size_title">Tamaño del sticker</string>
-    <string name="reset_button">Restablecer</string>
     <string name="chat_wallpaper_header">Fondo de Pantalla del Chat</string>
     <string name="reset_wallpaper_cd">Restablecer Fondo de Pantalla</string>
     <string name="upload_wallpaper_cd">Subir fondo de pantalla</string>

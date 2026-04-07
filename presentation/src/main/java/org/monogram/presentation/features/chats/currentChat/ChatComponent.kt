@@ -218,6 +218,7 @@ interface ChatComponent {
         val pinnedMessage: MessageModel? = null,
         val allPinnedMessages: List<MessageModel> = emptyList(),
         val showPinnedMessagesList: Boolean = false,
+        val isLoadingPinnedMessages: Boolean = false,
         val pinnedMessageCount: Int = 0,
         val pinnedMessageIndex: Int = 0,
         val scrollToMessageId: Long? = null,

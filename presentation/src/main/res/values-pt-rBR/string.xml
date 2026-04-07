@@ -571,7 +571,6 @@
     <string name="message_letter_spacing_title">Espaçamento entre letras</string>
     <string name="bubble_rounding_title">Arredondamento das bolhas</string>
     <string name="sticker_size_title">Tamanho das figurinhas</string>
-    <string name="reset_button">Redefinir</string>
     <string name="chat_wallpaper_header">Papel de parede do chat</string>
     <string name="reset_wallpaper_cd">Redefinir papel de parede</string>
     <string name="upload_wallpaper_cd">Carregar papel de parede</string>

@@ -113,6 +113,20 @@ class MessageRepositoryImpl(
 
             is TdApi.UpdateMessageContent -> {
                 val extracted = messageMapper.extractCachedContent(update.newContent)
+
+                if (update.newContent is TdApi.MessagePhoto && extracted.text.isBlank()) {
+                    val refreshed = messageRemoteDataSource.getMessage(update.chatId, update.messageId)
+                    if (refreshed != null) {
+                        chatLocalDataSource.insertMessage(
+                            messageMapper.mapToEntity(
+                                refreshed,
+                                ::resolveSenderName
+                            )
+                        )
+                        return
+                    }
+                }
+
                 chatLocalDataSource.updateMessageContent(
                     messageId = update.messageId,
                     content = extracted.text,
@@ -1073,11 +1087,7 @@ class MessageRepositoryImpl(
             TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "")
         else null
 
-        val topicId = if (threadId != null) {
-            TdApi.MessageTopicForum(threadId.toInt())
-        } else {
-            null
-        }
+        val topicId = resolveTopicId(chatId, threadId)
 
         gateway.execute(
             TdApi.SendInlineQueryResultMessage(
@@ -1090,6 +1100,20 @@ class MessageRepositoryImpl(
                 false
             )
         )
+    }
+
+    private suspend fun resolveTopicId(chatId: Long, threadId: Long?): TdApi.MessageTopic? {
+        if (threadId == null || threadId == 0L) return null
+
+        val chat = cache.getChat(chatId)
+            ?: coRunCatching { gateway.execute(TdApi.GetChat(chatId)) }.getOrNull()
+                ?.also { cache.putChat(it) }
+
+        return if (chat?.viewAsTopics == true) {
+            TdApi.MessageTopicForum(threadId.toInt())
+        } else {
+            TdApi.MessageTopicThread(threadId)
+        }
     }
 
     override suspend fun getChatEventLog(

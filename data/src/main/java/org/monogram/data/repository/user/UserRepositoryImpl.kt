@@ -126,6 +126,7 @@ class UserRepositoryImpl(
         }
         return try {
             deferred.await()?.let { user ->
+                handleUserIdUpdated(user.id)
                 mapUserModel(user, userLocal.getUserFullInfo(userId))
             }
         } finally {
@@ -164,6 +165,9 @@ class UserRepositoryImpl(
         }
         return try {
             val fullInfo = deferred.await()
+            if (fullInfo != null) {
+                handleUserIdUpdated(userId)
+            }
             mapUserModel(user, fullInfo)
         } finally {
             fullInfoRequests.remove(userId)

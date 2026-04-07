@@ -31,12 +31,14 @@ fun StickerEmojiMenu(
     onGifSelected: (GifModel) -> Unit,
     panelHeight: Dp = 400.dp,
     emojiOnlyMode: Boolean = false,
+    canSendStickers: Boolean = true,
     onSearchFocused: (Boolean) -> Unit = {},
     stickerRepository: StickerRepository
 ) {
-    var selectedTab by remember(emojiOnlyMode) { mutableIntStateOf(if (emojiOnlyMode) 1 else 0) }
+    val stickersAndGifsAllowed = !emojiOnlyMode && canSendStickers
+    var selectedTab by remember(stickersAndGifsAllowed) { mutableIntStateOf(if (stickersAndGifsAllowed) 0 else 1) }
     var isSearchMode by remember { mutableStateOf(false) }
-    val tabs = if (emojiOnlyMode) {
+    val tabs = if (!stickersAndGifsAllowed) {
         listOf(Triple(stringResource(R.string.sticker_menu_tab_emojis), Icons.Outlined.EmojiEmotions, 1))
     } else {
         listOf(
@@ -44,6 +46,12 @@ fun StickerEmojiMenu(
             Triple(stringResource(R.string.sticker_menu_tab_emojis), Icons.Outlined.EmojiEmotions, 1),
             Triple(stringResource(R.string.sticker_menu_tab_gifs), Icons.Outlined.Gif, 2)
         )
+    }
+
+    LaunchedEffect(stickersAndGifsAllowed) {
+        if (!stickersAndGifsAllowed && selectedTab != 1) {
+            selectedTab = 1
+        }
     }
 
     Surface(
@@ -63,14 +71,14 @@ fun StickerEmojiMenu(
         Box(modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.fillMaxSize()) {
                 when (selectedTab) {
-                    0 -> StickersView(
+                    0 -> if (stickersAndGifsAllowed) StickersView(
                         onStickerSelected = onStickerSelected,
                         onSearchFocused = { focused ->
                             isSearchMode = focused
                             onSearchFocused(focused)
                         },
                         contentPadding = PaddingValues(bottom = 76.dp)
-                    )
+                    ) else Unit
 
                     1 -> EmojisGrid(
                         onEmojiSelected = onEmojiSelected,
@@ -82,7 +90,7 @@ fun StickerEmojiMenu(
                         contentPadding = PaddingValues(bottom = 76.dp)
                     )
 
-                    2 -> GifsView(
+                    2 -> if (stickersAndGifsAllowed) GifsView(
                         onGifSelected = onGifSelected,
                         onSearchFocused = { focused ->
                             isSearchMode = focused
@@ -90,12 +98,12 @@ fun StickerEmojiMenu(
                         },
                         contentPadding = PaddingValues(bottom = 76.dp),
                         stickerRepository = stickerRepository
-                    )
+                    ) else Unit
                 }
             }
 
             AnimatedVisibility(
-                visible = !isSearchMode && !emojiOnlyMode,
+                visible = !isSearchMode && tabs.size > 1,
                 enter = fadeIn(animationSpec = tween(180)) +
                         slideInVertically(animationSpec = tween(220)) { it / 4 },
                 exit = fadeOut(animationSpec = tween(130)) +

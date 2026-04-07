@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.chats.currentChat.components.inputbar
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -21,15 +22,27 @@ fun InputBarLeadingIcons(
     canSendMedia: Boolean,
     onAttachClick: () -> Unit
 ) {
-    if (editingMessage == null && pendingMediaPaths.isEmpty() && canSendMedia) {
-        IconButton(onClick = onAttachClick) {
-            Icon(
-                imageVector = Icons.Outlined.AddCircleOutline,
-                contentDescription = stringResource(R.string.cd_attach),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+    val canAttachMedia = editingMessage == null && pendingMediaPaths.isEmpty() && canSendMedia
+
+    AnimatedContent(
+        targetState = canAttachMedia,
+        transitionSpec = {
+            (fadeIn() + scaleIn(initialScale = 0.85f)).togetherWith(
+                fadeOut() + scaleOut(targetScale = 0.85f)
+            ).using(SizeTransform(clip = false))
+        },
+        label = "AttachIconVisibility"
+    ) { showAttach ->
+        if (showAttach) {
+            IconButton(onClick = onAttachClick) {
+                Icon(
+                    imageVector = Icons.Outlined.AddCircleOutline,
+                    contentDescription = stringResource(R.string.cd_attach),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            Spacer(modifier = Modifier.width(12.dp))
         }
-    } else if (!canSendMedia) {
-        Spacer(modifier = Modifier.width(12.dp))
     }
 }

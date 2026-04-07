@@ -490,7 +490,14 @@ fun ChatContent(
                             state = state,
                             component = component,
                             contentAlpha = contentAlpha,
-                            onBack = { keyboardController?.hide(); component.onBackClicked() },
+                            onBack = {
+                                keyboardController?.hide()
+                                if (state.currentTopicId != null) {
+                                    component.onTopicClick(0)
+                                } else {
+                                    component.onBackClicked()
+                                }
+                            },
                             onOpenMenu = {
                                 keyboardController?.hide()
                                 focusManager.clearFocus(force = true)
@@ -510,6 +517,10 @@ fun ChatContent(
                                     isClosed = state.topics.find { it.id.toLong() == state.currentTopicId }?.isClosed
                                         ?: false,
                                     permissions = state.permissions,
+                                    slowModeDelay = state.slowModeDelay,
+                                    slowModeDelayExpiresIn = state.slowModeDelayExpiresIn,
+                                    isCurrentUserRestricted = state.isCurrentUserRestricted,
+                                    restrictedUntilDate = state.restrictedUntilDate,
                                     isAdmin = state.isAdmin,
                                     isChannel = state.isChannel,
                                     isBot = state.isBot,
@@ -1153,7 +1164,7 @@ fun ChatContent(
                 else if (state.youtubeUrl != null) component.onDismissYouTube()
                 else if (state.miniAppUrl != null) component.onDismissMiniApp()
                 else if (state.webViewUrl != null) component.onDismissWebView()
-                else if (state.currentTopicId != null) component.onBackClicked()
+                else if (state.currentTopicId != null) component.onTopicClick(0)
             }
         }
     }

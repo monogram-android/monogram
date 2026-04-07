@@ -421,7 +421,7 @@ class TelegramWebviewProxy(
         }
     }
 
-    fun dispatchToWebView(eventType: String, eventData: JSONObject? = null) {
+    fun dispatchToWebView(eventType: String, eventData: JSONObject?) {
         Log.d(TAG, "dispatchToWebView: $eventType | Data: $eventData")
 
         val data = eventData?.toString()
@@ -539,7 +539,7 @@ class TelegramWebviewProxy(
         if (sensor != null) {
             sensorManager.registerListener(listener, sensor, getSensorDelay(clampedRefreshMs))
             activeSensors[type] = listener
-            dispatchToWebView("${eventName}_started")
+            dispatchToWebView("${eventName}_started", null)
         } else {
             dispatchToWebView("${eventName}_failed", JSONObject().put("error", "UNSUPPORTED"))
         }
@@ -649,7 +649,7 @@ class TelegramWebviewProxy(
         }
 
         if (startedCount > 0) {
-            dispatchToWebView("device_orientation_started")
+            dispatchToWebView("device_orientation_started", null)
         } else {
             dispatchToWebView("device_orientation_failed", JSONObject().put("error", "UNSUPPORTED"))
         }
@@ -666,7 +666,7 @@ class TelegramWebviewProxy(
         }
 
         if (shouldSendStoppedEvent) {
-            dispatchToWebView("${eventName}_stopped")
+            dispatchToWebView("${eventName}_stopped", null)
         }
     }
 

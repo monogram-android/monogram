@@ -557,7 +557,6 @@
     <string name="message_letter_spacing_title">Міжлітерний інтервал повідомлень</string>
     <string name="bubble_rounding_title">Скруглення блоків</string>
     <string name="sticker_size_title">Розмір стікерів</string>
-    <string name="reset_button">Скинути</string>
     <string name="chat_wallpaper_header">Шпалери чату</string>
     <string name="reset_wallpaper_cd">Скинути шпалери</string>
     <string name="upload_wallpaper_cd">Завантажити шпалери</string>

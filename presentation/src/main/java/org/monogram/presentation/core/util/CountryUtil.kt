@@ -1,6 +1,5 @@
 package org.monogram.presentation.core.util
 
-import android.util.Log
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import org.monogram.presentation.core.util.Country.Companion.FALLBACK_LENGTH
 
@@ -283,6 +282,32 @@ object CountryManager {
             result = formatter.inputDigit(char)
         }
         return result
+    }
+
+    /**
+     * Get example phone number for a country with digits masked as zeros
+     *
+     * @param iso country ISO code
+     * @return formatted example number with body digits replaced by zeros,
+     * or throws if no example number is available for the given ISO
+     **/
+    fun getExampleNumber(iso: String): String =
+        phoneUtil.format(
+            phoneUtil.getExampleNumberForType(iso, PhoneNumberUtil.PhoneNumberType.MOBILE),
+            PhoneNumberUtil.PhoneNumberFormat.INTERNATIONAL
+        ).let { it.substringBefore(" ") + " " + it.substringAfter(" ").replace(Regex("\\d"), "0") }
+
+    /**
+     * Get country ISO code from the device's SIM card
+     *
+     * @param context Android context
+     * @return uppercase ISO code of the SIM card's country,
+     * or 'null' if no SIM is present or the country cannot be determined
+     **/
+    fun getSimIso(context: android.content.Context): String? {
+        val tm = context.getSystemService(android.content.Context.TELEPHONY_SERVICE)
+                as android.telephony.TelephonyManager
+        return tm.simCountryIso?.uppercase()?.takeIf { it.isNotEmpty() }
     }
 
     private fun countryCodeToEmoji(countryCode: String): String {

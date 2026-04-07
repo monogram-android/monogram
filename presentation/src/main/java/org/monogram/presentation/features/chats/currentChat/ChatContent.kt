@@ -435,7 +435,7 @@ fun ChatContent(
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
 
     val isCustomBackHandlingEnabled =
-        (editingPhotoPath != null || editingVideoPath != null || selectedMessageId != null || state.selectedMessageIds.isNotEmpty() || state.currentTopicId != null || state.showBotCommands || state.restrictUserId != null || state.fullScreenImages != null || state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null || state.miniAppUrl != null || state.webViewUrl != null || state.instantViewUrl != null || state.youtubeUrl != null)
+        (editingPhotoPath != null || editingVideoPath != null || selectedMessageId != null || state.selectedMessageIds.isNotEmpty() || state.currentTopicId != null || state.showBotCommands || state.restrictUserId != null || state.showPinnedMessagesList || state.fullScreenImages != null || state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null || state.miniAppUrl != null || state.webViewUrl != null || state.instantViewUrl != null || state.youtubeUrl != null)
 
     CompositionLocalProvider(LocalLinkHandler provides { component.onLinkClick(it) }) {
         Box(
@@ -992,13 +992,28 @@ fun ChatContent(
             // Modals & Overlays
             if (state.showPinnedMessagesList) {
                 PinnedMessagesListSheet(
-                    state = state,
+                    allPinnedMessages = state.allPinnedMessages,
+                    pinnedMessageCount = state.pinnedMessageCount,
+                    isLoadingPinnedMessages = state.isLoadingPinnedMessages,
+                    isGroup = state.isGroup,
+                    isChannel = state.isChannel,
+                    fontSize = state.fontSize,
+                    letterSpacing = state.letterSpacing,
+                    bubbleRadius = state.bubbleRadius,
+                    stickerSize = state.stickerSize,
+                    autoDownloadMobile = state.autoDownloadMobile,
+                    autoDownloadWifi = state.autoDownloadWifi,
+                    autoDownloadRoaming = state.autoDownloadRoaming,
+                    autoDownloadFiles = state.autoDownloadFiles,
+                    autoplayGifs = state.autoplayGifs,
+                    autoplayVideos = state.autoplayVideos,
                     onDismiss = { component.onDismissPinnedMessages() },
                     onMessageClick = { component.onDismissPinnedMessages(); scrollToMessageState.value(it) },
                     onUnpin = { component.onUnpinMessage(it) },
                     onReplyClick = { component.onDismissPinnedMessages(); scrollToMessageState.value(it) },
                     onReactionClick = { id, r -> component.onSendReaction(id, r) },
-                    downloadUtils = component.downloadUtils
+                    downloadUtils = component.downloadUtils,
+                    isAnyViewerOpen = isAnyViewerOpen
                 )
             }
 
@@ -1147,6 +1162,7 @@ fun ChatContent(
                 else if (selectedMessageId != null) selectedMessageId = null
                 else if (state.showBotCommands) component.onDismissBotCommands()
                 else if (state.restrictUserId != null) component.onDismissRestrictDialog()
+                else if (state.showPinnedMessagesList && !isAnyViewerOpen) component.onDismissPinnedMessages()
                 else if (state.fullScreenImages != null) component.onDismissImages()
                 else if (state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null) component.onDismissVideo()
                 else if (state.instantViewUrl != null) component.onDismissInstantView()

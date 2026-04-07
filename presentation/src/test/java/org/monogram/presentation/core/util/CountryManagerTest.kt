@@ -176,5 +176,9 @@ class CountryManagerTest {
     @Test
     fun `Y-land number mask`() =
         assertEquals("42777", CountryManager.maskPhoneNumber("42777"))
+
+    @Test
+    fun `getExampleNumber returns valid example`() =
+        assertEquals("+7 000 000-00-00", CountryManager.getExampleNumber("RU"))
 }
 

@@ -107,7 +107,8 @@ class ChatStoreFactory(
                     component._state.update {
                         it.copy(
                             showPinnedMessagesList = true,
-                            isLoadingPinnedMessages = true
+                            isLoadingPinnedMessages = true,
+                            allPinnedMessages = emptyList()
                         )
                     }
                     component.loadAllPinnedMessages()

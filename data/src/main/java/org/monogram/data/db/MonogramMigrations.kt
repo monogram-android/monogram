@@ -186,6 +186,85 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_29_30 = object : Migration(29, 30) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `messages_new` (
+                    `id` INTEGER NOT NULL,
+                    `chatId` INTEGER NOT NULL,
+                    `senderId` INTEGER NOT NULL,
+                    `senderName` TEXT NOT NULL,
+                    `content` TEXT NOT NULL,
+                    `contentType` TEXT NOT NULL,
+                    `contentMeta` TEXT,
+                    `mediaFileId` INTEGER NOT NULL,
+                    `mediaPath` TEXT,
+                    `mediaThumbnailPath` TEXT,
+                    `minithumbnail` BLOB,
+                    `date` INTEGER NOT NULL,
+                    `isOutgoing` INTEGER NOT NULL,
+                    `isRead` INTEGER NOT NULL,
+                    `replyToMessageId` INTEGER NOT NULL,
+                    `replyToPreview` TEXT,
+                    `replyToPreviewType` TEXT,
+                    `replyToPreviewText` TEXT,
+                    `replyToPreviewSenderName` TEXT,
+                    `replyCount` INTEGER NOT NULL,
+                    `forwardFromName` TEXT,
+                    `forwardFromId` INTEGER NOT NULL,
+                    `forwardOriginChatId` INTEGER,
+                    `forwardOriginMessageId` INTEGER,
+                    `forwardDate` INTEGER NOT NULL,
+                    `editDate` INTEGER NOT NULL,
+                    `mediaAlbumId` INTEGER NOT NULL,
+                    `entities` TEXT,
+                    `viewCount` INTEGER NOT NULL,
+                    `forwardCount` INTEGER NOT NULL,
+                    `createdAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`chatId`, `id`)
+                )
+                """.trimIndent()
+            )
+
+            db.execSQL(
+                """
+                INSERT INTO `messages_new` (
+                    `id`, `chatId`, `senderId`, `senderName`, `content`, `contentType`, `contentMeta`,
+                    `mediaFileId`, `mediaPath`, `mediaThumbnailPath`, `minithumbnail`, `date`,
+                    `isOutgoing`, `isRead`, `replyToMessageId`, `replyToPreview`, `replyToPreviewType`,
+                    `replyToPreviewText`, `replyToPreviewSenderName`, `replyCount`, `forwardFromName`,
+                    `forwardFromId`, `forwardOriginChatId`, `forwardOriginMessageId`, `forwardDate`,
+                    `editDate`, `mediaAlbumId`, `entities`, `viewCount`, `forwardCount`, `createdAt`
+                )
+                SELECT
+                    `id`, `chatId`, `senderId`, `senderName`, `content`, `contentType`, `contentMeta`,
+                    `mediaFileId`, `mediaPath`, `mediaThumbnailPath`, `minithumbnail`, `date`,
+                    `isOutgoing`, `isRead`, `replyToMessageId`, `replyToPreview`, `replyToPreviewType`,
+                    `replyToPreviewText`, `replyToPreviewSenderName`, `replyCount`, `forwardFromName`,
+                    `forwardFromId`, `forwardOriginChatId`, `forwardOriginMessageId`, `forwardDate`,
+                    `editDate`, `mediaAlbumId`, `entities`, `viewCount`, `forwardCount`, `createdAt`
+                FROM `messages`
+                """.trimIndent()
+            )
+
+            db.execSQL(
+                """
+                UPDATE `messages_new`
+                SET `mediaPath` = NULL
+                WHERE `mediaPath` IS NOT NULL
+                  AND `contentType` IN ('photo', 'video', 'video_note', 'document', 'gif', 'voice', 'sticker', 'audio')
+                """.trimIndent()
+            )
+
+            db.execSQL("DROP TABLE `messages`")
+            db.execSQL("ALTER TABLE `messages_new` RENAME TO `messages`")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_chatId_date` ON `messages` (`chatId`, `date`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_chatId_id` ON `messages` (`chatId`, `id`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_messages_createdAt` ON `messages` (`createdAt`)")
+        }
+    }
+
     private fun SupportSQLiteDatabase.addColumn(table: String, column: String, definition: String) {
         execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
     }

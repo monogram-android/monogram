@@ -1,13 +1,23 @@
 package org.monogram.presentation.features.instantview.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -22,10 +32,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isUnspecified
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.webapp.PageBlockCaption
 import org.monogram.domain.models.webapp.RichText
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
@@ -94,15 +106,17 @@ fun AsyncImageWithDownload(
             fileRepository.downloadFile(fileId)
 
             val progressJob = launch {
-                fileRepository.messageDownloadProgressFlow
-                    .filter { it.first == fileId.toLong() }
-                    .collect { progress = it.second }
+                fileRepository.fileDownloadFlow
+                    .filterIsInstance<FileDownloadEvent.Progress>()
+                    .filter { it.fileId == fileId }
+                    .collect { progress = it.progress }
             }
 
             val completedPath = withTimeoutOrNull(60_000L) {
-                fileRepository.messageDownloadCompletedFlow
-                    .filter { it.first == fileId.toLong() }
-                    .mapNotNull { (_, _, candidatePath) -> candidatePath.takeIf { it.isNotEmpty() } }
+                fileRepository.fileDownloadFlow
+                    .filterIsInstance<FileDownloadEvent.Completed>()
+                    .filter { it.fileId == fileId }
+                    .mapNotNull { event -> event.path.takeIf { it.isNotEmpty() } }
                     .first()
             }
 
@@ -175,15 +189,17 @@ fun AsyncVideoWithDownload(
             fileRepository.downloadFile(fileId)
 
             val progressJob = launch {
-                fileRepository.messageDownloadProgressFlow
-                    .filter { it.first == fileId.toLong() }
-                    .collect { progress = it.second }
+                fileRepository.fileDownloadFlow
+                    .filterIsInstance<FileDownloadEvent.Progress>()
+                    .filter { it.fileId == fileId }
+                    .collect { progress = it.progress }
             }
 
             val completedPath = withTimeoutOrNull(60_000L) {
-                fileRepository.messageDownloadCompletedFlow
-                    .filter { it.first == fileId.toLong() }
-                    .mapNotNull { (_, _, candidatePath) -> candidatePath.takeIf { it.isNotEmpty() } }
+                fileRepository.fileDownloadFlow
+                    .filterIsInstance<FileDownloadEvent.Completed>()
+                    .filter { it.fileId == fileId }
+                    .mapNotNull { event -> event.path.takeIf { it.isNotEmpty() } }
                     .first()
             }
 

@@ -1,12 +1,21 @@
 package org.monogram.presentation.features.chats.currentChat.impl
 
 import android.util.Log
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
-import org.monogram.domain.models.*
+import kotlinx.coroutines.withContext
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageDownloadEvent
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageReactionModel
+import org.monogram.domain.models.MessageSendingState
+import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
@@ -580,7 +589,10 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
         .launchIn(scope)
 
     repositoryMessage.messageIdUpdateFlow
-        .onEach { (cId, oldId, newMessage) ->
+        .onEach { event ->
+            val cId = event.chatId
+            val oldId = event.oldMessageId
+            val newMessage = event.message
             if (cId == chatId) {
                 if (oldId != newMessage.id) {
                     remappedMessageIds[oldId] = newMessage.id
@@ -636,7 +648,10 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
         .launchIn(scope)
 
     repositoryMessage.messageUploadProgressFlow
-        .onEach { (messageId, progress) ->
+        .onEach { event ->
+            if (event.chatId != chatId) return@onEach
+            val messageId = event.messageId
+            val progress = event.progress
             updateMessageContent(messageId) { message ->
                 val isUploading = progress < 1f && message.sendingState is MessageSendingState.Pending
                 val newSendingState = if (progress >= 1f) null else message.sendingState
@@ -655,266 +670,303 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
         }
         .launchIn(scope)
 
-    repositoryMessage.messageDownloadProgressFlow
-        .onEach { (messageId, progress) ->
-            updateMessageContent(messageId) { message ->
-                val isDownloading = progress < 1f
-                val newContent = when (val content = message.content) {
-                    is MessageContent.Photo -> content.copy(
-                        isDownloading = isDownloading,
-                        downloadProgress = progress,
-                        downloadError = false
-                    )
-
-                    is MessageContent.Video -> content.copy(
-                        isDownloading = isDownloading,
-                        downloadProgress = progress,
-                        downloadError = false
-                    )
-
-                    is MessageContent.VideoNote -> content.copy(
-                        isDownloading = isDownloading,
-                        downloadProgress = progress,
-                        downloadError = false
-                    )
-
-                    is MessageContent.Document -> content.copy(
-                        isDownloading = isDownloading,
-                        downloadProgress = progress,
-                        downloadError = false
-                    )
-
-                    is MessageContent.Gif -> content.copy(
-                        isDownloading = isDownloading,
-                        downloadProgress = progress,
-                        downloadError = false
-                    )
-
-                    is MessageContent.Voice -> content.copy(
-                        isDownloading = isDownloading,
-                        downloadProgress = progress,
-                        downloadError = false
-                    )
-
-                    is MessageContent.Sticker -> content.copy(
-                        isDownloading = isDownloading,
-                        downloadProgress = progress,
-                        downloadError = false
-                    )
-
-                    else -> content
-                }
-                message.copy(content = newContent)
-            }
-        }
-        .launchIn(scope)
-
-    repositoryMessage.messageDownloadCancelledFlow
-        .onEach { messageId ->
-            var cancelledFileId = 0
-            updateMessageContent(messageId) { message ->
-                val newContent = when (val content = message.content) {
-                    is MessageContent.Photo -> {
-                        cancelledFileId = content.fileId
-                        content.copy(
-                            isDownloading = false,
-                            downloadProgress = 0f,
-                            downloadError = false
-                        )
-                    }
-
-                    is MessageContent.Video -> {
-                        cancelledFileId = content.fileId
-                        content.copy(
-                            isDownloading = false,
-                            downloadProgress = 0f,
-                            downloadError = false
-                        )
-                    }
-
-                    is MessageContent.VideoNote -> {
-                        cancelledFileId = content.fileId
-                        content.copy(
-                            isDownloading = false,
-                            downloadProgress = 0f,
-                            downloadError = false
-                        )
-                    }
-
-                    is MessageContent.Document -> {
-                        cancelledFileId = content.fileId
-                        content.copy(
-                            isDownloading = false,
-                            downloadProgress = 0f,
-                            downloadError = false
-                        )
-                    }
-
-                    is MessageContent.Gif -> {
-                        cancelledFileId = content.fileId
-                        content.copy(
-                            isDownloading = false,
-                            downloadProgress = 0f,
-                            downloadError = false
-                        )
-                    }
-
-                    is MessageContent.Voice -> {
-                        cancelledFileId = content.fileId
-                        content.copy(
-                            isDownloading = false,
-                            downloadProgress = 0f,
-                            downloadError = false
-                        )
-                    }
-
-                    is MessageContent.Sticker -> {
-                        cancelledFileId = content.fileId
-                        content.copy(
-                            isDownloading = false,
-                            downloadProgress = 0f,
-                            downloadError = false
-                        )
-                    }
-
-                    else -> content
-                }
-                message.copy(content = newContent)
-            }
-            AutoDownloadSuppression.suppress(cancelledFileId)
-            if (cancelledFileId != 0) {
-                mediaDownloadRetryCount.remove(cancelledFileId)
-            }
-        }
-        .launchIn(scope)
-
-    repositoryMessage.messageDownloadCompletedFlow
-        .onEach { (messageId, downloadedFileId, path) ->
-            var fileIdToRetry: Int? = null
-            var mainFileId = 0
-            var mainPathUpdated = false
-
-            updateMessageContent(messageId) { message ->
-                val isError = path.isEmpty()
-                val finalPath = path.ifEmpty { null }
-
-                val newContent = when (val content = message.content) {
-                    is MessageContent.Photo -> {
-                        if (downloadedFileId == content.fileId) {
-                            mainFileId = content.fileId
-                            mainPathUpdated = true
-                            if (isError) fileIdToRetry = content.fileId
-                            content.copy(path = finalPath, isDownloading = false, downloadError = isError)
-                        } else {
-                            if (finalPath != null) content.copy(thumbnailPath = finalPath) else content
-                        }
-                    }
-
-                    is MessageContent.Video -> {
-                        if (downloadedFileId == content.fileId) {
-                            mainFileId = content.fileId
-                            mainPathUpdated = true
-                            if (isError) fileIdToRetry = content.fileId
-                            content.copy(path = finalPath, isDownloading = false, downloadError = isError)
-                        } else {
-                            if (finalPath != null) content.copy(thumbnailPath = finalPath) else content
-                        }
-                    }
-
-                    is MessageContent.VideoNote -> {
-                        if (downloadedFileId == content.fileId) {
-                            mainFileId = content.fileId
-                            mainPathUpdated = true
-                            if (isError) fileIdToRetry = content.fileId
-                            content.copy(path = finalPath, isDownloading = false, downloadError = isError)
-                        } else {
-                            content
-                        }
-                    }
-
-                    is MessageContent.Document -> {
-                        if (downloadedFileId == content.fileId) {
-                            mainFileId = content.fileId
-                            mainPathUpdated = true
-                            if (isError) fileIdToRetry = content.fileId
-                            content.copy(path = finalPath, isDownloading = false, downloadError = isError)
-                        } else {
-                            content
-                        }
-                    }
-
-                    is MessageContent.Gif -> {
-                        if (downloadedFileId == content.fileId) {
-                            mainFileId = content.fileId
-                            mainPathUpdated = true
-                            if (isError) fileIdToRetry = content.fileId
-                            content.copy(path = finalPath, isDownloading = false, downloadError = isError)
-                        } else {
-                            content
-                        }
-                    }
-
-                    is MessageContent.Voice -> {
-                        if (downloadedFileId == content.fileId) {
-                            mainFileId = content.fileId
-                            mainPathUpdated = true
-                            if (isError) fileIdToRetry = content.fileId
-                            content.copy(path = finalPath, isDownloading = false, downloadError = isError)
-                        } else {
-                            content
-                        }
-                    }
-
-                    is MessageContent.Sticker -> {
-                        if (downloadedFileId == content.fileId) {
-                            mainFileId = content.fileId
-                            mainPathUpdated = true
-                            if (isError) fileIdToRetry = content.fileId
-                            content.copy(path = finalPath, isDownloading = false, downloadError = isError)
-                        } else {
-                            content
-                        }
-                    }
-
-                    else -> content
-                }
-                message.copy(content = newContent)
-            }
-
-            if (path.isNotEmpty() && mainFileId != 0) {
-                AutoDownloadSuppression.clear(mainFileId)
-                mediaDownloadRetryCount.remove(mainFileId)
-            }
-
-            if (mainPathUpdated && path.isNotEmpty()) {
-                updateFullScreenImagePath(messageId, path)
-            }
-
-            if (path.isNotEmpty() && messageId in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) {
-                updateInlineResultsWithFile(messageId.toInt(), path)
-            }
-
-            if (path.isNotEmpty() && messageId == downloadedFileId.toLong()) {
-                refreshCachedSenderProfiles(_state.value.messages)
-            }
-
-            fileIdToRetry?.let {
-                if (it != 0) {
-                    val suppressed = AutoDownloadSuppression.isSuppressed(it)
-                    if (!suppressed) {
-                        val attempts = (mediaDownloadRetryCount[it] ?: 0) + 1
-                        mediaDownloadRetryCount[it] = attempts
-                        if (attempts <= MAX_DOWNLOAD_RETRIES) {
-                            onDownloadFile(it)
-                        } else {
-                            AutoDownloadSuppression.suppress(it)
-                            Log.w(
-                                "DownloadDebug",
-                                "retryLimitReached: fileId=$it attempts=$attempts chatId=$chatId"
+    repositoryMessage.messageDownloadFlow
+        .onEach { event ->
+            when (event) {
+                is MessageDownloadEvent.Progress -> {
+                    if (event.chatId != chatId) return@onEach
+                    updateMessageContent(event.messageId) { message ->
+                        val isDownloading = event.progress < 1f
+                        val newContent = when (val content = message.content) {
+                            is MessageContent.Photo -> content.copy(
+                                isDownloading = isDownloading,
+                                downloadProgress = event.progress,
+                                downloadError = false
                             )
+
+                            is MessageContent.Video -> content.copy(
+                                isDownloading = isDownloading,
+                                downloadProgress = event.progress,
+                                downloadError = false
+                            )
+
+                            is MessageContent.VideoNote -> content.copy(
+                                isDownloading = isDownloading,
+                                downloadProgress = event.progress,
+                                downloadError = false
+                            )
+
+                            is MessageContent.Document -> content.copy(
+                                isDownloading = isDownloading,
+                                downloadProgress = event.progress,
+                                downloadError = false
+                            )
+
+                            is MessageContent.Gif -> content.copy(
+                                isDownloading = isDownloading,
+                                downloadProgress = event.progress,
+                                downloadError = false
+                            )
+
+                            is MessageContent.Voice -> content.copy(
+                                isDownloading = isDownloading,
+                                downloadProgress = event.progress,
+                                downloadError = false
+                            )
+
+                            is MessageContent.Sticker -> content.copy(
+                                isDownloading = isDownloading,
+                                downloadProgress = event.progress,
+                                downloadError = false
+                            )
+
+                            else -> content
                         }
-                    } else {
-                        Log.d("DownloadDebug", "retrySkippedBySuppression: fileId=$it chatId=$chatId")
+                        message.copy(content = newContent)
+                    }
+                }
+
+                is MessageDownloadEvent.Cancelled -> {
+                    if (event.chatId != chatId) return@onEach
+                    var cancelledFileId = 0
+                    updateMessageContent(event.messageId) { message ->
+                        val newContent = when (val content = message.content) {
+                            is MessageContent.Photo -> {
+                                cancelledFileId = content.fileId
+                                content.copy(
+                                    isDownloading = false,
+                                    downloadProgress = 0f,
+                                    downloadError = false
+                                )
+                            }
+
+                            is MessageContent.Video -> {
+                                cancelledFileId = content.fileId
+                                content.copy(
+                                    isDownloading = false,
+                                    downloadProgress = 0f,
+                                    downloadError = false
+                                )
+                            }
+
+                            is MessageContent.VideoNote -> {
+                                cancelledFileId = content.fileId
+                                content.copy(
+                                    isDownloading = false,
+                                    downloadProgress = 0f,
+                                    downloadError = false
+                                )
+                            }
+
+                            is MessageContent.Document -> {
+                                cancelledFileId = content.fileId
+                                content.copy(
+                                    isDownloading = false,
+                                    downloadProgress = 0f,
+                                    downloadError = false
+                                )
+                            }
+
+                            is MessageContent.Gif -> {
+                                cancelledFileId = content.fileId
+                                content.copy(
+                                    isDownloading = false,
+                                    downloadProgress = 0f,
+                                    downloadError = false
+                                )
+                            }
+
+                            is MessageContent.Voice -> {
+                                cancelledFileId = content.fileId
+                                content.copy(
+                                    isDownloading = false,
+                                    downloadProgress = 0f,
+                                    downloadError = false
+                                )
+                            }
+
+                            is MessageContent.Sticker -> {
+                                cancelledFileId = content.fileId
+                                content.copy(
+                                    isDownloading = false,
+                                    downloadProgress = 0f,
+                                    downloadError = false
+                                )
+                            }
+
+                            else -> content
+                        }
+                        message.copy(content = newContent)
+                    }
+                    AutoDownloadSuppression.suppress(cancelledFileId)
+                    if (cancelledFileId != 0) {
+                        mediaDownloadRetryCount.remove(cancelledFileId)
+                    }
+                }
+
+                is MessageDownloadEvent.Completed -> {
+                    if (event.chatId != chatId) return@onEach
+                    val messageId = event.messageId
+                    val downloadedFileId = event.fileId
+                    val path = event.path
+                    var fileIdToRetry: Int? = null
+                    var mainFileId = 0
+                    var mainPathUpdated = false
+
+                    updateMessageContent(messageId) { message ->
+                        val isError = path.isEmpty()
+                        val finalPath = path.ifEmpty { null }
+
+                        val newContent = when (val content = message.content) {
+                            is MessageContent.Photo -> {
+                                if (downloadedFileId == content.fileId) {
+                                    mainFileId = content.fileId
+                                    mainPathUpdated = true
+                                    if (isError) fileIdToRetry = content.fileId
+                                    content.copy(
+                                        path = finalPath,
+                                        isDownloading = false,
+                                        downloadError = isError
+                                    )
+                                } else {
+                                    if (finalPath != null) content.copy(thumbnailPath = finalPath) else content
+                                }
+                            }
+
+                            is MessageContent.Video -> {
+                                if (downloadedFileId == content.fileId) {
+                                    mainFileId = content.fileId
+                                    mainPathUpdated = true
+                                    if (isError) fileIdToRetry = content.fileId
+                                    content.copy(
+                                        path = finalPath,
+                                        isDownloading = false,
+                                        downloadError = isError
+                                    )
+                                } else {
+                                    if (finalPath != null) content.copy(thumbnailPath = finalPath) else content
+                                }
+                            }
+
+                            is MessageContent.VideoNote -> {
+                                if (downloadedFileId == content.fileId) {
+                                    mainFileId = content.fileId
+                                    mainPathUpdated = true
+                                    if (isError) fileIdToRetry = content.fileId
+                                    content.copy(
+                                        path = finalPath,
+                                        isDownloading = false,
+                                        downloadError = isError
+                                    )
+                                } else {
+                                    content
+                                }
+                            }
+
+                            is MessageContent.Document -> {
+                                if (downloadedFileId == content.fileId) {
+                                    mainFileId = content.fileId
+                                    mainPathUpdated = true
+                                    if (isError) fileIdToRetry = content.fileId
+                                    content.copy(
+                                        path = finalPath,
+                                        isDownloading = false,
+                                        downloadError = isError
+                                    )
+                                } else {
+                                    content
+                                }
+                            }
+
+                            is MessageContent.Gif -> {
+                                if (downloadedFileId == content.fileId) {
+                                    mainFileId = content.fileId
+                                    mainPathUpdated = true
+                                    if (isError) fileIdToRetry = content.fileId
+                                    content.copy(
+                                        path = finalPath,
+                                        isDownloading = false,
+                                        downloadError = isError
+                                    )
+                                } else {
+                                    content
+                                }
+                            }
+
+                            is MessageContent.Voice -> {
+                                if (downloadedFileId == content.fileId) {
+                                    mainFileId = content.fileId
+                                    mainPathUpdated = true
+                                    if (isError) fileIdToRetry = content.fileId
+                                    content.copy(
+                                        path = finalPath,
+                                        isDownloading = false,
+                                        downloadError = isError
+                                    )
+                                } else {
+                                    content
+                                }
+                            }
+
+                            is MessageContent.Sticker -> {
+                                if (downloadedFileId == content.fileId) {
+                                    mainFileId = content.fileId
+                                    mainPathUpdated = true
+                                    if (isError) fileIdToRetry = content.fileId
+                                    content.copy(
+                                        path = finalPath,
+                                        isDownloading = false,
+                                        downloadError = isError
+                                    )
+                                } else {
+                                    content
+                                }
+                            }
+
+                            else -> content
+                        }
+                        message.copy(content = newContent)
+                    }
+
+                    if (path.isNotEmpty() && mainFileId != 0) {
+                        AutoDownloadSuppression.clear(mainFileId)
+                        mediaDownloadRetryCount.remove(mainFileId)
+                    }
+
+                    if (mainPathUpdated && path.isNotEmpty()) {
+                        updateFullScreenImagePath(messageId, path)
+                    }
+
+                    if (path.isNotEmpty() && messageId in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) {
+                        updateInlineResultsWithFile(messageId.toInt(), path)
+                    }
+
+                    if (path.isNotEmpty() && messageId == downloadedFileId.toLong()) {
+                        refreshCachedSenderProfiles(_state.value.messages)
+                    }
+
+                    fileIdToRetry?.let {
+                        if (it != 0) {
+                            val suppressed = AutoDownloadSuppression.isSuppressed(it)
+                            if (!suppressed) {
+                                val attempts = (mediaDownloadRetryCount[it] ?: 0) + 1
+                                mediaDownloadRetryCount[it] = attempts
+                                if (attempts <= MAX_DOWNLOAD_RETRIES) {
+                                    onDownloadFile(it)
+                                } else {
+                                    AutoDownloadSuppression.suppress(it)
+                                    Log.w(
+                                        "DownloadDebug",
+                                        "retryLimitReached: fileId=$it attempts=$attempts chatId=$chatId"
+                                    )
+                                }
+                            } else {
+                                Log.d(
+                                    "DownloadDebug",
+                                    "retrySkippedBySuppression: fileId=$it chatId=$chatId"
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -922,7 +974,9 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
         .launchIn(scope)
 
     repositoryMessage.messageDeletedFlow
-        .onEach { (cId, messageIds) ->
+        .onEach { event ->
+            val cId = event.chatId
+            val messageIds = event.messageIds
             if (cId == chatId) {
                 messageIds.forEach(reactionUpdateSuppressedUntil::remove)
                 messageIds.forEach(remappedMessageIds::remove)

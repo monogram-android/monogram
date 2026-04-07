@@ -3,14 +3,28 @@ package org.monogram.presentation.core.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,7 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterIsInstance
 import org.koin.compose.koinInject
+import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.FileModel
 import org.monogram.domain.repository.FileRepository
 import java.io.File
@@ -95,9 +111,10 @@ fun SettingsItem(
                     LaunchedEffect(icon.id) {
                         if (localPath.isEmpty() || !File(localPath).exists()) {
                             fileRepository.downloadFile(icon.id, 32)
-                            fileRepository.messageDownloadCompletedFlow
-                                .filter { it.first == icon.id.toLong() }
-                                .collect { (_, _, completedPath) -> localPath = completedPath }
+                            fileRepository.fileDownloadFlow
+                                .filterIsInstance<FileDownloadEvent.Completed>()
+                                .filter { it.fileId == icon.id }
+                                .collect { completed -> localPath = completed.path }
                         }
                     }
 

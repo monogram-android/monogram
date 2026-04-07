@@ -25,9 +25,10 @@ interface MessageDao {
     suspend fun markAsRead(chatId: Long, upToMessageId: Long)
 
     @Query(
-        "UPDATE messages SET content = :content, contentType = :contentType, contentMeta = :contentMeta, mediaFileId = :mediaFileId, mediaPath = :mediaPath, editDate = :editDate WHERE id = :messageId"
+        "UPDATE messages SET content = :content, contentType = :contentType, contentMeta = :contentMeta, mediaFileId = :mediaFileId, mediaPath = :mediaPath, editDate = :editDate WHERE chatId = :chatId AND id = :messageId"
     )
     suspend fun updateContent(
+        chatId: Long,
         messageId: Long,
         content: String,
         contentType: String,
@@ -40,8 +41,14 @@ interface MessageDao {
     @Query("UPDATE messages SET mediaPath = :path WHERE mediaFileId = :fileId AND mediaFileId != 0")
     suspend fun updateMediaPath(fileId: Int, path: String)
 
-    @Query("UPDATE messages SET viewCount = :viewCount, forwardCount = :forwardCount, replyCount = :replyCount WHERE id = :messageId")
-    suspend fun updateInteractionInfo(messageId: Long, viewCount: Int, forwardCount: Int, replyCount: Int)
+    @Query("UPDATE messages SET viewCount = :viewCount, forwardCount = :forwardCount, replyCount = :replyCount WHERE chatId = :chatId AND id = :messageId")
+    suspend fun updateInteractionInfo(
+        chatId: Long,
+        messageId: Long,
+        viewCount: Int,
+        forwardCount: Int,
+        replyCount: Int
+    )
 
     @Query(
         """
@@ -61,8 +68,8 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessages(messages: List<MessageEntity>)
 
-    @Query("DELETE FROM messages WHERE id = :messageId")
-    suspend fun deleteMessage(messageId: Long)
+    @Query("DELETE FROM messages WHERE chatId = :chatId AND id = :messageId")
+    suspend fun deleteMessage(chatId: Long, messageId: Long)
 
     @Query("DELETE FROM messages WHERE chatId = :chatId")
     suspend fun clearMessagesForChat(chatId: Long)

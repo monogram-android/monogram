@@ -55,6 +55,7 @@ class RoomChatLocalDataSource(
     override suspend fun markAsRead(chatId: Long, upToMessageId: Long) = messageDao.markAsRead(chatId, upToMessageId)
 
     override suspend fun updateMessageContent(
+        chatId: Long,
         messageId: Long,
         content: String,
         contentType: String,
@@ -62,14 +63,30 @@ class RoomChatLocalDataSource(
         mediaFileId: Int,
         mediaPath: String?,
         editDate: Int
-    ) = messageDao.updateContent(messageId, content, contentType, contentMeta, mediaFileId, mediaPath, editDate)
+    ) = messageDao.updateContent(
+        chatId,
+        messageId,
+        content,
+        contentType,
+        contentMeta,
+        mediaFileId,
+        mediaPath,
+        editDate
+    )
 
     override suspend fun updateMediaPath(fileId: Int, path: String) = messageDao.updateMediaPath(fileId, path)
 
-    override suspend fun updateInteractionInfo(messageId: Long, viewCount: Int, forwardCount: Int, replyCount: Int) =
-        messageDao.updateInteractionInfo(messageId, viewCount, forwardCount, replyCount)
+    override suspend fun updateInteractionInfo(
+        chatId: Long,
+        messageId: Long,
+        viewCount: Int,
+        forwardCount: Int,
+        replyCount: Int
+    ) =
+        messageDao.updateInteractionInfo(chatId, messageId, viewCount, forwardCount, replyCount)
 
-    override suspend fun deleteMessage(messageId: Long) = messageDao.deleteMessage(messageId)
+    override suspend fun deleteMessage(chatId: Long, messageId: Long) =
+        messageDao.deleteMessage(chatId, messageId)
 
     override suspend fun clearMessagesForChat(chatId: Long) = messageDao.clearMessagesForChat(chatId)
 

@@ -128,7 +128,6 @@ fun PinnedMessagesListSheet(
                                     letterSpacing = state.letterSpacing,
                                     bubbleRadius = state.bubbleRadius,
                                     stickerSize = state.stickerSize,
-                                    canReply = false,
                                     downloadUtils = downloadUtils
                                 )
                             } else if (item is GroupedMessageItem.Album) {

@@ -553,11 +553,10 @@
     <!-- Chat Settings -->
     <string name="chat_settings_header">Настройки чатов</string>
     <string name="appearance_header">Внешний вид</string>
-    <string name="message_text_size_title">Размер текста сообщений</string>
-    <string name="message_letter_spacing_title">Межбуквенный интервал сообщений</string>
+    <string name="message_text_size_title">Размер текста</string>
+    <string name="message_letter_spacing_title">Межбуквенный интервал</string>
     <string name="bubble_rounding_title">Скругление блоков</string>
     <string name="sticker_size_title">Размер стикеров</string>
-    <string name="reset_button">Сбросить</string>
     <string name="chat_wallpaper_header">Обои чата</string>
     <string name="reset_wallpaper_cd">Сбросить обои</string>
     <string name="upload_wallpaper_cd">Загрузить обои</string>

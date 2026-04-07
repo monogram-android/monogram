@@ -1,21 +1,21 @@
 [versions]
 # Plugins
-agp = "8.12.0"
-kotlin = "2.3.10"
+agp = "9.1.0"
+kotlin = "2.3.20"
 google-services = "4.4.4"
-ossLicensesPlugin = "0.10.10"
+ossLicensesPlugin = "0.11.0"
 ksp = "2.3.6"
-baselineprofile = "1.4.1"
+baselineprofile = "1.5.0-alpha05"
 
 # AndroidX
-androidx-activityCompose = "1.12.4"
-androidx-biometric = "1.4.0-alpha05"
-androidx-camera = "1.5.3"
-androidx-compose-bom = "2026.02.01"
-androidx-compose-runtime = "1.10.4"
+androidx-activityCompose = "1.13.0"
+androidx-biometric = "1.4.0-alpha06"
+androidx-camera = "1.6.0"
+androidx-compose-bom = "2026.03.01"
+androidx-compose-runtime = "1.10.6"
 androidx-material3 = "1.4.0"
 androidx-adaptive = "1.2.0"
-androidx-media3 = "1.9.2"
+androidx-media3 = "1.10.0"
 androidx-securityCrypto = "1.1.0"
 androidx-room = "2.8.4"
 androidx-uiautomator = "2.3.0"
@@ -28,16 +28,16 @@ kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.10.0"
 
 # Architecture & DI
-decompose = "3.4.0"
+decompose = "3.5.0"
 mvikotlin = "4.3.0"
-koin = "4.1.1"
+koin = "4.2.0"
 
 # UI & Media
 coil = "3.4.0"
-maplibre = "1.4.1"
+maplibre = "1.7.0"
 
 # Google & Firebase
-firebase-bom = "34.10.0"
+firebase-bom = "34.11.0"
 playServices-location = "21.3.0"
 playServices-mlkit-barcode = "18.3.1"
 playServices-ossLicenses = "17.4.0"
@@ -45,7 +45,7 @@ playServices-ossLicenses = "17.4.0"
 # Others
 zxing = "3.5.4"
 junit = "4.13.2"
-libphonenumber = "8.13.55"
+libphonenumber = "9.0.27"
 
 [libraries]
 # AndroidX Activity
@@ -193,7 +193,6 @@ koin = [
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 android-lint = { id = "com.android.lint", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 google-oss-licenses = { id = "com.google.android.gms.oss-licenses-plugin", version.ref = "ossLicensesPlugin" }

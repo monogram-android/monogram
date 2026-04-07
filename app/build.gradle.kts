@@ -1,11 +1,11 @@
 import com.android.build.api.artifact.SingleArtifact
 import com.android.build.api.variant.FilterConfiguration
+import com.android.build.api.variant.impl.VariantOutputImpl
 import com.google.android.gms.oss.licenses.plugin.DependencyTask
 import com.google.gms.googleservices.GoogleServicesPlugin
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.oss.licenses)
     alias(libs.plugins.google.services)
@@ -45,10 +45,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildFeatures {
+                resValues = true
+            }
             signingConfig = signingConfigs.getByName("debug")
             resValue("string", "app_name", "MonoGram")
         }
         debug {
+            buildFeatures {
+                resValues = true
+            }
             applicationIdSuffix = ".debug"
             isMinifyEnabled = false
             resValue("string", "app_name", "MonoGram Debug")
@@ -58,9 +64,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
-    kotlin {
-        jvmToolchain(21)
-    }
     buildFeatures {
         compose = true
     }
@@ -68,36 +71,70 @@ android {
 
 androidComponents {
     onVariants { variant ->
+        if (variant.buildType != "release") return@onVariants
+
+        variant.outputs.forEach { output ->
+            val variantOutput = output as? VariantOutputImpl ?: return@forEach
+            val abi = variantOutput.filters.find {
+                it.filterType == FilterConfiguration.FilterType.ABI
+            }?.identifier ?: "universal"
+            val versionName = variantOutput.versionName.orNull ?: "unknown"
+
+            variantOutput.outputFileName.set(
+                "monogram-$abi-$versionName-${variant.buildType}.apk"
+            )
+        }
+
         val apkDirProvider = variant.artifacts.get(SingleArtifact.APK)
         val artifactsLoader = variant.artifacts.getBuiltArtifactsLoader()
 
-        val renameTask = tasks.register("rename${variant.name.capitalize()}Apk") {
+        val capitalizedVariantName = variant.name.replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase() else it.toString()
+        }
+
+        val renameTask = tasks.register("rename${capitalizedVariantName}Apk") {
             inputs.dir(apkDirProvider)
 
             doLast {
-                val builtArtifacts = artifactsLoader.load(apkDirProvider.get())!!
-                val targetDir = apkDirProvider.get().asFile
+                val sourceDir = apkDirProvider.get().asFile
+
+                val builtArtifacts = artifactsLoader.load(apkDirProvider.get()) ?: return@doLast
+
+                val targetDir = project.layout.projectDirectory.dir("releases").asFile.apply {
+                    mkdirs()
+                }
+
+                targetDir.listFiles()
+                    ?.filter { it.isFile && it.extension == "apk" && it.name.startsWith("monogram-") }
+                    ?.forEach(File::delete)
 
                 builtArtifacts.elements.forEach { artifact ->
                     val abi = artifact.filters.find {
                         it.filterType == FilterConfiguration.FilterType.ABI
                     }?.identifier ?: "universal"
+
                     val versionName = artifact.versionName
-                    val versionCode = artifact.versionCode
                     val buildType = variant.buildType
 
                     val originalApk = File(artifact.outputFile)
+
                     val targetFile = File(
                         targetDir,
-                        "monogram-$abi-${versionName}(${versionCode})-${buildType}.apk"
+                        "monogram-$abi-$versionName-${buildType}.apk"
                     )
 
                     originalApk.copyTo(targetFile, overwrite = true)
                 }
+
+                if (sourceDir == targetDir) {
+                    builtArtifacts.elements
+                        .map { File(it.outputFile) }
+                        .forEach(File::delete)
+                }
             }
         }
 
-        project.tasks.matching { it.name == "assemble${variant.name.capitalize()}" }.configureEach {
+        project.tasks.matching { it.name == "assemble${capitalizedVariantName}" }.configureEach {
             finalizedBy(renameTask)
         }
     }

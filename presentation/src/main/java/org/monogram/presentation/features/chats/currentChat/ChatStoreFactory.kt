@@ -7,70 +7,7 @@ import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import kotlinx.coroutines.flow.update
 import org.monogram.presentation.features.chats.currentChat.ChatStore.Intent
 import org.monogram.presentation.features.chats.currentChat.ChatStore.Label
-import org.monogram.presentation.features.chats.currentChat.impl.handleAcceptMiniAppTOS
-import org.monogram.presentation.features.chats.currentChat.impl.handleAddToAdBlockWhitelist
-import org.monogram.presentation.features.chats.currentChat.impl.handleAddToGifs
-import org.monogram.presentation.features.chats.currentChat.impl.handleBlockUser
-import org.monogram.presentation.features.chats.currentChat.impl.handleBotCommandClick
-import org.monogram.presentation.features.chats.currentChat.impl.handleCancelDownloadFile
-import org.monogram.presentation.features.chats.currentChat.impl.handleClearHistory
-import org.monogram.presentation.features.chats.currentChat.impl.handleClearMessages
-import org.monogram.presentation.features.chats.currentChat.impl.handleClearSelection
-import org.monogram.presentation.features.chats.currentChat.impl.handleClosePoll
-import org.monogram.presentation.features.chats.currentChat.impl.handleCommentsClick
-import org.monogram.presentation.features.chats.currentChat.impl.handleConfirmRestrict
-import org.monogram.presentation.features.chats.currentChat.impl.handleCopyLink
-import org.monogram.presentation.features.chats.currentChat.impl.handleCopySelectedMessages
-import org.monogram.presentation.features.chats.currentChat.impl.handleDeleteChat
-import org.monogram.presentation.features.chats.currentChat.impl.handleDeleteMessage
-import org.monogram.presentation.features.chats.currentChat.impl.handleDeleteSelectedMessages
-import org.monogram.presentation.features.chats.currentChat.impl.handleDismissInvoice
-import org.monogram.presentation.features.chats.currentChat.impl.handleDismissMiniAppTOS
-import org.monogram.presentation.features.chats.currentChat.impl.handleDownloadFile
-import org.monogram.presentation.features.chats.currentChat.impl.handleDownloadHighRes
-import org.monogram.presentation.features.chats.currentChat.impl.handleDraftChange
-import org.monogram.presentation.features.chats.currentChat.impl.handleInlineQueryChange
-import org.monogram.presentation.features.chats.currentChat.impl.handleJoinChat
-import org.monogram.presentation.features.chats.currentChat.impl.handleKeyboardButtonClick
-import org.monogram.presentation.features.chats.currentChat.impl.handleLoadMoreInlineResults
-import org.monogram.presentation.features.chats.currentChat.impl.handleMentionQueryChange
-import org.monogram.presentation.features.chats.currentChat.impl.handleMessageVisible
-import org.monogram.presentation.features.chats.currentChat.impl.handleOpenInvoice
-import org.monogram.presentation.features.chats.currentChat.impl.handleOpenMiniApp
-import org.monogram.presentation.features.chats.currentChat.impl.handlePinMessage
-import org.monogram.presentation.features.chats.currentChat.impl.handlePinnedMessageClick
-import org.monogram.presentation.features.chats.currentChat.impl.handlePollOptionClick
-import org.monogram.presentation.features.chats.currentChat.impl.handleRemoveFromAdBlockWhitelist
-import org.monogram.presentation.features.chats.currentChat.impl.handleReplyMarkupButtonClick
-import org.monogram.presentation.features.chats.currentChat.impl.handleReportMessage
-import org.monogram.presentation.features.chats.currentChat.impl.handleReportReasonSelected
-import org.monogram.presentation.features.chats.currentChat.impl.handleRetractVote
-import org.monogram.presentation.features.chats.currentChat.impl.handleSaveEditedMessage
-import org.monogram.presentation.features.chats.currentChat.impl.handleSendAlbum
-import org.monogram.presentation.features.chats.currentChat.impl.handleSendGif
-import org.monogram.presentation.features.chats.currentChat.impl.handleSendGifFile
-import org.monogram.presentation.features.chats.currentChat.impl.handleSendInlineResult
-import org.monogram.presentation.features.chats.currentChat.impl.handleSendMessage
-import org.monogram.presentation.features.chats.currentChat.impl.handleSendPhoto
-import org.monogram.presentation.features.chats.currentChat.impl.handleSendReaction
-import org.monogram.presentation.features.chats.currentChat.impl.handleSendScheduledNow
-import org.monogram.presentation.features.chats.currentChat.impl.handleSendSticker
-import org.monogram.presentation.features.chats.currentChat.impl.handleSendVideo
-import org.monogram.presentation.features.chats.currentChat.impl.handleSendVoice
-import org.monogram.presentation.features.chats.currentChat.impl.handleShowVoters
-import org.monogram.presentation.features.chats.currentChat.impl.handleStickerClick
-import org.monogram.presentation.features.chats.currentChat.impl.handleToggleMessageSelection
-import org.monogram.presentation.features.chats.currentChat.impl.handleToggleMute
-import org.monogram.presentation.features.chats.currentChat.impl.handleTopicClick
-import org.monogram.presentation.features.chats.currentChat.impl.handleUnblockUser
-import org.monogram.presentation.features.chats.currentChat.impl.handleUnpinMessage
-import org.monogram.presentation.features.chats.currentChat.impl.handleVideoRecorded
-import org.monogram.presentation.features.chats.currentChat.impl.loadAllPinnedMessages
-import org.monogram.presentation.features.chats.currentChat.impl.loadMoreMessages
-import org.monogram.presentation.features.chats.currentChat.impl.loadNewerMessages
-import org.monogram.presentation.features.chats.currentChat.impl.loadScheduledMessages
-import org.monogram.presentation.features.chats.currentChat.impl.scrollToBottomInternal
-import org.monogram.presentation.features.chats.currentChat.impl.scrollToMessageInternal
+import org.monogram.presentation.features.chats.currentChat.impl.*
 
 class ChatStoreFactory(
     private val storeFactory: StoreFactory,
@@ -167,10 +104,24 @@ class ChatStoreFactory(
 
                 is Intent.PinnedMessageClick -> component.handlePinnedMessageClick(intent.message)
                 is Intent.ShowAllPinnedMessages -> {
-                    component._state.update { it.copy(showPinnedMessagesList = true) }
+                    component._state.update {
+                        it.copy(
+                            showPinnedMessagesList = true,
+                            isLoadingPinnedMessages = true,
+                            allPinnedMessages = emptyList()
+                        )
+                    }
                     component.loadAllPinnedMessages()
                 }
-                is Intent.DismissPinnedMessages -> component._state.update { it.copy(showPinnedMessagesList = false) }
+
+                is Intent.DismissPinnedMessages -> {
+                    component._state.update {
+                        it.copy(
+                            showPinnedMessagesList = false,
+                            isLoadingPinnedMessages = false
+                        )
+                    }
+                }
                 is Intent.ScrollToMessageConsumed -> component._state.update { it.copy(scrollToMessageId = null) }
                 is Intent.ScrollToBottom -> component.scrollToBottomInternal()
                 is Intent.DownloadFile -> component.handleDownloadFile(intent.fileId)

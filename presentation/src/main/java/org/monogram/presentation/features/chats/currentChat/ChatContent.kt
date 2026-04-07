@@ -1014,9 +1014,9 @@ fun ChatContent(
                 PinnedMessagesListSheet(
                     state = state,
                     onDismiss = { component.onDismissPinnedMessages() },
-                    onMessageClick = { scrollToMessageState.value(it); component.onDismissPinnedMessages() },
+                    onMessageClick = { component.onDismissPinnedMessages(); scrollToMessageState.value(it) },
                     onUnpin = { component.onUnpinMessage(it) },
-                    onReplyClick = { scrollToMessageState.value(it); component.onDismissPinnedMessages() },
+                    onReplyClick = { component.onDismissPinnedMessages(); scrollToMessageState.value(it) },
                     onReactionClick = { id, r -> component.onSendReaction(id, r) },
                     downloadUtils = component.downloadUtils
                 )

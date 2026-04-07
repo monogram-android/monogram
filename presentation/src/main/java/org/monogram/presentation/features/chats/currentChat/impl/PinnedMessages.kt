@@ -35,13 +35,18 @@ internal fun DefaultChatComponent.loadPinnedMessage() {
 internal fun DefaultChatComponent.loadAllPinnedMessages() {
     scope.launch {
         val threadId = _state.value.currentTopicId
+        _state.update { it.copy(isLoadingPinnedMessages = true) }
         try {
             val pinnedMessages = repositoryMessage.getAllPinnedMessages(chatId, threadId)
             _state.update {
-                it.copy(allPinnedMessages = pinnedMessages)
+                it.copy(
+                    allPinnedMessages = pinnedMessages,
+                    isLoadingPinnedMessages = false
+                )
             }
         } catch (e: Exception) {
             Log.e("DefaultChatComponent", "Error loading all pinned messages", e)
+            _state.update { it.copy(isLoadingPinnedMessages = false) }
         }
     }
 }
@@ -109,6 +114,9 @@ private fun DefaultChatComponent.jumpToMessage(message: MessageModel) {
             val threadId = _state.value.currentTopicId
             val messages = repositoryMessage.getMessagesAround(chatId, message.id, 50, threadId)
             if (messages.isNotEmpty()) {
+                updateMessages(messages, replace = true)
+                lastLoadedOlderId = 0L
+                lastLoadedNewerId = 0L
                 _state.update {
                     it.copy(
                         scrollToMessageId = message.id,
@@ -118,11 +126,6 @@ private fun DefaultChatComponent.jumpToMessage(message: MessageModel) {
                         isOldestLoaded = false
                     )
                 }
-                updateMessages(messages, replace = true)
-                lastLoadedOlderId = 0L
-                lastLoadedNewerId = 0L
-                loadMoreMessages()
-                loadNewerMessages()
             }
         } catch (e: Exception) {
             Log.e("DefaultChatComponent", "Error jumping to message", e)

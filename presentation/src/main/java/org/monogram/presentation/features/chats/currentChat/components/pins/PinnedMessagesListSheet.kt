@@ -247,94 +247,6 @@ fun PinnedMessagesListSheet(
                                 null -> null
                             }
 
-<<<<<<< feat/fast-reply
-                    Box(modifier = Modifier.animateItem()) {
-                        if (state.isChannel) {
-                            if (item is GroupedMessageItem.Single) {
-                                ChannelMessageBubbleContainer(
-                                    msg = item.message,
-                                    olderMsg = olderMsg,
-                                    newerMsg = newerMsg,
-                                    autoplayGifs = state.autoplayGifs,
-                                    autoplayVideos = state.autoplayVideos,
-                                    autoDownloadFiles = state.autoDownloadFiles,
-                                    onPhotoClick = { onMessageClick(it) },
-                                    onVideoClick = { onMessageClick(it) },
-                                    onDocumentClick = { onMessageClick(it) },
-                                    onReplyClick = { _, _, _ -> onMessageClick(item.message) },
-                                    onGoToReply = { onReplyClick(it) },
-                                    onReactionClick = onReactionClick,
-                                    fontSize = state.fontSize,
-                                    letterSpacing = state.letterSpacing,
-                                    bubbleRadius = state.bubbleRadius,
-                                    stickerSize = state.stickerSize,
-                                    downloadUtils = downloadUtils
-                                )
-                            } else if (item is GroupedMessageItem.Album) {
-                                AlbumMessageBubbleContainer(
-                                    messages = item.messages,
-                                    olderMsg = olderMsg,
-                                    newerMsg = newerMsg,
-                                    isGroup = false,
-                                    isChannel = true,
-                                    autoplayGifs = state.autoplayGifs,
-                                    autoplayVideos = state.autoplayVideos,
-                                    onPhotoClick = { onMessageClick(it) },
-                                    onVideoClick = { onMessageClick(it) },
-                                    onReplyClick = { _, _, _ -> onMessageClick(item.messages.last()) },
-                                    onGoToReply = { onReplyClick(it) },
-                                    onReactionClick = onReactionClick,
-                                    toProfile = {},
-                                    canReply = false,
-                                    downloadUtils = downloadUtils
-                                )
-                            }
-                        } else {
-                            if (item is GroupedMessageItem.Single) {
-                                MessageBubbleContainer(
-                                    msg = item.message,
-                                    olderMsg = olderMsg,
-                                    newerMsg = newerMsg,
-                                    isGroup = state.isGroup,
-                                    fontSize = state.fontSize,
-                                    letterSpacing = state.letterSpacing,
-                                    bubbleRadius = state.bubbleRadius,
-                                    stSize = state.stickerSize,
-                                    autoDownloadMobile = state.autoDownloadMobile,
-                                    autoDownloadWifi = state.autoDownloadWifi,
-                                    autoDownloadRoaming = state.autoDownloadRoaming,
-                                    autoDownloadFiles = state.autoDownloadFiles,
-                                    autoplayGifs = state.autoplayGifs,
-                                    autoplayVideos = state.autoplayVideos,
-                                    onPhotoClick = { onMessageClick(it) },
-                                    onVideoClick = { onMessageClick(it) },
-                                    onDocumentClick = { onMessageClick(it) },
-                                    onReplyClick = { _, _, _ -> onMessageClick(item.message) },
-                                    onGoToReply = { onReplyClick(it) },
-                                    onReactionClick = onReactionClick,
-                                    toProfile = {},
-                                    canReply = false,
-                                    downloadUtils = downloadUtils
-                                )
-                            } else if (item is GroupedMessageItem.Album) {
-                                AlbumMessageBubbleContainer(
-                                    messages = item.messages,
-                                    olderMsg = olderMsg,
-                                    newerMsg = newerMsg,
-                                    isGroup = state.isGroup,
-                                    isChannel = false,
-                                    autoplayGifs = state.autoplayGifs,
-                                    autoplayVideos = state.autoplayVideos,
-                                    onPhotoClick = { onMessageClick(it) },
-                                    onVideoClick = { onMessageClick(it) },
-                                    onReplyClick = { _, _, _ -> onMessageClick(item.messages.last()) },
-                                    onGoToReply = { onReplyClick(it) },
-                                    onReactionClick = onReactionClick,
-                                    toProfile = {},
-                                    canReply = false,
-                                    downloadUtils = downloadUtils
-                                )
-=======
                             val newerMsg = when (val newerItem = groupedMessages.getOrNull(index - 1)) {
                                 is GroupedMessageItem.Single -> newerItem.message
                                 is GroupedMessageItem.Album -> newerItem.messages.first()
@@ -344,7 +256,6 @@ fun PinnedMessagesListSheet(
                             if (shouldShowDate(msg, olderMsg)) {
                                 DateSeparator(msg.date)
                                 Spacer(modifier = Modifier.height(8.dp))
->>>>>>> develop
                             }
 
                             Box(modifier = Modifier.animateItem()) {
@@ -384,6 +295,7 @@ fun PinnedMessagesListSheet(
                                             onGoToReply = { onReplyClick(it) },
                                             onReactionClick = onReactionClick,
                                             toProfile = {},
+                                            canReply = false,
                                             downloadUtils = downloadUtils
                                         )
                                     }
@@ -411,6 +323,7 @@ fun PinnedMessagesListSheet(
                                             onGoToReply = { onReplyClick(it) },
                                             onReactionClick = onReactionClick,
                                             toProfile = {},
+                                            canReply = false,
                                             downloadUtils = downloadUtils
                                         )
                                     } else if (item is GroupedMessageItem.Album) {
@@ -428,6 +341,7 @@ fun PinnedMessagesListSheet(
                                             onGoToReply = { onReplyClick(it) },
                                             onReactionClick = onReactionClick,
                                             toProfile = {},
+                                            canReply = false,
                                             downloadUtils = downloadUtils
                                         )
                                     }

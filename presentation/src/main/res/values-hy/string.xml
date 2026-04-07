@@ -541,7 +541,6 @@
     <string name="message_text_size_title">Տեքստի չափը</string>
     <string name="message_letter_spacing_title">Տառերի հեռավորությունը</string>
     <string name="bubble_rounding_title">Հաղորդագրության կլորացումը</string>
-    <string name="reset_button">Վերակայել</string>
     <string name="chat_wallpaper_header">Չատի պաստառ</string>
     <string name="reset_wallpaper_cd">Վերակայել պաստառը</string>
     <string name="upload_wallpaper_cd">Վերբեռնել պաստառ</string>

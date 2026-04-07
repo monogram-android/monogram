@@ -557,7 +557,6 @@
     <string name="message_letter_spacing_title">字元間距</string>
     <string name="bubble_rounding_title">气泡圆角</string>
     <string name="sticker_size_title">贴纸大小</string>
-    <string name="reset_button">重置</string>
     <string name="chat_wallpaper_header">会话壁纸</string>
     <string name="reset_wallpaper_cd">重置壁纸</string>
     <string name="upload_wallpaper_cd">上传壁纸</string>

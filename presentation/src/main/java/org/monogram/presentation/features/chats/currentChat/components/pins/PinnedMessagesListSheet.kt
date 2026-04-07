@@ -128,6 +128,7 @@ fun PinnedMessagesListSheet(
                                     letterSpacing = state.letterSpacing,
                                     bubbleRadius = state.bubbleRadius,
                                     stickerSize = state.stickerSize,
+                                    canReply = false,
                                     downloadUtils = downloadUtils
                                 )
                             } else if (item is GroupedMessageItem.Album) {
@@ -145,6 +146,7 @@ fun PinnedMessagesListSheet(
                                     onGoToReply = { onReplyClick(it) },
                                     onReactionClick = onReactionClick,
                                     toProfile = {},
+                                    canReply = false,
                                     downloadUtils = downloadUtils
                                 )
                             }
@@ -172,6 +174,7 @@ fun PinnedMessagesListSheet(
                                     onGoToReply = { onReplyClick(it) },
                                     onReactionClick = onReactionClick,
                                     toProfile = {},
+                                    canReply = false,
                                     downloadUtils = downloadUtils
                                 )
                             } else if (item is GroupedMessageItem.Album) {
@@ -189,6 +192,7 @@ fun PinnedMessagesListSheet(
                                     onGoToReply = { onReplyClick(it) },
                                     onReactionClick = onReactionClick,
                                     toProfile = {},
+                                    canReply = false,
                                     downloadUtils = downloadUtils
                                 )
                             }

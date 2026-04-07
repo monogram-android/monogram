@@ -444,26 +444,6 @@ fun ChatContent(
                 .background(MaterialTheme.colorScheme.background)
                 .onGloballyPositioned { containerSize = it.size }
         ) {
-            /*if (isDragToBackEnabled && !isTablet && !isCustomBackHandlingEnabled && dragOffsetX.value > 0 && previousChild != null) {
-                Box(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    renderChild(previousChild)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Color.Black.copy(
-                                    alpha = 0.3f * (1f - (dragOffsetX.value / containerSize.width.toFloat()).coerceIn(
-                                        0f,
-                                        1f
-                                    ))
-                                )
-                            )
-                    )
-                }
-            }*/
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()

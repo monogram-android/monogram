@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.*
 import androidx.annotation.StringRes
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorMatrix
@@ -17,6 +18,8 @@ import java.io.FileOutputStream
 import java.util.*
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint as AndroidPaint
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withTranslation
 
 data class DrawnPath(
     val path: Path,
@@ -114,11 +117,17 @@ suspend fun saveImage(
     textElements: List<TextElement>,
     filter: ImageFilter?,
     canvasSize: IntSize,
+    cropRect: Rect,
+    transformPivot: Offset = cropRect.center,
     imageRotation: Float = 0f,
     imageScale: Float = 1f,
     imageOffset: Offset = Offset.Zero
 ): String? = withContext(Dispatchers.IO) {
     try {
+        if (canvasSize.width <= 0 || canvasSize.height <= 0 || cropRect.width <= 0f || cropRect.height <= 0f) {
+            return@withContext null
+        }
+
         val options = BitmapFactory.Options().apply { inMutable = true }
         var bitmap = BitmapFactory.decodeFile(originalPath, options) ?: return@withContext null
 
@@ -150,65 +159,83 @@ suspend fun saveImage(
             dx = (screenW - (bitmapW * baseScale)) / 2f
         }
 
-        val resultBitmap = Bitmap.createBitmap(canvasSize.width, canvasSize.height, Bitmap.Config.ARGB_8888)
+        val exportScale = if (baseScale > 0f) 1f / baseScale else 1f
+        val resultBitmap = createBitmap(
+            (cropRect.width * exportScale).toInt().coerceAtLeast(1),
+            (cropRect.height * exportScale).toInt().coerceAtLeast(1)
+        )
         val canvas = AndroidCanvas(resultBitmap)
+        val transformPivotX = transformPivot.x * exportScale
+        val transformPivotY = transformPivot.y * exportScale
+        val scaledCropLeft = cropRect.left * exportScale
+        val scaledCropTop = cropRect.top * exportScale
+        val scaledImageOffset = Offset(imageOffset.x * exportScale, imageOffset.y * exportScale)
 
-        canvas.save()
-        canvas.translate(imageOffset.x + screenW / 2f, imageOffset.y + screenH / 2f)
-        canvas.rotate(imageRotation)
-        canvas.scale(imageScale, imageScale)
-        canvas.translate(-screenW / 2f, -screenH / 2f)
+        canvas.translate(-scaledCropLeft, -scaledCropTop)
 
-        val imagePaint = AndroidPaint().apply {
-            isAntiAlias = true
-            if (filter != null) {
-                colorFilter = android.graphics.ColorMatrixColorFilter(filter.colorMatrix.values)
+        canvas.withTranslation(scaledImageOffset.x + transformPivotX, scaledImageOffset.y + transformPivotY) {
+            rotate(imageRotation)
+            scale(imageScale, imageScale)
+            translate(-transformPivotX, -transformPivotY)
+
+            val imagePaint = AndroidPaint().apply {
+                isAntiAlias = true
+                if (filter != null) {
+                    colorFilter = android.graphics.ColorMatrixColorFilter(filter.colorMatrix.values)
+                }
             }
-        }
-        val destRect = RectF(dx, dy, dx + bitmapW * baseScale, dy + bitmapH * baseScale)
-        canvas.drawBitmap(bitmap, null, destRect, imagePaint)
+            val destRect = RectF(
+                dx * exportScale,
+                dy * exportScale,
+                dx * exportScale + bitmapW,
+                dy * exportScale + bitmapH
+            )
+            drawBitmap(bitmap, null, destRect, imagePaint)
 
-        val pathPaint = AndroidPaint().apply {
-            isAntiAlias = true
-            style = AndroidPaint.Style.STROKE
-            strokeCap = AndroidPaint.Cap.ROUND
-            strokeJoin = AndroidPaint.Join.ROUND
-        }
-
-        paths.forEach { pathData ->
-            if (pathData.isEraser) {
-                pathPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
-            } else {
-                pathPaint.xfermode = null
-                pathPaint.color = pathData.color.toArgb()
-                pathPaint.alpha = (pathData.alpha * 255).toInt()
+            val pathPaint = AndroidPaint().apply {
+                isAntiAlias = true
+                style = AndroidPaint.Style.STROKE
+                strokeCap = AndroidPaint.Cap.ROUND
+                strokeJoin = AndroidPaint.Join.ROUND
             }
-            pathPaint.strokeWidth = pathData.strokeWidth
-            canvas.drawPath(pathData.path.asAndroidPath(), pathPaint)
+
+            paths.forEach { pathData ->
+                if (pathData.isEraser) {
+                    pathPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+                } else {
+                    pathPaint.xfermode = null
+                    pathPaint.color = pathData.color.toArgb()
+                    pathPaint.alpha = (pathData.alpha * 255).toInt()
+                }
+                pathPaint.strokeWidth = pathData.strokeWidth * exportScale
+                val scaledPath = android.graphics.Path(pathData.path.asAndroidPath())
+                scaledPath.transform(
+                    android.graphics.Matrix().apply { setScale(exportScale, exportScale) }
+                )
+                drawPath(scaledPath, pathPaint)
+            }
+
+            val textPaint = AndroidPaint().apply {
+                isAntiAlias = true
+                typeface = Typeface.DEFAULT_BOLD
+            }
+
+            textElements.forEach { element ->
+                textPaint.color = element.color.toArgb()
+                textPaint.textSize = 64f * element.scale * exportScale
+
+                withTranslation(element.offset.x * exportScale, element.offset.y * exportScale) {
+                    rotate(Math.toDegrees(element.rotation.toDouble()).toFloat())
+
+                    val textWidth = textPaint.measureText(element.text)
+                    val fontMetrics = textPaint.fontMetrics
+                    val textHeight = fontMetrics.descent - fontMetrics.ascent
+
+                    drawText(element.text, -textWidth / 2f, textHeight / 4f, textPaint)
+                }
+            }
+
         }
-
-        val textPaint = AndroidPaint().apply {
-            isAntiAlias = true
-            typeface = Typeface.DEFAULT_BOLD
-        }
-
-        textElements.forEach { element ->
-            textPaint.color = element.color.toArgb()
-            textPaint.textSize = 64f * element.scale
-
-            canvas.save()
-            canvas.translate(element.offset.x, element.offset.y)
-            canvas.rotate(Math.toDegrees(element.rotation.toDouble()).toFloat())
-
-            val textWidth = textPaint.measureText(element.text)
-            val fontMetrics = textPaint.fontMetrics
-            val textHeight = fontMetrics.descent - fontMetrics.ascent
-
-            canvas.drawText(element.text, -textWidth / 2f, textHeight / 4f, textPaint)
-            canvas.restore()
-        }
-
-        canvas.restore()
 
         val file = File(context.cacheDir, "edited_${System.currentTimeMillis()}.jpg")
         FileOutputStream(file).use { out ->

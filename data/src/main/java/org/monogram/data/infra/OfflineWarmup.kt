@@ -1,11 +1,11 @@
 package org.monogram.data.infra
 
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.*
@@ -20,7 +20,7 @@ import org.monogram.domain.repository.StickerRepository
 private const val TAG = "OfflineWarmup"
 
 class OfflineWarmup(
-    private val scopeProvider: ScopeProvider,
+    private val scope: CoroutineScope,
     private val dispatchers: DispatcherProvider,
     private val gateway: TelegramGateway,
     private val chatDao: ChatDao,
@@ -32,8 +32,6 @@ class OfflineWarmup(
     private val chatCache: ChatCache,
     private val stickerRepository: StickerRepository
 ) {
-    private val scope = scopeProvider.appScope
-
     @Volatile
     private var warmupStarted = false
 
@@ -262,6 +260,8 @@ class OfflineWarmup(
             else -> 0L
         }
 
+        val botType = type as? TdApi.UserTypeBot
+
         return UserEntity(
             id = id,
             firstName = firstName,
@@ -271,18 +271,44 @@ class OfflineWarmup(
             personalAvatarPath = personalAvatarPath,
             isPremium = isPremium,
             isVerified = verificationStatus?.isVerified ?: false,
+            isScam = verificationStatus?.isScam ?: false,
+            isFake = verificationStatus?.isFake ?: false,
+            botVerificationIconCustomEmojiId = verificationStatus?.botVerificationIconCustomEmojiId ?: 0L,
             isSupport = isSupport,
             isContact = isContact,
             isMutualContact = isMutualContact,
             isCloseFriend = isCloseFriend,
+            botTypeCanBeEdited = botType?.canBeEdited ?: false,
+            botTypeCanJoinGroups = botType?.canJoinGroups ?: false,
+            botTypeCanReadAllGroupMessages = botType?.canReadAllGroupMessages ?: false,
+            botTypeHasMainWebApp = botType?.hasMainWebApp ?: false,
+            botTypeHasTopics = botType?.hasTopics ?: false,
+            botTypeAllowsUsersToCreateTopics = botType?.allowsUsersToCreateTopics ?: false,
+            botTypeCanManageBots = botType?.canManageBots ?: false,
+            botTypeIsInline = botType?.isInline ?: false,
+            botTypeInlineQueryPlaceholder = botType?.inlineQueryPlaceholder?.ifEmpty { null },
+            botTypeNeedLocation = botType?.needLocation ?: false,
+            botTypeCanConnectToBusiness = botType?.canConnectToBusiness ?: false,
+            botTypeCanBeAddedToAttachmentMenu = botType?.canBeAddedToAttachmentMenu ?: false,
+            botTypeActiveUserCount = botType?.activeUserCount ?: 0,
+            userType = type.toTypeString(),
+            restrictionReason = restrictionInfo?.restrictionReason?.ifEmpty { null },
+            hasSensitiveContent = restrictionInfo?.hasSensitiveContent ?: false,
+            activeStoryStateType = activeStoryState.toTypeString(),
+            activeStoryId = (activeStoryState as? TdApi.ActiveStoryStateLive)?.storyId ?: 0,
+            restrictsNewChats = restrictsNewChats,
+            paidMessageStarCount = paidMessageStarCount,
             haveAccess = haveAccess,
             username = usernames?.activeUsernames?.firstOrNull(),
             usernamesData = usernamesData,
             statusType = statusType,
             accentColorId = accentColorId,
+            backgroundCustomEmojiId = backgroundCustomEmojiId,
             profileAccentColorId = profileAccentColorId,
+            profileBackgroundCustomEmojiId = profileBackgroundCustomEmojiId,
             statusEmojiId = statusEmojiId,
             languageCode = languageCode.ifEmpty { null },
+            addedToAttachmentMenu = addedToAttachmentMenu,
             lastSeen = (status as? TdApi.UserStatusOffline)?.wasOnline?.toLong() ?: 0L,
             createdAt = System.currentTimeMillis()
         )
@@ -295,9 +321,27 @@ class OfflineWarmup(
             ?: bestPhotoSize?.photo?.local?.path?.ifEmpty { null }
     }
 
+    private fun TdApi.ActiveStoryState?.toTypeString(): String? {
+        return when (this) {
+            is TdApi.ActiveStoryStateLive -> "LIVE"
+            is TdApi.ActiveStoryStateUnread -> "UNREAD"
+            is TdApi.ActiveStoryStateRead -> "READ"
+            else -> null
+        }
+    }
+
+    private fun TdApi.UserType?.toTypeString(): String {
+        return when (this) {
+            is TdApi.UserTypeRegular -> "REGULAR"
+            is TdApi.UserTypeBot -> "BOT"
+            is TdApi.UserTypeDeleted -> "DELETED"
+            else -> "UNKNOWN"
+        }
+    }
+
     private companion object {
-        private const val USER_WARMUP_LIMIT = 30
-        private const val USER_WARMUP_DELAY_MS = 75L
+        private const val USER_WARMUP_LIMIT = 15
+        private const val USER_WARMUP_DELAY_MS = 150L
         private const val ONE_DAY_MS = 24L * 60 * 60 * 1000
         private const val SEVEN_DAYS_MS = 7L * ONE_DAY_MS
     }

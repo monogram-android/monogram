@@ -15,8 +15,6 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
-import androidx.compose.material3.CircularWavyProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,14 +25,18 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.media3.common.util.UnstableApi
 import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
@@ -66,12 +68,16 @@ fun GifMessageBubble(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
+    val context = LocalContext.current
     val cornerRadius = 18.dp
     val smallCorner = 4.dp
     val tailCorner = 2.dp
 
     var stablePath by remember(msg.id) { mutableStateOf(content.path) }
     !stablePath.isNullOrBlank()
+    val gifCacheKey = remember(stablePath, content.fileId) {
+        namespacedCacheKey("chat_gif:${content.fileId}", stablePath)
+    }
     var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
 
     LaunchedEffect(content.path) {
@@ -199,7 +205,18 @@ fun GifMessageBubble(
                                 )
                             } else {
                                 Image(
-                                    painter = rememberAsyncImagePainter(stablePath),
+                                    painter = rememberAsyncImagePainter(
+                                        model = ImageRequest.Builder(context)
+                                            .data(stablePath)
+                                            .apply {
+                                                gifCacheKey?.let {
+                                                    memoryCacheKey(it)
+                                                    diskCacheKey(it)
+                                                }
+                                            }
+                                            .crossfade(true)
+                                            .build()
+                                    ),
                                     contentDescription = content.caption,
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Fit

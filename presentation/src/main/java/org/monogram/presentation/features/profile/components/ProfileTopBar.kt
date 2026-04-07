@@ -9,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +41,9 @@ fun ProfileTopBar(
     chatModel: ChatModel?,
     isVerified: Boolean,
     isSponsor: Boolean,
+    isBot: Boolean,
+    isScam: Boolean,
+    isFake: Boolean,
     canSearch: Boolean = false,
     canShare: Boolean = false,
     canEdit: Boolean = false,
@@ -106,6 +108,33 @@ fun ProfileTopBar(
                             contentDescription = stringResource(R.string.cd_sponsor),
                             modifier = Modifier.size(22.dp),
                             tint = Color(0xFFE53935)
+                        )
+                    }
+
+                    if (isBot) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        TopBarStatusBadge(
+                            text = stringResource(R.string.label_bot_badge),
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+
+                    if (isScam) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        TopBarStatusBadge(
+                            text = stringResource(R.string.label_scam_badge),
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+
+                    if (isFake) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        TopBarStatusBadge(
+                            text = stringResource(R.string.label_fake_badge),
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
 
@@ -285,5 +314,24 @@ fun ProfileTopBar(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun TopBarStatusBadge(
+    text: String,
+    containerColor: Color,
+    contentColor: Color
+) {
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor,
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+        )
     }
 }

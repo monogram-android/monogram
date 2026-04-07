@@ -4,19 +4,17 @@ import org.drinkless.tdlib.TdApi
 import org.monogram.data.db.model.ChatEntity
 
 fun TdApi.Chat.toEntity(): ChatEntity {
-    val isChannel = (type as? TdApi.ChatTypeSupergroup)?.isChannel ?: false
+    val isChannel = type.isChannelType()
     val isArchived = positions.any { it.list is TdApi.ChatListArchive }
-    val permissions = permissions ?: TdApi.ChatPermissions()
     val cachedCounts = parseCachedCounts(clientData)
+    val typeIds = type.extractTypeIds()
+    val chatPermissions = permissions.toDomainChatPermissions()
     val senderId = when (val sender = messageSenderId) {
         is TdApi.MessageSenderUser -> sender.userId
         is TdApi.MessageSenderChat -> sender.chatId
         else -> null
     }
-    val privateUserId = (type as? TdApi.ChatTypePrivate)?.userId ?: 0L
-    val basicGroupId = (type as? TdApi.ChatTypeBasicGroup)?.basicGroupId ?: 0L
-    val supergroupId = (type as? TdApi.ChatTypeSupergroup)?.supergroupId ?: 0L
-    val secretChatId = (type as? TdApi.ChatTypeSecret)?.secretChatId ?: 0
+
     return ChatEntity(
         id = id,
         title = title,
@@ -29,19 +27,13 @@ fun TdApi.Chat.toEntity(): ChatEntity {
         isPinned = positions.firstOrNull()?.isPinned ?: false,
         isMuted = notificationSettings.muteFor > 0,
         isChannel = isChannel,
-        isGroup = type is TdApi.ChatTypeBasicGroup || (type is TdApi.ChatTypeSupergroup && !isChannel),
-        type = when (type) {
-            is TdApi.ChatTypePrivate -> "PRIVATE"
-            is TdApi.ChatTypeBasicGroup -> "BASIC_GROUP"
-            is TdApi.ChatTypeSupergroup -> "SUPERGROUP"
-            is TdApi.ChatTypeSecret -> "SECRET"
-            else -> "PRIVATE"
-        },
-        privateUserId = privateUserId,
-        basicGroupId = basicGroupId,
-        supergroupId = supergroupId,
-        secretChatId = secretChatId,
-        positionsCache = encodePositions(positions),
+        isGroup = type.isGroupType(),
+        type = type.toEntityChatType(),
+        privateUserId = typeIds.privateUserId,
+        basicGroupId = typeIds.basicGroupId,
+        supergroupId = typeIds.supergroupId,
+        secretChatId = typeIds.secretChatId,
+        positionsCache = encodeChatPositions(positions),
         isArchived = isArchived,
         memberCount = cachedCounts.first,
         onlineCount = cachedCounts.second,
@@ -80,38 +72,8 @@ fun TdApi.Chat.toEntity(): ChatEntity {
         username = null,
         description = null,
         inviteLink = null,
-        permissionCanSendBasicMessages = permissions.canSendBasicMessages,
-        permissionCanSendAudios = permissions.canSendAudios,
-        permissionCanSendDocuments = permissions.canSendDocuments,
-        permissionCanSendPhotos = permissions.canSendPhotos,
-        permissionCanSendVideos = permissions.canSendVideos,
-        permissionCanSendVideoNotes = permissions.canSendVideoNotes,
-        permissionCanSendVoiceNotes = permissions.canSendVoiceNotes,
-        permissionCanSendPolls = permissions.canSendPolls,
-        permissionCanSendOtherMessages = permissions.canSendOtherMessages,
-        permissionCanAddLinkPreviews = permissions.canAddLinkPreviews,
-        permissionCanEditTag = permissions.canEditTag,
-        permissionCanChangeInfo = permissions.canChangeInfo,
-        permissionCanInviteUsers = permissions.canInviteUsers,
-        permissionCanPinMessages = permissions.canPinMessages,
-        permissionCanCreateTopics = permissions.canCreateTopics,
         createdAt = System.currentTimeMillis()
-    )
-}
-
-private fun encodePositions(positions: Array<TdApi.ChatPosition>): String? {
-    if (positions.isEmpty()) return null
-    val encoded = positions.mapNotNull { pos ->
-        if (pos.order == 0L) return@mapNotNull null
-        val pinned = if (pos.isPinned) 1 else 0
-        when (val list = pos.list) {
-            is TdApi.ChatListMain -> "m:${pos.order}:$pinned"
-            is TdApi.ChatListArchive -> "a:${pos.order}:$pinned"
-            is TdApi.ChatListFolder -> "f:${list.chatFolderId}:${pos.order}:$pinned"
-            else -> null
-        }
-    }
-    return if (encoded.isEmpty()) null else encoded.joinToString("|")
+    ).withPermissions(chatPermissions)
 }
 
 private fun parseCachedCounts(clientData: String?): Pair<Int, Int> {

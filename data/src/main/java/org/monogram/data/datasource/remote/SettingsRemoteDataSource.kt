@@ -14,6 +14,11 @@ interface SettingsRemoteDataSource {
         scope: TdApi.NotificationSettingsScope,
         compareSound: Boolean
     ): TdApi.Chats?
+    suspend fun setDefaultBackground(
+        background: TdApi.InputBackground?,
+        type: TdApi.BackgroundType?,
+        forDarkTheme: Boolean
+    ): TdApi.Background?
 
     // Setters
     suspend fun setScopeNotificationSettings(

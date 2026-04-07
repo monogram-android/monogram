@@ -560,6 +560,7 @@
     <string name="reset_button">重置</string>
     <string name="chat_wallpaper_header">会话壁纸</string>
     <string name="reset_wallpaper_cd">重置壁纸</string>
+    <string name="upload_wallpaper_cd">上传壁纸</string>
     <string name="emoji_style_header">表情风格</string>
     <string name="theme_header">主题</string>
     <string name="night_mode_title">夜间模式</string>
@@ -1246,6 +1247,12 @@
     <string name="empty_links">未找到链接</string>
     <string name="empty_gifs">未找到 GIF</string>
     <string name="label_bot_badge">机器人</string>
+    <string name="label_scam_badge">诈骗</string>
+    <string name="label_fake_badge">冒充</string>
+    <string name="unofficial_app_title">使用非官方应用</string>
+    <string name="unofficial_app_subtitle">该账号正在使用非官方 Telegram 客户端</string>
+    <string name="bot_verification_title">机器人验证</string>
+    <string name="bot_verification_subtitle">由第三方机器人验证</string>
     <string name="opening_hours_closed">已关闭</string>
     <string name="label_id">ID</string>
 

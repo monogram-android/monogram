@@ -32,6 +32,19 @@ internal fun DefaultChatComponent.loadChatInfo() {
                 }
             }
         }
+
+        runCatching { chatInfoRepository.getChatFullInfo(chatId) }
+            .getOrNull()
+            ?.let { fullInfo ->
+                _state.update {
+                    it.copy(
+                        slowModeDelay = fullInfo.slowModeDelay,
+                        slowModeDelayExpiresIn = fullInfo.slowModeDelayExpiresIn
+                    )
+                }
+            }
+
+        refreshCurrentUserRestrictionState()
     }
 
     chatListRepository.chatListFlow
@@ -63,6 +76,14 @@ internal fun DefaultChatComponent.loadChatInfo() {
                 loadMessages()
             }
         }
+        .launchIn(scope)
+
+    chatListRepository.chatListFlow
+        .map { chats -> chats.find { it.id == chatId } }
+        .filterNotNull()
+        .map { chat -> chat.permissions to chat.isMember }
+        .distinctUntilChanged()
+        .onEach { refreshCurrentUserRestrictionState() }
         .launchIn(scope)
 
     forumTopicsRepository.forumTopicsFlow
@@ -202,5 +223,18 @@ internal fun DefaultChatComponent.handleConfirmRestrict(
             ChatMemberStatus.Restricted(isMember = true, restrictedUntilDate = untilDate, permissions = permissions)
         )
         _state.update { it.copy(restrictUserId = null) }
+    }
+}
+
+private suspend fun DefaultChatComponent.refreshCurrentUserRestrictionState() {
+    val me = runCatching { userRepository.getMe() }.getOrNull() ?: return
+    val status = runCatching { chatInfoRepository.getChatMember(chatId, me.id)?.status }.getOrNull()
+    val restrictedStatus = status as? ChatMemberStatus.Restricted
+
+    _state.update {
+        it.copy(
+            isCurrentUserRestricted = restrictedStatus != null,
+            restrictedUntilDate = restrictedStatus?.restrictedUntilDate ?: 0
+        )
     }
 }

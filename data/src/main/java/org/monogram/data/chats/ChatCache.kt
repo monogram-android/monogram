@@ -3,6 +3,7 @@ package org.monogram.data.chats
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.datasource.cache.ChatsCacheDataSource
 import org.monogram.data.datasource.cache.UserCacheDataSource
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
@@ -146,10 +147,18 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                 if (user.profilePhoto != null || existing.profilePhoto == null) {
                     existing.profilePhoto = user.profilePhoto
                 }
+                existing.accentColorId = user.accentColorId
+                existing.backgroundCustomEmojiId = user.backgroundCustomEmojiId
+                existing.profileAccentColorId = user.profileAccentColorId
+                existing.profileBackgroundCustomEmojiId = user.profileBackgroundCustomEmojiId
                 existing.emojiStatus = user.emojiStatus
                 existing.isPremium = user.isPremium
                 existing.verificationStatus = user.verificationStatus
                 existing.isSupport = user.isSupport
+                existing.restrictionInfo = user.restrictionInfo
+                existing.activeStoryState = user.activeStoryState
+                existing.restrictsNewChats = user.restrictsNewChats
+                existing.paidMessageStarCount = user.paidMessageStarCount
                 existing.haveAccess = user.haveAccess
                 existing.type = user.type
                 existing.languageCode = user.languageCode
@@ -424,11 +433,14 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
             )
             clientData = "mc:${entity.memberCount};oc:${entity.onlineCount}"
         }
-        if (entity.photoId != 0) {
-            fileCache[entity.photoId] = TdApi.File().apply {
-                id = entity.photoId
-                local = TdApi.LocalFile().apply {
-                    this.path = entity.avatarPath.orEmpty()
+        if (entity.photoId != 0 && !entity.avatarPath.isNullOrEmpty()) {
+            val avatarFile = File(entity.avatarPath)
+            if (avatarFile.exists()) {
+                fileCache[entity.photoId] = TdApi.File().apply {
+                    id = entity.photoId
+                    local = TdApi.LocalFile().apply {
+                        this.path = entity.avatarPath
+                    }
                 }
             }
         }

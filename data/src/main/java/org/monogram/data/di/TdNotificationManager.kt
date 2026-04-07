@@ -222,10 +222,9 @@ class TdNotificationManager(
                     coRunCatching {
                         val result = gateway.execute(TdApi.GetChatNotificationSettingsExceptions(scope, true))
                         if (result is TdApi.Chats) {
-                            result.chatIds.forEach { chatId ->
-                                getChat(chatId) { chat ->
-                                    updateChatNotificationSettings(chat.id, chat.notificationSettings)
-                                }
+                            for (chatId in result.chatIds.distinct()) {
+                                val chat = getChatSuspend(chatId) ?: continue
+                                updateChatNotificationSettings(chat.id, chat.notificationSettings)
                             }
                         }
                     }.onFailure {
@@ -760,12 +759,19 @@ class TdNotificationManager(
             return
         }
         scope.launch {
-            try {
-                val result = gateway.execute(TdApi.GetChat(chatId))
-                chatCache[chatId] = result
-                callback(result)
-            } catch (_: Exception) {
+            getChatSuspend(chatId)?.let(callback)
+        }
+    }
+
+    private suspend fun getChatSuspend(chatId: Long): TdApi.Chat? {
+        chatCache[chatId]?.let { return it }
+
+        return try {
+            gateway.execute(TdApi.GetChat(chatId)).also { chat ->
+                chatCache[chat.id] = chat
             }
+        } catch (_: Exception) {
+            null
         }
     }
 

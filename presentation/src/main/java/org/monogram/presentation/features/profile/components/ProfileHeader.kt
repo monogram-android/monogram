@@ -37,6 +37,8 @@ fun ProfileHeader(
     isSponsor: Boolean,
     statusEmojiPath: String?,
     isBot: Boolean,
+    isScam: Boolean,
+    isFake: Boolean,
     onAvatarClick: () -> Unit
 ) {
     val displayPath = profilePhotos.firstOrNull() ?: avatarPath
@@ -120,17 +122,27 @@ fun ProfileHeader(
             }
             if (isBot) {
                 Spacer(Modifier.width(6.dp))
-                Surface(
-                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.label_bot_badge),
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                    )
-                }
+                ProfileStatusBadge(
+                    text = stringResource(R.string.label_bot_badge),
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+            }
+            if (isScam) {
+                Spacer(Modifier.width(6.dp))
+                ProfileStatusBadge(
+                    text = stringResource(R.string.label_scam_badge),
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+            if (isFake) {
+                Spacer(Modifier.width(6.dp))
+                ProfileStatusBadge(
+                    text = stringResource(R.string.label_fake_badge),
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )
             }
         }
 
@@ -140,6 +152,25 @@ fun ProfileHeader(
             text = subtitle,
             style = MaterialTheme.typography.bodyLarge,
             color = if (isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ProfileStatusBadge(
+    text: String,
+    containerColor: Color,
+    contentColor: Color
+) {
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(4.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+            color = contentColor
         )
     }
 }

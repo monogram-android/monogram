@@ -5,12 +5,11 @@ import android.net.ConnectivityManager
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
+import org.monogram.data.BuildConfig
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.PlayerDataSourceFactoryImpl
@@ -24,27 +23,26 @@ import org.monogram.data.gateway.TelegramGatewayImpl
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.gateway.UpdateDispatcherImpl
 import org.monogram.data.infra.*
-import org.monogram.data.mapper.ChatMapper
-import org.monogram.data.mapper.MessageMapper
-import org.monogram.data.mapper.NetworkMapper
-import org.monogram.data.mapper.StorageMapper
+import org.monogram.data.mapper.*
+import org.monogram.data.mapper.message.MessageContentMapper
+import org.monogram.data.mapper.message.MessagePersistenceMapper
+import org.monogram.data.mapper.message.MessageSenderResolver
 import org.monogram.data.repository.*
 import org.monogram.data.repository.user.UserRepositoryImpl
 import org.monogram.data.stickers.StickerFileManager
 import org.monogram.domain.repository.*
 
 val dataModule = module {
-    single { CoroutineScope(SupervisorJob() + Dispatchers.IO) }
+    single { CoroutineScope(SupervisorJob() + get<DispatcherProvider>().default) }
 
     single(createdAtStart = true) { TdLibClient() }
 
     single<DispatcherProvider> { DefaultDispatcherProvider() }
-    single<ScopeProvider> { DefaultScopeProvider(get()) }
     single<StringProvider> { AndroidStringProvider(androidContext()) }
     single { TdLibParametersProvider(androidContext()) }
     single(createdAtStart = true) {
         OfflineWarmup(
-            scopeProvider = get(),
+            scope = get(),
             dispatchers = get(),
             gateway = get(),
             chatDao = get(),
@@ -59,7 +57,7 @@ val dataModule = module {
     }
     single(createdAtStart = true) {
         SponsorSyncManager(
-            scopeProvider = get(),
+            scope = get(),
             gateway = get(),
             sponsorDao = get(),
             authRepository = get()
@@ -103,7 +101,7 @@ val dataModule = module {
             parametersProvider = get(),
             remote = get(),
             updates = get(),
-            scopeProvider = get()
+            scope = get()
         )
     }
 
@@ -127,7 +125,11 @@ val dataModule = module {
             "monogram_db"
         )
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-            .addMigrations(MonogramMigrations.MIGRATION_26_27)
+            .addMigrations(
+                MonogramMigrations.MIGRATION_26_27,
+                MonogramMigrations.MIGRATION_27_28,
+                MonogramMigrations.MIGRATION_28_29
+            )
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
@@ -144,6 +146,7 @@ val dataModule = module {
     single { get<MonogramDatabase>().attachBotDao() }
     single { get<MonogramDatabase>().keyValueDao() }
     single { get<MonogramDatabase>().notificationSettingDao() }
+    single { get<MonogramDatabase>().notificationExceptionDao() }
     single { get<MonogramDatabase>().wallpaperDao() }
     single { get<MonogramDatabase>().stickerPathDao() }
     single { get<MonogramDatabase>().sponsorDao() }
@@ -181,7 +184,7 @@ val dataModule = module {
             chatLocal = get(),
             chatCache = get(),
             updates = get(),
-            scopeProvider = get(),
+            scope = get(),
             gateway = get(),
             fileQueue = get(),
             keyValueDao = get(),
@@ -283,17 +286,67 @@ val dataModule = module {
     }
 
     single {
-        MessageMapper(
+        TdFileHelper(
             connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
+            fileApi = get(),
+            appPreferences = get(),
+            cache = get()
+        )
+    }
+
+    single {
+        CustomEmojiLoader(
+            gateway = get(),
+            fileApi = get(),
+            fileUpdateHandler = get(),
+            fileHelper = get()
+        )
+    }
+
+    single {
+        WebPageMapper(
+            fileHelper = get(),
+            appPreferences = get()
+        )
+    }
+
+    single {
+        MessageContentMapper(
+            fileHelper = get(),
+            appPreferences = get(),
+            customEmojiLoader = get(),
+            webPageMapper = get(),
+            scope = get()
+        )
+    }
+
+    single {
+        MessageSenderResolver(
             gateway = get(),
             userRepository = get(),
             chatInfoRepository = get(),
-            customEmojiPaths = get<FileUpdateHandler>().customEmojiPaths,
-            fileIdToCustomEmojiId = get<FileUpdateHandler>().fileIdToCustomEmojiId,
-            fileApi = get(),
-            appPreferences = get(),
             cache = get(),
-            scopeProvider = get()
+            fileHelper = get()
+        )
+    }
+
+    single {
+        MessagePersistenceMapper(
+            cache = get(),
+            fileHelper = get()
+        )
+    }
+
+    single {
+        MessageMapper(
+            gateway = get(),
+            userRepository = get(),
+            cache = get(),
+            fileHelper = get(),
+            senderResolver = get(),
+            contentMapper = get(),
+            persistenceMapper = get(),
+            customEmojiLoader = get()
         )
     }
 
@@ -305,7 +358,7 @@ val dataModule = module {
             appPreferences = get(),
             dispatchers = get(),
             connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
-            scopeProvider = get()
+            scope = get()
         )
     }
 
@@ -321,7 +374,7 @@ val dataModule = module {
             chatMapper = get(),
             messageMapper = get(),
             gateway = get(),
-            scopeProvider = get(),
+            scope = get(),
             chatLocalDataSource = get(),
             connectionManager = get(),
             databaseFile = androidContext().getDatabasePath("monogram_db"),
@@ -329,6 +382,7 @@ val dataModule = module {
             chatFolderDao = get(),
             userFullInfoDao = get(),
             fileQueue = get(),
+            fileUpdateHandler = get(),
             stringProvider = get()
         )
     }
@@ -356,8 +410,9 @@ val dataModule = module {
             remote = get(),
             cache = get(),
             chatsRemote = get(),
+            notificationExceptionDao = get(),
             updates = get(),
-            scopeProvider = get(),
+            scope = get(),
             dispatchers = get()
         )
     }
@@ -374,7 +429,7 @@ val dataModule = module {
             updates = get(),
             wallpaperDao = get(),
             dispatchers = get(),
-            scopeProvider = get()
+            scope = get()
         )
     }
 
@@ -404,7 +459,7 @@ val dataModule = module {
             updates = get(),
             dispatchers = get(),
             attachBotDao = get(),
-            scopeProvider = get()
+            scope = get()
         )
     }
 
@@ -421,8 +476,9 @@ val dataModule = module {
             cache = get(),
             pollRepository = get(),
             fileDownloadQueue = get(),
+            fileUpdateHandler = get(),
             dispatcherProvider = get(),
-            scopeProvider = get()
+            scope = get()
         )
     }
 
@@ -434,8 +490,9 @@ val dataModule = module {
             messageMapper = get(),
             messageRemoteDataSource = get(),
             cache = get(),
+            fileHelper = get(),
             dispatcherProvider = get(),
-            scopeProvider = get(),
+            scope = get(),
             fileDataSource = get(),
             chatLocalDataSource = get(),
             userLocalDataSource = get(),
@@ -493,12 +550,28 @@ val dataModule = module {
     }
 
     single {
+        DataMemoryPressureHandler(
+            chatsListRepository = get(),
+            fileUpdateHandler = get()
+        )
+    }
+
+    if (BuildConfig.DEBUG) {
+        single(createdAtStart = true) {
+            DataMemoryDiagnostics(
+                scope = get(),
+                memoryPressureHandler = get()
+            )
+        }
+    }
+
+    single {
         StickerFileManager(
             localDataSource = get(),
             fileQueue = get(),
             fileUpdateHandler = get(),
             dispatchers = get(),
-            scopeProvider = get()
+            scope = get()
         )
     }
 
@@ -510,7 +583,7 @@ val dataModule = module {
             cacheProvider = get(),
             dispatchers = get(),
             localDataSource = get(),
-            scopeProvider = get()
+            scope = get()
         )
     }
 
@@ -529,7 +602,7 @@ val dataModule = module {
             cacheProvider = get(),
             dispatchers = get(),
             context = androidContext(),
-            scopeProvider = get()
+            scope = get()
         )
     }
 
@@ -542,8 +615,7 @@ val dataModule = module {
     single<PrivacyRepository> {
         PrivacyRepositoryImpl(
             remote = get(),
-            updates = get(),
-            scopeProvider = get()
+            updates = get()
         )
     }
 
@@ -559,7 +631,7 @@ val dataModule = module {
         StreamingRepositoryImpl(
             fileDataSource = get(),
             updates = get(),
-            scopeProvider = get()
+            scope = get()
         )
     }
 
@@ -597,7 +669,7 @@ val dataModule = module {
             fileQueue = get(),
             fileUpdateHandler = get(),
             authRepository = get(),
-            scopeProvider = get(),
+            scope = get(),
         )
     }
 

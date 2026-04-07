@@ -69,6 +69,7 @@ class DefaultChatComponent(
     internal val reactionUpdateSuppressedUntil = ConcurrentHashMap<Long, Long>()
     internal val remappedMessageIds = ConcurrentHashMap<Long, Long>()
     internal val mediaDownloadRetryCount = ConcurrentHashMap<Int, Int>()
+    internal val pendingSenderRefreshes = ConcurrentHashMap.newKeySet<Long>()
 
     internal var lastLoadedOlderId: Long = 0L
     internal var lastLoadedNewerId: Long = 0L

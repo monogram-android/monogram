@@ -1,31 +1,13 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
 package org.monogram.presentation.features.profile.components
 
 import android.content.ClipData
 import android.content.Intent
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,55 +16,9 @@ import androidx.compose.material.icons.automirrored.rounded.Login
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.filled.QrCode
-import androidx.compose.material.icons.rounded.AlternateEmail
-import androidx.compose.material.icons.rounded.AssignmentTurnedIn
-import androidx.compose.material.icons.rounded.BarChart
-import androidx.compose.material.icons.rounded.Cake
-import androidx.compose.material.icons.rounded.Collections
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.ForwardToInbox
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Link
-import androidx.compose.material.icons.rounded.LocationOn
-import androidx.compose.material.icons.rounded.MicOff
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Numbers
-import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material.icons.rounded.Payments
-import androidx.compose.material.icons.rounded.PersonAdd
-import androidx.compose.material.icons.rounded.Phone
-import androidx.compose.material.icons.rounded.Portrait
-import androidx.compose.material.icons.rounded.RocketLaunch
-import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material.icons.rounded.Shield
-import androidx.compose.material.icons.rounded.Timer
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.ShapeDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -104,7 +40,7 @@ import org.monogram.presentation.core.ui.*
 import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.core.util.OperatorManager
 import org.monogram.presentation.features.profile.ProfileComponent
-import java.util.Calendar
+import java.util.*
 
 @Composable
 fun ProfileInfoSectionSkeleton(
@@ -585,6 +521,33 @@ fun ProfileInfoSection(
                         ClipData.newPlainText(title, AnnotatedString(text))
                     )
                 }
+            )
+        }
+    }
+
+    if (!isGroupOrChannel && fullInfo?.usesUnofficialApp == true) {
+        items.add { pos ->
+            SettingsTile(
+                icon = Icons.Rounded.Security,
+                title = stringResource(R.string.unofficial_app_title),
+                subtitle = stringResource(R.string.unofficial_app_subtitle),
+                iconColor = Color(0xFFFF9800),
+                position = pos,
+                onClick = { }
+            )
+        }
+    }
+
+    fullInfo?.botVerification?.let { botVerification ->
+        items.add { pos ->
+            SettingsTile(
+                icon = Icons.Rounded.Verified,
+                title = stringResource(R.string.bot_verification_title),
+                subtitle = botVerification.customDescription
+                    ?: stringResource(R.string.bot_verification_subtitle),
+                iconColor = MaterialTheme.colorScheme.primary,
+                position = pos,
+                onClick = { }
             )
         }
     }

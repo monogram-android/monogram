@@ -18,8 +18,8 @@ internal class TdLibClient {
     private val TAG = "TdLibClient"
     private val globalRetryAfterUntilMs = AtomicLong(0L)
     private val _updates = MutableSharedFlow<TdApi.Update>(
-        replay = 10,
-        extraBufferCapacity = 1000,
+        replay = 3,
+        extraBufferCapacity = 64,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
@@ -81,8 +81,12 @@ internal class TdLibClient {
             if (result.code == 429 && retries < 3) {
                 retries++
                 val retryAfterMs = parseRetryAfterMs(result.message)
-                updateGlobalRetryWindow(retryAfterMs)
                 Log.w(TAG, "Rate limited for $function, retrying in ${retryAfterMs}ms (attempt $retries)")
+                if (function is TdApi.GetUserFullInfo) {
+                    delay(retryAfterMs)
+                } else {
+                    updateGlobalRetryWindow(retryAfterMs)
+                }
                 continue
             }
 

@@ -1,16 +1,17 @@
 package org.monogram.data.stickers
 
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.cache.StickerLocalDataSource
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.infra.FileUpdateHandler
+import org.monogram.data.mapper.isValidFilePath
 import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.StickerSetModel
 import java.io.File
@@ -23,10 +24,8 @@ class StickerFileManager(
     private val fileQueue: FileDownloadQueue,
     private val fileUpdateHandler: FileUpdateHandler,
     private val dispatchers: DispatcherProvider,
-    scopeProvider: ScopeProvider
+    private val scope: CoroutineScope
 ) {
-    private val scope = scopeProvider.appScope
-
     private val tgsCache = mutableMapOf<String, String>()
     private val filePathsCache = ConcurrentHashMap<Long, String>()
 
@@ -41,7 +40,7 @@ class StickerFileManager(
         val firstPath = withTimeoutOrNull(DOWNLOAD_TIMEOUT_MS) {
             fileUpdateHandler.fileDownloadCompleted
                 .filter { it.first == fileId }
-                .mapNotNull { (_, path) -> path.takeIf(::isPathValid) }
+                .mapNotNull { (_, path) -> path.takeIf(::isValidFilePath) }
                 .first()
         }
 
@@ -127,7 +126,7 @@ class StickerFileManager(
 
     private suspend fun resolveAvailablePath(fileId: Long): String? {
         filePathsCache[fileId]?.let { path ->
-            if (isPathValid(path)) {
+            if (isValidFilePath(path)) {
                 return path
             }
             filePathsCache.remove(fileId)
@@ -136,7 +135,7 @@ class StickerFileManager(
 
         val dbPath = localDataSource.getPath(fileId)
         if (!dbPath.isNullOrEmpty()) {
-            if (isPathValid(dbPath)) {
+            if (isValidFilePath(dbPath)) {
                 filePathsCache[fileId] = dbPath
                 return dbPath
             }
@@ -145,7 +144,7 @@ class StickerFileManager(
 
         val completedPath = fileUpdateHandler.fileDownloadCompleted
             .replayCache
-            .firstOrNull { it.first == fileId && isPathValid(it.second) }
+            .firstOrNull { it.first == fileId && isValidFilePath(it.second) }
             ?.second
 
         if (!completedPath.isNullOrEmpty()) {
@@ -159,10 +158,6 @@ class StickerFileManager(
 
     private fun enqueueDownload(fileId: Long, priority: Int) {
         fileQueue.enqueue(fileId.toInt(), priority, FileDownloadQueue.DownloadType.STICKER)
-    }
-
-    private fun isPathValid(path: String): Boolean {
-        return path.isNotEmpty() && File(path).exists()
     }
 
     companion object {

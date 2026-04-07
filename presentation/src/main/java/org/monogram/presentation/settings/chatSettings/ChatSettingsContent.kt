@@ -1,7 +1,12 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
 package org.monogram.presentation.settings.chatSettings
 
+import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -22,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -43,11 +49,22 @@ import org.monogram.presentation.features.chats.currentChat.components.chats.get
 import org.monogram.presentation.settings.chatSettings.components.ChatListPreview
 import org.monogram.presentation.settings.chatSettings.components.ChatSettingsPreview
 import org.monogram.presentation.settings.chatSettings.components.WallpaperItem
+import java.io.File
+import java.io.FileOutputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatSettingsContent(component: ChatSettingsComponent) {
     val state by component.state.subscribeAsState()
+    val context = LocalContext.current
+
+    val wallpaperPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            copyUriToTempWallpaperPath(context, uri)?.let(component::onWallpaperUpload)
+        }
+    }
 
     val blueColor = Color(0xFF4285F4)
     val greenColor = Color(0xFF34A853)
@@ -274,6 +291,40 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(16.dp)
                     ) {
+                        item {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .padding(vertical = 4.dp)
+                                    .clickable(enabled = !state.isWallpaperUploading) {
+                                        wallpaperPickerLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(80.dp, 120.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (state.isWallpaperUploading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(26.dp),
+                                            strokeWidth = 2.5.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Upload,
+                                            contentDescription = stringResource(R.string.upload_wallpaper_cd),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         item {
                             val isSelected = state.wallpaper == null
 
@@ -1373,4 +1424,24 @@ private fun TimePickerDialogWrapper(
             content()
         }
     )
+}
+
+private fun copyUriToTempWallpaperPath(context: Context, uri: Uri): String? = try {
+    if (uri.scheme == "file") return uri.path
+
+    val mime = context.contentResolver.getType(uri).orEmpty()
+    val extension = when {
+        mime.contains("png") -> "png"
+        mime.contains("webp") -> "webp"
+        else -> "jpg"
+    }
+
+    val file = File(context.cacheDir, "wallpaper_${System.nanoTime()}.$extension")
+    context.contentResolver.openInputStream(uri)?.use { input ->
+        FileOutputStream(file).use { output -> input.copyTo(output) }
+    } ?: return null
+
+    file.absolutePath
+} catch (_: Exception) {
+    null
 }

@@ -2,12 +2,12 @@ package org.monogram.data.repository
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.FileDataSource
@@ -20,6 +20,7 @@ import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.FileUpdateHandler
 import org.monogram.data.mapper.MessageMapper
+import org.monogram.data.mapper.TdFileHelper
 import org.monogram.data.mapper.map
 import org.monogram.data.mapper.toDomain
 import org.monogram.domain.models.*
@@ -37,15 +38,15 @@ class MessageRepositoryImpl(
     private val messageMapper: MessageMapper,
     private val messageRemoteDataSource: MessageRemoteDataSource,
     private val cache: ChatCache,
+    private val fileHelper: TdFileHelper,
     private val fileDataSource: FileDataSource,
     private val dispatcherProvider: DispatcherProvider,
-    scopeProvider: ScopeProvider,
+    private val scope: CoroutineScope,
     private val chatLocalDataSource: ChatLocalDataSource,
     private val userLocalDataSource: UserLocalDataSource,
     private val fileUpdateHandler: FileUpdateHandler,
     private val textCompositionStyleDao: TextCompositionStyleDao
 ) : MessageRepository {
-    private val scope = scopeProvider.appScope
     private val _textCompositionStyles = MutableStateFlow<List<TextCompositionStyleModel>>(emptyList())
 
     override val newMessageFlow = messageRemoteDataSource.newMessageFlow
@@ -112,6 +113,20 @@ class MessageRepositoryImpl(
 
             is TdApi.UpdateMessageContent -> {
                 val extracted = messageMapper.extractCachedContent(update.newContent)
+
+                if (update.newContent is TdApi.MessagePhoto && extracted.text.isBlank()) {
+                    val refreshed = messageRemoteDataSource.getMessage(update.chatId, update.messageId)
+                    if (refreshed != null) {
+                        chatLocalDataSource.insertMessage(
+                            messageMapper.mapToEntity(
+                                refreshed,
+                                ::resolveSenderName
+                            )
+                        )
+                        return
+                    }
+                }
+
                 chatLocalDataSource.updateMessageContent(
                     messageId = update.messageId,
                     content = extracted.text,
@@ -790,7 +805,7 @@ class MessageRepositoryImpl(
     override suspend fun getFilePath(fileId: Int): String? {
         val result = coRunCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull()
         return if (result is TdApi.File) {
-            result.local.path.ifEmpty { null }
+            result.local.path.takeIf { fileHelper.isValidPath(it) }
         } else {
             null
         }
@@ -918,7 +933,7 @@ class MessageRepositoryImpl(
                             if (thumbnail == null) return null
                             val file = thumbnail.file
                             val updated = cache.fileCache[file.id] ?: file
-                            if (updated.local.path.isNotEmpty()) return updated.local.path
+                            if (fileHelper.isValidPath(updated.local.path)) return updated.local.path
                             scope.launch {
                                 fileDataSource.downloadFile(updated.id, 32, 0, 0, false)
                             }
@@ -1072,11 +1087,7 @@ class MessageRepositoryImpl(
             TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "")
         else null
 
-        val topicId = if (threadId != null) {
-            TdApi.MessageTopicForum(threadId.toInt())
-        } else {
-            null
-        }
+        val topicId = resolveTopicId(chatId, threadId)
 
         gateway.execute(
             TdApi.SendInlineQueryResultMessage(
@@ -1089,6 +1100,20 @@ class MessageRepositoryImpl(
                 false
             )
         )
+    }
+
+    private suspend fun resolveTopicId(chatId: Long, threadId: Long?): TdApi.MessageTopic? {
+        if (threadId == null || threadId == 0L) return null
+
+        val chat = cache.getChat(chatId)
+            ?: coRunCatching { gateway.execute(TdApi.GetChat(chatId)) }.getOrNull()
+                ?.also { cache.putChat(it) }
+
+        return if (chat?.viewAsTopics == true) {
+            TdApi.MessageTopicForum(threadId.toInt())
+        } else {
+            TdApi.MessageTopicThread(threadId)
+        }
     }
 
     override suspend fun getChatEventLog(
@@ -1393,7 +1418,7 @@ class MessageRepositoryImpl(
                 cachedUser.lastName?.takeIf { it.isNotBlank() }
             ).joinToString(" ").ifBlank { model.senderName }
 
-            val resolvedAvatar = resolveFilePath(cachedUser.profilePhoto?.small)
+            val resolvedAvatar = fileHelper.resolveLocalFilePath(cachedUser.profilePhoto?.small)
             if (resolvedAvatar == null) {
                 cachedUser.profilePhoto?.small?.id?.takeIf { it != 0 }?.let { avatarFileId ->
                     messageRemoteDataSource.enqueueDownload(avatarFileId, priority = 16)
@@ -1417,7 +1442,7 @@ class MessageRepositoryImpl(
         val cachedChat = cache.getChat(senderId)
         if (cachedChat != null) {
             val resolvedName = cachedChat.title.takeIf { it.isNotBlank() } ?: model.senderName
-            val resolvedAvatar = resolveFilePath(cachedChat.photo?.small)
+            val resolvedAvatar = fileHelper.resolveLocalFilePath(cachedChat.photo?.small)
             return model.copy(
                 senderName = resolvedName,
                 senderAvatar = resolvedAvatar ?: model.senderAvatar
@@ -1425,15 +1450,6 @@ class MessageRepositoryImpl(
         }
 
         return model
-    }
-
-    private fun resolveFilePath(file: TdApi.File?): String? {
-        if (file == null) return null
-        val directPath = file.local.path.takeIf { it.isNotBlank() && File(it).exists() }
-        if (directPath != null) return directPath
-
-        val cachedPath = cache.fileCache[file.id]?.local?.path
-        return cachedPath?.takeIf { it.isNotBlank() && File(it).exists() }
     }
 
     private fun TextCompositionStyleModel.toEntity(): TextCompositionStyleEntity {

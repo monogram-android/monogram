@@ -7,14 +7,24 @@ data class WallpaperModel(
     val id: Long,
     val slug: String,
     val title: String,
+    val type: WallpaperType = WallpaperType.WALLPAPER,
     val pattern: Boolean,
     val documentId: Long,
     val thumbnail: ThumbnailModel?,
     val settings: WallpaperSettings?,
+    val themeName: String? = null,
     val isDownloaded: Boolean,
     val localPath: String?,
     val isDefault: Boolean = false
 )
+
+@Serializable
+enum class WallpaperType {
+    WALLPAPER,
+    PATTERN,
+    FILL,
+    CHAT_THEME
+}
 
 @Serializable
 data class ThumbnailModel(
@@ -32,5 +42,7 @@ data class WallpaperSettings(
     val fourthBackgroundColor: Int?,
     val intensity: Int?,
     val rotation: Int?,
-    val isInverted: Boolean? = null
+    val isInverted: Boolean? = null,
+    val isMoving: Boolean? = null,
+    val isBlurred: Boolean? = null
 )

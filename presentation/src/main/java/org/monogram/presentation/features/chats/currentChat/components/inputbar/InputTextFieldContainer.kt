@@ -62,29 +62,41 @@ fun InputTextFieldContainer(
             modifier = Modifier.padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp)
         ) {
             val showBotActions = remember(isBot, textValue.text) { isBot && textValue.text.isEmpty() }
-            if (showBotActions) {
-                BotInputActions(
-                    botMenuButton = botMenuButton,
-                    botCommands = botCommands,
-                    canSendStickers = canSendStickers,
-                    isStickerMenuVisible = isStickerMenuVisible,
-                    onStickerMenuToggle = onStickerMenuToggle,
-                    onShowBotCommands = onShowBotCommands,
-                    onOpenMiniApp = onOpenMiniApp
-                )
-            } else if (canSendStickers) {
-                IconButton(
-                    onClick = onStickerMenuToggle,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isStickerMenuVisible) Icons.Default.Keyboard else Icons.Outlined.EmojiEmotions,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            AnimatedContent(
+                targetState = showBotActions to canSendStickers,
+                transitionSpec = {
+                    (fadeIn() + expandHorizontally()).togetherWith(fadeOut() + shrinkHorizontally())
+                },
+                label = "InputActionsVisibility"
+            ) { (showBotActionsState, canSendStickersState) ->
+                when {
+                    showBotActionsState -> {
+                        BotInputActions(
+                            botMenuButton = botMenuButton,
+                            botCommands = botCommands,
+                            canSendStickers = canSendStickersState,
+                            isStickerMenuVisible = isStickerMenuVisible,
+                            onStickerMenuToggle = onStickerMenuToggle,
+                            onShowBotCommands = onShowBotCommands,
+                            onOpenMiniApp = onOpenMiniApp
+                        )
+                    }
+
+                    canSendStickersState -> {
+                        IconButton(
+                            onClick = onStickerMenuToggle,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isStickerMenuVisible) Icons.Default.Keyboard else Icons.Outlined.EmojiEmotions,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    else -> Spacer(modifier = Modifier.width(8.dp))
                 }
-            } else {
-                Spacer(modifier = Modifier.width(8.dp))
             }
 
             InputTextField(

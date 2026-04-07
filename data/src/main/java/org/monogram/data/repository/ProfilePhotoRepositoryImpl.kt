@@ -4,7 +4,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
@@ -13,6 +14,7 @@ import org.monogram.data.datasource.remote.UserRemoteDataSource
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.FileDownloadQueue
+import org.monogram.data.mapper.isValidFilePath
 import org.monogram.data.mapper.toEntity
 import org.monogram.data.mapper.user.toTdApiChat
 import org.monogram.domain.repository.ProfilePhotoRepository
@@ -57,22 +59,22 @@ class ProfilePhotoRepositoryImpl(
         return listOfNotNull(currentPath)
     }
 
-    override fun getUserProfilePhotosFlow(userId: Long): Flow<List<String>> = flow {
+    override fun getUserProfilePhotosFlow(userId: Long): Flow<List<String>> = channelFlow {
         if (userId <= 0) {
-            emit(emptyList())
-            return@flow
+            send(emptyList())
+            return@channelFlow
         }
-        emit(getUserProfilePhotos(userId))
-        updates.file.collect { emit(getUserProfilePhotos(userId)) }
+        send(getUserProfilePhotos(userId))
+        updates.file.collectLatest { send(getUserProfilePhotos(userId)) }
     }
 
-    override fun getChatProfilePhotosFlow(chatId: Long): Flow<List<String>> = flow {
+    override fun getChatProfilePhotosFlow(chatId: Long): Flow<List<String>> = channelFlow {
         if (chatId == 0L) {
-            emit(emptyList())
-            return@flow
+            send(emptyList())
+            return@channelFlow
         }
-        emit(getChatProfilePhotos(chatId))
-        updates.file.collect { emit(getChatProfilePhotos(chatId)) }
+        send(getChatProfilePhotos(chatId))
+        updates.file.collectLatest { send(getChatProfilePhotos(chatId)) }
     }
 
     private suspend fun loadChatPhotoHistoryPaths(
@@ -134,7 +136,7 @@ class ProfilePhotoRepositoryImpl(
             photoInfo?.small ?: photoInfo?.big
         } ?: return null
 
-        val directPath = preferredFile.local.path.ifEmpty { null }
+        val directPath = preferredFile.local.path.takeIf { isValidFilePath(it) }
         if (directPath != null) {
             if (!ensureFullRes && bigId != null && bigId != preferredFile.id) {
                 fileQueue.enqueue(
@@ -206,7 +208,7 @@ class ProfilePhotoRepositoryImpl(
         ensureFullRes: Boolean
     ): String? {
         val animationFile = photo.animation?.file
-        val animationPath = animationFile?.local?.path?.ifEmpty { null }
+        val animationPath = animationFile?.local?.path?.takeIf { isValidFilePath(it) }
         if (animationPath != null) return animationPath
 
         val bestPhotoFile = photo.sizes
@@ -215,7 +217,7 @@ class ProfilePhotoRepositoryImpl(
             ?: photo.sizes.lastOrNull()?.photo
             ?: return null
 
-        val directPath = bestPhotoFile.local.path.ifEmpty { null }
+        val directPath = bestPhotoFile.local.path.takeIf { isValidFilePath(it) }
         if (directPath != null) return directPath
 
         if (!ensureFullRes) {
@@ -226,7 +228,7 @@ class ProfilePhotoRepositoryImpl(
                 ?: photo.sizes.find { it.type == "a" }?.photo
                 ?: photo.sizes.firstOrNull()?.photo
 
-            val fallbackDirectPath = fallbackFile?.local?.path?.ifEmpty { null }
+            val fallbackDirectPath = fallbackFile?.local?.path?.takeIf { isValidFilePath(it) }
             if (fallbackDirectPath != null) return fallbackDirectPath
 
             val fallbackDownloadedPath = resolveDownloadedFilePath(fallbackFile?.id)
@@ -252,7 +254,11 @@ class ProfilePhotoRepositoryImpl(
     private suspend fun resolveDownloadedFilePath(fileId: Int?): String? {
         if (fileId == null || fileId == 0) return null
         val file = coRunCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull() ?: return null
-        return if (file.local.isDownloadingCompleted) file.local.path.ifEmpty { null } else null
+        return if (file.local.isDownloadingCompleted) {
+            file.local.path.takeIf { isValidFilePath(it) }
+        } else {
+            null
+        }
     }
 
     companion object {

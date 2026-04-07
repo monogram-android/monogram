@@ -1,16 +1,12 @@
 package org.monogram.data.repository
 
 import android.util.Log
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.chats.*
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.cache.ChatLocalDataSource
@@ -23,6 +19,8 @@ import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.ConnectionManager
 import org.monogram.data.infra.FileDownloadQueue
+import org.monogram.data.infra.FileUpdateHandler
+import org.monogram.data.infra.SynchronizedLruMap
 import org.monogram.data.mapper.ChatMapper
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.domain.models.ChatModel
@@ -45,7 +43,7 @@ class ChatsListRepositoryImpl(
     private val chatMapper: ChatMapper,
     private val messageMapper: MessageMapper,
     private val gateway: TelegramGateway,
-    scopeProvider: ScopeProvider,
+    private val scope: CoroutineScope,
     private val chatLocalDataSource: ChatLocalDataSource,
     private val connectionManager: ConnectionManager,
     private val databaseFile: File,
@@ -53,6 +51,7 @@ class ChatsListRepositoryImpl(
     private val chatFolderDao: ChatFolderDao,
     private val userFullInfoDao: UserFullInfoDao,
     private val fileQueue: FileDownloadQueue,
+    private val fileUpdateHandler: FileUpdateHandler,
     private val stringProvider: StringProvider
 ) : ChatListRepository,
     ChatFolderRepository,
@@ -61,8 +60,6 @@ class ChatsListRepositoryImpl(
     ForumTopicsRepository,
     ChatSettingsRepository,
     ChatCreationRepository {
-
-    private val scope = scopeProvider.appScope
 
     private val _chatListFlow = MutableStateFlow<List<ChatModel>>(emptyList())
     override val chatListFlow: StateFlow<List<ChatModel>> = _chatListFlow.asStateFlow()
@@ -94,8 +91,9 @@ class ChatsListRepositoryImpl(
     private val fileManager = ChatFileManager(
         gateway = gateway,
         dispatchers = dispatchers,
-        scopeProvider = scopeProvider,
+        scope = scope,
         fileQueue = fileQueue,
+        fileUpdateHandler = fileUpdateHandler,
         onUpdate = {
             triggerUpdate()
             refreshActiveForumTopics()
@@ -123,7 +121,7 @@ class ChatsListRepositoryImpl(
     private val modelFactory = ChatModelFactory(
         gateway = gateway,
         dispatchers = dispatchers,
-        scopeProvider = scopeProvider,
+        scope = scope,
         cache = cache,
         chatMapper = chatMapper,
         fileManager = fileManager,
@@ -148,7 +146,7 @@ class ChatsListRepositoryImpl(
     private val folderManager = ChatFolderManager(
         gateway = gateway,
         dispatchers = dispatchers,
-        scopeProvider = scopeProvider,
+        scope = scope,
         foldersFlow = _foldersFlow,
         cacheProvider = cacheProvider,
         chatFolderDao = chatFolderDao
@@ -197,7 +195,7 @@ class ChatsListRepositoryImpl(
     private val initialChatListLimit = 50
     private var currentLimit = initialChatListLimit
 
-    private val modelCache = ConcurrentHashMap<Long, ChatModel>()
+    private val modelCache = SynchronizedLruMap<Long, ChatModel>(MODEL_CACHE_SIZE)
     private val invalidatedModels = ConcurrentHashMap.newKeySet<Long>()
     private var lastList: List<ChatModel>? = null
     private var lastListFolderId: Int = -1
@@ -704,6 +702,23 @@ class ChatsListRepositoryImpl(
         }
     }
 
+    fun clearMemoryCaches() {
+        modelCache.clear()
+        invalidatedModels.clear()
+    }
+
+    fun memoryCacheSnapshot(): MemoryCacheSnapshot {
+        return MemoryCacheSnapshot(
+            modelCacheSize = modelCache.size(),
+            invalidatedModelsSize = invalidatedModels.size
+        )
+    }
+
+    data class MemoryCacheSnapshot(
+        val modelCacheSize: Int,
+        val invalidatedModelsSize: Int
+    )
+
     private fun fetchUser(userId: Long) {
         if (userId == 0L) return
         if (cache.pendingUsers.add(userId)) {
@@ -734,5 +749,6 @@ class ChatsListRepositoryImpl(
     companion object {
         private const val TAG = "ChatsListRepository"
         private const val REBUILD_THROTTLE_MS = 250L
+        private const val MODEL_CACHE_SIZE = 256
     }
 }

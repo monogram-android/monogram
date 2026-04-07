@@ -1,6 +1,5 @@
 package org.monogram.data.infra
 
-import org.monogram.data.core.coRunCatching
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkRequest
@@ -8,13 +7,13 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
+import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.remote.ChatRemoteSource
 import org.monogram.data.datasource.remote.ProxyRemoteDataSource
 import org.monogram.data.gateway.UpdateDispatcher
@@ -29,10 +28,9 @@ class ConnectionManager(
     private val appPreferences: AppPreferencesProvider,
     private val dispatchers: DispatcherProvider,
     private val connectivityManager: ConnectivityManager,
-    scopeProvider: ScopeProvider
+    private val scope: CoroutineScope
 ) {
     private val TAG = "ConnectionManager"
-    private val scope = scopeProvider.appScope
 
     private val _connectionStateFlow = MutableStateFlow<ConnectionStatus>(ConnectionStatus.Connecting)
     val connectionStateFlow = _connectionStateFlow.asStateFlow()

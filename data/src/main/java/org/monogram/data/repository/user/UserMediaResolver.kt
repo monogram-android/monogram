@@ -4,6 +4,7 @@ import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
+import org.monogram.data.mapper.isValidFilePath
 import java.util.concurrent.ConcurrentHashMap
 
 internal class UserMediaResolver(
@@ -25,7 +26,7 @@ internal class UserMediaResolver(
             val result = gateway.execute(TdApi.GetCustomEmojiStickers(longArrayOf(emojiId)))
             if (result is TdApi.Stickers && result.stickers.isNotEmpty()) {
                 val file = result.stickers.first().sticker
-                if (file.local.isDownloadingCompleted && file.local.path.isNotEmpty()) {
+                if (file.local.isDownloadingCompleted && isValidFilePath(file.local.path)) {
                     emojiPathCache[emojiId] = file.local.path
                     file.local.path
                 } else {
@@ -37,7 +38,7 @@ internal class UserMediaResolver(
                         (gateway.execute(TdApi.GetFile(file.id)) as? TdApi.File)
                             ?.local
                             ?.path
-                            ?.takeIf { it.isNotEmpty() }
+                            ?.takeIf { isValidFilePath(it) }
                     }.getOrNull()
                     if (refreshedPath != null) {
                         emojiPathCache[emojiId] = refreshedPath
@@ -55,10 +56,10 @@ internal class UserMediaResolver(
     suspend fun resolveAvatarPath(user: TdApi.User): String? {
         val bigPhoto = user.profilePhoto?.big
         val smallPhoto = user.profilePhoto?.small
-        val bigDirectPath = bigPhoto?.local?.path?.ifEmpty { null }
+        val bigDirectPath = bigPhoto?.local?.path?.takeIf { isValidFilePath(it) }
         if (bigDirectPath != null) return bigDirectPath
 
-        val smallDirectPath = smallPhoto?.local?.path?.ifEmpty { null }
+        val smallDirectPath = smallPhoto?.local?.path?.takeIf { isValidFilePath(it) }
         if (smallDirectPath != null) {
             val bigId = bigPhoto?.id?.takeIf { it != 0 }
             if (bigId != null && bigId != smallPhoto.id) {
@@ -121,7 +122,11 @@ internal class UserMediaResolver(
     private suspend fun resolveDownloadedFilePath(fileId: Int?): String? {
         if (fileId == null || fileId == 0) return null
         val file = coRunCatching { gateway.execute(TdApi.GetFile(fileId)) }.getOrNull() ?: return null
-        return if (file.local.isDownloadingCompleted) file.local.path.ifEmpty { null } else null
+        return if (file.local.isDownloadingCompleted) {
+            file.local.path.takeIf { isValidFilePath(it) }
+        } else {
+            null
+        }
     }
 
     companion object {

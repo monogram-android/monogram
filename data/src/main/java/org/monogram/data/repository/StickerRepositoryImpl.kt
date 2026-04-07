@@ -1,6 +1,7 @@
 package org.monogram.data.repository
 
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
@@ -9,7 +10,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
-import org.monogram.core.ScopeProvider
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.cache.StickerLocalDataSource
 import org.monogram.data.datasource.remote.StickerRemoteSource
@@ -28,10 +28,8 @@ class StickerRepositoryImpl(
     private val cacheProvider: CacheProvider,
     private val dispatchers: DispatcherProvider,
     private val localDataSource: StickerLocalDataSource,
-    scopeProvider: ScopeProvider
+    private val scope: CoroutineScope
 ) : StickerRepository {
-
-    private val scope = scopeProvider.appScope
 
     override val installedStickerSets: StateFlow<List<StickerSetModel>> = cacheProvider.installedStickerSets
     override val customEmojiStickerSets: StateFlow<List<StickerSetModel>> = cacheProvider.customEmojiStickerSets

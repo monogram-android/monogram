@@ -1,15 +1,10 @@
 package org.monogram.data.mapper.user
 
 import org.drinkless.tdlib.TdApi
-import org.monogram.data.db.model.ChatEntity
-import org.monogram.data.db.model.ChatFullInfoEntity
-import org.monogram.data.db.model.UserEntity
-import org.monogram.data.db.model.UserFullInfoEntity
 import org.monogram.data.mapper.isForcedVerifiedUser
 import org.monogram.data.mapper.isSponsoredUser
+import org.monogram.data.mapper.isValidFilePath
 import org.monogram.domain.models.*
-import org.monogram.domain.repository.ChatMemberStatus
-import org.monogram.domain.repository.ChatMembersFilter
 
 fun TdApi.User.toDomain(
     fullInfo: TdApi.UserFullInfo? = null,
@@ -21,8 +16,8 @@ fun TdApi.User.toDomain(
     val personalAvatarPath = fullInfo?.personalPhoto?.let { personalPhoto ->
         val bestPhotoSize = personalPhoto.sizes.maxByOrNull { it.width.toLong() * it.height.toLong() }
             ?: personalPhoto.sizes.lastOrNull()
-        personalPhoto.animation?.file?.local?.path?.ifEmpty { null }
-            ?: bestPhotoSize?.photo?.local?.path?.ifEmpty { null }
+        personalPhoto.animation?.file?.local?.path?.takeIf { isValidFilePath(it) }
+            ?: bestPhotoSize?.photo?.local?.path?.takeIf { isValidFilePath(it) }
     }
 
     val lastSeen = (status as? TdApi.UserStatusOffline)
@@ -37,9 +32,17 @@ fun TdApi.User.toDomain(
         personalAvatarPath = personalAvatarPath,
         isPremium = isPremium,
         isVerified = (verificationStatus?.isVerified ?: false) || isForcedVerifiedUser(id),
+        isScam = verificationStatus?.isScam ?: false,
+        isFake = verificationStatus?.isFake ?: false,
+        botVerificationIconCustomEmojiId = verificationStatus?.botVerificationIconCustomEmojiId ?: 0L,
         isSponsor = isSponsoredUser(id),
         isSupport = isSupport,
         type = type.toDomain(),
+        botTypeInfo = (type as? TdApi.UserTypeBot)?.toDomain(),
+        restrictionInfo = restrictionInfo?.toDomain(),
+        activeStoryState = activeStoryState?.toDomain(),
+        restrictsNewChats = restrictsNewChats,
+        paidMessageStarCount = paidMessageStarCount,
         statusEmojiId = emojiStatusId,
         statusEmojiPath = customEmojiPath,
         username = username,
@@ -51,188 +54,16 @@ fun TdApi.User.toDomain(
         isCloseFriend = isCloseFriend,
         haveAccess = haveAccess,
         languageCode = languageCode,
-        lastSeen = lastSeen
+        lastSeen = lastSeen,
+        backgroundCustomEmojiId = backgroundCustomEmojiId,
+        profileBackgroundCustomEmojiId = profileBackgroundCustomEmojiId,
+        addedToAttachmentMenu = addedToAttachmentMenu
     )
-}
-
-fun TdApi.ChatMember.toDomain(user: UserModel): GroupMemberModel {
-    val rank = when (this.status) {
-        is TdApi.ChatMemberStatusCreator -> "Owner"
-        is TdApi.ChatMemberStatusAdministrator -> "Admin"
-        else -> null
-    }
-    return GroupMemberModel(
-        user = user,
-        rank = rank,
-        status = this.status.toDomain()
-    )
-}
-
-fun TdApi.UserFullInfo.mapUserFullInfoToChat(): ChatFullInfoModel {
-    val birthdate = birthdate?.let { date ->
-        BirthdateModel(date.day, date.month, if (date.year > 0) date.year else null)
-    }
-    return ChatFullInfoModel(
-        description = bio?.text?.ifEmpty { null },
-        commonGroupsCount = groupInCommonCount,
-        giftCount = giftCount,
-        birthdate = birthdate,
-        isBlocked = blockList != null,
-        botInfo = botInfo?.description?.ifEmpty { null },
-        canGetRevenueStatistics = botInfo?.canGetRevenueStatistics ?: false,
-        linkedChatId = personalChatId,
-        businessInfo = businessInfo?.let { businessInfo!!.toDomain() },
-        canBeCalled = canBeCalled,
-        supportsVideoCalls = supportsVideoCalls,
-        hasPrivateCalls = hasPrivateCalls,
-        hasPrivateForwards = hasPrivateForwards,
-        hasRestrictedVoiceAndVideoNoteMessages = hasRestrictedVoiceAndVideoNoteMessages,
-        hasPostedToProfileStories = hasPostedToProfileStories,
-        setChatBackground = setChatBackground
-    )
-}
-
-fun TdApi.SupergroupFullInfo.mapSupergroupFullInfoToChat(
-    supergroup: TdApi.Supergroup?
-): ChatFullInfoModel {
-    val link = inviteLink?.inviteLink
-        ?: supergroup?.usernames?.activeUsernames?.firstOrNull()?.let { "t.me/$it" }
-    return ChatFullInfoModel(
-        description = description.ifEmpty { null },
-        inviteLink = link,
-        memberCount = memberCount,
-        administratorCount = administratorCount,
-        restrictedCount = restrictedCount,
-        bannedCount = bannedCount,
-        slowModeDelay = slowModeDelay,
-        locationAddress = location?.address?.ifEmpty { null },
-        giftCount = giftCount,
-        canSetStickerSet = canSetStickerSet,
-        canSetLocation = canSetLocation,
-        canGetMembers = canGetMembers,
-        canGetStatistics = canGetStatistics,
-        canGetRevenueStatistics = canGetRevenueStatistics,
-        linkedChatId = linkedChatId
-    )
-}
-
-fun TdApi.BasicGroupFullInfo.mapBasicGroupFullInfoToChat(): ChatFullInfoModel {
-    return ChatFullInfoModel(
-        description = description.ifEmpty { null },
-        inviteLink = inviteLink?.inviteLink,
-        memberCount = members.size
-    )
-}
-
-fun TdApi.ChatMemberStatus.toDomain(): ChatMemberStatus {
-    return when (this) {
-        is TdApi.ChatMemberStatusCreator -> ChatMemberStatus.Creator
-        is TdApi.ChatMemberStatusAdministrator -> ChatMemberStatus.Administrator(
-            customTitle = "",
-            canBeEdited = canBeEdited,
-            canManageChat = rights.canManageChat,
-            canChangeInfo = rights.canChangeInfo,
-            canPostMessages = rights.canPostMessages,
-            canEditMessages = rights.canEditMessages,
-            canDeleteMessages = rights.canDeleteMessages,
-            canInviteUsers = rights.canInviteUsers,
-            canRestrictMembers = rights.canRestrictMembers,
-            canPinMessages = rights.canPinMessages,
-            canManageTopics = rights.canManageTopics,
-            canPromoteMembers = rights.canPromoteMembers,
-            canManageVideoChats = rights.canManageVideoChats,
-            canPostStories = rights.canPostStories,
-            canEditStories = rights.canEditStories,
-            canDeleteStories = rights.canDeleteStories,
-            canManageDirectMessages = rights.canManageDirectMessages,
-            isAnonymous = rights.isAnonymous
-        )
-        is TdApi.ChatMemberStatusRestricted -> ChatMemberStatus.Restricted(
-            isMember = isMember,
-            restrictedUntilDate = restrictedUntilDate,
-            permissions = permissions.toDomain()
-        )
-        is TdApi.ChatMemberStatusBanned -> ChatMemberStatus.Banned(bannedUntilDate)
-        is TdApi.ChatMemberStatusLeft -> ChatMemberStatus.Left
-        else -> ChatMemberStatus.Member
-    }
-}
-
-fun TdApi.Chat.toDomain(): ChatModel {
-    val isChannel = type is TdApi.ChatTypeSupergroup &&
-            (type as TdApi.ChatTypeSupergroup).isChannel
-    return ChatModel(
-        id = id,
-        title = title,
-        avatarPath = photo?.small?.local?.path?.ifEmpty { null },
-        unreadCount = unreadCount,
-        isMuted = notificationSettings.muteFor > 0,
-        isChannel = isChannel,
-        isGroup = type is TdApi.ChatTypeBasicGroup ||
-                (type is TdApi.ChatTypeSupergroup && !isChannel),
-        type = type.toDomain(),
-        lastMessageText = (lastMessage?.content as? TdApi.MessageText)?.text?.text ?: ""
-    )
-}
-
-fun ChatMembersFilter.toApi(): TdApi.SupergroupMembersFilter {
-    return when (this) {
-        is ChatMembersFilter.Recent -> TdApi.SupergroupMembersFilterRecent()
-        is ChatMembersFilter.Administrators -> TdApi.SupergroupMembersFilterAdministrators()
-        is ChatMembersFilter.Banned -> TdApi.SupergroupMembersFilterBanned()
-        is ChatMembersFilter.Restricted -> TdApi.SupergroupMembersFilterRestricted()
-        is ChatMembersFilter.Bots -> TdApi.SupergroupMembersFilterBots()
-        is ChatMembersFilter.Search -> TdApi.SupergroupMembersFilterSearch(this.query)
-    }
-}
-
-fun ChatMemberStatus.toApi(): TdApi.ChatMemberStatus {
-    return when (this) {
-        is ChatMemberStatus.Member -> TdApi.ChatMemberStatusMember()
-        is ChatMemberStatus.Administrator -> TdApi.ChatMemberStatusAdministrator(
-            canBeEdited,
-            TdApi.ChatAdministratorRights(
-                canManageChat,
-                canChangeInfo,
-                canPostMessages,
-                canEditMessages,
-                canDeleteMessages,
-                canInviteUsers,
-                canRestrictMembers,
-                canPinMessages,
-                canManageTopics,
-                canPromoteMembers,
-                canManageVideoChats,
-                canPostStories,
-                canEditStories,
-                canDeleteStories,
-                canManageDirectMessages,
-                false,
-                isAnonymous
-            )
-        )
-        is ChatMemberStatus.Restricted -> TdApi.ChatMemberStatusRestricted(
-            isMember,
-            restrictedUntilDate,
-            permissions.toApi()
-        )
-        is ChatMemberStatus.Left -> TdApi.ChatMemberStatusLeft()
-        is ChatMemberStatus.Banned -> TdApi.ChatMemberStatusBanned(bannedUntilDate)
-        is ChatMemberStatus.Creator -> TdApi.ChatMemberStatusCreator(false, true)
-    }
-}
-
-private fun TdApi.ChatType.toDomain(): ChatType = when (this) {
-    is TdApi.ChatTypePrivate -> ChatType.PRIVATE
-    is TdApi.ChatTypeBasicGroup -> ChatType.BASIC_GROUP
-    is TdApi.ChatTypeSupergroup -> ChatType.SUPERGROUP
-    is TdApi.ChatTypeSecret -> ChatType.SECRET
-    else -> ChatType.PRIVATE
 }
 
 private fun TdApi.User.resolveAvatarPath(): String? {
-    val big = profilePhoto?.big?.local?.path?.ifEmpty { null }
-    val small = profilePhoto?.small?.local?.path?.ifEmpty { null }
+    val big = profilePhoto?.big?.local?.path?.takeIf { isValidFilePath(it) }
+    val small = profilePhoto?.small?.local?.path?.takeIf { isValidFilePath(it) }
     return big ?: small
 }
 
@@ -271,418 +102,36 @@ private fun TdApi.UserStatus?.toDomain(): UserStatusType {
     }
 }
 
-private fun TdApi.BusinessInfo.toDomain(): BusinessInfoModel {
-    return BusinessInfoModel(
-        location = location?.let {
-            BusinessLocationModel(
-                it.location!!.latitude,
-                it.location!!.longitude,
-                it.address
-            )
-        },
-        openingHours = openingHours?.let {
-            BusinessOpeningHoursModel(
-                it.timeZoneId,
-                it.openingHours.map { interval ->
-                    BusinessOpeningHoursIntervalModel(interval.startMinute, interval.endMinute)
-                }
-            )
-        },
-        startPage = startPage?.let {
-            BusinessStartPageModel(it.title, it.message, it.sticker?.sticker?.local?.path)
-        },
-        nextOpenIn = nextOpenIn,
-        nextCloseIn = nextCloseIn
+private fun TdApi.UserTypeBot.toDomain(): UserTypeBotInfoModel {
+    return UserTypeBotInfoModel(
+        canBeEdited = canBeEdited,
+        canJoinGroups = canJoinGroups,
+        canReadAllGroupMessages = canReadAllGroupMessages,
+        hasMainWebApp = hasMainWebApp,
+        hasTopics = hasTopics,
+        allowsUsersToCreateTopics = allowsUsersToCreateTopics,
+        canManageBots = canManageBots,
+        isInline = isInline,
+        inlineQueryPlaceholder = inlineQueryPlaceholder.ifEmpty { null },
+        needLocation = needLocation,
+        canConnectToBusiness = canConnectToBusiness,
+        canBeAddedToAttachmentMenu = canBeAddedToAttachmentMenu,
+        activeUserCount = activeUserCount
     )
 }
 
-private fun TdApi.ChatPermissions.toDomain(): ChatPermissionsModel {
-    return ChatPermissionsModel(
-        canSendBasicMessages = canSendBasicMessages,
-        canSendAudios = canSendAudios,
-        canSendDocuments = canSendDocuments,
-        canSendPhotos = canSendPhotos,
-        canSendVideos = canSendVideos,
-        canSendVideoNotes = canSendVideoNotes,
-        canSendVoiceNotes = canSendVoiceNotes,
-        canSendPolls = canSendPolls,
-        canSendOtherMessages = canSendOtherMessages,
-       canAddLinkPreviews = canAddLinkPreviews,
-        canChangeInfo = canChangeInfo,
-        canInviteUsers = canInviteUsers,
-        canPinMessages = canPinMessages,
-       canCreateTopics = canCreateTopics
+private fun TdApi.RestrictionInfo.toDomain(): RestrictionInfoModel {
+    return RestrictionInfoModel(
+        restrictionReason = restrictionReason.ifEmpty { null },
+        hasSensitiveContent = hasSensitiveContent
     )
 }
 
-private fun ChatPermissionsModel.toApi(): TdApi.ChatPermissions {
-    return TdApi.ChatPermissions(
-        canSendBasicMessages,
-        canSendAudios,
-        canSendDocuments,
-        canSendPhotos,
-        canSendVideos,
-        canSendVideoNotes,
-        canSendVoiceNotes,
-        canSendPolls,
-        canSendOtherMessages,
-        canAddLinkPreviews,
-        canEditTag,
-        canChangeInfo,
-        canInviteUsers,
-        canPinMessages,
-        canCreateTopics
-    )
-}
-
-fun TdApi.UserFullInfo.toEntity(userId: Long): UserFullInfoEntity {
-    val businessLocation = businessInfo?.location
-    val businessOpeningHours = businessInfo?.openingHours
-    val businessStartPage = businessInfo?.startPage
-    val birth = birthdate
-    val personalPhotoPath = personalPhoto?.animation?.file?.local?.path?.ifEmpty { null }
-        ?: (personalPhoto?.sizes?.maxByOrNull { it.width.toLong() * it.height.toLong() }
-            ?: personalPhoto?.sizes?.lastOrNull())?.photo?.local?.path?.ifEmpty { null }
-
-    return UserFullInfoEntity(
-        userId = userId,
-        bio = bio?.text?.ifEmpty { null },
-        commonGroupsCount = groupInCommonCount,
-        giftCount = giftCount,
-        botInfoDescription = botInfo?.description?.ifEmpty { null },
-        personalChatId = personalChatId,
-        birthdateDay = birth?.day ?: 0,
-        birthdateMonth = birth?.month ?: 0,
-        birthdateYear = birth?.year ?: 0,
-        businessLocationAddress = businessLocation?.address?.ifEmpty { null },
-        businessLocationLatitude = businessLocation?.location?.latitude ?: 0.0,
-        businessLocationLongitude = businessLocation?.location?.longitude ?: 0.0,
-        businessOpeningHoursTimeZone = businessOpeningHours?.timeZoneId,
-        businessNextOpenIn = businessInfo?.nextOpenIn ?: 0,
-        businessNextCloseIn = businessInfo?.nextCloseIn ?: 0,
-        businessStartPageTitle = businessStartPage?.title?.ifEmpty { null },
-        businessStartPageMessage = businessStartPage?.message?.ifEmpty { null },
-        personalPhotoPath = personalPhotoPath,
-        isBlocked = blockList != null,
-        canBeCalled = canBeCalled,
-        supportsVideoCalls = supportsVideoCalls,
-        hasPrivateCalls = hasPrivateCalls,
-        hasPrivateForwards = hasPrivateForwards,
-        hasRestrictedVoiceAndVideoNoteMessages = hasRestrictedVoiceAndVideoNoteMessages,
-        hasPostedToProfileStories = hasPostedToProfileStories,
-        setChatBackground = setChatBackground,
-        canGetRevenueStatistics = botInfo?.canGetRevenueStatistics ?: false,
-        createdAt = System.currentTimeMillis()
-    )
-}
-
-fun TdApi.SupergroupFullInfo.toEntity(chatId: Long): ChatFullInfoEntity {
-    return ChatFullInfoEntity(
-        chatId = chatId,
-        description = description.ifEmpty { null },
-        inviteLink = inviteLink?.inviteLink,
-        memberCount = memberCount,
-        onlineCount = 0,
-        administratorCount = administratorCount,
-        restrictedCount = restrictedCount,
-        bannedCount = bannedCount,
-        commonGroupsCount = 0,
-        giftCount = giftCount,
-        isBlocked = false,
-        botInfo = null,
-        slowModeDelay = slowModeDelay,
-        locationAddress = location?.address?.ifEmpty { null },
-        canSetStickerSet = canSetStickerSet,
-        canSetLocation = canSetLocation,
-        canGetMembers = canGetMembers,
-        canGetStatistics = canGetStatistics,
-        canGetRevenueStatistics = canGetRevenueStatistics,
-        linkedChatId = linkedChatId,
-        note = null,
-        canBeCalled = false,
-        supportsVideoCalls = false,
-        hasPrivateCalls = false,
-        hasPrivateForwards = false,
-        hasRestrictedVoiceAndVideoNoteMessages = false,
-        hasPostedToProfileStories = false,
-        setChatBackground = false,
-        incomingPaidMessageStarCount = 0,
-        outgoingPaidMessageStarCount = outgoingPaidMessageStarCount,
-        createdAt = System.currentTimeMillis()
-    )
-}
-
-fun TdApi.BasicGroupFullInfo.toEntity(chatId: Long): ChatFullInfoEntity {
-    return ChatFullInfoEntity(
-        chatId = chatId,
-        description = description.ifEmpty { null },
-        inviteLink = inviteLink?.inviteLink,
-        memberCount = members.size,
-        onlineCount = 0,
-        administratorCount = 0,
-        restrictedCount = 0,
-        bannedCount = 0,
-        commonGroupsCount = 0,
-        giftCount = 0,
-        isBlocked = false,
-        botInfo = null,
-        slowModeDelay = 0,
-        locationAddress = null,
-        canSetStickerSet = false,
-        canSetLocation = false,
-        canGetMembers = false,
-        canGetStatistics = false,
-        canGetRevenueStatistics = false,
-        linkedChatId = 0,
-        note = null,
-        canBeCalled = false,
-        supportsVideoCalls = false,
-        hasPrivateCalls = false,
-        hasPrivateForwards = false,
-        hasRestrictedVoiceAndVideoNoteMessages = false,
-        hasPostedToProfileStories = false,
-        setChatBackground = false,
-        incomingPaidMessageStarCount = 0,
-        outgoingPaidMessageStarCount = 0,
-        createdAt = System.currentTimeMillis()
-    )
-}
-
-fun UserEntity.toTdApi(): TdApi.User {
-    return TdApi.User().apply {
-        id = this@toTdApi.id
-        firstName = this@toTdApi.firstName
-        lastName = this@toTdApi.lastName ?: ""
-        phoneNumber = this@toTdApi.phoneNumber ?: ""
-        isPremium = this@toTdApi.isPremium
-        isSupport = this@toTdApi.isSupport
-        isContact = this@toTdApi.isContact
-        isMutualContact = this@toTdApi.isMutualContact
-        isCloseFriend = this@toTdApi.isCloseFriend
-        haveAccess = this@toTdApi.haveAccess
-        languageCode = this@toTdApi.languageCode ?: ""
-        accentColorId = this@toTdApi.accentColorId
-        profileAccentColorId = this@toTdApi.profileAccentColorId
-        verificationStatus = if (isVerified) TdApi.VerificationStatus(true, false, false, 0L) else null
-        val (active, disabled, editable, collectible) = decodeUsernames(
-            this@toTdApi.usernamesData,
-            this@toTdApi.username
-        )
-        usernames = TdApi.Usernames(active, disabled, editable, collectible)
-        emojiStatus = this@toTdApi.statusEmojiId.takeIf { it != 0L }?.let {
-            TdApi.EmojiStatus(TdApi.EmojiStatusTypeCustomEmoji(it), 0)
-        }
-        status = when (this@toTdApi.statusType) {
-            "ONLINE" -> TdApi.UserStatusOnline(0)
-            "RECENTLY" -> TdApi.UserStatusRecently()
-            "LAST_WEEK" -> TdApi.UserStatusLastWeek()
-            "LAST_MONTH" -> TdApi.UserStatusLastMonth()
-            else -> TdApi.UserStatusOffline(lastSeen.toInt())
-        }
-        profilePhoto = avatarPath?.let { path ->
-            TdApi.ProfilePhoto().apply {
-                small = TdApi.File().apply { local = TdApi.LocalFile().apply { this.path = path } }
-            }
-        }
+private fun TdApi.ActiveStoryState.toDomain(): ActiveStoryStateModel {
+    return when (this) {
+        is TdApi.ActiveStoryStateLive -> ActiveStoryStateModel(ActiveStoryStateType.LIVE, storyId)
+        is TdApi.ActiveStoryStateUnread -> ActiveStoryStateModel(ActiveStoryStateType.UNREAD, 0)
+        is TdApi.ActiveStoryStateRead -> ActiveStoryStateModel(ActiveStoryStateType.READ, 0)
+        else -> ActiveStoryStateModel(ActiveStoryStateType.UNKNOWN, 0)
     }
-}
-
-fun UserFullInfoEntity.toTdApi(): TdApi.UserFullInfo {
-    return TdApi.UserFullInfo().apply {
-        bio = this@toTdApi.bio?.let { TdApi.FormattedText(it, emptyArray()) }
-        groupInCommonCount = commonGroupsCount
-        giftCount = this@toTdApi.giftCount
-        personalChatId = this@toTdApi.personalChatId
-        birthdate = if (birthdateDay > 0 && birthdateMonth > 0) {
-            TdApi.Birthdate(birthdateDay, birthdateMonth, birthdateYear)
-        } else {
-            null
-        }
-        botInfo = botInfoDescription?.let { text ->
-            TdApi.BotInfo().apply {
-                description = text
-                canGetRevenueStatistics = canGetRevenueStatistics
-            }
-        }
-        businessInfo = if (
-            businessLocationAddress != null ||
-            businessOpeningHoursTimeZone != null ||
-            businessStartPageTitle != null ||
-            businessStartPageMessage != null
-        ) {
-            TdApi.BusinessInfo().apply {
-                location = businessLocationAddress?.let { address ->
-                    TdApi.BusinessLocation(
-                        TdApi.Location(businessLocationLatitude, businessLocationLongitude, 0.0),
-                        address
-                    )
-                }
-                openingHours = businessOpeningHoursTimeZone?.let { tz ->
-                    TdApi.BusinessOpeningHours(tz, emptyArray())
-                }
-                startPage = if (businessStartPageTitle != null || businessStartPageMessage != null) {
-                    TdApi.BusinessStartPage(
-                        businessStartPageTitle.orEmpty(),
-                        businessStartPageMessage.orEmpty(),
-                        null
-                    )
-                } else {
-                    null
-                }
-                nextOpenIn = businessNextOpenIn
-                nextCloseIn = businessNextCloseIn
-            }
-        } else {
-            null
-        }
-        personalPhoto = personalPhotoPath?.let { path ->
-            TdApi.ChatPhoto().apply {
-                sizes = arrayOf(
-                    TdApi.PhotoSize().apply {
-                        type = "x"
-                        width = 0
-                        height = 0
-                        photo = TdApi.File().apply { local = TdApi.LocalFile().apply { this.path = path } }
-                    }
-                )
-            }
-        }
-        blockList = if (isBlocked) TdApi.BlockListMain() else null
-        canBeCalled = this@toTdApi.canBeCalled
-        supportsVideoCalls = this@toTdApi.supportsVideoCalls
-        hasPrivateCalls = this@toTdApi.hasPrivateCalls
-        hasPrivateForwards = this@toTdApi.hasPrivateForwards
-        hasRestrictedVoiceAndVideoNoteMessages = this@toTdApi.hasRestrictedVoiceAndVideoNoteMessages
-        hasPostedToProfileStories = this@toTdApi.hasPostedToProfileStories
-        setChatBackground = this@toTdApi.setChatBackground
-        incomingPaidMessageStarCount = this@toTdApi.incomingPaidMessageStarCount
-        outgoingPaidMessageStarCount = this@toTdApi.outgoingPaidMessageStarCount
-    }
-}
-
-private fun decodeUsernames(data: String?, fallbackUsername: String?): QuadUsernames {
-    if (data.isNullOrEmpty()) {
-        val active = fallbackUsername?.takeIf { it.isNotBlank() }?.let { arrayOf(it) } ?: emptyArray()
-        return QuadUsernames(active, emptyArray(), fallbackUsername.orEmpty(), emptyArray())
-    }
-    val parts = data.split("\n", limit = 4)
-    val active = parts.getOrNull(0).orEmpty().split('|').filter { it.isNotBlank() }.toTypedArray()
-    val disabled = parts.getOrNull(1).orEmpty().split('|').filter { it.isNotBlank() }.toTypedArray()
-    val editable = parts.getOrNull(2).orEmpty()
-    val collectible = parts.getOrNull(3).orEmpty().split('|').filter { it.isNotBlank() }.toTypedArray()
-    return QuadUsernames(active, disabled, editable, collectible)
-}
-
-private data class QuadUsernames(
-    val active: Array<String>,
-    val disabled: Array<String>,
-    val editable: String,
-    val collectible: Array<String>
-)
-
-fun ChatEntity.toTdApiChat(): TdApi.Chat {
-    return TdApi.Chat().apply {
-        id = this@toTdApiChat.id
-        title = this@toTdApiChat.title
-        unreadCount = this@toTdApiChat.unreadCount
-        unreadMentionCount = this@toTdApiChat.unreadMentionCount
-        unreadReactionCount = this@toTdApiChat.unreadReactionCount
-        photo = avatarPath?.let { path ->
-            TdApi.ChatPhotoInfo().apply {
-                small = TdApi.File().apply { local = TdApi.LocalFile().apply { this.path = path } }
-            }
-        }
-        lastMessage = TdApi.Message().apply {
-            content = TdApi.MessageText().apply { text = TdApi.FormattedText(lastMessageText, emptyArray()) }
-            date = lastMessageTime.toIntOrNull() ?: 0
-            id = this@toTdApiChat.lastMessageId
-            isOutgoing = this@toTdApiChat.isLastMessageOutgoing
-        }
-        positions = arrayOf(TdApi.ChatPosition(TdApi.ChatListMain(), order, isPinned, null))
-        notificationSettings = TdApi.ChatNotificationSettings().apply {
-            muteFor = if (isMuted) Int.MAX_VALUE else 0
-        }
-        type = when (this@toTdApiChat.type) {
-            "PRIVATE" -> TdApi.ChatTypePrivate().apply {
-                userId = if (this@toTdApiChat.privateUserId != 0L) this@toTdApiChat.privateUserId else (this@toTdApiChat.messageSenderId ?: 0L)
-            }
-            "BASIC_GROUP" -> TdApi.ChatTypeBasicGroup().apply {
-                basicGroupId = this@toTdApiChat.basicGroupId
-            }
-            "SUPERGROUP" -> TdApi.ChatTypeSupergroup(this@toTdApiChat.supergroupId, isChannel)
-            "SECRET" -> TdApi.ChatTypeSecret().apply {
-                secretChatId = this@toTdApiChat.secretChatId
-            }
-            else -> TdApi.ChatTypePrivate().apply { userId = this@toTdApiChat.privateUserId }
-        }
-        isMarkedAsUnread = this@toTdApiChat.isMarkedAsUnread
-        hasProtectedContent = this@toTdApiChat.hasProtectedContent
-        isTranslatable = this@toTdApiChat.isTranslatable
-        viewAsTopics = this@toTdApiChat.viewAsTopics
-        accentColorId = this@toTdApiChat.accentColorId
-        profileAccentColorId = this@toTdApiChat.profileAccentColorId
-        backgroundCustomEmojiId = this@toTdApiChat.backgroundCustomEmojiId
-        messageAutoDeleteTime = this@toTdApiChat.messageAutoDeleteTime
-        canBeDeletedOnlyForSelf = this@toTdApiChat.canBeDeletedOnlyForSelf
-        canBeDeletedForAllUsers = this@toTdApiChat.canBeDeletedForAllUsers
-        canBeReported = this@toTdApiChat.canBeReported
-        lastReadInboxMessageId = this@toTdApiChat.lastReadInboxMessageId
-        lastReadOutboxMessageId = this@toTdApiChat.lastReadOutboxMessageId
-        replyMarkupMessageId = this@toTdApiChat.replyMarkupMessageId
-        messageSenderId = this@toTdApiChat.messageSenderId?.let { TdApi.MessageSenderUser(it) }
-        blockList = if (this@toTdApiChat.blockList) TdApi.BlockListMain() else null
-        permissions = TdApi.ChatPermissions(
-            this@toTdApiChat.permissionCanSendBasicMessages,
-            this@toTdApiChat.permissionCanSendAudios,
-            this@toTdApiChat.permissionCanSendDocuments,
-            this@toTdApiChat.permissionCanSendPhotos,
-            this@toTdApiChat.permissionCanSendVideos,
-            this@toTdApiChat.permissionCanSendVideoNotes,
-            this@toTdApiChat.permissionCanSendVoiceNotes,
-            this@toTdApiChat.permissionCanSendPolls,
-            this@toTdApiChat.permissionCanSendOtherMessages,
-            this@toTdApiChat.permissionCanAddLinkPreviews,
-            this@toTdApiChat.permissionCanEditTag,
-            this@toTdApiChat.permissionCanChangeInfo,
-            this@toTdApiChat.permissionCanInviteUsers,
-            this@toTdApiChat.permissionCanPinMessages,
-            this@toTdApiChat.permissionCanCreateTopics
-        )
-        clientData = "mc:${this@toTdApiChat.memberCount};oc:${this@toTdApiChat.onlineCount}"
-    }
-}
-
-fun ChatFullInfoEntity.toDomain(): ChatFullInfoModel {
-    return ChatFullInfoModel(
-        description = description,
-        inviteLink = inviteLink,
-        memberCount = memberCount,
-        onlineCount = onlineCount,
-        administratorCount = administratorCount,
-        restrictedCount = restrictedCount,
-        bannedCount = bannedCount,
-        commonGroupsCount = commonGroupsCount,
-        giftCount = giftCount,
-        isBlocked = isBlocked,
-        botInfo = botInfo,
-        canGetRevenueStatistics = canGetRevenueStatistics,
-        linkedChatId = linkedChatId,
-        businessInfo = null,
-        note = note,
-        canBeCalled = canBeCalled,
-        supportsVideoCalls = supportsVideoCalls,
-        hasPrivateCalls = hasPrivateCalls,
-        hasPrivateForwards = hasPrivateForwards,
-        hasRestrictedVoiceAndVideoNoteMessages = hasRestrictedVoiceAndVideoNoteMessages,
-        hasPostedToProfileStories = hasPostedToProfileStories,
-        setChatBackground = setChatBackground,
-        slowModeDelay = slowModeDelay,
-        locationAddress = locationAddress,
-        canSetStickerSet = canSetStickerSet,
-        canSetLocation = canSetLocation,
-        canGetMembers = canGetMembers,
-        canGetStatistics = canGetStatistics,
-        incomingPaidMessageStarCount = incomingPaidMessageStarCount,
-        outgoingPaidMessageStarCount = outgoingPaidMessageStarCount
-    )
 }

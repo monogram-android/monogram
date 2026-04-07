@@ -30,10 +30,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
@@ -83,6 +86,9 @@ fun ChannelGifMessageBubble(
 
     var stablePath by remember(msg.id) { mutableStateOf(content.path) }
     val hasPath = !stablePath.isNullOrBlank()
+    val gifCacheKey = remember(stablePath, content.fileId) {
+        namespacedCacheKey("channel_gif:${content.fileId}", stablePath)
+    }
     var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
 
     LaunchedEffect(content.path) {
@@ -191,7 +197,18 @@ fun ChannelGifMessageBubble(
                                 }
                             } else {
                                 Image(
-                                    painter = rememberAsyncImagePainter(stablePath),
+                                    painter = rememberAsyncImagePainter(
+                                        model = ImageRequest.Builder(context)
+                                            .data(stablePath)
+                                            .apply {
+                                                gifCacheKey?.let {
+                                                    memoryCacheKey(it)
+                                                    diskCacheKey(it)
+                                                }
+                                            }
+                                            .crossfade(true)
+                                            .build()
+                                    ),
                                     contentDescription = content.caption,
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Fit

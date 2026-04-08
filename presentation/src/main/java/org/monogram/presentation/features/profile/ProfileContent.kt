@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.*
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +34,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.window.core.layout.WindowSizeClass
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.models.UserTypeEnum
@@ -47,6 +49,8 @@ import org.monogram.presentation.features.profile.components.*
 @Composable
 fun ProfileContent(component: ProfileComponent) {
     val state by component.state.subscribeAsState()
+    val adaptiveInfo = currentWindowAdaptiveInfo()
+    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
     val localClipboard = LocalClipboard.current
     val context = LocalContext.current
     val collapsingToolbarState = rememberCollapsingToolbarScaffoldState()
@@ -294,6 +298,8 @@ fun ProfileContent(component: ProfileComponent) {
                     columns = GridCells.Fixed(3),
                     modifier = Modifier
                         .fillMaxSize()
+                        .padding(horizontal = if (isTablet) 12.dp else 16.dp)
+                        .clip(RoundedCornerShape(16.dp))
                         .background(MaterialTheme.colorScheme.background),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -413,7 +419,7 @@ fun ProfileContent(component: ProfileComponent) {
                 dragHandle = { BottomSheetDefaults.DragHandle() },
                 containerColor = MaterialTheme.colorScheme.background,
                 contentColor = MaterialTheme.colorScheme.onSurface,
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             ) {
                 Column(

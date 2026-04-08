@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.zIndex
-import androidx.window.core.layout.WindowSizeClass
+import androidx.window.core.layout.WindowWidthSizeClass
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -83,7 +83,7 @@ fun ChatContent(
     val coroutineScope = rememberCoroutineScope()
 
     val adaptiveInfo = currentWindowAdaptiveInfo()
-    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+    val isTablet = adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED
 
     var isVisible by remember { mutableStateOf(false) }
     var showInitialLoading by remember { mutableStateOf(false) }
@@ -348,14 +348,11 @@ fun ChatContent(
                 visibleIds.distinct() to nearbyIds.distinct().filterNot { it in visibleIds }
             }
             .distinctUntilChanged()
-            .apply {
-                @OptIn(kotlinx.coroutines.FlowPreview::class)
-                debounce(100)
-                    .collect { (visibleIds, nearbyIds) ->
-                        (component as? DefaultChatComponent)?.let {
-                            it.repositoryMessage.updateVisibleRange(it.chatId, visibleIds, nearbyIds)
-                        }
-                    }
+            .debounce(100)
+            .collect { (visibleIds, nearbyIds) ->
+                (component as? DefaultChatComponent)?.let {
+                    it.repositoryMessage.updateVisibleRange(it.chatId, visibleIds, nearbyIds)
+                }
             }
     }
 
@@ -434,15 +431,32 @@ fun ChatContent(
             !isRecordingVideo &&
             state.selectedMessageIds.isEmpty() &&
             (!state.viewAsTopics || state.currentTopicId != null)
-    
+
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    var renderPinnedMessagesList by remember { mutableStateOf(state.showPinnedMessagesList) }
+    var pendingPinnedSheetAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    LaunchedEffect(state.showPinnedMessagesList) {
+        if (state.showPinnedMessagesList) {
+            renderPinnedMessagesList = true
+        }
+    }
+
+    val requestPinnedMessagesListDismiss = {
+        if (state.showPinnedMessagesList) {
+            component.onDismissPinnedMessages()
+        }
+    }
+
     val isCustomBackHandlingEnabled =
-        (editingPhotoPath != null || editingVideoPath != null || selectedMessageId != null || state.selectedMessageIds.isNotEmpty() || state.currentTopicId != null || state.showBotCommands || state.restrictUserId != null || state.fullScreenImages != null || state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null || state.miniAppUrl != null || state.webViewUrl != null || state.instantViewUrl != null || state.youtubeUrl != null)
+        (editingPhotoPath != null || editingVideoPath != null || selectedMessageId != null || state.selectedMessageIds.isNotEmpty() || state.currentTopicId != null || state.showBotCommands || state.restrictUserId != null || state.showPinnedMessagesList || state.fullScreenImages != null || state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null || state.miniAppUrl != null || state.webViewUrl != null || state.instantViewUrl != null || state.youtubeUrl != null)
 
     CompositionLocalProvider(LocalLinkHandler provides { component.onLinkClick(it) }) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(if (isTablet) Color.Transparent else MaterialTheme.colorScheme.background)
+                .background(MaterialTheme.colorScheme.background)
+                .onGloballyPositioned { containerSize = it.size }
         ) {
             /*if (isDragToBackEnabled && !isTablet && !isCustomBackHandlingEnabled && dragOffsetX.value > 0 && previousChild != null) {
                 Box(
@@ -708,51 +722,52 @@ fun ChatContent(
                             val onPhotoClickStable: (MessageModel, List<String>, List<String?>, List<Long>, Int) -> Unit =
                                 remember(component) {
                                     { msg: MessageModel, paths: List<String>, captions: List<String?>, messageIds: List<Long>, index: Int ->
-                                    val content = msg.content as? MessageContent.Photo
-                                    val clickedPath = paths.getOrNull(index)
-                                        ?.takeIf { it.isNotBlank() && File(it).exists() }
-                                        ?: content?.path?.takeIf { File(it).exists() }
+                                        val content = msg.content as? MessageContent.Photo
+                                        val clickedPath = paths.getOrNull(index)
+                                            ?.takeIf { it.isNotBlank() && File(it).exists() }
+                                            ?: content?.path?.takeIf { File(it).exists() }
 
-                                    if (clickedPath != null) {
-                                        currentKeyboardController.value?.hide()
-                                        currentFocusManager.value.clearFocus()
+                                        if (clickedPath != null) {
+                                            currentKeyboardController.value?.hide()
+                                            currentFocusManager.value.clearFocus()
 
-                                        val validItems = paths.mapIndexedNotNull { itemIndex, path ->
-                                            val validPath = path.takeIf { it.isNotBlank() && File(it).exists() }
-                                                ?: return@mapIndexedNotNull null
-                                            Triple(itemIndex, validPath, captions.getOrNull(itemIndex))
-                                        }
-
-                                        if (validItems.isNotEmpty()) {
-                                            val validPaths = validItems.map { it.second }
-                                            val validCaptions = validItems.map { it.third }
-                                            val validMessageIds = validItems.map { (itemIndex, _, _) ->
-                                                messageIds.getOrNull(itemIndex) ?: msg.id
+                                            val validItems = paths.mapIndexedNotNull { itemIndex, path ->
+                                                val validPath = path.takeIf { it.isNotBlank() && File(it).exists() }
+                                                    ?: return@mapIndexedNotNull null
+                                                Triple(itemIndex, validPath, captions.getOrNull(itemIndex))
                                             }
-                                            val startIndex = validItems.indexOfFirst { (itemIndex, _, _) -> itemIndex == index }
-                                                .takeIf { it >= 0 }
-                                                ?: validPaths.indexOf(clickedPath).takeIf { it >= 0 }
-                                                ?: 0
 
-                                            component.onOpenImages(
-                                                images = validPaths,
-                                                captions = validCaptions,
-                                                startIndex = startIndex,
-                                                messageId = msg.id,
-                                                messageIds = validMessageIds
-                                            )
+                                            if (validItems.isNotEmpty()) {
+                                                val validPaths = validItems.map { it.second }
+                                                val validCaptions = validItems.map { it.third }
+                                                val validMessageIds = validItems.map { (itemIndex, _, _) ->
+                                                    messageIds.getOrNull(itemIndex) ?: msg.id
+                                                }
+                                                val startIndex = validItems.indexOfFirst { (itemIndex, _, _) -> itemIndex == index }
+                                                    .takeIf { it >= 0 }
+                                                    ?: validPaths.indexOf(clickedPath).takeIf { it >= 0 }
+                                                    ?: 0
+
+                                                component.onOpenImages(
+                                                    images = validPaths,
+                                                    captions = validCaptions,
+                                                    startIndex = startIndex,
+                                                    messageId = msg.id,
+                                                    messageIds = validMessageIds
+                                                )
+                                            }
+                                        } else {
+                                            content?.fileId?.takeIf { it != 0 }?.let(component::onDownloadFile)
                                         }
-                                    } else {
-                                        content?.fileId?.takeIf { it != 0 }?.let(component::onDownloadFile)
+                                        Unit
                                     }
                                 }
-                            }
 
                             val onVideoClickStable: (MessageModel, String?, String?) -> Unit =
                                 remember(component, scrollState) {
                                     { msg: MessageModel, path: String?, caption: String? ->
                                         if (!currentIsVisible.value || currentShowInitialLoading.value || scrollState.isScrollInProgress) {
-                                            // do nothing
+                                            Unit
                                         } else {
                                             val videoContent = msg.content as? MessageContent.Video
                                             val supportsStreaming = videoContent?.supportsStreaming ?: false
@@ -808,6 +823,7 @@ fun ChatContent(
                                             component.onDownloadFile(doc.fileId)
                                         }
                                     }
+                                    Unit
                                 }
                             }
 
@@ -828,6 +844,7 @@ fun ChatContent(
                                             component.onDownloadFile(audio.fileId)
                                         }
                                     }
+                                    Unit
                                 }
                             }
 
@@ -887,9 +904,9 @@ fun ChatContent(
                                 onMessagePositionChange = onMessagePositionChangeStable,
                                 onViaBotClick = onViaBotClickStable,
                                 toProfile = toProfileStable,
-                                    downloadUtils = component.downloadUtils,
-                                    isAnyViewerOpen = isAnyViewerOpen
-                                )
+                                downloadUtils = component.downloadUtils,
+                                isAnyViewerOpen = isAnyViewerOpen
+                            )
 
                             AnimatedVisibility(
                                 visible = showScrollToBottomButton,
@@ -1007,15 +1024,42 @@ fun ChatContent(
 
 
             // Modals & Overlays
-            if (state.showPinnedMessagesList) {
+            if (renderPinnedMessagesList) {
                 PinnedMessagesListSheet(
-                    state = state,
-                    onDismiss = { component.onDismissPinnedMessages() },
-                    onMessageClick = { scrollToMessageState.value(it); component.onDismissPinnedMessages() },
+                    isVisible = state.showPinnedMessagesList,
+                    allPinnedMessages = state.allPinnedMessages,
+                    pinnedMessageCount = state.pinnedMessageCount,
+                    isLoadingPinnedMessages = state.isLoadingPinnedMessages,
+                    isGroup = state.isGroup,
+                    isChannel = state.isChannel,
+                    fontSize = state.fontSize,
+                    letterSpacing = state.letterSpacing,
+                    bubbleRadius = state.bubbleRadius,
+                    stickerSize = state.stickerSize,
+                    autoDownloadMobile = state.autoDownloadMobile,
+                    autoDownloadWifi = state.autoDownloadWifi,
+                    autoDownloadRoaming = state.autoDownloadRoaming,
+                    autoDownloadFiles = state.autoDownloadFiles,
+                    autoplayGifs = state.autoplayGifs,
+                    autoplayVideos = state.autoplayVideos,
+                    onDismissRequest = requestPinnedMessagesListDismiss,
+                    onHidden = {
+                        renderPinnedMessagesList = false
+                        pendingPinnedSheetAction?.invoke()
+                        pendingPinnedSheetAction = null
+                    },
+                    onMessageClick = {
+                        pendingPinnedSheetAction = { scrollToMessageState.value(it) }
+                        requestPinnedMessagesListDismiss()
+                    },
                     onUnpin = { component.onUnpinMessage(it) },
-                    onReplyClick = { scrollToMessageState.value(it); component.onDismissPinnedMessages() },
+                    onReplyClick = {
+                        pendingPinnedSheetAction = { scrollToMessageState.value(it) }
+                        requestPinnedMessagesListDismiss()
+                    },
                     onReactionClick = { id, r -> component.onSendReaction(id, r) },
-                    downloadUtils = component.downloadUtils
+                    downloadUtils = component.downloadUtils,
+                    isAnyViewerOpen = isAnyViewerOpen
                 )
             }
 
@@ -1046,6 +1090,12 @@ fun ChatContent(
                     onDismiss = { component.onDismissBotCommands() }
                 )
             }
+
+            ChatContentViewers(
+                state = state,
+                component = component,
+                localClipboard = localClipboard
+            )
 
             selectedMessage?.let { msg ->
                 ChatMessageOptionsMenu(
@@ -1158,6 +1208,7 @@ fun ChatContent(
                 else if (selectedMessageId != null) selectedMessageId = null
                 else if (state.showBotCommands) component.onDismissBotCommands()
                 else if (state.restrictUserId != null) component.onDismissRestrictDialog()
+                else if (state.showPinnedMessagesList && !isAnyViewerOpen) requestPinnedMessagesListDismiss()
                 else if (state.fullScreenImages != null) component.onDismissImages()
                 else if (state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null) component.onDismissVideo()
                 else if (state.instantViewUrl != null) component.onDismissInstantView()

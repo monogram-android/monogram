@@ -53,7 +53,7 @@ fun ChatListTopBar(
     val motionScheme = MaterialTheme.motionScheme
 
     val adaptiveInfo = currentWindowAdaptiveInfo()
-    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
 
     AnimatedContent(
         targetState = isSearchActive,
@@ -70,7 +70,7 @@ fun ChatListTopBar(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .run { if (isTablet) this else statusBarsPadding() }
+                    .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 SearchBar(
@@ -110,7 +110,7 @@ fun ChatListTopBar(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .run { if (isTablet) this else statusBarsPadding() }
+                    .statusBarsPadding()
             ) {
                 Row(
                     modifier = Modifier

@@ -74,13 +74,13 @@ fun ProfileInfoSectionSkeleton(
 
             ItemPosition.MIDDLE -> RoundedCornerShape(4.dp)
             ItemPosition.BOTTOM -> RoundedCornerShape(
-                bottomStart = 24.dp,
-                bottomEnd = 24.dp,
+                bottomStart = 16.dp,
+                bottomEnd = 16.dp,
                 topStart = 4.dp,
                 topEnd = 4.dp
             )
 
-            ItemPosition.STANDALONE -> RoundedCornerShape(24.dp)
+            ItemPosition.STANDALONE -> RoundedCornerShape(16.dp)
         }
 
         Surface(
@@ -142,7 +142,7 @@ fun ProfileInfoSectionSkeleton(
 private fun ProfileQuickActionsSkeleton(shimmer: androidx.compose.ui.graphics.Brush) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 2.dp)
@@ -188,7 +188,7 @@ private fun ProfileQuickActionsSkeleton(shimmer: androidx.compose.ui.graphics.Br
 private fun LinkedChatItemSkeleton(shimmer: androidx.compose.ui.graphics.Brush) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
@@ -289,7 +289,7 @@ fun ProfileInfoSection(
             onDismissRequest = { isSponsorSheetVisible = false },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -960,7 +960,7 @@ private fun ProfileQuickActions(
     ) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainer,
-            shape = ShapeDefaults.LargeIncreased,
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 2.dp)
@@ -1413,7 +1413,7 @@ private fun UsernamesTile(
         else -> MaterialTheme.colorScheme.outline
     }
 
-    val cornerRadius = 24.dp
+    val cornerRadius = 16.dp
     val shape = when (position) {
         ItemPosition.TOP -> RoundedCornerShape(
             topStart = cornerRadius,

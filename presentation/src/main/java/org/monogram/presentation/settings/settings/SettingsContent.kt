@@ -81,6 +81,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -115,6 +116,7 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.window.core.layout.WindowSizeClass
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
@@ -142,6 +144,8 @@ val QrSurfaceShapeColor = Color(0xFFE3E6D8)
 @Composable
 fun SettingsContent(component: SettingsComponent) {
     val state by component.state.subscribeAsState()
+    val adaptiveInfo = currentWindowAdaptiveInfo()
+    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val haptic = LocalHapticFeedback.current
@@ -227,7 +231,7 @@ fun SettingsContent(component: SettingsComponent) {
             onDismissRequest = component::onQrCodeDismissed,
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.background,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
             val username = state.currentUser?.username ?: "user"
             val qrContent = state.qrContent.ifEmpty { "https://t.me/$username" }
@@ -310,7 +314,7 @@ fun SettingsContent(component: SettingsComponent) {
             onDismissRequest = component::onSupportDismissed,
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -366,7 +370,7 @@ fun SettingsContent(component: SettingsComponent) {
             onDismissRequest = component::onMoreOptionsDismissed,
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -636,8 +640,8 @@ fun SettingsContent(component: SettingsComponent) {
                         .fillMaxSize()
                         .semantics { contentDescription = "SettingsList" },
                     contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
+                        start = if (isTablet) 12.dp else 16.dp,
+                        end = if (isTablet) 12.dp else 16.dp,
                         top = 0.dp,
                         bottom = safeBottomPadding
                     ),
@@ -972,7 +976,7 @@ fun SettingsContent(component: SettingsComponent) {
                     modifier = Modifier
                         .width(menuWidth)
                         .heightIn(max = maxMenuHeightDp)
-                        .clip(RoundedCornerShape(24.dp))
+                        .clip(RoundedCornerShape(16.dp))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null

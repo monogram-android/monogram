@@ -94,7 +94,7 @@ fun ChatListContent(component: ChatListComponent) {
     var showPermissionRequest by remember { mutableStateOf(!isPermissionRequested) }
 
     val adaptiveInfo = currentWindowAdaptiveInfo()
-    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
 
     val isCustomBackHandlingEnabled =
         state.isSearchActive || state.selectedChatIds.isNotEmpty() || state.selectedFolderId == -2 || state.isForwarding || state.instantViewUrl != null || state.webAppUrl != null || state.webViewUrl != null || showStatusMenu
@@ -218,9 +218,9 @@ fun ChatListContent(component: ChatListComponent) {
                     }
 
                     val maxHide = if (isArchivePersistent) {
-                        -(archiveItemHeightPx + tabsHeightPx)
+                        -archiveItemHeightPx
                     } else {
-                        -tabsHeightPx
+                        0f
                     }
 
                     val oldOffset = headerOffsetPx
@@ -311,23 +311,13 @@ fun ChatListContent(component: ChatListComponent) {
                     }
                 }
 
-                val maxHide = if (isArchivePersistent) {
-                    -(archiveItemHeightPx + tabsHeightPx)
-                } else {
-                    -tabsHeightPx
-                }
+                val maxHide = if (isArchivePersistent) -archiveItemHeightPx else 0f
 
                 if (headerOffsetPx < 0f && headerOffsetPx > maxHide) {
                     val target = if (isArchivePersistent) {
-                        if (headerOffsetPx > -archiveItemHeightPx / 2) {
-                            0f
-                        } else if (headerOffsetPx > -archiveItemHeightPx - tabsHeightPx / 2) {
-                            -archiveItemHeightPx
-                        } else {
-                            maxHide
-                        }
+                        if (headerOffsetPx > -archiveItemHeightPx / 2) 0f else -archiveItemHeightPx
                     } else {
-                        if (headerOffsetPx > maxHide / 2) 0f else maxHide
+                        0f
                     }
                     headerAnimationJob = scope.launch {
                         animate(initialValue = headerOffsetPx, targetValue = target) { value, _ ->
@@ -555,13 +545,7 @@ fun ChatListContent(component: ChatListComponent) {
                                 } else {
                                     0f
                                 }
-                                val visibleTabsHeight = if (isArchivePersistent) {
-                                    (tabsHeightPx + (headerOffsetPx + archiveItemHeightPx).coerceAtMost(0f)).coerceAtLeast(
-                                        0f
-                                    )
-                                } else {
-                                    (tabsHeightPx + headerOffsetPx).coerceAtLeast(0f)
-                                }
+                                val visibleTabsHeight = tabsHeightPx
                                 (visibleArchiveHeight + visibleTabsHeight).toDp()
                             })
                             .clip(RoundedCornerShape(bottomStart = 0.dp, bottomEnd = 0.dp)),
@@ -614,14 +598,7 @@ fun ChatListContent(component: ChatListComponent) {
 
                             if (state.folders.size > 1) {
                                 FolderTabs(
-                                    modifier = Modifier.offset {
-                                        val yOffset = if (isArchivePersistent) {
-                                            (headerOffsetPx + archiveItemHeightPx).coerceAtMost(0f)
-                                        } else {
-                                            headerOffsetPx
-                                        }
-                                        IntOffset(0, yOffset.roundToInt())
-                                    },
+                                    modifier = Modifier,
                                     folders = state.folders,
                                     pagerState = pagerState,
                                     onTabClick = { index ->
@@ -762,7 +739,12 @@ fun ChatListContent(component: ChatListComponent) {
                         modifier = Modifier
                             .fillMaxSize()
                             .semantics { contentDescription = "ChatList" },
-                        contentPadding = PaddingValues(top = 12.dp, bottom = 88.dp),
+                        contentPadding = PaddingValues(
+                            top = 12.dp,
+                            bottom = 88.dp,
+                            start = if (isTablet) 12.dp else 0.dp,
+                            end = if (isTablet) 12.dp else 0.dp
+                        ),
                     ) {
                         if (state.isSearchActive) {
                         if (state.searchQuery.isEmpty() && state.searchHistory.isNotEmpty()) {
@@ -861,9 +843,11 @@ fun ChatListContent(component: ChatListComponent) {
                                         isSelected = false,
                                         onClick = { onChatClicked(chat.id) },
                                         onLongClick = { component.onRemoveSearchHistoryItem(chat.id) },
+                                        isTabletSelected = isTablet && state.activeChatId == chat.id,
                                         emojiFontFamily = emojiFontFamily,
                                         messageLines = messageLines,
-                                        showPhotos = showPhotos
+                                        showPhotos = showPhotos,
+                                        activeChatId = state.activeChatId
                                     )
                                 }
                             }
@@ -886,9 +870,11 @@ fun ChatListContent(component: ChatListComponent) {
                                     isSelected = state.selectedChatIds.contains(chat.id),
                                     onClick = { onChatClicked(chat.id) },
                                     onLongClick = { onChatLongClicked(chat.id) },
+                                    isTabletSelected = isTablet && state.activeChatId == chat.id,
                                     emojiFontFamily = emojiFontFamily,
                                     messageLines = messageLines,
-                                    showPhotos = showPhotos
+                                    showPhotos = showPhotos,
+                                    activeChatId = state.activeChatId
                                 )
                             }
                         }
@@ -914,9 +900,11 @@ fun ChatListContent(component: ChatListComponent) {
                                     isSelected = state.selectedChatIds.contains(chat.id),
                                     onClick = { onChatClicked(chat.id) },
                                     onLongClick = { onChatLongClicked(chat.id) },
+                                    isTabletSelected = isTablet && state.activeChatId == chat.id,
                                     emojiFontFamily = emojiFontFamily,
                                     messageLines = messageLines,
-                                    showPhotos = showPhotos
+                                    showPhotos = showPhotos,
+                                    activeChatId = state.activeChatId
                                 )
                             }
 
@@ -1002,7 +990,8 @@ fun ChatListContent(component: ChatListComponent) {
                                     isTabletSelected = isTablet && state.activeChatId == chat.id,
                                     emojiFontFamily = emojiFontFamily,
                                     messageLines = messageLines,
-                                    showPhotos = showPhotos
+                                    showPhotos = showPhotos,
+                                    activeChatId = state.activeChatId
                                 )
                             }
                         }
@@ -1106,7 +1095,12 @@ fun ChatListContent(component: ChatListComponent) {
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .semantics { contentDescription = "ChatList" },
-                                    contentPadding = PaddingValues(top = 12.dp, bottom = 88.dp)
+                                    contentPadding = PaddingValues(
+                                        top = 12.dp,
+                                        bottom = 88.dp,
+                                        start = if (isTablet) 4.dp else 0.dp,
+                                        end = if (isTablet) 4.dp else 0.dp
+                                    )
                                 ) {
                                     if (folderChats.isEmpty() && hasFolderLoadState && !isFolderLoading) {
                                         item {
@@ -1128,7 +1122,8 @@ fun ChatListContent(component: ChatListComponent) {
                                             isTabletSelected = isTablet && state.activeChatId == chat.id,
                                             emojiFontFamily = emojiFontFamily,
                                             messageLines = messageLines,
-                                            showPhotos = showPhotos
+                                            showPhotos = showPhotos,
+                                            activeChatId = state.activeChatId
                                         )
                                     }
                                 }
@@ -1213,7 +1208,7 @@ fun ChatListContent(component: ChatListComponent) {
                     modifier = Modifier
                         .width(menuWidth)
                         .heightIn(max = maxMenuHeightDp)
-                        .clip(ShapeDefaults.LargeIncreased)
+                        .clip(RoundedCornerShape(16.dp))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null

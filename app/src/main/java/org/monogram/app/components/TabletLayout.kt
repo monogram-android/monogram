@@ -78,7 +78,7 @@ fun TabletLayout(
             modifier = Modifier
                 .width(animatedWidth)
                 .fillMaxHeight()
-                .padding(start = 12.dp, top = 12.dp, bottom = 12.dp)
+                .padding(start = 6.dp, end = 6.dp,  top = 12.dp, bottom = 12.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surface),
         ) {
@@ -87,13 +87,13 @@ fun TabletLayout(
             }
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(6.dp))
 
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(end = 12.dp, top = 12.dp, bottom = 12.dp)
+                .padding(end = 6.dp, top = 12.dp, bottom = 12.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surface),
         ) {

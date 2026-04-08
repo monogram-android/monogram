@@ -32,6 +32,7 @@ import org.monogram.domain.repository.ChatMembersFilter
 import org.monogram.domain.repository.ChatOperationsRepository
 import org.monogram.domain.repository.ChatSettingsRepository
 import org.monogram.domain.repository.ChatStatisticsRepository
+import org.monogram.domain.repository.GifRepository
 import org.monogram.domain.repository.LocationRepository
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.PrivacyRepository
@@ -68,6 +69,7 @@ class DefaultProfileComponent(
     private val privacyRepository: PrivacyRepository = container.repositories.privacyRepository
     override val messageRepository: MessageRepository = container.repositories.messageRepository
     private val locationRepository: LocationRepository = container.repositories.locationRepository
+    private val gifRepository: GifRepository = container.repositories.gifRepository
     private val botPreferences: BotPreferencesProvider = container.preferences.botPreferencesProvider
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
 
@@ -720,12 +722,90 @@ class DefaultProfileComponent(
         _state.update {
             it.copy(
                 fullScreenImages = null,
+                fullScreenImageMessageIds = emptyList(),
                 fullScreenCaptions = emptyList(),
                 fullScreenVideoPath = null,
+                fullScreenVideoMessageId = null,
                 fullScreenVideoCaption = null,
                 isViewingProfilePhotos = false,
                 isProfilePhotoHdLoading = false
             )
+        }
+    }
+
+    override fun onDismissImages() {
+        onDismissViewer()
+    }
+
+    override fun onDismissVideo() {
+        onDismissViewer()
+    }
+
+    override fun onDismissInstantView() {
+        _state.update { it.copy(instantViewUrl = null) }
+    }
+
+    override fun onDismissYouTube() {
+        _state.update { it.copy(youtubeUrl = null) }
+    }
+
+    override fun onDismissWebView() {
+        _state.update { it.copy(webViewUrl = null) }
+    }
+
+    override fun onDismissInvoice(status: String?) {
+        _state.update { it.copy(invoiceSlug = null, invoiceMessageId = null) }
+    }
+
+    override fun onForwardMessage(message: MessageModel) {
+        onMessageLongClicked(message)
+    }
+
+    override fun onDeleteMessage(message: MessageModel, revoke: Boolean) {
+        scope.launch {
+            messageRepository.deleteMessage(chatId, listOf(message.id), revoke)
+        }
+    }
+
+    override fun onOpenVideo(path: String, messageId: Long?, caption: String?) {
+        _state.update {
+            it.copy(
+                fullScreenVideoPath = path,
+                fullScreenVideoMessageId = messageId,
+                fullScreenVideoCaption = caption,
+                fullScreenImages = null
+            )
+        }
+    }
+
+    override fun onDownloadHighRes(messageId: Long) {
+        scope.launch {
+            val fileId = messageRepository.getHighResFileId(chatId, messageId)
+            if (fileId != null && fileId != 0) {
+                messageRepository.downloadFile(fileId, priority = 32)
+            }
+        }
+    }
+
+    override fun onAddToGifs(path: String) {
+        scope.launch {
+            gifRepository.addSavedGif(path)
+        }
+    }
+
+    override fun onOpenWebView(url: String) {
+        _state.update { it.copy(webViewUrl = url) }
+    }
+
+    override fun onDismissMiniAppTOS() {
+        _state.update { it.copy(showMiniAppTOS = false) }
+    }
+
+    override fun onAcceptMiniAppTOS() {
+        val botId = _state.value.user?.id ?: return
+        scope.launch {
+            botPreferences.setWebappPermission(botId, "tos_accepted", true)
+            _state.update { it.copy(showMiniAppTOS = false, isTOSAccepted = true) }
         }
     }
 

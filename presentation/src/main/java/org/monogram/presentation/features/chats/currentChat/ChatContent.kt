@@ -1140,11 +1140,11 @@ fun ChatContent(
                 )
             }
 
-            ChatContentViewers(
+            /*ChatContentViewers(
                 state = state,
                 component = component,
                 localClipboard = localClipboard
-            )
+            )*/
 
             selectedMessage?.let { msg ->
                 ChatMessageOptionsMenu(

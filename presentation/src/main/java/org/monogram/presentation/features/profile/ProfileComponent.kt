@@ -17,6 +17,20 @@ interface ProfileComponent {
     fun onMessageLongClick(message: MessageModel)
     fun onAvatarClick()
     fun onDismissViewer()
+    fun onDismissImages()
+    fun onDismissVideo()
+    fun onDismissInstantView()
+    fun onDismissYouTube()
+    fun onDismissWebView()
+    fun onDismissInvoice(status: String?)
+    fun onForwardMessage(message: MessageModel)
+    fun onDeleteMessage(message: MessageModel, revoke: Boolean)
+    fun onOpenVideo(path: String, messageId: Long?, caption: String?)
+    fun onDownloadHighRes(messageId: Long)
+    fun onAddToGifs(path: String)
+    fun onOpenWebView(url: String)
+    fun onDismissMiniAppTOS()
+    fun onAcceptMiniAppTOS()
     fun onLoadMoreMedia()
     fun onOpenMiniApp(url: String, name: String, chatId: Long)
     fun onDismissMiniApp()
@@ -93,12 +107,30 @@ interface ProfileComponent {
         val personalAvatarPath: String? = null,
 
         val fullScreenImages: List<String>? = null,
+        val fullScreenImageMessageIds: List<Long> = emptyList(),
         val fullScreenCaptions: List<String?> = emptyList(),
         val fullScreenStartIndex: Int = 0,
         val fullScreenVideoPath: String? = null,
+        val fullScreenVideoMessageId: Long? = null,
         val fullScreenVideoCaption: String? = null,
         val isViewingProfilePhotos: Boolean = false,
         val isProfilePhotoHdLoading: Boolean = false,
+
+        val instantViewUrl: String? = null,
+        val youtubeUrl: String? = null,
+        val webViewUrl: String? = null,
+        val invoiceSlug: String? = null,
+        val invoiceMessageId: Long? = null,
+
+        val autoDownloadWifi: Boolean = true,
+        val autoDownloadRoaming: Boolean = false,
+        val autoDownloadMobile: Boolean = true,
+
+        val isPlayerGesturesEnabled: Boolean = true,
+        val isPlayerDoubleTapSeekEnabled: Boolean = true,
+        val playerSeekDuration: Int = 10,
+        val isPlayerZoomEnabled: Boolean = true,
+        val isInstalledFromGooglePlay: Boolean = false,
 
         val miniAppUrl: String? = null,
         val miniAppName: String? = null,
@@ -122,6 +154,7 @@ interface ProfileComponent {
         val botPermissions: Map<String, Boolean> = emptyMap(),
 
         val isTOSVisible: Boolean = false,
+        val showMiniAppTOS: Boolean = false,
         val isTOSAccepted: Boolean = false,
         val isAcceptingTOS: Boolean = false,
         val pendingMiniAppUrl: String? = null,

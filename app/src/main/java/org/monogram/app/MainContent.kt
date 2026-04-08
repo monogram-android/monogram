@@ -116,7 +116,6 @@ fun MainContent(
             LockScreen(root)
         }
 
-        // Hoisted Viewers
         when (activeChild) {
             is RootComponent.Child.ChatDetailChild -> {
                 val chatState by activeChild.component.state.collectAsState()

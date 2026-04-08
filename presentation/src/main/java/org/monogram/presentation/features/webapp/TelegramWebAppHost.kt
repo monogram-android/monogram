@@ -53,7 +53,6 @@ interface TelegramWebAppHost {
     fun onSetBackgroundColor(color: Int)
     fun onSetHeaderColor(colorKey: String?, customColor: Int?)
     fun onResetHeaderColor()
-    fun onSetHeaderText(text: String)
     fun onSetBottomBarColor(color: Int)
     fun onResetBottomBarColor()
     fun onSetupClosingBehavior(needConfirmation: Boolean)

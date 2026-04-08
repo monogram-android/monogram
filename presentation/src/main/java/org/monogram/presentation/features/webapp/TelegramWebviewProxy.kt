@@ -118,7 +118,6 @@ class TelegramWebviewProxy(
                 data.optString("color_key").takeIf { it.isNotEmpty() },
                 data.optString("color").takeIf { it.isNotEmpty() })
 
-            "web_app_set_header_text" -> WebAppEvent.SetHeaderText(data.optString("text"))
             "web_app_set_bottom_bar_color" -> WebAppEvent.SetBottomBarColor(data.optString("color"))
             "web_app_setup_main_button" -> WebAppEvent.SetupMainButton(
                 data.optBoolean("is_visible"), data.optBoolean("is_active"),
@@ -305,7 +304,6 @@ class TelegramWebviewProxy(
 
             is WebAppEvent.SetBackgroundColor -> host.onSetBackgroundColor(parseColor(event.color))
             is WebAppEvent.SetHeaderColor -> host.onSetHeaderColor(event.colorKey, event.color?.let { parseColor(it) })
-            is WebAppEvent.SetHeaderText -> host.onSetHeaderText(event.text)
             is WebAppEvent.SetBottomBarColor -> host.onSetBottomBarColor(parseColor(event.color))
             is WebAppEvent.SetupMainButton -> host.onSetupMainButton(
                 event.isVisible,

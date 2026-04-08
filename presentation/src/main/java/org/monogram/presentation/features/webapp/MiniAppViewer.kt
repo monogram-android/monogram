@@ -362,7 +362,7 @@ fun MiniAppViewer(
                 Column(modifier = Modifier.fillMaxSize()) {
                     if (!state.isFullscreen) {
                         MiniAppTopBar(
-                            headerText = state.headerText,
+                            headerText = botName,
                             isBackButtonVisible = state.isBackButtonVisible,
                             isSettingsButtonVisible = state.isSettingsButtonVisible,
                             isInitializing = state.isInitializing,

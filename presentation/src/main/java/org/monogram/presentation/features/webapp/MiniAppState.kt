@@ -76,8 +76,6 @@ class MiniAppState(
     var backgroundColor by mutableStateOf(initialThemeParams.backgroundColor?.let { Color(it.toColorInt()) })
     var bottomBarColor by mutableStateOf(initialThemeParams.bottomBarBackgroundColor?.let { Color(it.toColorInt()) })
 
-    var headerText by mutableStateOf(botName)
-
     var isExpanded by mutableStateOf(false)
     var isFullscreen by mutableStateOf(false)
 
@@ -617,10 +615,6 @@ class MiniAppState(
 
         override fun onResetHeaderColor() {
             topBarColor = themeParams.headerBackgroundColor?.let { Color(it.toColorInt()) }
-        }
-
-        override fun onSetHeaderText(text: String) {
-            headerText = text
         }
 
         override fun onSetBottomBarColor(color: Int) {

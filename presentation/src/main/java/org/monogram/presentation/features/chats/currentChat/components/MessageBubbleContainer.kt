@@ -2,6 +2,7 @@ package org.monogram.presentation.features.chats.currentChat.components
 
 import android.content.res.Configuration
 import androidx.compose.animation.Animatable
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -18,6 +19,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
@@ -114,12 +116,22 @@ fun MessageBubbleContainer(
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
     var bubbleSize by remember { mutableStateOf(IntSize.Zero) }
 
+    val dragOffsetX = remember { Animatable(0f) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(animatedColor.value, RoundedCornerShape(12.dp))
             .onGloballyPositioned { outerColumnPosition = it.positionInWindow() }
             .padding(top = topSpacing)
+            .offset { IntOffset(dragOffsetX.value.toInt(), 0) }
+            .fastReplyPointer(
+                canReply = canReply,
+                dragOffsetX = dragOffsetX,
+                scope = rememberCoroutineScope(),
+                onReplySwipe = { onReplySwipe(msg) },
+                maxWidth = maxWidth.value
+            )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { offset ->
@@ -152,70 +164,82 @@ fun MessageBubbleContainer(
                 toProfile = toProfile
             )
 
-            Column(
-                modifier = Modifier
-                    .width(IntrinsicSize.Max)
-                    .widthIn(max = maxWidth)
-                    .onGloballyPositioned { coordinates ->
-                        bubblePosition = coordinates.positionInWindow()
-                        bubbleSize = coordinates.size
-                        if (shouldReportPosition) {
-                            onPositionChange(msg.id, bubblePosition, bubbleSize)
-                        }
-                    },
-                horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
+            Box(
+                modifier = Modifier.wrapContentSize()
             ) {
-                MessageContentSelector(
-                    msg = msg,
-                    newerMsg = newerMsg,
-                    isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    isGroup = isGroup,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
-                    bubbleRadius = bubbleRadius,
-                    stSize = stSize,
-                    autoDownloadMobile = autoDownloadMobile,
-                    autoDownloadWifi = autoDownloadWifi,
-                    autoDownloadRoaming = autoDownloadRoaming,
-                    autoDownloadFiles = autoDownloadFiles,
-                    autoplayGifs = autoplayGifs,
-                    autoplayVideos = autoplayVideos,
-                    showLinkPreviews = showLinkPreviews,
-                    onPhotoClick = onPhotoClick,
-                    onDownloadPhoto = onDownloadPhoto,
-                    onVideoClick = onVideoClick,
-                    onDocumentClick = onDocumentClick,
-                    onAudioClick = onAudioClick,
-                    onCancelDownload = onCancelDownload,
-                    onReplyClick = onReplyClick,
-                    onGoToReply = onGoToReply,
-                    onReactionClick = onReactionClick,
-                    onStickerClick = onStickerClick,
-                    onPollOptionClick = onPollOptionClick,
-                    onRetractVote = onRetractVote,
-                    onShowVoters = onShowVoters,
-                    onClosePoll = onClosePoll,
-                    onInstantViewClick = onInstantViewClick,
-                    onYouTubeClick = onYouTubeClick,
-                    toProfile = toProfile,
-                    bubblePosition = bubblePosition,
-                    bubbleSize = bubbleSize,
-                    downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
-                )
+                Column(
+                    modifier = Modifier
+                        .width(IntrinsicSize.Max)
+                        .widthIn(max = maxWidth)
+                        .onGloballyPositioned { coordinates ->
+                            bubblePosition = coordinates.positionInWindow()
+                            bubbleSize = coordinates.size
+                            if (shouldReportPosition) {
+                                onPositionChange(msg.id, bubblePosition, bubbleSize)
+                            }
+                        },
+                    horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
+                ) {
+                    MessageContentSelector(
+                        msg = msg,
+                        newerMsg = newerMsg,
+                        isOutgoing = isOutgoing,
+                        isSameSenderAbove = isSameSenderAbove,
+                        isSameSenderBelow = isSameSenderBelow,
+                        isGroup = isGroup,
+                        fontSize = fontSize,
+                        letterSpacing = letterSpacing,
+                        bubbleRadius = bubbleRadius,
+                        stSize = stSize,
+                        autoDownloadMobile = autoDownloadMobile,
+                        autoDownloadWifi = autoDownloadWifi,
+                        autoDownloadRoaming = autoDownloadRoaming,
+                        autoDownloadFiles = autoDownloadFiles,
+                        autoplayGifs = autoplayGifs,
+                        autoplayVideos = autoplayVideos,
+                        showLinkPreviews = showLinkPreviews,
+                        onPhotoClick = onPhotoClick,
+                        onDownloadPhoto = onDownloadPhoto,
+                        onVideoClick = onVideoClick,
+                        onDocumentClick = onDocumentClick,
+                        onAudioClick = onAudioClick,
+                        onCancelDownload = onCancelDownload,
+                        onReplyClick = onReplyClick,
+                        onGoToReply = onGoToReply,
+                        onReactionClick = onReactionClick,
+                        onStickerClick = onStickerClick,
+                        onPollOptionClick = onPollOptionClick,
+                        onRetractVote = onRetractVote,
+                        onShowVoters = onShowVoters,
+                        onClosePoll = onClosePoll,
+                        onInstantViewClick = onInstantViewClick,
+                        onYouTubeClick = onYouTubeClick,
+                        toProfile = toProfile,
+                        bubblePosition = bubblePosition,
+                        bubbleSize = bubbleSize,
+                        downloadUtils = downloadUtils,
+                        isAnyViewerOpen = isAnyViewerOpen
+                    )
 
-                MessageReplyMarkup(
-                    msg = msg,
-                    onReplyMarkupButtonClick = onReplyMarkupButtonClick
-                )
+                    MessageReplyMarkup(
+                        msg = msg,
+                        onReplyMarkupButtonClick = onReplyMarkupButtonClick
+                    )
 
-                MessageViaBotAttribution(
-                    msg = msg,
+                    MessageViaBotAttribution(
+                        msg = msg,
+                        isOutgoing = isOutgoing,
+                        onViaBotClick = onViaBotClick,
+                        modifier = Modifier.align(if (isOutgoing) Alignment.End else Alignment.Start)
+                    )
+                }
+
+                FastReplyIndicator(
+                    modifier = Modifier
+                        .align(if (isOutgoing) Alignment.CenterEnd else Alignment.CenterStart),
+                    dragOffsetX = dragOffsetX,
                     isOutgoing = isOutgoing,
-                    onViaBotClick = onViaBotClick,
-                    modifier = Modifier.align(if (isOutgoing) Alignment.End else Alignment.Start)
+                    maxWidth = maxWidth
                 )
             }
         }

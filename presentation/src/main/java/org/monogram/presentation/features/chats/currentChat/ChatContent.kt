@@ -239,10 +239,9 @@ fun ChatContent(
         scrollState,
         isComments,
         isForumList,
-        showInitialLoading,
-        state.unreadCount,
-        state.isLatestLoaded
+        showInitialLoading
     ) {
+        var lastReportedBottomState: Boolean? = null
         snapshotFlow {
             BottomVisibilitySnapshot(
                 isAtBottom = scrollState.isAtBottom(
@@ -257,7 +256,10 @@ fun ChatContent(
         }
             .distinctUntilChanged()
             .collectLatest { snapshot ->
-                component.onBottomReached(snapshot.isAtBottom)
+                if (lastReportedBottomState != snapshot.isAtBottom) {
+                    component.onBottomReached(snapshot.isAtBottom)
+                    lastReportedBottomState = snapshot.isAtBottom
+                }
 
                 val shouldShow = !isForumList &&
                         !showInitialLoading &&
@@ -267,7 +269,7 @@ fun ChatContent(
                     showScrollToBottomButton = true
                 } else {
                     delay(120)
-                    val keepVisible = state.unreadCount > 0 || !snapshot.isNearBottom
+                    val keepVisible = snapshot.unreadCount > 0 || !snapshot.isNearBottom
                     if (!keepVisible) {
                         showScrollToBottomButton = false
                     }
@@ -450,6 +452,71 @@ fun ChatContent(
 
     val isCustomBackHandlingEnabled =
         (editingPhotoPath != null || editingVideoPath != null || selectedMessageId != null || state.selectedMessageIds.isNotEmpty() || state.currentTopicId != null || state.showBotCommands || state.restrictUserId != null || state.showPinnedMessagesList || state.fullScreenImages != null || state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null || state.miniAppUrl != null || state.webViewUrl != null || state.instantViewUrl != null || state.youtubeUrl != null)
+    val selectedCount = state.selectedMessageIds.size
+    val canRevokeSelected = remember(state.selectedMessageIds, state.messages) {
+        if (state.selectedMessageIds.isEmpty()) {
+            false
+        } else {
+            state.messages.any { it.id in state.selectedMessageIds && it.canBeDeletedForAllUsers }
+        }
+    }
+    val topBarUiState = remember(
+        state.currentTopicId,
+        state.rootMessage,
+        state.isGroup,
+        state.isChannel,
+        state.isAdmin,
+        state.permissions,
+        state.otherUser,
+        state.currentUser,
+        state.typingAction,
+        state.memberCount,
+        state.onlineCount,
+        state.topics,
+        state.chatTitle,
+        state.chatAvatar,
+        state.chatPersonalAvatar,
+        state.chatEmojiStatus,
+        state.isOnline,
+        state.isVerified,
+        state.isSponsor,
+        state.isWhitelistedInAdBlock,
+        state.isInstalledFromGooglePlay,
+        state.isMuted,
+        state.isSearchActive,
+        state.searchQuery,
+        state.pinnedMessage,
+        state.pinnedMessageCount
+    ) {
+        ChatContentTopBarUiState(
+            currentTopicId = state.currentTopicId,
+            rootMessage = state.rootMessage,
+            isGroup = state.isGroup,
+            isChannel = state.isChannel,
+            isAdmin = state.isAdmin,
+            permissions = state.permissions,
+            otherUser = state.otherUser,
+            currentUser = state.currentUser,
+            typingAction = state.typingAction,
+            memberCount = state.memberCount,
+            onlineCount = state.onlineCount,
+            topics = state.topics,
+            chatTitle = state.chatTitle,
+            chatAvatar = state.chatAvatar,
+            chatPersonalAvatar = state.chatPersonalAvatar,
+            chatEmojiStatus = state.chatEmojiStatus,
+            isOnline = state.isOnline,
+            isVerified = state.isVerified,
+            isSponsor = state.isSponsor,
+            isWhitelistedInAdBlock = state.isWhitelistedInAdBlock,
+            isInstalledFromGooglePlay = state.isInstalledFromGooglePlay,
+            isMuted = state.isMuted,
+            isSearchActive = state.isSearchActive,
+            searchQuery = state.searchQuery,
+            pinnedMessage = state.pinnedMessage,
+            pinnedMessageCount = state.pinnedMessageCount
+        )
+    }
 
     CompositionLocalProvider(LocalLinkHandler provides { component.onLinkClick(it) }) {
         Box(
@@ -458,26 +525,6 @@ fun ChatContent(
                 .background(MaterialTheme.colorScheme.background)
                 .onGloballyPositioned { containerSize = it.size }
         ) {
-            /*if (isDragToBackEnabled && !isTablet && !isCustomBackHandlingEnabled && dragOffsetX.value > 0 && previousChild != null) {
-                Box(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    renderChild(previousChild)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Color.Black.copy(
-                                    alpha = 0.3f * (1f - (dragOffsetX.value / containerSize.width.toFloat()).coerceIn(
-                                        0f,
-                                        1f
-                                    ))
-                                )
-                            )
-                    )
-                }
-            }*/
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -501,7 +548,9 @@ fun ChatContent(
                     containerColor = Color.Transparent,
                     topBar = {
                         ChatContentTopBar(
-                            state = state,
+                            topBarState = topBarUiState,
+                            selectedCount = selectedCount,
+                            canRevokeSelected = canRevokeSelected,
                             component = component,
                             contentAlpha = contentAlpha,
                             onBack = {

@@ -74,7 +74,13 @@ class RoomChatLocalDataSource(
         editDate
     )
 
-    override suspend fun updateMediaPath(fileId: Int, path: String) = messageDao.updateMediaPath(fileId, path)
+    override suspend fun updateMediaPath(chatId: Long, messageId: Long, fileId: Int, path: String) {
+        messageDao.updateMediaPathForMessage(chatId = chatId, messageId = messageId, fileId = fileId, path = path)
+    }
+
+    override suspend fun clearCachedMediaPaths() = messageDao.clearCachedMediaPaths()
+
+    override suspend fun clearCachedChatAvatarPaths() = chatDao.clearAvatarPaths()
 
     override suspend fun updateInteractionInfo(
         chatId: Long,

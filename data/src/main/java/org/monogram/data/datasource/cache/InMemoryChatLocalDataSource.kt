@@ -113,15 +113,37 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
         }
     }
 
-    override suspend fun updateMediaPath(fileId: Int, path: String) {
+    override suspend fun updateMediaPath(chatId: Long, messageId: Long, fileId: Int, path: String) {
+        val flow = messages[chatId] ?: return
+        val current = flow.value[messageId] ?: return
+        if (current.mediaFileId != fileId || fileId == 0) return
+        flow.update {
+            it + (messageId to current.copy(mediaPath = path))
+        }
+    }
+
+    override suspend fun clearCachedMediaPaths() {
+        val mediaTypes = setOf("photo", "video", "video_note", "document", "gif", "voice", "sticker", "audio")
         messages.values.forEach { flow ->
             flow.update { current ->
                 current.mapValues { (_, message) ->
-                    if (message.mediaFileId == fileId) {
-                        message.copy(mediaPath = path)
+                    if (message.contentType in mediaTypes && (message.mediaPath != null || message.mediaThumbnailPath != null)) {
+                        message.copy(mediaPath = null, mediaThumbnailPath = null)
                     } else {
                         message
                     }
+                }
+            }
+        }
+    }
+
+    override suspend fun clearCachedChatAvatarPaths() {
+        chats.update { current ->
+            current.mapValues { (_, chat) ->
+                if (chat.avatarPath != null) {
+                    chat.copy(avatarPath = null)
+                } else {
+                    chat
                 }
             }
         }

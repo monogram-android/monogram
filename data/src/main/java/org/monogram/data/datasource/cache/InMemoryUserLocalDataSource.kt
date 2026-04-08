@@ -38,4 +38,14 @@ class InMemoryUserLocalDataSource : UserLocalDataSource {
     override suspend fun deleteExpired(timestamp: Long) {
         fullInfoEntities.values.removeIf { it.createdAt < timestamp }
     }
+
+    override suspend fun clearCachedAvatarPaths() {
+        users.values.forEach { user ->
+            user.profilePhoto = null
+        }
+    }
+
+    override suspend fun clearDatabase() {
+        clearAll()
+    }
 }

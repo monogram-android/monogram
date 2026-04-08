@@ -31,6 +31,7 @@ fun TdApi.PremiumFeature.toDomain() : PremiumFeatureType = when (this) {
     is TdApi.PremiumFeatureAdvancedChatManagement -> PremiumFeatureType.ADVANCED_CHAT_MANAGEMENT
     is TdApi.PremiumFeatureDisabledAds -> PremiumFeatureType.NO_ADS
     is TdApi.PremiumFeatureUniqueReactions -> PremiumFeatureType.INFINITE_REACTIONS
+    is TdApi.PremiumFeatureProfileBadge -> PremiumFeatureType.BADGE
     is TdApi.PremiumFeatureAppIcons -> PremiumFeatureType.APP_ICONS
     is TdApi.PremiumFeatureEmojiStatus -> PremiumFeatureType.PROFILE_BADGE
     else -> PremiumFeatureType.UNKNOWN

@@ -19,6 +19,7 @@ data class GalleryMediaItem(
     val uri: Uri,
     val dateAdded: Long,
     val isVideo: Boolean,
+    val durationMs: Long?,
     val bucketName: String,
     val relativePath: String,
     val isCamera: Boolean,

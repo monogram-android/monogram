@@ -33,7 +33,9 @@ interface ChatLocalDataSource {
         editDate: Int
     )
 
-    suspend fun updateMediaPath(fileId: Int, path: String)
+    suspend fun updateMediaPath(chatId: Long, messageId: Long, fileId: Int, path: String)
+    suspend fun clearCachedMediaPaths()
+    suspend fun clearCachedChatAvatarPaths()
 
     suspend fun updateInteractionInfo(
         chatId: Long,

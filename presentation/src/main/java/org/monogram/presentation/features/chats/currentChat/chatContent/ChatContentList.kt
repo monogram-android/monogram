@@ -494,6 +494,7 @@ private fun MessageBubbleSwitcher(
     isAnyViewerOpen: Boolean = false
 ) {
     val isChannel = state.isChannel && state.currentTopicId == null
+    val isTopicClosed = state.topics.find { it.id.toLong() == state.currentTopicId }?.isClosed?: false
 
     when (item) {
         is GroupedMessageItem.Single -> {
@@ -591,6 +592,8 @@ private fun MessageBubbleSwitcher(
                     onCommentsClick = { component.onCommentsClick(it) },
                     toProfile = toProfile,
                     onViaBotClick = onViaBotClick,
+                    canReply = state.canWrite && !isSelectionMode,
+                    onReplySwipe = { component.onReplyMessage(it) },
                     onYouTubeClick = { component.onOpenYouTube(it) },
                     onInstantViewClick = { component.onOpenInstantView(it) },
                     downloadUtils = downloadUtils,
@@ -694,7 +697,7 @@ private fun MessageBubbleSwitcher(
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     toProfile = toProfile,
                     onViaBotClick = onViaBotClick,
-                    canReply = state.canWrite && !isSelectionMode,
+                    canReply = state.canWrite && !isSelectionMode && (!isTopicClosed || state.isAdmin),
                     onReplySwipe = { component.onReplyMessage(it) },
                     swipeEnabled = !isSelectionMode,
                     downloadUtils = downloadUtils,
@@ -762,7 +765,7 @@ private fun MessageBubbleSwitcher(
                 onCommentsClick = { component.onCommentsClick(it) },
                 toProfile = toProfile,
                 onViaBotClick = onViaBotClick,
-                canReply = state.canWrite && !isSelectionMode,
+                canReply = state.canWrite && !isSelectionMode && (!isTopicClosed || state.isAdmin),
                 onReplySwipe = { component.onReplyMessage(it) },
                 swipeEnabled = !isSelectionMode,
                 downloadUtils = downloadUtils,
@@ -874,7 +877,8 @@ private fun RootMessageSection(
                 onRetractVote = { component.onRetractVote(it) },
                 onShowVoters = { id, opt -> component.onShowVoters(id, opt) },
                 onClosePoll = { component.onClosePoll(it) },
-                toProfile = toProfile, swipeEnabled = false,
+                toProfile = toProfile,
+                swipeEnabled = false,
                 onViaBotClick = onViaBotClick,
                 onInstantViewClick = { component.onOpenInstantView(it) },
                 onYouTubeClick = { component.onOpenYouTube(it) },

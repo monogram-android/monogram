@@ -1,0 +1,142 @@
+package org.monogram.presentation.features.chats.currentChat.components
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+
+const val REPLY_TRIGGER_FRACTION = 0.35f
+const val MAX_SWIPE_FRACTION = 0.7f
+const val ICON_OFFSET_FRACTION = 0.1f
+
+@Composable
+fun FastReplyIndicator(
+    modifier: Modifier = Modifier,
+    dragOffsetX: Animatable<Float, AnimationVector1D>,
+    isOutgoing: Boolean = false,
+    inverseOffset: Boolean = false,
+    maxWidth: Dp,
+) {
+    val triggerDistance = maxWidth.value * REPLY_TRIGGER_FRACTION
+    val dragged = (-dragOffsetX.value).coerceAtLeast(0f)
+    val progress = ((dragged - 48.dp.value) / (triggerDistance - 48.dp.value))
+        .coerceIn(0f, 1f)
+
+    val iconAlpha by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 150)
+    )
+    val iconScale by animateFloatAsState(
+        targetValue = lerp(0.5f, 1f, progress),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
+    )
+    val iconOffset = maxWidth * ICON_OFFSET_FRACTION
+
+    if (dragged > 48.dp.value) {
+        Box(
+            modifier = modifier
+                .offset(x = if (isOutgoing) iconOffset else maxWidth)
+                .size(30.dp)
+                .graphicsLayer {
+                    translationX = when {
+                        isOutgoing -> (-dragOffsetX.value - iconOffset.value) * 0.5f
+                        inverseOffset -> -iconOffset.value
+                        else -> iconOffset.value
+                    }
+                    scaleX = iconScale
+                    scaleY = iconScale
+                    alpha = iconAlpha
+                }
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Reply,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+fun Modifier.fastReplyPointer(
+    canReply: Boolean,
+    dragOffsetX: Animatable<Float, AnimationVector1D>,
+    scope: CoroutineScope,
+    onReplySwipe: () -> Unit,
+    maxWidth: Float
+): Modifier = pointerInput(canReply) {
+    if (!canReply) return@pointerInput
+
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        var isDragging = false
+        var totalDragX = 0f
+
+        while (down.pressed) {
+            val event = awaitPointerEvent(pass = PointerEventPass.Main)
+            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+            if (change.changedToUp()) break
+
+            val deltaX = change.positionChange().x
+            totalDragX += deltaX
+
+            if (!isDragging) {
+                if (totalDragX < -48.dp.toPx()) {
+                    isDragging = true
+                } else if (totalDragX > 48.dp.toPx()) {
+                    break
+                }
+            }
+
+            if (isDragging) {
+                change.consume()
+                val newOffset = dragOffsetX.value + deltaX
+                scope.launch {
+                    dragOffsetX.snapTo(newOffset.coerceIn(-(maxWidth * MAX_SWIPE_FRACTION), 0f))
+                }
+            }
+        }
+
+        if (isDragging) {
+            if (-dragOffsetX.value >= maxWidth * REPLY_TRIGGER_FRACTION) {
+                onReplySwipe()
+            }
+            scope.launch {
+                dragOffsetX.animateTo(0f, spring())
+            }
+        }
+    }
+}

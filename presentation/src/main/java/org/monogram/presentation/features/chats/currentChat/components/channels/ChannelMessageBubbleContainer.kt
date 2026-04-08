@@ -18,6 +18,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
@@ -27,7 +28,9 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.chatContent.shouldShowDate
+import org.monogram.presentation.features.chats.currentChat.components.FastReplyIndicator
 import org.monogram.presentation.features.chats.currentChat.components.chats.*
+import org.monogram.presentation.features.chats.currentChat.components.fastReplyPointer
 
 @Composable
 fun ChannelMessageBubbleContainer(
@@ -70,8 +73,10 @@ fun ChannelMessageBubbleContainer(
     showComments: Boolean = true,
     toProfile: (Long) -> Unit = {},
     onViaBotClick: (String) -> Unit = {},
+    canReply: Boolean = true,
+    onReplySwipe: (MessageModel) -> Unit = {},
     downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false
+    isAnyViewerOpen: Boolean = false,
 ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -104,12 +109,22 @@ fun ChannelMessageBubbleContainer(
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
     var bubbleSize by remember { mutableStateOf(IntSize.Zero) }
 
+    val dragOffsetX = remember { androidx.compose.animation.core.Animatable(0f) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(animatedColor.value, RoundedCornerShape(12.dp))
             .onGloballyPositioned { outerColumnPosition = it.positionInWindow() }
             .padding(top = topSpacing)
+            .offset { IntOffset(dragOffsetX.value.toInt(), 0) }
+            .fastReplyPointer(
+                canReply = canReply,
+                dragOffsetX = dragOffsetX,
+                scope = rememberCoroutineScope(),
+                onReplySwipe = { onReplySwipe(msg) },
+                maxWidth = maxWidth.value
+            )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { offset ->
@@ -134,268 +149,279 @@ fun ChannelMessageBubbleContainer(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.Bottom
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .widthIn(max = maxWidth)
-                    .fillMaxWidth()
-                    .onGloballyPositioned { coordinates ->
-                        bubblePosition = coordinates.positionInWindow()
-                        bubbleSize = coordinates.size
-                        if (shouldReportPosition) {
-                            onPositionChange(msg.id, bubblePosition, bubbleSize)
-                        }
-                    }
+            Box(
+                modifier = Modifier.wrapContentSize()
             ) {
-                when (val content = msg.content) {
-                    is MessageContent.Text -> {
-                        ChannelTextMessageBubble(
-                            content = content,
-                            msg = msg,
-                            isSameSenderAbove = isSameSenderAbove,
-                            isSameSenderBelow = isSameSenderBelow,
-                            fontSize = fontSize,
-                            letterSpacing = letterSpacing,
-                            bubbleRadius = bubbleRadius,
-                            showLinkPreviews = showLinkPreviews,
-                            onReplyClick = onGoToReply,
-                            onReactionClick = { onReactionClick(msg.id, it) },
-                            onInstantViewClick = onInstantViewClick,
-                            onYouTubeClick = onYouTubeClick,
-                            onClick = { offset ->
-                                onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
-                            },
-                            onLongClick = { offset ->
-                                onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
-                            },
-                            onCommentsClick = onCommentsClick,
-                            showComments = showComments,
-                            toProfile = toProfile,
-                            modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .widthIn(max = maxWidth)
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            bubblePosition = coordinates.positionInWindow()
+                            bubbleSize = coordinates.size
+                            if (shouldReportPosition) {
+                                onPositionChange(msg.id, bubblePosition, bubbleSize)
+                            }
+                        }
+                ) {
+                    when (val content = msg.content) {
+                        is MessageContent.Text -> {
+                            ChannelTextMessageBubble(
+                                content = content,
+                                msg = msg,
+                                isSameSenderAbove = isSameSenderAbove,
+                                isSameSenderBelow = isSameSenderBelow,
+                                fontSize = fontSize,
+                                letterSpacing = letterSpacing,
+                                bubbleRadius = bubbleRadius,
+                                showLinkPreviews = showLinkPreviews,
+                                onReplyClick = onGoToReply,
+                                onReactionClick = { onReactionClick(msg.id, it) },
+                                onInstantViewClick = onInstantViewClick,
+                                onYouTubeClick = onYouTubeClick,
+                                onClick = { offset ->
+                                    onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
+                                },
+                                onLongClick = { offset ->
+                                    onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
+                                },
+                                onCommentsClick = onCommentsClick,
+                                showComments = showComments,
+                                toProfile = toProfile,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        is MessageContent.Photo -> {
+                            ChannelPhotoMessageBubble(
+                                content = content,
+                                msg = msg,
+                                isSameSenderAbove = isSameSenderAbove,
+                                isSameSenderBelow = isSameSenderBelow,
+                                fontSize = fontSize,
+                                letterSpacing = letterSpacing,
+                                bubbleRadius = bubbleRadius,
+                                autoDownloadMobile = autoDownloadMobile,
+                                autoDownloadWifi = autoDownloadWifi,
+                                autoDownloadRoaming = autoDownloadRoaming,
+                                onPhotoClick = onPhotoClick,
+                                onDownloadPhoto = onDownloadPhoto,
+                                onCancelDownload = onCancelDownload,
+                                onLongClick = { offset ->
+                                    onReplyClick(
+                                        bubblePosition,
+                                        bubbleSize,
+                                        bubblePosition + offset
+                                    )
+                                },
+                                onReplyClick = onGoToReply,
+                                onReactionClick = { onReactionClick(msg.id, it) },
+                                onCommentsClick = onCommentsClick,
+                                showComments = showComments,
+                                toProfile = toProfile,
+                                modifier = Modifier.fillMaxWidth(),
+                                downloadUtils = downloadUtils
+                            )
+                        }
+
+                        is MessageContent.Video -> {
+                            ChannelVideoMessageBubble(
+                                content = content,
+                                msg = msg,
+                                isSameSenderAbove = isSameSenderAbove,
+                                isSameSenderBelow = isSameSenderBelow,
+                                fontSize = fontSize,
+                                letterSpacing = letterSpacing,
+                                bubbleRadius = bubbleRadius,
+                                autoDownloadMobile = autoDownloadMobile,
+                                autoDownloadWifi = autoDownloadWifi,
+                                autoDownloadRoaming = autoDownloadRoaming,
+                                autoplayVideos = autoplayVideos,
+                                onVideoClick = onVideoClick,
+                                onCancelDownload = onCancelDownload,
+                                onLongClick = { offset ->
+                                    onReplyClick(
+                                        bubblePosition,
+                                        bubbleSize,
+                                        bubblePosition + offset
+                                    )
+                                },
+                                onReplyClick = onGoToReply,
+                                onReactionClick = { onReactionClick(msg.id, it) },
+                                onCommentsClick = onCommentsClick,
+                                showComments = showComments,
+                                toProfile = toProfile,
+                                modifier = Modifier.fillMaxWidth(),
+                                downloadUtils = downloadUtils,
+                                isAnyViewerOpen = isAnyViewerOpen
+                            )
+                        }
+
+                        is MessageContent.Document -> {
+                            DocumentMessageBubble(
+                                content = content,
+                                msg = msg,
+                                isOutgoing = false,
+                                isSameSenderAbove = isSameSenderAbove,
+                                isSameSenderBelow = isSameSenderBelow,
+                                fontSize = fontSize,
+                                letterSpacing = letterSpacing,
+                                autoDownloadFiles = autoDownloadFiles,
+                                autoDownloadMobile = autoDownloadMobile,
+                                autoDownloadWifi = autoDownloadWifi,
+                                autoDownloadRoaming = autoDownloadRoaming,
+                                onDocumentClick = onDocumentClick,
+                                onCancelDownload = onCancelDownload,
+                                onLongClick = { offset ->
+                                    onReplyClick(
+                                        bubblePosition,
+                                        bubbleSize,
+                                        bubblePosition + offset
+                                    )
+                                },
+                                toProfile = toProfile,
+                                modifier = Modifier.fillMaxWidth(),
+                                onReplyClick = onGoToReply,
+                                onReactionClick = { onReactionClick(msg.id, it) },
+                                downloadUtils = downloadUtils
+                            )
+                        }
+
+                        is MessageContent.Audio -> {
+                            AudioMessageBubble(
+                                content = content,
+                                msg = msg,
+                                isOutgoing = false,
+                                isSameSenderAbove = isSameSenderAbove,
+                                isSameSenderBelow = isSameSenderBelow,
+                                fontSize = fontSize,
+                                letterSpacing = letterSpacing,
+                                autoDownloadFiles = autoDownloadFiles,
+                                autoDownloadMobile = autoDownloadMobile,
+                                autoDownloadWifi = autoDownloadWifi,
+                                autoDownloadRoaming = autoDownloadRoaming,
+                                onAudioClick = onAudioClick,
+                                onCancelDownload = onCancelDownload,
+                                onLongClick = { offset ->
+                                    onReplyClick(
+                                        bubblePosition,
+                                        bubbleSize,
+                                        bubblePosition + offset
+                                    )
+                                },
+                                toProfile = toProfile,
+                                modifier = Modifier.fillMaxWidth(),
+                                onReplyClick = onGoToReply,
+                                onReactionClick = { onReactionClick(msg.id, it) },
+                                downloadUtils = downloadUtils
+                            )
+                        }
+
+                        is MessageContent.Gif -> {
+                            ChannelGifMessageBubble(
+                                content = content,
+                                msg = msg,
+                                isSameSenderAbove = isSameSenderAbove,
+                                isSameSenderBelow = isSameSenderBelow,
+                                fontSize = fontSize,
+                                letterSpacing = letterSpacing,
+                                bubbleRadius = bubbleRadius,
+                                autoDownloadMobile = autoDownloadMobile,
+                                autoDownloadWifi = autoDownloadWifi,
+                                autoDownloadRoaming = autoDownloadRoaming,
+                                autoplayGifs = autoplayGifs,
+                                onGifClick = onVideoClick,
+                                onCancelDownload = onCancelDownload,
+                                onLongClick = { offset ->
+                                    onReplyClick(
+                                        bubblePosition,
+                                        bubbleSize,
+                                        bubblePosition + offset
+                                    )
+                                },
+                                onReplyClick = onGoToReply,
+                                onReactionClick = { onReactionClick(msg.id, it) },
+                                onCommentsClick = onCommentsClick,
+                                showComments = showComments,
+                                toProfile = toProfile,
+                                modifier = Modifier.fillMaxWidth(),
+                                downloadUtils = downloadUtils,
+                                isAnyViewerOpen = isAnyViewerOpen
+                            )
+                        }
+
+                        is MessageContent.Sticker -> {
+                            StickerMessageBubble(
+                                content = content,
+                                msg = msg,
+                                isOutgoing = false,
+                                stickerSize = stickerSize,
+                                onReplyClick = onGoToReply,
+                                onReactionClick = { onReactionClick(msg.id, it) },
+                                onStickerClick = { onStickerClick(content.setId) },
+                                onLongClick = {
+                                    onReplyClick(
+                                        bubblePosition,
+                                        bubbleSize,
+                                        bubblePosition + (bubbleSize.toSize() / 2f).toOffset()
+                                    )
+                                },
+                                toProfile = toProfile
+                            )
+                        }
+
+                        is MessageContent.Poll -> {
+                            ChannelPollMessageBubble(
+                                content = content,
+                                msg = msg,
+                                isSameSenderAbove = isSameSenderAbove,
+                                isSameSenderBelow = isSameSenderBelow,
+                                fontSize = fontSize,
+                                letterSpacing = letterSpacing,
+                                bubbleRadius = bubbleRadius,
+                                onOptionClick = { onPollOptionClick(msg.id, it) },
+                                onRetractVote = { onRetractVote(msg.id) },
+                                onShowVoters = { onShowVoters(msg.id, it) },
+                                onClosePoll = { onClosePoll(msg.id) },
+                                onReplyClick = onGoToReply,
+                                onReactionClick = { onReactionClick(msg.id, it) },
+                                onLongClick = { offset ->
+                                    onReplyClick(
+                                        bubblePosition,
+                                        bubbleSize,
+                                        bubblePosition + offset
+                                    )
+                                },
+                                onCommentsClick = onCommentsClick,
+                                showComments = showComments,
+                                toProfile = toProfile
+                            )
+                        }
+
+                        else -> {}
+                    }
+
+                    msg.replyMarkup?.let { markup ->
+                        ReplyMarkupView(
+                            replyMarkup = markup,
+                            onButtonClick = { onReplyMarkupButtonClick(msg.id, it) }
                         )
                     }
 
-                    is MessageContent.Photo -> {
-                        ChannelPhotoMessageBubble(
-                            content = content,
-                            msg = msg,
-                            isSameSenderAbove = isSameSenderAbove,
-                            isSameSenderBelow = isSameSenderBelow,
-                            fontSize = fontSize,
-                            letterSpacing = letterSpacing,
-                            bubbleRadius = bubbleRadius,
-                            autoDownloadMobile = autoDownloadMobile,
-                            autoDownloadWifi = autoDownloadWifi,
-                            autoDownloadRoaming = autoDownloadRoaming,
-                            onPhotoClick = onPhotoClick,
-                            onDownloadPhoto = onDownloadPhoto,
-                            onCancelDownload = onCancelDownload,
-                            onLongClick = { offset ->
-                                onReplyClick(
-                                    bubblePosition,
-                                    bubbleSize,
-                                    bubblePosition + offset
-                                )
-                            },
-                            onReplyClick = onGoToReply,
-                            onReactionClick = { onReactionClick(msg.id, it) },
-                            onCommentsClick = onCommentsClick,
-                            showComments = showComments,
-                            toProfile = toProfile,
-                            modifier = Modifier.fillMaxWidth(),
-                            downloadUtils = downloadUtils
-                        )
-                    }
-
-                    is MessageContent.Video -> {
-                        ChannelVideoMessageBubble(
-                            content = content,
-                            msg = msg,
-                            isSameSenderAbove = isSameSenderAbove,
-                            isSameSenderBelow = isSameSenderBelow,
-                            fontSize = fontSize,
-                            letterSpacing = letterSpacing,
-                            bubbleRadius = bubbleRadius,
-                            autoDownloadMobile = autoDownloadMobile,
-                            autoDownloadWifi = autoDownloadWifi,
-                            autoDownloadRoaming = autoDownloadRoaming,
-                            autoplayVideos = autoplayVideos,
-                            onVideoClick = onVideoClick,
-                            onCancelDownload = onCancelDownload,
-                            onLongClick = { offset ->
-                                onReplyClick(
-                                    bubblePosition,
-                                    bubbleSize,
-                                    bubblePosition + offset
-                                )
-                            },
-                            onReplyClick = onGoToReply,
-                            onReactionClick = { onReactionClick(msg.id, it) },
-                            onCommentsClick = onCommentsClick,
-                            showComments = showComments,
-                            toProfile = toProfile,
-                            modifier = Modifier.fillMaxWidth(),
-                            downloadUtils = downloadUtils,
-                            isAnyViewerOpen = isAnyViewerOpen
-                        )
-                    }
-
-                    is MessageContent.Document -> {
-                        DocumentMessageBubble(
-                            content = content,
-                            msg = msg,
-                            isOutgoing = false,
-                            isSameSenderAbove = isSameSenderAbove,
-                            isSameSenderBelow = isSameSenderBelow,
-                            fontSize = fontSize,
-                            letterSpacing = letterSpacing,
-                            autoDownloadFiles = autoDownloadFiles,
-                            autoDownloadMobile = autoDownloadMobile,
-                            autoDownloadWifi = autoDownloadWifi,
-                            autoDownloadRoaming = autoDownloadRoaming,
-                            onDocumentClick = onDocumentClick,
-                            onCancelDownload = onCancelDownload,
-                            onLongClick = { offset ->
-                                onReplyClick(
-                                    bubblePosition,
-                                    bubbleSize,
-                                    bubblePosition + offset
-                                )
-                            },
-                            toProfile = toProfile,
-                            modifier = Modifier.fillMaxWidth(),
-                            onReplyClick = onGoToReply,
-                            onReactionClick = { onReactionClick(msg.id, it) },
-                            downloadUtils = downloadUtils
-                        )
-                    }
-
-                    is MessageContent.Audio -> {
-                        AudioMessageBubble(
-                            content = content,
-                            msg = msg,
-                            isOutgoing = false,
-                            isSameSenderAbove = isSameSenderAbove,
-                            isSameSenderBelow = isSameSenderBelow,
-                            fontSize = fontSize,
-                            letterSpacing = letterSpacing,
-                            autoDownloadFiles = autoDownloadFiles,
-                            autoDownloadMobile = autoDownloadMobile,
-                            autoDownloadWifi = autoDownloadWifi,
-                            autoDownloadRoaming = autoDownloadRoaming,
-                            onAudioClick = onAudioClick,
-                            onCancelDownload = onCancelDownload,
-                            onLongClick = { offset ->
-                                onReplyClick(
-                                    bubblePosition,
-                                    bubbleSize,
-                                    bubblePosition + offset
-                                )
-                            },
-                            toProfile = toProfile,
-                            modifier = Modifier.fillMaxWidth(),
-                            onReplyClick = onGoToReply,
-                            onReactionClick = { onReactionClick(msg.id, it) },
-                            downloadUtils = downloadUtils
-                        )
-                    }
-
-                    is MessageContent.Gif -> {
-                        ChannelGifMessageBubble(
-                            content = content,
-                            msg = msg,
-                            isSameSenderAbove = isSameSenderAbove,
-                            isSameSenderBelow = isSameSenderBelow,
-                            fontSize = fontSize,
-                            letterSpacing = letterSpacing,
-                            bubbleRadius = bubbleRadius,
-                            autoDownloadMobile = autoDownloadMobile,
-                            autoDownloadWifi = autoDownloadWifi,
-                            autoDownloadRoaming = autoDownloadRoaming,
-                            autoplayGifs = autoplayGifs,
-                            onGifClick = onVideoClick,
-                            onCancelDownload = onCancelDownload,
-                            onLongClick = { offset ->
-                                onReplyClick(
-                                    bubblePosition,
-                                    bubbleSize,
-                                    bubblePosition + offset
-                                )
-                            },
-                            onReplyClick = onGoToReply,
-                            onReactionClick = { onReactionClick(msg.id, it) },
-                            onCommentsClick = onCommentsClick,
-                            showComments = showComments,
-                            toProfile = toProfile,
-                            modifier = Modifier.fillMaxWidth(),
-                            downloadUtils = downloadUtils,
-                            isAnyViewerOpen = isAnyViewerOpen
-                        )
-                    }
-
-                    is MessageContent.Sticker -> {
-                        StickerMessageBubble(
-                            content = content,
-                            msg = msg,
-                            isOutgoing = false,
-                            stickerSize = stickerSize,
-                            onReplyClick = onGoToReply,
-                            onReactionClick = { onReactionClick(msg.id, it) },
-                            onStickerClick = { onStickerClick(content.setId) },
-                            onLongClick = {
-                                onReplyClick(
-                                    bubblePosition,
-                                    bubbleSize,
-                                    bubblePosition + (bubbleSize.toSize() / 2f).toOffset()
-                                )
-                            },
-                            toProfile = toProfile
-                        )
-                    }
-
-                    is MessageContent.Poll -> {
-                        ChannelPollMessageBubble(
-                            content = content,
-                            msg = msg,
-                            isSameSenderAbove = isSameSenderAbove,
-                            isSameSenderBelow = isSameSenderBelow,
-                            fontSize = fontSize,
-                            letterSpacing = letterSpacing,
-                            bubbleRadius = bubbleRadius,
-                            onOptionClick = { onPollOptionClick(msg.id, it) },
-                            onRetractVote = { onRetractVote(msg.id) },
-                            onShowVoters = { onShowVoters(msg.id, it) },
-                            onClosePoll = { onClosePoll(msg.id) },
-                            onReplyClick = onGoToReply,
-                            onReactionClick = { onReactionClick(msg.id, it) },
-                            onLongClick = { offset ->
-                                onReplyClick(
-                                    bubblePosition,
-                                    bubbleSize,
-                                    bubblePosition + offset
-                                )
-                            },
-                            onCommentsClick = onCommentsClick,
-                            showComments = showComments,
-                            toProfile = toProfile
-                        )
-                    }
-
-                    else -> {}
-                }
-
-                msg.replyMarkup?.let { markup ->
-                    ReplyMarkupView(
-                        replyMarkup = markup,
-                        onButtonClick = { onReplyMarkupButtonClick(msg.id, it) }
+                    MessageViaBotAttribution(
+                        msg = msg,
+                        isOutgoing = msg.isOutgoing,
+                        onViaBotClick = onViaBotClick,
+                        modifier = Modifier.align(Alignment.Start)
                     )
                 }
 
-                MessageViaBotAttribution(
-                    msg = msg,
-                    isOutgoing = msg.isOutgoing,
-                    onViaBotClick = onViaBotClick,
-                    modifier = Modifier.align(Alignment.Start)
+                FastReplyIndicator(
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    dragOffsetX = dragOffsetX,
+                    inverseOffset = isLandscape,
+                    maxWidth = maxWidth,
                 )
             }
         }

@@ -3,6 +3,7 @@ import com.android.build.api.variant.FilterConfiguration
 import com.android.build.api.variant.impl.VariantOutputImpl
 import com.google.android.gms.oss.licenses.plugin.DependencyTask
 import com.google.gms.googleservices.GoogleServicesPlugin
+import org.gradle.api.tasks.Sync
 
 plugins {
     alias(libs.plugins.android.application)
@@ -86,56 +87,26 @@ androidComponents {
         }
 
         val apkDirProvider = variant.artifacts.get(SingleArtifact.APK)
-        val artifactsLoader = variant.artifacts.getBuiltArtifactsLoader()
 
         val capitalizedVariantName = variant.name.replaceFirstChar {
             if (it.isLowerCase()) it.titlecase() else it.toString()
         }
 
-        val renameTask = tasks.register("rename${capitalizedVariantName}Apk") {
-            inputs.dir(apkDirProvider)
+        val copyTask = tasks.register<Sync>("copy${capitalizedVariantName}Apk") {
+            from(apkDirProvider)
+            include("*.apk")
+            into(layout.projectDirectory.dir("releases"))
 
-            doLast {
-                val sourceDir = apkDirProvider.get().asFile
-
-                val builtArtifacts = artifactsLoader.load(apkDirProvider.get()) ?: return@doLast
-
-                val targetDir = project.layout.projectDirectory.dir("releases").asFile.apply {
-                    mkdirs()
-                }
-
-                targetDir.listFiles()
+            doFirst {
+                destinationDir.mkdirs()
+                destinationDir.listFiles()
                     ?.filter { it.isFile && it.extension == "apk" && it.name.startsWith("monogram-") }
-                    ?.forEach(File::delete)
-
-                builtArtifacts.elements.forEach { artifact ->
-                    val abi = artifact.filters.find {
-                        it.filterType == FilterConfiguration.FilterType.ABI
-                    }?.identifier ?: "universal"
-
-                    val versionName = artifact.versionName
-                    val buildType = variant.buildType
-
-                    val originalApk = File(artifact.outputFile)
-
-                    val targetFile = File(
-                        targetDir,
-                        "monogram-$abi-$versionName-${buildType}.apk"
-                    )
-
-                    originalApk.copyTo(targetFile, overwrite = true)
-                }
-
-                if (sourceDir == targetDir) {
-                    builtArtifacts.elements
-                        .map { File(it.outputFile) }
-                        .forEach(File::delete)
-                }
+                    ?.forEach { it.delete() }
             }
         }
 
         project.tasks.matching { it.name == "assemble${capitalizedVariantName}" }.configureEach {
-            finalizedBy(renameTask)
+            finalizedBy(copyTask)
         }
     }
 }
@@ -168,14 +139,20 @@ dependencies {
 
 tasks.withType(DependencyTask::class.java).configureEach {
     if (name == "debugOssDependencyTask") {
-        val releaseTaskProvider = project.tasks.named<DependencyTask>("releaseOssDependencyTask")
+        val releaseJsonProvider =
+            layout.buildDirectory.file("generated/third_party_licenses/release/dependencies.json")
+        val debugJsonProvider =
+            layout.buildDirectory.file("generated/third_party_licenses/debug/dependencies.json")
 
-        dependsOn(releaseTaskProvider)
+        dependsOn("releaseOssDependencyTask")
 
         doLast {
-            val releaseJson = releaseTaskProvider.get().dependenciesJson.get().asFile
-            val debugJson = dependenciesJson.get().asFile
-            if (releaseJson.exists()) releaseJson.copyTo(debugJson, overwrite = true)
+            val releaseJson = releaseJsonProvider.get().asFile
+            val debugJson = debugJsonProvider.get().asFile
+            if (releaseJson.exists()) {
+                debugJson.parentFile?.mkdirs()
+                releaseJson.copyTo(debugJson, overwrite = true)
+            }
         }
     }
 }

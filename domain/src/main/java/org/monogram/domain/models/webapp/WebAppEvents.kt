@@ -8,7 +8,6 @@ sealed class WebAppEvent {
     data object RequestTheme : WebAppEvent()
     data class SetBackgroundColor(val color: String) : WebAppEvent()
     data class SetHeaderColor(val colorKey: String?, val color: String?) : WebAppEvent()
-    data class SetHeaderText(val text: String) : WebAppEvent()
     data class SetBottomBarColor(val color: String) : WebAppEvent()
     data class SetupMainButton(
         val isVisible: Boolean,

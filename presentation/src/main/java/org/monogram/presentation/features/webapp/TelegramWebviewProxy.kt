@@ -85,7 +85,14 @@ class TelegramWebviewProxy(
             document.documentElement.style.setProperty('--tg-content-safe-area-inset-left', '${contentSafeArea.optInt("left")}px');
             document.documentElement.style.setProperty('--tg-content-safe-area-inset-right', '${contentSafeArea.optInt("right")}px');
         """.trimIndent()
-        webView.evaluateJavascript(script, null)
+
+        webView.post {
+            try {
+                webView.evaluateJavascript(script, null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error evaluating JS for injecting safe area CSS", e)
+            }
+        }
     }
 
     @JavascriptInterface
@@ -118,7 +125,6 @@ class TelegramWebviewProxy(
                 data.optString("color_key").takeIf { it.isNotEmpty() },
                 data.optString("color").takeIf { it.isNotEmpty() })
 
-            "web_app_set_header_text" -> WebAppEvent.SetHeaderText(data.optString("text"))
             "web_app_set_bottom_bar_color" -> WebAppEvent.SetBottomBarColor(data.optString("color"))
             "web_app_setup_main_button" -> WebAppEvent.SetupMainButton(
                 data.optBoolean("is_visible"), data.optBoolean("is_active"),
@@ -305,7 +311,6 @@ class TelegramWebviewProxy(
 
             is WebAppEvent.SetBackgroundColor -> host.onSetBackgroundColor(parseColor(event.color))
             is WebAppEvent.SetHeaderColor -> host.onSetHeaderColor(event.colorKey, event.color?.let { parseColor(it) })
-            is WebAppEvent.SetHeaderText -> host.onSetHeaderText(event.text)
             is WebAppEvent.SetBottomBarColor -> host.onSetBottomBarColor(parseColor(event.color))
             is WebAppEvent.SetupMainButton -> host.onSetupMainButton(
                 event.isVisible,
@@ -350,11 +355,18 @@ class TelegramWebviewProxy(
                 "accelerometer"
             )
 
-            is WebAppEvent.StopAccelerometer -> stopSensor(Sensor.TYPE_ACCELEROMETER, "accelerometer")
+            is WebAppEvent.StopAccelerometer -> stopSensors("accelerometer", Sensor.TYPE_ACCELEROMETER)
             is WebAppEvent.StartGyroscope -> startSensor(Sensor.TYPE_GYROSCOPE, event.refreshRate, "gyroscope")
-            is WebAppEvent.StopGyroscope -> stopSensor(Sensor.TYPE_GYROSCOPE, "gyroscope")
+            is WebAppEvent.StopGyroscope -> stopSensors("gyroscope", Sensor.TYPE_GYROSCOPE)
             is WebAppEvent.StartDeviceOrientation -> startDeviceOrientation(event.refreshRate, event.needAbsolute)
-            is WebAppEvent.StopDeviceOrientation -> stopSensor(Sensor.TYPE_ROTATION_VECTOR, "device_orientation")
+            is WebAppEvent.StopDeviceOrientation -> stopSensors(
+                "device_orientation",
+                Sensor.TYPE_ACCELEROMETER,
+                Sensor.TYPE_MAGNETIC_FIELD,
+                Sensor.TYPE_GAME_ROTATION_VECTOR,
+                Sensor.TYPE_ROTATION_VECTOR
+            )
+
             is WebAppEvent.ToggleOrientationLock -> host.onToggleOrientationLock(event.locked)
             is WebAppEvent.RequestFullscreen -> {
                 host.onRequestFullscreen()
@@ -409,10 +421,23 @@ class TelegramWebviewProxy(
 
     fun dispatchToWebView(eventType: String, eventData: JSONObject?) {
         Log.d(TAG, "dispatchToWebView: $eventType | Data: $eventData")
-        val data = eventData?.toString() ?: "{}"
-        val script =
-            "if (window.Telegram && window.Telegram.WebView && window.Telegram.WebView.receiveEvent) { window.Telegram.WebView.receiveEvent('$eventType', $data); }"
-        webView.evaluateJavascript(script, null)
+
+        val data = eventData?.toString()
+        val quotedEvent = JSONObject.quote(eventType)
+
+        val script = """
+        if (window.Telegram?.WebView?.receiveEvent) {
+            window.Telegram.WebView.receiveEvent($quotedEvent, $data);
+        }
+    """.trimIndent()
+
+        webView.post {
+            try {
+                webView.evaluateJavascript(script, null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error evaluating JS for event $eventType", e)
+            }
+        }
     }
 
     private fun updateViewport() {
@@ -429,7 +454,13 @@ class TelegramWebviewProxy(
             document.documentElement.style.setProperty('--tg-viewport-height', '${height}px');
             document.documentElement.style.setProperty('--tg-viewport-stable-height', '${height}px');
         """.trimIndent()
-        webView.evaluateJavascript(script, null)
+        webView.post {
+            try {
+                webView.evaluateJavascript(script, null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error evaluating JS for updating viewport", e)
+            }
+        }
     }
 
     private fun injectCSSVars(themeParamsJson: String) {
@@ -446,28 +477,57 @@ class TelegramWebviewProxy(
                 }
             }
             sb.append("})();")
-            webView.evaluateJavascript(sb.toString(), null)
+            webView.post {
+                try {
+                    webView.evaluateJavascript(sb.toString(), null)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error evaluating JS for injecting CSS vars", e)
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "CSS Inject Error", e)
         }
     }
 
-    private fun startSensor(type: Int, refreshMs: Long, eventName: String) {
-        val delay = (refreshMs * 1000).toInt().coerceAtLeast(SensorManager.SENSOR_DELAY_GAME)
+    private fun getSensorDelay(refreshRate: Long): Int {
+        if (refreshRate >= 160) return SensorManager.SENSOR_DELAY_NORMAL
+        if (refreshRate >= 60) return SensorManager.SENSOR_DELAY_UI
+        return SensorManager.SENSOR_DELAY_GAME
+    }
 
-        stopSensor(type, eventName)
+    private fun startSensor(type: Int, refreshMs: Long, eventName: String) {
+        val clampedRefreshMs = refreshMs.coerceIn(20, 1000)
+
+        stopSensors(eventName, type)
 
         val listener = object : SensorEventListener {
+            private var lastUpdateTimestamp = 0L
+
             override fun onSensorChanged(event: SensorEvent) {
+                val currentTime = System.currentTimeMillis()
+
+                if (currentTime - lastUpdateTimestamp < clampedRefreshMs) {
+                    return
+                }
+
                 val params = JSONObject()
                 when (type) {
-                    Sensor.TYPE_ACCELEROMETER, Sensor.TYPE_GYROSCOPE -> {
+                    Sensor.TYPE_ACCELEROMETER -> {
+                        params.put("x", -event.values[0])
+                        params.put("y", -event.values[1])
+                        params.put("z", -event.values[2])
+                    }
+
+                    Sensor.TYPE_GYROSCOPE -> {
                         params.put("x", event.values[0])
                         params.put("y", event.values[1])
                         params.put("z", event.values[2])
                     }
                 }
                 dispatchToWebView("${eventName}_changed", params)
+
+                lastUpdateTimestamp = currentTime
+
             }
 
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
@@ -475,72 +535,136 @@ class TelegramWebviewProxy(
 
         val sensor = sensorManager.getDefaultSensor(type)
         if (sensor != null) {
-            sensorManager.registerListener(listener, sensor, delay)
+            sensorManager.registerListener(listener, sensor, getSensorDelay(clampedRefreshMs))
             activeSensors[type] = listener
-            dispatchToWebView("${eventName}_started", JSONObject())
+            dispatchToWebView("${eventName}_started", null)
         } else {
             dispatchToWebView("${eventName}_failed", JSONObject().put("error", "UNSUPPORTED"))
         }
     }
 
     private fun startDeviceOrientation(refreshMs: Long, needAbsolute: Boolean) {
-        val type = if (needAbsolute) Sensor.TYPE_ROTATION_VECTOR else Sensor.TYPE_GAME_ROTATION_VECTOR
-        val delay = (refreshMs * 1000).toInt().coerceAtLeast(SensorManager.SENSOR_DELAY_GAME)
+        val clampedRefreshMs = refreshMs.coerceIn(20, 1000)
 
-        stopSensor(Sensor.TYPE_ROTATION_VECTOR, "")
-        stopSensor(Sensor.TYPE_GAME_ROTATION_VECTOR, "")
+        val sensorTypes = if (needAbsolute) {
+            if (sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) != null) {
+                intArrayOf(Sensor.TYPE_ROTATION_VECTOR)
+            } else {
+                intArrayOf(Sensor.TYPE_ACCELEROMETER, Sensor.TYPE_MAGNETIC_FIELD)
+            }
+        } else {
+            intArrayOf(Sensor.TYPE_GAME_ROTATION_VECTOR)
+        }
+
+        stopSensors(
+            "device_orientation",
+            Sensor.TYPE_ROTATION_VECTOR,
+            Sensor.TYPE_GAME_ROTATION_VECTOR,
+            Sensor.TYPE_ACCELEROMETER,
+            Sensor.TYPE_MAGNETIC_FIELD
+        )
 
         val listener = object : SensorEventListener {
+            private var lastUpdateTimestamp = 0L
+
+            private val rotationMatrix = FloatArray(9)
+            private val inclinationMatrix = FloatArray(9)
+            private val orientation = FloatArray(3)
+            private val truncatedVector = FloatArray(4)
+
+            private var gravityValues: FloatArray? = null
+            private var magneticValues: FloatArray? = null
+
             override fun onSensorChanged(event: SensorEvent) {
-                val rotationMatrix = FloatArray(9)
-                SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
-                val orientation = FloatArray(3)
-                SensorManager.getOrientation(rotationMatrix, orientation)
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastUpdateTimestamp < clampedRefreshMs) return
 
-                var alpha = Math.toDegrees(orientation[0].toDouble()) // Azimuth
-                if (alpha < 0) alpha += 360.0
-                val beta = Math.toDegrees(orientation[1].toDouble())  // Pitch
-                val gamma = Math.toDegrees(orientation[2].toDouble()) // Roll
+                val success = when (event.sensor.type) {
+                    Sensor.TYPE_ROTATION_VECTOR, Sensor.TYPE_GAME_ROTATION_VECTOR -> {
+                        val values = event.values
+                        // Samsung/device-specific safety check for rotation vector length
+                        if (values.size > 4) {
+                            values.copyInto(truncatedVector, 0, 0, 4)
+                            SensorManager.getRotationMatrixFromVector(
+                                rotationMatrix,
+                                truncatedVector
+                            )
+                        } else {
+                            SensorManager.getRotationMatrixFromVector(rotationMatrix, values)
+                        }
+                        true
+                    }
 
-                if (alpha.isNaN() || beta.isNaN() || gamma.isNaN() ||
-                    alpha.isInfinite() || beta.isInfinite() || gamma.isInfinite()
-                ) {
-                    return
+                    Sensor.TYPE_ACCELEROMETER -> {
+                        gravityValues = event.values.clone()
+                        tryComputeMatrix()
+                    }
+
+                    Sensor.TYPE_MAGNETIC_FIELD -> {
+                        magneticValues = event.values.clone()
+                        tryComputeMatrix()
+                    }
+
+                    else -> false
                 }
 
-                val params = JSONObject()
-                params.put("alpha", alpha)
-                params.put("beta", beta)
-                params.put("gamma", gamma)
-                params.put("absolute", needAbsolute)
+                if (success) {
+                    SensorManager.getOrientation(rotationMatrix, orientation)
+                    lastUpdateTimestamp = currentTime
 
-                dispatchToWebView("device_orientation_changed", params)
+                    val params = JSONObject().apply {
+                        put("absolute", needAbsolute)
+                        put("alpha", -orientation[0].toDouble())
+                        put("beta", -orientation[1].toDouble())
+                        put("gamma", orientation[2].toDouble())
+                    }
+                    dispatchToWebView("device_orientation_changed", params)
+                }
+            }
+
+            private fun tryComputeMatrix(): Boolean {
+                val g = gravityValues ?: return false
+                val m = magneticValues ?: return false
+                return SensorManager.getRotationMatrix(rotationMatrix, inclinationMatrix, g, m)
             }
 
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
 
-        val sensor = sensorManager.getDefaultSensor(type)
-        if (sensor != null) {
-            sensorManager.registerListener(listener, sensor, delay)
-            activeSensors[type] = listener
-            dispatchToWebView("device_orientation_started", JSONObject())
+        var startedCount = 0
+        sensorTypes.forEach { type ->
+            sensorManager.getDefaultSensor(type)?.let { sensor ->
+                if (sensorManager.registerListener(
+                        listener,
+                        sensor,
+                        getSensorDelay(clampedRefreshMs)
+                    )
+                ) {
+                    activeSensors[type] = listener
+                    startedCount++
+                }
+            }
+        }
+
+        if (startedCount > 0) {
+            dispatchToWebView("device_orientation_started", null)
         } else {
             dispatchToWebView("device_orientation_failed", JSONObject().put("error", "UNSUPPORTED"))
         }
     }
 
-    private fun stopSensor(type: Int, eventName: String) {
-        if (eventName == "device_orientation") {
-            activeSensors.remove(Sensor.TYPE_ROTATION_VECTOR)?.let { sensorManager.unregisterListener(it) }
-            activeSensors.remove(Sensor.TYPE_GAME_ROTATION_VECTOR)?.let { sensorManager.unregisterListener(it) }
-            dispatchToWebView("device_orientation_stopped", JSONObject())
-            return
+    private fun stopSensors(eventName: String, vararg types: Int) {
+        var shouldSendStoppedEvent = false
+
+        types.forEach { type ->
+            activeSensors.remove(type)?.let {
+                sensorManager.unregisterListener(it)
+                shouldSendStoppedEvent = true
+            }
         }
 
-        activeSensors.remove(type)?.let {
-            sensorManager.unregisterListener(it)
-            dispatchToWebView("${eventName}_stopped", JSONObject())
+        if (shouldSendStoppedEvent) {
+            dispatchToWebView("${eventName}_stopped", null)
         }
     }
 

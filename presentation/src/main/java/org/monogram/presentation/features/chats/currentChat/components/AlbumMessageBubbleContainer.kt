@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.chats.currentChat.components
 
 import android.content.res.Configuration
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +15,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
@@ -97,11 +99,21 @@ fun AlbumMessageBubbleContainer(
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
     var bubbleSize by remember { mutableStateOf(IntSize.Zero) }
 
+    val dragOffsetX = remember { Animatable(0f) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .onGloballyPositioned { outerColumnPosition = it.positionInWindow() }
             .padding(top = topSpacing, bottom = 2.dp)
+            .offset { IntOffset(dragOffsetX.value.toInt(), 0) }
+            .fastReplyPointer(
+                canReply = canReply,
+                dragOffsetX = dragOffsetX,
+                scope = rememberCoroutineScope(),
+                onReplySwipe = { onReplySwipe(messages.first()) },
+                maxWidth = maxWidth.value
+            )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { offset ->
@@ -137,109 +149,121 @@ fun AlbumMessageBubbleContainer(
                 Spacer(modifier = Modifier.width(8.dp))
             }
 
-            Column(
-                modifier = Modifier
-                    .then(if (isChannel) Modifier.padding(horizontal = 8.dp) else Modifier)
-                    .widthIn(max = maxWidth)
-                    .then(if (isChannel) Modifier.fillMaxWidth() else Modifier)
-                    .onGloballyPositioned { coordinates ->
-                        bubblePosition = coordinates.positionInWindow()
-                        bubbleSize = coordinates.size
-                        if (shouldReportPosition) {
-                            onPositionChange(lastMsg.id, bubblePosition, bubbleSize)
-                        }
-                    }
+            Box(
+                modifier = Modifier.wrapContentSize()
             ) {
-                if (isGroup && !isOutgoing && !isChannel) {
-                    Text(
-                        text = firstMsg.senderName,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
-                    )
-                }
+                Column(
+                    modifier = Modifier
+                        .then(if (isChannel) Modifier.padding(horizontal = 8.dp) else Modifier)
+                        .widthIn(max = maxWidth)
+                        .then(if (isChannel) Modifier.fillMaxWidth() else Modifier)
+                        .onGloballyPositioned { coordinates ->
+                            bubblePosition = coordinates.positionInWindow()
+                            bubbleSize = coordinates.size
+                            if (shouldReportPosition) {
+                                onPositionChange(lastMsg.id, bubblePosition, bubbleSize)
+                            }
+                        }
+                ) {
+                    if (isGroup && !isOutgoing && !isChannel) {
+                        Text(
+                            text = firstMsg.senderName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
+                        )
+                    }
 
-                if (isChannel) {
-                    ChannelAlbumMessageBubble(
-                        messages = messages,
-                        isSameSenderAbove = isSameSenderAbove,
-                        isSameSenderBelow = isSameSenderBelow,
-                        autoplayGifs = autoplayGifs,
-                        autoplayVideos = autoplayVideos,
-                        autoDownloadMobile = autoDownloadMobile,
-                        autoDownloadWifi = autoDownloadWifi,
-                        autoDownloadRoaming = autoDownloadRoaming,
-                        onPhotoClick = onPhotoClick,
-                        onDownloadPhoto = onDownloadPhoto,
-                        onVideoClick = onVideoClick,
-                        onDocumentClick = onDocumentClick,
-                        onAudioClick = onAudioClick,
-                        onCancelDownload = onCancelDownload,
-                        onLongClick = { offset ->
-                            onReplyClick(
-                                bubblePosition,
-                                bubbleSize,
-                                bubblePosition + offset
-                            )
-                        },
-                        onReplyClick = onGoToReply,
-                        onReactionClick = { onReactionClick(lastMsg.id, it) },
-                        onCommentsClick = onCommentsClick,
-                        showComments = showComments,
-                        toProfile = toProfile,
-                        modifier = Modifier.fillMaxWidth(),
-                        fontSize = fontSize,
-                        bubbleRadius = bubbleRadius,
-                        downloadUtils = downloadUtils,
-                        isAnyViewerOpen = isAnyViewerOpen
-                    )
-                } else {
-                    ChatAlbumMessageBubble(
-                        messages = messages,
+                    if (isChannel) {
+                        ChannelAlbumMessageBubble(
+                            messages = messages,
+                            isSameSenderAbove = isSameSenderAbove,
+                            isSameSenderBelow = isSameSenderBelow,
+                            autoplayGifs = autoplayGifs,
+                            autoplayVideos = autoplayVideos,
+                            autoDownloadMobile = autoDownloadMobile,
+                            autoDownloadWifi = autoDownloadWifi,
+                            autoDownloadRoaming = autoDownloadRoaming,
+                            onPhotoClick = onPhotoClick,
+                            onDownloadPhoto = onDownloadPhoto,
+                            onVideoClick = onVideoClick,
+                            onDocumentClick = onDocumentClick,
+                            onAudioClick = onAudioClick,
+                            onCancelDownload = onCancelDownload,
+                            onLongClick = { offset ->
+                                onReplyClick(
+                                    bubblePosition,
+                                    bubbleSize,
+                                    bubblePosition + offset
+                                )
+                            },
+                            onReplyClick = onGoToReply,
+                            onReactionClick = { onReactionClick(lastMsg.id, it) },
+                            onCommentsClick = onCommentsClick,
+                            showComments = showComments,
+                            toProfile = toProfile,
+                            modifier = Modifier.fillMaxWidth(),
+                            fontSize = fontSize,
+                            bubbleRadius = bubbleRadius,
+                            downloadUtils = downloadUtils,
+                            isAnyViewerOpen = isAnyViewerOpen
+                        )
+                    } else {
+                        ChatAlbumMessageBubble(
+                            messages = messages,
+                            isOutgoing = isOutgoing,
+                            isGroup = isGroup,
+                            isSameSenderAbove = isSameSenderAbove,
+                            isSameSenderBelow = isSameSenderBelow,
+                            autoplayGifs = autoplayGifs,
+                            autoplayVideos = autoplayVideos,
+                            autoDownloadMobile = autoDownloadMobile,
+                            autoDownloadWifi = autoDownloadWifi,
+                            autoDownloadRoaming = autoDownloadRoaming,
+                            onPhotoClick = onPhotoClick,
+                            onDownloadPhoto = onDownloadPhoto,
+                            onVideoClick = onVideoClick,
+                            onDocumentClick = onDocumentClick,
+                            onAudioClick = onAudioClick,
+                            onCancelDownload = onCancelDownload,
+                            onLongClick = { offset ->
+                                onReplyClick(
+                                    bubblePosition,
+                                    bubbleSize,
+                                    bubblePosition + offset
+                                )
+                            },
+                            onReplyClick = onGoToReply,
+                            onReactionClick = { onReactionClick(lastMsg.id, it) },
+                            toProfile = toProfile,
+                            modifier = Modifier,
+                            fontSize = fontSize,
+                            downloadUtils = downloadUtils,
+                            isAnyViewerOpen = isAnyViewerOpen
+                        )
+                    }
+
+                    lastMsg.replyMarkup?.let { markup ->
+                        ReplyMarkupView(
+                            replyMarkup = markup,
+                            onButtonClick = { onReplyMarkupButtonClick(lastMsg.id, it) }
+                        )
+                    }
+
+                    MessageViaBotAttribution(
+                        msg = lastMsg,
                         isOutgoing = isOutgoing,
-                        isGroup = isGroup,
-                        isSameSenderAbove = isSameSenderAbove,
-                        isSameSenderBelow = isSameSenderBelow,
-                        autoplayGifs = autoplayGifs,
-                        autoplayVideos = autoplayVideos,
-                        autoDownloadMobile = autoDownloadMobile,
-                        autoDownloadWifi = autoDownloadWifi,
-                        autoDownloadRoaming = autoDownloadRoaming,
-                        onPhotoClick = onPhotoClick,
-                        onDownloadPhoto = onDownloadPhoto,
-                        onVideoClick = onVideoClick,
-                        onDocumentClick = onDocumentClick,
-                        onAudioClick = onAudioClick,
-                        onCancelDownload = onCancelDownload,
-                        onLongClick = { offset ->
-                            onReplyClick(
-                                bubblePosition,
-                                bubbleSize,
-                                bubblePosition + offset
-                            )
-                        },
-                        onReplyClick = onGoToReply,
-                        onReactionClick = { onReactionClick(lastMsg.id, it) },
-                        toProfile = toProfile,
-                        modifier = Modifier,
-                        fontSize = fontSize,
-                        downloadUtils = downloadUtils,
-                        isAnyViewerOpen = isAnyViewerOpen
+                        onViaBotClick = onViaBotClick,
+                        modifier = Modifier.align(if (isOutgoing) Alignment.End else Alignment.Start)
                     )
                 }
 
-                lastMsg.replyMarkup?.let { markup ->
-                    ReplyMarkupView(
-                        replyMarkup = markup,
-                        onButtonClick = { onReplyMarkupButtonClick(lastMsg.id, it) }
-                    )
-                }
-
-                MessageViaBotAttribution(
-                    msg = lastMsg,
+                FastReplyIndicator(
+                    modifier = Modifier
+                        .align(if (isOutgoing) Alignment.CenterEnd else Alignment.CenterStart),
+                    dragOffsetX = dragOffsetX,
                     isOutgoing = isOutgoing,
-                    onViaBotClick = onViaBotClick,
-                    modifier = Modifier.align(if (isOutgoing) Alignment.End else Alignment.Start)
+                    maxWidth = maxWidth,
                 )
             }
         }

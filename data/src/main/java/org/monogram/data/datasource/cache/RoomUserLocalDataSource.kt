@@ -85,4 +85,11 @@ class RoomUserLocalDataSource(
         userDao.clearAll()
         userFullInfoDao.clearAll()
     }
+
+    override suspend fun clearCachedAvatarPaths() {
+        userDao.clearAvatarPaths()
+        users.values.forEach { user ->
+            user.profilePhoto = null
+        }
+    }
 }

@@ -370,8 +370,12 @@ class DefaultChatComponent(
         if (_state.value.currentTopicId == null) {
             cacheProvider.saveChatScrollPosition(chatId, messageId)
         }
-        _state.update { it.copy(lastScrollPosition = messageId) }
-        store.accept(ChatStore.Intent.UpdateScrollPosition(messageId))
+        _state.update {
+            if (it.lastScrollPosition == messageId) it else it.copy(lastScrollPosition = messageId)
+        }
+        if (_state.value.currentScrollMessageId != messageId) {
+            store.accept(ChatStore.Intent.UpdateScrollPosition(messageId))
+        }
     }
 
     override fun onBottomReached(isAtBottom: Boolean) = store.accept(ChatStore.Intent.BottomReached(isAtBottom))

@@ -35,4 +35,7 @@ interface ChatDao {
 
     @Query("DELETE FROM chats WHERE createdAt < :timestamp")
     suspend fun deleteExpired(timestamp: Long)
+
+    @Query("UPDATE chats SET avatarPath = NULL WHERE avatarPath IS NOT NULL")
+    suspend fun clearAvatarPaths()
 }

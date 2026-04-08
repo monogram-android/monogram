@@ -11,6 +11,10 @@ import android.view.ViewGroup
 import android.webkit.*
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.viewinterop.AndroidView
@@ -34,6 +38,8 @@ fun MiniAppWebView(
     onLoadingChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var lastLoadedUrl by remember { mutableStateOf(url) }
+
     AndroidView(
         factory = { ctx ->
             WebView(ctx).apply {
@@ -130,8 +136,9 @@ fun MiniAppWebView(
             view.setBackgroundColor(
                 backgroundColor?.toArgb() ?: themeParams.backgroundColor?.toColorInt() ?: Color.TRANSPARENT
             )
-            if (url.isNotEmpty() && view.url != url) {
+            if (url.isNotEmpty() && url != lastLoadedUrl) {
                 view.loadUrl(url, mapOf("Accept-Language" to acceptLanguage))
+                lastLoadedUrl = url
             }
         }
     )

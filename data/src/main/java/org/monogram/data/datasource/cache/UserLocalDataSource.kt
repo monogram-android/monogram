@@ -19,4 +19,5 @@ interface UserLocalDataSource {
     suspend fun saveUser(user: UserEntity) {}
     suspend fun loadUser(userId: Long): UserEntity? = null
     suspend fun clearDatabase() {}
+    suspend fun clearCachedAvatarPaths() {}
 }

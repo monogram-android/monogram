@@ -3,7 +3,6 @@ package org.monogram.data.chats
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.datasource.cache.ChatsCacheDataSource
 import org.monogram.data.datasource.cache.UserCacheDataSource
-import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
@@ -432,17 +431,6 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                 entity.permissionCanCreateTopics
             )
             clientData = "mc:${entity.memberCount};oc:${entity.onlineCount}"
-        }
-        if (entity.photoId != 0 && !entity.avatarPath.isNullOrEmpty()) {
-            val avatarFile = File(entity.avatarPath)
-            if (avatarFile.exists()) {
-                fileCache[entity.photoId] = TdApi.File().apply {
-                    id = entity.photoId
-                    local = TdApi.LocalFile().apply {
-                        this.path = entity.avatarPath
-                    }
-                }
-            }
         }
         chatPermissionsCache[entity.id] = chat.permissions
         onlineMemberCount[entity.id] = entity.onlineCount

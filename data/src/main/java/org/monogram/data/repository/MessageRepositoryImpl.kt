@@ -19,11 +19,13 @@ import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.cache.ChatLocalDataSource
 import org.monogram.data.datasource.cache.UserLocalDataSource
 import org.monogram.data.datasource.remote.MessageRemoteDataSource
+import org.monogram.data.db.dao.KeyValueDao
+import org.monogram.data.db.dao.StickerPathDao
 import org.monogram.data.db.dao.TextCompositionStyleDao
+import org.monogram.data.db.model.KeyValueEntity
 import org.monogram.data.db.model.TextCompositionStyleEntity
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
-import org.monogram.data.infra.FileUpdateHandler
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.data.mapper.map
@@ -36,6 +38,7 @@ import org.monogram.domain.models.FileModel
 import org.monogram.domain.models.InlineQueryResultModel
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
+import org.monogram.domain.models.MessageDownloadEvent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageSenderModel
@@ -68,10 +71,12 @@ class MessageRepositoryImpl(
     private val scope: CoroutineScope,
     private val chatLocalDataSource: ChatLocalDataSource,
     private val userLocalDataSource: UserLocalDataSource,
-    private val fileUpdateHandler: FileUpdateHandler,
+    private val stickerPathDao: StickerPathDao,
+    private val keyValueDao: KeyValueDao,
     private val textCompositionStyleDao: TextCompositionStyleDao
 ) : MessageRepository {
     private val _textCompositionStyles = MutableStateFlow<List<TextCompositionStyleModel>>(emptyList())
+    private val hardResetFlagKey = "cache_hard_reset_v2"
 
     override val newMessageFlow = messageRemoteDataSource.newMessageFlow
     override val senderUpdateFlow = messageMapper.senderUpdateFlow
@@ -117,13 +122,37 @@ class MessageRepositoryImpl(
             chatLocalDataSource.deleteExpired(ninetyDaysAgo)
         }
 
-        scope.launch {
-            fileUpdateHandler.fileDownloadCompleted.collect { (fileIdLong, path) ->
-                val fileId = fileIdLong.toInt()
-                if (fileId != 0 && path.isNotBlank()) {
-                    chatLocalDataSource.updateMediaPath(fileId, path)
+        scope.launch(dispatcherProvider.io) {
+            performHardCacheResetIfNeeded()
+        }
+
+        scope.launch(dispatcherProvider.io) {
+            messageDownloadFlow.collect { event ->
+                if (event is MessageDownloadEvent.Completed && event.fileId != 0 && event.path.isNotBlank()) {
+                    chatLocalDataSource.updateMediaPath(
+                        chatId = event.chatId,
+                        messageId = event.messageId,
+                        fileId = event.fileId,
+                        path = event.path
+                    )
                 }
             }
+        }
+    }
+
+    private suspend fun performHardCacheResetIfNeeded() {
+        val alreadyCleared = keyValueDao.getValue(hardResetFlagKey)?.value == "1"
+        if (alreadyCleared) return
+
+        coRunCatching {
+            chatLocalDataSource.clearAll()
+            userLocalDataSource.clearDatabase()
+            stickerPathDao.clearAll()
+            cache.clearAll()
+            keyValueDao.insertValue(KeyValueEntity(hardResetFlagKey, "1"))
+            Log.i("MessageRepository", "One-shot hard cache reset completed")
+        }.onFailure { error ->
+            Log.e("MessageRepository", "Failed to perform hard cache reset", error)
         }
     }
 

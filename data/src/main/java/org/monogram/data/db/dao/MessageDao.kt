@@ -38,8 +38,15 @@ interface MessageDao {
         editDate: Int
     )
 
-    @Query("UPDATE messages SET mediaPath = :path WHERE mediaFileId = :fileId AND mediaFileId != 0")
-    suspend fun updateMediaPath(fileId: Int, path: String)
+    @Query(
+        "UPDATE messages SET mediaPath = :path WHERE chatId = :chatId AND id = :messageId AND mediaFileId = :fileId AND mediaFileId != 0"
+    )
+    suspend fun updateMediaPathForMessage(chatId: Long, messageId: Long, fileId: Int, path: String)
+
+    @Query(
+        "UPDATE messages SET mediaPath = NULL, mediaThumbnailPath = NULL WHERE (mediaPath IS NOT NULL OR mediaThumbnailPath IS NOT NULL) AND contentType IN ('photo', 'video', 'video_note', 'document', 'gif', 'voice', 'sticker', 'audio')"
+    )
+    suspend fun clearCachedMediaPaths()
 
     @Query("UPDATE messages SET viewCount = :viewCount, forwardCount = :forwardCount, replyCount = :replyCount WHERE chatId = :chatId AND id = :messageId")
     suspend fun updateInteractionInfo(

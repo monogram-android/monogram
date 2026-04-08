@@ -129,8 +129,12 @@ class ChatStoreFactory(
 
                 is Intent.CancelDownloadFile -> component.handleCancelDownloadFile(intent.fileId)
 
-                is Intent.UpdateScrollPosition -> component._state.update { it.copy(currentScrollMessageId = intent.messageId) }
-                is Intent.BottomReached -> component._state.update { it.copy(isAtBottom = intent.isAtBottom) }
+                is Intent.UpdateScrollPosition -> component._state.update {
+                    if (it.currentScrollMessageId == intent.messageId) it else it.copy(currentScrollMessageId = intent.messageId)
+                }
+                is Intent.BottomReached -> component._state.update {
+                    if (it.isAtBottom == intent.isAtBottom) it else it.copy(isAtBottom = intent.isAtBottom)
+                }
                 is Intent.HighlightConsumed -> component._state.update { it.copy(highlightedMessageId = null) }
                 is Intent.Typing -> { /* Handle typing */
                 }

@@ -618,7 +618,8 @@ val dataModule = module {
             fileDataSource = get(),
             chatLocalDataSource = get(),
             userLocalDataSource = get(),
-            fileUpdateHandler = get(),
+            stickerPathDao = get(),
+            keyValueDao = get(),
             textCompositionStyleDao = get()
         )
     }

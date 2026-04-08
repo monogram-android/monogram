@@ -38,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,7 +54,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.TopicModel
+import org.monogram.domain.models.UserModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.core.ui.ExpressiveDefaults
@@ -64,10 +68,42 @@ import org.monogram.presentation.features.chats.currentChat.components.pins.Pinn
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.viewers.components.ViewerSettingsDropdown
 
+@Immutable
+data class ChatContentTopBarUiState(
+    val currentTopicId: Long?,
+    val rootMessage: MessageModel?,
+    val isGroup: Boolean,
+    val isChannel: Boolean,
+    val isAdmin: Boolean,
+    val permissions: ChatPermissionsModel,
+    val otherUser: UserModel?,
+    val currentUser: UserModel?,
+    val typingAction: String?,
+    val memberCount: Int,
+    val onlineCount: Int,
+    val topics: List<TopicModel>,
+    val chatTitle: String,
+    val chatAvatar: String?,
+    val chatPersonalAvatar: String?,
+    val chatEmojiStatus: String?,
+    val isOnline: Boolean,
+    val isVerified: Boolean,
+    val isSponsor: Boolean,
+    val isWhitelistedInAdBlock: Boolean,
+    val isInstalledFromGooglePlay: Boolean,
+    val isMuted: Boolean,
+    val isSearchActive: Boolean,
+    val searchQuery: String,
+    val pinnedMessage: MessageModel?,
+    val pinnedMessageCount: Int
+)
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChatContentTopBar(
-    state: ChatComponent.State,
+    topBarState: ChatContentTopBarUiState,
+    selectedCount: Int,
+    canRevokeSelected: Boolean,
     component: ChatComponent,
     contentAlpha: Float,
     onBack: () -> Unit,
@@ -77,28 +113,21 @@ fun ChatContentTopBar(
 ) {
     val localClipboard = LocalClipboard.current
     val isAdBlockEnabled by component.appPreferences.isAdBlockEnabled.collectAsState()
-    val isSelectionMode = state.selectedMessageIds.isNotEmpty()
-    val isMainChat = state.currentTopicId == null && state.rootMessage == null
-    val canClearOrDeleteChat = (!state.isGroup && !state.isChannel) || state.isAdmin
-    val otherUserId = state.otherUser?.id
-    val canReportChat = state.isGroup || state.isChannel ||
-            (otherUserId != null && state.currentUser?.id != otherUserId)
+    val isSelectionMode = selectedCount > 0
+    val isMainChat = topBarState.currentTopicId == null && topBarState.rootMessage == null
+    val canClearOrDeleteChat = (!topBarState.isGroup && !topBarState.isChannel) || topBarState.isAdmin
+    val otherUserId = topBarState.otherUser?.id
+    val canReportChat = topBarState.isGroup || topBarState.isChannel ||
+            (otherUserId != null && topBarState.currentUser?.id != otherUserId)
 
     var showDeleteSheet by remember { mutableStateOf(false) }
     var pendingUnpinMessage by remember { mutableStateOf<MessageModel?>(null) }
     val iconButtonShapes = ExpressiveDefaults.iconButtonShapes()
 
     if (showDeleteSheet) {
-        val selectedMessages = remember(state.messages, state.selectedMessageIds) {
-            state.messages.filter { it.id in state.selectedMessageIds }
-        }
-        val canRevoke = remember(selectedMessages) {
-            selectedMessages.any { it.canBeDeletedForAllUsers }
-        }
-
         DeleteMessagesSheet(
-            count = state.selectedMessageIds.size,
-            canRevoke = canRevoke,
+            count = selectedCount,
+            canRevoke = canRevokeSelected,
             onDismiss = { showDeleteSheet = false },
             onDelete = { revoke ->
                 component.onDeleteSelectedMessages(revoke = revoke)
@@ -136,7 +165,7 @@ fun ChatContentTopBar(
             if (selectionMode) {
                 TopAppBar(
                     title = {
-                        Text(text = "${state.selectedMessageIds.size}")
+                        Text(text = "$selectedCount")
                     },
                     navigationIcon = {
                         IconButton(onClick = { component.onClearSelection() }, shapes = iconButtonShapes) {
@@ -258,98 +287,98 @@ fun ChatContentTopBar(
                     }
                 )
             } else {
-                val formattedUserStatus = rememberUserStatusText(state.otherUser)
+                val formattedUserStatus = rememberUserStatusText(topBarState.otherUser)
                 val statusText = when {
-                    state.typingAction != null -> state.typingAction
-                    state.isChannel -> stringResource(
+                    topBarState.typingAction != null -> topBarState.typingAction
+                    topBarState.isChannel -> stringResource(
                         R.string.subscribers_count_format,
-                        state.memberCount
+                        topBarState.memberCount
                     )
 
-                    state.isGroup -> {
-                        if (state.onlineCount > 0) {
+                    topBarState.isGroup -> {
+                        if (topBarState.onlineCount > 0) {
                             stringResource(
                                 R.string.members_online_count_format,
-                                stringResource(R.string.members_count_format, state.memberCount),
-                                state.onlineCount
+                                stringResource(R.string.members_count_format, topBarState.memberCount),
+                                topBarState.onlineCount
                             )
                         } else {
-                            stringResource(R.string.members_count_format, state.memberCount)
+                            stringResource(R.string.members_count_format, topBarState.memberCount)
                         }
                     }
 
                     else -> formattedUserStatus
                 }
-                val currentTopic = remember(state.currentTopicId, state.topics) {
-                    if (state.currentTopicId != null) {
-                        state.topics.find { it.id.toLong() == state.currentTopicId }
+                val currentTopic = remember(topBarState.currentTopicId, topBarState.topics) {
+                    if (topBarState.currentTopicId != null) {
+                        topBarState.topics.find { it.id.toLong() == topBarState.currentTopicId }
                     } else null
                 }
 
                 val threadTitle = stringResource(R.string.thread_title)
-                val title = remember(currentTopic, state.rootMessage, state.chatTitle, threadTitle) {
+                val title = remember(currentTopic, topBarState.rootMessage, topBarState.chatTitle, threadTitle) {
                     when {
                         currentTopic != null -> currentTopic.name
-                        state.rootMessage != null -> threadTitle
-                        else -> state.chatTitle
+                        topBarState.rootMessage != null -> threadTitle
+                        else -> topBarState.chatTitle
                     }
                 }
                 val topicEmojiPath = currentTopic?.iconCustomEmojiPath
 
                 ChatTopBar(
                     title = title,
-                    avatarPath = state.chatAvatar,
-                    emojiStatusPath = state.chatEmojiStatus,
+                    avatarPath = topBarState.chatAvatar,
+                    emojiStatusPath = topBarState.chatEmojiStatus,
                     statusText = statusText,
-                    isOnline = state.isOnline,
-                    isVerified = state.isVerified,
-                    isSponsor = state.isSponsor,
+                    isOnline = topBarState.isOnline,
+                    isVerified = topBarState.isVerified,
+                    isSponsor = topBarState.isSponsor,
                     onBack = onBack,
                     onMenu = onOpenMenu,
                     onClick = { component.onProfileClicked() },
                     topicEmojiPath = topicEmojiPath,
-                    isChannel = state.isChannel,
-                    isWhitelistedInAdBlock = state.isWhitelistedInAdBlock,
-                    onToggleAdBlockWhitelist = if (isMainChat && state.isChannel && isAdBlockEnabled && !state.isInstalledFromGooglePlay) {
+                    isChannel = topBarState.isChannel,
+                    isWhitelistedInAdBlock = topBarState.isWhitelistedInAdBlock,
+                    onToggleAdBlockWhitelist = if (isMainChat && topBarState.isChannel && isAdBlockEnabled && !topBarState.isInstalledFromGooglePlay) {
                         {
-                            if (state.isWhitelistedInAdBlock) {
+                            if (topBarState.isWhitelistedInAdBlock) {
                                 component.onRemoveFromAdBlockWhitelist()
                             } else {
                                 component.onAddToAdBlockWhitelist()
                             }
                         }
                     } else null,
-                    isMuted = state.isMuted,
+                    isMuted = topBarState.isMuted,
                     onToggleMute = component::onToggleMute,
-                    isSearchActive = state.isSearchActive,
-                    searchQuery = state.searchQuery,
+                    isSearchActive = topBarState.isSearchActive,
+                    searchQuery = topBarState.searchQuery,
                     onSearchToggle = component::onSearchToggle,
                     onSearchQueryChange = component::onSearchQueryChange,
                     onClearHistory = if (isMainChat && canClearOrDeleteChat) component::onClearHistory else null,
                     onDeleteChat = if (isMainChat && canClearOrDeleteChat) component::onDeleteChat else null,
                     onReport = if (isMainChat && canReportChat) component::onReport else null,
-                    onCopyLink = if (isMainChat && (state.isGroup || state.isChannel)) {
+                    onCopyLink = if (isMainChat && (topBarState.isGroup || topBarState.isChannel)) {
                         { component.onCopyLink(localClipboard) }
                     } else null,
-                    onManageMembers = if (isMainChat && state.isGroup && (state.isAdmin || state.permissions.canInviteUsers)) {
+                    onManageMembers = if (isMainChat && topBarState.isGroup && (topBarState.isAdmin || topBarState.permissions.canInviteUsers)) {
                         { component.onProfileClicked() }
                     } else null,
                     showBack = showBack,
-                    personalAvatarPath = state.chatPersonalAvatar
+                    personalAvatarPath = topBarState.chatPersonalAvatar
                 )
             }
         }
 
-        val showPinned = state.pinnedMessage != null && !isSelectionMode && state.rootMessage == null
+        val showPinned = topBarState.pinnedMessage != null && !isSelectionMode && topBarState.rootMessage == null
         AnimatedVisibility(
             visible = showPinned,
             enter = expandVertically(),
             exit = shrinkVertically()
         ) {
-            state.pinnedMessage?.let { pinned ->
+            topBarState.pinnedMessage?.let { pinned ->
                 PinnedMessageBar(
                     message = pinned,
-                    count = state.pinnedMessageCount,
+                    count = topBarState.pinnedMessageCount,
                     onClose = { pendingUnpinMessage = pinned },
                     onClick = { onPinnedMessageClick(pinned) },
                     onShowAll = { component.onShowAllPinnedMessages() }

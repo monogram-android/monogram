@@ -28,4 +28,7 @@ interface UserDao {
 
     @Query("DELETE FROM users WHERE createdAt < :timestamp")
     suspend fun deleteExpired(timestamp: Long)
+
+    @Query("UPDATE users SET avatarPath = NULL, personalAvatarPath = NULL WHERE avatarPath IS NOT NULL OR personalAvatarPath IS NOT NULL")
+    suspend fun clearAvatarPaths()
 }

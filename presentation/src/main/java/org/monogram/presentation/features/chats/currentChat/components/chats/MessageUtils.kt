@@ -56,7 +56,6 @@ fun formatFileSize(size: Long, isDownloading: Boolean, downloadProgress: Float):
     fun format(value: Double): String {
         if (value <= 0) return "0 B"
         val digitGroups = (log10(value) / log10(1024.0)).toInt()
-        println(downloadProgress)
         return String.format(
             Locale.getDefault(),
             "%.1f %s",

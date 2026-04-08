@@ -278,7 +278,6 @@ fun DocumentRow(
         Column(
             modifier = Modifier.weight(1f)
         ) {
-            println(content.downloadProgress)
             Text(
                 text = content.fileName.ifEmpty { "Document" },
                 style = MaterialTheme.typography.bodyMedium.copy(

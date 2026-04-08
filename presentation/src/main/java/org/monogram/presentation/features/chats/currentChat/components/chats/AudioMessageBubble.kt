@@ -264,7 +264,7 @@ fun AudioRow(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = content.performer.ifEmpty { formatFileSize(content.size) },
+                text = content.performer.ifEmpty { formatFileSize(content.size, content.isDownloading, content.downloadProgress) },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 maxLines = 1,

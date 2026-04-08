@@ -415,7 +415,7 @@ fun ChannelDocumentAlbumBubble(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = formatFileSize(content.size),
+                                text = formatFileSize(content.size, content.isDownloading, content.downloadProgress),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = timeColor
                             )
@@ -618,7 +618,7 @@ fun ChannelAudioAlbumBubble(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = content.performer.ifEmpty { formatFileSize(content.size) },
+                                text = content.performer.ifEmpty { formatFileSize(content.size, content.isDownloading, content.downloadProgress) },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = timeColor,
                                 maxLines = 1,

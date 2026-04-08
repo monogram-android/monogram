@@ -278,6 +278,7 @@ fun DocumentRow(
         Column(
             modifier = Modifier.weight(1f)
         ) {
+            println(content.downloadProgress)
             Text(
                 text = content.fileName.ifEmpty { "Document" },
                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -288,7 +289,7 @@ fun DocumentRow(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = formatFileSize(content.size),
+                text = formatFileSize(content.size, content.isDownloading, content.downloadProgress),
                 style = MaterialTheme.typography.labelSmall,
                 color = timeColor
             )

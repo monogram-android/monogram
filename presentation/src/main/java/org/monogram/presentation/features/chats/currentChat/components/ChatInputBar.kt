@@ -40,6 +40,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -50,6 +51,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -187,10 +189,10 @@ fun ChatInputBar(
         return
     }
 
-    val canWriteText = remember(state.isChannel, state.isAdmin, state.permissions.canSendBasicMessages) {
-        if (state.isChannel) true else (state.isAdmin || state.permissions.canSendBasicMessages)
+    val canWriteText by remember(state.isChannel, state.isAdmin, state.permissions.canSendBasicMessages) {
+        derivedStateOf { if (state.isChannel) true else (state.isAdmin || state.permissions.canSendBasicMessages) }
     }
-    val canSendMedia = remember(
+    val canSendMedia by remember(
         state.isChannel,
         state.isAdmin,
         state.permissions.canSendPhotos,
@@ -198,48 +200,52 @@ fun ChatInputBar(
         state.permissions.canSendDocuments,
         state.permissions.canSendAudios
     ) {
-        if (state.isChannel) {
-            true
-        } else {
-            state.isAdmin ||
-                    state.permissions.canSendPhotos ||
-                    state.permissions.canSendVideos ||
-                    state.permissions.canSendDocuments ||
-                    state.permissions.canSendAudios
+        derivedStateOf {
+            if (state.isChannel) {
+                true
+            } else {
+                state.isAdmin ||
+                        state.permissions.canSendPhotos ||
+                        state.permissions.canSendVideos ||
+                        state.permissions.canSendDocuments ||
+                        state.permissions.canSendAudios
+            }
         }
     }
-    val canSendStickers = remember(state.isChannel, state.isAdmin, state.permissions.canSendOtherMessages) {
-        if (state.isChannel) true else (state.isAdmin || state.permissions.canSendOtherMessages)
+    val canSendStickers by remember(state.isChannel, state.isAdmin, state.permissions.canSendOtherMessages) {
+        derivedStateOf { if (state.isChannel) true else (state.isAdmin || state.permissions.canSendOtherMessages) }
     }
-    val canSendVoice = remember(state.isChannel, state.isAdmin, state.permissions.canSendVoiceNotes) {
-        if (state.isChannel) true else (state.isAdmin || state.permissions.canSendVoiceNotes)
+    val canSendVoice by remember(state.isChannel, state.isAdmin, state.permissions.canSendVoiceNotes) {
+        derivedStateOf { if (state.isChannel) true else (state.isAdmin || state.permissions.canSendVoiceNotes) }
     }
-    val canSendVideoNotes = remember(state.isChannel, state.isAdmin, state.permissions.canSendVideoNotes) {
-        if (state.isChannel) true else (state.isAdmin || state.permissions.canSendVideoNotes)
+    val canSendVideoNotes by remember(state.isChannel, state.isAdmin, state.permissions.canSendVideoNotes) {
+        derivedStateOf { if (state.isChannel) true else (state.isAdmin || state.permissions.canSendVideoNotes) }
     }
-    val canSendAnything = remember(canWriteText, canSendMedia, canSendStickers, canSendVoice, canSendVideoNotes) {
-        canWriteText || canSendMedia || canSendStickers || canSendVoice || canSendVideoNotes
+    val canSendAnything by remember(canWriteText, canSendMedia, canSendStickers, canSendVoice, canSendVideoNotes) {
+        derivedStateOf { canWriteText || canSendMedia || canSendStickers || canSendVoice || canSendVideoNotes }
     }
 
     val context = LocalContext.current
     val emojiStyle by appPreferences.emojiStyle.collectAsState()
     val emojiFontFamily = remember(context, emojiStyle) { getEmojiFontFamily(context, emojiStyle) }
 
-    var textValue by remember { mutableStateOf(TextFieldValue(state.draftText)) }
-    var isStickerMenuVisible by remember { mutableStateOf(false) }
+    var textValue by rememberSaveable(state.editingMessage?.id, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(state.draftText))
+    }
+    var isStickerMenuVisible by rememberSaveable { mutableStateOf(false) }
     var closeStickerMenuWithoutSlide by remember { mutableStateOf(false) }
     var openStickerMenuAfterKeyboardClosed by remember { mutableStateOf(false) }
     var openKeyboardAfterStickerMenuClosed by remember { mutableStateOf(false) }
-    var isVideoMessageMode by remember { mutableStateOf(false) }
+    var isVideoMessageMode by rememberSaveable { mutableStateOf(false) }
     var isGifSearchFocused by remember { mutableStateOf(false) }
     var showGallery by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
-    var showFullScreenEditor by remember { mutableStateOf(false) }
-    var showSendOptionsSheet by remember { mutableStateOf(false) }
-    var showScheduleDatePicker by remember { mutableStateOf(false) }
-    var showScheduleTimePicker by remember { mutableStateOf(false) }
-    var pendingScheduleDateMillis by remember { mutableStateOf<Long?>(null) }
-    var showScheduledMessagesSheet by remember { mutableStateOf(false) }
+    var showFullScreenEditor by rememberSaveable { mutableStateOf(false) }
+    var showSendOptionsSheet by rememberSaveable { mutableStateOf(false) }
+    var showScheduleDatePicker by rememberSaveable { mutableStateOf(false) }
+    var showScheduleTimePicker by rememberSaveable { mutableStateOf(false) }
+    var pendingScheduleDateMillis by rememberSaveable { mutableStateOf<Long?>(null) }
+    var showScheduledMessagesSheet by rememberSaveable { mutableStateOf(false) }
 
     val knownCustomEmojis = remember { mutableStateMapOf<Long, StickerModel>() }
 
@@ -312,7 +318,7 @@ fun ChatInputBar(
         }
     }
 
-    var lastEditingMessageId by remember { mutableStateOf<Long?>(null) }
+    var lastEditingMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     var slowModeRemainingSeconds by remember {
         mutableIntStateOf(0)
@@ -330,8 +336,8 @@ fun ChatInputBar(
             slowModeRemainingSeconds = (slowModeRemainingSeconds - 1).coerceAtLeast(0)
         }
     }
-    val isSlowModeActive = remember(state.isAdmin, state.slowModeDelay, slowModeRemainingSeconds) {
-        !state.isAdmin && state.slowModeDelay > 0 && slowModeRemainingSeconds > 0
+    val isSlowModeActive by remember(state.isAdmin, state.slowModeDelay, slowModeRemainingSeconds) {
+        derivedStateOf { !state.isAdmin && state.slowModeDelay > 0 && slowModeRemainingSeconds > 0 }
     }
 
     fun activateSlowModeCooldown() {
@@ -345,11 +351,15 @@ fun ChatInputBar(
         actions.onSendVoice(path, duration, waveform)
         activateSlowModeCooldown()
     }
-    val maxMessageLength = remember(state.pendingMediaPaths, state.isPremiumUser) {
-        if (state.pendingMediaPaths.isNotEmpty() && !state.isPremiumUser) 1024 else 4096
+    val maxMessageLength by remember(state.pendingMediaPaths, state.isPremiumUser) {
+        derivedStateOf { if (state.pendingMediaPaths.isNotEmpty() && !state.isPremiumUser) 1024 else 4096 }
     }
-    val currentMessageLength = textValue.text.length
-    val isOverMessageLimit = currentMessageLength > maxMessageLength
+    val currentMessageLength by remember(textValue.text) {
+        derivedStateOf { textValue.text.length }
+    }
+    val isOverMessageLimit by remember(currentMessageLength, maxMessageLength) {
+        derivedStateOf { currentMessageLength > maxMessageLength }
+    }
 
     val sendWithOptions: (MessageSendOptions) -> Unit = sendWithOptions@{
         if (isOverMessageLimit) return@sendWithOptions
@@ -394,12 +404,14 @@ fun ChatInputBar(
         }
     }
 
-    val filteredCommands = remember(textValue.text, state.botCommands) {
-        if (textValue.text.startsWith("/")) {
-            val query = textValue.text.substring(1).lowercase()
-            state.botCommands.filter { it.command.lowercase().startsWith(query) }
-        } else {
-            emptyList()
+    val filteredCommands by remember(textValue.text, state.botCommands) {
+        derivedStateOf {
+            if (textValue.text.startsWith("/")) {
+                val query = textValue.text.substring(1).lowercase()
+                state.botCommands.filter { it.command.lowercase().startsWith(query) }
+            } else {
+                emptyList()
+            }
         }
     }
 
@@ -586,7 +598,7 @@ fun ChatInputBar(
         if (granted) showCamera = true
     }
 
-    val inputBarMode = remember(
+    val inputBarMode by remember(
         canSendAnything,
         isSlowModeActive,
         textValue.text,
@@ -594,15 +606,17 @@ fun ChatInputBar(
         state.editingMessage,
         voiceRecorder.isRecording
     ) {
-        when {
-            !canSendAnything -> InputBarMode.Restricted
-            isSlowModeActive &&
-                    textValue.text.isBlank() &&
-                    state.pendingMediaPaths.isEmpty() &&
-                    state.editingMessage == null &&
-                    !voiceRecorder.isRecording -> InputBarMode.SlowMode
+        derivedStateOf {
+            when {
+                !canSendAnything -> InputBarMode.Restricted
+                isSlowModeActive &&
+                        textValue.text.isBlank() &&
+                        state.pendingMediaPaths.isEmpty() &&
+                        state.editingMessage == null &&
+                        !voiceRecorder.isRecording -> InputBarMode.SlowMode
 
-            else -> InputBarMode.Composer
+                else -> InputBarMode.Composer
+            }
         }
     }
 

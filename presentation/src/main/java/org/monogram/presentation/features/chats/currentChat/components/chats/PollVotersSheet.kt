@@ -83,7 +83,10 @@ fun PollVotersSheet(
                     LazyColumn(
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        itemsIndexed(voters) { index, user ->
+                        itemsIndexed(
+                            items = voters,
+                            key = { _, user -> user.id }
+                        ) { index, user ->
                             VoterItem(
                                 user = user,
                                 onClick = { onUserClick(user.id) }

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.ui.Modifier
@@ -70,9 +71,9 @@ fun ChatTopBar(
     personalAvatarPath: String? = null,
     isTablet: Boolean = currentWindowAdaptiveInfo().windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
 ) {
-    var showMenu by remember { mutableStateOf(false) }
-    var showClearHistorySheet by remember { mutableStateOf(false) }
-    var showDeleteChatSheet by remember { mutableStateOf(false) }
+    var showMenu by rememberSaveable { mutableStateOf(false) }
+    var showClearHistorySheet by rememberSaveable { mutableStateOf(false) }
+    var showDeleteChatSheet by rememberSaveable { mutableStateOf(false) }
 
     val windowInsets = if (isTablet) WindowInsets(0, 0, 0, 0) else WindowInsets.statusBars
 

@@ -395,7 +395,10 @@ private fun PinnedMessagesLoadingSkeleton(
         contentPadding = PaddingValues(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        itemsIndexed(items) { _, item ->
+        itemsIndexed(
+            items = items,
+            key = { index, item -> "${index}_${item.isOutgoing}_${item.bubbleWidth}" }
+        ) { _, item ->
             val outgoing = !isChannel && item.isOutgoing
             val bubbleColor = if (outgoing) {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)

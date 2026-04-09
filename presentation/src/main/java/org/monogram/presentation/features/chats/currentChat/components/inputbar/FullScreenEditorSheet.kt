@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -152,29 +153,29 @@ fun FullScreenEditorSheet(
     val context = LocalContext.current
 
     val focusRequester = remember { FocusRequester() }
-    var showEmojiPicker by remember { mutableStateOf(false) }
-    var showLinkDialog by remember { mutableStateOf(false) }
-    var linkValue by remember { mutableStateOf("https://") }
-    var showLanguageDialog by remember { mutableStateOf(false) }
-    var languageValue by remember { mutableStateOf("") }
-    var isPreviewMode by remember { mutableStateOf(false) }
-    var markdownMode by remember { mutableStateOf(false) }
-    var showFindReplace by remember { mutableStateOf(false) }
-    var findQuery by remember { mutableStateOf("") }
-    var replaceValue by remember { mutableStateOf("") }
-    var currentMatchIndex by remember { mutableIntStateOf(0) }
-    var showTemplatesSheet by remember { mutableStateOf(false) }
+    var showEmojiPicker by rememberSaveable { mutableStateOf(false) }
+    var showLinkDialog by rememberSaveable { mutableStateOf(false) }
+    var linkValue by rememberSaveable { mutableStateOf("https://") }
+    var showLanguageDialog by rememberSaveable { mutableStateOf(false) }
+    var languageValue by rememberSaveable { mutableStateOf("") }
+    var isPreviewMode by rememberSaveable { mutableStateOf(false) }
+    var markdownMode by rememberSaveable { mutableStateOf(false) }
+    var showFindReplace by rememberSaveable { mutableStateOf(false) }
+    var findQuery by rememberSaveable { mutableStateOf("") }
+    var replaceValue by rememberSaveable { mutableStateOf("") }
+    var currentMatchIndex by rememberSaveable { mutableIntStateOf(0) }
+    var showTemplatesSheet by rememberSaveable { mutableStateOf(false) }
     var showAutoSaved by remember { mutableStateOf(false) }
     var fontScale by remember { mutableFloatStateOf(1f) }
-    var showAiSheet by remember { mutableStateOf(false) }
-    var aiTranslateLanguage by remember { mutableStateOf("") }
-    var aiSelectedStyle by remember { mutableStateOf("") }
-    var aiAddEmojis by remember { mutableStateOf(false) }
-    var aiMode by remember { mutableStateOf(AiEditorMode.Stylize) }
-    var aiShowDiffMode by remember { mutableStateOf(true) }
+    var showAiSheet by rememberSaveable { mutableStateOf(false) }
+    var aiTranslateLanguage by rememberSaveable { mutableStateOf("") }
+    var aiSelectedStyle by rememberSaveable { mutableStateOf("") }
+    var aiAddEmojis by rememberSaveable { mutableStateOf(false) }
+    var aiMode by rememberSaveable { mutableStateOf(AiEditorMode.Stylize) }
+    var aiShowDiffMode by rememberSaveable { mutableStateOf(true) }
     var aiResultText by remember { mutableStateOf<AnnotatedString?>(null) }
     var aiResultTextValue by remember { mutableStateOf<TextFieldValue?>(null) }
-    var aiErrorMessage by remember { mutableStateOf<String?>(null) }
+    var aiErrorMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var aiLoading by remember { mutableStateOf(false) }
 
     val snippetProvider: EditorSnippetProvider = koinInject()

@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -115,10 +116,10 @@ fun InputTextField(
     onFocus: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var showLinkDialog by remember { mutableStateOf(false) }
-    var linkValue by remember { mutableStateOf("https://") }
-    var showPreLanguageDialog by remember { mutableStateOf(false) }
-    var preLanguageValue by remember { mutableStateOf("") }
+    var showLinkDialog by rememberSaveable { mutableStateOf(false) }
+    var linkValue by rememberSaveable { mutableStateOf("https://") }
+    var showPreLanguageDialog by rememberSaveable { mutableStateOf(false) }
+    var preLanguageValue by rememberSaveable { mutableStateOf("") }
     val context = LocalContext.current
 
     val emojiSize = 20.sp

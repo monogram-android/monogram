@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.chats.currentChat.chatContent
 
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -80,16 +81,14 @@ fun ChatContentList(
 ) {
     val isComments = state.rootMessage != null
     val isScrolling by remember(scrollState) { derivedStateOf { scrollState.isScrollInProgress } }
+    val latestState by rememberUpdatedState(state)
+    var lastOlderLoadTriggerUptimeMs by remember { mutableLongStateOf(0L) }
+    var lastNewerLoadTriggerUptimeMs by remember { mutableLongStateOf(0L) }
+    val loadTriggerThrottleMs = 350L
 
     LaunchedEffect(
         scrollState,
         groupedMessages.size,
-        state.isLoading,
-        state.isLoadingOlder,
-        state.isLoadingNewer,
-        state.isLatestLoaded,
-        state.isOldestLoaded,
-        state.isAtBottom,
         isComments
     ) {
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
@@ -101,24 +100,38 @@ fun ChatContentList(
             }
             .distinctUntilChanged()
             .collect { (firstVisibleIndex, lastVisibleIndex) ->
-                if (state.isLoading || state.isLoadingOlder || state.isLoadingNewer) return@collect
+                val currentState = latestState
+                if (currentState.isLoading || currentState.isLoadingOlder || currentState.isLoadingNewer) return@collect
 
                 val nearStart = firstVisibleIndex <= 2
                 val nearEnd = lastVisibleIndex >= (groupedMessages.size - 3).coerceAtLeast(0)
+                val now = SystemClock.uptimeMillis()
 
                 if (isComments) {
                     if (!scrollState.isScrollInProgress) return@collect
 
-                    if (nearStart && !state.isOldestLoaded) {
-                        component.loadMore()
-                    } else if (nearEnd && !state.isLatestLoaded) {
-                        component.loadNewer()
+                    if (nearStart && !currentState.isOldestLoaded) {
+                        if (now - lastOlderLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
+                            lastOlderLoadTriggerUptimeMs = now
+                            component.loadMore()
+                        }
+                    } else if (nearEnd && !currentState.isLatestLoaded) {
+                        if (now - lastNewerLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
+                            lastNewerLoadTriggerUptimeMs = now
+                            component.loadNewer()
+                        }
                     }
                 } else {
-                    if (nearEnd && !state.isOldestLoaded) {
-                        component.loadMore()
-                    } else if (nearStart && !state.isAtBottom && !state.isLatestLoaded) {
-                        component.loadNewer()
+                    if (nearEnd && !currentState.isOldestLoaded) {
+                        if (now - lastOlderLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
+                            lastOlderLoadTriggerUptimeMs = now
+                            component.loadMore()
+                        }
+                    } else if (nearStart && !currentState.isAtBottom && !currentState.isLatestLoaded) {
+                        if (now - lastNewerLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
+                            lastNewerLoadTriggerUptimeMs = now
+                            component.loadNewer()
+                        }
                     }
                 }
             }
@@ -154,24 +167,22 @@ fun ChatContentList(
         }
 
         if (isComments) {
-            if (state.rootMessage != null) {
-                item(key = "root_header") {
-                    RootMessageSection(
-                        state,
-                        component,
-                        onPhotoClick,
-                        onPhotoDownload,
-                        onVideoClick,
-                        onDocumentClick,
-                        onAudioClick,
-                        onMessageOptionsClick,
-                        onGoToReply,
-                        onViaBotClick,
-                        toProfile,
-                        downloadUtils,
-                        isAnyViewerOpen = isAnyViewerOpen
-                    )
-                }
+            item(key = "root_header") {
+                RootMessageSection(
+                    state,
+                    component,
+                    onPhotoClick,
+                    onPhotoDownload,
+                    onVideoClick,
+                    onDocumentClick,
+                    onAudioClick,
+                    onMessageOptionsClick,
+                    onGoToReply,
+                    onViaBotClick,
+                    toProfile,
+                    downloadUtils,
+                    isAnyViewerOpen = isAnyViewerOpen
+                )
             }
 
             itemsIndexed(
@@ -225,25 +236,6 @@ fun ChatContentList(
                                 .asPaddingValues()
                                 .calculateBottomPadding()
                         )
-                    )
-                }
-            }
-            if (state.rootMessage != null) {
-                item(key = "root_header") {
-                    RootMessageSection(
-                        state,
-                        component,
-                        onPhotoClick,
-                        onPhotoDownload,
-                        onVideoClick,
-                        onDocumentClick,
-                        onAudioClick,
-                        onMessageOptionsClick,
-                        onGoToReply,
-                        onViaBotClick,
-                        toProfile,
-                        downloadUtils,
-                        isAnyViewerOpen = isAnyViewerOpen
                     )
                 }
             }

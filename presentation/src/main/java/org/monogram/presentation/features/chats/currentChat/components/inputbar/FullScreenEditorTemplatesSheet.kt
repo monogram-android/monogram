@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,7 +30,7 @@ fun FullScreenEditorTemplatesSheet(
     onDeleteSnippet: (EditorSnippet) -> Unit
 ) {
     if (!visible) return
-    var customTitle by remember { mutableStateOf("") }
+    var customTitle by rememberSaveable { mutableStateOf("") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -91,7 +92,10 @@ fun FullScreenEditorTemplatesSheet(
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(snippets) { snippet ->
+                    items(
+                        items = snippets,
+                        key = { snippet -> "${snippet.title}|${snippet.text}" }
+                    ) { snippet ->
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             color = MaterialTheme.colorScheme.surfaceContainer,

@@ -11,6 +11,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -28,8 +29,8 @@ fun ReportChatDialog(
     onDismiss: () -> Unit,
     onReasonSelected: (String) -> Unit
 ) {
-    var showCustomInput by remember { mutableStateOf(false) }
-    var customText by remember { mutableStateOf("") }
+    var showCustomInput by rememberSaveable { mutableStateOf(false) }
+    var customText by rememberSaveable { mutableStateOf("") }
 
     val reasons = listOf(
         ReportReason("spam", stringResource(R.string.report_reason_spam), stringResource(R.string.report_reason_spam_description), Icons.Outlined.Report),
@@ -99,7 +100,10 @@ fun ReportChatDialog(
                         .fillMaxWidth()
                         .padding(bottom = 24.dp)
                 ) {
-                    itemsIndexed(reasons) { _, reason ->
+                    itemsIndexed(
+                        items = reasons,
+                        key = { _, reason -> reason.id }
+                    ) { _, reason ->
                         if (reason.id == "custom") {
                             HorizontalDivider(
                                 modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp),

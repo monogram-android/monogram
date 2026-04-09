@@ -44,6 +44,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -120,7 +121,7 @@ fun ChatContentTopBar(
     val canReportChat = topBarState.isGroup || topBarState.isChannel ||
             (otherUserId != null && topBarState.currentUser?.id != otherUserId)
 
-    var showDeleteSheet by remember { mutableStateOf(false) }
+    var showDeleteSheet by rememberSaveable { mutableStateOf(false) }
     var pendingUnpinMessage by remember { mutableStateOf<MessageModel?>(null) }
     val iconButtonShapes = ExpressiveDefaults.iconButtonShapes()
 
@@ -194,7 +195,7 @@ fun ChatContentTopBar(
                                 contentDescription = stringResource(R.string.menu_delete)
                             )
                         }
-                        var showMenu by remember { mutableStateOf(false) }
+                        var showMenu by rememberSaveable { mutableStateOf(false) }
                         Box {
                             IconButton(onClick = {
                                 onOpenMenu()

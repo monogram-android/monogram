@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -90,7 +91,7 @@ fun ChatContent(
     var isRecordingVideo by remember { mutableStateOf(false) }
 
     // Menu States
-    var selectedMessageId by remember { mutableStateOf<Long?>(null) }
+    var selectedMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
     val transformedMessageTexts = remember { mutableStateMapOf<Long, String>() }
     val originalMessageTexts = remember { mutableStateMapOf<Long, String>() }
     val latestMessagesState = rememberUpdatedState(state.messages)
@@ -108,10 +109,13 @@ fun ChatContent(
             }
         }
     }
+    val displayMessagesById by remember(displayMessages) {
+        derivedStateOf { displayMessages.associateBy(MessageModel::id) }
+    }
     val selectedMessage by remember {
         derivedStateOf {
             val currentSelectedId = selectedMessageIdState.value
-            displayMessages.find { it.id == currentSelectedId }
+            currentSelectedId?.let(displayMessagesById::get)
         }
     }
     var menuOffset by remember { mutableStateOf(Offset.Zero) }
@@ -119,13 +123,27 @@ fun ChatContent(
     var clickOffset by remember { mutableStateOf(Offset.Zero) }
     var contentRect by remember { mutableStateOf(Rect.Zero) }
 
-    var pendingMediaPaths by remember { mutableStateOf<List<String>>(emptyList()) }
-    var editingPhotoPath by remember { mutableStateOf<String?>(null) }
-    var editingVideoPath by remember { mutableStateOf<String?>(null) }
-    var pendingBlockUserId by remember { mutableStateOf<Long?>(null) }
+    var pendingMediaPaths by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var editingPhotoPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var editingVideoPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingBlockUserId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     val groupedMessages by remember {
         derivedStateOf { groupMessagesByAlbum(displayMessages) }
+    }
+    val groupedMessageIndexById by remember(groupedMessages) {
+        derivedStateOf {
+            buildMap {
+                groupedMessages.forEachIndexed { index, item ->
+                    when (item) {
+                        is GroupedMessageItem.Single -> put(item.message.id, index)
+                        is GroupedMessageItem.Album -> item.messages.forEach { message ->
+                            put(message.id, index)
+                        }
+                    }
+                }
+            }
+        }
     }
     val isComments = state.rootMessage != null
     val isForumList = state.viewAsTopics && state.currentTopicId == null
@@ -143,12 +161,7 @@ fun ChatContent(
             isRecordingVideo
 
     val scrollToMessageState = rememberUpdatedState(newValue = { msg: MessageModel ->
-        val index = groupedMessages.indexOfFirst { item ->
-            when (item) {
-                is GroupedMessageItem.Single -> item.message.id == msg.id
-                is GroupedMessageItem.Album -> item.messages.any { it.id == msg.id }
-            }
-        }
+        val index = groupedMessageIndexById[msg.id] ?: -1
         if (index != -1) {
             coroutineScope.launch {
                 val targetIndex = if (isComments) {
@@ -173,6 +186,7 @@ fun ChatContent(
     }
 
     LaunchedEffect(state.messages) {
+        if (transformedMessageTexts.isEmpty() && originalMessageTexts.isEmpty()) return@LaunchedEffect
         val ids = state.messages.map { it.id }.toSet()
         transformedMessageTexts.keys.toList().forEach { id ->
             if (id !in ids) {
@@ -209,16 +223,7 @@ fun ChatContent(
     // Scroll to message when requested by component
     LaunchedEffect(state.scrollToMessageId, groupedMessages) {
         state.scrollToMessageId?.let { id ->
-            val index = groupedMessages.indexOfFirst { item ->
-                if (id == state.currentTopicId) {
-                    false
-                } else {
-                    when (item) {
-                        is GroupedMessageItem.Single -> item.message.id == id
-                        is GroupedMessageItem.Album -> item.messages.any { it.id == id }
-                    }
-                }
-            }
+            val index = if (id == state.currentTopicId) -1 else groupedMessageIndexById[id] ?: -1
             if (index != -1) {
                 component.onScrollToMessageConsumed()
 
@@ -318,8 +323,8 @@ fun ChatContent(
     LaunchedEffect(scrollState, groupedMessages, state.rootMessage) {
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
             .map { visibleItems ->
-                val visibleIds = mutableListOf<Long>()
-                val nearbyIds = mutableListOf<Long>()
+                val visibleIds = LinkedHashSet<Long>()
+                val nearbyIds = LinkedHashSet<Long>()
                 if (visibleItems.isNotEmpty()) {
                     val minIndex = visibleItems.minOf { it.index }
                     val maxIndex = visibleItems.maxOf { it.index }
@@ -329,7 +334,9 @@ fun ChatContent(
                         groupedMessages.getOrNull(groupedIndex)?.let { grouped ->
                             when (grouped) {
                                 is GroupedMessageItem.Single -> visibleIds.add(grouped.message.id)
-                                is GroupedMessageItem.Album -> visibleIds.addAll(grouped.messages.map { it.id })
+                                is GroupedMessageItem.Album -> grouped.messages.forEach { message ->
+                                    visibleIds.add(message.id)
+                                }
                             }
                         }
                     }
@@ -342,12 +349,15 @@ fun ChatContent(
                         groupedMessages.getOrNull(groupedIndex)?.let { grouped ->
                             when (grouped) {
                                 is GroupedMessageItem.Single -> nearbyIds.add(grouped.message.id)
-                                is GroupedMessageItem.Album -> nearbyIds.addAll(grouped.messages.map { it.id })
+                                is GroupedMessageItem.Album -> grouped.messages.forEach { message ->
+                                    nearbyIds.add(message.id)
+                                }
                             }
                         }
                     }
                 }
-                visibleIds.distinct() to nearbyIds.distinct().filterNot { it in visibleIds }
+                val visibleIdList = visibleIds.toList()
+                visibleIdList to nearbyIds.filterNot(visibleIds::contains)
             }
             .distinctUntilChanged()
             .debounce(100)
@@ -428,14 +438,27 @@ fun ChatContent(
         label = "ContentOffset"
     )
 
-    val showInputBar = (state.isMember || !state.isChannel && !state.isGroup) &&
-            (state.canWrite || state.currentTopicId != null) &&
-            !isRecordingVideo &&
-            state.selectedMessageIds.isEmpty() &&
-            (!state.viewAsTopics || state.currentTopicId != null)
+    val showInputBar by remember(
+        state.isMember,
+        state.isChannel,
+        state.isGroup,
+        state.canWrite,
+        state.currentTopicId,
+        state.selectedMessageIds,
+        state.viewAsTopics,
+        isRecordingVideo
+    ) {
+        derivedStateOf {
+            (state.isMember || !state.isChannel && !state.isGroup) &&
+                    (state.canWrite || state.currentTopicId != null) &&
+                    !isRecordingVideo &&
+                    state.selectedMessageIds.isEmpty() &&
+                    (!state.viewAsTopics || state.currentTopicId != null)
+        }
+    }
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    var renderPinnedMessagesList by remember { mutableStateOf(state.showPinnedMessagesList) }
+    var renderPinnedMessagesList by rememberSaveable { mutableStateOf(state.showPinnedMessagesList) }
     var pendingPinnedSheetAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     LaunchedEffect(state.showPinnedMessagesList) {
@@ -450,14 +473,52 @@ fun ChatContent(
         }
     }
 
-    val isCustomBackHandlingEnabled =
-        (editingPhotoPath != null || editingVideoPath != null || selectedMessageId != null || state.selectedMessageIds.isNotEmpty() || state.currentTopicId != null || state.showBotCommands || state.restrictUserId != null || state.showPinnedMessagesList || state.fullScreenImages != null || state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null || state.miniAppUrl != null || state.webViewUrl != null || state.instantViewUrl != null || state.youtubeUrl != null)
+    val isCustomBackHandlingEnabled by remember(
+        editingPhotoPath,
+        editingVideoPath,
+        selectedMessageId,
+        state.selectedMessageIds,
+        state.currentTopicId,
+        state.showBotCommands,
+        state.restrictUserId,
+        state.showPinnedMessagesList,
+        state.fullScreenImages,
+        state.fullScreenVideoPath,
+        state.fullScreenVideoMessageId,
+        state.miniAppUrl,
+        state.webViewUrl,
+        state.instantViewUrl,
+        state.youtubeUrl
+    ) {
+        derivedStateOf {
+            editingPhotoPath != null ||
+                    editingVideoPath != null ||
+                    selectedMessageId != null ||
+                    state.selectedMessageIds.isNotEmpty() ||
+                    state.currentTopicId != null ||
+                    state.showBotCommands ||
+                    state.restrictUserId != null ||
+                    state.showPinnedMessagesList ||
+                    state.fullScreenImages != null ||
+                    state.fullScreenVideoPath != null ||
+                    state.fullScreenVideoMessageId != null ||
+                    state.miniAppUrl != null ||
+                    state.webViewUrl != null ||
+                    state.instantViewUrl != null ||
+                    state.youtubeUrl != null
+        }
+    }
     val selectedCount = state.selectedMessageIds.size
-    val canRevokeSelected = remember(state.selectedMessageIds, state.messages) {
-        if (state.selectedMessageIds.isEmpty()) {
-            false
-        } else {
-            state.messages.any { it.id in state.selectedMessageIds && it.canBeDeletedForAllUsers }
+    val selectedMessageIdSet by remember(state.selectedMessageIds) {
+        derivedStateOf { state.selectedMessageIds.toHashSet() }
+    }
+    val canRevokeSelected by remember(state.messages, selectedMessageIdSet) {
+        derivedStateOf {
+            if (selectedMessageIdSet.isEmpty()) {
+                false
+            } else {
+                state.messages.any { it.id in selectedMessageIdSet && it.canBeDeletedForAllUsers }
+            }
         }
     }
     val topBarUiState = remember(

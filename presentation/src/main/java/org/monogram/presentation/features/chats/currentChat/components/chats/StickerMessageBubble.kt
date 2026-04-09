@@ -22,9 +22,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.StickerModel
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.presentation.features.stickers.ui.view.StickerSkeleton
 import java.io.File
@@ -44,6 +46,9 @@ fun StickerMessageBubble(
     toProfile: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
+
     Column(
         modifier = modifier,
         horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
@@ -146,7 +151,7 @@ fun StickerMessageBubble(
                     Spacer(modifier = Modifier.width(4.dp))
                 }
                 Text(
-                    text = formatTime(msg.date),
+                    text = formatTime(msg.date, timeFormat),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     color = Color.White,
                 )

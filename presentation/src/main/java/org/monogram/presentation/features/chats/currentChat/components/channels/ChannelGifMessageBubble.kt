@@ -32,9 +32,11 @@ import androidx.compose.ui.zIndex
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
@@ -83,6 +85,9 @@ fun ChannelGifMessageBubble(
 
     var gifPosition by remember { mutableStateOf(Offset.Zero) }
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
+
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
 
     var stablePath by remember(msg.id) { mutableStateOf(content.path) }
     val hasPath = !stablePath.isNullOrBlank()
@@ -299,7 +304,7 @@ fun ChannelGifMessageBubble(
                                         }
                                     }
                                     Text(
-                                        text = formatTime(context, msg.date),
+                                        text = formatTime(msg.date, timeFormat),
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                         color = Color.White
                                     )
@@ -393,7 +398,7 @@ fun ChannelGifMessageBubble(
                                     }
                                 }
                                 Text(
-                                    text = formatTime(context, msg.date),
+                                    text = formatTime(msg.date, timeFormat),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
                                 )

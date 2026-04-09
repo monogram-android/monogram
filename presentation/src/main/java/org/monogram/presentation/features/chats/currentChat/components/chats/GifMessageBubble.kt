@@ -33,8 +33,10 @@ import androidx.media3.common.util.UnstableApi
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
@@ -72,6 +74,9 @@ fun GifMessageBubble(
     val cornerRadius = 18.dp
     val smallCorner = 4.dp
     val tailCorner = 2.dp
+
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
 
     var stablePath by remember(msg.id) { mutableStateOf(content.path) }
     !stablePath.isNullOrBlank()
@@ -318,7 +323,7 @@ fun GifMessageBubble(
                                     Spacer(modifier = Modifier.width(4.dp))
                                 }
                                 Text(
-                                    text = formatTime(msg.date),
+                                    text = formatTime(msg.date, timeFormat),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                     color = Color.White
                                 )
@@ -391,7 +396,7 @@ fun GifMessageBubble(
                                     Spacer(modifier = Modifier.width(4.dp))
                                 }
                                 Text(
-                                    text = formatTime(msg.date),
+                                    text = formatTime(msg.date, timeFormat),
                                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                     color = timeColor
                                 )

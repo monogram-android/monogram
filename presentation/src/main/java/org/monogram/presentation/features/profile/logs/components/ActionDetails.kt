@@ -47,10 +47,12 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import org.koin.compose.koinInject
 import org.monogram.domain.models.ChatEventActionModel
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.features.profile.logs.ProfileLogsComponent
 import java.io.File
 import java.text.SimpleDateFormat
@@ -141,8 +143,10 @@ fun ActionDetails(
 
                 if (action.untilDate > 0) {
                     val date = Date(action.untilDate.toLong() * 1000)
+                    val dateFormatManager: DateFormatManager = koinInject();
+                    val timeFormat = dateFormatManager.getHourMinuteFormat()
                     val dateText =
-                        SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(date)
+                        SimpleDateFormat("MMM dd, yyyy $timeFormat", Locale.getDefault()).format(date)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(top = 8.dp)

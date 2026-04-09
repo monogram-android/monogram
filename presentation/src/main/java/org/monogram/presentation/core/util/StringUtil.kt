@@ -14,17 +14,17 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import org.koin.compose.koinInject
 import org.monogram.domain.models.*
 import org.monogram.presentation.R
 import java.text.SimpleDateFormat
 import java.util.*
 
-fun formatLastSeen(lastSeen: Long?, context: Context): String {
+fun formatLastSeen(lastSeen: Long?, context: Context, timeFormat: String): String {
     if (lastSeen == null || lastSeen <= 0L) return context.getString(R.string.last_seen_recently)
 
     val now = System.currentTimeMillis()
     val diff = now - lastSeen
-
     if (diff < 0) return context.getString(R.string.last_seen_just_now)
 
     return when {
@@ -35,12 +35,12 @@ fun formatLastSeen(lastSeen: Long?, context: Context): String {
         }
 
         DateUtils.isToday(lastSeen) -> {
-            val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(lastSeen))
+            val time = SimpleDateFormat(timeFormat, Locale.getDefault()).format(Date(lastSeen))
             context.getString(R.string.last_seen_at, time)
         }
 
         isYesterday(lastSeen) -> {
-            val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(lastSeen))
+            val time = SimpleDateFormat(timeFormat, Locale.getDefault()).format(Date(lastSeen))
             context.getString(R.string.last_seen_yesterday_at, time)
         }
 
@@ -57,10 +57,12 @@ fun rememberUserStatusText(user: UserModel?): String {
     if (user.type == UserTypeEnum.BOT) return stringResource(R.string.status_bot)
 
     val context = LocalContext.current
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
     return remember(user.userStatus, user.lastSeen) {
         when (user.userStatus) {
             UserStatusType.ONLINE -> context.getString(R.string.status_online)
-            UserStatusType.OFFLINE -> formatLastSeen(user.lastSeen, context)
+            UserStatusType.OFFLINE -> formatLastSeen(user.lastSeen, context, timeFormat)
             UserStatusType.RECENTLY -> context.getString(R.string.last_seen_recently)
             UserStatusType.LAST_WEEK -> context.getString(R.string.last_seen_within_week)
             UserStatusType.LAST_MONTH -> context.getString(R.string.last_seen_within_month)
@@ -73,13 +75,13 @@ private fun isYesterday(timestamp: Long): Boolean {
     return DateUtils.isToday(timestamp + DateUtils.DAY_IN_MILLIS)
 }
 
-fun getUserStatusText(user: UserModel?, context: Context): String {
+fun getUserStatusText(user: UserModel?, context: Context, timeFormat: String): String {
     if (user == null) return context.getString(R.string.status_offline)
     if (user.type == UserTypeEnum.BOT) return context.getString(R.string.status_bot)
 
     return when (user.userStatus) {
         UserStatusType.ONLINE -> context.getString(R.string.status_online)
-        UserStatusType.OFFLINE -> formatLastSeen(user.lastSeen, context)
+        UserStatusType.OFFLINE -> formatLastSeen(user.lastSeen, context, timeFormat)
         UserStatusType.RECENTLY -> context.getString(R.string.last_seen_recently)
         UserStatusType.LAST_WEEK -> context.getString(R.string.last_seen_within_week)
         UserStatusType.LAST_MONTH -> context.getString(R.string.last_seen_within_month)

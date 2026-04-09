@@ -41,6 +41,8 @@ val appModule = module {
     }
     single<Logger> { LoggerImpl() }
 
+    single<DateFormatManager> { DateFormatManagerImpl(androidContext()) }
+
     factory<PhoneManager> {
         PhoneManagerImpl(
             androidContext().getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager,

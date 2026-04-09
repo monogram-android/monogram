@@ -16,8 +16,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.koin.compose.koinInject
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.DateFormatManager
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -39,6 +41,9 @@ fun RestrictUserSheet(
             }
         }
     }
+
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
@@ -184,7 +189,7 @@ fun RestrictUserSheet(
                             Text(stringResource(R.string.restrict_until), style = MaterialTheme.typography.bodyLarge)
                             Text(
                                 text = if (untilDate == 0) stringResource(R.string.restrict_forever) else SimpleDateFormat(
-                                    "MMM d, yyyy, HH:mm",
+                                    "MMM d, yyyy, $timeFormat",
                                     Locale.getDefault()
                                 ).format(Date(untilDate.toLong() * 1000)),
                                 style = MaterialTheme.typography.bodySmall,

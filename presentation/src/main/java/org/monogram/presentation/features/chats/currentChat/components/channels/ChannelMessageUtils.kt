@@ -5,8 +5,8 @@ import org.monogram.presentation.R
 import java.text.SimpleDateFormat
 import java.util.*
 
-fun formatTime(context: Context, ts: Int): String =
-    SimpleDateFormat(context.getString(R.string.format_time), Locale.getDefault()).format(Date(ts.toLong() * 1000))
+fun formatTime(ts: Int, timeFormat: String): String =
+    SimpleDateFormat(timeFormat, Locale.getDefault()).format(Date(ts.toLong() * 1000))
 
 fun formatViews(context: Context, views: Int): String {
     return when {

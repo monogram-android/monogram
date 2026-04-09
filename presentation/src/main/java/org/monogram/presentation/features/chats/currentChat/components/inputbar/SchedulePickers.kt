@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.DateFormatManager
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -104,9 +105,9 @@ fun buildScheduledDateEpochSeconds(selectedDateMillis: Long, hour: Int, minute: 
     return (selected.timeInMillis / 1000L).toInt()
 }
 
-fun formatScheduledTimestamp(epochSeconds: Int): String {
+fun formatScheduledTimestamp(epochSeconds: Int, timeFormat: String): String {
     return try {
-        val formatter = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
+        val formatter = SimpleDateFormat("dd MMM, $timeFormat", Locale.getDefault())
         formatter.format(Date(epochSeconds * 1000L))
     } catch (_: Exception) {
         ""

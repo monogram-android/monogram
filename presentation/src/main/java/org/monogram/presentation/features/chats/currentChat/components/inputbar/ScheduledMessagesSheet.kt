@@ -14,9 +14,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.DateFormatManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +40,9 @@ fun ScheduledMessagesSheet(
     val editableScheduledCount = remember(scheduledMessagesSorted) {
         scheduledMessagesSorted.count { canEditScheduledMessage(it) }
     }
+
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -102,7 +107,7 @@ fun ScheduledMessagesSheet(
                         text = if (nextScheduled != null) {
                             stringResource(
                                 R.string.scheduled_messages_summary_next,
-                                formatScheduledTimestamp(nextScheduled.date)
+                                formatScheduledTimestamp(nextScheduled.date, timeFormat)
                             )
                         } else {
                             stringResource(R.string.scheduled_messages_empty)
@@ -245,8 +250,9 @@ private fun ScheduledMessageRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                val dateFormatManager: DateFormatManager = koinInject()
                 Text(
-                    text = formatScheduledTimestamp(message.date),
+                    text = formatScheduledTimestamp(message.date, dateFormatManager.getHourMinuteFormat()),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

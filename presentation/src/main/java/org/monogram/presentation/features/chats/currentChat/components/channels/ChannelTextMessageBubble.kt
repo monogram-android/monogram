@@ -23,9 +23,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.features.chats.currentChat.components.chats.*
 
 @Composable
@@ -62,6 +64,9 @@ fun ChannelTextMessageBubble(
             if (isSameSenderBelow) smallCorner else tailCorner,
         bottomEnd = if (showComments && msg.canGetMessageThread) 4.dp else cornerRadius
     )
+
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
 
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
 
@@ -158,9 +163,8 @@ fun ChannelTextMessageBubble(
                             Spacer(modifier = Modifier.width(8.dp))
                         }
                     }
-
                     Text(
-                        text = formatTime(context, msg.date),
+                        text = formatTime(msg.date, timeFormat),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f)
                     )

@@ -1,5 +1,9 @@
 package org.monogram.presentation.core.util
 
+import android.content.Context
+import android.text.format.DateFormat
+import androidx.compose.runtime.Composable
+import org.koin.compose.koinInject
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -13,12 +17,16 @@ import kotlin.math.roundToLong
  * @param locale a [Locale] object which used with this date
  * @param now optional current date (for custom formatting or testing)
  **/
+@Composable
 fun Date.toShortRelativeDate(
     locale: Locale = Locale.getDefault(),
     now: Date = Date()
 ): String {
     val currentCalendar = Calendar.getInstance(locale).apply { time = now }
     val targetCalendar = Calendar.getInstance(locale).apply { time = this@toShortRelativeDate }
+
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
 
     val currentDayStart = currentCalendar.clone() as Calendar
     currentDayStart.apply {
@@ -42,7 +50,7 @@ fun Date.toShortRelativeDate(
 
     return when (diffDays) {
         0L -> {
-            SimpleDateFormat("HH:mm", locale).format(this)
+            SimpleDateFormat(timeFormat, locale).format(this)
         }
         in 1..6 -> {
             SimpleDateFormat("EEE", locale).format(this)
@@ -58,4 +66,14 @@ fun Date.toShortRelativeDate(
             SimpleDateFormat("dd.MM.yyyy", locale).format(this)
         }
     }
+}
+
+interface DateFormatManager {
+    fun is24HourFormat(): Boolean
+    fun getHourMinuteFormat(): String
+}
+
+class DateFormatManagerImpl(private val context: Context) : DateFormatManager {
+    override fun is24HourFormat(): Boolean = DateFormat.is24HourFormat(context)
+    override fun getHourMinuteFormat(): String = if (this.is24HourFormat()) "HH:mm" else "h:mm a"
 }

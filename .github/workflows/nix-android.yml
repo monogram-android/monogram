@@ -1,0 +1,38 @@
+name: Build APKs for Android using Nix
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+        submodules: 'recursive'
+
+    - uses: cachix/install-nix-action@v31
+
+    - name: Check Necessary environment variables presence
+      run: |
+        if [ -z "$LOCAL_PROPERTIES" ] || [ -z "$GOOGLE_SERVICES_JSON" ]; then
+          echo "You may want to add LOCAL_PROPERTIES and GOOGLE_SERVICES_JSON environment variables to your secrets"
+          exit 1
+        fi
+      env:
+        LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+        GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+
+    - name: Build Task
+      run: nix --experimental-features "nix-command flakes" run .#buildRelease
+      env:
+        LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+        GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+    
+    - name: Upload Release APKs
+      uses: actions/upload-artifact@v7
+      with:
+        name: Release APKs
+        path: app/build/outputs/apk/release/*.apk
+

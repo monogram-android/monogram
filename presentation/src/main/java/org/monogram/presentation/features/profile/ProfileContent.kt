@@ -298,7 +298,7 @@ fun ProfileContent(component: ProfileComponent) {
                     columns = GridCells.Fixed(3),
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = if (isTablet) 12.dp else 16.dp)
+                        .padding(horizontal = if (isTablet) 12.dp else 0.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(MaterialTheme.colorScheme.background),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),

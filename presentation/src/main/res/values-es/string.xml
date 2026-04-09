@@ -12,6 +12,9 @@
     <string name="current_device_section">Este dispositivo</string>
     <string name="login_requests_section">Solicitudes de inicio de sesión</string>
     <string name="active_sessions_section">Sesiones activas</string>
+    <string name="sessions_login_attempt">Intento de inicio de sesión</string>
+    <string name="sessions_unconfirmed">Sin confirmar</string>
+    <string name="sessions_terminate_action">Finalizar sesión</string>
 
     <string name="cd_navigate_back">Navegar hacia atrás</string>
     <string name="cd_close_scanner">Cerrar escáner</string>
@@ -1103,6 +1106,20 @@
     <string name="notification_service_stop">Detener</string>
     <string name="notification_service_channel_name">Servicio en segundo plano</string>
     <string name="notification_service_channel_description">Notificación sobre la aplicación en ejecución en segundo plano</string>
+    <string name="notification_new_message">Nuevo mensaje</string>
+    <string name="notification_person_me">Yo</string>
+    <string name="notification_summary_title_format">%1$d mensajes de %2$d chats</string>
+    <string name="notification_summary_text_format">%1$d chats</string>
+    <string name="notification_group_chats">Chats</string>
+    <string name="notification_group_other">Otros</string>
+    <string name="notification_channel_private_name">Chats privados</string>
+    <string name="notification_channel_private_description">Notificaciones de chats privados</string>
+    <string name="notification_channel_groups_name">Grupos</string>
+    <string name="notification_channel_groups_description">Notificaciones de grupos</string>
+    <string name="notification_channel_channels_name">Canales</string>
+    <string name="notification_channel_channels_description">Notificaciones de canales</string>
+    <string name="notification_channel_other_name">Otros</string>
+    <string name="notification_channel_other_description">Otras notificaciones</string>
 
     <!-- Chat Mapper / Media Types -->
     <string name="chat_mapper_photo">📷 Foto</string>
@@ -1362,6 +1379,10 @@
     <string name="statistics_vs_previous"> vs anterior</string>
     <string name="statistics_unknown_type">Tipo de estadística desconocido</string>
     <string name="statistics_data_class_format">Clase de datos: %1$s</string>
+    <string name="profile_statistics_preview_contact_format">Contacto: %1$s</string>
+    <string name="profile_statistics_preview_venue_format">Lugar: %1$s</string>
+    <string name="profile_statistics_preview_poll_format">Encuesta: %1$s</string>
+    <string name="profile_statistics_preview_service_message">Mensaje de servicio</string>
 
     <!-- Selection: Viewer Common -->
     <string name="viewer_back">Atrás</string>
@@ -1720,6 +1741,17 @@
     <string name="mini_app_permission_request">Solicitud de permiso</string>
     <string name="mini_app_allow">Permitir</string>
     <string name="mini_app_deny">Denegar</string>
+    <string name="mini_app_permission_biometry">Biometría</string>
+    <string name="mini_app_share_contact_title">Compartir contacto</string>
+    <string name="mini_app_share_contact_message">¿Permitir que %1$s acceda a tu número de teléfono?</string>
+    <string name="mini_app_allow_messages_title">Permitir mensajes</string>
+    <string name="mini_app_allow_messages_message">¿Permitir que %1$s te envíe mensajes?</string>
+    <string name="mini_app_download_file_title">Descargar archivo</string>
+    <string name="mini_app_download_file_message_generic">¿Descargar este archivo?</string>
+    <string name="mini_app_download_file_message_named">¿Descargar %1$s?</string>
+    <string name="mini_app_biometric_auth_title">Autenticación biométrica</string>
+    <string name="mini_app_biometric_auth_subtitle">Autentícate para continuar</string>
+    <string name="mini_app_request_location_access_message">¿Permitir que este bot acceda a tu ubicación?</string>
     <string name="mini_app_bot_permissions">Permisos del bot</string>
     <string name="mini_app_tos_title">Términos de servicio</string>
     <string name="mini_app_tos_text">Al lanzar esta Mini App, aceptas los Términos de servicio y la Política de privacidad. El bot podrá acceder a tu información de perfil básica.</string>

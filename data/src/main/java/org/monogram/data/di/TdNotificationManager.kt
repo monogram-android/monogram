@@ -35,6 +35,7 @@ import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository.TdNotificationScope
 import org.monogram.domain.repository.PushProvider
+import org.monogram.domain.repository.StringProvider
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.min
 
@@ -44,7 +45,8 @@ class TdNotificationManager(
     private val appPreferences: AppPreferencesProvider,
     private val notificationSettingsRepository: NotificationSettingsRepository,
     private val notificationSettingDao: NotificationSettingDao,
-    private val fileQueue: FileDownloadQueue
+    private val fileQueue: FileDownloadQueue,
+    private val stringProvider: StringProvider
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val notificationManager = NotificationManagerCompat.from(context)
@@ -336,7 +338,7 @@ class TdNotificationManager(
                 if (isChatMuted(chat)) return@launch
 
                 val contentText =
-                    if (appPreferences.showSenderOnly.value) "Новое сообщение" else getMessageText(message.content)
+                    if (appPreferences.showSenderOnly.value) stringProvider.getString("notification_new_message") else getMessageText(message.content)
 
                 if (contentText.isBlank()) return@launch
 
@@ -477,7 +479,7 @@ class TdNotificationManager(
         )
 
         val remoteInput = RemoteInput.Builder(KEY_TEXT_REPLY)
-            .setLabel("Ответить")
+            .setLabel(stringProvider.getString("menu_reply"))
             .build()
 
         val replyIntent = Intent(context, NotificationReplyReceiver::class.java).apply {
@@ -505,18 +507,18 @@ class TdNotificationManager(
 
         val replyAction = NotificationCompat.Action.Builder(
             android.R.drawable.ic_menu_send,
-            "Ответить",
+            stringProvider.getString("menu_reply"),
             replyPendingIntent
         ).addRemoteInput(remoteInput).build()
 
         val readAction = NotificationCompat.Action.Builder(
             android.R.drawable.ic_menu_view,
-            "Прочитано",
+            stringProvider.getString("action_mark_as_read"),
             readPendingIntent
         ).build()
 
 
-        val myself = Person.Builder().setName("Я").build()
+        val myself = Person.Builder().setName(stringProvider.getString("notification_person_me")).build()
         val messagingStyle = NotificationCompat.MessagingStyle(myself)
         history.forEach { (_, msg) ->
             messagingStyle.addMessage(msg)
@@ -570,7 +572,7 @@ class TdNotificationManager(
         }
 
         if (!appPreferences.inAppPreview.value) {
-            builder.setContentText("Новое сообщение")
+            builder.setContentText(stringProvider.getString("notification_new_message"))
         }
 
         if (chatIcon != null) {
@@ -630,7 +632,7 @@ class TdNotificationManager(
 
         allMessages.take(5).forEach { (chatId, message, _) ->
             val chat = chatCache[chatId]
-            val senderName = message.person?.name ?: "Unknown"
+            val senderName = message.person?.name ?: stringProvider.getString("unknown_user")
             val chatTitle = chat?.title ?: senderName
 
             val sb = SpannableStringBuilder()
@@ -643,8 +645,12 @@ class TdNotificationManager(
             inboxStyle.addLine(sb)
         }
 
-        val summaryTitle = "$totalMessagesCount сообщений из $activeChatsCount чатов"
-        inboxStyle.setSummaryText("$activeChatsCount чатов")
+        val summaryTitle = stringProvider.getString(
+            "notification_summary_title_format",
+            totalMessagesCount,
+            activeChatsCount
+        )
+        inboxStyle.setSummaryText(stringProvider.getString("notification_summary_text_format", activeChatsCount))
         inboxStyle.setBigContentTitle(summaryTitle)
 
         val builder = NotificationCompat.Builder(context, CHANNEL_PRIVATE)
@@ -677,34 +683,34 @@ class TdNotificationManager(
 
             manager.createNotificationChannelGroups(
                 listOf(
-                    NotificationChannelGroup(GROUP_CHATS, "Чаты"),
-                    NotificationChannelGroup(GROUP_OTHER, "Прочее")
+                    NotificationChannelGroup(GROUP_CHATS, stringProvider.getString("notification_group_chats")),
+                    NotificationChannelGroup(GROUP_OTHER, stringProvider.getString("notification_group_other"))
                 )
             )
 
             val channels = listOf(
-                NotificationChannel(CHANNEL_PRIVATE, "Личные чаты", NotificationManager.IMPORTANCE_HIGH).apply {
-                    description = "Уведомления из личных переписок"
+                NotificationChannel(CHANNEL_PRIVATE, stringProvider.getString("notification_channel_private_name"), NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = stringProvider.getString("notification_channel_private_description")
                     group = GROUP_CHATS
                     enableVibration(true)
                     setShowBadge(true)
                     lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
                 },
-                NotificationChannel(CHANNEL_GROUPS, "Группы", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                    description = "Уведомления из групп"
+                NotificationChannel(CHANNEL_GROUPS, stringProvider.getString("notification_channel_groups_name"), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    description = stringProvider.getString("notification_channel_groups_description")
                     group = GROUP_CHATS
                     enableVibration(true)
                     setShowBadge(true)
                     lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
                 },
-                NotificationChannel(CHANNEL_CHANNELS, "Каналы", NotificationManager.IMPORTANCE_LOW).apply {
-                    description = "Уведомления из каналов"
+                NotificationChannel(CHANNEL_CHANNELS, stringProvider.getString("notification_channel_channels_name"), NotificationManager.IMPORTANCE_LOW).apply {
+                    description = stringProvider.getString("notification_channel_channels_description")
                     group = GROUP_CHATS
                     enableVibration(false)
                     setShowBadge(true)
                 },
-                NotificationChannel(CHANNEL_OTHER, "Другое", NotificationManager.IMPORTANCE_LOW).apply {
-                    description = "Прочие уведомления"
+                NotificationChannel(CHANNEL_OTHER, stringProvider.getString("notification_channel_other_name"), NotificationManager.IMPORTANCE_LOW).apply {
+                    description = stringProvider.getString("notification_channel_other_description")
                     group = GROUP_OTHER
                 }
             )
@@ -714,19 +720,27 @@ class TdNotificationManager(
     }
 
     private fun getMessageText(content: TdApi.MessageContent): String {
+        fun withDetails(base: String, details: String?): String {
+            val cleanDetails = details?.trim().orEmpty()
+            return if (cleanDetails.isEmpty()) base else "$base $cleanDetails"
+        }
+
         return when (content) {
             is TdApi.MessageText -> sanitizeSpoilers(content.text)
-            is TdApi.MessagePhoto -> "📷 Фотография ${sanitizeSpoilers(content.caption)}"
-            is TdApi.MessageVideo -> "📹 Видео ${sanitizeSpoilers(content.caption)}"
-            is TdApi.MessageVoiceNote -> "🎤 Голосовое сообщение"
-            is TdApi.MessageSticker -> "Стикер"
-            is TdApi.MessageAnimation -> "GIF"
-            is TdApi.MessageAudio -> "🎵 Аудио ${content.audio.title}"
-            is TdApi.MessageDocument -> "📄 Файл ${content.document.fileName}"
-            is TdApi.MessageLocation -> "📍 Локация ${content.location.latitude}, ${content.location.longitude}"
-            is TdApi.MessageContact -> "👤 Контакт ${content.contact.firstName} ${content.contact.lastName}"
-            is TdApi.MessagePoll -> "📊 Опрос ${content.poll.question.text}"
-            else -> "Сообщение"
+            is TdApi.MessagePhoto -> withDetails("📷 ${stringProvider.getString("logs_media_photo")}", sanitizeSpoilers(content.caption))
+            is TdApi.MessageVideo -> withDetails("📹 ${stringProvider.getString("logs_media_video")}", sanitizeSpoilers(content.caption))
+            is TdApi.MessageVoiceNote -> "🎤 ${stringProvider.getString("logs_media_voice")}"
+            is TdApi.MessageSticker -> stringProvider.getString("reply_content_sticker")
+            is TdApi.MessageAnimation -> stringProvider.getString("reply_content_gif")
+            is TdApi.MessageAudio -> withDetails("🎵 ${stringProvider.getString("logs_media_audio")}", content.audio.title)
+            is TdApi.MessageDocument -> withDetails("📄 ${stringProvider.getString("logs_media_document")}", content.document.fileName)
+            is TdApi.MessageLocation -> "📍 ${stringProvider.getString("location_label")} ${content.location.latitude}, ${content.location.longitude}"
+            is TdApi.MessageContact -> withDetails(
+                "👤 ${stringProvider.getString("logs_media_contact")}",
+                listOf(content.contact.firstName, content.contact.lastName).filter { it.isNotBlank() }.joinToString(" ")
+            )
+            is TdApi.MessagePoll -> withDetails("📊 ${stringProvider.getString("logs_media_poll")}", content.poll.question.text)
+            else -> stringProvider.getString("reply_content_message")
         }
     }
 

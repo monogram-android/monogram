@@ -71,6 +71,7 @@ class DefaultProfileComponent(
     private val locationRepository: LocationRepository = container.repositories.locationRepository
     private val gifRepository: GifRepository = container.repositories.gifRepository
     private val botPreferences: BotPreferencesProvider = container.preferences.botPreferencesProvider
+    private val stringProvider = container.utils.stringProvider()
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
 
     private val scope = componentScope
@@ -610,7 +611,7 @@ class DefaultProfileComponent(
                 }
             }
             is MessageContent.Location -> {
-                onLocationClick(content.latitude, content.longitude, "Location")
+                onLocationClick(content.latitude, content.longitude, stringProvider.getString("location_label"))
             }
 
             is MessageContent.Venue -> {
@@ -1095,9 +1096,9 @@ class DefaultProfileComponent(
     override fun onShowPermissions() {
         val botId = _state.value.user?.id ?: return
         val permissions = mapOf(
-            "Location" to botPreferences.getWebappPermission(botId, "location"),
-            "Biometry" to botPreferences.getWebappPermission(botId, "biometry"),
-            "Terms of Service" to botPreferences.getWebappPermission(botId, "tos_accepted")
+            stringProvider.getString("location_label") to botPreferences.getWebappPermission(botId, "location"),
+            stringProvider.getString("mini_app_permission_biometry") to botPreferences.getWebappPermission(botId, "biometry"),
+            stringProvider.getString("terms_of_service_title") to botPreferences.getWebappPermission(botId, "tos_accepted")
         )
         _state.update { it.copy(isPermissionsVisible = true, botPermissions = permissions) }
     }
@@ -1109,9 +1110,9 @@ class DefaultProfileComponent(
     override fun onTogglePermission(permission: String) {
         val botId = _state.value.user?.id ?: return
         val key = when (permission) {
-            "Location" -> "location"
-            "Biometry" -> "biometry"
-            "Terms of Service" -> "tos_accepted"
+            stringProvider.getString("location_label") -> "location"
+            stringProvider.getString("mini_app_permission_biometry") -> "biometry"
+            stringProvider.getString("terms_of_service_title") -> "tos_accepted"
             else -> return
         }
         val current = botPreferences.getWebappPermission(botId, key)
@@ -1153,10 +1154,12 @@ class DefaultProfileComponent(
     override fun onLocationClick(lat: Double, lon: Double, address: String) {
         scope.launch {
             var finalAddress = address
-            if (address == "Location") {
+            if (address == stringProvider.getString("location_label")) {
                 val reverse = locationRepository.reverseGeocode(lat, lon)
                 if (reverse != null) {
-                    finalAddress = reverse.address?.city ?: reverse.address?.toString() ?: "Location"
+                    finalAddress = reverse.address?.city
+                        ?: reverse.address?.toString()
+                        ?: stringProvider.getString("location_label")
                 }
             }
             _state.update {
@@ -1192,21 +1195,27 @@ class DefaultProfileComponent(
 
     private fun MessageContent.toStatisticsPreview(): String {
         return when (this) {
-            is MessageContent.Text -> text.ifBlank { "Message" }
-            is MessageContent.Photo -> caption.ifBlank { "Photo" }
-            is MessageContent.Video -> caption.ifBlank { "Video" }
-            is MessageContent.Gif -> caption.ifBlank { "GIF" }
-            is MessageContent.Document -> caption.ifBlank { fileName.ifBlank { "Document" } }
-            is MessageContent.Audio -> caption.ifBlank { title.ifBlank { "Audio" } }
-            is MessageContent.Voice -> "Voice message"
-            is MessageContent.VideoNote -> "Video message"
-            is MessageContent.Sticker -> "Sticker ${emoji.ifBlank { "" }}".trim()
-            is MessageContent.Contact -> "Contact: ${firstName} ${lastName}".trim()
-            is MessageContent.Location -> "Location"
-            is MessageContent.Venue -> "Venue: $title"
-            is MessageContent.Poll -> "Poll: $question"
-            is MessageContent.Service -> text.ifBlank { "Service message" }
-            MessageContent.Unsupported -> "Unsupported message"
+            is MessageContent.Text -> text.ifBlank { stringProvider.getString("reply_content_message") }
+            is MessageContent.Photo -> caption.ifBlank { stringProvider.getString("reply_content_photo") }
+            is MessageContent.Video -> caption.ifBlank { stringProvider.getString("reply_content_video") }
+            is MessageContent.Gif -> caption.ifBlank { stringProvider.getString("reply_content_gif") }
+            is MessageContent.Document -> caption.ifBlank { fileName.ifBlank { stringProvider.getString("logs_media_document") } }
+            is MessageContent.Audio -> caption.ifBlank { title.ifBlank { stringProvider.getString("logs_media_audio") } }
+            is MessageContent.Voice -> stringProvider.getString("reply_content_voice_message")
+            is MessageContent.VideoNote -> stringProvider.getString("reply_content_video_message")
+            is MessageContent.Sticker -> listOf(
+                stringProvider.getString("reply_content_sticker"),
+                emoji.ifBlank { "" }
+            ).filter { it.isNotBlank() }.joinToString(" ")
+            is MessageContent.Contact -> stringProvider.getString(
+                "profile_statistics_preview_contact_format",
+                "$firstName $lastName".trim()
+            )
+            is MessageContent.Location -> stringProvider.getString("location_label")
+            is MessageContent.Venue -> stringProvider.getString("profile_statistics_preview_venue_format", title)
+            is MessageContent.Poll -> stringProvider.getString("profile_statistics_preview_poll_format", question)
+            is MessageContent.Service -> text.ifBlank { stringProvider.getString("profile_statistics_preview_service_message") }
+            MessageContent.Unsupported -> stringProvider.getString("logs_media_unsupported")
         }
     }
 

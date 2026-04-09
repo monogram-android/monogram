@@ -12,6 +12,9 @@
     <string name="current_device_section">此设备</string>
     <string name="login_requests_section">登录请求</string>
     <string name="active_sessions_section">活跃会话</string>
+    <string name="sessions_login_attempt">登录尝试</string>
+    <string name="sessions_unconfirmed">未确认</string>
+    <string name="sessions_terminate_action">终止会话</string>
 
     <string name="cd_navigate_back">返回</string>
     <string name="cd_close_scanner">关闭扫描器</string>
@@ -1053,6 +1056,20 @@
     <string name="notification_service_stop">停止</string>
     <string name="notification_service_channel_name">后台服务</string>
     <string name="notification_service_channel_description">关于应用在后台运行的通知</string>
+    <string name="notification_new_message">新消息</string>
+    <string name="notification_person_me">我</string>
+    <string name="notification_summary_title_format">来自 %2$d 个聊天的 %1$d 条消息</string>
+    <string name="notification_summary_text_format">%1$d 个聊天</string>
+    <string name="notification_group_chats">聊天</string>
+    <string name="notification_group_other">其他</string>
+    <string name="notification_channel_private_name">私聊</string>
+    <string name="notification_channel_private_description">来自私聊的通知</string>
+    <string name="notification_channel_groups_name">群组</string>
+    <string name="notification_channel_groups_description">来自群组的通知</string>
+    <string name="notification_channel_channels_name">频道</string>
+    <string name="notification_channel_channels_description">来自频道的通知</string>
+    <string name="notification_channel_other_name">其他</string>
+    <string name="notification_channel_other_description">其他通知</string>
 
     <!-- Chat Mapper / Media Types -->
     <string name="chat_mapper_photo">📷 照片</string>
@@ -1311,6 +1328,10 @@
     <string name="statistics_vs_previous"> 与前期相比</string>
     <string name="statistics_unknown_type">未知统计类型</string>
     <string name="statistics_data_class_format">数据类: %1$s</string>
+    <string name="profile_statistics_preview_contact_format">联系人：%1$s</string>
+    <string name="profile_statistics_preview_venue_format">地点：%1$s</string>
+    <string name="profile_statistics_preview_poll_format">投票：%1$s</string>
+    <string name="profile_statistics_preview_service_message">服务消息</string>
 
     <!-- Selection: Viewer Common -->
     <string name="viewer_back">返回</string>
@@ -1668,6 +1689,17 @@
     <string name="mini_app_permission_request">权限请求</string>
     <string name="mini_app_allow">允许</string>
     <string name="mini_app_deny">拒绝</string>
+    <string name="mini_app_permission_biometry">生物识别</string>
+    <string name="mini_app_share_contact_title">分享联系人</string>
+    <string name="mini_app_share_contact_message">允许 %1$s 访问你的电话号码吗？</string>
+    <string name="mini_app_allow_messages_title">允许消息</string>
+    <string name="mini_app_allow_messages_message">允许 %1$s 向你发送消息吗？</string>
+    <string name="mini_app_download_file_title">下载文件</string>
+    <string name="mini_app_download_file_message_generic">下载此文件吗？</string>
+    <string name="mini_app_download_file_message_named">下载 %1$s 吗？</string>
+    <string name="mini_app_biometric_auth_title">生物识别验证</string>
+    <string name="mini_app_biometric_auth_subtitle">验证身份以继续</string>
+    <string name="mini_app_request_location_access_message">允许此机器人访问你的位置吗？</string>
     <string name="mini_app_bot_permissions">机器人权限</string>
     <string name="mini_app_tos_title">服务条款</string>
     <string name="mini_app_tos_text">启动此小程序即表示您同意其服务条款和隐私政策。该机器人将能够访问您的基本个人资料信息。</string>

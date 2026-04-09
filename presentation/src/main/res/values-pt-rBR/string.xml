@@ -12,6 +12,9 @@
     <string name="current_device_section">Este dispositivo</string>
     <string name="login_requests_section">Solicitações de login</string>
     <string name="active_sessions_section">Sessões ativas</string>
+    <string name="sessions_login_attempt">Tentativa de login</string>
+    <string name="sessions_unconfirmed">Não confirmado</string>
+    <string name="sessions_terminate_action">Encerrar sessão</string>
 
     <string name="cd_navigate_back">Voltar</string>
     <string name="cd_close_scanner">Fechar scanner</string>
@@ -1131,6 +1134,20 @@
     <string name="notification_service_stop">Parar</string>
     <string name="notification_service_channel_name">Serviço em segundo plano</string>
     <string name="notification_service_channel_description">Notificação sobre o app rodando em segundo plano</string>
+    <string name="notification_new_message">Nova mensagem</string>
+    <string name="notification_person_me">Eu</string>
+    <string name="notification_summary_title_format">%1$d mensagens de %2$d chats</string>
+    <string name="notification_summary_text_format">%1$d chats</string>
+    <string name="notification_group_chats">Chats</string>
+    <string name="notification_group_other">Outros</string>
+    <string name="notification_channel_private_name">Conversas privadas</string>
+    <string name="notification_channel_private_description">Notificações de conversas privadas</string>
+    <string name="notification_channel_groups_name">Grupos</string>
+    <string name="notification_channel_groups_description">Notificações de grupos</string>
+    <string name="notification_channel_channels_name">Canais</string>
+    <string name="notification_channel_channels_description">Notificações de canais</string>
+    <string name="notification_channel_other_name">Outros</string>
+    <string name="notification_channel_other_description">Outras notificações</string>
 
     <!-- Chat Mapper / Media Types -->
     <string name="chat_mapper_photo">📷 Foto</string>
@@ -1390,6 +1407,10 @@
     <string name="statistics_vs_previous"> vs anterior</string>
     <string name="statistics_unknown_type">Tipo de estatística desconhecido</string>
     <string name="statistics_data_class_format">Classe de dados: %1$s</string>
+    <string name="profile_statistics_preview_contact_format">Contato: %1$s</string>
+    <string name="profile_statistics_preview_venue_format">Local: %1$s</string>
+    <string name="profile_statistics_preview_poll_format">Enquete: %1$s</string>
+    <string name="profile_statistics_preview_service_message">Mensagem de serviço</string>
 
     <!-- Selection: Viewer Common -->
     <string name="viewer_back">Voltar</string>
@@ -1748,6 +1769,17 @@
     <string name="mini_app_permission_request">Solicitação de permissão</string>
     <string name="mini_app_allow">Permitir</string>
     <string name="mini_app_deny">Negar</string>
+    <string name="mini_app_permission_biometry">Biometria</string>
+    <string name="mini_app_share_contact_title">Compartilhar contato</string>
+    <string name="mini_app_share_contact_message">Permitir que %1$s acesse seu número de telefone?</string>
+    <string name="mini_app_allow_messages_title">Permitir mensagens</string>
+    <string name="mini_app_allow_messages_message">Permitir que %1$s envie mensagens para você?</string>
+    <string name="mini_app_download_file_title">Baixar arquivo</string>
+    <string name="mini_app_download_file_message_generic">Baixar este arquivo?</string>
+    <string name="mini_app_download_file_message_named">Baixar %1$s?</string>
+    <string name="mini_app_biometric_auth_title">Autenticação biométrica</string>
+    <string name="mini_app_biometric_auth_subtitle">Autentique-se para continuar</string>
+    <string name="mini_app_request_location_access_message">Permitir que este bot acesse sua localização?</string>
     <string name="mini_app_bot_permissions">Permissões do bot</string>
     <string name="mini_app_tos_title">Termos de Serviço</string>
     <string name="mini_app_tos_text">Ao iniciar este Mini App, você concorda com os Termos de Serviço e a Política de Privacidade. O bot poderá acessar suas informações básicas de perfil.</string>

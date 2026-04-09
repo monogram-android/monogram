@@ -497,8 +497,8 @@ class MiniAppState(
                 reqId = "req_phone",
                 method = "web_app_request_phone",
                 params = "",
-                title = "Share Contact",
-                message = "Allow $botName to access your phone number?",
+                title = context.getString(R.string.mini_app_share_contact_title),
+                message = context.getString(R.string.mini_app_share_contact_message, botName),
                 onConfirm = {
                     scope.launch {
                         val me = userRepository.getMe()
@@ -531,8 +531,8 @@ class MiniAppState(
                 reqId = "req_write_access",
                 method = "web_app_request_write_access",
                 params = "",
-                title = "Allow Messages",
-                message = "Allow $botName to send you messages?",
+                title = context.getString(R.string.mini_app_allow_messages_title),
+                message = context.getString(R.string.mini_app_allow_messages_message, botName),
                 onConfirm = {
                     telegramProxy?.dispatchToWebView("write_access_requested", JSONObject().put("status", "allowed"))
                     activeCustomMethod = null
@@ -813,8 +813,12 @@ class MiniAppState(
                 reqId = "req_file_download",
                 method = "web_app_request_file_download",
                 params = "",
-                title = "Download File",
-                message = "Download ${if (fileName.isBlank()) "this file" else fileName}?",
+                title = context.getString(R.string.mini_app_download_file_title),
+                message = if (fileName.isBlank()) {
+                    context.getString(R.string.mini_app_download_file_message_generic)
+                } else {
+                    context.getString(R.string.mini_app_download_file_message_named, fileName)
+                },
                 onConfirm = {
                     val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
                     if (downloadManager == null) {
@@ -1042,9 +1046,9 @@ class MiniAppState(
                     override fun onAuthenticationFailed() {}
                 })
             val promptInfo = BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Biometric Authentication")
-                .setSubtitle(reason ?: "Authenticate to continue")
-                .setNegativeButtonText("Cancel")
+                .setTitle(context.getString(R.string.mini_app_biometric_auth_title))
+                .setSubtitle(reason ?: context.getString(R.string.mini_app_biometric_auth_subtitle))
+                .setNegativeButtonText(context.getString(R.string.cancel_button))
                 .build()
             biometricPrompt.authenticate(promptInfo)
         }
@@ -1064,7 +1068,7 @@ class MiniAppState(
                 return
             }
             showPermissionRequest = PermissionRequest(
-                message = "Allow this bot to access your location?",
+                message = context.getString(R.string.mini_app_request_location_access_message),
                 onGranted = {
                     savePermission("location", true)
                     checkSystemLocationAndHandle()
@@ -1121,9 +1125,9 @@ class MiniAppState(
 
     fun onShowPermissions() {
         val permissions = mapOf(
-            "Location" to botPreferences.getWebappPermission(botUserId, "location"),
-            "Biometry" to botPreferences.getWebappPermission(botUserId, "biometry"),
-            "Terms of Service" to botPreferences.getWebappPermission(botUserId, "tos_accepted")
+            context.getString(R.string.location_label) to botPreferences.getWebappPermission(botUserId, "location"),
+            context.getString(R.string.mini_app_permission_biometry) to botPreferences.getWebappPermission(botUserId, "biometry"),
+            context.getString(R.string.terms_of_service_title) to botPreferences.getWebappPermission(botUserId, "tos_accepted")
         )
         botPermissions = permissions
         isPermissionsVisible = true
@@ -1135,9 +1139,9 @@ class MiniAppState(
 
     fun onTogglePermission(permission: String) {
         val key = when (permission) {
-            "Location" -> "location"
-            "Biometry" -> "biometry"
-            "Terms of Service" -> "tos_accepted"
+            context.getString(R.string.location_label) -> "location"
+            context.getString(R.string.mini_app_permission_biometry) -> "biometry"
+            context.getString(R.string.terms_of_service_title) -> "tos_accepted"
             else -> return
         }
         val current = botPreferences.getWebappPermission(botUserId, key)

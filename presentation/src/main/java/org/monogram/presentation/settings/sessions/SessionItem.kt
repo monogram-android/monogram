@@ -25,9 +25,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.presentation.R
 import org.monogram.domain.models.SessionModel
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.spacer.WidthSpacer
@@ -78,7 +80,7 @@ internal fun SessionItem(
                 )
 
                 Text(
-                    text = if (isPending) "Не подтверждено • ${session.lastActiveDate.toShortRelativeDate()}"
+                    text = if (isPending) "${stringResource(R.string.sessions_unconfirmed)} • ${session.lastActiveDate.toShortRelativeDate()}"
                     else "${session.location} •  ${session.lastActiveDate.toShortRelativeDate()}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
@@ -122,7 +124,7 @@ private fun PlatformName(
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            text = if (isPending) "Попытка входа" else session.deviceModel,
+            text = if (isPending) stringResource(R.string.sessions_login_attempt) else session.deviceModel,
             style = MaterialTheme.typography.titleMedium,
             fontSize = 18.sp,
             fontWeight = if (isPending) FontWeight.Bold else FontWeight.Normal,
@@ -133,7 +135,7 @@ private fun PlatformName(
             Spacer(modifier = Modifier.width(6.dp))
             Icon(
                 imageVector = Icons.Rounded.Verified,
-                contentDescription = "Official",
+                contentDescription = stringResource(R.string.sticker_official),
                 modifier = Modifier.size(16.dp),
                 tint = Color(0xFF31A6FD)
             )
@@ -151,7 +153,7 @@ private fun ExitButton(
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.Logout,
-            contentDescription = "Terminate session",
+            contentDescription = stringResource(R.string.sessions_terminate_action),
             tint = MaterialTheme.colorScheme.error
         )
     }

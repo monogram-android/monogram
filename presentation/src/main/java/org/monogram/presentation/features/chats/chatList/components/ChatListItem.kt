@@ -197,6 +197,7 @@ private fun ChatListItemHeader(
     isSavedMessages: Boolean
 ) {
     val chatTime = chat.lastMessageDate.toDate().toShortRelativeDate()
+    val savedMessagesTitle = stringResource(R.string.menu_saved_messages)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -214,13 +215,15 @@ private fun ChatListItemHeader(
                 Spacer(Modifier.width(4.dp))
             }
             Text(
-                text = if (isSavedMessages) stringResource(R.string.menu_saved_messages) else chat.title,
+                text = if (isSavedMessages) savedMessagesTitle else chat.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.semantics { contentDescription = "ChatTitle" }
+                modifier = Modifier.semantics {
+                    contentDescription = if (isSavedMessages) savedMessagesTitle else chat.title
+                }
             )
 
             if (!isSavedMessages && chat.isMuted) {

@@ -12,6 +12,9 @@
     <string name="current_device_section">Цей пристрій</string>
     <string name="login_requests_section">Запити на вхід</string>
     <string name="active_sessions_section">Активні сеанси</string>
+    <string name="sessions_login_attempt">Спроба входу</string>
+    <string name="sessions_unconfirmed">Не підтверджено</string>
+    <string name="sessions_terminate_action">Завершити сеанс</string>
 
     <string name="cd_navigate_back">Назад</string>
     <string name="cd_close_scanner">Закрити сканер</string>
@@ -1063,6 +1066,20 @@
     <string name="notification_service_stop">Зупинити</string>
     <string name="notification_service_channel_name">Фонова робота</string>
     <string name="notification_service_channel_description">Сповіщення про роботу програми у фоновому режимі</string>
+    <string name="notification_new_message">Нове повідомлення</string>
+    <string name="notification_person_me">Я</string>
+    <string name="notification_summary_title_format">%1$d повідомлень із %2$d чатів</string>
+    <string name="notification_summary_text_format">%1$d чатів</string>
+    <string name="notification_group_chats">Чати</string>
+    <string name="notification_group_other">Інше</string>
+    <string name="notification_channel_private_name">Приватні чати</string>
+    <string name="notification_channel_private_description">Сповіщення з приватних чатів</string>
+    <string name="notification_channel_groups_name">Групи</string>
+    <string name="notification_channel_groups_description">Сповіщення з груп</string>
+    <string name="notification_channel_channels_name">Канали</string>
+    <string name="notification_channel_channels_description">Сповіщення з каналів</string>
+    <string name="notification_channel_other_name">Інше</string>
+    <string name="notification_channel_other_description">Інші сповіщення</string>
 
     <!-- Chat Mapper / Media Types -->
     <string name="chat_mapper_photo">📷 Фото</string>
@@ -1324,6 +1341,10 @@
     <string name="statistics_vs_previous"> порівняно з минулим пер.</string>
     <string name="statistics_unknown_type">Невідомий тип статистики</string>
     <string name="statistics_data_class_format">Клас даних: %1$s</string>
+    <string name="profile_statistics_preview_contact_format">Контакт: %1$s</string>
+    <string name="profile_statistics_preview_venue_format">Місце: %1$s</string>
+    <string name="profile_statistics_preview_poll_format">Опитування: %1$s</string>
+    <string name="profile_statistics_preview_service_message">Службове повідомлення</string>
 
     <!-- Selection: Viewer Common -->
     <string name="viewer_back">Назад</string>
@@ -1684,6 +1705,17 @@
     <string name="mini_app_permission_request">Запит на дозвіл</string>
     <string name="mini_app_allow">Дозволити</string>
     <string name="mini_app_deny">Відхилити</string>
+    <string name="mini_app_permission_biometry">Біометрія</string>
+    <string name="mini_app_share_contact_title">Поділитися контактом</string>
+    <string name="mini_app_share_contact_message">Дозволити %1$s доступ до вашого номера телефону?</string>
+    <string name="mini_app_allow_messages_title">Дозволити повідомлення</string>
+    <string name="mini_app_allow_messages_message">Дозволити %1$s надсилати вам повідомлення?</string>
+    <string name="mini_app_download_file_title">Завантажити файл</string>
+    <string name="mini_app_download_file_message_generic">Завантажити цей файл?</string>
+    <string name="mini_app_download_file_message_named">Завантажити %1$s?</string>
+    <string name="mini_app_biometric_auth_title">Біометрична автентифікація</string>
+    <string name="mini_app_biometric_auth_subtitle">Підтвердьте особу, щоб продовжити</string>
+    <string name="mini_app_request_location_access_message">Дозволити цьому боту доступ до вашого місцезнаходження?</string>
     <string name="mini_app_bot_permissions">Дозволи бота</string>
     <string name="mini_app_tos_title">Умови використання</string>
     <string name="mini_app_tos_text">Запускаючи цей мінідодаток, ви погоджуєтеся з Умовами надання послуг та Політикою конфіденційності. Бот отримає доступ до основної інформації вашого профілю.</string>

@@ -200,11 +200,21 @@ fun ChatTopBar(
                                     label = "StatusAnimation"
                                 ) { targetStatus ->
                                     if (!targetStatus.isNullOrEmpty()) {
-                                        val isTyping = targetStatus.contains("печатает") ||
-                                                targetStatus.contains("записывает") ||
-                                                targetStatus.contains("отправляет") ||
-                                                targetStatus.contains("выбирает") ||
-                                                targetStatus.contains("играет")
+                                        val normalizedStatus = targetStatus.lowercase()
+                                        val typingTokens = listOf(
+                                            stringResource(R.string.typing_typing),
+                                            stringResource(R.string.typing_recording_video),
+                                            stringResource(R.string.typing_recording_voice),
+                                            stringResource(R.string.typing_uploading_photo),
+                                            stringResource(R.string.typing_uploading_video),
+                                            stringResource(R.string.typing_uploading_document),
+                                            stringResource(R.string.typing_choosing_sticker),
+                                            stringResource(R.string.typing_playing_game),
+                                            stringResource(R.string.typing_multi_typing)
+                                        ).map { it.lowercase() }
+                                        val isTyping = typingTokens.any { token ->
+                                            token.isNotBlank() && normalizedStatus.contains(token)
+                                        }
 
                                         Row(verticalAlignment = Alignment.Bottom) {
                                             Text(

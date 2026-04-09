@@ -12,6 +12,9 @@
     <string name="current_device_section">Այս սարքը</string>
     <string name="login_requests_section">Մուտքի հարցումներ</string>
     <string name="active_sessions_section">Ակտիվ սեանսներ</string>
+    <string name="sessions_login_attempt">Մուտքի փորձ</string>
+    <string name="sessions_unconfirmed">Չհաստատված</string>
+    <string name="sessions_terminate_action">Ավարտել սեանսը</string>
 
     <string name="cd_navigate_back">Հետ գնալ</string>
     <string name="cd_close_scanner">Փակել սկաները</string>
@@ -998,6 +1001,20 @@
     <string name="notification_service_stop">Կանգնեցնել</string>
     <string name="notification_service_channel_name">Հետին պլանի ծառայություն</string>
     <string name="notification_service_channel_description">Ծանուցում հետին պլանում աշխատող հավելվածի մասին</string>
+    <string name="notification_new_message">Նոր հաղորդագրություն</string>
+    <string name="notification_person_me">Ես</string>
+    <string name="notification_summary_title_format">%1$d հաղորդագրություն %2$d չատից</string>
+    <string name="notification_summary_text_format">%1$d չատ</string>
+    <string name="notification_group_chats">Չատեր</string>
+    <string name="notification_group_other">Այլ</string>
+    <string name="notification_channel_private_name">Անձնական չատեր</string>
+    <string name="notification_channel_private_description">Ծանուցումներ անձնական չատերից</string>
+    <string name="notification_channel_groups_name">Խմբեր</string>
+    <string name="notification_channel_groups_description">Ծանուցումներ խմբերից</string>
+    <string name="notification_channel_channels_name">Ալիքներ</string>
+    <string name="notification_channel_channels_description">Ծանուցումներ ալիքներից</string>
+    <string name="notification_channel_other_name">Այլ</string>
+    <string name="notification_channel_other_description">Այլ ծանուցումներ</string>
 
     <string name="chat_mapper_photo">📷 Նկար</string>
     <string name="chat_mapper_video">📹 Վիդեո</string>
@@ -1238,6 +1255,10 @@
     <string name="statistics_vs_previous"> նախորդի համեմատ</string>
     <string name="statistics_unknown_type">Անհայտ վիճակագրություն</string>
     <string name="statistics_data_class_format">Տվյալների դաս՝ %1$s</string>
+    <string name="profile_statistics_preview_contact_format">Կոնտակտ՝ %1$s</string>
+    <string name="profile_statistics_preview_venue_format">Վայր՝ %1$s</string>
+    <string name="profile_statistics_preview_poll_format">Հարցում՝ %1$s</string>
+    <string name="profile_statistics_preview_service_message">Ծառայողական հաղորդագրություն</string>
 
     <string name="viewer_back">Հետ</string>
     <string name="viewer_options">Տարբերակներ</string>
@@ -1562,6 +1583,17 @@
     <string name="mini_app_permission_request">Թույլտվության հարցում</string>
     <string name="mini_app_allow">Թույլատրել</string>
     <string name="mini_app_deny">Մերժել</string>
+    <string name="mini_app_permission_biometry">Կենսաչափություն</string>
+    <string name="mini_app_share_contact_title">Կիսվել կոնտակտով</string>
+    <string name="mini_app_share_contact_message">Թույլատրել %1$s-ին հասանելիություն ձեր հեռախոսահամարին՞</string>
+    <string name="mini_app_allow_messages_title">Թույլատրել հաղորդագրությունները</string>
+    <string name="mini_app_allow_messages_message">Թույլատրել %1$s-ին ձեզ հաղորդագրություններ ուղարկել՞</string>
+    <string name="mini_app_download_file_title">Ներբեռնել ֆայլը</string>
+    <string name="mini_app_download_file_message_generic">Ներբեռնել այս ֆայլը՞</string>
+    <string name="mini_app_download_file_message_named">Ներբեռնել %1$s-ը՞</string>
+    <string name="mini_app_biometric_auth_title">Կենսաչափական նույնականացում</string>
+    <string name="mini_app_biometric_auth_subtitle">Հաստատեք ինքնությունը՝ շարունակելու համար</string>
+    <string name="mini_app_request_location_access_message">Թույլատրել այս բոտին հասանելիություն ձեր տեղադրությանը՞</string>
     <string name="mini_app_bot_permissions">Բոտի թույլտվությունները</string>
     <string name="mini_app_tos_title">Օգտագործման պայմաններ</string>
     <string name="mini_app_tos_text">Գործարկելով այս մինի հավելվածը՝ Դուք համաձայնում եք օգտագործման պայմաններին:</string>

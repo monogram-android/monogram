@@ -12,6 +12,9 @@
     <string name="current_device_section">This device</string>
     <string name="login_requests_section">Login requests</string>
     <string name="active_sessions_section">Active sessions</string>
+    <string name="sessions_login_attempt">Login attempt</string>
+    <string name="sessions_unconfirmed">Unconfirmed</string>
+    <string name="sessions_terminate_action">Terminate session</string>
 
     <string name="cd_navigate_back">Navigate back</string>
     <string name="cd_close_scanner">Close scanner</string>
@@ -1144,6 +1147,20 @@
     <string name="notification_service_stop">Stop</string>
     <string name="notification_service_channel_name">Background Service</string>
     <string name="notification_service_channel_description">Notification about app running in background</string>
+    <string name="notification_new_message">New message</string>
+    <string name="notification_person_me">Me</string>
+    <string name="notification_summary_title_format">%1$d messages from %2$d chats</string>
+    <string name="notification_summary_text_format">%1$d chats</string>
+    <string name="notification_group_chats">Chats</string>
+    <string name="notification_group_other">Other</string>
+    <string name="notification_channel_private_name">Private chats</string>
+    <string name="notification_channel_private_description">Notifications from private conversations</string>
+    <string name="notification_channel_groups_name">Groups</string>
+    <string name="notification_channel_groups_description">Notifications from groups</string>
+    <string name="notification_channel_channels_name">Channels</string>
+    <string name="notification_channel_channels_description">Notifications from channels</string>
+    <string name="notification_channel_other_name">Other</string>
+    <string name="notification_channel_other_description">Other notifications</string>
 
     <!-- Chat Mapper / Media Types -->
     <string name="chat_mapper_photo">📷 Photo</string>
@@ -1403,6 +1420,10 @@
     <string name="statistics_vs_previous"> vs previous</string>
     <string name="statistics_unknown_type">Unknown Statistics Type</string>
     <string name="statistics_data_class_format">Data class: %1$s</string>
+    <string name="profile_statistics_preview_contact_format">Contact: %1$s</string>
+    <string name="profile_statistics_preview_venue_format">Venue: %1$s</string>
+    <string name="profile_statistics_preview_poll_format">Poll: %1$s</string>
+    <string name="profile_statistics_preview_service_message">Service message</string>
 
     <!-- Selection: Viewer Common -->
     <string name="viewer_back">Back</string>
@@ -1761,6 +1782,17 @@
     <string name="mini_app_permission_request">Permission Request</string>
     <string name="mini_app_allow">Allow</string>
     <string name="mini_app_deny">Deny</string>
+    <string name="mini_app_permission_biometry">Biometry</string>
+    <string name="mini_app_share_contact_title">Share Contact</string>
+    <string name="mini_app_share_contact_message">Allow %1$s to access your phone number?</string>
+    <string name="mini_app_allow_messages_title">Allow Messages</string>
+    <string name="mini_app_allow_messages_message">Allow %1$s to send you messages?</string>
+    <string name="mini_app_download_file_title">Download File</string>
+    <string name="mini_app_download_file_message_generic">Download this file?</string>
+    <string name="mini_app_download_file_message_named">Download %1$s?</string>
+    <string name="mini_app_biometric_auth_title">Biometric Authentication</string>
+    <string name="mini_app_biometric_auth_subtitle">Authenticate to continue</string>
+    <string name="mini_app_request_location_access_message">Allow this bot to access your location?</string>
     <string name="mini_app_bot_permissions">Bot Permissions</string>
     <string name="mini_app_tos_title">Terms of Service</string>
     <string name="mini_app_tos_text">By launching this Mini App, you agree to the Terms of Service and Privacy Policy. The bot will be able to access your basic profile information.</string>

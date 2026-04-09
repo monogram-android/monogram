@@ -41,23 +41,23 @@ jobs:
     - name: Upload universal APK
       uses: actions/upload-artifact@v7
       with:
-        name: app-universal
+        name: app-universal-no-appid
         path: app/build/outputs/apk/debug/app-universal-debug.apk
 
     - name: Upload arm64-v8a APK
       uses: actions/upload-artifact@v7
       with:
-        name: app-arm64-v8a
+        name: app-arm64-v8a-no-appid
         path: app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
 
     - name: Upload armeabi-v7a APK
       uses: actions/upload-artifact@v7
       with:
-        name: app-armeabi-v7a
+        name: app-armeabi-v7a-no-appid
         path: app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk
 
     - name: Upload x86_64 APK
       uses: actions/upload-artifact@v7
       with:
-        name: app-x86_64
+        name: app-x86_64-no-appid
         path: app/build/outputs/apk/debug/app-x86_64-debug.apk

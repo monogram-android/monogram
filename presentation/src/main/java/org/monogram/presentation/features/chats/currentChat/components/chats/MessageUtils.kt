@@ -50,16 +50,26 @@ fun formatDuration(seconds: Int): String {
     val s = seconds % 60
     return String.format(Locale.getDefault(), "%02d:%02d", m, s)
 }
-fun formatFileSize(size: Long): String {
-    if (size <= 0) return "0 B"
+fun formatFileSize(size: Long, isDownloading: Boolean, downloadProgress: Float): String {
     val units = arrayOf("B", "KB", "MB", "GB", "TB")
-    val digitGroups = (log10(size.toDouble()) / log10(1024.0)).toInt()
-    return String.format(
-        Locale.getDefault(),
-        "%.1f %s",
-        size / 1024.0.pow(digitGroups.toDouble()),
-        units[digitGroups]
-    )
+
+    fun format(value: Double): String {
+        if (value <= 0) return "0 B"
+        val digitGroups = (log10(value) / log10(1024.0)).toInt()
+        return String.format(
+            Locale.US,
+            "%.1f %s",
+            value / 1024.0.pow(digitGroups.toDouble()),
+            units[digitGroups]
+        )
+    }
+
+    return if (isDownloading) {
+        val downloaded = size * downloadProgress
+        "${format(downloaded.toDouble())} / ${format(size.toDouble())}"
+    } else {
+        format(size.toDouble())
+    }
 }
 
 fun getEmojiFontFileName(style: EmojiStyle): String? = when (style) {

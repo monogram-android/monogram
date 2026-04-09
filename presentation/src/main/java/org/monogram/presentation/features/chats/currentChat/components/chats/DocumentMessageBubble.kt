@@ -288,7 +288,7 @@ fun DocumentRow(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = formatFileSize(content.size),
+                text = formatFileSize(content.size, content.isDownloading, content.downloadProgress),
                 style = MaterialTheme.typography.labelSmall,
                 color = timeColor
             )

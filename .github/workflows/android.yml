@@ -29,6 +29,9 @@ jobs:
         chmod +x gradlew
         chmod +x presentation/src/main/cpp/build.sh
 
+    - name: Build libvpx:
+      run: cd presentation/src/main/cpp && ./build.sh
+
     - name: Build Debug APK (without GMS)
       run: ./gradlew assembleDebug
 

@@ -12,9 +12,11 @@ import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.ShieldMoon
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.*
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInRoot
@@ -49,6 +51,9 @@ fun ChatListTopBar(
     var statusAnchorBounds by remember { mutableStateOf<Rect?>(null) }
     val iconButtonShapes = ExpressiveDefaults.iconButtonShapes()
     val motionScheme = MaterialTheme.motionScheme
+
+    val adaptiveInfo = currentWindowAdaptiveInfo()
+    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
 
     AnimatedContent(
         targetState = isSearchActive,

@@ -5,7 +5,6 @@ package org.monogram.presentation.features.profile
 import android.content.ClipData
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -19,22 +18,24 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.*
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.window.core.layout.WindowSizeClass
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
@@ -43,14 +44,13 @@ import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.core.util.getUserStatusText
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
 import org.monogram.presentation.features.profile.components.*
-import org.monogram.presentation.features.viewers.ImageViewer
-import org.monogram.presentation.features.viewers.VideoViewer
-import org.monogram.presentation.features.webapp.MiniAppViewer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileContent(component: ProfileComponent) {
     val state by component.state.subscribeAsState()
+    val adaptiveInfo = currentWindowAdaptiveInfo()
+    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
     val localClipboard = LocalClipboard.current
     val context = LocalContext.current
     val collapsingToolbarState = rememberCollapsingToolbarScaffoldState()
@@ -153,7 +153,7 @@ fun ProfileContent(component: ProfileComponent) {
     val canReportTopBar = isGroupOrChannel && !isCurrentUserProfile
     val canBlockTopBar = !isCurrentUserProfile && !isGroupOrChannel && user?.type != UserTypeEnum.BOT
     val canEditContactTopBar = !isCurrentUserProfile && !isGroupOrChannel && user?.isContact == true
-    val canDeleteTopBar = !isCurrentUserProfile && (!isGroupOrChannel || chat?.isMember == true)
+    val canDeleteTopBar = !isCurrentUserProfile && (!isGroupOrChannel || chat.isMember)
     var showLeaveSheet by remember { mutableStateOf(false) }
     var showDeleteChatSheet by remember { mutableStateOf(false) }
     var showBlockSheet by remember { mutableStateOf(false) }
@@ -298,6 +298,8 @@ fun ProfileContent(component: ProfileComponent) {
                     columns = GridCells.Fixed(3),
                     modifier = Modifier
                         .fillMaxSize()
+                        .padding(horizontal = if (isTablet) 12.dp else 16.dp)
+                        .clip(RoundedCornerShape(16.dp))
                         .background(MaterialTheme.colorScheme.background),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -352,163 +354,6 @@ fun ProfileContent(component: ProfileComponent) {
                         Spacer(modifier = Modifier.height(32.dp))
                     }
                 }
-            }
-        }
-
-        val notImplemented = stringResource(R.string.not_implemented)
-        AnimatedVisibility(
-            visible = state.fullScreenImages != null,
-            enter = fadeIn() + scaleIn(initialScale = 0.9f),
-            exit = fadeOut() + scaleOut(targetScale = 0.9f)
-        ) {
-            state.fullScreenImages?.let { images ->
-                Box(modifier = Modifier.fillMaxSize()) {
-                    ImageViewer(
-                        images = images,
-                        startIndex = state.fullScreenStartIndex,
-                        onDismiss = component::onDismissViewer,
-                        autoDownload = false,
-                        downloadUtils = component.downloadUtils,
-                        onPageChanged = { index ->
-
-                            if (!state.isViewingProfilePhotos && state.canLoadMoreMedia && !state.isLoadingMoreMedia &&
-                                index >= images.size - 5
-                            ) {
-                                component.onLoadMoreMedia()
-                            }
-
-                            if (!state.isViewingProfilePhotos) {
-                                val photoMessages = state.mediaMessages.filter { it.content is MessageContent.Photo }
-
-                                val message = photoMessages.getOrNull(index)
-                                if (message != null) {
-                                    component.onDownloadMedia(message)
-
-                                    val nextMessage = photoMessages.getOrNull(index + 1)
-                                    if (nextMessage != null) {
-                                        component.onDownloadMedia(nextMessage)
-                                    }
-                                }
-                            }
-                        },
-                        onForward = { Toast.makeText(context, notImplemented, Toast.LENGTH_SHORT).show() },
-                        onDelete = { Toast.makeText(context, notImplemented, Toast.LENGTH_SHORT).show() },
-                        onCopyLink = { Toast.makeText(context, notImplemented, Toast.LENGTH_SHORT).show() },
-                        onCopyText = { Toast.makeText(context, notImplemented, Toast.LENGTH_SHORT).show() },
-                        captions = state.fullScreenCaptions.filterNotNull(),
-                        showImageNumber = false
-                    )
-
-                    if (state.isViewingProfilePhotos && state.isProfilePhotoHdLoading) {
-                        Surface(
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 56.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                LoadingIndicator(
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = "Loading HD",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        AnimatedVisibility(
-            visible = state.fullScreenVideoPath != null,
-            enter = fadeIn() + scaleIn(initialScale = 0.9f),
-            exit = fadeOut() + scaleOut(targetScale = 0.9f)
-        ) {
-            state.fullScreenVideoPath?.let { path ->
-                val msg = state.mediaMessages.find {
-                    when (val content = it.content) {
-                        is MessageContent.Video -> content.path == path
-                        is MessageContent.Gif -> content.path == path
-                        is MessageContent.VideoNote -> content.path == path
-                        else -> false
-                    }
-                }
-                val videoContent = msg?.content as? MessageContent.Video
-                val fileId = videoContent?.fileId ?: (msg?.content as? MessageContent.Gif)?.fileId
-                ?: (msg?.content as? MessageContent.VideoNote)?.fileId ?: 0
-                val supportsStreaming = videoContent?.supportsStreaming ?: false
-
-                VideoViewer(
-                    path = path,
-                    onDismiss = component::onDismissViewer,
-                    isGesturesEnabled = true,
-                    isDoubleTapSeekEnabled = true,
-                    seekDuration = 10,
-                    isZoomEnabled = true,
-                    downloadUtils = component.downloadUtils,
-                    onForward = { Toast.makeText(context, notImplemented, Toast.LENGTH_SHORT).show() },
-                    onDelete = { Toast.makeText(context, notImplemented, Toast.LENGTH_SHORT).show() },
-                    onCopyLink = { Toast.makeText(context, notImplemented, Toast.LENGTH_SHORT).show() },
-                    onCopyText = { Toast.makeText(context, notImplemented, Toast.LENGTH_SHORT).show() },
-                    caption = state.fullScreenVideoCaption,
-                    fileId = fileId,
-                    supportsStreaming = supportsStreaming
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = state.miniAppUrl != null,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
-        ) {
-            if (state.miniAppUrl != null && state.miniAppName != null) {
-                MiniAppViewer(
-                    baseUrl = state.miniAppUrl.toString(),
-                    botName = title,
-                    onDismiss = { component.onDismissMiniApp() },
-                    chatId = state.chatId,
-                    botUserId = state.user!!.id,
-                    webAppRepository = component.messageRepository,
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = state.isStatisticsVisible,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
-        ) {
-            if (state.statistics != null) {
-                StatisticsViewer(
-                    title = stringResource(R.string.statistics_title),
-                    data = state.statistics!!,
-                    onDismiss = component::onDismissStatistics,
-                    onLoadGraph = component::onLoadStatisticsGraph
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = state.isRevenueStatisticsVisible,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
-        ) {
-            if (state.revenueStatistics != null) {
-                StatisticsViewer(
-                    title = stringResource(R.string.revenue_title),
-                    data = state.revenueStatistics!!,
-                    onDismiss = component::onDismissStatistics,
-                    onLoadGraph = component::onLoadStatisticsGraph
-                )
             }
         }
 
@@ -574,7 +419,7 @@ fun ProfileContent(component: ProfileComponent) {
                 dragHandle = { BottomSheetDefaults.DragHandle() },
                 containerColor = MaterialTheme.colorScheme.background,
                 contentColor = MaterialTheme.colorScheme.onSurface,
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             ) {
                 Column(
@@ -666,13 +511,6 @@ fun ProfileContent(component: ProfileComponent) {
                 onAccept = component::onAcceptTOS
             )
         }
-
-        state.selectedLocation?.let { location ->
-            LocationViewer(
-                location = location,
-                onDismiss = component::onDismissLocation
-            )
-        }
     }
 }
 
@@ -682,7 +520,8 @@ private fun ProfileHeaderSkeleton(
     contentPadding: PaddingValues
 ) {
     val shimmer = rememberShimmerBrush()
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val containerSize = LocalWindowInfo.current.containerSize
+    val screenHeight = with(LocalDensity.current) { containerSize.height.toDp() }
     val titleWidth = androidx.compose.ui.unit.lerp(220.dp, 124.dp, progress)
     val subtitleWidth = androidx.compose.ui.unit.lerp(132.dp, 88.dp, progress)
     val avatarCornerPercent = (100 * (1f - progress)).toInt()

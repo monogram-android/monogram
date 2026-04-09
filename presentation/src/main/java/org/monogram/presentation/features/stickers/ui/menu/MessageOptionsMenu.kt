@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.automirrored.rounded.Forward
 import androidx.compose.material.icons.automirrored.rounded.Reply
+import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,10 +31,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
@@ -104,12 +105,12 @@ fun MessageOptionsMenu(
     onDismiss: () -> Unit
 ) {
     val density = LocalDensity.current
-    val configuration = LocalConfiguration.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val emojiRepository: EmojiRepository = koinInject()
 
-    val screenHeight = with(density) { configuration.screenHeightDp.dp.toPx() }.toInt()
+    val windowSize = LocalWindowInfo.current.containerSize
+    val screenHeight = windowSize.height
     val windowInsets = WindowInsets.systemBars.union(WindowInsets.ime)
     val topInset = windowInsets.getTop(density)
     val bottomInset = windowInsets.getBottom(density)
@@ -729,7 +730,7 @@ fun MessageOptionsMenu(
 
                         if (sections.hasRestoreOriginalTextAction) {
                             InternalMenuOptionItem(
-                                icon = Icons.Rounded.Undo,
+                                icon = Icons.AutoMirrored.Rounded.Undo,
                                 text = stringResource(R.string.menu_restore_original_text),
                                 onClick = { animateOutAndDismiss(onRestoreOriginalText) }
                             )
@@ -851,7 +852,7 @@ private data class MessageMenuSections(
     }
 
     companion object {
-        val Saver = listSaver<MessageMenuSections, Boolean>(
+        val Saver = listSaver(
             save = {
                 listOf(
                     it.hasViewersSection,

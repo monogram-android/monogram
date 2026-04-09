@@ -1,15 +1,26 @@
-package org.monogram.presentation.features.chats.currentChat.chatContent
+package org.monogram.presentation.features.profile
 
 import android.content.ClipData
 import android.util.Log
 import androidx.compose.animation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.Clipboard
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
-import org.monogram.presentation.features.chats.currentChat.ChatComponent
+import org.monogram.presentation.R
 import org.monogram.presentation.features.instantview.InstantViewer
+import org.monogram.presentation.features.profile.components.LocationViewer
+import org.monogram.presentation.features.profile.components.StatisticsViewer
 import org.monogram.presentation.features.viewers.ImageViewer
 import org.monogram.presentation.features.viewers.VideoViewer
 import org.monogram.presentation.features.viewers.YouTubeViewer
@@ -19,11 +30,12 @@ import org.monogram.presentation.features.webapp.components.MiniAppTOSBottomShee
 import org.monogram.presentation.features.webview.InternalWebView
 
 @Composable
-fun ChatContentViewers(
-    state: ChatComponent.State,
-    component: ChatComponent,
-    localClipboard: Clipboard
+fun ProfileViewers(
+    state: ProfileComponent.State,
+    component: ProfileComponent
 ) {
+    val localClipboard = LocalClipboard.current
+
     InstantViewOverlay(state, component)
     YouTubeOverlay(state, component, localClipboard)
     MiniAppOverlay(state, component)
@@ -35,7 +47,7 @@ fun ChatContentViewers(
 }
 
 @Composable
-private fun InstantViewOverlay(state: ChatComponent.State, component: ChatComponent) {
+private fun InstantViewOverlay(state: ProfileComponent.State, component: ProfileComponent) {
     AnimatedVisibility(
         visible = state.instantViewUrl != null,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -44,8 +56,8 @@ private fun InstantViewOverlay(state: ChatComponent.State, component: ChatCompon
         state.instantViewUrl?.let { url ->
             InstantViewer(
                 url = url,
-                messageRepository = component.repositoryMessage,
-                fileRepository = component.repositoryMessage,
+                messageRepository = component.messageRepository,
+                fileRepository = component.messageRepository,
                 onDismiss = { component.onDismissInstantView() },
                 onOpenWebView = { component.onOpenWebView(it) }
             )
@@ -55,8 +67,8 @@ private fun InstantViewOverlay(state: ChatComponent.State, component: ChatCompon
 
 @Composable
 private fun YouTubeOverlay(
-    state: ChatComponent.State,
-    component: ChatComponent,
+    state: ProfileComponent.State,
+    component: ProfileComponent,
     localClipboard: Clipboard
 ) {
     AnimatedVisibility(
@@ -69,11 +81,10 @@ private fun YouTubeOverlay(
                 videoUrl = url,
                 onDismiss = { component.onDismissYouTube() },
                 onForward = {
-                    component.onForwardMessage(state.messages.find {
-                        (it.content as? MessageContent.Text)?.text?.contains(
-                            url
-                        ) == true
-                    } ?: return@YouTubeViewer)
+                    val msg = state.mediaMessages.find {
+                        (it.content as? MessageContent.Text)?.text?.contains(url) == true
+                    }
+                    if (msg != null) component.onForwardMessage(msg)
                 },
                 onCopyLink = {
                     localClipboard.nativeClipboard.setPrimaryClip(
@@ -92,20 +103,24 @@ private fun YouTubeOverlay(
 }
 
 @Composable
-private fun MiniAppOverlay(state: ChatComponent.State, component: ChatComponent) {
+private fun MiniAppOverlay(state: ProfileComponent.State, component: ProfileComponent) {
     AnimatedVisibility(
         visible = state.miniAppUrl != null,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
         exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
     ) {
         if (state.miniAppUrl != null && state.miniAppName != null) {
+            val title = state.chat?.title ?: listOfNotNull(state.user?.firstName, state.user?.lastName)
+                .joinToString(" ")
+                .ifBlank { "Unknown" }
+
             MiniAppViewer(
                 chatId = state.chatId,
-                botUserId = state.miniAppBotUserId,
+                botUserId = state.user?.id ?: 0L,
                 baseUrl = state.miniAppUrl,
-                botName = state.chatTitle,
-                botAvatarPath = state.chatAvatar,
-                webAppRepository = component.repositoryMessage,
+                botName = title,
+                botAvatarPath = state.chat?.avatarPath ?: state.user?.avatarPath,
+                webAppRepository = component.messageRepository,
                 onDismiss = { component.onDismissMiniApp() }
             )
         }
@@ -113,7 +128,7 @@ private fun MiniAppOverlay(state: ChatComponent.State, component: ChatComponent)
 }
 
 @Composable
-private fun WebViewOverlay(state: ChatComponent.State, component: ChatComponent) {
+private fun WebViewOverlay(state: ProfileComponent.State, component: ProfileComponent) {
     AnimatedVisibility(
         visible = state.webViewUrl != null,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -130,8 +145,8 @@ private fun WebViewOverlay(state: ChatComponent.State, component: ChatComponent)
 
 @Composable
 private fun ImagesOverlay(
-    state: ChatComponent.State,
-    component: ChatComponent,
+    state: ProfileComponent.State,
+    component: ProfileComponent,
     localClipboard: Clipboard
 ) {
     AnimatedVisibility(
@@ -148,16 +163,16 @@ private fun ImagesOverlay(
                 }
             }
 
-            val viewerItems = remember(images, state.fullScreenImageMessageIds, state.messages) {
+            val viewerItems = remember(images, state.fullScreenImageMessageIds, state.mediaMessages) {
                 if (state.fullScreenImageMessageIds.size == images.size) {
                     state.fullScreenImageMessageIds.mapIndexed { index, messageId ->
-                        val message = state.messages.firstOrNull { it.id == messageId }
+                        val message = state.mediaMessages.firstOrNull { it.id == messageId }
                         val resolvedPath = message?.displayMediaPathForViewer() ?: images[index]
                         ViewerMediaItem(messageId = messageId, path = resolvedPath)
                     }
                 } else {
                     images.map { path ->
-                        val message = state.messages.firstOrNull { it.content.matchesDisplayPath(path) }
+                        val message = state.mediaMessages.find { it.content.matchesDisplayPath(path) }
                         ViewerMediaItem(
                             messageId = message?.id ?: 0L,
                             path = message?.displayMediaPathForViewer() ?: path
@@ -177,15 +192,15 @@ private fun ImagesOverlay(
                 )
             }
 
-            val currentViewerMessage = remember(currentImageIndex, imageMessageIds, state.messages) {
+            val currentViewerMessage = remember(currentImageIndex, imageMessageIds, state.mediaMessages) {
                 imageMessageIds.getOrNull(currentImageIndex)
                     ?.takeIf { it != 0L }
-                    ?.let { id -> state.messages.firstOrNull { it.id == id } }
+                    ?.let { id -> state.mediaMessages.firstOrNull { it.id == id } }
             }
 
-            val imageDownloadingStates = remember(imageMessageIds, state.messages) {
+            val imageDownloadingStates = remember(imageMessageIds, state.mediaMessages) {
                 imageMessageIds.map { id ->
-                    val content = state.messages.firstOrNull { it.id == id }?.content
+                    val content = state.mediaMessages.firstOrNull { it.id == id }?.content
                     when (content) {
                         is MessageContent.Photo -> content.isDownloading
                         else -> false
@@ -193,9 +208,9 @@ private fun ImagesOverlay(
                 }
             }
 
-            val imageDownloadProgressStates = remember(imageMessageIds, state.messages) {
+            val imageDownloadProgressStates = remember(imageMessageIds, state.mediaMessages) {
                 imageMessageIds.map { id ->
-                    val content = state.messages.firstOrNull { it.id == id }?.content
+                    val content = state.mediaMessages.firstOrNull { it.id == id }?.content
                     when (content) {
                         is MessageContent.Photo -> content.downloadProgress
                         else -> 0f
@@ -204,85 +219,108 @@ private fun ImagesOverlay(
             }
 
             if (viewerImages.isNotEmpty()) {
-                ImageViewer(
-                    images = viewerImages,
-                    startIndex = state.fullScreenStartIndex.coerceIn(0, viewerImages.lastIndex),
-                    onDismiss = component::onDismissImages,
-                    autoDownload = autoDownload,
-                    onPageChanged = { index ->
-                        currentImageIndex = index
-                        imageMessageIds.getOrNull(index)?.takeIf { it != 0L }?.let(component::onDownloadHighRes)
-                        imageMessageIds.getOrNull(index + 1)?.takeIf { it != 0L }?.let(component::onDownloadHighRes)
-                    },
-                    onForward = { path ->
-                        val msg = currentViewerMessage ?: state.messages.find { it.content.matchesDisplayPath(path) }
-                        msg?.let { component.onForwardMessage(it) }
-                    },
-                    onDelete = { path ->
-                        val msg = currentViewerMessage ?: state.messages.find { it.content.matchesDisplayPath(path) }
-                        if (msg?.isOutgoing == true) {
-                            component.onDeleteMessage(msg, true)
-                            component.onDismissImages()
-                        }
-                    },
-                    onCopyLink = { path ->
-                        val msg = currentViewerMessage ?: state.messages.find { it.content.matchesDisplayPath(path) }
-                        val link = if (msg != null) {
-                            if (!state.isGroup && !state.isChannel) {
-                                "tg://openmessage?user_id=${state.chatId}&message_id=${msg.id shr 20}"
-                            } else {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    ImageViewer(
+                        images = viewerImages,
+                        startIndex = state.fullScreenStartIndex.coerceIn(0, viewerImages.lastIndex),
+                        onDismiss = component::onDismissImages,
+                        autoDownload = autoDownload,
+                        onPageChanged = { index ->
+                            currentImageIndex = index
+                            if (!state.isViewingProfilePhotos && state.canLoadMoreMedia && !state.isLoadingMoreMedia &&
+                                index >= viewerImages.size - 5
+                            ) {
+                                component.onLoadMoreMedia()
+                            }
+
+                            if (!state.isViewingProfilePhotos) {
+                                imageMessageIds.getOrNull(index)?.takeIf { it != 0L }?.let(component::onDownloadHighRes)
+                                imageMessageIds.getOrNull(index + 1)?.takeIf { it != 0L }?.let(component::onDownloadHighRes)
+                            }
+                        },
+                        onForward = { path ->
+                            val msg = currentViewerMessage ?: state.mediaMessages.find { it.content.matchesDisplayPath(path) }
+                            msg?.let { component.onForwardMessage(it) }
+                        },
+                        onDelete = { path ->
+                            val msg = currentViewerMessage ?: state.mediaMessages.find { it.content.matchesDisplayPath(path) }
+                            if (msg?.isOutgoing == true) {
+                                component.onDeleteMessage(msg, true)
+                                component.onDismissImages()
+                            }
+                        },
+                        onCopyLink = { path ->
+                            val msg = currentViewerMessage ?: state.mediaMessages.find { it.content.matchesDisplayPath(path) }
+                            val link = if (msg != null) {
                                 "https://t.me/c/${state.chatId.toString().removePrefix("-100")}/${msg.id shr 20}"
+                            } else {
+                                path
                             }
-                        } else {
-                            path
-                        }
-                        localClipboard.nativeClipboard.setPrimaryClip(
-                            ClipData.newPlainText("", AnnotatedString(link))
-                        )
-                    },
-                    onCopyText = { path ->
-                        val msg = state.messages.find {
-                            when (val content = it.content) {
-                                is MessageContent.Photo -> content.path == path
-                                is MessageContent.Video -> content.path == path
-                                is MessageContent.Gif -> content.path == path
-                                else -> false
-                            }
-                        }
-                        val textToCopy = when (val content = msg?.content) {
-                            is MessageContent.Photo -> content.caption
-                            is MessageContent.Video -> content.caption
-                            is MessageContent.Gif -> content.caption
-                            else -> ""
-                        }
-                        if (textToCopy.isNotEmpty()) {
                             localClipboard.nativeClipboard.setPrimaryClip(
-                                ClipData.newPlainText("", AnnotatedString(textToCopy))
+                                ClipData.newPlainText("", AnnotatedString(link))
                             )
+                        },
+                        onCopyText = { path ->
+                            val msg = currentViewerMessage ?: state.mediaMessages.find { it.content.matchesDisplayPath(path) }
+                            val textToCopy = when (val content = msg?.content) {
+                                is MessageContent.Photo -> content.caption
+                                is MessageContent.Video -> content.caption
+                                is MessageContent.Gif -> content.caption
+                                else -> ""
+                            }
+                            if (textToCopy.isNotEmpty()) {
+                                localClipboard.nativeClipboard.setPrimaryClip(
+                                    ClipData.newPlainText("", AnnotatedString(textToCopy))
+                                )
+                            }
+                        },
+                        onVideoClick = { path ->
+                            val msg = currentViewerMessage ?: state.mediaMessages.find { it.content.matchesDisplayPath(path) }
+                            if (msg != null) {
+                                val mediaPath = msg.displayMediaPathForViewer() ?: path
+                                component.onOpenVideo(
+                                    path = mediaPath,
+                                    messageId = msg.id,
+                                    caption = when (val content = msg.content) {
+                                        is MessageContent.Video -> content.caption
+                                        is MessageContent.Gif -> content.caption
+                                        else -> null
+                                    }
+                                )
+                            } else {
+                                component.onOpenVideo(path = path, messageId = null, caption = null)
+                            }
+                        },
+                        captions = state.fullScreenCaptions.filterNotNull(),
+                        imageDownloadingStates = imageDownloadingStates,
+                        imageDownloadProgressStates = imageDownloadProgressStates,
+                        downloadUtils = component.downloadUtils,
+                        showImageNumber = false
+                    )
+
+                    if (state.isViewingProfilePhotos && state.isProfilePhotoHdLoading) {
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 56.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                Text(
+                                    text = "Loading HD",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
-                    },
-                    onVideoClick = { path ->
-                        val msg = currentViewerMessage ?: state.messages.find { it.content.matchesDisplayPath(path) }
-                        if (msg != null) {
-                            val mediaPath = msg.displayMediaPathForViewer() ?: path
-                            component.onOpenVideo(
-                                path = mediaPath,
-                                messageId = msg.id,
-                                caption = when (val content = msg.content) {
-                                    is MessageContent.Video -> content.caption
-                                    is MessageContent.Gif -> content.caption
-                                    else -> null
-                                }
-                            )
-                        } else {
-                            component.onOpenVideo(path = path, messageId = null, caption = null)
-                        }
-                    },
-                    captions = state.fullScreenCaptions,
-                    imageDownloadingStates = imageDownloadingStates,
-                    imageDownloadProgressStates = imageDownloadProgressStates,
-                    downloadUtils = component.downloadUtils
-                )
+                    }
+                }
             }
         }
     }
@@ -290,8 +328,8 @@ private fun ImagesOverlay(
 
 @Composable
 private fun VideoOverlay(
-    state: ChatComponent.State,
-    component: ChatComponent,
+    state: ProfileComponent.State,
+    component: ProfileComponent,
     localClipboard: Clipboard
 ) {
     val videoVisible =
@@ -306,8 +344,8 @@ private fun VideoOverlay(
             val messageId = state.fullScreenVideoMessageId
             val path = state.fullScreenVideoPath
 
-            val msg = remember(messageId, path, state.messages) {
-                state.messages.find { it.id == messageId } ?: state.messages.find {
+            val msg = remember(messageId, path, state.mediaMessages) {
+                state.mediaMessages.find { it.id == messageId } ?: state.mediaMessages.find {
                     it.content.matchesDisplayPath(path ?: "")
                 }
             }
@@ -321,7 +359,6 @@ private fun VideoOverlay(
 
             if (finalPath.isNotBlank() || (supportsStreaming && fileId != 0)) {
                 key(finalPath, fileId) {
-                    Log.d("ChatContentViewers", "Rendering VideoViewer for $finalPath")
                     VideoViewer(
                         path = finalPath,
                         onDismiss = component::onDismissVideo,
@@ -330,13 +367,13 @@ private fun VideoOverlay(
                         seekDuration = state.playerSeekDuration,
                         isZoomEnabled = state.isPlayerZoomEnabled,
                         onForward = { videoPath ->
-                            val forwardMsg = state.messages.find {
+                            val forwardMsg = state.mediaMessages.find {
                                 it.content.matchesDisplayPath(videoPath)
                             }
                             forwardMsg?.let { component.onForwardMessage(it) }
                         },
                         onDelete = { videoPath ->
-                            val deleteMsg = state.messages.find {
+                            val deleteMsg = state.mediaMessages.find {
                                 it.content.matchesDisplayPath(videoPath)
                             }
                             if (deleteMsg?.isOutgoing == true) {
@@ -345,17 +382,11 @@ private fun VideoOverlay(
                             }
                         },
                         onCopyLink = { videoPath ->
-                            val linkMsg = state.messages.find {
+                            val linkMsg = state.mediaMessages.find {
                                 it.content.matchesDisplayPath(videoPath)
                             }
                             val link = if (linkMsg != null) {
-                                if (!state.isGroup && !state.isChannel) {
-                                    "tg://openmessage?user_id=${state.chatId}&message_id=${linkMsg.id shr 20}"
-                                } else {
-                                    "https://t.me/c/${
-                                        state.chatId.toString().removePrefix("-100")
-                                    }/${linkMsg.id shr 20}"
-                                }
+                                "https://t.me/c/${state.chatId.toString().removePrefix("-100")}/${linkMsg.id shr 20}"
                             } else {
                                 videoPath
                             }
@@ -364,7 +395,7 @@ private fun VideoOverlay(
                             )
                         },
                         onCopyText = { videoPath ->
-                            val textMsg = state.messages.find {
+                            val textMsg = state.mediaMessages.find {
                                 it.content.matchesDisplayPath(videoPath)
                             }
                             val textToCopy = when (val content = textMsg?.content) {
@@ -378,7 +409,7 @@ private fun VideoOverlay(
                                 )
                             }
                         },
-                        onSaveGif = if (state.messages.any { (it.content as? MessageContent.Gif)?.path == finalPath }) {
+                        onSaveGif = if (state.mediaMessages.any { (it.content as? MessageContent.Gif)?.path == finalPath }) {
                             { videoPath -> component.onAddToGifs(videoPath) }
                         } else null,
                         caption = state.fullScreenVideoCaption,
@@ -393,21 +424,21 @@ private fun VideoOverlay(
 }
 
 @Composable
-private fun InvoiceOverlay(state: ChatComponent.State, component: ChatComponent) {
+private fun InvoiceOverlay(state: ProfileComponent.State, component: ProfileComponent) {
     if (state.invoiceSlug != null || state.invoiceMessageId != null) {
         InvoiceDialog(
             slug = state.invoiceSlug,
             chatId = state.chatId,
             messageId = state.invoiceMessageId,
-            paymentRepository = component.repositoryMessage,
-            fileRepository = component.repositoryMessage,
+            paymentRepository = component.messageRepository,
+            fileRepository = component.messageRepository,
             onDismiss = { status -> component.onDismissInvoice(status) }
         )
     }
 }
 
 @Composable
-private fun MiniAppTOSOverlay(state: ChatComponent.State, component: ChatComponent) {
+private fun MiniAppTOSOverlay(state: ProfileComponent.State, component: ProfileComponent) {
     MiniAppTOSBottomSheet(
         isVisible = state.showMiniAppTOS,
         onDismiss = { component.onDismissMiniAppTOS() },

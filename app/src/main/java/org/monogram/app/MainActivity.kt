@@ -6,7 +6,10 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.layout.WindowInfoTracker
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.retainedComponent
 import org.koin.android.ext.android.inject
@@ -41,13 +44,21 @@ class MainActivity : FragmentActivity() {
         handleIntent(intent)
         startNotificationService()
 
+        val windowInfoTracker = WindowInfoTracker.getOrCreate(this)
+
         setContent {
+            val windowLayoutInfo by windowInfoTracker.windowLayoutInfo(this)
+                .collectAsStateWithLifecycle(initialValue = null)
+
             AppThemeContainer(root.appPreferences) {
                 CompositionLocalProvider(
-                LocalLinkHandler provides root::handleLink,
-                        LocalVideoPlayerPool provides root.videoPlayerPool
+                    LocalLinkHandler provides root::handleLink,
+                    LocalVideoPlayerPool provides root.videoPlayerPool
                 ) {
-                    MainContent(root)
+                    MainContent(
+                        root = root,
+                        windowLayoutInfo = windowLayoutInfo
+                    )
                 }
             }
         }

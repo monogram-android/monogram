@@ -15,10 +15,11 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.res.stringResource
@@ -66,11 +67,14 @@ fun ChatTopBar(
     onCopyLink: (() -> Unit)? = null,
     onManageMembers: (() -> Unit)? = null,
     showBack: Boolean = true,
-    personalAvatarPath: String? = null
+    personalAvatarPath: String? = null,
+    isTablet: Boolean = currentWindowAdaptiveInfo().windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showClearHistorySheet by remember { mutableStateOf(false) }
     var showDeleteChatSheet by remember { mutableStateOf(false) }
+
+    val windowInsets = if (isTablet) WindowInsets(0, 0, 0, 0) else WindowInsets.statusBars
 
     Box(modifier = Modifier.fillMaxWidth()) {
         AnimatedContent(
@@ -82,7 +86,7 @@ fun ChatTopBar(
         ) { searching ->
             if (searching) {
                 TopAppBar(
-                    windowInsets = WindowInsets.statusBars,
+                    windowInsets = windowInsets,
                     title = {
                         TextField(
                             value = searchQuery,
@@ -117,7 +121,7 @@ fun ChatTopBar(
                 )
             } else {
                 TopAppBar(
-                    windowInsets = WindowInsets.statusBars,
+                    windowInsets = windowInsets,
                     title = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -280,7 +284,7 @@ fun ChatTopBar(
                         ),
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .windowInsetsPadding(WindowInsets.statusBars)
+                            .windowInsetsPadding(windowInsets)
                             .padding(top = 56.dp, end = 16.dp)
                     ) {
                         ViewerSettingsDropdown {

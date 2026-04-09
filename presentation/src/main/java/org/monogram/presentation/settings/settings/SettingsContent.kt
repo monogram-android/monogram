@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.automirrored.rounded.ExitToApp
 import androidx.compose.material.icons.filled.MoreVert
@@ -47,7 +48,6 @@ import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.DataUsage
 import androidx.compose.material.icons.rounded.Edit
@@ -81,6 +81,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -99,10 +100,10 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -115,6 +116,7 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.window.core.layout.WindowSizeClass
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
@@ -135,7 +137,6 @@ import org.monogram.presentation.core.ui.SectionHeader
 import java.util.Locale
 import kotlin.math.roundToInt
 
-val QrBackgroundColor = Color(0xFFEFF1E6)
 val QrDarkGreen = Color(0xFF3E4D36)
 val QrSurfaceShapeColor = Color(0xFFE3E6D8)
 
@@ -143,6 +144,8 @@ val QrSurfaceShapeColor = Color(0xFFE3E6D8)
 @Composable
 fun SettingsContent(component: SettingsComponent) {
     val state by component.state.subscribeAsState()
+    val adaptiveInfo = currentWindowAdaptiveInfo()
+    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val haptic = LocalHapticFeedback.current
@@ -228,7 +231,7 @@ fun SettingsContent(component: SettingsComponent) {
             onDismissRequest = component::onQrCodeDismissed,
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.background,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
             val username = state.currentUser?.username ?: "user"
             val qrContent = state.qrContent.ifEmpty { "https://t.me/$username" }
@@ -311,7 +314,7 @@ fun SettingsContent(component: SettingsComponent) {
             onDismissRequest = component::onSupportDismissed,
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -367,7 +370,7 @@ fun SettingsContent(component: SettingsComponent) {
             onDismissRequest = component::onMoreOptionsDismissed,
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -514,7 +517,7 @@ fun SettingsContent(component: SettingsComponent) {
                     ) {
                         IconButton(onClick = component::onBackClicked) {
                             Icon(
-                                Icons.Rounded.ArrowBack,
+                                Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = stringResource(R.string.cd_back),
                                 tint = iconTint
                             )
@@ -565,16 +568,13 @@ fun SettingsContent(component: SettingsComponent) {
             )
         }
     ) { padding ->
-        var safeTopPadding by remember { mutableStateOf(0.dp) }
         var safeBottomPadding by remember { mutableStateOf(0.dp) }
         val language = remember {
             Locale.getDefault().displayLanguage
                 .replaceFirstChar { it.uppercase() }
         }
-        val currentTop = padding.calculateTopPadding()
         val currentBottom = padding.calculateBottomPadding()
 
-        if (currentTop > 0.dp) safeTopPadding = currentTop
         if (currentBottom > 0.dp) safeBottomPadding = currentBottom
 
         CollapsingToolbarScaffold(
@@ -601,8 +601,8 @@ fun SettingsContent(component: SettingsComponent) {
                     val sidePadding = lerp(24.dp, 0.dp, progress)
                     val topPadding = 0.dp
 
-                    val configuration = LocalConfiguration.current
-                    val screenHeight = configuration.screenHeightDp.dp
+                    val containerSize = LocalWindowInfo.current.containerSize
+                    val screenHeight = with(LocalDensity.current) { containerSize.height.toDp() }
                     val headerHeight = maxWidth.coerceAtMost(screenHeight * 0.6f)
 
                     Box(
@@ -640,8 +640,8 @@ fun SettingsContent(component: SettingsComponent) {
                         .fillMaxSize()
                         .semantics { contentDescription = "SettingsList" },
                     contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
+                        start = if (isTablet) 12.dp else 16.dp,
+                        end = if (isTablet) 12.dp else 16.dp,
                         top = 0.dp,
                         bottom = safeBottomPadding
                     ),
@@ -976,7 +976,7 @@ fun SettingsContent(component: SettingsComponent) {
                     modifier = Modifier
                         .width(menuWidth)
                         .heightIn(max = maxMenuHeightDp)
-                        .clip(RoundedCornerShape(24.dp))
+                        .clip(RoundedCornerShape(16.dp))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null

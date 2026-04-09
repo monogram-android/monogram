@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.drinkless.tdlib.Client
 import org.drinkless.tdlib.TdApi
@@ -26,6 +27,9 @@ internal class TdLibClient {
     private val _isAuthenticated = MutableStateFlow(false)
     val isAuthenticated = _isAuthenticated.asStateFlow()
 
+    private val _isInitialized = MutableStateFlow(false)
+    val isInitialized = _isInitialized.asStateFlow()
+
     init {
         try {
             Client.execute(TdApi.SetLogVerbosityLevel(0))
@@ -41,7 +45,9 @@ internal class TdLibClient {
         { result ->
             if (result is TdApi.Update) {
                 if (result is TdApi.UpdateAuthorizationState) {
-                    _isAuthenticated.value = result.authorizationState is TdApi.AuthorizationStateReady
+                    val state = result.authorizationState
+                    _isInitialized.value = state !is TdApi.AuthorizationStateWaitTdlibParameters
+                    _isAuthenticated.value = state is TdApi.AuthorizationStateReady
                 }
                 _updates.tryEmit(result)
             }
@@ -68,6 +74,16 @@ internal class TdLibClient {
     }
 
     suspend fun <T : TdApi.Object> sendSuspend(function: TdApi.Function<T>): T {
+        if (function !is TdApi.SetTdlibParameters && 
+            function !is TdApi.SetLogVerbosityLevel && 
+            function !is TdApi.GetOption &&
+            function !is TdApi.GetAuthorizationState) {
+            if (!_isInitialized.value) {
+                Log.d(TAG, "Waiting for TDLib initialization before sending $function")
+                isInitialized.first { it }
+            }
+        }
+
         var retries = 0
         while (true) {
             waitForGlobalRetryWindow()

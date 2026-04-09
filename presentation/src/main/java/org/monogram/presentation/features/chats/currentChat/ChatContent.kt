@@ -771,43 +771,43 @@ fun ChatContent(
                             val onPhotoClickStable: (MessageModel, List<String>, List<String?>, List<Long>, Int) -> Unit =
                                 remember(component) {
                                     { msg: MessageModel, paths: List<String>, captions: List<String?>, messageIds: List<Long>, index: Int ->
-                                    val content = msg.content as? MessageContent.Photo
-                                    val clickedPath = paths.getOrNull(index)
-                                        ?.takeIf { it.isNotBlank() && File(it).exists() }
-                                        ?: content?.path?.takeIf { File(it).exists() }
+                                        val content = msg.content as? MessageContent.Photo
+                                        val clickedPath = paths.getOrNull(index)
+                                            ?.takeIf { it.isNotBlank() && File(it).exists() }
+                                            ?: content?.path?.takeIf { File(it).exists() }
 
-                                    if (clickedPath != null) {
-                                        currentKeyboardController.value?.hide()
-                                        currentFocusManager.value.clearFocus()
+                                        if (clickedPath != null) {
+                                            currentKeyboardController.value?.hide()
+                                            currentFocusManager.value.clearFocus()
 
-                                        val validItems = paths.mapIndexedNotNull { itemIndex, path ->
-                                            val validPath = path.takeIf { it.isNotBlank() && File(it).exists() }
-                                                ?: return@mapIndexedNotNull null
-                                            Triple(itemIndex, validPath, captions.getOrNull(itemIndex))
-                                        }
-
-                                        if (validItems.isNotEmpty()) {
-                                            val validPaths = validItems.map { it.second }
-                                            val validCaptions = validItems.map { it.third }
-                                            val validMessageIds = validItems.map { (itemIndex, _, _) ->
-                                                messageIds.getOrNull(itemIndex) ?: msg.id
+                                            val validItems = paths.mapIndexedNotNull { itemIndex, path ->
+                                                val validPath = path.takeIf { it.isNotBlank() && File(it).exists() }
+                                                    ?: return@mapIndexedNotNull null
+                                                Triple(itemIndex, validPath, captions.getOrNull(itemIndex))
                                             }
-                                            val startIndex = validItems.indexOfFirst { (itemIndex, _, _) -> itemIndex == index }
-                                                .takeIf { it >= 0 }
-                                                ?: validPaths.indexOf(clickedPath).takeIf { it >= 0 }
-                                                ?: 0
 
-                                            component.onOpenImages(
-                                                images = validPaths,
-                                                captions = validCaptions,
-                                                startIndex = startIndex,
-                                                messageId = msg.id,
-                                                messageIds = validMessageIds
-                                            )
+                                            if (validItems.isNotEmpty()) {
+                                                val validPaths = validItems.map { it.second }
+                                                val validCaptions = validItems.map { it.third }
+                                                val validMessageIds = validItems.map { (itemIndex, _, _) ->
+                                                    messageIds.getOrNull(itemIndex) ?: msg.id
+                                                }
+                                                val startIndex = validItems.indexOfFirst { (itemIndex, _, _) -> itemIndex == index }
+                                                    .takeIf { it >= 0 }
+                                                    ?: validPaths.indexOf(clickedPath).takeIf { it >= 0 }
+                                                    ?: 0
+
+                                                component.onOpenImages(
+                                                    images = validPaths,
+                                                    captions = validCaptions,
+                                                    startIndex = startIndex,
+                                                    messageId = msg.id,
+                                                    messageIds = validMessageIds
+                                                )
+                                            }
+                                        } else {
+                                            content?.fileId?.takeIf { it != 0 }?.let(component::onDownloadFile)
                                         }
-                                    } else {
-                                        content?.fileId?.takeIf { it != 0 }?.let(component::onDownloadFile)
-                                    }
                                         Unit
                                     }
                                 }
@@ -818,24 +818,24 @@ fun ChatContent(
                                         if (!currentIsVisible.value || currentShowInitialLoading.value || scrollState.isScrollInProgress) {
                                             Unit
                                         } else {
-                                        val videoContent = msg.content as? MessageContent.Video
-                                        val supportsStreaming = videoContent?.supportsStreaming ?: false
-                                        val validPath = path?.takeIf { File(it).exists() }
+                                            val videoContent = msg.content as? MessageContent.Video
+                                            val supportsStreaming = videoContent?.supportsStreaming ?: false
+                                            val validPath = path?.takeIf { File(it).exists() }
 
-                                        if (validPath != null || supportsStreaming) {
-                                            currentKeyboardController.value?.hide()
-                                            currentFocusManager.value.clearFocus()
-                                            component.onOpenVideo(path = validPath, messageId = msg.id, caption = caption)
-                                        } else {
-                                            val fileId = when (val c = msg.content) {
-                                                is MessageContent.Video -> c.fileId
-                                                is MessageContent.Gif -> c.fileId
-                                                else -> 0
+                                            if (validPath != null || supportsStreaming) {
+                                                currentKeyboardController.value?.hide()
+                                                currentFocusManager.value.clearFocus()
+                                                component.onOpenVideo(path = validPath, messageId = msg.id, caption = caption)
+                                            } else {
+                                                val fileId = when (val c = msg.content) {
+                                                    is MessageContent.Video -> c.fileId
+                                                    is MessageContent.Gif -> c.fileId
+                                                    else -> 0
+                                                }
+                                                if (fileId != 0) {
+                                                    component.onDownloadFile(fileId)
+                                                }
                                             }
-                                            if (fileId != 0) {
-                                                component.onDownloadFile(fileId)
-                                            }
-                                        }
                                         }
                                     }
                                 }
@@ -953,9 +953,9 @@ fun ChatContent(
                                 onMessagePositionChange = onMessagePositionChangeStable,
                                 onViaBotClick = onViaBotClickStable,
                                 toProfile = toProfileStable,
-                                    downloadUtils = component.downloadUtils,
-                                    isAnyViewerOpen = isAnyViewerOpen
-                                )
+                                downloadUtils = component.downloadUtils,
+                                isAnyViewerOpen = isAnyViewerOpen
+                            )
 
                             AnimatedVisibility(
                                 visible = showScrollToBottomButton,
@@ -1140,11 +1140,11 @@ fun ChatContent(
                 )
             }
 
-            ChatContentViewers(
+            /*ChatContentViewers(
                 state = state,
                 component = component,
                 localClipboard = localClipboard
-            )
+            )*/
 
             selectedMessage?.let { msg ->
                 ChatMessageOptionsMenu(

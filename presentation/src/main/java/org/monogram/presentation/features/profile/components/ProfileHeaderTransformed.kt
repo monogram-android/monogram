@@ -23,7 +23,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,7 +44,6 @@ fun ProfileHeaderTransformed(
     subtitle: String,
     avatarSize: Dp,
     userModel: UserModel?,
-    chatModel: ChatModel?,
     avatarCornerPercent: Int,
     isOnline: Boolean,
     isVerified: Boolean,
@@ -55,9 +55,11 @@ fun ProfileHeaderTransformed(
     progress: Float,
     contentPadding: PaddingValues,
     onAvatarClick: () -> Unit,
-    onActionClick: () -> Unit
+    chatModel: ChatModel? = null,
+    onActionClick: () -> Unit = {}
 ) {
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val containerSize = LocalWindowInfo.current.containerSize
+    val screenHeight = with(LocalDensity.current) { containerSize.height.toDp() }
 
     BoxWithConstraints(
         modifier = Modifier

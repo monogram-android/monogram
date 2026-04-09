@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.StateFlow
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.presentation.R
@@ -40,6 +41,7 @@ import org.monogram.presentation.features.chats.currentChat.components.chats.bui
 import org.monogram.presentation.features.chats.currentChat.components.chats.rememberMessageInlineContent
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.core.date.toDate
+import org.monogram.presentation.features.chats.ChatListComponent
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -53,15 +55,17 @@ fun ChatListItem(
     messageLines: Int,
     showPhotos: Boolean,
     modifier: Modifier = Modifier,
-    isTabletSelected: Boolean = false
+    isTabletSelected: Boolean = false,
+    activeChatId: Long?
 ) {
     val isSavedMessages = chat.id == currentUserId
 
     val backgroundColor by animateColorAsState(
         targetValue = when {
+            isTabletSelected -> MaterialTheme.colorScheme.primaryContainer
             isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            isTabletSelected -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
             chat.isPinned -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            activeChatId == chat.id -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             else -> Color.Transparent
         },
         label = "ItemBg"
@@ -71,7 +75,7 @@ fun ChatListItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 2.dp)
-            .clip(RoundedCornerShape(24))
+            .clip(RoundedCornerShape(12.dp))
             .background(backgroundColor)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 8.dp, vertical = 8.dp)

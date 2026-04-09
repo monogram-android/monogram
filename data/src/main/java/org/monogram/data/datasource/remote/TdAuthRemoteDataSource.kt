@@ -11,6 +11,10 @@ class TdAuthRemoteDataSource(
         gateway.execute(parameters)
     }
 
+    override suspend fun getAuthorizationState(): TdApi.AuthorizationState {
+        return gateway.execute(TdApi.GetAuthorizationState())
+    }
+
     override suspend fun setPhoneNumber(phone: String) {
         val settings = TdApi.PhoneNumberAuthenticationSettings().apply {
             isCurrentPhoneNumber = false

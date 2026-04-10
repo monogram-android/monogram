@@ -16,11 +16,16 @@ jobs:
 
     - name: Add required files
       run: |
-        echo "${{ secrets.LOCAL_PROPERTIES }}" >local.properties
-        echo "${{ secrets.GOOGLE_SERVICES_JSON }}" >app/google-services.json
+        cat <<"EOF" >local.properties
+        ${{ secrets.LOCAL_PROPERTIES }}
+        EOF
+
+        cat <<"EOF" >app/google-services.json
+        "${{ secrets.GOOGLE_SERVICES_JSON }}" 
+        EOF
 
     - name: Build Task
-      run: nix --experimental-features "nix-command flakes" run .#buildRelease
+      run: nix --experimental-features "nix-command flakes" run .#buildRelease -L
     
     - name: Upload Release APKs
       uses: actions/upload-artifact@v7

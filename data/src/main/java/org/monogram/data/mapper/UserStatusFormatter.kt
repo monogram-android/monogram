@@ -2,13 +2,16 @@ package org.monogram.data.mapper
 
 import android.text.format.DateUtils
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.date.DateFormatManager
 import org.monogram.domain.repository.StringProvider
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 internal fun formatChatUserStatus(
     status: TdApi.UserStatus,
     stringProvider: StringProvider,
+    dateFormatManager: DateFormatManager,
     isBot: Boolean = false
 ): String {
     if (isBot) return stringProvider.getString("chat_mapper_bot")
@@ -29,13 +32,19 @@ internal fun formatChatUserStatus(
 
                 DateUtils.isToday(wasOnline) -> {
                     val date = Date(wasOnline)
-                    val format = SimpleDateFormat("HH:mm", Locale.getDefault())
+                    val format = SimpleDateFormat(
+                        dateFormatManager.getHourMinuteFormat(),
+                        Locale.getDefault()
+                    )
                     stringProvider.getString("chat_mapper_seen_at", format.format(date))
                 }
 
                 isYesterday(wasOnline) -> {
                     val date = Date(wasOnline)
-                    val format = SimpleDateFormat("HH:mm", Locale.getDefault())
+                    val format = SimpleDateFormat(
+                        dateFormatManager.getHourMinuteFormat(),
+                        Locale.getDefault()
+                    )
                     stringProvider.getString("chat_mapper_seen_yesterday", format.format(date))
                 }
 

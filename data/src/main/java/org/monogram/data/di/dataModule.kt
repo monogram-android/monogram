@@ -389,7 +389,7 @@ val dataModule = module {
     }
 
     single {
-        ChatMapper(get())
+        ChatMapper(get(), get())
     }
 
     single {

@@ -1,13 +1,15 @@
 package org.monogram.presentation.core.util
 
-import android.content.Context
-import android.text.format.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToLong
+import org.monogram.core.date.DateFormatManager as CoreDateFormatManager
+import org.monogram.core.date.DateFormatManagerImpl as CoreDateFormatManagerImpl
+import org.monogram.core.date.Fake12HourDateFormatManagerImpl as CoreFake12HourDateFormatManagerImpl
+import org.monogram.core.date.Fake24HourDateFormatManagerImpl as CoreFake24HourDateFormatManagerImpl
 
 /**
  * Formats date as relative string as for day, week, year, periods and so-on
@@ -63,22 +65,7 @@ fun Date.toShortRelativeDate(
     }
 }
 
-interface DateFormatManager {
-    fun is24HourFormat(): Boolean
-    fun getHourMinuteFormat(): String
-}
-
-class Fake12HourDateFormatManagerImpl : DateFormatManager {
-    override fun is24HourFormat(): Boolean = false
-    override fun getHourMinuteFormat(): String = "h:mm a"
-}
-
-class Fake24HourDateFormatManagerImpl : DateFormatManager {
-    override fun is24HourFormat(): Boolean = true
-    override fun getHourMinuteFormat(): String = "HH:mm"
-}
-
-class DateFormatManagerImpl(private val context: Context) : DateFormatManager {
-    override fun is24HourFormat(): Boolean = DateFormat.is24HourFormat(context)
-    override fun getHourMinuteFormat(): String = if (this.is24HourFormat()) "HH:mm" else "h:mm a"
-}
+typealias DateFormatManager = CoreDateFormatManager
+typealias DateFormatManagerImpl = CoreDateFormatManagerImpl
+typealias Fake12HourDateFormatManagerImpl = CoreFake12HourDateFormatManagerImpl
+typealias Fake24HourDateFormatManagerImpl = CoreFake24HourDateFormatManagerImpl

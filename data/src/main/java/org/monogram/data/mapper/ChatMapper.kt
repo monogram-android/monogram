@@ -1,13 +1,22 @@
 package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.date.DateFormatManager
 import org.monogram.data.db.model.ChatEntity
-import org.monogram.domain.models.*
+import org.monogram.domain.models.ChatModel
+import org.monogram.domain.models.ChatType
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageEntityType
+import org.monogram.domain.models.UsernamesModel
 import org.monogram.domain.repository.StringProvider
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
-class ChatMapper(private val stringProvider: StringProvider) {
+class ChatMapper(
+    private val stringProvider: StringProvider,
+    private val dateFormatManager: DateFormatManager
+) {
     fun mapChatToModel(
         chat: TdApi.Chat,
         order: Long,
@@ -431,7 +440,8 @@ class ChatMapper(private val stringProvider: StringProvider) {
         }
 
         val date = lastMsg.date
-        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+        val timeFormat =
+            SimpleDateFormat(dateFormatManager.getHourMinuteFormat(), Locale.getDefault())
         val time = if (date > 0) timeFormat.format(Date(date.toLong() * 1000)) else ""
         return Triple(txt, entities, time)
     }
@@ -455,6 +465,7 @@ class ChatMapper(private val stringProvider: StringProvider) {
         return formatChatUserStatus(
             status = status,
             stringProvider = stringProvider,
+            dateFormatManager = dateFormatManager,
             isBot = isBot
         )
     }

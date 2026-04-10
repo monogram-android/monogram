@@ -16,13 +16,13 @@ jobs:
 
     - name: Add required files
       run: |
-        cat <<"EOF" >local.properties
+        cat <<"EOF-FILE" >local.properties
         ${{ secrets.LOCAL_PROPERTIES }}
-        EOF
+        EOF-FILE
 
-        cat <<"EOF" >app/google-services.json
-        "${{ secrets.GOOGLE_SERVICES_JSON }}" 
-        EOF
+        cat <<"EOF-FILE" >app/google-services.json
+        ${{ secrets.GOOGLE_SERVICES_JSON }}
+        EOF-FILE
 
     - name: Build Task
       run: nix --experimental-features "nix-command flakes" run .#buildRelease -L

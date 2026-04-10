@@ -68,6 +68,16 @@ interface DateFormatManager {
     fun getHourMinuteFormat(): String
 }
 
+class Fake12HourDateFormatManagerImpl : DateFormatManager {
+    override fun is24HourFormat(): Boolean = false
+    override fun getHourMinuteFormat(): String = "h:mm a"
+}
+
+class Fake24HourDateFormatManagerImpl : DateFormatManager {
+    override fun is24HourFormat(): Boolean = true
+    override fun getHourMinuteFormat(): String = "HH:mm"
+}
+
 class DateFormatManagerImpl(private val context: Context) : DateFormatManager {
     override fun is24HourFormat(): Boolean = DateFormat.is24HourFormat(context)
     override fun getHourMinuteFormat(): String = if (this.is24HourFormat()) "HH:mm" else "h:mm a"

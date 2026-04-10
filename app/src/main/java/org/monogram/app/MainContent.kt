@@ -16,6 +16,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,6 +36,7 @@ import org.monogram.app.components.LockScreen
 import org.monogram.app.components.MobileLayout
 import org.monogram.app.components.ProxyConfirmSheet
 import org.monogram.app.components.TabletLayout
+import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentViewers
 import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
 import org.monogram.presentation.features.profile.ProfileViewers
@@ -52,6 +54,7 @@ fun MainContent(
 ) {
     val childStack by root.childStack.subscribeAsState()
     val isLocked by root.isLocked.collectAsState()
+    val isTabletInterfaceEnabled by root.appPreferences.isTabletInterfaceEnabled.collectAsState()
     val localClipboard = LocalClipboard.current
     
     val isExpanded = currentWindowAdaptiveInfo().windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClassCore.WIDTH_DP_MEDIUM_LOWER_BOUND) ||
@@ -87,11 +90,12 @@ fun MainContent(
         wasStartupActive = false
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    CompositionLocalProvider(LocalTabletInterfaceEnabled provides isTabletInterfaceEnabled) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
         val contentScale by animateFloatAsState(
             targetValue = 1f,
             animationSpec = tween(durationMillis = 300),
@@ -107,6 +111,7 @@ fun MainContent(
                 },
         ) {
             if (isExpanded &&
+                isTabletInterfaceEnabled &&
                 activeChild !is RootComponent.Child.AuthChild &&
                 activeChild !is RootComponent.Child.StartupChild
             ) {
@@ -182,6 +187,7 @@ fun MainContent(
                 )
             }
             else -> {}
+        }
         }
     }
 }

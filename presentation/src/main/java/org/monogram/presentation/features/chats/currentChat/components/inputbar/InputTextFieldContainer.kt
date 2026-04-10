@@ -38,6 +38,7 @@ import org.monogram.domain.models.BotCommandModel
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.StickerModel
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 
 @Composable
 fun InputTextFieldContainer(
@@ -68,7 +69,8 @@ fun InputTextFieldContainer(
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
-        val isTablet = LocalConfiguration.current.screenWidthDp >= 600
+        val isTablet =
+            LocalConfiguration.current.screenWidthDp >= 600 && LocalTabletInterfaceEnabled.current
 
         Row(
             verticalAlignment = Alignment.CenterVertically,

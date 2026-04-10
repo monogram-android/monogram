@@ -17,7 +17,12 @@ import org.monogram.domain.models.WallpaperModel
 import org.monogram.domain.repository.EmojiRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.WallpaperRepository
-import org.monogram.presentation.core.util.*
+import org.monogram.presentation.core.util.AppPreferences
+import org.monogram.presentation.core.util.EmojiStyle
+import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.core.util.NightMode
+import org.monogram.presentation.core.util.coRunCatching
+import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 import java.io.File
 import java.net.URL
@@ -78,6 +83,7 @@ interface ChatSettingsComponent {
     fun onNightModeEndTimeChanged(time: String)
     fun onNightModeBrightnessThresholdChanged(threshold: Float)
     fun onDragToBackChanged(enabled: Boolean)
+    fun onTabletInterfaceEnabledChanged(enabled: Boolean)
     fun onAdBlockClick()
     fun onEmojiStyleChanged(style: EmojiStyle)
     fun onEmojiStyleLongClick(style: EmojiStyle)
@@ -137,6 +143,7 @@ interface ChatSettingsComponent {
         val nightModeEndTime: String = "07:00",
         val nightModeBrightnessThreshold: Float = 0.2f,
         val isDragToBackEnabled: Boolean = true,
+        val isTabletInterfaceEnabled: Boolean = true,
         val emojiStyle: EmojiStyle = EmojiStyle.SYSTEM,
         val isAppleEmojiDownloaded: Boolean = false,
         val isTwitterEmojiDownloaded: Boolean = false,
@@ -218,6 +225,7 @@ class DefaultChatSettingsComponent(
             nightModeEndTime = appPreferences.nightModeEndTime.value,
             nightModeBrightnessThreshold = appPreferences.nightModeBrightnessThreshold.value,
             isDragToBackEnabled = appPreferences.isDragToBackEnabled.value,
+            isTabletInterfaceEnabled = appPreferences.isTabletInterfaceEnabled.value,
             emojiStyle = appPreferences.emojiStyle.value,
             isAppleEmojiDownloaded = appPreferences.isAppleEmojiDownloaded.value,
             isTwitterEmojiDownloaded = appPreferences.isTwitterEmojiDownloaded.value,
@@ -502,6 +510,12 @@ class DefaultChatSettingsComponent(
         appPreferences.isDragToBackEnabled
             .onEach { enabled ->
                 _state.update { it.copy(isDragToBackEnabled = enabled) }
+            }
+            .launchIn(scope)
+
+        appPreferences.isTabletInterfaceEnabled
+            .onEach { enabled ->
+                _state.update { it.copy(isTabletInterfaceEnabled = enabled) }
             }
             .launchIn(scope)
 
@@ -994,6 +1008,10 @@ class DefaultChatSettingsComponent(
 
     override fun onDragToBackChanged(enabled: Boolean) {
         appPreferences.setDragToBackEnabled(enabled)
+    }
+
+    override fun onTabletInterfaceEnabledChanged(enabled: Boolean) {
+        appPreferences.setTabletInterfaceEnabled(enabled)
     }
 
     override fun onAdBlockClick() {

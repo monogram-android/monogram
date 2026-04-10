@@ -118,6 +118,7 @@ import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ConfirmationSheet
+import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.chats.ChatListComponent
 import org.monogram.presentation.features.chats.chatList.components.AccountMenu
 import org.monogram.presentation.features.chats.chatList.components.ArchiveHeaderCard
@@ -158,7 +159,9 @@ fun ChatListContent(component: ChatListComponent) {
     var showPermissionRequest by remember { mutableStateOf(!isPermissionRequested) }
 
     val adaptiveInfo = currentWindowAdaptiveInfo()
-    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
+    val isTabletInterfaceEnabled = LocalTabletInterfaceEnabled.current
+    val isTablet =
+        adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) && isTabletInterfaceEnabled
 
     val isCustomBackHandlingEnabled =
         state.isSearchActive || state.selectedChatIds.isNotEmpty() || state.selectedFolderId == -2 || state.isForwarding || state.instantViewUrl != null || state.webAppUrl != null || state.webViewUrl != null || showStatusMenu

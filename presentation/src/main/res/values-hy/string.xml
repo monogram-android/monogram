@@ -587,6 +587,8 @@
     <string name="show_link_previews_subtitle">Ցուցադրել հղումների բովանդակությունը հաղորդագրություններում</string>
     <string name="drag_to_back_title">Քաշել՝ հետ գնալու համար</string>
     <string name="drag_to_back_subtitle">Սահեցրեք ձախ եզրից՝ հետ գնալու համար</string>
+    <string name="tablet_interface_title">Պլանշետային ինտերֆեյս</string>
+    <string name="tablet_interface_subtitle">Պլանշետներում օգտագործել բաժանված էկրանի դասավորություն</string>
     <string name="two_line_label">Երկտողանի</string>
     <string name="three_line_label">Եռատողանի</string>
     <string name="show_photos_title">Ցույց տալ նկարները</string>

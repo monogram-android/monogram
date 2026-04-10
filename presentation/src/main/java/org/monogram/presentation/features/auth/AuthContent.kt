@@ -2,14 +2,31 @@ package org.monogram.presentation.features.auth
 
 import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.SettingsEthernet
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -20,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.auth.components.AuthErrorDialog
 import org.monogram.presentation.features.auth.components.CodeInputScreen
 import org.monogram.presentation.features.auth.components.PasswordInputScreen
@@ -30,7 +48,8 @@ import org.monogram.presentation.features.auth.components.PhoneInputScreen
 fun AuthContent(component: AuthComponent) {
     val model by component.model.subscribeAsState()
     val configuration = LocalConfiguration.current
-    val isTablet = configuration.screenWidthDp >= 600
+    val isTabletInterfaceEnabled = LocalTabletInterfaceEnabled.current
+    val isTablet = configuration.screenWidthDp >= 600 && isTabletInterfaceEnabled
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val maxContentWidth = if (isTablet && isLandscape) 1000.dp else 600.dp
     val motionScheme = MaterialTheme.motionScheme

@@ -605,6 +605,8 @@
     <string name="show_link_previews_subtitle">Відображати прев\'ю для посилань у повідомленнях</string>
     <string name="drag_to_back_title">Свайп для повернення</string>
     <string name="drag_to_back_subtitle">Повернення назад свайпом від лівого краю</string>
+    <string name="tablet_interface_title">Планшетний інтерфейс</string>
+    <string name="tablet_interface_subtitle">Використовувати розділений інтерфейс на планшетах</string>
     <string name="two_line_label">Дві рядки</string>
     <string name="three_line_label">Три рядки</string>
     <string name="show_photos_title">Показувати фотографії</string>

@@ -6,3 +6,5 @@ import org.monogram.presentation.features.chats.currentChat.components.VideoPlay
 val LocalVideoPlayerPool = staticCompositionLocalOf<VideoPlayerPool> {
     error("VideoPlayerPool not provided")
 }
+
+val LocalTabletInterfaceEnabled = staticCompositionLocalOf { true }

@@ -618,6 +618,8 @@
     <string name="show_link_previews_subtitle">Exiba prévias de links nas mensagens</string>
     <string name="drag_to_back_title">Arrastar para voltar</string>
     <string name="drag_to_back_subtitle">Deslize da borda esquerda para retornar</string>
+    <string name="tablet_interface_title">Interface para tablet</string>
+    <string name="tablet_interface_subtitle">Usar layout de tela dividida em tablets</string>
     <string name="two_line_label">Duas linhas</string>
     <string name="three_line_label">Três linhas</string>
     <string name="show_photos_title">Mostrar fotos</string>

@@ -69,6 +69,7 @@ import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.rememberCollapsingToolbarScaffoldState
 import org.monogram.presentation.core.ui.rememberShimmerBrush
+import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.core.util.getUserStatusText
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
@@ -87,7 +88,9 @@ import org.monogram.presentation.features.profile.components.profileMediaSection
 fun ProfileContent(component: ProfileComponent) {
     val state by component.state.subscribeAsState()
     val adaptiveInfo = currentWindowAdaptiveInfo()
-    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+    val isTabletInterfaceEnabled = LocalTabletInterfaceEnabled.current
+    val isTablet =
+        adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND) && isTabletInterfaceEnabled
     val localClipboard = LocalClipboard.current
     val context = LocalContext.current
     val collapsingToolbarState = rememberCollapsingToolbarScaffoldState()

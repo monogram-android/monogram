@@ -315,6 +315,10 @@ class AppPreferences(
     private val _showChatListPhotos = MutableStateFlow(prefs.getBoolean(KEY_SHOW_CHAT_LIST_PHOTOS, true))
     override val showChatListPhotos: StateFlow<Boolean> = _showChatListPhotos
 
+    private val _isTabletInterfaceEnabled =
+        MutableStateFlow(prefs.getBoolean(KEY_TABLET_INTERFACE_ENABLED, true))
+    val isTabletInterfaceEnabled: StateFlow<Boolean> = _isTabletInterfaceEnabled
+
     private val _isAdBlockEnabled = MutableStateFlow(prefs.getBoolean(KEY_ADBLOCK_ENABLED, false))
     val isAdBlockEnabled: StateFlow<Boolean> = _isAdBlockEnabled
 
@@ -804,6 +808,11 @@ class AppPreferences(
         _showChatListPhotos.value = enabled
     }
 
+    fun setTabletInterfaceEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_TABLET_INTERFACE_ENABLED, enabled).apply()
+        _isTabletInterfaceEnabled.value = enabled
+    }
+
     fun setAdBlockEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_ADBLOCK_ENABLED, enabled).apply()
         _isAdBlockEnabled.value = enabled
@@ -958,6 +967,7 @@ class AppPreferences(
         _isChatAnimationsEnabled.value = true
         _chatListMessageLines.value = 1
         _showChatListPhotos.value = true
+        _isTabletInterfaceEnabled.value = true
         _isAdBlockEnabled.value = false
         _adBlockKeywords.value = emptySet()
         _adBlockWhitelistedChannels.value = emptySet()
@@ -1071,6 +1081,7 @@ class AppPreferences(
         private const val KEY_CHAT_ANIMATIONS_ENABLED = "chat_animations_enabled"
         private const val KEY_CHAT_LIST_MESSAGE_LINES = "chat_list_message_lines"
         private const val KEY_SHOW_CHAT_LIST_PHOTOS = "show_chat_list_photos"
+        private const val KEY_TABLET_INTERFACE_ENABLED = "tablet_interface_enabled"
 
         private const val KEY_ADBLOCK_ENABLED = "adblock_enabled"
         private const val KEY_ADBLOCK_KEYWORDS = "adblock_keywords"

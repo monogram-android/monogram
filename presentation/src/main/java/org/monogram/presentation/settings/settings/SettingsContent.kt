@@ -79,9 +79,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -121,6 +121,7 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
 import org.monogram.presentation.core.ui.ItemPosition
+import org.monogram.presentation.core.ui.SectionHeader
 import org.monogram.presentation.core.ui.SettingsItem
 import org.monogram.presentation.core.ui.StyledQRCode
 import org.monogram.presentation.core.ui.UserProfileHeader
@@ -130,10 +131,10 @@ import org.monogram.presentation.core.ui.rememberCollapsingToolbarScaffoldState
 import org.monogram.presentation.core.ui.saveBitmapToGallery
 import org.monogram.presentation.core.ui.shareBitmap
 import org.monogram.presentation.core.util.CountryManager
+import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.features.stickers.ui.menu.EmojisGrid
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
-import org.monogram.presentation.core.ui.SectionHeader
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -145,7 +146,9 @@ val QrSurfaceShapeColor = Color(0xFFE3E6D8)
 fun SettingsContent(component: SettingsComponent) {
     val state by component.state.subscribeAsState()
     val adaptiveInfo = currentWindowAdaptiveInfo()
-    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+    val isTabletInterfaceEnabled = LocalTabletInterfaceEnabled.current
+    val isTablet =
+        adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND) && isTabletInterfaceEnabled
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val haptic = LocalHapticFeedback.current

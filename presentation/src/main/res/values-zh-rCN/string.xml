@@ -602,6 +602,8 @@
     <string name="show_link_previews_subtitle">在消息中显示链接预览</string>
     <string name="drag_to_back_title">拖拽返回</string>
     <string name="drag_to_back_subtitle">从左边缘滑动返回</string>
+    <string name="tablet_interface_title">平板界面</string>
+    <string name="tablet_interface_subtitle">在平板上使用分屏布局</string>
     <string name="two_line_label">两行显示</string>
     <string name="three_line_label">三行显示</string>
     <string name="show_photos_title">显示头像</string>

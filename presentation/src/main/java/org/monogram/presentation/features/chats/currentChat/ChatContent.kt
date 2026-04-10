@@ -104,6 +104,7 @@ import org.monogram.domain.models.ReplyMarkupModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.core.ui.ExpressiveDefaults
+import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentBackground
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentList
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentTopBar
@@ -150,7 +151,9 @@ fun ChatContent(
     val coroutineScope = rememberCoroutineScope()
 
     val adaptiveInfo = currentWindowAdaptiveInfo()
-    val isTablet = adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED
+    val isTabletInterfaceEnabled = LocalTabletInterfaceEnabled.current
+    val isTablet =
+        adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED && isTabletInterfaceEnabled
 
     var isVisible by remember { mutableStateOf(false) }
     var showInitialLoading by remember { mutableStateOf(false) }

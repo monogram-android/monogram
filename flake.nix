@@ -78,17 +78,14 @@
             buildRelease = {
               type = "app";
               program = "${pkgs.writeShellScriptBin "buildRelease" ''
-                if [ -z "$LOCAL_PROPERTIES" ] || [ -z "$GOOGLE_SERVICES_JSON" ]; then
-                  echo "LOCAL_PROPERTIES and GOOGLE_SERVICES_JSON environment variables must be set"
-                  exit 1
-                fi
-
                 if ! ${pkgs.git}/bin/git submodule update --init --recursive; then
                   echo "failed getting submodules"
                 fi
 
-                echo $LOCAL_PROPERTIES >local.properties
-                echo $GOOGLE_SERVICES_JSON >app/google-services.json
+                if ! [ -f local.properties ] || ! [ -f app/google-services.json ]; then
+                  echo "Warning: local.properties and/or app/google-services.json aren't found,"
+                  echo "build will most likely fail"
+                fi
 
                 export ANDROID_HOME="${androidComposition pkgs}/libexec/android-sdk/"
                 export ANDROID_SDK_ROOT="${androidComposition pkgs}/libexec/android-sdk/"

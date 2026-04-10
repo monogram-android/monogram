@@ -61,33 +61,30 @@ fun MainContent(
 
     val activeChild = childStack.active.instance
     val isStartupActive = activeChild is RootComponent.Child.StartupChild
+    val startupChild = activeChild as? RootComponent.Child.StartupChild
     var startupOverlayComponent by remember { mutableStateOf<StartupComponent?>(null) }
     var startupOverlayVisible by remember { mutableStateOf(false) }
+    var wasStartupActive by remember { mutableStateOf(isStartupActive) }
 
-    LaunchedEffect(activeChild) {
-        when (activeChild) {
-            is RootComponent.Child.StartupChild -> {
-                startupOverlayComponent = activeChild.component
-                startupOverlayVisible = false
-            }
-
-            else -> {
-                if (startupOverlayComponent != null) {
-                    startupOverlayVisible = true
-                }
-            }
+    LaunchedEffect(isStartupActive, startupChild?.component) {
+        if (isStartupActive) {
+            startupOverlayComponent = startupChild?.component
+            startupOverlayVisible = false
+            wasStartupActive = true
+            return@LaunchedEffect
         }
-    }
 
-    LaunchedEffect(startupOverlayVisible, isStartupActive) {
-        if (startupOverlayVisible && !isStartupActive) {
+        if (wasStartupActive && startupOverlayComponent != null) {
+            startupOverlayVisible = true
             delay(90)
             startupOverlayVisible = false
             delay(320)
-            if (!isStartupActive) {
-                startupOverlayComponent = null
-            }
+            startupOverlayComponent = null
+            wasStartupActive = false
+            return@LaunchedEffect
         }
+
+        wasStartupActive = false
     }
 
     Box(

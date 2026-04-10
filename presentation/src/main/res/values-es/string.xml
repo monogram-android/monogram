@@ -250,7 +250,10 @@
 
     <!-- Profile -->
     <string name="unknown_title">Desconocido</string>
-    <string name="members_count_format">%1$d miembros</string>
+    <plurals name="members_count_format">
+        <item quantity="one">%1$d miembro</item>
+        <item quantity="other">%1$d miembros</item>
+    </plurals>
     <string name="members_online_count_format">%1$s, %2$d en línea</string>
     <string name="not_implemented">No implementado</string>
     <string name="search_not_implemented">Búsqueda no implementada</string>
@@ -1045,6 +1048,9 @@
     <string name="editor_word_count">%1$d palabras</string>
     <string name="editor_reading_time">~%1$d min de lectura</string>
     <string name="editor_autosave_done">Borrador guardado automáticamente</string>
+    <string name="editor_action_copy">Copiar</string>
+    <string name="editor_action_cut">Cortar</string>
+    <string name="editor_action_paste">Pegar</string>
     <string name="action_insert">Insertar</string>
     <string name="action_previous">Anterior</string>
     <string name="action_next">Siguiente</string>

@@ -1,8 +1,27 @@
 package org.monogram.presentation.features.chats.chatList.components
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Star
@@ -10,13 +29,23 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.ShieldMoon
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.ShapeDefaults
+import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.window.core.layout.WindowSizeClass
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInRoot
@@ -26,6 +55,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowSizeClass
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.presentation.R
@@ -71,6 +101,7 @@ fun ChatListTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
+                    .then(if (isTablet) Modifier.padding(top = 6.dp) else Modifier)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 SearchBar(
@@ -111,6 +142,7 @@ fun ChatListTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
+                    .then(if (isTablet) Modifier.padding(top = 6.dp) else Modifier)
             ) {
                 Row(
                     modifier = Modifier
@@ -138,7 +170,9 @@ fun ChatListTopBar(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Box(
                                     modifier = Modifier
-                                        .onGloballyPositioned { statusAnchorBounds = it.boundsInRoot() }
+                                        .onGloballyPositioned {
+                                            statusAnchorBounds = it.boundsInRoot()
+                                        }
                                         .clickable { onStatusClick(statusAnchorBounds) }
                                 ) {
                                     StickerImage(
@@ -153,7 +187,9 @@ fun ChatListTopBar(
                                     contentDescription = stringResource(R.string.telegram_premium_title),
                                     modifier = Modifier
                                         .size(22.dp)
-                                        .onGloballyPositioned { statusAnchorBounds = it.boundsInRoot() }
+                                        .onGloballyPositioned {
+                                            statusAnchorBounds = it.boundsInRoot()
+                                        }
                                         .clickable { onStatusClick(statusAnchorBounds) },
                                     tint = Color(0xFF31A6FD)
                                 )

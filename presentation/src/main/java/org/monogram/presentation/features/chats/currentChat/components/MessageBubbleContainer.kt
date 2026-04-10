@@ -6,10 +6,27 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -30,7 +47,21 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.chatContent.shouldShowDate
-import org.monogram.presentation.features.chats.currentChat.components.chats.*
+import org.monogram.presentation.features.chats.currentChat.components.chats.AudioMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.ContactMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.DocumentMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.GifMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.LocationMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.MessageViaBotAttribution
+import org.monogram.presentation.features.chats.currentChat.components.chats.PhotoMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.PollMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.ReplyMarkupView
+import org.monogram.presentation.features.chats.currentChat.components.chats.StickerMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.TextMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.VenueMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.VideoMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.VideoNoteBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.VoiceMessageBubble
 
 @Composable
 fun MessageBubbleContainer(
@@ -91,11 +122,39 @@ fun MessageBubbleContainer(
     }
 
     val isOutgoing = msg.isOutgoing
-    val isSameSenderAbove = remember(olderMsg?.senderId, msg.senderId, olderMsg?.date, msg.date) {
-        olderMsg?.senderId == msg.senderId && !shouldShowDate(msg, olderMsg)
+    val isSameSenderAbove = remember(
+        olderMsg?.id,
+        olderMsg?.senderId,
+        olderMsg?.senderName,
+        olderMsg?.senderCustomTitle,
+        olderMsg?.date,
+        msg.senderId,
+        msg.senderName,
+        msg.senderCustomTitle,
+        msg.date
+    ) {
+        shouldGroupSenderBlock(
+            current = msg,
+            neighbor = olderMsg,
+            dateBreak = olderMsg?.let { shouldShowDate(msg, it) } ?: true
+        )
     }
-    val isSameSenderBelow = remember(newerMsg?.senderId, msg.senderId, newerMsg?.date, msg.date) {
-        newerMsg != null && newerMsg.senderId == msg.senderId && !shouldShowDate(newerMsg, msg)
+    val isSameSenderBelow = remember(
+        newerMsg?.id,
+        newerMsg?.senderId,
+        newerMsg?.senderName,
+        newerMsg?.senderCustomTitle,
+        newerMsg?.date,
+        msg.senderId,
+        msg.senderName,
+        msg.senderCustomTitle,
+        msg.date
+    ) {
+        shouldGroupSenderBlock(
+            current = msg,
+            neighbor = newerMsg,
+            dateBreak = newerMsg?.let { shouldShowDate(it, msg) } ?: true
+        )
     }
 
     val topSpacing = if (!isSameSenderAbove) 8.dp else 2.dp

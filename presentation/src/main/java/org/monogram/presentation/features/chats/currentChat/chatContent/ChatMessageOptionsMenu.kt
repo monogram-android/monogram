@@ -216,11 +216,20 @@ fun ChatMessageOptionsMenu(
     val canCopyLink = state.isGroup || state.isChannel
     val canPinMessages = state.isAdmin || state.permissions.canPinMessages
     val isPremiumUser = state.currentUser?.isPremium == true
-    val canUseTelegramSummary = isPremiumUser && canSummarize(selectedMessage)
-    val canUseTelegramTranslator = isPremiumUser && canTranslate(selectedMessage)
+    val canUseTelegramSummary =
+        isPremiumUser && !canRestoreOriginalText && canSummarize(selectedMessage)
+    val canUseTelegramTranslator =
+        isPremiumUser && !canRestoreOriginalText && canTranslate(selectedMessage)
     val cocoonAttribution = stringResource(R.string.telegram_cocoon_attribution)
+    val menuMessage = remember(selectedMessage, canRestoreOriginalText) {
+        if (canRestoreOriginalText && selectedMessage.canBeForwarded) {
+            selectedMessage.copy(canBeForwarded = false)
+        } else {
+            selectedMessage
+        }
+    }
     MessageOptionsMenu(
-        message = messageWithReadDate,
+        message = menuMessage.copy(readDate = messageWithReadDate.readDate),
         canWrite = state.canWrite,
         canPinMessages = canPinMessages,
         isPinned = selectedMessage.id == state.pinnedMessage?.id,
@@ -420,7 +429,7 @@ fun ChatMessageOptionsMenu(
 
 private fun String.withCocoonAttribution(attribution: String): String {
     val cleanText = trim()
-    return "$cleanText\n\n$attribution"
+    return "$cleanText\n\n-----\n$attribution"
 }
 
 private const val TELEGRAM_AI_LOG_TAG = "TelegramAiActions"

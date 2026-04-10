@@ -42,17 +42,23 @@ class TdNotificationService : Service() {
             return START_NOT_STICKY
         }
 
-        if (appPreferences.pushProvider.value == PushProvider.FCM) {
-            stopForegroundService()
-            return START_NOT_STICKY
-        }
-
         if (!isServiceRunning) {
             isServiceRunning = true
-            acquireWakeLock()
+            // Call startForeground as soon as possible to satisfy
+            // startForegroundService() timing requirements on Android 8+.
             startForegroundNotification()
+
+            if (appPreferences.pushProvider.value == PushProvider.FCM) {
+                stopForegroundService()
+                return START_NOT_STICKY
+            }
+
+            acquireWakeLock()
             startListeningUpdates()
             startPeriodicCheck()
+        } else if (appPreferences.pushProvider.value == PushProvider.FCM) {
+            stopForegroundService()
+            return START_NOT_STICKY
         }
         return START_STICKY
     }

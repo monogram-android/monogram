@@ -250,7 +250,10 @@
 
     <!-- Profile -->
     <string name="unknown_title">Unknown</string>
-    <string name="members_count_format">%1$d members</string>
+    <plurals name="members_count_format">
+        <item quantity="one">%1$d member</item>
+        <item quantity="other">%1$d members</item>
+    </plurals>
     <string name="members_online_count_format">%1$s, %2$d online</string>
     <string name="not_implemented">Not implemented</string>
     <string name="search_not_implemented">Search not implemented</string>
@@ -1060,6 +1063,9 @@
     <string name="editor_word_count">%1$d words</string>
     <string name="editor_reading_time">~%1$d min read</string>
     <string name="editor_autosave_done">Draft auto-saved</string>
+    <string name="editor_action_copy">Copy</string>
+    <string name="editor_action_cut">Cut</string>
+    <string name="editor_action_paste">Paste</string>
     <string name="editor_ai">AI</string>
     <string name="editor_ai_title">AI editor</string>
     <string name="editor_ai_tab_translate">Translate</string>

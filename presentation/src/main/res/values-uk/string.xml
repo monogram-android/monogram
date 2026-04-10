@@ -248,7 +248,12 @@
 
     <!-- Profile -->
     <string name="unknown_title">Невідомо</string>
-    <string name="members_count_format">Учасники: %1$d</string>
+    <plurals name="members_count_format">
+        <item quantity="one">%1$d учасник</item>
+        <item quantity="few">%1$d учасники</item>
+        <item quantity="many">%1$d учасників</item>
+        <item quantity="other">%1$d учасника</item>
+    </plurals>
     <string name="members_online_count_format">%1$s, %2$d в мережі</string>
     <string name="not_implemented">Ще не реалізовано</string>
     <string name="search_not_implemented">Пошук поки не працює</string>
@@ -1931,6 +1936,9 @@
     <string name="editor_word_count">%1$d слів</string>
     <string name="editor_reading_time">≈%1$d хв читання</string>
     <string name="editor_autosave_done">Чернетку збережено</string>
+    <string name="editor_action_copy">Копіювати</string>
+    <string name="editor_action_cut">Вирізати</string>
+    <string name="editor_action_paste">Вставити</string>
     <string name="editor_ai">AI</string>
     <string name="editor_ai_title">AI-редактор</string>
     <string name="editor_ai_tab_translate">Переклад</string>

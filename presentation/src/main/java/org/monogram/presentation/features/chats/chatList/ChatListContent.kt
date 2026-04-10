@@ -2,18 +2,48 @@ package org.monogram.presentation.features.chats.chatList
 
 import android.util.Log
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -25,9 +55,34 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,7 +119,16 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.features.chats.ChatListComponent
-import org.monogram.presentation.features.chats.chatList.components.*
+import org.monogram.presentation.features.chats.chatList.components.AccountMenu
+import org.monogram.presentation.features.chats.chatList.components.ArchiveHeaderCard
+import org.monogram.presentation.features.chats.chatList.components.ChatListItem
+import org.monogram.presentation.features.chats.chatList.components.ChatListShimmer
+import org.monogram.presentation.features.chats.chatList.components.ChatListTopBar
+import org.monogram.presentation.features.chats.chatList.components.EmptyStateView
+import org.monogram.presentation.features.chats.chatList.components.FolderTabs
+import org.monogram.presentation.features.chats.chatList.components.MessageSearchItem
+import org.monogram.presentation.features.chats.chatList.components.PermissionRequestSheet
+import org.monogram.presentation.features.chats.chatList.components.SelectionTopBar
 import org.monogram.presentation.features.chats.currentChat.components.chats.getEmojiFontFamily
 import org.monogram.presentation.features.instantview.InstantViewer
 import org.monogram.presentation.features.stickers.ui.menu.EmojisGrid
@@ -557,7 +621,8 @@ fun ChatListContent(component: ChatListComponent) {
                                     .fillMaxWidth()
                                     .height(with(density) {
                                         if (isArchivePersistent) {
-                                            (archiveItemHeightPx + headerOffsetPx).coerceAtLeast(0f).toDp()
+                                            (archiveItemHeightPx + headerOffsetPx).coerceAtLeast(0f)
+                                                .toDp()
                                         } else if (isMainFolder) {
                                             archiveRevealPx.toDp()
                                         } else {
@@ -788,7 +853,11 @@ fun ChatListContent(component: ChatListComponent) {
                                                     .width(64.dp)
                                                     .combinedClickable(
                                                         onClick = { onChatClicked(chat.id) },
-                                                        onLongClick = { component.onRemoveSearchHistoryItem(chat.id) }
+                                                        onLongClick = {
+                                                            component.onRemoveSearchHistoryItem(
+                                                                chat.id
+                                                            )
+                                                        }
                                                     ),
                                                 horizontalAlignment = Alignment.CenterHorizontally
                                             ) {
@@ -806,7 +875,11 @@ fun ChatListContent(component: ChatListComponent) {
                                                             .offset(x = 4.dp, y = (-4).dp)
                                                             .clip(CircleShape)
                                                             .background(MaterialTheme.colorScheme.surfaceVariant)
-                                                            .clickable { component.onRemoveSearchHistoryItem(chat.id) },
+                                                            .clickable {
+                                                                component.onRemoveSearchHistoryItem(
+                                                                    chat.id
+                                                                )
+                                                            },
                                                         contentAlignment = Alignment.Center
                                                     ) {
                                                         Icon(
@@ -846,8 +919,7 @@ fun ChatListContent(component: ChatListComponent) {
                                         isTabletSelected = isTablet && state.activeChatId == chat.id,
                                         emojiFontFamily = emojiFontFamily,
                                         messageLines = messageLines,
-                                        showPhotos = showPhotos,
-                                        activeChatId = state.activeChatId
+                                        showPhotos = showPhotos
                                     )
                                 }
                             }
@@ -873,8 +945,7 @@ fun ChatListContent(component: ChatListComponent) {
                                     isTabletSelected = isTablet && state.activeChatId == chat.id,
                                     emojiFontFamily = emojiFontFamily,
                                     messageLines = messageLines,
-                                    showPhotos = showPhotos,
-                                    activeChatId = state.activeChatId
+                                    showPhotos = showPhotos
                                 )
                             }
                         }
@@ -903,8 +974,7 @@ fun ChatListContent(component: ChatListComponent) {
                                     isTabletSelected = isTablet && state.activeChatId == chat.id,
                                     emojiFontFamily = emojiFontFamily,
                                     messageLines = messageLines,
-                                    showPhotos = showPhotos,
-                                    activeChatId = state.activeChatId
+                                    showPhotos = showPhotos
                                 )
                             }
 
@@ -990,8 +1060,7 @@ fun ChatListContent(component: ChatListComponent) {
                                     isTabletSelected = isTablet && state.activeChatId == chat.id,
                                     emojiFontFamily = emojiFontFamily,
                                     messageLines = messageLines,
-                                    showPhotos = showPhotos,
-                                    activeChatId = state.activeChatId
+                                    showPhotos = showPhotos
                                 )
                             }
                         }
@@ -1122,8 +1191,7 @@ fun ChatListContent(component: ChatListComponent) {
                                             isTabletSelected = isTablet && state.activeChatId == chat.id,
                                             emojiFontFamily = emojiFontFamily,
                                             messageLines = messageLines,
-                                            showPhotos = showPhotos,
-                                            activeChatId = state.activeChatId
+                                            showPhotos = showPhotos
                                         )
                                     }
                                 }

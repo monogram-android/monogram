@@ -248,7 +248,9 @@
 
     <!-- Profile -->
     <string name="unknown_title">未知</string>
-    <string name="members_count_format">%1$d 名成员</string>
+    <plurals name="members_count_format">
+        <item quantity="other">%1$d 名成员</item>
+    </plurals>
     <string name="members_online_count_format">%1$s，%2$d 人在线</string>
     <string name="not_implemented">未实现</string>
     <string name="search_not_implemented">搜索尚未实现</string>
@@ -1913,6 +1915,9 @@
     <string name="editor_word_count">%1$d 个词</string>
     <string name="editor_reading_time">约 %1$d 分钟阅读</string>
     <string name="editor_autosave_done">草稿已自动保存</string>
+    <string name="editor_action_copy">复制</string>
+    <string name="editor_action_cut">剪切</string>
+    <string name="editor_action_paste">粘贴</string>
     <string name="editor_ai">AI</string>
     <string name="editor_ai_title">AI 编辑器</string>
     <string name="editor_ai_tab_translate">翻译</string>

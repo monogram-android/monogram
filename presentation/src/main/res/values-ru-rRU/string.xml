@@ -248,7 +248,12 @@
 
     <!-- Profile -->
     <string name="unknown_title">Неизвестно</string>
-    <string name="members_count_format">Участники: %1$d</string>
+    <plurals name="members_count_format">
+        <item quantity="one">%1$d участник</item>
+        <item quantity="few">%1$d участника</item>
+        <item quantity="many">%1$d участников</item>
+        <item quantity="other">%1$d участника</item>
+    </plurals>
     <string name="members_online_count_format">%1$s, %2$d в сети</string>
     <string name="not_implemented">Ещё не реализовано</string>
     <string name="search_not_implemented">Поиск пока не работает</string>
@@ -1931,6 +1936,9 @@
     <string name="editor_word_count">%1$d слов</string>
     <string name="editor_reading_time">≈%1$d мин чтения</string>
     <string name="editor_autosave_done">Черновик сохранён</string>
+    <string name="editor_action_copy">Копировать</string>
+    <string name="editor_action_cut">Вырезать</string>
+    <string name="editor_action_paste">Вставить</string>
     <string name="editor_ai">AI</string>
     <string name="editor_ai_title">ИИ-редактор</string>
     <string name="editor_ai_tab_translate">Перевод</string>

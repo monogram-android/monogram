@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -74,6 +75,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -141,6 +143,7 @@ fun ChatContent(
     val state by component.state.collectAsState()
     val scrollState = rememberLazyListState()
     val context = LocalContext.current
+    val density = LocalDensity.current
     val localClipboard = LocalClipboard.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -724,6 +727,8 @@ fun ChatContent(
     }
 
     CompositionLocalProvider(LocalLinkHandler provides { component.onLinkClick(it) }) {
+        val statusBarHeight = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
+        val headerOverlayHeight = statusBarHeight + 16.dp
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -743,6 +748,19 @@ fun ChatContent(
                         }
                 ) {
                     ChatContentBackground(state = state)
+                }
+
+                if (isTablet) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(headerOverlayHeight)
+                            .graphicsLayer {
+                                alpha = contentAlpha
+                                translationY = contentOffset.toPx()
+                            }
+                            .background(MaterialTheme.colorScheme.surface)
+                    )
                 }
 
                 Scaffold(
@@ -1363,8 +1381,10 @@ fun ChatContent(
                         transformedMessageTexts[msg.id] = newText
                     },
                     onRestoreOriginalText = {
-                        val originalText = originalMessageTexts[msg.id] ?: return@ChatMessageOptionsMenu
-                        transformedMessageTexts[msg.id] = originalText
+                        if (!originalMessageTexts.containsKey(msg.id)) {
+                            return@ChatMessageOptionsMenu
+                        }
+                        transformedMessageTexts.remove(msg.id)
                         originalMessageTexts.remove(msg.id)
                     },
                     onBlockRequest = { userId ->

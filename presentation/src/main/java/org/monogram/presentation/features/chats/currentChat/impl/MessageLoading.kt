@@ -173,6 +173,11 @@ private suspend fun DefaultChatComponent.updateMessagesUnsafe(
         } else {
             emptyMap()
         }
+        val previousMessagesById = if (replace) {
+            state.messages.associateBy { it.id }
+        } else {
+            emptyMap()
+        }
 
         val isComments = state.rootMessage != null
 
@@ -181,7 +186,7 @@ private suspend fun DefaultChatComponent.updateMessagesUnsafe(
 
         var hasChanges = replace
         filteredNewMessages.forEach { msg ->
-            val previous = messageMap[msg.id]
+            val previous = messageMap[msg.id] ?: previousMessagesById[msg.id]
             val mergedMessage = if (previous != null) mergeSenderVisuals(previous, msg) else msg
             val restoredMessage = if (mergedMessage.reactions.isEmpty()) {
                 val previousReactions = existingReactionsById[msg.id]

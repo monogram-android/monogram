@@ -55,6 +55,11 @@ internal fun DefaultChatComponent.loadAllPinnedMessages() {
 
 internal fun DefaultChatComponent.loadScheduledMessages() {
     scope.launch {
+        if (!canLoadScheduledMessages()) {
+            _state.update { it.copy(scheduledMessages = emptyList()) }
+            return@launch
+        }
+
         try {
             val scheduledMessages = repositoryMessage.getScheduledMessages(chatId)
             _state.update { it.copy(scheduledMessages = scheduledMessages) }
@@ -62,6 +67,18 @@ internal fun DefaultChatComponent.loadScheduledMessages() {
             Log.e("DefaultChatComponent", "Error loading scheduled messages", e)
         }
     }
+}
+
+private suspend fun DefaultChatComponent.canLoadScheduledMessages(): Boolean {
+    val currentState = _state.value
+    if (currentState.isChannel && !currentState.isAdmin) return false
+    if (currentState.canWrite) return true
+
+    val chat = chatListRepository.getChatById(chatId) ?: return false
+    val canWrite = if (chat.isAdmin) true else chat.permissions.canSendBasicMessages
+    if (chat.isChannel && !chat.isAdmin) return false
+
+    return canWrite
 }
 
 internal fun DefaultChatComponent.setupPinnedMessageCollector() {

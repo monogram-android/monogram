@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.chats.currentChat.components.inputbar
 
+import android.content.ClipData
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -151,6 +153,8 @@ fun FullScreenEditorSheet(
 ) {
     if (!visible) return
     val context = LocalContext.current
+    val clipboardManager = LocalClipboard.current
+    val nativeClipboard = clipboardManager.nativeClipboard
 
     val focusRequester = remember { FocusRequester() }
     var showEmojiPicker by rememberSaveable { mutableStateOf(false) }
@@ -316,6 +320,11 @@ fun FullScreenEditorSheet(
     }
     val richEntityCount = remember(entities) { entities.count { richEntityToAnnotation(it.type) != null } }
     val hasSelection = hasFormattableSelection(textValue)
+    val hasTextSelection = normalizedSelection(textValue.selection) != null
+    val canPasteFromClipboard = canWriteText &&
+            nativeClipboard.primaryClip?.let { clip ->
+                clip.itemCount > 0 && clip.getItemAt(0).coerceToText(context).isNotEmpty()
+            } == true
 
     fun showAiPreview(result: FormattedTextResult) {
         val mappedTextValue = buildTextFieldValueFromTextAndEntities(
@@ -559,6 +568,31 @@ fun FullScreenEditorSheet(
                 AnimatedVisibility(visible = !isPreviewMode) {
                     FullScreenEditorTools(
                         hasSelection = hasSelection,
+                        canCopy = hasTextSelection,
+                        canCut = canWriteText && hasTextSelection,
+                        canPaste = canPasteFromClipboard,
+                        onCopy = {
+                            selectedTextOrNull(textValue)?.let { selectedText ->
+                                nativeClipboard.setPrimaryClip(ClipData.newPlainText("", selectedText))
+                            }
+                        },
+                        onCut = {
+                            selectedTextOrNull(textValue)?.let { selectedText ->
+                                nativeClipboard.setPrimaryClip(ClipData.newPlainText("", selectedText))
+                                applyEditorChange(replaceSelection(textValue, ""))
+                            }
+                        },
+                        onPaste = {
+                            val clipboardText =
+                                nativeClipboard.primaryClip?.takeIf { it.itemCount > 0 }
+                                    ?.getItemAt(0)
+                                    ?.coerceToText(context)
+                                    ?.toString()
+                                    .orEmpty()
+                            if (clipboardText.isNotEmpty()) {
+                                applyEditorChange(replaceSelection(textValue, clipboardText))
+                            }
+                        },
                         onBold = { applyEditorChange(toggleRichEntity(textValue, MessageEntityType.Bold)) },
                         onItalic = { applyEditorChange(toggleRichEntity(textValue, MessageEntityType.Italic)) },
                         onUnderline = { applyEditorChange(toggleRichEntity(textValue, MessageEntityType.Underline)) },
@@ -1562,6 +1596,12 @@ private fun FullScreenEditorToolButton(icon: ImageVector, hint: String, enabled:
 @Composable
 private fun FullScreenEditorTools(
     hasSelection: Boolean,
+    canCopy: Boolean,
+    canCut: Boolean,
+    canPaste: Boolean,
+    onCopy: () -> Unit,
+    onCut: () -> Unit,
+    onPaste: () -> Unit,
     onBold: () -> Unit,
     onItalic: () -> Unit,
     onUnderline: () -> Unit,
@@ -1590,6 +1630,24 @@ private fun FullScreenEditorTools(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
+                FullScreenEditorToolButton(
+                    Icons.Outlined.ContentCopy,
+                    stringResource(R.string.editor_action_copy),
+                    canCopy,
+                    onCopy
+                )
+                FullScreenEditorToolButton(
+                    Icons.Outlined.ContentCut,
+                    stringResource(R.string.editor_action_cut),
+                    canCut,
+                    onCut
+                )
+                FullScreenEditorToolButton(
+                    Icons.Outlined.ContentPaste,
+                    stringResource(R.string.editor_action_paste),
+                    canPaste,
+                    onPaste
+                )
                 FullScreenEditorToolButton(
                     Icons.Outlined.FormatBold,
                     stringResource(R.string.rich_text_bold),
@@ -1684,6 +1742,31 @@ private fun currentPreLanguage(value: TextFieldValue): String {
         ?.let { decodeRichEntity(it.item) as? MessageEntityType.Pre }
         ?.language
         .orEmpty()
+}
+
+private fun selectedTextOrNull(value: TextFieldValue): String? {
+    val selection = normalizedSelection(value.selection) ?: return null
+    return value.text.substring(selection.start, selection.end)
+}
+
+private fun replaceSelection(value: TextFieldValue, replacement: String): TextFieldValue {
+    val rawSelection = if (value.selection.start <= value.selection.end) {
+        value.selection
+    } else {
+        TextRange(value.selection.end, value.selection.start)
+    }
+    val maxLength = value.annotatedString.length
+    val selection = TextRange(
+        start = rawSelection.start.coerceIn(0, maxLength),
+        end = rawSelection.end.coerceIn(0, maxLength)
+    )
+    val newAnnotated = buildAnnotatedString {
+        append(value.annotatedString.subSequence(0, selection.start))
+        append(replacement)
+        append(value.annotatedString.subSequence(selection.end, value.annotatedString.length))
+    }
+    val cursor = selection.start + replacement.length
+    return value.copy(annotatedString = newAnnotated, selection = TextRange(cursor, cursor))
 }
 
 private fun insertSnippetAtSelection(value: TextFieldValue, snippet: String): TextFieldValue {

@@ -239,7 +239,10 @@
     <string name="info_views">Դիտումներ</string>
 
     <string name="unknown_title">Անհայտ</string>
-    <string name="members_count_format">%1$d անդամ</string>
+    <plurals name="members_count_format">
+        <item quantity="one">%1$d անդամ</item>
+        <item quantity="other">%1$d անդամ</item>
+    </plurals>
     <string name="members_online_count_format">%1$s, %2$d առցանց</string>
     <string name="not_implemented">Դեռ հասանելի չէ</string>
     <string name="search_not_implemented">Որոնումը դեռ հասանելի չէ</string>
@@ -949,6 +952,9 @@
     <string name="fullscreen_editor_blocks">%1$d ֆորմատավորման բլոկ</string>
     <string name="fullscreen_editor_hint">Ընտրեք տեքստը՝ ձևավորում կիրառելու համար</string>
     <string name="message_length_counter">%1$d/%2$d</string>
+    <string name="editor_action_copy">Պատճենել</string>
+    <string name="editor_action_cut">Կտրել</string>
+    <string name="editor_action_paste">Տեղադրել</string>
 
     <string name="rich_text_bold">Թավ</string>
     <string name="rich_text_italic">Շեղ</string>

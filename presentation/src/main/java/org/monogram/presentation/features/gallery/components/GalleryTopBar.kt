@@ -2,7 +2,7 @@ package org.monogram.presentation.features.gallery.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -32,7 +32,7 @@ fun GalleryTopBar(
         },
         actions = {
             IconButton(onClick = onPickFromOtherSources) {
-                Icon(Icons.Filled.Extension, contentDescription = stringResource(R.string.gallery_action_other_sources))
+                Icon(Icons.Filled.PhotoLibrary, contentDescription = stringResource(R.string.gallery_action_other_sources))
             }
             IconButton(onClick = onCameraClick) {
                 Icon(Icons.Filled.PhotoCamera, contentDescription = stringResource(R.string.permission_camera_title))

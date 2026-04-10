@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.StateFlow
+import org.koin.compose.koinInject
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.presentation.R
@@ -41,6 +42,7 @@ import org.monogram.presentation.features.chats.currentChat.components.chats.bui
 import org.monogram.presentation.features.chats.currentChat.components.chats.rememberMessageInlineContent
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.core.date.toDate
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.features.chats.ChatListComponent
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -196,7 +198,9 @@ private fun ChatListItemHeader(
     chat: ChatModel,
     isSavedMessages: Boolean
 ) {
-    val chatTime = chat.lastMessageDate.toDate().toShortRelativeDate()
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
+    val chatTime = chat.lastMessageDate.toDate().toShortRelativeDate(timeFormat)
     val savedMessagesTitle = stringResource(R.string.menu_saved_messages)
 
     Row(

@@ -29,10 +29,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.koin.compose.koinInject
 import org.monogram.presentation.R
 import org.monogram.domain.models.SessionModel
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.spacer.WidthSpacer
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.toShortRelativeDate
 
 @Composable
@@ -43,6 +45,8 @@ internal fun SessionItem(
     position: ItemPosition = ItemPosition.STANDALONE,
     onTerminate: (() -> Unit)?
 ) {
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
         shape = position.toShape(),
@@ -80,8 +84,8 @@ internal fun SessionItem(
                 )
 
                 Text(
-                    text = if (isPending) "${stringResource(R.string.sessions_unconfirmed)} • ${session.lastActiveDate.toShortRelativeDate()}"
-                    else "${session.location} •  ${session.lastActiveDate.toShortRelativeDate()}",
+                    text = if (isPending) "${stringResource(R.string.sessions_unconfirmed)} • ${session.lastActiveDate.toShortRelativeDate(timeFormat)}"
+                    else "${session.location} •  ${session.lastActiveDate.toShortRelativeDate(timeFormat)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )

@@ -134,6 +134,7 @@ import org.monogram.domain.repository.EmojiRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.AppPreferences
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.features.chats.currentChat.chatContent.DeleteMessagesSheet
 import org.monogram.presentation.features.chats.currentChat.components.chats.getEmojiFontFamily
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
@@ -196,6 +197,10 @@ fun MessageOptionsMenu(
 
     val windowSize = LocalWindowInfo.current.containerSize
     val screenHeight = windowSize.height
+
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
+
     val windowInsets = WindowInsets.systemBars.union(WindowInsets.ime)
     val topInset = windowInsets.getTop(density)
     val bottomInset = windowInsets.getBottom(density)
@@ -874,7 +879,7 @@ fun MessageOptionsMenu(
 
                             else -> {
                                 val viewerDateFormat =
-                                    remember { SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()) }
+                                    remember { SimpleDateFormat("MMM d, $timeFormat", Locale.getDefault()) }
                                 val scrollState = rememberScrollState()
                                 Column(
                                     modifier = Modifier
@@ -1212,7 +1217,9 @@ private fun InternalMenuHeaderInfo(
     showReadInfo: Boolean,
     showViewsInfo: Boolean
 ) {
-    val dateFormat = remember { SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()) }
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
+    val dateFormat = remember { SimpleDateFormat("MMM d, $timeFormat", Locale.getDefault()) }
 
     val editDate = if (message.editDate > 0) dateFormat.format(Date(message.editDate.toLong() * 1000)) else null
     val readDate = if (showReadInfo)

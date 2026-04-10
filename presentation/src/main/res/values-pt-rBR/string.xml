@@ -1657,7 +1657,6 @@
     <string name="logs_media_unsupported">Mensagem não compatível</string>
 
     <!-- Date and Formats -->
-    <string name="format_time">HH:mm</string>
     <string name="format_duration">%1$02d:%2$02d</string>
 
     <!-- Views Count -->

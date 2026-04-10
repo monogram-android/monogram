@@ -19,11 +19,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.koin.compose.koinInject
 import org.monogram.domain.models.ChatEventActionModel
 import org.monogram.domain.models.ChatEventModel
 import org.monogram.domain.models.MessageSenderModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.features.profile.logs.ProfileLogsComponent
 import java.text.SimpleDateFormat
 import java.util.*
@@ -87,10 +89,12 @@ fun LogBubble(
 
     var showFullDate by remember { mutableStateOf(false) }
     val date = Date(event.date.toLong() * 1000)
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
     val dateText = if (showFullDate) {
-        SimpleDateFormat("MMM dd, HH:mm:ss", Locale.getDefault()).format(date)
+        SimpleDateFormat("MMM dd, $timeFormat:ss", Locale.getDefault()).format(date)
     } else {
-        SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
+        SimpleDateFormat(timeFormat, Locale.getDefault()).format(date)
     }
 
     Row(

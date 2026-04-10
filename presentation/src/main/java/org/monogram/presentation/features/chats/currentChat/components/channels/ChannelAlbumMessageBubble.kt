@@ -40,8 +40,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.components.CompactMediaMosaic
 import org.monogram.presentation.features.chats.currentChat.components.chats.ForwardContent
@@ -179,7 +181,10 @@ fun ChannelAlbumMessageBubble(
         }
     }
 
-    val formattedTime = remember(lastMsg.date) { formatTime(context, lastMsg.date) }
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
+
+    val formattedTime = remember(lastMsg.date) { formatTime(lastMsg.date, timeFormat) }
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
 

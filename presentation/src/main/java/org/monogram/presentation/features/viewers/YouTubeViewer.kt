@@ -50,6 +50,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.features.viewers.components.*
 import java.io.ByteArrayInputStream
 import java.text.SimpleDateFormat
@@ -71,6 +73,8 @@ fun YouTubeViewer(
     val youtubeId = extractYouTubeId(videoUrl) ?: return
     val startTime = extractYouTubeTime(videoUrl)
     val context = LocalContext.current
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
     val lifecycleOwner = LocalLifecycleOwner.current
     val playerState = remember { YouTubePlayerState() }
     var isInPipMode by remember { mutableStateOf(false) }
@@ -290,7 +294,7 @@ fun YouTubeViewer(
 
     LaunchedEffect(Unit) {
         while (true) {
-            currentTimeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            currentTimeStr = SimpleDateFormat(timeFormat, Locale.getDefault()).format(Date())
             delay(1000)
         }
     }

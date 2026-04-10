@@ -55,6 +55,7 @@ import org.koin.compose.koinInject
 import org.monogram.domain.repository.PlayerDataSourceFactory
 import org.monogram.domain.repository.StreamingRepository
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.getMimeType
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
@@ -99,6 +100,9 @@ fun VideoPage(
     val streamingRepository = koinInject<StreamingRepository>()
     val playerFactory = koinInject<PlayerDataSourceFactory>()
     val seekDurationMs = seekDuration * 1000L
+
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
 
     val currentOnDismiss by rememberUpdatedState(onDismiss)
     val currentOnToggleControls by rememberUpdatedState(onToggleControls)
@@ -401,7 +405,7 @@ fun VideoPage(
                     isEnded = isEnded,
                     currentPosition = currentPosition,
                     totalDuration = totalDuration,
-                    currentTime = currentTime(),
+                    currentTime = currentTime(timeFormat),
                     isSettingsOpen = showSettingsMenu,
                     caption = caption,
                     downloadProgress = downloadProgress,

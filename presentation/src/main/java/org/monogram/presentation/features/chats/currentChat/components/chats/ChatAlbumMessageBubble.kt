@@ -26,9 +26,11 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.components.CompactMediaMosaic
 
@@ -133,6 +135,9 @@ fun ChatAlbumMessageBubble(
         )
     }
 
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
+
     val captionMsg = remember(uniqueMessages) {
         uniqueMessages.firstOrNull {
             val content = it.content
@@ -161,7 +166,7 @@ fun ChatAlbumMessageBubble(
     }
 
     val lastMsg = uniqueMessages.last()
-    val formattedTime = remember(lastMsg.date) { formatTime(lastMsg.date) }
+    val formattedTime = remember(lastMsg.date) { formatTime(lastMsg.date, timeFormat) }
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
 

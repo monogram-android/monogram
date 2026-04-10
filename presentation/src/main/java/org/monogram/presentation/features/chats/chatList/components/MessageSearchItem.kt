@@ -10,9 +10,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.ui.Avatar
+import org.monogram.presentation.core.util.DateFormatManager
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -27,11 +29,14 @@ fun MessageSearchItem(
     val currentCalendar = Calendar.getInstance()
     calendar.time = date
 
+    val dateFormatManager: DateFormatManager = koinInject();
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
+
     val isToday = calendar.get(Calendar.YEAR) == currentCalendar.get(Calendar.YEAR) &&
             calendar.get(Calendar.DAY_OF_YEAR) == currentCalendar.get(Calendar.DAY_OF_YEAR)
 
     val format = if (isToday) {
-        SimpleDateFormat("HH:mm", Locale.getDefault())
+        SimpleDateFormat(timeFormat, Locale.getDefault())
     } else {
         SimpleDateFormat("MMM d", Locale.getDefault())
     }

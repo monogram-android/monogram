@@ -36,8 +36,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.json.JSONObject
+import org.koin.compose.koinInject
 import org.monogram.domain.models.*
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.features.chats.chatList.components.SectionHeader
 import java.text.SimpleDateFormat
 import java.util.*
@@ -767,8 +769,10 @@ private fun RevenueMetricCard(modifier: Modifier = Modifier, label: String, valu
 @Composable
 fun GraphSection(title: String, graph: StatisticsGraphModel, color: Color, onLoadGraph: (String) -> Unit) {
     if (graph is StatisticsGraphModel.Error) return
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
     val parsedGraph = remember(graph) {
-        if (graph is StatisticsGraphModel.Data) parseStatisticsGraph(graph.jsonData) else null
+        if (graph is StatisticsGraphModel.Data) parseStatisticsGraph(graph.jsonData, timeFormat) else null
     }
 
     Column {
@@ -1394,7 +1398,7 @@ private data class ParsedStatisticsSeries(
     val values: List<Float>
 )
 
-private fun parseStatisticsGraph(jsonData: String): ParsedStatisticsGraph? {
+private fun parseStatisticsGraph(jsonData: String, timeFormat: String): ParsedStatisticsGraph? {
     return coRunCatching {
         val root = JSONObject(jsonData)
         val columnsArray = root.optJSONArray("columns") ?: return null
@@ -1423,7 +1427,7 @@ private fun parseStatisticsGraph(jsonData: String): ParsedStatisticsGraph? {
 
         val labels = (0 until labelCount).map { index ->
             val rawX = xValues.getOrNull(index)?.toLong() ?: index.toLong()
-            formatChartXAxisLabel(rawX, labelCount)
+            formatChartXAxisLabel(rawX, labelCount, timeFormat)
         }
 
         val series = mutableListOf<ParsedStatisticsSeries>()
@@ -1450,14 +1454,14 @@ private fun parseStatisticsGraph(jsonData: String): ParsedStatisticsGraph? {
     }.getOrNull()
 }
 
-private fun formatChartXAxisLabel(rawValue: Long, pointCount: Int): String {
+private fun formatChartXAxisLabel(rawValue: Long, pointCount: Int, timeFormat: String): String {
     return if (rawValue > 10_000_000_000L) {
         val date = Date(rawValue)
-        if (pointCount <= 24) SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
+        if (pointCount <= 24) SimpleDateFormat(timeFormat, Locale.getDefault()).format(date)
         else SimpleDateFormat("dd MMM", Locale.getDefault()).format(date)
     } else if (rawValue > 1_000_000_000L) {
         val date = Date(rawValue * 1000L)
-        if (pointCount <= 24) SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
+        if (pointCount <= 24) SimpleDateFormat(timeFormat, Locale.getDefault()).format(date)
         else SimpleDateFormat("dd MMM", Locale.getDefault()).format(date)
     } else {
         rawValue.toString()

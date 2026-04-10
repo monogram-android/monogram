@@ -28,8 +28,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.koin.compose.koinInject
 import org.monogram.domain.models.*
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.DateFormatManager
 
 @Composable
 fun PollMessageBubble(
@@ -444,6 +446,9 @@ private fun PollFooter(
 ) {
     val metaColor = contentColor.copy(alpha = 0.65f)
 
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -461,7 +466,7 @@ private fun PollFooter(
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = formatTime(date),
+                text = formatTime(date, timeFormat),
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                 color = metaColor
             )

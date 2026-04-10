@@ -35,6 +35,7 @@ import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import org.koin.compose.koinInject
 import org.monogram.domain.models.GroupMemberModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -42,6 +43,7 @@ import org.monogram.domain.models.UserStatusType
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.rememberShimmerBrush
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.getUserStatusText
 import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
 import org.monogram.presentation.features.chats.currentChat.components.VideoType
@@ -378,7 +380,11 @@ private fun LazyGridScope.membersList(
                 },
                 supportingContent = {
                     val context = LocalContext.current
-                    val statusText = getUserStatusText(user, context)
+
+                    val dateFormatManager: DateFormatManager = koinInject()
+                    val timeFormat = dateFormatManager.getHourMinuteFormat()
+
+                    val statusText = getUserStatusText(user, context, timeFormat)
 
                     Text(
                         text = statusText,

@@ -30,6 +30,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.DateFormatManager
+import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
@@ -231,8 +233,8 @@ fun formatDuration(durationMs: Long): String {
     return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
 }
 
-fun currentTime(): String =
-    java.text.SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+fun currentTime(timeFormat: String): String =
+    SimpleDateFormat(timeFormat, Locale.getDefault()).format(Date())
 
 fun Context.findActivity(): ComponentActivity? = when (this) {
     is ComponentActivity -> this

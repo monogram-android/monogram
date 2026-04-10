@@ -25,10 +25,12 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.EmojiStyle
 import org.monogram.presentation.features.chats.currentChat.components.channels.formatViews
 import java.io.File
@@ -42,8 +44,8 @@ val LocalLinkHandler = staticCompositionLocalOf<(String) -> Unit> {
     { _ -> }
 }
 
-fun formatTime(ts: Int): String =
-    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ts.toLong() * 1000))
+fun formatTime(ts: Int, timeFormat: String): String =
+    SimpleDateFormat(timeFormat, Locale.getDefault()).format(Date(ts.toLong() * 1000))
 
 fun formatDuration(seconds: Int): String {
     val m = seconds / 60
@@ -236,8 +238,10 @@ fun MessageMetadata(
                 tint = contentColor
             )
         }
+        val dateFormatManager: DateFormatManager = koinInject()
+        val timeFormat = dateFormatManager.getHourMinuteFormat()
         Text(
-            text = formatTime(msg.date),
+            text = formatTime(msg.date, timeFormat),
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
             color = contentColor
         )

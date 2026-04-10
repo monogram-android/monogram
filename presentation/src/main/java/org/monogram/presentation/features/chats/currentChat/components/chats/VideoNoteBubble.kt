@@ -48,8 +48,10 @@ import androidx.media3.ui.PlayerView
 import coil3.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.getMimeType
 import org.monogram.presentation.features.stickers.ui.view.shimmerEffect
 import java.io.File
@@ -72,6 +74,9 @@ fun VideoNoteBubble(
 ) {
     val size = 260.dp
     var notePosition by remember { mutableStateOf(Offset.Zero) }
+
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
 
     Column(
         modifier = modifier,
@@ -337,7 +342,7 @@ fun VideoNoteBubble(
                         Spacer(modifier = Modifier.width(4.dp))
                     }
                     Text(
-                        text = formatTime(msg.date),
+                        text = formatTime(msg.date, timeFormat),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                         color = Color.White
                     )

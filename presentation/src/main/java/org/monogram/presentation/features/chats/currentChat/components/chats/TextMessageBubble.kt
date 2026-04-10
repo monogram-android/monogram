@@ -19,8 +19,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.core.util.DateFormatManager
 
 
 @Composable
@@ -48,6 +50,9 @@ fun TextMessageBubble(
     val cornerRadius = bubbleRadius.dp
     val smallCorner = (bubbleRadius / 4f).coerceAtLeast(4f).dp
     val tailCorner = 2.dp
+
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
 
     val bubbleShape = remember(isOutgoing, isSameSenderAbove, isSameSenderBelow, cornerRadius, smallCorner) {
         RoundedCornerShape(
@@ -176,9 +181,8 @@ fun TextMessageBubble(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                     }
-
                     Text(
-                        text = formatTime(msg.date),
+                        text = formatTime(msg.date, timeFormat),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                         color = timeColor
                     )

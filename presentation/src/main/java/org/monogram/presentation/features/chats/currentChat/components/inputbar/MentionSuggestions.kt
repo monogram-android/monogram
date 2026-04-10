@@ -14,9 +14,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.koin.compose.koinInject
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.UserStatusType
 import org.monogram.presentation.core.ui.Avatar
+import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.getUserStatusText
 
 @Composable
@@ -25,6 +27,8 @@ fun MentionSuggestions(
     onMentionClick: (UserModel) -> Unit
 ) {
     val context = LocalContext.current
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -58,7 +62,7 @@ fun MentionSuggestions(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        val status = user.username?.let { "@$it" } ?: getUserStatusText(user, context)
+                        val status = user.username?.let { "@$it" } ?: getUserStatusText(user, context, timeFormat)
                         Text(
                             text = status,
                             style = MaterialTheme.typography.labelMedium,

@@ -1,7 +1,7 @@
 package org.monogram.presentation.features.stickers.core
 
-import org.monogram.presentation.core.util.coRunCatching
 import android.graphics.Bitmap
+import org.monogram.presentation.core.util.coRunCatching
 import java.io.File
 import java.io.FileInputStream
 import java.util.zip.GZIPInputStream
@@ -10,8 +10,9 @@ class RLottieWrapper {
     private var nativePtr: Long = 0
 
     init {
-        System.loadLibrary("native-lib")
-        nativePtr = create()
+        if (isNativeLibraryLoaded) {
+            nativePtr = coRunCatching { create() }.getOrDefault(0L)
+        }
     }
 
     fun open(file: File): Boolean {
@@ -84,4 +85,12 @@ class RLottieWrapper {
     private external fun getFrameRate(ptr: Long): Double
     private external fun getDurationMs(ptr: Long): Long
     private external fun destroy(ptr: Long)
+
+    companion object {
+        private val isNativeLibraryLoaded: Boolean by lazy {
+            coRunCatching {
+                System.loadLibrary("native-lib")
+            }.isSuccess
+        }
+    }
 }

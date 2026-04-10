@@ -1,14 +1,23 @@
 package org.monogram.presentation.features.stickers.core
 
-import org.monogram.presentation.core.util.coRunCatching
 import android.graphics.Bitmap
+import android.os.Build
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.monogram.presentation.core.util.coRunCatching
 import java.io.File
 import kotlin.math.max
 
@@ -33,6 +42,8 @@ class LottieStickerController(
     private var backBitmap: Bitmap? = null
     private var spareBitmap: Bitmap? = null
     private var decoder: RLottieWrapper? = null
+    private val isArmV7Device =
+        Build.SUPPORTED_ABIS.any { it.equals("armeabi-v7a", ignoreCase = true) }
     
     override fun start() {
         val previousJob = renderJob
@@ -57,7 +68,12 @@ class LottieStickerController(
         val file = File(filePath)
         if (!file.exists()) return@withContext null
 
-        val localDecoder = RLottieWrapper()
+        val localDecoder = try {
+            RLottieWrapper()
+        } catch (t: Throwable) {
+            t.printStackTrace()
+            return@withContext null
+        }
         try {
             if (!localDecoder.open(file)) {
                 return@withContext null
@@ -67,8 +83,10 @@ class LottieStickerController(
             val compositionHeight = localDecoder.getHeight().coerceAtLeast(1)
             val extraPaddingX = minOf((compositionWidth * OVERFLOW_PADDING_RATIO).toInt(), MAX_OVERFLOW_PADDING_PX)
             val extraPaddingY = minOf((compositionHeight * OVERFLOW_PADDING_RATIO).toInt(), MAX_OVERFLOW_PADDING_PX)
-            val renderWidth = maxOf(reqWidth, compositionWidth + extraPaddingX * 2)
-            val renderHeight = maxOf(reqHeight, compositionHeight + extraPaddingY * 2)
+            val targetWidth = maxOf(reqWidth, compositionWidth + extraPaddingX * 2)
+            val targetHeight = maxOf(reqHeight, compositionHeight + extraPaddingY * 2)
+            val renderWidth = if (isArmV7Device) minOf(targetWidth, 384) else targetWidth
+            val renderHeight = if (isArmV7Device) minOf(targetHeight, 384) else targetHeight
             val boundsLeft = (renderWidth - compositionWidth) / 2
             val boundsTop = (renderHeight - compositionHeight) / 2
 
@@ -88,10 +106,12 @@ class LottieStickerController(
                 return@withContext null
             }
 
-            val imageBitmap = bitmap.asImageBitmap()
-            imageBitmap
+            createImageBitmapSnapshot(bitmap)
         } catch (e: Exception) {
             e.printStackTrace()
+            null
+        } catch (oom: OutOfMemoryError) {
+            oom.printStackTrace()
             null
         } finally {
             localDecoder.release()
@@ -111,7 +131,12 @@ class LottieStickerController(
             val file = File(filePath)
             if (!file.exists()) return
 
-            val localDecoder = RLottieWrapper()
+            val localDecoder = try {
+                RLottieWrapper()
+            } catch (t: Throwable) {
+                t.printStackTrace()
+                return
+            }
             if (!coRunCatching { localDecoder.open(file) }.getOrDefault(false)) {
                 localDecoder.release()
                 return
@@ -122,8 +147,10 @@ class LottieStickerController(
             val compositionHeight = localDecoder.getHeight().coerceAtLeast(1)
             val extraPaddingX = minOf((compositionWidth * OVERFLOW_PADDING_RATIO).toInt(), MAX_OVERFLOW_PADDING_PX)
             val extraPaddingY = minOf((compositionHeight * OVERFLOW_PADDING_RATIO).toInt(), MAX_OVERFLOW_PADDING_PX)
-            val renderWidth = maxOf(reqWidth, compositionWidth + extraPaddingX * 2)
-            val renderHeight = maxOf(reqHeight, compositionHeight + extraPaddingY * 2)
+            val targetWidth = maxOf(reqWidth, compositionWidth + extraPaddingX * 2)
+            val targetHeight = maxOf(reqHeight, compositionHeight + extraPaddingY * 2)
+            val renderWidth = if (isArmV7Device) minOf(targetWidth, 384) else targetWidth
+            val renderHeight = if (isArmV7Device) minOf(targetHeight, 384) else targetHeight
             val boundsLeft = (renderWidth - compositionWidth) / 2
             val boundsTop = (renderHeight - compositionHeight) / 2
 
@@ -153,7 +180,7 @@ class LottieStickerController(
                 return
             }
 
-            currentImageBitmap = firstBitmap.copy(Bitmap.Config.ARGB_8888, false).asImageBitmap()
+            currentImageBitmap = createImageBitmapSnapshot(firstBitmap)
 
             val totalFrames = localDecoder.getTotalFrames().coerceAtLeast(1)
             val frameRate = localDecoder.getFrameRate().takeIf { it > 0.0 }
@@ -209,8 +236,11 @@ class LottieStickerController(
 
                 val localFrontBitmap = frontBitmap
                 if (localFrontBitmap != null) {
-                    currentImageBitmap = localFrontBitmap.copy(Bitmap.Config.ARGB_8888, false).asImageBitmap()
-                    frameVersion++
+                    val renderedImage = createImageBitmapSnapshot(localFrontBitmap)
+                    if (renderedImage != null) {
+                        currentImageBitmap = renderedImage
+                        frameVersion++
+                    }
                 }
 
                 lastFrameTime = now
@@ -250,5 +280,15 @@ class LottieStickerController(
         private val renderDispatcher = Dispatchers.Default.limitedParallelism(8)
         private const val OVERFLOW_PADDING_RATIO = 0.20f
         private const val MAX_OVERFLOW_PADDING_PX = 96
+    }
+
+    private fun createImageBitmapSnapshot(bitmap: Bitmap): ImageBitmap? {
+        return try {
+            bitmap.copy(Bitmap.Config.ARGB_8888, false)?.asImageBitmap() ?: bitmap.asImageBitmap()
+        } catch (_: OutOfMemoryError) {
+            bitmap.asImageBitmap()
+        } catch (_: Throwable) {
+            null
+        }
     }
 }

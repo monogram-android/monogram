@@ -624,6 +624,8 @@
     <string name="show_link_previews_subtitle">Display previews for links in messages</string>
     <string name="drag_to_back_title">Drag to Back</string>
     <string name="drag_to_back_subtitle">Swipe from left edge to go back</string>
+    <string name="tablet_interface_title">Tablet Interface</string>
+    <string name="tablet_interface_subtitle">Use split-screen layout on tablets</string>
     <string name="two_line_label">Two-line</string>
     <string name="three_line_label">Three-line</string>
     <string name="show_photos_title">Show Photos</string>

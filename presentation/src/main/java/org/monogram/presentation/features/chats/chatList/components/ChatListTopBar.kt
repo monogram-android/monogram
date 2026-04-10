@@ -60,6 +60,7 @@ import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ExpressiveDefaults
+import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 
@@ -83,7 +84,9 @@ fun ChatListTopBar(
     val motionScheme = MaterialTheme.motionScheme
 
     val adaptiveInfo = currentWindowAdaptiveInfo()
-    val isTablet = adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
+    val isTabletInterfaceEnabled = LocalTabletInterfaceEnabled.current
+    val isTablet =
+        adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) && isTabletInterfaceEnabled
 
     AnimatedContent(
         targetState = isSearchActive,

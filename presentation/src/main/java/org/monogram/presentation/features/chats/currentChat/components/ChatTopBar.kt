@@ -72,6 +72,7 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.AvatarForChat
 import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.core.ui.TypingDots
+import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.presentation.features.viewers.components.ViewerSettingsDropdown
@@ -107,7 +108,9 @@ fun ChatTopBar(
     onManageMembers: (() -> Unit)? = null,
     showBack: Boolean = true,
     personalAvatarPath: String? = null,
-    isTablet: Boolean = currentWindowAdaptiveInfo().windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
+    isTablet: Boolean = currentWindowAdaptiveInfo().windowSizeClass.isWidthAtLeastBreakpoint(
+        WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND
+    ) && LocalTabletInterfaceEnabled.current
 ) {
     var showMenu by rememberSaveable { mutableStateOf(false) }
     var showClearHistorySheet by rememberSaveable { mutableStateOf(false) }

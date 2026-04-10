@@ -16,28 +16,15 @@
         { pkgs, system, ... }:
         let
           actualBuildTools = "36.0.0";
+          actualPlatform = "36";
+          actualNdk = "28.2.13676358";
           androidComposition =
             pkgs:
             (pkgs.androidenv.composeAndroidPackages {
-              platformVersions = [
-                "35"
-                "36"
-              ];
-
-              buildToolsVersions = [
-                "35.0.0"
-                actualBuildTools
-              ];
-
-              cmakeVersions = [
-                "3.22.1"
-              ];
-
-              ndkVersions = [
-                "27.0.12077973"
-                "28.2.13676358"
-              ];
-
+              platformVersions = [ actualPlatform ];
+              buildToolsVersions = [ actualBuildTools ];
+              ndkVersions = [ actualNdk ];
+              cmakeVersions = [ "3.22.1" ];
               abiVersions = [
                 "armeabi-v7a"
                 "arm64-v8a"
@@ -89,7 +76,7 @@
 
                 export ANDROID_HOME="${androidComposition pkgs}/libexec/android-sdk/"
                 export ANDROID_SDK_ROOT="${androidComposition pkgs}/libexec/android-sdk/"
-                export ANDROID_NDK_HOME="$ANDROID_HOME/ndk-bundle/"
+                export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/${actualNdk}/"
                 export GRADLE_OPTS="-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidComposition pkgs}/libexec/android-sdk/build-tools/${actualBuildTools}/aapt2"
                 export JAVA_HOME="${pkgs.jdk21}"
 

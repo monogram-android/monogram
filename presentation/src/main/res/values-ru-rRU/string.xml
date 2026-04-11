@@ -479,10 +479,6 @@
     <string name="disable_proxy_title">Отключить прокси</string>
     <string name="connected_directly_subtitle">Прямое подключение</string>
     <string name="switch_to_direct_subtitle">Переключиться на прямое соединение</string>
-    <string name="telega_proxy_header">Telega Proxy</string>
-    <string name="telega_proxy_subtitle">Telega Proxy обвиняли в перехвате трафика. MTProto защищает данные сообщений от перехвата, но используйте этот прокси на свой риск. Подробнее: t.me/telegaru</string>
-    <string name="enable_telega_proxy_title">Включить Telega Proxy</string>
-    <string name="enable_telega_proxy_subtitle">Автоматическое получение и переключение</string>
     <string name="refresh_list_title">Обновить список</string>
     <string name="refresh_list_subtitle">Получить актуальные прокси от сообщества</string>
     <string name="your_proxies_header">Ваши прокси</string>

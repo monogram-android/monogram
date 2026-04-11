@@ -485,11 +485,6 @@
     <string name="disable_proxy_title">Deshabilitar Proxy</string>
     <string name="connected_directly_subtitle">Conectado directamente</string>
     <string name="switch_to_direct_subtitle">Cambiar a conexión directa</string>
-    <string name="telega_proxy_header">Telega Proxy</string>
-    <string name="telega_proxy_subtitle">Se ha acusado a Telega Proxy de interceptar tráfico. MTProto protege los datos de los mensajes de la intercepción, pero usa este proxy bajo tu propio riesgo. Más info: t.me/te[...]
-    </string>
-    <string name="enable_telega_proxy_title">Habilitar Telega Proxy</string>
-    <string name="enable_telega_proxy_subtitle">Auto-obtener y cambiar al mejor</string>
     <string name="refresh_list_title">Actualizar Lista</string>
     <string name="refresh_list_subtitle">Obtener últimos proxys de la comunidad</string>
     <string name="your_proxies_header">Tus Proxys</string>

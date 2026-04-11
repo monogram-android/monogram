@@ -9,7 +9,6 @@ import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -114,7 +113,6 @@ class DefaultRootComponent(
         observeStickerLoading()
         checkLockState()
         updateSimCountryIso()
-        initExternalProxies()
     }
 
     private fun observeAuthState() {
@@ -190,29 +188,6 @@ class DefaultRootComponent(
                 userRepository.setCachedSimCountryIso(countryCode)
             }
         }
-    }
-
-    private fun initExternalProxies() {
-        scope.launch {
-            if (appPreferences.isTelegaProxyEnabled.first()) {
-                fetchExternalProxies()
-            }
-        }
-    }
-
-    private suspend fun fetchExternalProxies() {
-        Log.d("RootComponent", "Fetching external proxies...")
-        val addedProxies = externalProxyRepository.fetchExternalProxies()
-        Log.d("RootComponent", "Added ${addedProxies.size} proxies. Starting ping...")
-
-        coroutineScope {
-            addedProxies.forEach { proxy ->
-                launch {
-                    externalProxyRepository.pingProxy(proxy.id)
-                }
-            }
-        }
-        Log.d("RootComponent", "Finished pinging external proxies")
     }
 
     override fun onBack() {

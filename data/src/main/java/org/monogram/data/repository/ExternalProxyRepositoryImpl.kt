@@ -1,55 +1,17 @@
 package org.monogram.data.repository
 
+import kotlinx.coroutines.*
 import org.monogram.data.core.coRunCatching
+import org.monogram.data.datasource.remote.ProxyRemoteDataSource
 import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.ExternalProxyRepository
-import kotlinx.coroutines.*
-import androidx.core.net.toUri
-import org.monogram.core.DispatcherProvider
-import org.monogram.data.datasource.remote.ExternalProxyDataSource
-import org.monogram.data.datasource.remote.ProxyRemoteDataSource
 
 class ExternalProxyRepositoryImpl(
     private val remote: ProxyRemoteDataSource,
-    private val externalSource: ExternalProxyDataSource,
-    private val appPreferences: AppPreferencesProvider,
-    private val dispatchers: DispatcherProvider
+    private val appPreferences: AppPreferencesProvider
 ) : ExternalProxyRepository {
-
-    override suspend fun fetchExternalProxies(): List<ProxyModel> = withContext(dispatchers.io) {
-        if (!appPreferences.isTelegaProxyEnabled.value) return@withContext emptyList()
-
-        val urls = externalSource.fetchProxyUrls().distinct()
-        if (urls.isEmpty()) return@withContext emptyList()
-
-        val parsed = urls.mapNotNull { url ->
-            parseProxyUrl(url)?.let { (server, port, secret) ->
-                Triple(url, server to port, ProxyTypeModel.Mtproto(secret))
-            }
-        }
-
-        val oldIdentifiers = appPreferences.telegaProxyUrls.value
-            .mapNotNull { parseProxyUrl(it)?.let { (s, p, _) -> "$s:$p" } }
-            .toSet()
-
-        val newIdentifiers = parsed.map { (_, sp, _) -> "${sp.first}:${sp.second}" }.toSet()
-        appPreferences.setTelegaProxyUrls(parsed.map { it.first }.toSet())
-
-        val added = parsed.mapNotNull { (_, sp, type) ->
-            coRunCatching { remote.addProxy(sp.first, sp.second, false, type) }.getOrNull()
-        }
-
-        remote.getProxies().forEach { proxy ->
-            val iden = "${proxy.server}:${proxy.port}"
-            if (iden in oldIdentifiers && iden !in newIdentifiers && !proxy.isEnabled) {
-                coRunCatching { remote.removeProxy(proxy.id) }
-            }
-        }
-
-        added
-    }
 
     override suspend fun getProxies(): List<ProxyModel> = remote.getProxies()
 
@@ -103,12 +65,4 @@ class ExternalProxyRepositoryImpl(
         appPreferences.setPreferIpv6(enabled)
     }
 
-    private fun parseProxyUrl(url: String): Triple<String, Int, String>? =
-        coRunCatching {
-            val uri = url.toUri()
-            val server = uri.getQueryParameter("server") ?: return null
-            val port = uri.getQueryParameter("port")?.toIntOrNull() ?: 443
-            val secret = uri.getQueryParameter("secret") ?: ""
-            Triple(server, port, secret)
-        }.getOrNull()
 }

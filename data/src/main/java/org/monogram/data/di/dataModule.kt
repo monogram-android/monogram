@@ -28,9 +28,7 @@ import org.monogram.data.datasource.remote.AuthRemoteDataSource
 import org.monogram.data.datasource.remote.ChatRemoteSource
 import org.monogram.data.datasource.remote.ChatsRemoteDataSource
 import org.monogram.data.datasource.remote.EmojiRemoteSource
-import org.monogram.data.datasource.remote.ExternalProxyDataSource
 import org.monogram.data.datasource.remote.GifRemoteSource
-import org.monogram.data.datasource.remote.HttpExternalProxyDataSource
 import org.monogram.data.datasource.remote.LinkRemoteDataSource
 import org.monogram.data.datasource.remote.MessageFileApi
 import org.monogram.data.datasource.remote.MessageFileCoordinator
@@ -161,7 +159,7 @@ val dataModule = module {
 
     single<DispatcherProvider> { DefaultDispatcherProvider() }
     single<StringProvider> { AndroidStringProvider(androidContext()) }
-    single { TdLibParametersProvider(androidContext()) }
+    single(createdAtStart = true) { TdLibParametersProvider(androidContext()) }
     single(createdAtStart = true) {
         OfflineWarmup(
             scope = get(),
@@ -768,17 +766,9 @@ val dataModule = module {
         )
     }
 
-    factory<ExternalProxyDataSource> {
-        HttpExternalProxyDataSource(
-            dispatchers = get()
-        )
-    }
-
     single<ExternalProxyRepository> {
         ExternalProxyRepositoryImpl(
             remote = get(),
-            externalSource = get(),
-            dispatchers = get(),
             appPreferences = get()
         )
     }

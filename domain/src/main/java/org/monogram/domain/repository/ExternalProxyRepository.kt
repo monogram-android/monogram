@@ -4,7 +4,6 @@ import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
 
 interface ExternalProxyRepository {
-    suspend fun fetchExternalProxies(): List<ProxyModel>
     suspend fun getProxies(): List<ProxyModel>
     suspend fun addProxy(server: String, port: Int, enable: Boolean, type: ProxyTypeModel): ProxyModel?
     suspend fun editProxy(proxyId: Int, server: String, port: Int, enable: Boolean, type: ProxyTypeModel): ProxyModel?

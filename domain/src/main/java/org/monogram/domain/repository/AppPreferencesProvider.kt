@@ -42,8 +42,6 @@ interface AppPreferencesProvider {
 
     val enabledProxyId: StateFlow<Int?>
     val isAutoBestProxyEnabled: StateFlow<Boolean>
-    val isTelegaProxyEnabled: StateFlow<Boolean>
-    val telegaProxyUrls: StateFlow<Set<String>>
     val preferIpv6: StateFlow<Boolean>
     val userProxyBackups: StateFlow<Set<String>>
 
@@ -88,8 +86,6 @@ interface AppPreferencesProvider {
 
     fun setEnabledProxyId(proxyId: Int?)
     fun setAutoBestProxyEnabled(enabled: Boolean)
-    fun setTelegaProxyEnabled(enabled: Boolean)
-    fun setTelegaProxyUrls(urls: Set<String>)
     fun setPreferIpv6(enabled: Boolean)
     fun setUserProxyBackups(backups: Set<String>)
 

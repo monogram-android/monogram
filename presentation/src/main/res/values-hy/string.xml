@@ -465,10 +465,6 @@
     <string name="disable_proxy_title">Անջատել պրոքսին</string>
     <string name="connected_directly_subtitle">Միացված է ուղղակիորեն</string>
     <string name="switch_to_direct_subtitle">Անցնել ուղիղ միացման</string>
-    <string name="telega_proxy_header">Telega Proxy</string>
-    <string name="telega_proxy_subtitle">Telega Proxy-ն մեղադրվել է թրաֆիկի գաղտնալսման մեջ: MTProto-ն պաշտպանում է հաղորդագրությունները, բայց օգտագործեք այս պրոքսին Ձեր ռիսկով: Մանրամասն՝ t.me/telegaru</string>
-    <string name="enable_telega_proxy_title">Միացնել Telega Proxy-ն</string>
-    <string name="enable_telega_proxy_subtitle">Ավտոմատ ընտրել լավագույնը</string>
     <string name="refresh_list_title">Թարմացնել ցուցակը</string>
     <string name="refresh_list_subtitle">Ներբեռնել համայնքի թարմ պրոքսիները</string>
     <string name="your_proxies_header">Ձեր պրոքսիները</string>

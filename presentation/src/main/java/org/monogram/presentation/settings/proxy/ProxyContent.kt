@@ -2,8 +2,6 @@
 
 package org.monogram.presentation.settings.proxy
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -25,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -45,7 +42,6 @@ import org.monogram.presentation.core.ui.SettingsTile
 fun ProxyContent(component: ProxyComponent) {
     val state by component.state.subscribeAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
 
     LaunchedEffect(state.toastMessage) {
         state.toastMessage?.let { message ->
@@ -111,21 +107,15 @@ fun ProxyContent(component: ProxyComponent) {
                         .clip(RoundedCornerShape(24.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainer)
                 ) {
-                    AnimatedVisibility(
-                        visible = !state.isTelegaProxyEnabled,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
-                    ) {
-                        SettingsSwitchTile(
-                            icon = Icons.Rounded.Bolt,
-                            title = stringResource(R.string.smart_switching_title),
-                            subtitle = stringResource(R.string.smart_switching_subtitle),
-                            checked = state.isAutoBestProxyEnabled,
-                            iconColor = Color(0xFFAF52DE),
-                            position = ItemPosition.TOP,
-                            onCheckedChange = component::onAutoBestProxyToggled
-                        )
-                    }
+                    SettingsSwitchTile(
+                        icon = Icons.Rounded.Bolt,
+                        title = stringResource(R.string.smart_switching_title),
+                        subtitle = stringResource(R.string.smart_switching_subtitle),
+                        checked = state.isAutoBestProxyEnabled,
+                        iconColor = Color(0xFFAF52DE),
+                        position = ItemPosition.TOP,
+                        onCheckedChange = component::onAutoBestProxyToggled
+                    )
 
                     SettingsSwitchTile(
                         icon = Icons.Rounded.Public,
@@ -133,11 +123,11 @@ fun ProxyContent(component: ProxyComponent) {
                         subtitle = stringResource(R.string.prefer_ipv6_subtitle),
                         checked = state.preferIpv6,
                         iconColor = Color(0xFF34A853),
-                        position = if (state.isTelegaProxyEnabled) ItemPosition.TOP else ItemPosition.MIDDLE,
+                        position = ItemPosition.MIDDLE,
                         onCheckedChange = component::onPreferIpv6Toggled
                     )
 
-                    val isDirect = state.proxies.none { it.isEnabled } && state.telegaProxies.none { it.isEnabled }
+                    val isDirect = state.proxies.none { it.isEnabled }
                     SettingsTile(
                         icon = Icons.Rounded.LinkOff,
                         title = stringResource(R.string.disable_proxy_title),
@@ -153,90 +143,6 @@ fun ProxyContent(component: ProxyComponent) {
                             }
                         }
                     )
-                }
-            }
-
-            item {
-                AnimatedVisibility(
-                    visible = state.isRussianNumber,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut()
-                ) {
-                    Column {
-                        SectionHeader(
-                            text = stringResource(R.string.telega_proxy_header),
-                            subtitle = stringResource(R.string.telega_proxy_subtitle),
-                            onSubtitleClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/telegaru"))
-                                context.startActivity(intent)
-                            }
-                        )
-
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(MaterialTheme.colorScheme.surfaceContainer)
-                        ) {
-                            SettingsSwitchTile(
-                                icon = Icons.Rounded.CloudDownload,
-                                title = stringResource(R.string.enable_telega_proxy_title),
-                                subtitle = stringResource(R.string.enable_telega_proxy_subtitle),
-                                checked = state.isTelegaProxyEnabled,
-                                iconColor = Color(0xFF0088CC),
-                                position = if (state.isTelegaProxyEnabled && state.telegaProxies.isNotEmpty()) ItemPosition.TOP else ItemPosition.STANDALONE,
-                                onCheckedChange = component::onTelegaProxyToggled
-                            )
-
-                            AnimatedVisibility(
-                                visible = state.isTelegaProxyEnabled,
-                                enter = expandVertically() + fadeIn(),
-                                exit = shrinkVertically() + fadeOut()
-                            ) {
-                                SettingsTile(
-                                    icon = Icons.Rounded.Refresh,
-                                    title = stringResource(R.string.refresh_list_title),
-                                    subtitle = stringResource(R.string.refresh_list_subtitle),
-                                    iconColor = Color(0xFF0088CC),
-                                    position = ItemPosition.BOTTOM,
-                                    onClick = { component.onFetchTelegaProxies() },
-                                    trailingContent = {
-                                        if (state.isFetchingExternal) {
-                                            LoadingIndicator(
-                                                modifier = Modifier.size(20.dp),
-                                            )
-                                        }
-                                    }
-                                )
-                            }
-                        }
-
-                        AnimatedVisibility(
-                            visible = state.isTelegaProxyEnabled && state.telegaProxies.isNotEmpty(),
-                            enter = expandVertically() + fadeIn(),
-                            exit = shrinkVertically() + fadeOut()
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                state.telegaProxies.forEachIndexed { index, proxy ->
-                                    val position = when {
-                                        state.telegaProxies.size == 1 -> ItemPosition.STANDALONE
-                                        index == 0 -> ItemPosition.TOP
-                                        index == state.telegaProxies.size - 1 -> ItemPosition.BOTTOM
-                                        else -> ItemPosition.MIDDLE
-                                    }
-
-                                    ProxyItem(
-                                        proxy = proxy,
-                                        position = position,
-                                        onClick = { component.onProxyClicked(proxy) },
-                                        onLongClick = { component.onProxyLongClicked(proxy) },
-                                        onRefreshPing = { component.onPingProxy(proxy.id) }
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
@@ -297,7 +203,7 @@ fun ProxyContent(component: ProxyComponent) {
                 }
             }
 
-            if (state.proxies.isEmpty() && (!state.isTelegaProxyEnabled || state.telegaProxies.isEmpty()) && !state.isLoading) {
+            if (state.proxies.isEmpty() && !state.isLoading) {
                 item {
                     Column(
                         modifier = Modifier

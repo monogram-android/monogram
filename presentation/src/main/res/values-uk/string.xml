@@ -479,10 +479,6 @@
     <string name="disable_proxy_title">Вимкнути проксі</string>
     <string name="connected_directly_subtitle">Пряме підключення</string>
     <string name="switch_to_direct_subtitle">Перемкнутися на пряме з\'єднання</string>
-    <string name="telega_proxy_header">Telega Proxy</string>
-    <string name="telega_proxy_subtitle">Telega Proxy звинувачували у перехопленні трафіку. MTProto захищає дані повідомлень від перехоплення, але використовуйте цей проксі на власний ризик. Докладніше: t.me/telegaru</string>
-    <string name="enable_telega_proxy_title">Увімкнути Telega Proxy</string>
-    <string name="enable_telega_proxy_subtitle">Автоматичне отримання та перемикання</string>
     <string name="refresh_list_title">Оновити список</string>
     <string name="refresh_list_subtitle">Отримати актуальні проксі від спільноти</string>
     <string name="your_proxies_header">Ваші проксі</string>

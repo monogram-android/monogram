@@ -491,11 +491,6 @@
     <string name="disable_proxy_title">Disable Proxy</string>
     <string name="connected_directly_subtitle">Connected directly</string>
     <string name="switch_to_direct_subtitle">Switch to direct connection</string>
-    <string name="telega_proxy_header">Telega Proxy</string>
-    <string name="telega_proxy_subtitle">Telega Proxy has been accused of intercepting traffic. MTProto protects message data from interception, but use this proxy at your own risk. More info: t.me/telegaru
-    </string>
-    <string name="enable_telega_proxy_title">Enable Telega Proxy</string>
-    <string name="enable_telega_proxy_subtitle">Auto-fetch and switch to best</string>
     <string name="refresh_list_title">Refresh List</string>
     <string name="refresh_list_subtitle">Fetch latest community proxies</string>
     <string name="your_proxies_header">Your Proxies</string>

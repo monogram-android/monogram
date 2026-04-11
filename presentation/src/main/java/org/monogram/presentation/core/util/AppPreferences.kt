@@ -338,12 +338,6 @@ class AppPreferences(
     private val _isAutoBestProxyEnabled = MutableStateFlow(prefs.getBoolean(KEY_AUTO_BEST_PROXY, false))
     override val isAutoBestProxyEnabled: StateFlow<Boolean> = _isAutoBestProxyEnabled
 
-    private val _isTelegaProxyEnabled = MutableStateFlow(prefs.getBoolean(KEY_TELEGA_PROXY, false))
-    override val isTelegaProxyEnabled: StateFlow<Boolean> = _isTelegaProxyEnabled
-
-    private val _telegaProxyUrls = MutableStateFlow(prefs.getStringSet(KEY_TELEGA_PROXY_URLS, emptySet()) ?: emptySet())
-    override val telegaProxyUrls: StateFlow<Set<String>> = _telegaProxyUrls
-
     private val _preferIpv6 = MutableStateFlow(prefs.getBoolean(KEY_PREFER_IPV6, false))
     override val preferIpv6: StateFlow<Boolean> = _preferIpv6
 
@@ -842,16 +836,6 @@ class AppPreferences(
         _isAutoBestProxyEnabled.value = enabled
     }
 
-    override fun setTelegaProxyEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_TELEGA_PROXY, enabled).apply()
-        _isTelegaProxyEnabled.value = enabled
-    }
-
-    override fun setTelegaProxyUrls(urls: Set<String>) {
-        prefs.edit().putStringSet(KEY_TELEGA_PROXY_URLS, urls).apply()
-        _telegaProxyUrls.value = urls
-    }
-
     override fun setPreferIpv6(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_PREFER_IPV6, enabled).apply()
         _preferIpv6.value = enabled
@@ -973,8 +957,6 @@ class AppPreferences(
         _adBlockWhitelistedChannels.value = emptySet()
         _enabledProxyId.value = null
         _isAutoBestProxyEnabled.value = false
-        _isTelegaProxyEnabled.value = false
-        _telegaProxyUrls.value = emptySet()
         _preferIpv6.value = false
         _userProxyBackups.value = emptySet()
         _isPermissionRequested.value = false
@@ -1089,8 +1071,6 @@ class AppPreferences(
 
         private const val KEY_ENABLED_PROXY_ID = "enabled_proxy_id"
         private const val KEY_AUTO_BEST_PROXY = "auto_best_proxy"
-        private const val KEY_TELEGA_PROXY = "telega_proxy"
-        private const val KEY_TELEGA_PROXY_URLS = "telega_proxy_urls"
         private const val KEY_PREFER_IPV6 = "prefer_ipv6"
         private const val KEY_USER_PROXY_BACKUPS = "user_proxy_backups"
 

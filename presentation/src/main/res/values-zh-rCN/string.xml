@@ -476,10 +476,6 @@
     <string name="disable_proxy_title">禁用代理</string>
     <string name="connected_directly_subtitle">直接连接</string>
     <string name="switch_to_direct_subtitle">切换到直接连接</string>
-    <string name="telega_proxy_header">Telega Proxy</string>
-    <string name="telega_proxy_subtitle">Telega Proxy 曾被曝光存在流量拦截风险。MTProto 可保护消息数据不被中间人拦截，但仍请自行评估风险后使用。更多信息: t.me/telegaru</string>
-    <string name="enable_telega_proxy_title">启用 Telega Proxy</string>
-    <string name="enable_telega_proxy_subtitle">自动获取并切换到最佳代理</string>
     <string name="refresh_list_title">刷新列表</string>
     <string name="refresh_list_subtitle">获取最新的社区代理</string>
     <string name="your_proxies_header">您的代理</string>

@@ -503,11 +503,6 @@
     <string name="disable_proxy_title">Vypnúť proxy</string>
     <string name="connected_directly_subtitle">Pripojené priamo</string>
     <string name="switch_to_direct_subtitle">Prepnúť na priame pripojenie</string>
-    <string name="telega_proxy_header">Telega Proxy</string>
-    <string name="telega_proxy_subtitle">Proxy od komunity. Používajte na vlastné riziko. Viac info: t.me/telegaru
-    </string>
-    <string name="enable_telega_proxy_title">Povoliť Telega Proxy</string>
-    <string name="enable_telega_proxy_subtitle">Automaticky načítať a prepnúť na najlepšie</string>
     <string name="refresh_list_title">Obnoviť zoznam</string>
     <string name="refresh_list_subtitle">Načítať najnovšie proxy od komunity</string>
     <string name="your_proxies_header">Vaše proxy</string>

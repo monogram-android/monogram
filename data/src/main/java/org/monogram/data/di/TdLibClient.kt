@@ -12,6 +12,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import org.drinkless.tdlib.Client
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TdLibException
+import org.monogram.data.gateway.isExpectedProxyFailure
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.resume
 
@@ -63,7 +64,12 @@ internal class TdLibClient {
     fun <T : TdApi.Object> send(function: TdApi.Function<T>, callback: (TdApi.Object) -> Unit = {}) {
         client.send(function) { result ->
             if (result is TdApi.Error) {
-                if (result.code != 404) {
+                if (result.isExpectedProxyFailure()) {
+                    Log.w(
+                        TAG,
+                        "Expected proxy error in send $function: ${result.code} ${result.message}"
+                    )
+                } else if (result.code != 404) {
                     Log.e(TAG, "Error in send $function: ${result.code} ${result.message}")
                 } else {
                     Log.w(TAG, "Not found in send $function: ${result.message}")
@@ -113,6 +119,11 @@ internal class TdLibClient {
 
             if (isExpectedUserFullInfoMiss) {
                 Log.w(TAG, "User not found in sendSuspend $function: ${result.code} ${result.message}")
+            } else if (result.isExpectedProxyFailure()) {
+                Log.w(
+                    TAG,
+                    "Expected proxy error in sendSuspend $function: ${result.code} ${result.message}"
+                )
             } else if (result.code != 404) {
                 Log.e(TAG, "Error in sendSuspend $function: ${result.code} ${result.message}")
             } else {

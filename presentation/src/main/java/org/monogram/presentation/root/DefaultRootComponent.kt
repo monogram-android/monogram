@@ -4,12 +4,27 @@ package org.monogram.presentation.root
 import android.os.Parcelable
 import android.util.Log
 import com.arkivanov.decompose.DelicateDecomposeApi
-import com.arkivanov.decompose.router.stack.*
+import com.arkivanov.decompose.router.stack.ChildStack
+import com.arkivanov.decompose.router.stack.StackNavigation
+import com.arkivanov.decompose.router.stack.bringToFront
+import com.arkivanov.decompose.router.stack.childStack
+import com.arkivanov.decompose.router.stack.navigate
+import com.arkivanov.decompose.router.stack.pop
+import com.arkivanov.decompose.router.stack.popWhile
+import com.arkivanov.decompose.router.stack.push
+import com.arkivanov.decompose.router.stack.replaceAll
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
@@ -17,7 +32,19 @@ import kotlinx.serialization.Serializable
 import org.monogram.domain.managers.PhoneManager
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.ProxyTypeModel
-import org.monogram.domain.repository.*
+import org.monogram.domain.repository.AuthRepository
+import org.monogram.domain.repository.AuthStep
+import org.monogram.domain.repository.CacheProvider
+import org.monogram.domain.repository.ExternalNavigator
+import org.monogram.domain.repository.ExternalProxyRepository
+import org.monogram.domain.repository.LinkAction
+import org.monogram.domain.repository.LinkHandlerRepository
+import org.monogram.domain.repository.MessageDisplayer
+import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.StorageRepository
+import org.monogram.domain.repository.UpdateRepository
+import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
@@ -28,7 +55,11 @@ import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
 import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.features.chats.newChat.DefaultNewChatComponent
 import org.monogram.presentation.features.profile.DefaultProfileComponent
-import org.monogram.presentation.features.profile.admin.*
+import org.monogram.presentation.features.profile.admin.DefaultAdminManageComponent
+import org.monogram.presentation.features.profile.admin.DefaultChatEditComponent
+import org.monogram.presentation.features.profile.admin.DefaultChatPermissionsComponent
+import org.monogram.presentation.features.profile.admin.DefaultMemberListComponent
+import org.monogram.presentation.features.profile.admin.MemberListComponent
 import org.monogram.presentation.features.profile.logs.DefaultProfileLogsComponent
 import org.monogram.presentation.features.stickers.core.toUi
 import org.monogram.presentation.features.webview.DefaultWebViewComponent
@@ -299,9 +330,13 @@ class DefaultRootComponent(
 
     override fun confirmProxy(server: String, port: Int, type: ProxyTypeModel) {
         scope.launch {
-            externalProxyRepository.addProxy(server, port, true, type)
+            val proxy = externalProxyRepository.addProxy(server, port, true, type)
             dismissProxyConfirm()
-            messageDisplayer.show("Proxy added and enabled")
+            if (proxy != null) {
+                messageDisplayer.show("Proxy added and enabled")
+            } else {
+                messageDisplayer.show("Failed to add proxy")
+            }
         }
     }
 

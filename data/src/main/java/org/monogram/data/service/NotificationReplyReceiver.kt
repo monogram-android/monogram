@@ -10,13 +10,11 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.monogram.data.di.TdNotificationManager
 import org.monogram.data.gateway.TelegramGateway
-import org.monogram.domain.repository.StringProvider
 
 class NotificationReplyReceiver : BroadcastReceiver(), KoinComponent {
 
     private val gateway: TelegramGateway by inject()
     private val notificationManager: TdNotificationManager by inject()
-    private val stringProvider: StringProvider by inject()
 
     override fun onReceive(context: Context, intent: Intent) {
         val chatId = intent.getLongExtra("chat_id", 0L)
@@ -38,8 +36,6 @@ class NotificationReplyReceiver : BroadcastReceiver(), KoinComponent {
                     runCatching { gateway.execute(actionTyping) }
                 }
 
-                val chat = gateway.execute(TdApi.GetChat(chatId))
-
                 val inputMessageContent = TdApi.InputMessageText().apply {
                     this.text = TdApi.FormattedText(replyText, emptyArray())
                     this.clearDraft = true
@@ -60,17 +56,6 @@ class NotificationReplyReceiver : BroadcastReceiver(), KoinComponent {
                 if (notificationId != 0) {
                     notificationManager.removeNotification(chatId, notificationId)
                 }
-
-                notificationManager.appendMessageToNotification(
-                    chatId = chatId,
-                    messageId = System.currentTimeMillis(),
-                    chatType = chat.type,
-                    senderName = stringProvider.getString("notification_person_me"),
-                    senderBitmap = null,
-                    chatIcon = null,
-                    text = replyText,
-                    timestamp = System.currentTimeMillis()
-                )
             } catch (e: Exception) {
                 e.printStackTrace()
             }

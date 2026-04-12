@@ -3,6 +3,7 @@ package org.monogram.data.repository
 import androidx.core.net.toUri
 import org.monogram.data.core.coRunCatching
 import org.monogram.domain.models.ProxyTypeModel
+import org.monogram.domain.proxy.MtprotoSecretNormalizer
 
 class LinkParser {
 
@@ -89,7 +90,10 @@ class LinkParser {
         val pass = uri.getQueryParameter("pass")
 
         val type = when {
-            secret != null -> ProxyTypeModel.Mtproto(secret)
+            secret != null -> {
+                val normalized = MtprotoSecretNormalizer.normalize(secret) ?: return null
+                ProxyTypeModel.Mtproto(normalized)
+            }
             isHttp -> ProxyTypeModel.Http(user ?: "", pass ?: "", false)
             else -> ProxyTypeModel.Socks5(user ?: "", pass ?: "")
         }

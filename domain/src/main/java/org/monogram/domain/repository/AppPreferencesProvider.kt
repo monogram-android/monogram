@@ -41,11 +41,7 @@ data class ProxyNetworkRule(
 )
 
 fun defaultProxyNetworkMode(networkType: ProxyNetworkType): ProxyNetworkMode {
-    return if (networkType == ProxyNetworkType.VPN) {
-        ProxyNetworkMode.DIRECT
-    } else {
-        ProxyNetworkMode.BEST_PROXY
-    }
+    return ProxyNetworkMode.BEST_PROXY
 }
 
 interface AppPreferencesProvider {

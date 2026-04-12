@@ -343,9 +343,9 @@ private fun ChatListItemContent(
                 } else {
                     emptyMap()
                 }
+                val spoilerLabel = stringResource(R.string.message_spoiler)
                 val annotatedDraft = if (draftHasSpoiler) {
                     buildAnnotatedString {
-                        val spoilerLabel = stringResource(R.string.message_spoiler)
                         append(spoilerLabel)
                         addStyle(
                             SpanStyle(
@@ -382,11 +382,11 @@ private fun ChatListItemContent(
                     entities = chat.lastMessageEntities,
                     fontSize = fontSize
                 )
+                val spoilerLabel = stringResource(R.string.message_spoiler)
                 val annotatedText = if (chat.lastMessageText.isNotEmpty()) {
                     val hasSpoiler = chat.lastMessageEntities.any { it.type is MessageEntityType.Spoiler }
                     if (hasSpoiler) {
                         buildAnnotatedString {
-                            val spoilerLabel = stringResource(R.string.message_spoiler)
                             append(spoilerLabel)
                             addStyle(
                                 SpanStyle(

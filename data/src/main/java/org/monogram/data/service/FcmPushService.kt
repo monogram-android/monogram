@@ -4,7 +4,12 @@ import android.os.PowerManager
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import org.drinkless.tdlib.TdApi
 import org.json.JSONObject
 import org.koin.android.ext.android.inject
@@ -34,37 +39,43 @@ class FcmPushService : FirebaseMessagingService() {
         if (appPreferences.pushProvider.value != PushProvider.FCM) return
 
         val data = message.data
-        if (data.isNotEmpty()) {
-            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
-            val wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "monogram:FcmPushService")
+        if (data.isEmpty()) return
 
-            try {
-                val json = JSONObject()
-                for ((k, v) in data) {
-                    json.put(k, v)
+        val powerManager = getSystemService(POWER_SERVICE) as? PowerManager ?: return
+        val wakeLock =
+            powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "monogram:FcmPushService")
+                .apply {
+                    setReferenceCounted(false)
                 }
-                val jsonPayload = json.toString()
 
-                wakeLock.acquire(10_000L)
-                scope.launch {
-                    try {
+        try {
+            val json = JSONObject()
+            for ((k, v) in data) {
+                json.put(k, v)
+            }
+            val jsonPayload = json.toString()
+            if (jsonPayload.isBlank()) return
+
+            wakeLock.acquire(10_000L)
+            scope.launch {
+                try {
+                    withTimeout(8_000L) {
                         gateway.execute(TdApi.ProcessPushNotification(jsonPayload))
-                        Log.d("FcmPushService", "ProcessPushNotification success")
-                        delay(5000)
-                    } catch (e: Exception) {
-                        if (e is CancellationException) throw e
-                        Log.e("FcmPushService", "Error processing push", e)
-                    } finally {
-                        if (wakeLock.isHeld) {
-                            wakeLock.release()
-                        }
+                    }
+                    Log.d("FcmPushService", "ProcessPushNotification success")
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.e("FcmPushService", "Error processing push", e)
+                } finally {
+                    if (wakeLock.isHeld) {
+                        wakeLock.release()
                     }
                 }
-            } catch (e: Exception) {
-                Log.e("FcmPushService", "Error processing push", e)
-                if (wakeLock.isHeld) {
-                    wakeLock.release()
-                }
+            }
+        } catch (e: Exception) {
+            Log.e("FcmPushService", "Error preparing push payload", e)
+            if (wakeLock.isHeld) {
+                wakeLock.release()
             }
         }
     }

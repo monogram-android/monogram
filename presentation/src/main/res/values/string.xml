@@ -550,7 +550,7 @@
     <string name="edit_proxy_title">Edit Proxy</string>
     <string name="server_address_placeholder">Server Address</string>
     <string name="port_placeholder">Port</string>
-    <string name="secret_hex_placeholder">Secret (Hex)</string>
+    <string name="secret_hex_placeholder">Secret</string>
     <string name="username_optional_placeholder">Username (Optional)</string>
     <string name="password_optional_placeholder">Password (Optional)</string>
     <string name="save_changes_button">Save</string>

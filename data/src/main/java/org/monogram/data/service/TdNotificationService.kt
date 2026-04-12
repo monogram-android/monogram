@@ -11,8 +11,15 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.PushProvider
@@ -38,7 +45,7 @@ class TdNotificationService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
-            stopForegroundService()
+            stopForegroundService(userInitiated = true)
             return START_NOT_STICKY
         }
 
@@ -159,9 +166,14 @@ class TdNotificationService : Service() {
         }
     }
 
-    private fun stopForegroundService() {
+    private fun stopForegroundService(userInitiated: Boolean = false) {
         isServiceRunning = false
-        appPreferences.setBackgroundServiceEnabled(false)
+        checkJob?.cancel()
+        checkJob = null
+        releaseWakeLock()
+        if (userInitiated) {
+            appPreferences.setBackgroundServiceEnabled(false)
+        }
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -191,7 +203,6 @@ class TdNotificationService : Service() {
                 }
                 
                 if (isPowerSaving || !isWakeLockEnabled || isBatteryOptimization) {
-                    delay(5000)
                     releaseWakeLock()
                 } else {
                     if (isServiceRunning) {

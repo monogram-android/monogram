@@ -3,6 +3,7 @@ package org.monogram.data.mapper
 import org.drinkless.tdlib.TdApi
 import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
+import org.monogram.domain.proxy.MtprotoSecretNormalizer
 
 fun TdApi.AddedProxy.toDomain(): ProxyModel = ProxyModel(
     id = id,
@@ -23,5 +24,9 @@ fun TdApi.ProxyType.toDomain(): ProxyTypeModel = when (this) {
 fun ProxyTypeModel.toApi(): TdApi.ProxyType = when (this) {
     is ProxyTypeModel.Socks5 -> TdApi.ProxyTypeSocks5(username, password)
     is ProxyTypeModel.Http -> TdApi.ProxyTypeHttp(username, password, httpOnly)
-    is ProxyTypeModel.Mtproto -> TdApi.ProxyTypeMtproto(secret)
+    is ProxyTypeModel.Mtproto -> {
+        val normalized = MtprotoSecretNormalizer.normalize(secret)
+            ?: throw IllegalArgumentException("Invalid MTProto proxy secret")
+        TdApi.ProxyTypeMtproto(normalized)
+    }
 }

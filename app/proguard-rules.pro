@@ -4,6 +4,8 @@
 
 -keepnames class org.monogram.**
 -keepnames class org.drinkless.tdlib.**
+-keepclassmembernames class org.monogram.** { *; }
+-keepclassmembernames class org.drinkless.tdlib.** { *; }
 
 -assumenosideeffects class android.util.Log {
     public static *** v(...);

@@ -129,6 +129,7 @@ import androidx.compose.ui.window.PopupProperties
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
+import org.monogram.domain.proxy.MtprotoSecretNormalizer
 import org.monogram.domain.repository.ProxyNetworkMode
 import org.monogram.domain.repository.ProxyNetworkRule
 import org.monogram.domain.repository.ProxyNetworkType
@@ -592,6 +593,7 @@ fun ProxyContent(component: ProxyComponent) {
                 ) {
                     ProxyItem(
                         proxy = proxy,
+                        errorMessage = state.proxyErrors[proxy.id],
                         isFavorite = state.favoriteProxyId == proxy.id,
                         position = position,
                         onClick = { component.onProxyClicked(proxy) },
@@ -693,6 +695,7 @@ fun ProxyContent(component: ProxyComponent) {
             onDismiss = component::onDismissAddEdit,
             onTest = component::onTestProxy,
             testPing = state.testPing,
+            testError = state.testError,
             isTesting = state.isTesting,
             isFavorite = state.proxyToEdit?.id == state.favoriteProxyId,
             onToggleFavorite = {
@@ -928,6 +931,7 @@ private fun proxyToDeepLink(proxy: ProxyModel): String {
 @Composable
 fun ProxyItem(
     proxy: ProxyModel,
+    errorMessage: String?,
     isFavorite: Boolean,
     position: ItemPosition,
     onClick: () -> Unit,
@@ -1040,6 +1044,16 @@ fun ProxyItem(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
+                    )
+                }
+                if (!errorMessage.isNullOrBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -1159,6 +1173,7 @@ fun ProxyAddEditSheet(
     onDismiss: () -> Unit,
     onTest: (String, Int, ProxyTypeModel) -> Unit,
     testPing: Long?,
+    testError: String?,
     isTesting: Boolean,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
@@ -1201,15 +1216,18 @@ fun ProxyAddEditSheet(
         )
     }
 
-    val currentProxyType = remember(type, secret, username, password) {
+    val normalizedMtprotoSecret = remember(secret) { MtprotoSecretNormalizer.normalize(secret) }
+
+    val currentProxyType = remember(type, normalizedMtprotoSecret, secret, username, password) {
         when (type) {
-            "MTProto" -> ProxyTypeModel.Mtproto(secret)
+            "MTProto" -> ProxyTypeModel.Mtproto(normalizedMtprotoSecret ?: secret.trim())
             "SOCKS5" -> ProxyTypeModel.Socks5(username, password)
             else -> ProxyTypeModel.Http(username, password, false)
         }
     }
 
-    val isInputValid = server.isNotBlank() && port.isNotBlank() && (type != "MTProto" || secret.isNotBlank())
+    val isInputValid =
+        server.isNotBlank() && port.isNotBlank() && (type != "MTProto" || normalizedMtprotoSecret != null)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1391,6 +1409,17 @@ fun ProxyAddEditSheet(
                         isChecking = isTesting
                     )
                 }
+            }
+
+            if (!testError.isNullOrBlank()) {
+                Text(
+                    text = testError,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                )
             }
 
             Row(

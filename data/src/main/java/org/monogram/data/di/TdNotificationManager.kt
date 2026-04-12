@@ -8,20 +8,36 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Shader
+import android.graphics.Typeface
 import android.os.Build
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.StyleSpan
 import android.util.Log
 import android.util.LruCache
-import androidx.core.app.*
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.Person
+import androidx.core.app.RemoteInput
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.google.firebase.messaging.FirebaseMessaging
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.NotificationSettingDao
@@ -65,6 +81,9 @@ class TdNotificationManager(
     private val scopeNotificationsEnabled = ConcurrentHashMap<NotificationScopeKey, Boolean>()
     private val loadedScopeSettings = ConcurrentHashMap.newKeySet<NotificationScopeKey>()
 
+    @Volatile
+    private var myUserId: Long = 0L
+
     private enum class NotificationScopeKey {
         PRIVATE,
         GROUPS,
@@ -106,6 +125,7 @@ class TdNotificationManager(
                 if (authenticated) {
                     loadedScopeSettings.clear()
                     scopeNotificationsEnabled.clear()
+                    refreshMyUserId()
                     fetchScopeNotificationSettings()
                     fetchInitialExceptions()
                     updatePushRegistration()
@@ -155,7 +175,13 @@ class TdNotificationManager(
                     }
                     is TdApi.UpdateOption -> {
                         if (update.name == "is_authenticated" && (update.value as? TdApi.OptionValueBoolean)?.value == true) {
+                            refreshMyUserId()
                             updatePushRegistration()
+                        } else if (update.name == "my_id") {
+                            val id = (update.value as? TdApi.OptionValueInteger)?.value ?: 0L
+                            if (id > 0L) {
+                                myUserId = id
+                            }
                         }
                     }
                     else -> {}
@@ -266,11 +292,11 @@ class TdNotificationManager(
     fun isChatMuted(chat: TdApi.Chat): Boolean {
         val cached = notificationSettingsCache[chat.id]
         val chatSettings = chat.notificationSettings
-        val muteFor = cached?.muteFor ?: chatSettings?.muteFor ?: return true
-        val useDefault = cached?.useDefault ?: chatSettings?.useDefaultMuteFor ?: return true
+        val muteFor = cached?.muteFor ?: chatSettings?.muteFor ?: 0
+        val useDefault = cached?.useDefault ?: chatSettings?.useDefaultMuteFor ?: true
 
         return if (useDefault) {
-            val chatType = chat.type ?: return true
+            val chatType = chat.type ?: return muteFor > 0
             val scopeKey = when (chatType) {
                 is TdApi.ChatTypePrivate -> NotificationScopeKey.PRIVATE
                 is TdApi.ChatTypeBasicGroup -> NotificationScopeKey.GROUPS
@@ -281,11 +307,15 @@ class TdNotificationManager(
                 else -> null
             }
 
-            if (scopeKey == null || !loadedScopeSettings.contains(scopeKey)) {
-                return true
+            if (scopeKey == null) {
+                return muteFor > 0
             }
 
-            val globalEnabled = scopeNotificationsEnabled[scopeKey] ?: false
+            if (!loadedScopeSettings.contains(scopeKey)) {
+                return false
+            }
+
+            val globalEnabled = scopeNotificationsEnabled[scopeKey] ?: true
             !globalEnabled
         } else {
             muteFor > 0
@@ -337,64 +367,58 @@ class TdNotificationManager(
             return
         }
 
+        if (senderId is TdApi.MessageSenderUser && senderId.userId != 0L && senderId.userId == myUserId) {
+            return
+        }
+
         val lastId = lastMessageIds[message.chatId]
         if (lastId != null && message.id <= lastId) {
             return
         }
         lastMessageIds[message.chatId] = message.id
 
-        getChat(message.chatId) { chat ->
-            scope.launch {
-                val chatType = chat.type
-                if (chatType == null) {
-                    Log.w(TAG, "Skipping notification for chat ${chat.id}: chat type is null")
-                    return@launch
-                }
+        scope.launch {
+            val chat = getChatSuspend(message.chatId) ?: return@launch
 
-                val isMember = checkMembership(chat)
-                if (!isMember) {
-                    Log.d(TAG, "Skipping notification for chat ${chat.id}: user is not a member")
-                    return@launch
-                }
+            val chatType = chat.type
+            if (chatType == null) {
+                Log.w(TAG, "Skipping notification for chat ${chat.id}: chat type is null")
+                return@launch
+            }
 
-                if (isChatMuted(chat)) return@launch
+            val isMember = withTimeoutOrNull(1_500L) { checkMembership(chat) } ?: true
+            if (!isMember) {
+                Log.d(TAG, "Skipping notification for chat ${chat.id}: user is not a member")
+                return@launch
+            }
 
-                val contentText =
-                    if (appPreferences.showSenderOnly.value) stringProvider.getString("notification_new_message") else getMessageText(messageContent)
+            if (isChatMuted(chat)) return@launch
 
-                if (contentText.isBlank()) return@launch
+            val contentText =
+                if (appPreferences.showSenderOnly.value) stringProvider.getString("notification_new_message") else getMessageText(
+                    messageContent
+                )
 
-                val timestamp = message.date.toLong() * 1000
+            if (contentText.isBlank()) return@launch
 
-                val shouldDownloadAvatar =
-                    !appPreferences.isPowerSavingMode.value && !appPreferences.batteryOptimizationEnabled.value
+            val timestamp = message.date.toLong() * 1000
+            val shouldPreloadAvatar =
+                !appPreferences.isPowerSavingMode.value && !appPreferences.batteryOptimizationEnabled.value
 
-                resolveSender(senderId, chat, !shouldDownloadAvatar) { senderName, senderBitmap ->
-                    if (shouldDownloadAvatar) {
-                        downloadAvatar(chat.photo, false) { chatIcon ->
-                            appendMessageToNotification(
-                                chatId = chat.id,
-                                messageId = message.id,
-                                chatType = chatType,
-                                senderName = senderName,
-                                senderBitmap = senderBitmap,
-                                chatIcon = chatIcon ?: senderBitmap,
-                                text = contentText,
-                                timestamp = timestamp
-                            )
-                        }
-                    } else {
-                        appendMessageToNotification(
-                            chatId = chat.id,
-                            messageId = message.id,
-                            chatType = chatType,
-                            senderName = senderName,
-                            senderBitmap = senderBitmap,
-                            chatIcon = senderBitmap,
-                            text = contentText,
-                            timestamp = timestamp
-                        )
-                    }
+            resolveSender(senderId, chat, true) { senderName, senderBitmap ->
+                appendMessageToNotification(
+                    chatId = chat.id,
+                    messageId = message.id,
+                    chatType = chatType,
+                    senderName = senderName,
+                    senderBitmap = senderBitmap,
+                    chatIcon = senderBitmap,
+                    text = contentText,
+                    timestamp = timestamp
+                )
+
+                if (shouldPreloadAvatar && senderBitmap == null) {
+                    preloadNotificationAssets(senderId, chat)
                 }
             }
         }
@@ -781,6 +805,12 @@ class TdNotificationManager(
         }
     }
 
+    private suspend fun refreshMyUserId() {
+        myUserId = coRunCatching {
+            gateway.execute(TdApi.GetMe()).id
+        }.getOrDefault(myUserId)
+    }
+
     private fun sanitizeSpoilers(formattedText: TdApi.FormattedText?): String {
         if (formattedText == null) return ""
         val text = formattedText.text.orEmpty()
@@ -860,6 +890,28 @@ class TdNotificationManager(
 
         when (senderId) {
             is TdApi.MessageSenderUser -> {
+                if (onlyIfLocal) {
+                    val user = userCache[senderId.userId]
+                    if (user == null) {
+                        callback(fallbackName, null)
+                        return
+                    }
+
+                    val fullName = listOf(user.firstName, user.lastName)
+                        .filterNotNull()
+                        .filter { it.isNotBlank() }
+                        .joinToString(" ")
+                    val name =
+                        if (chat.type is TdApi.ChatTypePrivate) fallbackName else fullName.ifBlank { fallbackName }
+                    val file =
+                        user.profilePhoto?.small
+                            ?: if (chat.type is TdApi.ChatTypePrivate) chat.photo?.small else null
+                    downloadFile(file, true) { bitmap ->
+                        callback(name, bitmap)
+                    }
+                    return
+                }
+
                 getUser(senderId.userId) { user ->
                     val fullName = listOf(user.firstName, user.lastName)
                         .filterNotNull()
@@ -876,6 +928,20 @@ class TdNotificationManager(
             }
 
             is TdApi.MessageSenderChat -> {
+                if (onlyIfLocal) {
+                    val senderChat = chatCache[senderId.chatId]
+                    if (senderChat == null) {
+                        callback(fallbackName, null)
+                        return
+                    }
+
+                    val name = senderChat.title?.takeIf { it.isNotBlank() } ?: fallbackName
+                    downloadFile(senderChat.photo?.small, true) { bitmap ->
+                        callback(name, bitmap)
+                    }
+                    return
+                }
+
                 getChat(senderId.chatId) { senderChat ->
                     val name = senderChat.title?.takeIf { it.isNotBlank() } ?: fallbackName
                     downloadFile(senderChat.photo?.small, onlyIfLocal) { bitmap ->
@@ -892,12 +958,9 @@ class TdNotificationManager(
         }
     }
 
-    private fun downloadAvatar(
-        fileInfo: TdApi.ChatPhotoInfo?,
-        onlyIfLocal: Boolean = false,
-        callback: (Bitmap?) -> Unit
-    ) {
-        downloadFile(fileInfo?.small, onlyIfLocal, callback)
+    private fun preloadNotificationAssets(senderId: TdApi.MessageSender?, chat: TdApi.Chat) {
+        resolveSender(senderId, chat, false) { _, _ -> }
+        downloadFile(chat.photo?.small, false) { _ -> }
     }
 
     private fun downloadFile(file: TdApi.File?, onlyIfLocal: Boolean = false, callback: (Bitmap?) -> Unit) {

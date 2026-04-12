@@ -113,7 +113,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
-import org.monogram.domain.models.ChatType
 import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
@@ -140,7 +139,12 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChatListContent(component: ChatListComponent) {
-    val state by component.state.collectAsState()
+    val uiState by component.uiState.collectAsState()
+    val foldersState by component.foldersState.collectAsState()
+    val chatsState by component.chatsState.collectAsState()
+    val selectionState by component.selectionState.collectAsState()
+    val searchState by component.searchState.collectAsState()
+
     val scope = rememberCoroutineScope()
 
     val haptic = LocalHapticFeedback.current
@@ -164,7 +168,7 @@ fun ChatListContent(component: ChatListComponent) {
         adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) && isTabletInterfaceEnabled
 
     val isCustomBackHandlingEnabled =
-        state.isSearchActive || state.selectedChatIds.isNotEmpty() || state.selectedFolderId == -2 || state.isForwarding || state.instantViewUrl != null || state.webAppUrl != null || state.webViewUrl != null || showStatusMenu
+        searchState.isSearchActive || selectionState.selectedChatIds.isNotEmpty() || foldersState.selectedFolderId == -2 || uiState.isForwarding || uiState.instantViewUrl != null || uiState.webAppUrl != null || uiState.webViewUrl != null || showStatusMenu
 
     BackHandler(enabled = isCustomBackHandlingEnabled) {
         if (showStatusMenu) {
@@ -175,26 +179,26 @@ fun ChatListContent(component: ChatListComponent) {
     }
 
     val pagerState = rememberPagerState(
-        initialPage = state.folders.indexOfFirst { it.id == state.selectedFolderId }.coerceAtLeast(0),
-        pageCount = { state.folders.size }
+        initialPage = foldersState.folders.indexOfFirst { it.id == foldersState.selectedFolderId }.coerceAtLeast(0),
+        pageCount = { foldersState.folders.size }
     )
 
-    LaunchedEffect(state.selectedFolderId) {
-        val index = state.folders.indexOfFirst { it.id == state.selectedFolderId }.coerceAtLeast(0)
+    LaunchedEffect(foldersState.selectedFolderId) {
+        val index = foldersState.folders.indexOfFirst { it.id == foldersState.selectedFolderId }.coerceAtLeast(0)
         if (pagerState.currentPage != index) pagerState.animateScrollToPage(index)
     }
 
     LaunchedEffect(pagerState.currentPage) {
-        if (state.folders.isNotEmpty()) {
-            val folderId = state.folders[pagerState.currentPage].id
-            if (state.selectedFolderId != folderId && state.selectedFolderId != -2) {
+        if (foldersState.folders.isNotEmpty()) {
+            val folderId = foldersState.folders[pagerState.currentPage].id
+            if (foldersState.selectedFolderId != folderId && foldersState.selectedFolderId != -2) {
                 component.onFolderClicked(folderId)
             }
         }
     }
 
     val density = LocalDensity.current
-    val tabsHeight = if (state.folders.size > 1) 56.dp else 10.dp
+    val tabsHeight = if (foldersState.folders.size > 1) 56.dp else 10.dp
     val archiveItemHeight = 78.dp
     val tabsHeightPx = with(density) { tabsHeight.toPx() }
     val archiveItemHeightPx = with(density) { archiveItemHeight.toPx() }
@@ -208,10 +212,10 @@ fun ChatListContent(component: ChatListComponent) {
     var hasVibrated by remember { mutableStateOf(false) }
     var canRevealArchive by remember { mutableStateOf(true) }
 
-    val currentFolder = state.folders.getOrNull(pagerState.currentPage)
+    val currentFolder = foldersState.folders.getOrNull(pagerState.currentPage)
     val isMainFolder = currentFolder?.id == -1
 
-    val isArchivePersistent = state.isArchivePinned && (state.isArchiveAlwaysVisible || isMainFolder)
+    val isArchivePersistent = uiState.isArchivePinned && (uiState.isArchiveAlwaysVisible || isMainFolder)
     val canShowArchive = isArchivePersistent || isMainFolder
 
     val lastArchivePersistent = remember { mutableStateOf(isArchivePersistent) }
@@ -263,7 +267,7 @@ fun ChatListContent(component: ChatListComponent) {
         }
     }
 
-    val nestedScrollConnection = remember(isArchivePersistent, canShowArchive, state.isArchiveAlwaysVisible, tabsHeightPx) {
+    val nestedScrollConnection = remember(isArchivePersistent, canShowArchive, uiState.isArchiveAlwaysVisible, tabsHeightPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (source == NestedScrollSource.UserInput) {
@@ -308,7 +312,7 @@ fun ChatListContent(component: ChatListComponent) {
                         }
 
                         var limit = 0f
-                        if (isArchivePersistent && !state.isArchiveAlwaysVisible) {
+                        if (isArchivePersistent && !uiState.isArchiveAlwaysVisible) {
                             limit = -archiveItemHeightPx
                         }
 
@@ -399,19 +403,19 @@ fun ChatListContent(component: ChatListComponent) {
 
     val isFabExpanded by remember { derivedStateOf { headerOffsetPx > -10f } }
 
-    var cachedStatusEmojiPath by remember(state.currentUser?.id) {
-        mutableStateOf(state.currentUser?.statusEmojiPath)
+    var cachedStatusEmojiPath by remember(uiState.currentUser?.id) {
+        mutableStateOf(uiState.currentUser?.statusEmojiPath)
     }
 
-    LaunchedEffect(state.currentUser?.id, state.currentUser?.statusEmojiPath) {
-        val statusEmojiPath = state.currentUser?.statusEmojiPath
+    LaunchedEffect(uiState.currentUser?.id, uiState.currentUser?.statusEmojiPath) {
+        val statusEmojiPath = uiState.currentUser?.statusEmojiPath
         if (!statusEmojiPath.isNullOrBlank()) {
             cachedStatusEmojiPath = statusEmojiPath
         }
     }
 
-    val currentUser = remember(state.currentUser, cachedStatusEmojiPath) {
-        state.currentUser?.let { user ->
+    val currentUser = remember(uiState.currentUser, cachedStatusEmojiPath) {
+        uiState.currentUser?.let { user ->
             if (user.statusEmojiId != 0L && user.statusEmojiPath.isNullOrBlank() && !cachedStatusEmojiPath.isNullOrBlank()) {
                 user.copy(statusEmojiPath = cachedStatusEmojiPath)
             } else {
@@ -423,7 +427,7 @@ fun ChatListContent(component: ChatListComponent) {
     if (showAccountMenu) {
         AccountMenu(
             user = currentUser,
-            attachMenuBots = state.attachMenuBots,
+            attachMenuBots = uiState.attachMenuBots,
             onDismiss = { showAccountMenu = false },
             onSavedMessagesClick = {
                 currentUser?.id?.let { component.onChatClicked(it) }
@@ -436,13 +440,13 @@ fun ChatListContent(component: ChatListComponent) {
             onProfileClick = {
                 currentUser?.id?.let { component.onProfileClicked(it) }
             },
-            updateState = state.updateState,
+            updateState = uiState.updateState,
             onUpdateClick = { component.onUpdateClicked() },
             onBotClick = { bot ->
                 component.onOpenWebApp(
-                    url = state.botWebAppUrl ?: "",
+                    url = uiState.botWebAppUrl ?: "",
                     botUserId = bot.botUserId,
-                    botName = state.botWebAppName ?: bot.name
+                    botName = uiState.botWebAppName ?: bot.name
                 )
             }
         )
@@ -478,19 +482,19 @@ fun ChatListContent(component: ChatListComponent) {
         topBar = {
             Column(Modifier.fillMaxWidth()) {
                 AnimatedContent(
-                    targetState = state.selectedChatIds.isNotEmpty() && !state.isForwarding,
+                    targetState = selectionState.selectedChatIds.isNotEmpty() && !uiState.isForwarding,
                     label = "TopBarSelectionAnimation",
                     transitionSpec = { fadeIn() togetherWith fadeOut() }
                 ) { isSelectionMode ->
                     if (isSelectionMode) {
-                        val selectedChats = state.chats.filter { state.selectedChatIds.contains(it.id) }
+                        val selectedChats = chatsState.chats.filter { selectionState.selectedChatIds.contains(it.id) }
                         val canMarkUnread = selectedChats.any { !it.isMarkedAsUnread }
                         val allPinned = selectedChats.isNotEmpty() && selectedChats.all { it.isPinned }
                         val allMuted = selectedChats.isNotEmpty() && selectedChats.all { it.isMuted }
-                        val isInArchive = state.selectedFolderId == -2
+                        val isInArchive = foldersState.selectedFolderId == -2
 
                         SelectionTopBar(
-                            selectedCount = state.selectedChatIds.size,
+                            selectedCount = selectionState.selectedChatIds.size,
                             isInArchive = isInArchive,
                             allPinned = allPinned,
                             allMuted = allMuted,
@@ -503,7 +507,7 @@ fun ChatListContent(component: ChatListComponent) {
                             canMarkUnread = canMarkUnread
                         )
                     } else {
-                        if (state.isForwarding) {
+                        if (uiState.isForwarding) {
                             TopAppBar(
                                 title = {
                                     Column {
@@ -512,11 +516,11 @@ fun ChatListContent(component: ChatListComponent) {
                                             fontWeight = FontWeight.SemiBold,
                                             style = MaterialTheme.typography.titleMedium
                                         )
-                                        if (state.selectedChatIds.isNotEmpty()) {
+                                        if (selectionState.selectedChatIds.isNotEmpty()) {
                                             Text(
                                                 text = stringResource(
                                                     R.string.chats_selected_format,
-                                                    state.selectedChatIds.size
+                                                    selectionState.selectedChatIds.size
                                                 ),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.primary
@@ -530,7 +534,7 @@ fun ChatListContent(component: ChatListComponent) {
                                     }
                                 },
                                 actions = {
-                                    if (state.selectedChatIds.isNotEmpty()) {
+                                    if (selectionState.selectedChatIds.isNotEmpty()) {
                                         IconButton(onClick = { component.onConfirmForwarding() }) {
                                             Icon(
                                                 Icons.AutoMirrored.Rounded.Send,
@@ -542,7 +546,7 @@ fun ChatListContent(component: ChatListComponent) {
                                 },
                                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                             )
-                        } else if (state.selectedFolderId == -2 && !state.isSearchActive) {
+                        } else if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) {
                             TopAppBar(
                                 title = {
                                     Text(
@@ -568,12 +572,12 @@ fun ChatListContent(component: ChatListComponent) {
                         } else {
                             ChatListTopBar(
                                 user = currentUser,
-                                connectionStatus = state.connectionStatus,
-                                isProxyEnabled = state.isProxyEnabled,
+                                connectionStatus = uiState.connectionStatus,
+                                isProxyEnabled = uiState.isProxyEnabled,
                                 onRetryConnection = { component.retryConnection() },
                                 onProxySettingsClick = { component.onProxySettingsClicked() },
-                                isSearchActive = state.isSearchActive,
-                                searchQuery = state.searchQuery,
+                                isSearchActive = searchState.isSearchActive,
+                                searchQuery = searchState.searchQuery,
                                 onSearchQueryChange = component::onSearchQueryChange,
                                 onSearchToggle = component::onSearchToggle,
                                 onStatusClick = { anchorBounds ->
@@ -586,7 +590,7 @@ fun ChatListContent(component: ChatListComponent) {
                     }
                 }
 
-                if (state.connectionStatus == ConnectionStatus.Connecting || state.connectionStatus == ConnectionStatus.Updating || state.connectionStatus == ConnectionStatus.ConnectingToProxy) {
+                if (uiState.connectionStatus == ConnectionStatus.Connecting || uiState.connectionStatus == ConnectionStatus.Updating || uiState.connectionStatus == ConnectionStatus.ConnectingToProxy) {
                     Column {
                         LinearWavyProgressIndicator(
                             modifier = Modifier
@@ -598,7 +602,7 @@ fun ChatListContent(component: ChatListComponent) {
                     }
                 }
 
-                val isMainView = !state.isSearchActive && state.selectedFolderId != -2
+                val isMainView = !searchState.isSearchActive && foldersState.selectedFolderId != -2
 
                 if (isMainView) {
                     Box(
@@ -656,7 +660,7 @@ fun ChatListContent(component: ChatListComponent) {
                                     }
                                 ) {
                                     ArchiveHeaderCard(
-                                        isPinned = state.isArchivePinned,
+                                        isPinned = uiState.isArchivePinned,
                                         onClick = { component.onFolderClicked(-2) },
                                         onLongClick = { component.onArchivePinToggle() }
                                     )
@@ -664,14 +668,14 @@ fun ChatListContent(component: ChatListComponent) {
                                 }
                             }
 
-                            if (state.folders.size > 1) {
+                            if (foldersState.folders.size > 1) {
                                 FolderTabs(
                                     modifier = Modifier,
-                                    folders = state.folders,
+                                    folders = foldersState.folders,
                                     pagerState = pagerState,
                                     onTabClick = { index ->
                                         if (pagerState.currentPage == index) {
-                                            val folderId = state.folders[index].id
+                                            val folderId = foldersState.folders[index].id
                                             scope.launch {
                                                 scrollStates[folderId]?.animateScrollToItem(0)
                                             }
@@ -695,7 +699,7 @@ fun ChatListContent(component: ChatListComponent) {
         floatingActionButton = {
             if (!isTablet) {
                 AnimatedVisibility(
-                    visible = !state.isSearchActive && state.selectedFolderId != -2 && !state.isForwarding,
+                    visible = !searchState.isSearchActive && foldersState.selectedFolderId != -2 && !uiState.isForwarding,
                     enter = scaleIn() + fadeIn(),
                     exit = scaleOut() + fadeOut()
                 ) {
@@ -710,7 +714,7 @@ fun ChatListContent(component: ChatListComponent) {
                 }
 
                 AnimatedVisibility(
-                    visible = state.isForwarding && state.selectedChatIds.isNotEmpty(),
+                    visible = uiState.isForwarding && selectionState.selectedChatIds.isNotEmpty(),
                     enter = scaleIn() + fadeIn(),
                     exit = scaleOut() + fadeOut()
                 ) {
@@ -737,32 +741,32 @@ fun ChatListContent(component: ChatListComponent) {
                     modifier = Modifier
                         .fillMaxSize()
                 ) {
-            if (state.isSearchActive || state.selectedFolderId == -2) {
+            if (searchState.isSearchActive || foldersState.selectedFolderId == -2) {
                 var showAllGlobal by remember { mutableStateOf(false) }
                 var showAllMessages by remember { mutableStateOf(false) }
 
                 val scrollState = rememberLazyListState(
-                    initialFirstVisibleItemIndex = if (state.selectedFolderId == -2 && !state.isSearchActive) state.scrollPositions[-2]?.first ?: 0 else 0,
-                    initialFirstVisibleItemScrollOffset = if (state.selectedFolderId == -2 && !state.isSearchActive) state.scrollPositions[-2]?.second ?: 0 else 0
+                    initialFirstVisibleItemIndex = if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) foldersState.scrollPositions[-2]?.first ?: 0 else 0,
+                    initialFirstVisibleItemScrollOffset = if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) foldersState.scrollPositions[-2]?.second ?: 0 else 0
                 )
 
-                if (state.selectedFolderId == -2 && !state.isSearchActive) {
+                if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) {
                     scrollStates[-2] = scrollState
                 }
 
-                val firstItemId = if (state.selectedFolderId == -2 && !state.isSearchActive) {
-                    state.chatsByFolder[-2]?.firstOrNull()?.id
+                val firstItemId = if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) {
+                    foldersState.chatsByFolder[-2]?.firstOrNull()?.id
                 } else {
                     null
                 }
 
                 LaunchedEffect(firstItemId) {
-                    if (state.selectedFolderId == -2 && !state.isSearchActive && !scrollState.isScrollInProgress && scrollState.firstVisibleItemIndex <= 1) {
+                    if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive && !scrollState.isScrollInProgress && scrollState.firstVisibleItemIndex <= 1) {
                         scrollState.scrollToItem(0, 0)
                     }
                 }
 
-                if (state.selectedFolderId == -2 && !state.isSearchActive) {
+                if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) {
                     DisposableEffect(Unit) {
                         onDispose {
                             component.updateScrollPosition(-2, scrollState.firstVisibleItemIndex, scrollState.firstVisibleItemScrollOffset)
@@ -770,10 +774,10 @@ fun ChatListContent(component: ChatListComponent) {
                     }
                 }
 
-                val isArchivedView = state.selectedFolderId == -2 && !state.isSearchActive
-                val archivedChats = if (isArchivedView) state.chatsByFolder[-2] ?: emptyList() else emptyList()
-                val isArchivedLoading = if (isArchivedView) state.isLoadingByFolder[-2] ?: false else false
-                val hasArchivedLoadState = if (isArchivedView) state.isLoadingByFolder.containsKey(-2) else false
+                val isArchivedView = foldersState.selectedFolderId == -2 && !searchState.isSearchActive
+                val archivedChats = if (isArchivedView) chatsState.chats else emptyList()
+                val isArchivedLoading = if (isArchivedView) chatsState.isLoading else false
+                val hasArchivedLoadState = isArchivedView && (foldersState.isLoadingByFolder.containsKey(-2) || chatsState.chats.isNotEmpty())
                 val showArchivedShimmer =
                     isArchivedView && archivedChats.isEmpty() && (isArchivedLoading || !hasArchivedLoadState)
                 val shouldAnimateFirstArchiveTransition = firstFolderTransitionCompleted[-2] != true
@@ -814,13 +818,8 @@ fun ChatListContent(component: ChatListComponent) {
                             end = if (isTablet) 12.dp else 0.dp
                         ),
                     ) {
-                        if (state.isSearchActive) {
-                        if (state.searchQuery.isEmpty() && state.searchHistory.isNotEmpty()) {
-                            val recentUsers =
-                                state.searchHistory.filter { (it.type == ChatType.PRIVATE || it.type == ChatType.SECRET) && !it.isBot }
-                            val recentOthers =
-                                state.searchHistory.filter { it.type != ChatType.PRIVATE && it.type != ChatType.SECRET || it.isBot }
-
+                        if (searchState.isSearchActive) {
+                        if (searchState.searchQuery.isEmpty() && (searchState.recentUsers.isNotEmpty() || searchState.recentOthers.isNotEmpty())) {
                             item {
                                 Row(
                                     modifier = Modifier
@@ -841,7 +840,7 @@ fun ChatListContent(component: ChatListComponent) {
                                 }
                             }
 
-                            if (recentUsers.isNotEmpty()) {
+                            if (searchState.recentUsers.isNotEmpty()) {
                                 item {
                                     LazyRow(
                                         modifier = Modifier
@@ -850,7 +849,7 @@ fun ChatListContent(component: ChatListComponent) {
                                         contentPadding = PaddingValues(horizontal = 16.dp),
                                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                                     ) {
-                                        itemsIndexed(items = recentUsers, key = { index, chat -> "recent_user_${chat.id}_$index" }) { _, chat ->
+                                        itemsIndexed(items = searchState.recentUsers, key = { index, chat -> "recent_user_${chat.id}_$index" }) { _, chat ->
                                             Column(
                                                 modifier = Modifier
                                                     .width(64.dp)
@@ -908,18 +907,18 @@ fun ChatListContent(component: ChatListComponent) {
                                 }
                             }
 
-                            if (recentOthers.isNotEmpty()) {
+                            if (searchState.recentOthers.isNotEmpty()) {
                                 itemsIndexed(
-                                    items = recentOthers,
+                                    items = searchState.recentOthers,
                                     key = { _, chat -> "recent_${chat.id}" }) { _, chat ->
                                     ChatListItem(
                                         modifier = Modifier.animateItem(),
                                         chat = chat,
-                                        currentUserId = state.currentUser?.id,
+                                        currentUserId = uiState.currentUser?.id,
                                         isSelected = false,
                                         onClick = { onChatClicked(chat.id) },
                                         onLongClick = { component.onRemoveSearchHistoryItem(chat.id) },
-                                        isTabletSelected = isTablet && state.activeChatId == chat.id,
+                                        isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
                                         emojiFontFamily = emojiFontFamily,
                                         messageLines = messageLines,
                                         showPhotos = showPhotos
@@ -928,7 +927,7 @@ fun ChatListContent(component: ChatListComponent) {
                             }
                         }
 
-                        if (state.searchResults.isNotEmpty()) {
+                        if (searchState.searchResults.isNotEmpty()) {
                             item {
                                 Text(
                                     text = stringResource(R.string.search_section_chats),
@@ -937,15 +936,15 @@ fun ChatListContent(component: ChatListComponent) {
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
-                            itemsIndexed(items = state.searchResults, key = { index, chat -> "search_${chat.id}_$index" }) { _, chat ->
+                            itemsIndexed(items = searchState.searchResults, key = { index, chat -> "search_${chat.id}_$index" }) { _, chat ->
                                 ChatListItem(
                                     modifier = Modifier.animateItem(),
                                     chat = chat,
-                                    currentUserId = state.currentUser?.id,
-                                    isSelected = state.selectedChatIds.contains(chat.id),
+                                    currentUserId = uiState.currentUser?.id,
+                                    isSelected = selectionState.selectedChatIds.contains(chat.id),
                                     onClick = { onChatClicked(chat.id) },
                                     onLongClick = { onChatLongClicked(chat.id) },
-                                    isTabletSelected = isTablet && state.activeChatId == chat.id,
+                                    isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
                                     emojiFontFamily = emojiFontFamily,
                                     messageLines = messageLines,
                                     showPhotos = showPhotos
@@ -953,7 +952,7 @@ fun ChatListContent(component: ChatListComponent) {
                             }
                         }
 
-                        if (state.globalSearchResults.isNotEmpty()) {
+                        if (searchState.globalSearchResults.isNotEmpty()) {
                             item {
                                 Text(
                                     text = stringResource(R.string.search_section_global),
@@ -964,24 +963,24 @@ fun ChatListContent(component: ChatListComponent) {
                             }
 
                             val globalToDisplay =
-                                if (showAllGlobal) state.globalSearchResults else state.globalSearchResults.take(3)
+                                if (showAllGlobal) searchState.globalSearchResults else searchState.globalSearchResults.take(3)
 
                             itemsIndexed(items = globalToDisplay, key = { _, chat -> "global_${chat.id}" }) { _, chat ->
                                 ChatListItem(
                                     modifier = Modifier.animateItem(),
                                     chat = chat,
-                                    currentUserId = state.currentUser?.id,
-                                    isSelected = state.selectedChatIds.contains(chat.id),
+                                    currentUserId = uiState.currentUser?.id,
+                                    isSelected = selectionState.selectedChatIds.contains(chat.id),
                                     onClick = { onChatClicked(chat.id) },
                                     onLongClick = { onChatLongClicked(chat.id) },
-                                    isTabletSelected = isTablet && state.activeChatId == chat.id,
+                                    isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
                                     emojiFontFamily = emojiFontFamily,
                                     messageLines = messageLines,
                                     showPhotos = showPhotos
                                 )
                             }
 
-                            if (!showAllGlobal && state.globalSearchResults.size > 3) {
+                            if (!showAllGlobal && searchState.globalSearchResults.size > 3) {
                                 item {
                                     Box(
                                         modifier = Modifier
@@ -1000,7 +999,7 @@ fun ChatListContent(component: ChatListComponent) {
                             }
                         }
 
-                        if (state.messageSearchResults.isNotEmpty()) {
+                        if (searchState.messageSearchResults.isNotEmpty()) {
                             item {
                                 Text(
                                     text = stringResource(R.string.search_section_messages),
@@ -1011,12 +1010,12 @@ fun ChatListContent(component: ChatListComponent) {
                             }
 
                             val messagesToDisplay =
-                                if (showAllMessages) state.messageSearchResults else state.messageSearchResults.take(3)
+                                if (showAllMessages) searchState.messageSearchResults else searchState.messageSearchResults.take(3)
 
                             itemsIndexed(
                                 items = messagesToDisplay,
                                 key = { index, msg -> "msg_${msg.id}_$index" }) { index, msg ->
-                                if (showAllMessages && index >= messagesToDisplay.lastIndex - 5 && state.canLoadMoreMessages) {
+                                if (showAllMessages && index >= messagesToDisplay.lastIndex - 5 && searchState.canLoadMoreMessages) {
                                     LaunchedEffect(Unit) { component.loadMoreMessages() }
                                 }
 
@@ -1027,7 +1026,7 @@ fun ChatListContent(component: ChatListComponent) {
                                 )
                             }
 
-                            if (!showAllMessages && state.messageSearchResults.size > 3) {
+                            if (!showAllMessages && searchState.messageSearchResults.size > 3) {
                                 item {
                                     Box(
                                         modifier = Modifier
@@ -1056,11 +1055,11 @@ fun ChatListContent(component: ChatListComponent) {
                                 ChatListItem(
                                     modifier = Modifier.animateItem(),
                                     chat = chat,
-                                    currentUserId = state.currentUser?.id,
-                                    isSelected = state.selectedChatIds.contains(chat.id),
+                                    currentUserId = uiState.currentUser?.id,
+                                    isSelected = selectionState.selectedChatIds.contains(chat.id),
                                     onClick = { onChatClicked(chat.id) },
                                     onLongClick = { onChatLongClicked(chat.id) },
-                                    isTabletSelected = isTablet && state.activeChatId == chat.id,
+                                    isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
                                     emojiFontFamily = emojiFontFamily,
                                     messageLines = messageLines,
                                     showPhotos = showPhotos
@@ -1087,21 +1086,21 @@ fun ChatListContent(component: ChatListComponent) {
                     modifier = Modifier.fillMaxSize(),
                     beyondViewportPageCount = 1
                 ) { page ->
-                    val folderId = state.folders.getOrNull(page)?.id
-                        ?: state.folders.firstOrNull { it.id == state.selectedFolderId }?.id
+                    val folderId = foldersState.folders.getOrNull(page)?.id
+                        ?: foldersState.folders.firstOrNull { it.id == foldersState.selectedFolderId }?.id
                     if (folderId == null) {
                         Box(modifier = Modifier.fillMaxSize())
                         return@HorizontalPager
                     }
-                    val folderChats = state.chatsByFolder[folderId] ?: emptyList()
-                    val isFolderLoading = state.isLoadingByFolder[folderId] ?: false
-                    val hasFolderLoadState = state.isLoadingByFolder.containsKey(folderId)
+                    val folderChats = foldersState.chatsByFolder[folderId] ?: emptyList()
+                    val isFolderLoading = foldersState.isLoadingByFolder[folderId] ?: false
+                    val hasFolderLoadState = foldersState.isLoadingByFolder.containsKey(folderId)
                     val showFolderShimmer = folderChats.isEmpty() && (isFolderLoading || !hasFolderLoadState)
                     val shouldAnimateFirstFolderTransition = firstFolderTransitionCompleted[folderId] != true
 
                     val scrollState = rememberLazyListState(
-                        initialFirstVisibleItemIndex = state.scrollPositions[folderId]?.first ?: 0,
-                        initialFirstVisibleItemScrollOffset = state.scrollPositions[folderId]?.second ?: 0
+                        initialFirstVisibleItemIndex = foldersState.scrollPositions[folderId]?.first ?: 0,
+                        initialFirstVisibleItemScrollOffset = foldersState.scrollPositions[folderId]?.second ?: 0
                     )
 
                     scrollStates[folderId] = scrollState
@@ -1134,7 +1133,7 @@ fun ChatListContent(component: ChatListComponent) {
                     val isInitialLoad = remember(folderId) { mutableStateOf(true) }
                     LaunchedEffect(folderChats) {
                         if (isInitialLoad.value && folderChats.isNotEmpty()) {
-                            if (state.scrollPositions[folderId] == null) {
+                            if (foldersState.scrollPositions[folderId] == null) {
                                 scrollState.scrollToItem(0, 0)
                             }
                             isInitialLoad.value = false
@@ -1187,11 +1186,11 @@ fun ChatListContent(component: ChatListComponent) {
                                         ChatListItem(
                                             modifier = Modifier.animateItem(),
                                             chat = chat,
-                                            currentUserId = state.currentUser?.id,
-                                            isSelected = state.selectedChatIds.contains(chat.id),
+                                            currentUserId = uiState.currentUser?.id,
+                                            isSelected = selectionState.selectedChatIds.contains(chat.id),
                                             onClick = { onChatClicked(chat.id) },
                                             onLongClick = { onChatLongClicked(chat.id) },
-                                            isTabletSelected = isTablet && state.activeChatId == chat.id,
+                                            isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
                                             emojiFontFamily = emojiFontFamily,
                                             messageLines = messageLines,
                                             showPhotos = showPhotos
@@ -1308,11 +1307,11 @@ fun ChatListContent(component: ChatListComponent) {
     }
 
     AnimatedVisibility(
-        visible = state.instantViewUrl != null,
+        visible = uiState.instantViewUrl != null,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
         exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
     ) {
-        state.instantViewUrl?.let { url ->
+        uiState.instantViewUrl?.let { url ->
             InstantViewer(
                 url = url,
                 messageRepository = koinInject(),
@@ -1324,13 +1323,13 @@ fun ChatListContent(component: ChatListComponent) {
     }
 
     AnimatedVisibility(
-        visible = state.webAppUrl != null || state.webAppBotId != null,
+        visible = uiState.webAppUrl != null || uiState.webAppBotId != null,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
         exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
     ) {
-        val webAppUrl = state.webAppUrl
-        val botUserId = state.webAppBotId
-        val botName = state.webAppBotName
+        val webAppUrl = uiState.webAppUrl
+        val botUserId = uiState.webAppBotId
+        val botName = uiState.webAppBotName
 
         Log.d("MiniAppViewer", "webAppUrl: $webAppUrl, botUserId: $botUserId, botName: $botName")
 
@@ -1349,7 +1348,7 @@ fun ChatListContent(component: ChatListComponent) {
     if (showDeleteChatsSheet) {
         ConfirmationSheet(
             icon = Icons.Rounded.Delete,
-            title = stringResource(R.string.delete_chats_title, state.selectedChatIds.size),
+            title = stringResource(R.string.delete_chats_title, selectionState.selectedChatIds.size),
             description = stringResource(R.string.delete_chats_confirmation),
             confirmText = stringResource(R.string.action_delete_chats),
             onConfirm = {

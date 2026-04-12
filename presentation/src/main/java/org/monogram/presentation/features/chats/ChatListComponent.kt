@@ -1,12 +1,18 @@
 package org.monogram.presentation.features.chats
 
+import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.flow.StateFlow
 import org.monogram.domain.models.*
 import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.presentation.core.util.AppPreferences
 
 interface ChatListComponent {
-    val state: StateFlow<State>
+    val uiState: StateFlow<UiState>
+    val foldersState: StateFlow<FoldersState>
+    val chatsState: StateFlow<ChatsState>
+    val selectionState: StateFlow<SelectionState>
+    val searchState: StateFlow<SearchState>
+
     val appPreferences: AppPreferences
 
     fun onChatClicked(id: Long)
@@ -52,26 +58,14 @@ interface ChatListComponent {
 
     fun updateScrollPosition(folderId: Int, index: Int, offset: Int)
 
-    data class State(
-        val chatsByFolder: Map<Int, List<ChatModel>> = emptyMap(),
-        val folders: List<FolderModel> = emptyList(),
-        val selectedFolderId: Int = -1,
+    @Immutable
+    data class UiState(
         val currentUser: UserModel? = null,
-        val isLoadingByFolder: Map<Int, Boolean> = emptyMap(),
-        val selectedChatIds: Set<Long> = emptySet(),
-        val isSearchActive: Boolean = false,
-        val searchQuery: String = "",
-        val searchResults: List<ChatModel> = emptyList(),
-        val globalSearchResults: List<ChatModel> = emptyList(),
-        val messageSearchResults: List<MessageModel> = emptyList(),
-        val searchHistory: List<ChatModel> = emptyList(),
         val connectionStatus: ConnectionStatus = ConnectionStatus.Connected,
         val isArchivePinned: Boolean = true,
         val isArchiveAlwaysVisible: Boolean = false,
         val isForwarding: Boolean = false,
-        val canLoadMoreMessages: Boolean = false,
         val instantViewUrl: String? = null,
-        val activeChatId: Long? = null,
         val isProxyEnabled: Boolean = false,
         val attachMenuBots: List<AttachMenuBotModel> = emptyList(),
         val botWebAppUrl: String? = null,
@@ -80,10 +74,38 @@ interface ChatListComponent {
         val webAppBotId: Long? = null,
         val webAppBotName: String? = null,
         val webViewUrl: String? = null,
-        val updateState: UpdateState = UpdateState.Idle,
+        val updateState: UpdateState = UpdateState.Idle
+    )
+
+    @Immutable
+    data class FoldersState(
+        val chatsByFolder: Map<Int, List<ChatModel>> = emptyMap(),
+        val folders: List<FolderModel> = emptyList(),
+        val selectedFolderId: Int = -1,
+        val isLoadingByFolder: Map<Int, Boolean> = emptyMap(),
         val scrollPositions: Map<Int, Pair<Int, Int>> = emptyMap()
-    ) {
-        val chats: List<ChatModel> get() = chatsByFolder[selectedFolderId] ?: emptyList()
-        val isLoading: Boolean get() = isLoadingByFolder[selectedFolderId] ?: false
-    }
+    )
+
+    data class ChatsState(
+        val chats: List<ChatModel> = emptyList(),
+        val isLoading: Boolean = false
+    )
+
+    @Immutable
+    data class SelectionState(
+        val selectedChatIds: Set<Long> = emptySet(),
+        val activeChatId: Long? = null
+    )
+
+    @Immutable
+    data class SearchState(
+        val isSearchActive: Boolean = false,
+        val searchQuery: String = "",
+        val searchResults: List<ChatModel> = emptyList(),
+        val globalSearchResults: List<ChatModel> = emptyList(),
+        val messageSearchResults: List<MessageModel> = emptyList(),
+        val recentUsers: List<ChatModel> = emptyList(),
+        val recentOthers: List<ChatModel> = emptyList(),
+        val canLoadMoreMessages: Boolean = false
+    )
 }

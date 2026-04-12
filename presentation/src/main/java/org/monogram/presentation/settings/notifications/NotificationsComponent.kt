@@ -1,7 +1,11 @@
 package org.monogram.presentation.settings.notifications
 
 import android.os.Parcelable
-import com.arkivanov.decompose.router.stack.*
+import com.arkivanov.decompose.router.stack.ChildStack
+import com.arkivanov.decompose.router.stack.StackNavigation
+import com.arkivanov.decompose.router.stack.childStack
+import com.arkivanov.decompose.router.stack.pop
+import com.arkivanov.decompose.router.stack.push
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
@@ -61,6 +65,7 @@ interface NotificationsComponent {
         val showSenderOnly: Boolean = false,
         val pushProvider: PushProvider = PushProvider.FCM,
         val isGmsAvailable: Boolean = false,
+        val isUnifiedPushAvailable: Boolean = false,
         val privateExceptions: List<ChatModel>? = null,
         val groupExceptions: List<ChatModel>? = null,
         val channelExceptions: List<ChatModel>? = null
@@ -163,7 +168,12 @@ class DefaultNotificationsComponent(
             _state.update { it.copy(pushProvider = value) }
         }.launchIn(scope)
 
-        _state.update { it.copy(isGmsAvailable = distrManager.isGmsAvailable()) }
+        _state.update {
+            it.copy(
+                isGmsAvailable = distrManager.isGmsAvailable() && distrManager.isFcmAvailable(),
+                isUnifiedPushAvailable = distrManager.isUnifiedPushDistributorAvailable()
+            )
+        }
 
         syncSettings()
     }
@@ -296,7 +306,12 @@ class DefaultNotificationsComponent(
         onPriorityChanged(1)
         onRepeatNotificationsChanged(0)
         onShowSenderOnlyToggled(false)
-        onPushProviderChanged(if (_state.value.isGmsAvailable) PushProvider.FCM else PushProvider.GMS_LESS)
+        val defaultProvider = when {
+            _state.value.isGmsAvailable -> PushProvider.FCM
+            _state.value.isUnifiedPushAvailable -> PushProvider.UNIFIED_PUSH
+            else -> PushProvider.GMS_LESS
+        }
+        onPushProviderChanged(defaultProvider)
     }
 
     override fun onExceptionClicked(scope: TdNotificationScope) {

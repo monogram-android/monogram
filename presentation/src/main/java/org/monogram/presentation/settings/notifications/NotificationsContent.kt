@@ -1,19 +1,59 @@
 package org.monogram.presentation.settings.notifications
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Campaign
+import androidx.compose.material.icons.rounded.ChatBubbleOutline
+import androidx.compose.material.icons.rounded.Group
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.PriorityHigh
+import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.material.icons.rounded.Vibration
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -29,6 +69,8 @@ import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsItem
 import org.monogram.presentation.core.ui.SettingsSwitchTile
+import org.monogram.presentation.core.util.findActivity
+import org.unifiedpush.android.connector.UnifiedPush
 
 @Composable
 fun NotificationsContent(component: NotificationsComponent) {
@@ -44,6 +86,7 @@ fun NotificationsContent(component: NotificationsComponent) {
 @Composable
 private fun NotificationsMainContent(component: NotificationsComponent) {
     val state by component.state.subscribeAsState()
+    val context = LocalContext.current
     var showVibrationSheet by remember { mutableStateOf(false) }
     var showPrioritySheet by remember { mutableStateOf(false) }
     var showRepeatSheet by remember { mutableStateOf(false) }
@@ -196,6 +239,7 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                     title = stringResource(R.string.push_provider_title),
                     subtitle = when (state.pushProvider) {
                         PushProvider.FCM -> stringResource(R.string.push_provider_fcm)
+                        PushProvider.UNIFIED_PUSH -> stringResource(R.string.push_provider_unified)
                         PushProvider.GMS_LESS -> stringResource(R.string.push_provider_gms_less)
                     },
                     iconBackgroundColor = Color(0xFF4CAF50),
@@ -209,6 +253,7 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                     checked = state.backgroundServiceEnabled,
                     iconColor = Color(0xFF607D8B),
                     position = ItemPosition.MIDDLE,
+                    enabled = state.pushProvider == PushProvider.GMS_LESS,
                     onCheckedChange = component::onBackgroundServiceToggled
                 )
                 SettingsSwitchTile(
@@ -218,6 +263,7 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                     checked = state.hideForegroundNotification,
                     iconColor = Color(0xFF9E9E9E),
                     position = ItemPosition.BOTTOM,
+                    enabled = state.pushProvider == PushProvider.GMS_LESS,
                     onCheckedChange = component::onHideForegroundNotificationToggled
                 )
             }
@@ -349,6 +395,9 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
         if (state.isGmsAvailable) {
             options.add(PushProvider.FCM.name to stringResource(R.string.push_provider_fcm))
         }
+        if (state.isUnifiedPushAvailable) {
+            options.add(PushProvider.UNIFIED_PUSH.name to stringResource(R.string.push_provider_unified))
+        }
         options.add(PushProvider.GMS_LESS.name to stringResource(R.string.push_provider_gms_less))
 
         NotificationOptionSheet(
@@ -356,8 +405,35 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
             options = options,
             selectedOption = state.pushProvider.name,
             onOptionSelected = {
-                component.onPushProviderChanged(PushProvider.valueOf(it))
-                showPushProviderSheet = false
+                val selected = PushProvider.valueOf(it)
+                if (selected != PushProvider.UNIFIED_PUSH) {
+                    component.onPushProviderChanged(selected)
+                    showPushProviderSheet = false
+                    return@NotificationOptionSheet
+                }
+
+                val activity = context.findActivity()
+                if (activity == null) {
+                    Toast.makeText(
+                        context,
+                        "Cannot select UnifiedPush without active activity",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@NotificationOptionSheet
+                }
+
+                UnifiedPush.tryUseCurrentOrDefaultDistributor(activity) { success ->
+                    if (success) {
+                        component.onPushProviderChanged(PushProvider.UNIFIED_PUSH)
+                        showPushProviderSheet = false
+                    } else {
+                        Toast.makeText(
+                            context,
+                            "UnifiedPush distributor not selected",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             },
             onDismiss = { showPushProviderSheet = false }
         )

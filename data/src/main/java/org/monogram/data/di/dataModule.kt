@@ -81,6 +81,8 @@ import org.monogram.data.mapper.WebPageMapper
 import org.monogram.data.mapper.message.MessageContentMapper
 import org.monogram.data.mapper.message.MessagePersistenceMapper
 import org.monogram.data.mapper.message.MessageSenderResolver
+import org.monogram.data.push.PushSyncTrigger
+import org.monogram.data.push.UnifiedPushManager
 import org.monogram.data.repository.AttachMenuBotRepositoryImpl
 import org.monogram.data.repository.AuthRepositoryImpl
 import org.monogram.data.repository.BotRepositoryImpl
@@ -100,6 +102,7 @@ import org.monogram.data.repository.PollRepositoryImpl
 import org.monogram.data.repository.PremiumRepositoryImpl
 import org.monogram.data.repository.PrivacyRepositoryImpl
 import org.monogram.data.repository.ProfilePhotoRepositoryImpl
+import org.monogram.data.repository.PushDebugRepositoryImpl
 import org.monogram.data.repository.SessionRepositoryImpl
 import org.monogram.data.repository.SponsorRepositoryImpl
 import org.monogram.data.repository.StickerRepositoryImpl
@@ -140,6 +143,7 @@ import org.monogram.domain.repository.PollRepository
 import org.monogram.domain.repository.PremiumRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.ProfilePhotoRepository
+import org.monogram.domain.repository.PushDebugRepository
 import org.monogram.domain.repository.SessionRepository
 import org.monogram.domain.repository.SponsorRepository
 import org.monogram.domain.repository.StickerRepository
@@ -485,6 +489,9 @@ val dataModule = module {
         )
     }
 
+    single { PushSyncTrigger(connectionManager = get()) }
+    single { UnifiedPushManager(androidContext()) }
+
     single {
         ChatsListRepositoryImpl(
             remoteDataSource = get(),
@@ -796,5 +803,17 @@ val dataModule = module {
         )
     }
 
-    single(createdAtStart = true) { TdNotificationManager(androidContext(), get(), get(), get(), get(), get(), get()) }
+    single<PushDebugRepository> {
+        PushDebugRepositoryImpl(
+            context = androidContext(),
+            appPreferences = get(),
+            unifiedPushManager = get(),
+            pushSyncTrigger = get(),
+            scope = get()
+        )
+    }
+
+    single(createdAtStart = true) {
+        TdNotificationManager(androidContext(), get(), get(), get(), get(), get(), get(), get())
+    }
 }

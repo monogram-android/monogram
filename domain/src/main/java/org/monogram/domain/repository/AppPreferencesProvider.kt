@@ -3,7 +3,7 @@ package org.monogram.domain.repository
 import kotlinx.coroutines.flow.StateFlow
 
 enum class PushProvider {
-    FCM, GMS_LESS
+    FCM, UNIFIED_PUSH, GMS_LESS
 }
 
 enum class ProxyNetworkType {

@@ -17,6 +17,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -39,6 +42,9 @@ class TdNotificationService : Service() {
         const val FOREGROUND_ID = 999
         const val ACTION_STOP = "org.monogram.data.service.ACTION_STOP"
         private const val CHECK_INTERVAL = 60_000L // 1 minute
+
+        private val _isRunningFlow = MutableStateFlow(false)
+        val isRunningFlow: StateFlow<Boolean> = _isRunningFlow.asStateFlow()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -51,11 +57,12 @@ class TdNotificationService : Service() {
 
         if (!isServiceRunning) {
             isServiceRunning = true
+            _isRunningFlow.value = true
             // Call startForeground as soon as possible to satisfy
             // startForegroundService() timing requirements on Android 8+.
             startForegroundNotification()
 
-            if (appPreferences.pushProvider.value == PushProvider.FCM) {
+            if (appPreferences.pushProvider.value != PushProvider.GMS_LESS) {
                 stopForegroundService()
                 return START_NOT_STICKY
             }
@@ -63,7 +70,7 @@ class TdNotificationService : Service() {
             acquireWakeLock()
             startListeningUpdates()
             startPeriodicCheck()
-        } else if (appPreferences.pushProvider.value == PushProvider.FCM) {
+        } else if (appPreferences.pushProvider.value != PushProvider.GMS_LESS) {
             stopForegroundService()
             return START_NOT_STICKY
         }
@@ -71,7 +78,7 @@ class TdNotificationService : Service() {
     }
 
     private fun acquireWakeLock() {
-        if (appPreferences.pushProvider.value == PushProvider.FCM) return
+        if (appPreferences.pushProvider.value != PushProvider.GMS_LESS) return
         if (appPreferences.isPowerSavingMode.value) return
         if (!appPreferences.isWakeLockEnabled.value) return
 
@@ -168,6 +175,7 @@ class TdNotificationService : Service() {
 
     private fun stopForegroundService(userInitiated: Boolean = false) {
         isServiceRunning = false
+        _isRunningFlow.value = false
         checkJob?.cancel()
         checkJob = null
         releaseWakeLock()
@@ -197,7 +205,7 @@ class TdNotificationService : Service() {
             ) { powerSaving, wakeLockEnabled, batteryOptimization, pushProvider ->
                 Quadruple(powerSaving, wakeLockEnabled, batteryOptimization, pushProvider)
             }.collect { (isPowerSaving, isWakeLockEnabled, isBatteryOptimization, pushProvider) ->
-                if (pushProvider == PushProvider.FCM) {
+                if (pushProvider != PushProvider.GMS_LESS) {
                     stopForegroundService()
                     return@collect
                 }
@@ -217,7 +225,7 @@ class TdNotificationService : Service() {
         checkJob?.cancel()
         checkJob = serviceScope.launch {
             while (isActive) {
-                if (appPreferences.pushProvider.value == PushProvider.FCM || (!appPreferences.backgroundServiceEnabled.value && appPreferences.pushProvider.value == PushProvider.GMS_LESS)) {
+                if (appPreferences.pushProvider.value != PushProvider.GMS_LESS || !appPreferences.backgroundServiceEnabled.value) {
                     stopForegroundService()
                     break
                 }
@@ -257,6 +265,7 @@ class TdNotificationService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isServiceRunning = false
+        _isRunningFlow.value = false
         serviceScope.cancel()
         releaseWakeLock()
     }

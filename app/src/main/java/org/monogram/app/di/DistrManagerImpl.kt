@@ -6,6 +6,7 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.firebase.FirebaseApp
 import org.monogram.domain.managers.DistrManager
+import org.unifiedpush.android.connector.UnifiedPush
 
 class DistrManagerImpl(private val context: Context) : DistrManager {
     override fun isGmsAvailable(): Boolean {
@@ -14,6 +15,10 @@ class DistrManagerImpl(private val context: Context) : DistrManager {
 
     override fun isFcmAvailable(): Boolean {
         return FirebaseApp.getApps(context).isNotEmpty()
+    }
+
+    override fun isUnifiedPushDistributorAvailable(): Boolean {
+        return UnifiedPush.getDistributors(context).isNotEmpty()
     }
 
     override fun isInstalledFromGooglePlay(): Boolean {

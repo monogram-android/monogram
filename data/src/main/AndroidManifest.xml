@@ -20,6 +20,14 @@
             android:exported="false" />
         <receiver android:name=".service.NotificationDismissReceiver" android:exported="false" />
         <receiver android:name=".service.NotificationReadReceiver" android:exported="false"/>
+
+        <service
+            android:name=".service.UnifiedPushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
+            </intent-filter>
+        </service>
         <receiver android:name=".service.UpdateInstallReceiver" android:exported="false"/>
     </application>
 

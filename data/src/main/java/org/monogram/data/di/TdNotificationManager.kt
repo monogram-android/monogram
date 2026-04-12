@@ -44,6 +44,7 @@ import org.monogram.data.db.dao.NotificationSettingDao
 import org.monogram.data.db.model.NotificationSettingEntity
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
+import org.monogram.data.push.UnifiedPushManager
 import org.monogram.data.service.NotificationDismissReceiver
 import org.monogram.data.service.NotificationReadReceiver
 import org.monogram.data.service.NotificationReplyReceiver
@@ -62,7 +63,8 @@ class TdNotificationManager(
     private val notificationSettingsRepository: NotificationSettingsRepository,
     private val notificationSettingDao: NotificationSettingDao,
     private val fileQueue: FileDownloadQueue,
-    private val stringProvider: StringProvider
+    private val stringProvider: StringProvider,
+    private val unifiedPushManager: UnifiedPushManager
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val notificationManager = NotificationManagerCompat.from(context)
@@ -194,6 +196,14 @@ class TdNotificationManager(
                 updatePushRegistration()
             }
         }
+
+        scope.launch {
+            unifiedPushManager.endpoint.collect {
+                if (appPreferences.pushProvider.value == PushProvider.UNIFIED_PUSH && !it.isNullOrBlank()) {
+                    updatePushRegistration()
+                }
+            }
+        }
     }
 
     private fun updateChatNotificationSettings(chatId: Long, settings: TdApi.ChatNotificationSettings) {
@@ -214,6 +224,7 @@ class TdNotificationManager(
         when (appPreferences.pushProvider.value) {
             PushProvider.FCM -> {
                 coRunCatching {
+                    unifiedPushManager.unregister()
                     val token = FirebaseMessaging.getInstance().token.await()
                     gateway.execute(
                         TdApi.RegisterDevice(
@@ -224,8 +235,27 @@ class TdNotificationManager(
                 }.onFailure { Log.e(TAG, "FCM token registration failed", it) }
             }
 
+            PushProvider.UNIFIED_PUSH -> {
+                coRunCatching {
+                    unifiedPushManager.ensureRegistered()
+                    val endpoint = unifiedPushManager.endpoint.value
+                    if (endpoint.isNullOrBlank()) {
+                        Log.w(TAG, "UnifiedPush endpoint is not available yet")
+                        return@coRunCatching
+                    }
+
+                    gateway.execute(
+                        TdApi.RegisterDevice(
+                            TdApi.DeviceTokenSimplePush(endpoint),
+                            longArrayOf()
+                        )
+                    )
+                }.onFailure { Log.e(TAG, "UnifiedPush registration failed", it) }
+            }
+
             PushProvider.GMS_LESS -> {
                 coRunCatching {
+                    unifiedPushManager.unregister()
                     gateway.execute(
                         TdApi.RegisterDevice(
                             TdApi.DeviceTokenFirebaseCloudMessaging("", false),

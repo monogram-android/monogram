@@ -340,8 +340,7 @@ fun DebugContent(component: DebugComponent) {
                     position = ItemPosition.TOP,
                     onClick = component::onCrashClicked
                 )
-            }
-            item {
+
                 SettingsItem(
                     icon = Icons.Rounded.Storage,
                     title = "Drop Databases",
@@ -350,8 +349,7 @@ fun DebugContent(component: DebugComponent) {
                     position = ItemPosition.MIDDLE,
                     onClick = component::onDropDatabasesClicked
                 )
-            }
-            item {
+
                 SettingsItem(
                     icon = Icons.Rounded.Storage,
                     title = "Drop Cache Database",
@@ -360,8 +358,7 @@ fun DebugContent(component: DebugComponent) {
                     position = ItemPosition.MIDDLE,
                     onClick = component::onDropDatabaseCacheClicked
                 )
-            }
-            item {
+
                 SettingsItem(
                     icon = Icons.Rounded.DeleteSweep,
                     title = "Drop Cache",
@@ -370,8 +367,7 @@ fun DebugContent(component: DebugComponent) {
                     position = ItemPosition.MIDDLE,
                     onClick = component::onDropCachePrefsClicked
                 )
-            }
-            item {
+
                 SettingsItem(
                     icon = Icons.Rounded.Delete,
                     title = "Drop Prefs",
@@ -380,6 +376,7 @@ fun DebugContent(component: DebugComponent) {
                     position = ItemPosition.BOTTOM,
                     onClick = component::onDropPrefsClicked
                 )
+
                 Spacer(modifier = Modifier.height(padding.calculateBottomPadding()))
             }
         }

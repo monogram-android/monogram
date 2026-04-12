@@ -57,6 +57,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -105,24 +106,8 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentBackground
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentList
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentTopBar
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentTopBarUiState
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatMessageOptionsMenu
-import org.monogram.presentation.features.chats.currentChat.chatContent.GroupedMessageItem
-import org.monogram.presentation.features.chats.currentChat.chatContent.ReportChatDialog
-import org.monogram.presentation.features.chats.currentChat.chatContent.RestrictUserSheet
-import org.monogram.presentation.features.chats.currentChat.chatContent.chatContentLeadingItemsCount
-import org.monogram.presentation.features.chats.currentChat.chatContent.groupMessagesByAlbum
-import org.monogram.presentation.features.chats.currentChat.chatContent.groupedIndexToLazyIndex
-import org.monogram.presentation.features.chats.currentChat.chatContent.lazyIndexToGroupedIndex
-import org.monogram.presentation.features.chats.currentChat.components.AdvancedCircularRecorderScreen
-import org.monogram.presentation.features.chats.currentChat.components.ChatInputBar
-import org.monogram.presentation.features.chats.currentChat.components.ChatInputBarActions
-import org.monogram.presentation.features.chats.currentChat.components.ChatInputBarState
-import org.monogram.presentation.features.chats.currentChat.components.MessageListShimmer
-import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
+import org.monogram.presentation.features.chats.currentChat.chatContent.*
+import org.monogram.presentation.features.chats.currentChat.components.*
 import org.monogram.presentation.features.chats.currentChat.components.chats.BotCommandsSheet
 import org.monogram.presentation.features.chats.currentChat.components.chats.LocalLinkHandler
 import org.monogram.presentation.features.chats.currentChat.components.chats.PollVotersSheet
@@ -141,7 +126,14 @@ fun ChatContent(
     component: ChatComponent,
     isOverlay: Boolean = false,
 ) {
-    val state by component.state.collectAsState()
+    val chatUiState by component.chatUiState.collectAsState()
+    val selectionState by component.selectionState.collectAsState()
+    val searchState by component.searchState.collectAsState()
+    val appearanceState by component.appearanceState.collectAsState()
+    val messagesState by component.messagesState.collectAsState()
+    val inputState by component.inputState.collectAsState()
+    val pinnedState by component.pinnedState.collectAsState()
+    val mediaViewerState by component.mediaViewerState.collectAsState()
     val scrollState = rememberLazyListState()
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -163,7 +155,7 @@ fun ChatContent(
     var selectedMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
     val transformedMessageTexts = remember { mutableStateMapOf<Long, String>() }
     val originalMessageTexts = remember { mutableStateMapOf<Long, String>() }
-    val latestMessagesState = rememberUpdatedState(state.messages)
+    val latestMessagesState = rememberUpdatedState(messagesState.messages)
     val selectedMessageIdState = rememberUpdatedState(selectedMessageId)
     val displayMessages by remember {
         derivedStateOf {
@@ -215,17 +207,18 @@ fun ChatContent(
             }
         }
     }
-    val isComments = state.rootMessage != null
-    val isForumList = state.viewAsTopics && state.currentTopicId == null
+    val isComments = chatUiState.rootMessage != null
+    val isForumList = chatUiState.viewAsTopics && chatUiState.currentTopicId == null
     var showScrollToBottomButton by remember { mutableStateOf(false) }
+    var lastAutoScrollMessageCount by remember(chatUiState.chatId, chatUiState.currentTopicId) { mutableIntStateOf(0) }
 
-    val isAnyViewerOpen = state.fullScreenImages != null ||
-            state.fullScreenVideoPath != null ||
-            state.fullScreenVideoMessageId != null ||
-            state.youtubeUrl != null ||
-            state.instantViewUrl != null ||
-            state.miniAppUrl != null ||
-            state.webViewUrl != null ||
+    val isAnyViewerOpen = mediaViewerState.fullScreenImages != null ||
+            mediaViewerState.fullScreenVideoPath != null ||
+            mediaViewerState.fullScreenVideoMessageId != null ||
+            mediaViewerState.youtubeUrl != null ||
+            mediaViewerState.instantViewUrl != null ||
+            mediaViewerState.miniAppUrl != null ||
+            mediaViewerState.webViewUrl != null ||
             editingPhotoPath != null ||
             editingVideoPath != null ||
             isRecordingVideo
@@ -237,19 +230,19 @@ fun ChatContent(
                 val leadingItems = chatContentLeadingItemsCount(
                     isComments = isComments,
                     showNavPadding = false,
-                    isLoadingOlder = state.isLoadingOlder,
-                    isLoadingNewer = state.isLoadingNewer,
-                    isAtBottom = state.isAtBottom,
+                    isLoadingOlder = messagesState.isLoadingOlder,
+                    isLoadingNewer = messagesState.isLoadingNewer,
+                    isAtBottom = messagesState.isAtBottom,
                     hasMessages = groupedMessages.isNotEmpty()
                 )
                 val targetIndex = groupedIndexToLazyIndex(index, leadingItems)
 
-                scrollState.scrollToMessageIndex(
-                    index = targetIndex,
-                    align = ScrollAlign.Center,
-                    animated = state.isChatAnimationsEnabled,
-                    staged = true
-                )
+                    scrollState.scrollToMessageIndex(
+                        index = targetIndex,
+                        align = ScrollAlign.Center,
+                        animated = appearanceState.isChatAnimationsEnabled,
+                        staged = true
+                    )
             }
         } else {
             component.onPinnedMessageClick(msg)
@@ -258,14 +251,14 @@ fun ChatContent(
 
     LaunchedEffect(Unit) {
         isVisible = true
-        if (state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null) {
+        if (mediaViewerState.fullScreenVideoPath != null || mediaViewerState.fullScreenVideoMessageId != null) {
             component.onDismissVideo()
         }
     }
 
-    LaunchedEffect(state.messages) {
+    LaunchedEffect(messagesState.messages) {
         if (transformedMessageTexts.isEmpty() && originalMessageTexts.isEmpty()) return@LaunchedEffect
-        val ids = state.messages.map { it.id }.toSet()
+        val ids = messagesState.messages.map { it.id }.toSet()
         transformedMessageTexts.keys.toList().forEach { id ->
             if (id !in ids) {
                 transformedMessageTexts.remove(id)
@@ -276,22 +269,22 @@ fun ChatContent(
 
     // Initial Loading Delay logic
     LaunchedEffect(
-        state.isLoading,
-        state.messages.isEmpty(),
-        state.viewAsTopics,
-        state.currentTopicId,
-        state.isLoadingTopics,
-        state.rootMessage
+        messagesState.isLoading,
+        messagesState.messages.isEmpty(),
+        chatUiState.viewAsTopics,
+        chatUiState.currentTopicId,
+        chatUiState.isLoadingTopics,
+        chatUiState.rootMessage
     ) {
-        val isActuallyLoading = if (state.viewAsTopics && state.currentTopicId == null) {
-            state.isLoadingTopics && state.topics.isEmpty()
-        } else if (state.currentTopicId != null) {
-            state.isLoading && state.messages.isEmpty() && state.rootMessage == null
+        val isActuallyLoading = if (chatUiState.viewAsTopics && chatUiState.currentTopicId == null) {
+            chatUiState.isLoadingTopics && chatUiState.topics.isEmpty()
+        } else if (chatUiState.currentTopicId != null) {
+            messagesState.isLoading && messagesState.messages.isEmpty() && chatUiState.rootMessage == null
         } else {
-            state.isLoading && state.messages.isEmpty()
+            messagesState.isLoading && messagesState.messages.isEmpty()
         }
         if (isActuallyLoading) {
-            if (state.isChatAnimationsEnabled) delay(200)
+            if (appearanceState.isChatAnimationsEnabled) delay(200)
             showInitialLoading = true
         } else {
             showInitialLoading = false
@@ -299,15 +292,15 @@ fun ChatContent(
     }
 
     // Unified command-based scrolling: restore, jump, bottom.
-    LaunchedEffect(state.pendingScrollCommand, isComments) {
-        val command = state.pendingScrollCommand ?: return@LaunchedEffect
+    LaunchedEffect(messagesState.pendingScrollCommand, isComments) {
+        val command = messagesState.pendingScrollCommand ?: return@LaunchedEffect
 
         val leadingItems = chatContentLeadingItemsCount(
             isComments = isComments,
             showNavPadding = false,
-            isLoadingOlder = state.isLoadingOlder,
-            isLoadingNewer = state.isLoadingNewer,
-            isAtBottom = state.isAtBottom,
+            isLoadingOlder = messagesState.isLoadingOlder,
+            isLoadingNewer = messagesState.isLoadingNewer,
+            isAtBottom = messagesState.isAtBottom,
             hasMessages = groupedMessages.isNotEmpty()
         )
 
@@ -353,7 +346,7 @@ fun ChatContent(
                     scrollState.scrollToMessageIndex(
                         index = targetIndex,
                         align = command.align,
-                        animated = command.animated && state.isChatAnimationsEnabled,
+                        animated = command.animated && appearanceState.isChatAnimationsEnabled,
                         staged = true
                     )
                 }
@@ -363,7 +356,7 @@ fun ChatContent(
             is ChatScrollCommand.ScrollToBottom -> {
                 scrollState.scrollToChatBottomStaged(
                     isComments = isComments,
-                    animated = command.animated && state.isChatAnimationsEnabled
+                    animated = command.animated && appearanceState.isChatAnimationsEnabled
                 )
                 component.onScrollCommandConsumed()
             }
@@ -382,12 +375,12 @@ fun ChatContent(
             BottomVisibilitySnapshot(
                 isAtBottom = scrollState.isAtBottom(
                     isComments = isComments,
-                    isLatestLoaded = state.isLatestLoaded
+                    isLatestLoaded = messagesState.isLatestLoaded
                 ),
                 isNearBottom = scrollState.isNearBottom(
                     isComments = isComments
                 ),
-                unreadCount = state.unreadCount
+                unreadCount = chatUiState.unreadCount
             )
         }
             .distinctUntilChanged()
@@ -418,20 +411,20 @@ fun ChatContent(
         scrollState,
         groupedMessages,
         isComments,
-        state.isLatestLoaded,
-        state.isLoadingOlder,
-        state.isLoadingNewer,
-        state.isAtBottom
+        messagesState.isLatestLoaded,
+        messagesState.isLoadingOlder,
+        messagesState.isLoadingNewer,
+        messagesState.isAtBottom
     ) {
         snapshotFlow {
             buildViewportSnapshot(
                 scrollState = scrollState,
                 groupedMessages = groupedMessages,
                 isComments = isComments,
-                isLatestLoaded = state.isLatestLoaded,
-                isLoadingOlder = state.isLoadingOlder,
-                isLoadingNewer = state.isLoadingNewer,
-                isAtBottom = state.isAtBottom,
+                isLatestLoaded = messagesState.isLatestLoaded,
+                isLoadingOlder = messagesState.isLoadingOlder,
+                isLoadingNewer = messagesState.isLoadingNewer,
+                isAtBottom = messagesState.isAtBottom,
                 showNavPadding = false
             )
         }
@@ -447,21 +440,21 @@ fun ChatContent(
         scrollState,
         groupedMessages,
         isComments,
-        state.currentTopicId,
-        state.isLatestLoaded,
-        state.isLoadingOlder,
-        state.isLoadingNewer,
-        state.isAtBottom
+        chatUiState.currentTopicId,
+        messagesState.isLatestLoaded,
+        messagesState.isLoadingOlder,
+        messagesState.isLoadingNewer,
+        messagesState.isAtBottom
     ) {
         onDispose {
             val viewport = buildViewportSnapshot(
                 scrollState = scrollState,
                 groupedMessages = groupedMessages,
                 isComments = isComments,
-                isLatestLoaded = state.isLatestLoaded,
-                isLoadingOlder = state.isLoadingOlder,
-                isLoadingNewer = state.isLoadingNewer,
-                isAtBottom = state.isAtBottom,
+                isLatestLoaded = messagesState.isLatestLoaded,
+                isLoadingOlder = messagesState.isLoadingOlder,
+                isLoadingNewer = messagesState.isLoadingNewer,
+                isAtBottom = messagesState.isAtBottom,
                 showNavPadding = false
             )
             if (viewport != null) {
@@ -471,7 +464,7 @@ fun ChatContent(
     }
 
     // Performance: Update visible range for repository
-    LaunchedEffect(scrollState, groupedMessages, state.rootMessage) {
+    LaunchedEffect(scrollState, groupedMessages, chatUiState.rootMessage) {
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
             .map { visibleItems ->
                 val visibleIds = LinkedHashSet<Long>()
@@ -481,7 +474,7 @@ fun ChatContent(
                     val maxIndex = visibleItems.maxOf { it.index }
 
                     visibleItems.forEach { item ->
-                        val groupedIndex = if (state.rootMessage != null) item.index - 1 else item.index
+                        val groupedIndex = if (chatUiState.rootMessage != null) item.index - 1 else item.index
                         groupedMessages.getOrNull(groupedIndex)?.let { grouped ->
                             when (grouped) {
                                 is GroupedMessageItem.Single -> visibleIds.add(grouped.message.id)
@@ -496,7 +489,7 @@ fun ChatContent(
                     val nearbyEnd = maxIndex + 5
                     for (index in nearbyStart..nearbyEnd) {
                         if (index in minIndex..maxIndex) continue
-                        val groupedIndex = if (state.rootMessage != null) index - 1 else index
+                        val groupedIndex = if (chatUiState.rootMessage != null) index - 1 else index
                         groupedMessages.getOrNull(groupedIndex)?.let { grouped ->
                             when (grouped) {
                                 is GroupedMessageItem.Single -> nearbyIds.add(grouped.message.id)
@@ -521,22 +514,27 @@ fun ChatContent(
 
     // Auto-scroll to bottom when new messages arrive and we are already at the bottom
     val messageCount = groupedMessages.size
-    LaunchedEffect(messageCount, state.isLatestLoaded) {
-        if (isComments) return@LaunchedEffect
+    LaunchedEffect(messageCount, messagesState.isLatestLoaded, isComments) {
+        val previousMessageCount = lastAutoScrollMessageCount
+        lastAutoScrollMessageCount = messageCount
+
+        if (isComments || previousMessageCount == 0 || messageCount <= previousMessageCount) {
+            return@LaunchedEffect
+        }
 
         val isAtBottomNow = scrollState.isAtBottom(
             isComments = isComments,
-            isLatestLoaded = state.isLatestLoaded
+            isLatestLoaded = messagesState.isLatestLoaded
         )
-        if ((state.isAtBottom || isAtBottomNow) &&
-            !state.isLoading &&
-            !state.isLoadingOlder &&
-            !state.isLoadingNewer &&
+        if ((messagesState.isAtBottom || isAtBottomNow) &&
+            !messagesState.isLoading &&
+            !messagesState.isLoadingOlder &&
+            !messagesState.isLoadingNewer &&
             !scrollState.isScrollInProgress
         ) {
             scrollState.scrollToChatBottomStaged(
                 isComments = isComments,
-                animated = state.isChatAnimationsEnabled
+                animated = appearanceState.isChatAnimationsEnabled
             )
         }
     }
@@ -550,8 +548,8 @@ fun ChatContent(
         }
     }
 
-    LaunchedEffect(state.showBotCommands, isRecordingVideo) {
-        if (state.showBotCommands || isRecordingVideo) {
+    LaunchedEffect(chatUiState.showBotCommands, isRecordingVideo) {
+        if (chatUiState.showBotCommands || isRecordingVideo) {
             focusManager.clearFocus(force = true)
             keyboardController?.hide()
         }
@@ -580,47 +578,47 @@ fun ChatContent(
 
 
     val contentAlpha by animateFloatAsState(
-        targetValue = if (isVisible || !state.isChatAnimationsEnabled || isOverlay) 1f else 0f,
-        animationSpec = if (state.isChatAnimationsEnabled && !isOverlay) tween(300) else snap(),
+        targetValue = if (isVisible || !appearanceState.isChatAnimationsEnabled || isOverlay) 1f else 0f,
+        animationSpec = if (appearanceState.isChatAnimationsEnabled && !isOverlay) tween(300) else snap(),
         label = "ContentAlpha"
     )
     val contentOffset by animateDpAsState(
-        targetValue = if (isVisible || !state.isChatAnimationsEnabled || isOverlay) 0.dp else 20.dp,
-        animationSpec = if (state.isChatAnimationsEnabled && !isOverlay) tween(300) else snap(),
+        targetValue = if (isVisible || !appearanceState.isChatAnimationsEnabled || isOverlay) 0.dp else 20.dp,
+        animationSpec = if (appearanceState.isChatAnimationsEnabled && !isOverlay) tween(300) else snap(),
         label = "ContentOffset"
     )
 
     val showInputBar by remember(
-        state.isMember,
-        state.isChannel,
-        state.isGroup,
-        state.canWrite,
-        state.currentTopicId,
-        state.selectedMessageIds,
-        state.viewAsTopics,
+        chatUiState.isMember,
+        chatUiState.isChannel,
+        chatUiState.isGroup,
+        chatUiState.canWrite,
+        chatUiState.currentTopicId,
+        selectionState.selectedMessageIds,
+        chatUiState.viewAsTopics,
         isRecordingVideo
     ) {
         derivedStateOf {
-            (state.isMember || !state.isChannel && !state.isGroup) &&
-                    (state.canWrite || state.currentTopicId != null) &&
+            (chatUiState.isMember || !chatUiState.isChannel && !chatUiState.isGroup) &&
+                    (chatUiState.canWrite || chatUiState.currentTopicId != null) &&
                     !isRecordingVideo &&
-                    state.selectedMessageIds.isEmpty() &&
-                    (!state.viewAsTopics || state.currentTopicId != null)
+                    selectionState.selectedMessageIds.isEmpty() &&
+                    (!chatUiState.viewAsTopics || chatUiState.currentTopicId != null)
         }
     }
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    var renderPinnedMessagesList by rememberSaveable { mutableStateOf(state.showPinnedMessagesList) }
+    var renderPinnedMessagesList by rememberSaveable { mutableStateOf(pinnedState.showPinnedMessagesList) }
     var pendingPinnedSheetAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
-    LaunchedEffect(state.showPinnedMessagesList) {
-        if (state.showPinnedMessagesList) {
+    LaunchedEffect(pinnedState.showPinnedMessagesList) {
+        if (pinnedState.showPinnedMessagesList) {
             renderPinnedMessagesList = true
         }
     }
 
     val requestPinnedMessagesListDismiss = {
-        if (state.showPinnedMessagesList) {
+        if (pinnedState.showPinnedMessagesList) {
             component.onDismissPinnedMessages()
         }
     }
@@ -629,105 +627,105 @@ fun ChatContent(
         editingPhotoPath,
         editingVideoPath,
         selectedMessageId,
-        state.selectedMessageIds,
-        state.currentTopicId,
-        state.showBotCommands,
-        state.restrictUserId,
-        state.showPinnedMessagesList,
-        state.fullScreenImages,
-        state.fullScreenVideoPath,
-        state.fullScreenVideoMessageId,
-        state.miniAppUrl,
-        state.webViewUrl,
-        state.instantViewUrl,
-        state.youtubeUrl
+        selectionState.selectedMessageIds,
+        chatUiState.currentTopicId,
+        chatUiState.showBotCommands,
+        chatUiState.restrictUserId,
+        pinnedState.showPinnedMessagesList,
+        mediaViewerState.fullScreenImages,
+        mediaViewerState.fullScreenVideoPath,
+        mediaViewerState.fullScreenVideoMessageId,
+        mediaViewerState.miniAppUrl,
+        mediaViewerState.webViewUrl,
+        mediaViewerState.instantViewUrl,
+        mediaViewerState.youtubeUrl
     ) {
         derivedStateOf {
             editingPhotoPath != null ||
                     editingVideoPath != null ||
                     selectedMessageId != null ||
-                    state.selectedMessageIds.isNotEmpty() ||
-                    state.currentTopicId != null ||
-                    state.showBotCommands ||
-                    state.restrictUserId != null ||
-                    state.showPinnedMessagesList ||
-                    state.fullScreenImages != null ||
-                    state.fullScreenVideoPath != null ||
-                    state.fullScreenVideoMessageId != null ||
-                    state.miniAppUrl != null ||
-                    state.webViewUrl != null ||
-                    state.instantViewUrl != null ||
-                    state.youtubeUrl != null
+                    selectionState.selectedMessageIds.isNotEmpty() ||
+                    chatUiState.currentTopicId != null ||
+                    chatUiState.showBotCommands ||
+                    chatUiState.restrictUserId != null ||
+                    pinnedState.showPinnedMessagesList ||
+                    mediaViewerState.fullScreenImages != null ||
+                    mediaViewerState.fullScreenVideoPath != null ||
+                    mediaViewerState.fullScreenVideoMessageId != null ||
+                    mediaViewerState.miniAppUrl != null ||
+                    mediaViewerState.webViewUrl != null ||
+                    mediaViewerState.instantViewUrl != null ||
+                    mediaViewerState.youtubeUrl != null
         }
     }
-    val selectedCount = state.selectedMessageIds.size
-    val selectedMessageIdSet by remember(state.selectedMessageIds) {
-        derivedStateOf { state.selectedMessageIds.toHashSet() }
+    val selectedCount = selectionState.selectedMessageIds.size
+    val selectedMessageIdSet by remember(selectionState.selectedMessageIds) {
+        derivedStateOf { selectionState.selectedMessageIds.toHashSet() }
     }
-    val canRevokeSelected by remember(state.messages, selectedMessageIdSet) {
+    val canRevokeSelected by remember(messagesState.messages, selectedMessageIdSet) {
         derivedStateOf {
             if (selectedMessageIdSet.isEmpty()) {
                 false
             } else {
-                state.messages.any { it.id in selectedMessageIdSet && it.canBeDeletedForAllUsers }
+                messagesState.messages.any { it.id in selectedMessageIdSet && it.canBeDeletedForAllUsers }
             }
         }
     }
     val topBarUiState = remember(
-        state.currentTopicId,
-        state.rootMessage,
-        state.isGroup,
-        state.isChannel,
-        state.isAdmin,
-        state.permissions,
-        state.otherUser,
-        state.currentUser,
-        state.typingAction,
-        state.memberCount,
-        state.onlineCount,
-        state.topics,
-        state.chatTitle,
-        state.chatAvatar,
-        state.chatPersonalAvatar,
-        state.chatEmojiStatus,
-        state.isOnline,
-        state.isVerified,
-        state.isSponsor,
-        state.isWhitelistedInAdBlock,
-        state.isInstalledFromGooglePlay,
-        state.isMuted,
-        state.isSearchActive,
-        state.searchQuery,
-        state.pinnedMessage,
-        state.pinnedMessageCount
+        chatUiState.currentTopicId,
+        chatUiState.rootMessage,
+        chatUiState.isGroup,
+        chatUiState.isChannel,
+        chatUiState.isAdmin,
+        chatUiState.permissions,
+        chatUiState.otherUser,
+        chatUiState.currentUser,
+        chatUiState.typingAction,
+        chatUiState.memberCount,
+        chatUiState.onlineCount,
+        chatUiState.topics,
+        chatUiState.chatTitle,
+        chatUiState.chatAvatar,
+        chatUiState.chatPersonalAvatar,
+        chatUiState.chatEmojiStatus,
+        chatUiState.isOnline,
+        chatUiState.isVerified,
+        chatUiState.isSponsor,
+        chatUiState.isWhitelistedInAdBlock,
+        chatUiState.isInstalledFromGooglePlay,
+        chatUiState.isMuted,
+        searchState.isSearchActive,
+        searchState.searchQuery,
+        pinnedState.pinnedMessage,
+        pinnedState.pinnedMessageCount
     ) {
         ChatContentTopBarUiState(
-            currentTopicId = state.currentTopicId,
-            rootMessage = state.rootMessage,
-            isGroup = state.isGroup,
-            isChannel = state.isChannel,
-            isAdmin = state.isAdmin,
-            permissions = state.permissions,
-            otherUser = state.otherUser,
-            currentUser = state.currentUser,
-            typingAction = state.typingAction,
-            memberCount = state.memberCount,
-            onlineCount = state.onlineCount,
-            topics = state.topics,
-            chatTitle = state.chatTitle,
-            chatAvatar = state.chatAvatar,
-            chatPersonalAvatar = state.chatPersonalAvatar,
-            chatEmojiStatus = state.chatEmojiStatus,
-            isOnline = state.isOnline,
-            isVerified = state.isVerified,
-            isSponsor = state.isSponsor,
-            isWhitelistedInAdBlock = state.isWhitelistedInAdBlock,
-            isInstalledFromGooglePlay = state.isInstalledFromGooglePlay,
-            isMuted = state.isMuted,
-            isSearchActive = state.isSearchActive,
-            searchQuery = state.searchQuery,
-            pinnedMessage = state.pinnedMessage,
-            pinnedMessageCount = state.pinnedMessageCount
+            currentTopicId = chatUiState.currentTopicId,
+            rootMessage = chatUiState.rootMessage,
+            isGroup = chatUiState.isGroup,
+            isChannel = chatUiState.isChannel,
+            isAdmin = chatUiState.isAdmin,
+            permissions = chatUiState.permissions,
+            otherUser = chatUiState.otherUser,
+            currentUser = chatUiState.currentUser,
+            typingAction = chatUiState.typingAction,
+            memberCount = chatUiState.memberCount,
+            onlineCount = chatUiState.onlineCount,
+            topics = chatUiState.topics,
+            chatTitle = chatUiState.chatTitle,
+            chatAvatar = chatUiState.chatAvatar,
+            chatPersonalAvatar = chatUiState.chatPersonalAvatar,
+            chatEmojiStatus = chatUiState.chatEmojiStatus,
+            isOnline = chatUiState.isOnline,
+            isVerified = chatUiState.isVerified,
+            isSponsor = chatUiState.isSponsor,
+            isWhitelistedInAdBlock = chatUiState.isWhitelistedInAdBlock,
+            isInstalledFromGooglePlay = chatUiState.isInstalledFromGooglePlay,
+            isMuted = chatUiState.isMuted,
+            isSearchActive = searchState.isSearchActive,
+            searchQuery = searchState.searchQuery,
+            pinnedMessage = pinnedState.pinnedMessage,
+            pinnedMessageCount = pinnedState.pinnedMessageCount
         )
     }
 
@@ -752,7 +750,7 @@ fun ChatContent(
                             translationY = contentOffset.toPx()
                         }
                 ) {
-                    ChatContentBackground(state = state)
+                    ChatContentBackground(state = appearanceState)
                 }
 
                 if (isTablet) {
@@ -783,7 +781,7 @@ fun ChatContent(
                             contentAlpha = contentAlpha,
                             onBack = {
                                 keyboardController?.hide()
-                                if (state.currentTopicId != null) {
+                                if (chatUiState.currentTopicId != null) {
                                     component.onTopicClick(0)
                                 } else {
                                     component.onBackClicked()
@@ -799,36 +797,54 @@ fun ChatContent(
                     },
                     bottomBar = {
                         if (showInputBar) {
-                            val inputBarState =
-                                remember(state, pendingMediaPaths, pendingDocumentPaths) {
+                            val inputReplyMarkup = remember(messagesState.messages) {
+                                messagesState.messages.firstOrNull { it.replyMarkup is ReplyMarkupModel.ShowKeyboard }?.replyMarkup
+                            }
+                            val inputBarState = remember(
+                                inputState,
+                                pendingMediaPaths,
+                                pendingDocumentPaths,
+                                inputReplyMarkup,
+                                chatUiState.topics,
+                                chatUiState.currentTopicId,
+                                chatUiState.permissions,
+                                chatUiState.slowModeDelay,
+                                chatUiState.slowModeDelayExpiresIn,
+                                chatUiState.isCurrentUserRestricted,
+                                chatUiState.restrictedUntilDate,
+                                chatUiState.isAdmin,
+                                chatUiState.isChannel,
+                                chatUiState.currentUser,
+                                chatUiState.isSecretChat
+                            ) {
                                 ChatInputBarState(
-                                    replyMessage = state.replyMessage,
-                                    editingMessage = state.editingMessage,
-                                    draftText = state.draftText,
+                                    replyMessage = inputState.replyMessage,
+                                    editingMessage = inputState.editingMessage,
+                                    draftText = inputState.draftText,
                                     pendingMediaPaths = pendingMediaPaths,
                                     pendingDocumentPaths = pendingDocumentPaths,
-                                    isClosed = state.topics.find { it.id.toLong() == state.currentTopicId }?.isClosed
+                                    isClosed = chatUiState.topics.find { it.id.toLong() == chatUiState.currentTopicId }?.isClosed
                                         ?: false,
-                                    permissions = state.permissions,
-                                    slowModeDelay = state.slowModeDelay,
-                                    slowModeDelayExpiresIn = state.slowModeDelayExpiresIn,
-                                    isCurrentUserRestricted = state.isCurrentUserRestricted,
-                                    restrictedUntilDate = state.restrictedUntilDate,
-                                    isAdmin = state.isAdmin,
-                                    isChannel = state.isChannel,
-                                    isBot = state.isBot,
-                                    botCommands = state.botCommands,
-                                    botMenuButton = state.botMenuButton,
-                                    replyMarkup = state.messages.firstOrNull { it.replyMarkup is ReplyMarkupModel.ShowKeyboard }?.replyMarkup,
-                                    mentionSuggestions = state.mentionSuggestions,
-                                    inlineBotResults = state.inlineBotResults,
-                                    currentInlineBotUsername = state.currentInlineBotUsername,
-                                    currentInlineQuery = state.currentInlineQuery,
-                                    isInlineBotLoading = state.isInlineBotLoading,
-                                    attachBots = state.attachMenuBots,
-                                    scheduledMessages = state.scheduledMessages,
-                                    isPremiumUser = state.currentUser?.isPremium == true,
-                                    isSecretChat = state.isSecretChat
+                                    permissions = chatUiState.permissions,
+                                    slowModeDelay = chatUiState.slowModeDelay,
+                                    slowModeDelayExpiresIn = chatUiState.slowModeDelayExpiresIn,
+                                    isCurrentUserRestricted = chatUiState.isCurrentUserRestricted,
+                                    restrictedUntilDate = chatUiState.restrictedUntilDate,
+                                    isAdmin = chatUiState.isAdmin,
+                                    isChannel = chatUiState.isChannel,
+                                    isBot = inputState.isBot,
+                                    botCommands = inputState.botCommands,
+                                    botMenuButton = inputState.botMenuButton,
+                                    replyMarkup = inputReplyMarkup,
+                                    mentionSuggestions = inputState.mentionSuggestions,
+                                    inlineBotResults = inputState.inlineBotResults,
+                                    currentInlineBotUsername = inputState.currentInlineBotUsername,
+                                    currentInlineQuery = inputState.currentInlineQuery,
+                                    isInlineBotLoading = inputState.isInlineBotLoading,
+                                    attachBots = inputState.attachMenuBots,
+                                    scheduledMessages = inputState.scheduledMessages,
+                                    isPremiumUser = chatUiState.currentUser?.isPremium == true,
+                                    isSecretChat = chatUiState.isSecretChat
                                 )
                             }
 
@@ -924,14 +940,14 @@ fun ChatContent(
                                         component.onReplyMarkupButtonClick(
                                             0,
                                             it,
-                                            if (state.isBot) state.chatId else 0L
+                                            if (inputState.isBot) inputState.chatId else 0L
                                         )
                                     },
                                     onOpenMiniApp = { url, name ->
                                         component.onOpenMiniApp(
                                             url,
                                             name,
-                                            if (state.isBot) state.chatId else 0L
+                                            if (inputState.isBot) inputState.chatId else 0L
                                         )
                                     },
                                     onMentionQueryChange = { component.onMentionQueryChange(it) },
@@ -968,7 +984,7 @@ fun ChatContent(
                                 appPreferences = component.appPreferences,
                                 stickerRepository = component.stickerRepository
                             )
-                        } else if (!state.isMember && (state.isChannel || state.isGroup)) {
+                        } else if (!chatUiState.isMember && (chatUiState.isChannel || chatUiState.isGroup)) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1196,7 +1212,10 @@ fun ChatContent(
 
                             ChatContentList(
                                 showNavPadding = false,
-                                state = state,
+                                chatUiState = chatUiState,
+                                appearanceState = appearanceState,
+                                messagesState = messagesState,
+                                selectionState = selectionState,
                                 component = component,
                                 scrollState = scrollState,
                                 groupedMessages = groupedMessages,
@@ -1240,7 +1259,7 @@ fun ChatContent(
                                     }
 
                                     AnimatedVisibility(
-                                        visible = state.unreadCount > 0,
+                                        visible = chatUiState.unreadCount > 0,
                                         enter = scaleIn() + fadeIn(),
                                         exit = scaleOut() + fadeOut(),
                                         modifier = Modifier
@@ -1253,7 +1272,7 @@ fun ChatContent(
                                             shadowElevation = 4.dp
                                         ) {
                                             AnimatedContent(
-                                                targetState = state.unreadCount,
+                                                targetState = chatUiState.unreadCount,
                                                 transitionSpec = {
                                                     if (targetState > initialState) {
                                                         (slideInVertically { height -> height } + fadeIn()).togetherWith(
@@ -1310,8 +1329,8 @@ fun ChatContent(
                                         .background(MaterialTheme.colorScheme.surface)
                                 ) {
                                     MessageListShimmer(
-                                        isGroup = state.isGroup,
-                                        isChannel = state.isChannel
+                                        isGroup = chatUiState.isGroup,
+                                        isChannel = chatUiState.isChannel
                                     )
                                 }
                             }
@@ -1324,22 +1343,22 @@ fun ChatContent(
             // Modals & Overlays
             if (renderPinnedMessagesList) {
                 PinnedMessagesListSheet(
-                    isVisible = state.showPinnedMessagesList,
-                    allPinnedMessages = state.allPinnedMessages,
-                    pinnedMessageCount = state.pinnedMessageCount,
-                    isLoadingPinnedMessages = state.isLoadingPinnedMessages,
-                    isGroup = state.isGroup,
-                    isChannel = state.isChannel,
-                    fontSize = state.fontSize,
-                    letterSpacing = state.letterSpacing,
-                    bubbleRadius = state.bubbleRadius,
-                    stickerSize = state.stickerSize,
-                    autoDownloadMobile = state.autoDownloadMobile,
-                    autoDownloadWifi = state.autoDownloadWifi,
-                    autoDownloadRoaming = state.autoDownloadRoaming,
-                    autoDownloadFiles = state.autoDownloadFiles,
-                    autoplayGifs = state.autoplayGifs,
-                    autoplayVideos = state.autoplayVideos,
+                    isVisible = pinnedState.showPinnedMessagesList,
+                    allPinnedMessages = pinnedState.allPinnedMessages,
+                    pinnedMessageCount = pinnedState.pinnedMessageCount,
+                    isLoadingPinnedMessages = pinnedState.isLoadingPinnedMessages,
+                    isGroup = chatUiState.isGroup,
+                    isChannel = chatUiState.isChannel,
+                    fontSize = appearanceState.fontSize,
+                    letterSpacing = appearanceState.letterSpacing,
+                    bubbleRadius = appearanceState.bubbleRadius,
+                    stickerSize = appearanceState.stickerSize,
+                    autoDownloadMobile = appearanceState.autoDownloadMobile,
+                    autoDownloadWifi = appearanceState.autoDownloadWifi,
+                    autoDownloadRoaming = appearanceState.autoDownloadRoaming,
+                    autoDownloadFiles = appearanceState.autoDownloadFiles,
+                    autoplayGifs = appearanceState.autoplayGifs,
+                    autoplayVideos = appearanceState.autoplayVideos,
                     onDismissRequest = requestPinnedMessagesListDismiss,
                     onHidden = {
                         renderPinnedMessagesList = false
@@ -1361,7 +1380,7 @@ fun ChatContent(
                 )
             }
 
-            state.selectedStickerSet?.let { stickerSet ->
+            inputState.selectedStickerSet?.let { stickerSet ->
                 StickerSetSheet(
                     stickerSet = stickerSet,
                     onDismiss = { component.onDismissStickerSet() },
@@ -1369,10 +1388,10 @@ fun ChatContent(
                 )
             }
 
-            if (state.showPollVoters) {
+            if (chatUiState.showPollVoters) {
                 PollVotersSheet(
-                    voters = state.pollVoters,
-                    isLoading = state.isPollVotersLoading,
+                    voters = chatUiState.pollVoters,
+                    isLoading = chatUiState.isPollVotersLoading,
                     onUserClick = {
                         component.onDismissVoters()
                         component.toProfile(it)
@@ -1381,9 +1400,9 @@ fun ChatContent(
                 )
             }
 
-            if (state.showBotCommands) {
+            if (chatUiState.showBotCommands) {
                 BotCommandsSheet(
-                    commands = state.botCommands,
+                    commands = inputState.botCommands,
                     onCommandClick = { component.onBotCommandClick(it) },
                     onDismiss = { component.onDismissBotCommands() }
                 )
@@ -1397,7 +1416,9 @@ fun ChatContent(
 
             selectedMessage?.let { msg ->
                 ChatMessageOptionsMenu(
-                    state = state,
+                    chatUiState = chatUiState,
+                    appearanceState = appearanceState,
+                    pinnedState = pinnedState,
                     component = component,
                     selectedMessage = msg,
                     menuOffset = menuOffset,
@@ -1443,14 +1464,14 @@ fun ChatContent(
                 )
             }
 
-            if (state.showReportDialog) {
+            if (chatUiState.showReportDialog) {
                 ReportChatDialog(
                     onDismiss = { component.onDismissReportDialog() },
                     onReasonSelected = { component.onReportReasonSelected(it) }
                 )
             }
 
-            if (state.restrictUserId != null) {
+            if (chatUiState.restrictUserId != null) {
                 RestrictUserSheet(
                     onDismiss = { component.onDismissRestrictDialog() },
                     onConfirm = { permissions, untilDate -> component.onConfirmRestrict(permissions, untilDate) }
@@ -1504,18 +1525,18 @@ fun ChatContent(
             BackHandler(enabled = isCustomBackHandlingEnabled) {
                 if (editingPhotoPath != null) editingPhotoPath = null
                 else if (editingVideoPath != null) editingVideoPath = null
-                else if (state.selectedMessageIds.isNotEmpty()) component.onClearSelection()
+                else if (selectionState.selectedMessageIds.isNotEmpty()) component.onClearSelection()
                 else if (selectedMessageId != null) selectedMessageId = null
-                else if (state.showBotCommands) component.onDismissBotCommands()
-                else if (state.restrictUserId != null) component.onDismissRestrictDialog()
-                else if (state.showPinnedMessagesList && !isAnyViewerOpen) requestPinnedMessagesListDismiss()
-                else if (state.fullScreenImages != null) component.onDismissImages()
-                else if (state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null) component.onDismissVideo()
-                else if (state.instantViewUrl != null) component.onDismissInstantView()
-                else if (state.youtubeUrl != null) component.onDismissYouTube()
-                else if (state.miniAppUrl != null) component.onDismissMiniApp()
-                else if (state.webViewUrl != null) component.onDismissWebView()
-                else if (state.currentTopicId != null) component.onTopicClick(0)
+                else if (chatUiState.showBotCommands) component.onDismissBotCommands()
+                else if (chatUiState.restrictUserId != null) component.onDismissRestrictDialog()
+                else if (pinnedState.showPinnedMessagesList && !isAnyViewerOpen) requestPinnedMessagesListDismiss()
+                else if (mediaViewerState.fullScreenImages != null) component.onDismissImages()
+                else if (mediaViewerState.fullScreenVideoPath != null || mediaViewerState.fullScreenVideoMessageId != null) component.onDismissVideo()
+                else if (mediaViewerState.instantViewUrl != null) component.onDismissInstantView()
+                else if (mediaViewerState.youtubeUrl != null) component.onDismissYouTube()
+                else if (mediaViewerState.miniAppUrl != null) component.onDismissMiniApp()
+                else if (mediaViewerState.webViewUrl != null) component.onDismissWebView()
+                else if (chatUiState.currentTopicId != null) component.onTopicClick(0)
             }
         }
     }

@@ -92,7 +92,10 @@ import kotlin.compareTo
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ChatContentList(
-    state: ChatComponent.State,
+    chatUiState: ChatComponent.ChatUiState,
+    appearanceState: ChatComponent.AppearanceState,
+    messagesState: ChatComponent.MessagesState,
+    selectionState: ChatComponent.MessageSelectionState,
     component: ChatComponent,
     scrollState: LazyListState,
     groupedMessages: List<GroupedMessageItem>,
@@ -112,25 +115,26 @@ fun ChatContentList(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
-    val isComments = state.rootMessage != null
+    val isComments = chatUiState.rootMessage != null
     val isScrolling by remember(scrollState) { derivedStateOf { scrollState.isScrollInProgress } }
-    val latestState by rememberUpdatedState(state)
+    val latestMessagesState by rememberUpdatedState(messagesState)
+    val latestChatUiState by rememberUpdatedState(chatUiState)
     var lastOlderLoadTriggerUptimeMs by remember { mutableLongStateOf(0L) }
     var lastNewerLoadTriggerUptimeMs by remember { mutableLongStateOf(0L) }
     val loadTriggerThrottleMs = 350L
     val unreadBoundaryIndex = remember(
         isComments,
         groupedMessages,
-        state.messages,
-        state.lastReadInboxMessageId
+        messagesState.messages,
+        messagesState.lastReadInboxMessageId
     ) {
         if (isComments) {
             null // suppress in thread/comments mode
         } else {
             val boundaryItem = findFirstUnreadBoundary(
-                messages = state.messages,
+                messages = messagesState.messages,
                 groupedItems = groupedMessages,
-                firstUnreadMessageId = state.lastReadInboxMessageId
+                firstUnreadMessageId = messagesState.lastReadInboxMessageId
             )
             boundaryItem?.let { target ->
                 groupedMessages.indexOfFirst { it.firstMessageId == target.firstMessageId }
@@ -154,8 +158,9 @@ fun ChatContentList(
             }
             .distinctUntilChanged()
             .collect { (firstVisibleIndex, lastVisibleIndex) ->
-                val currentState = latestState
-                if (currentState.isLoading || currentState.isLoadingOlder || currentState.isLoadingNewer) return@collect
+                val currentMessagesState = latestMessagesState
+                val currentChatUiState = latestChatUiState
+                if (currentMessagesState.isLoading || currentMessagesState.isLoadingOlder || currentMessagesState.isLoadingNewer) return@collect
 
                 val nearStart = firstVisibleIndex <= 2
                 val nearEnd = lastVisibleIndex >= (groupedMessages.size - 3).coerceAtLeast(0)
@@ -164,24 +169,24 @@ fun ChatContentList(
                 if (isComments) {
                     if (!scrollState.isScrollInProgress) return@collect
 
-                    if (nearStart && !currentState.isOldestLoaded) {
+                    if (nearStart && !currentMessagesState.isOldestLoaded) {
                         if (now - lastOlderLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
                             lastOlderLoadTriggerUptimeMs = now
                             component.loadMore()
                         }
-                    } else if (nearEnd && !currentState.isLatestLoaded) {
+                    } else if (nearEnd && !currentMessagesState.isLatestLoaded) {
                         if (now - lastNewerLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
                             lastNewerLoadTriggerUptimeMs = now
                             component.loadNewer()
                         }
                     }
                 } else {
-                    if (nearEnd && !currentState.isOldestLoaded) {
+                    if (nearEnd && !currentMessagesState.isOldestLoaded) {
                         if (now - lastOlderLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
                             lastOlderLoadTriggerUptimeMs = now
                             component.loadMore()
                         }
-                    } else if (nearStart && !currentState.isAtBottom && !currentState.isLatestLoaded) {
+                    } else if (nearStart && !currentMessagesState.isAtBottom && !currentMessagesState.isLatestLoaded) {
                         if (now - lastNewerLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
                             lastNewerLoadTriggerUptimeMs = now
                             component.loadNewer()
@@ -191,9 +196,9 @@ fun ChatContentList(
             }
     }
 
-    if (state.viewAsTopics && state.currentTopicId == null) {
+    if (chatUiState.viewAsTopics && chatUiState.currentTopicId == null) {
         TopicsList(
-            topics = state.topics,
+            topics = chatUiState.topics,
             onTopicClick = { component.onTopicClick(it.id) },
             modifier = modifier
         )
@@ -208,13 +213,13 @@ fun ChatContentList(
         reverseLayout = !isComments,
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
-        if (isComments && state.isLoadingOlder && groupedMessages.isNotEmpty()) {
+        if (isComments && messagesState.isLoadingOlder && groupedMessages.isNotEmpty()) {
             item(key = "loading_older_top") {
                 PagingLoadingIndicator()
             }
         }
 
-        if (!isComments && state.isLoadingNewer && !state.isAtBottom && groupedMessages.isNotEmpty()) {
+        if (!isComments && messagesState.isLoadingNewer && !messagesState.isAtBottom && groupedMessages.isNotEmpty()) {
             item(key = "loading_newer_bottom") {
                 PagingLoadingIndicator()
             }
@@ -223,18 +228,19 @@ fun ChatContentList(
         if (isComments) {
             item(key = "root_header") {
                 RootMessageSection(
-                    state,
-                    component,
-                    onPhotoClick,
-                    onPhotoDownload,
-                    onVideoClick,
-                    onDocumentClick,
-                    onAudioClick,
-                    onMessageOptionsClick,
-                    onGoToReply,
-                    onViaBotClick,
-                    toProfile,
-                    downloadUtils,
+                    chatUiState = chatUiState,
+                    appearanceState = appearanceState,
+                    component = component,
+                    onPhotoClick = onPhotoClick,
+                    onPhotoDownload = onPhotoDownload,
+                    onVideoClick = onVideoClick,
+                    onDocumentClick = onDocumentClick,
+                    onAudioClick = onAudioClick,
+                    onMessageOptionsClick = onMessageOptionsClick,
+                    onGoToReply = onGoToReply,
+                    onViaBotClick = onViaBotClick,
+                    toProfile = toProfile,
+                    downloadUtils = downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen
                 )
             }
@@ -259,12 +265,14 @@ fun ChatContentList(
 
                 MessageRowItem(
                     item = item,
-                    state = state,
+                    chatUiState = chatUiState,
+                    appearanceState = appearanceState,
+                    messagesState = messagesState,
                     component = component,
                     olderMsg = olderMsg,
                     newerMsg = newerMsg,
-                    isSelected = isItemSelected(item, state.selectedMessageIds),
-                    isSelectionMode = state.selectedMessageIds.isNotEmpty(),
+                    isSelected = isItemSelected(item, selectionState.selectedMessageIds),
+                    isSelectionMode = selectionState.selectedMessageIds.isNotEmpty(),
                     selectedMessageId = selectedMessageId,
                     onPhotoClick = onPhotoClick,
                     onPhotoDownload = onPhotoDownload,
@@ -280,7 +288,7 @@ fun ChatContentList(
                     downloadUtils = downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen,
                     showUnreadSeparator = index == unreadBoundaryIndex,
-                    unreadCount = state.unreadCount
+                    unreadCount = chatUiState.unreadCount
                 )
             }
         } else {
@@ -315,12 +323,14 @@ fun ChatContentList(
 
                 MessageRowItem(
                     item = item,
-                    state = state,
+                    chatUiState = chatUiState,
+                    appearanceState = appearanceState,
+                    messagesState = messagesState,
                     component = component,
                     olderMsg = olderMsg,
                     newerMsg = newerMsg,
-                    isSelected = isItemSelected(item, state.selectedMessageIds),
-                    isSelectionMode = state.selectedMessageIds.isNotEmpty(),
+                    isSelected = isItemSelected(item, selectionState.selectedMessageIds),
+                    isSelectionMode = selectionState.selectedMessageIds.isNotEmpty(),
                     selectedMessageId = selectedMessageId,
                     onPhotoClick = onPhotoClick,
                     onPhotoDownload = onPhotoDownload,
@@ -336,24 +346,24 @@ fun ChatContentList(
                     downloadUtils = downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen,
                     showUnreadSeparator = index == unreadBoundaryIndex,
-                    unreadCount = state.unreadCount
+                    unreadCount = chatUiState.unreadCount
                 )
             }
         }
 
-        if (isComments && state.isLoadingNewer && groupedMessages.isNotEmpty()) {
+        if (isComments && messagesState.isLoadingNewer && groupedMessages.isNotEmpty()) {
             item(key = "loading_newer_bottom") {
                 PagingLoadingIndicator()
             }
         }
 
-        if (!isComments && state.isLoadingOlder && groupedMessages.isNotEmpty()) {
+        if (!isComments && messagesState.isLoadingOlder && groupedMessages.isNotEmpty()) {
             item(key = "loading_older_top") {
                 PagingLoadingIndicator()
             }
         }
 
-        if (state.isLoading && groupedMessages.isNotEmpty() && !state.isLoadingOlder && !state.isLoadingNewer) {
+        if (messagesState.isLoading && groupedMessages.isNotEmpty() && !messagesState.isLoadingOlder && !messagesState.isLoadingNewer) {
             item(key = "loading_indicator") {
                 PagingLoadingIndicator()
             }
@@ -396,7 +406,9 @@ private fun PagingLoadingIndicator() {
 @Composable
 private fun MessageRowItem(
     item: GroupedMessageItem,
-    state: ChatComponent.State,
+    chatUiState: ChatComponent.ChatUiState,
+    appearanceState: ChatComponent.AppearanceState,
+    messagesState: ChatComponent.MessagesState,
     component: ChatComponent,
     olderMsg: MessageModel?,
     newerMsg: MessageModel?,
@@ -423,7 +435,7 @@ private fun MessageRowItem(
         if (item is GroupedMessageItem.Single) item.message else (item as GroupedMessageItem.Album).messages.last()
     }
 
-    val shouldAnimateEntry = state.isChatAnimationsEnabled && !isScrolling
+    val shouldAnimateEntry = appearanceState.isChatAnimationsEnabled && !isScrolling
 
     val scale = remember(mainMsg.id) {
         Animatable(
@@ -504,7 +516,9 @@ private fun MessageRowItem(
 
                 MessageBubbleSwitcher(
                     item = item,
-                    state = state,
+                    chatUiState = chatUiState,
+                    appearanceState = appearanceState,
+                    messagesState = messagesState,
                     component = component,
                     olderMsg = olderMsg,
                     newerMsg = newerMsg,
@@ -531,7 +545,9 @@ private fun MessageRowItem(
 @Composable
 private fun MessageBubbleSwitcher(
     item: GroupedMessageItem,
-    state: ChatComponent.State,
+    chatUiState: ChatComponent.ChatUiState,
+    appearanceState: ChatComponent.AppearanceState,
+    messagesState: ChatComponent.MessagesState,
     component: ChatComponent,
     olderMsg: MessageModel?,
     newerMsg: MessageModel?,
@@ -550,8 +566,8 @@ private fun MessageBubbleSwitcher(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
-    val isChannel = state.isChannel && state.currentTopicId == null
-    val isTopicClosed = state.topics.find { it.id.toLong() == state.currentTopicId }?.isClosed?: false
+    val isChannel = chatUiState.isChannel && chatUiState.currentTopicId == null
+    val isTopicClosed = chatUiState.topics.find { it.id.toLong() == chatUiState.currentTopicId }?.isClosed ?: false
 
     when (item) {
         is GroupedMessageItem.Single -> {
@@ -562,10 +578,10 @@ private fun MessageBubbleSwitcher(
                     msg = item.message,
                     olderMsg = olderMsg,
                     newerMsg = newerMsg,
-                    autoplayGifs = state.autoplayGifs,
-                    autoplayVideos = state.autoplayVideos,
-                    autoDownloadFiles = state.autoDownloadFiles,
-                    highlighted = state.highlightedMessageId == item.message.id,
+                    autoplayGifs = appearanceState.autoplayGifs,
+                    autoplayVideos = appearanceState.autoplayVideos,
+                    autoDownloadFiles = appearanceState.autoDownloadFiles,
+                    highlighted = messagesState.highlightedMessageId == item.message.id,
                     onHighlightConsumed = { component.onHighlightConsumed() },
                     onPhotoClick = {
                         if (isSelectionMode) component.onToggleMessageSelection(it.id) else handlePhotoClick(
@@ -640,16 +656,16 @@ private fun MessageBubbleSwitcher(
                             it
                         )
                     },
-                    fontSize = state.fontSize,
-                    letterSpacing = state.letterSpacing,
-                    bubbleRadius = state.bubbleRadius,
-                    stickerSize = state.stickerSize,
+                    fontSize = appearanceState.fontSize,
+                    letterSpacing = appearanceState.letterSpacing,
+                    bubbleRadius = appearanceState.bubbleRadius,
+                    stickerSize = appearanceState.stickerSize,
                     shouldReportPosition = item.message.id == selectedMessageId,
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     onCommentsClick = { component.onCommentsClick(it) },
                     toProfile = toProfile,
                     onViaBotClick = onViaBotClick,
-                    canReply = state.canWrite && !isSelectionMode,
+                    canReply = chatUiState.canWrite && !isSelectionMode,
                     onReplySwipe = { component.onReplyMessage(it) },
                     onYouTubeClick = { component.onOpenYouTube(it) },
                     onInstantViewClick = { component.onOpenInstantView(it) },
@@ -661,19 +677,19 @@ private fun MessageBubbleSwitcher(
                     msg = item.message,
                     olderMsg = olderMsg,
                     newerMsg = newerMsg,
-                    isGroup = state.isGroup || state.currentTopicId != null,
-                    fontSize = state.fontSize,
-                    letterSpacing = state.letterSpacing,
-                    bubbleRadius = state.bubbleRadius,
-                    stSize = state.stickerSize,
-                    autoDownloadMobile = state.autoDownloadMobile,
-                    autoDownloadWifi = state.autoDownloadWifi,
-                    autoDownloadRoaming = state.autoDownloadRoaming,
-                    autoDownloadFiles = state.autoDownloadFiles,
-                    autoplayGifs = state.autoplayGifs,
-                    autoplayVideos = state.autoplayVideos,
-                    showLinkPreviews = state.showLinkPreviews,
-                    highlighted = state.highlightedMessageId == item.message.id,
+                    isGroup = chatUiState.isGroup || chatUiState.currentTopicId != null,
+                    fontSize = appearanceState.fontSize,
+                    letterSpacing = appearanceState.letterSpacing,
+                    bubbleRadius = appearanceState.bubbleRadius,
+                    stSize = appearanceState.stickerSize,
+                    autoDownloadMobile = appearanceState.autoDownloadMobile,
+                    autoDownloadWifi = appearanceState.autoDownloadWifi,
+                    autoDownloadRoaming = appearanceState.autoDownloadRoaming,
+                    autoDownloadFiles = appearanceState.autoDownloadFiles,
+                    autoplayGifs = appearanceState.autoplayGifs,
+                    autoplayVideos = appearanceState.autoplayVideos,
+                    showLinkPreviews = appearanceState.showLinkPreviews,
+                    highlighted = messagesState.highlightedMessageId == item.message.id,
                     onHighlightConsumed = { component.onHighlightConsumed() },
                     onPhotoClick = {
                         if (isSelectionMode) component.onToggleMessageSelection(it.id) else handlePhotoClick(
@@ -754,7 +770,7 @@ private fun MessageBubbleSwitcher(
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     toProfile = toProfile,
                     onViaBotClick = onViaBotClick,
-                    canReply = state.canWrite && !isSelectionMode && (!isTopicClosed || state.isAdmin),
+                    canReply = chatUiState.canWrite && !isSelectionMode && (!isTopicClosed || chatUiState.isAdmin),
                     onReplySwipe = { component.onReplyMessage(it) },
                     swipeEnabled = !isSelectionMode,
                     downloadUtils = downloadUtils,
@@ -768,13 +784,13 @@ private fun MessageBubbleSwitcher(
                 messages = item.messages,
                 olderMsg = olderMsg,
                 newerMsg = newerMsg,
-                isGroup = state.isGroup || state.currentTopicId != null,
+                isGroup = chatUiState.isGroup || chatUiState.currentTopicId != null,
                 isChannel = isChannel,
-                autoplayGifs = state.autoplayGifs,
-                autoplayVideos = state.autoplayVideos,
-                autoDownloadMobile = state.autoDownloadMobile,
-                autoDownloadWifi = state.autoDownloadWifi,
-                autoDownloadRoaming = state.autoDownloadRoaming,
+                autoplayGifs = appearanceState.autoplayGifs,
+                autoplayVideos = appearanceState.autoplayVideos,
+                autoDownloadMobile = appearanceState.autoDownloadMobile,
+                autoDownloadWifi = appearanceState.autoDownloadWifi,
+                autoDownloadRoaming = appearanceState.autoDownloadRoaming,
                 onPhotoClick = {
                     if (isSelectionMode) component.onToggleMessageSelection(it.id) else handleAlbumPhotoClick(
                         it,
@@ -822,7 +838,7 @@ private fun MessageBubbleSwitcher(
                 onCommentsClick = { component.onCommentsClick(it) },
                 toProfile = toProfile,
                 onViaBotClick = onViaBotClick,
-                canReply = state.canWrite && !isSelectionMode && (!isTopicClosed || state.isAdmin),
+                canReply = chatUiState.canWrite && !isSelectionMode && (!isTopicClosed || chatUiState.isAdmin),
                 onReplySwipe = { component.onReplyMessage(it) },
                 swipeEnabled = !isSelectionMode,
                 downloadUtils = downloadUtils,
@@ -857,7 +873,8 @@ private fun SelectionIndicator(isSelected: Boolean, modifier: Modifier = Modifie
 
 @Composable
 private fun RootMessageSection(
-    state: ChatComponent.State,
+    chatUiState: ChatComponent.ChatUiState,
+    appearanceState: ChatComponent.AppearanceState,
     component: ChatComponent,
     onPhotoClick: (MessageModel, List<String>, List<String?>, List<Long>, Int) -> Unit,
     onPhotoDownload: (Int) -> Unit,
@@ -871,17 +888,17 @@ private fun RootMessageSection(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
-    val root = state.rootMessage ?: return
+    val root = chatUiState.rootMessage ?: return
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 4.dp)
     ) {
-        if (state.isChannel) {
+        if (chatUiState.isChannel) {
             ChannelMessageBubbleContainer(
                 msg = root, olderMsg = null, newerMsg = null,
-                autoplayGifs = state.autoplayGifs, autoplayVideos = state.autoplayVideos,
-                autoDownloadFiles = state.autoDownloadFiles,
+                autoplayGifs = appearanceState.autoplayGifs, autoplayVideos = appearanceState.autoplayVideos,
+                autoDownloadFiles = appearanceState.autoDownloadFiles,
                 onPhotoClick = { handlePhotoClick(it, onPhotoClick) },
                 onDownloadPhoto = onPhotoDownload,
                 onVideoClick = { handleVideoClick(it, onVideoClick) },
@@ -897,10 +914,10 @@ private fun RootMessageSection(
                 onRetractVote = { component.onRetractVote(it) },
                 onShowVoters = { id, opt -> component.onShowVoters(id, opt) },
                 onClosePoll = { component.onClosePoll(it) },
-                fontSize = state.fontSize,
-                letterSpacing = state.letterSpacing,
-                bubbleRadius = state.bubbleRadius,
-                stickerSize = state.stickerSize,
+                fontSize = appearanceState.fontSize,
+                letterSpacing = appearanceState.letterSpacing,
+                bubbleRadius = appearanceState.bubbleRadius,
+                stickerSize = appearanceState.stickerSize,
                 onCommentsClick = {}, showComments = false,
                 toProfile = toProfile,
                 onViaBotClick = onViaBotClick,
@@ -911,14 +928,14 @@ private fun RootMessageSection(
             )
         } else {
             MessageBubbleContainer(
-                msg = root, olderMsg = null, newerMsg = null, isGroup = state.isGroup,
-                fontSize = state.fontSize,
-                letterSpacing = state.letterSpacing,
-                bubbleRadius = state.bubbleRadius,
-                stSize = state.stickerSize,
-                autoDownloadMobile = state.autoDownloadMobile, autoDownloadWifi = state.autoDownloadWifi,
-                autoDownloadRoaming = state.autoDownloadRoaming, autoDownloadFiles = state.autoDownloadFiles,
-                autoplayGifs = state.autoplayGifs, autoplayVideos = state.autoplayVideos,
+                msg = root, olderMsg = null, newerMsg = null, isGroup = chatUiState.isGroup,
+                fontSize = appearanceState.fontSize,
+                letterSpacing = appearanceState.letterSpacing,
+                bubbleRadius = appearanceState.bubbleRadius,
+                stSize = appearanceState.stickerSize,
+                autoDownloadMobile = appearanceState.autoDownloadMobile, autoDownloadWifi = appearanceState.autoDownloadWifi,
+                autoDownloadRoaming = appearanceState.autoDownloadRoaming, autoDownloadFiles = appearanceState.autoDownloadFiles,
+                autoplayGifs = appearanceState.autoplayGifs, autoplayVideos = appearanceState.autoplayVideos,
                 onPhotoClick = { handlePhotoClick(it, onPhotoClick) },
                 onDownloadPhoto = onPhotoDownload,
                 onVideoClick = { handleVideoClick(it, onVideoClick) },
@@ -1272,4 +1289,3 @@ fun TopicItem(
         }
     }
 }
-

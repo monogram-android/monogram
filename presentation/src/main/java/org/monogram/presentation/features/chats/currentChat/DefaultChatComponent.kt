@@ -155,6 +155,173 @@ class DefaultChatComponent(
             lastReadInboxMessageId = 0L
         )
     )
+    private val _messagesState = MutableStateFlow(
+        _state.value.run {
+            toMessagesState()
+        }
+    )
+    private val _chatUiState = MutableStateFlow(_state.value.toChatUiState())
+    private val _selectionState = MutableStateFlow(_state.value.toSelectionState())
+    private val _searchState = MutableStateFlow(_state.value.toSearchState())
+    private val _appearanceState = MutableStateFlow(_state.value.toAppearanceState())
+    private val _inputState = MutableStateFlow(
+        _state.value.run {
+            toInputState()
+        }
+    )
+    private val _pinnedState = MutableStateFlow(
+        _state.value.run {
+            toPinnedState()
+        }
+    )
+    private val _mediaViewerState = MutableStateFlow(
+        _state.value.run {
+            toMediaViewerState()
+        }
+    )
+
+    private fun ChatComponent.State.toMessagesState() = ChatComponent.MessagesState(
+        chatId = chatId,
+        messages = messages,
+        isLoading = isLoading,
+        isLoadingOlder = isLoadingOlder,
+        isLoadingNewer = isLoadingNewer,
+        scrollToMessageId = scrollToMessageId,
+        pendingScrollCommand = pendingScrollCommand,
+        highlightedMessageId = highlightedMessageId,
+        isAtBottom = isAtBottom,
+        currentScrollMessageId = currentScrollMessageId,
+        lastScrollPosition = lastScrollPosition,
+        lastSavedViewport = lastSavedViewport,
+        isLatestLoaded = isLatestLoaded,
+        isOldestLoaded = isOldestLoaded,
+        lastReadInboxMessageId = lastReadInboxMessageId
+    )
+
+    private fun ChatComponent.State.toChatUiState() = ChatComponent.ChatUiState(
+        chatId = chatId,
+        chatTitle = chatTitle,
+        chatAvatar = chatAvatar,
+        chatPersonalAvatar = chatPersonalAvatar,
+        chatEmojiStatus = chatEmojiStatus,
+        isGroup = isGroup,
+        isChannel = isChannel,
+        isSecretChat = isSecretChat,
+        isOnline = isOnline,
+        isVerified = isVerified,
+        isSponsor = isSponsor,
+        canWrite = canWrite,
+        isAdmin = isAdmin,
+        permissions = permissions,
+        slowModeDelay = slowModeDelay,
+        slowModeDelayExpiresIn = slowModeDelayExpiresIn,
+        isCurrentUserRestricted = isCurrentUserRestricted,
+        restrictedUntilDate = restrictedUntilDate,
+        memberCount = memberCount,
+        onlineCount = onlineCount,
+        unreadCount = unreadCount,
+        unreadMentionCount = unreadMentionCount,
+        unreadReactionCount = unreadReactionCount,
+        userStatus = userStatus,
+        typingAction = typingAction,
+        pollVoters = pollVoters,
+        showPollVoters = showPollVoters,
+        isPollVotersLoading = isPollVotersLoading,
+        viewAsTopics = viewAsTopics,
+        topics = topics,
+        currentTopicId = currentTopicId,
+        rootMessage = rootMessage,
+        isLoadingTopics = isLoadingTopics,
+        isWhitelistedInAdBlock = isWhitelistedInAdBlock,
+        isMuted = isMuted,
+        showReportDialog = showReportDialog,
+        showBotCommands = showBotCommands,
+        currentUser = currentUser,
+        otherUser = otherUser,
+        isMember = isMember,
+        restrictUserId = restrictUserId,
+        isInstalledFromGooglePlay = isInstalledFromGooglePlay
+    )
+
+    private fun ChatComponent.State.toSelectionState() = ChatComponent.MessageSelectionState(
+        selectedMessageIds = selectedMessageIds
+    )
+
+    private fun ChatComponent.State.toSearchState() = ChatComponent.SearchState(
+        isSearchActive = isSearchActive,
+        searchQuery = searchQuery
+    )
+
+    private fun ChatComponent.State.toAppearanceState() = ChatComponent.AppearanceState(
+        fontSize = fontSize,
+        letterSpacing = letterSpacing,
+        bubbleRadius = bubbleRadius,
+        stickerSize = stickerSize,
+        wallpaper = wallpaper,
+        wallpaperModel = wallpaperModel,
+        isWallpaperBlurred = isWallpaperBlurred,
+        wallpaperBlurIntensity = wallpaperBlurIntensity,
+        isWallpaperMoving = isWallpaperMoving,
+        wallpaperDimming = wallpaperDimming,
+        isWallpaperGrayscale = isWallpaperGrayscale,
+        autoDownloadMobile = autoDownloadMobile,
+        autoDownloadWifi = autoDownloadWifi,
+        autoDownloadRoaming = autoDownloadRoaming,
+        autoDownloadFiles = autoDownloadFiles,
+        autoplayGifs = autoplayGifs,
+        autoplayVideos = autoplayVideos,
+        showLinkPreviews = showLinkPreviews,
+        isChatAnimationsEnabled = isChatAnimationsEnabled
+    )
+
+    private fun ChatComponent.State.toInputState() = ChatComponent.InputState(
+        chatId = chatId,
+        replyMessage = replyMessage,
+        editingMessage = editingMessage,
+        draftText = draftText,
+        selectedStickerSet = selectedStickerSet,
+        isBot = isBot,
+        botCommands = botCommands,
+        botMenuButton = botMenuButton,
+        mentionSuggestions = mentionSuggestions,
+        inlineBotResults = inlineBotResults,
+        currentInlineBotUsername = currentInlineBotUsername,
+        currentInlineQuery = currentInlineQuery,
+        isInlineBotLoading = isInlineBotLoading,
+        attachMenuBots = attachMenuBots,
+        scheduledMessages = scheduledMessages
+    )
+
+    private fun ChatComponent.State.toPinnedState() = ChatComponent.PinnedState(
+        pinnedMessage = pinnedMessage,
+        allPinnedMessages = allPinnedMessages,
+        showPinnedMessagesList = showPinnedMessagesList,
+        isLoadingPinnedMessages = isLoadingPinnedMessages,
+        pinnedMessageCount = pinnedMessageCount,
+        pinnedMessageIndex = pinnedMessageIndex
+    )
+
+    private fun ChatComponent.State.toMediaViewerState() = ChatComponent.MediaViewerState(
+        instantViewUrl = instantViewUrl,
+        youtubeUrl = youtubeUrl,
+        miniAppUrl = miniAppUrl,
+        miniAppName = miniAppName,
+        miniAppBotUserId = miniAppBotUserId,
+        showMiniAppTOS = showMiniAppTOS,
+        miniAppTOSBotUserId = miniAppTOSBotUserId,
+        miniAppTOSUrl = miniAppTOSUrl,
+        miniAppTOSName = miniAppTOSName,
+        webViewUrl = webViewUrl,
+        fullScreenImages = fullScreenImages,
+        fullScreenImageMessageIds = fullScreenImageMessageIds,
+        fullScreenCaptions = fullScreenCaptions,
+        fullScreenStartIndex = fullScreenStartIndex,
+        fullScreenVideoMessageId = fullScreenVideoMessageId,
+        fullScreenVideoPath = fullScreenVideoPath,
+        fullScreenVideoCaption = fullScreenVideoCaption,
+        invoiceSlug = invoiceSlug,
+        invoiceMessageId = invoiceMessageId
+    )
 
     private val store = ChatStoreFactory(
         storeFactory = DefaultStoreFactory(),
@@ -162,6 +329,14 @@ class DefaultChatComponent(
     ).create()
 
     override val state: StateFlow<ChatComponent.State> = store.stateFlow
+    override val chatUiState: StateFlow<ChatComponent.ChatUiState> = _chatUiState
+    override val selectionState: StateFlow<ChatComponent.MessageSelectionState> = _selectionState
+    override val searchState: StateFlow<ChatComponent.SearchState> = _searchState
+    override val appearanceState: StateFlow<ChatComponent.AppearanceState> = _appearanceState
+    override val messagesState: StateFlow<ChatComponent.MessagesState> = _messagesState
+    override val inputState: StateFlow<ChatComponent.InputState> = _inputState
+    override val pinnedState: StateFlow<ChatComponent.PinnedState> = _pinnedState
+    override val mediaViewerState: StateFlow<ChatComponent.MediaViewerState> = _mediaViewerState
 
     private var availableWallpapers: List<WallpaperModel> = emptyList()
     internal var allMembers: List<UserModel> = emptyList()
@@ -236,6 +411,14 @@ class DefaultChatComponent(
         }
 
         _state.onEach {
+            _messagesState.value = it.toMessagesState()
+            _chatUiState.value = it.toChatUiState()
+            _selectionState.value = it.toSelectionState()
+            _searchState.value = it.toSearchState()
+            _appearanceState.value = it.toAppearanceState()
+            _inputState.value = it.toInputState()
+            _pinnedState.value = it.toPinnedState()
+            _mediaViewerState.value = it.toMediaViewerState()
             store.accept(ChatStore.Intent.UpdateState(it))
         }.launchIn(scope)
     }

@@ -197,6 +197,8 @@ class ChatsListRepositoryImpl(
 
     private val modelCache = SynchronizedLruMap<Long, ChatModel>(MODEL_CACHE_SIZE)
     private val invalidatedModels = ConcurrentHashMap.newKeySet<Long>()
+    @Volatile
+    private var invalidateAllModels = true
     private var lastList: List<ChatModel>? = null
     private var lastListFolderId: Int = -1
 
@@ -293,7 +295,11 @@ class ChatsListRepositoryImpl(
     }
 
     private fun rebuildChatModels(limit: Int): List<ChatModel> {
-        return listManager.rebuildChatList(limit, emptyList()) { chat, order, isPinned ->
+        if (!invalidateAllModels) {
+            rebuildVisibleModels(limit)?.let { return it }
+        }
+
+        val rebuilt = listManager.rebuildChatList(limit, emptyList()) { chat, order, isPinned ->
             val cached = modelCache[chat.id]
             if (cached != null &&
                 cached.order == order &&
@@ -308,6 +314,37 @@ class ChatsListRepositoryImpl(
                 }
             }
         }
+        invalidatedModels.clear()
+        invalidateAllModels = false
+        return rebuilt
+    }
+
+    private fun rebuildVisibleModels(limit: Int): List<ChatModel>? {
+        val previous = lastList ?: return null
+        if (lastListFolderId != activeFolderId) return null
+        if (invalidatedModels.isEmpty()) return previous
+
+        val visibleIndexes = previous.mapIndexed { index, chat -> chat.id to index }.toMap()
+        val updated = previous.toMutableList()
+
+        for (chatId in invalidatedModels.toList()) {
+            val index = visibleIndexes[chatId] ?: return null
+            val chat = cache.allChats[chatId] ?: return null
+            val position = cache.activeListPositions[chatId] ?: return null
+            val oldModel = previous[index]
+            if (oldModel.order != position.order || oldModel.isPinned != position.isPinned) {
+                return null
+            }
+            updated[index] = modelFactory.mapChatToModel(chat, position.order, position.isPinned).also { mapped ->
+                modelCache[chatId] = mapped
+            }
+            invalidatedModels.remove(chatId)
+        }
+
+        if (updated.size > limit) {
+            return null
+        }
+        return updated
     }
 
     private fun shouldEmitList(folderId: Int, newList: List<ChatModel>): Boolean {
@@ -324,6 +361,7 @@ class ChatsListRepositoryImpl(
     private fun clearTransientState() {
         modelCache.clear()
         invalidatedModels.clear()
+        invalidateAllModels = true
         lastList = null
         lastListFolderId = -1
         _chatListFlow.value = emptyList()
@@ -332,6 +370,7 @@ class ChatsListRepositoryImpl(
 
     private fun triggerUpdate(chatId: Long? = null) {
         if (chatId == null) {
+            invalidateAllModels = true
             invalidatedModels.addAll(cache.activeListPositions.keys)
         } else {
             invalidatedModels.add(chatId)

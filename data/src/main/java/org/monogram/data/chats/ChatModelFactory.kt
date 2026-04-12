@@ -9,12 +9,19 @@ import org.monogram.core.DispatcherProvider
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.UserFullInfoDao
 import org.monogram.data.gateway.TelegramGateway
-import org.monogram.data.mapper.*
+import org.monogram.data.mapper.ChatMapper
+import org.monogram.data.mapper.isForcedVerifiedChat
+import org.monogram.data.mapper.isForcedVerifiedUser
+import org.monogram.data.mapper.isSponsoredUser
+import org.monogram.data.mapper.isValidFilePath
 import org.monogram.data.mapper.user.toEntity
 import org.monogram.data.mapper.user.toTdApi
+import org.monogram.data.notifications.NotificationMuteResolver
+import org.monogram.data.notifications.NotificationScopeState
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.UsernamesModel
 import org.monogram.domain.repository.AppPreferencesProvider
+import org.monogram.domain.repository.NotificationSettingsRepository.TdNotificationScope
 import java.util.concurrent.ConcurrentHashMap
 
 class ChatModelFactory(
@@ -27,6 +34,7 @@ class ChatModelFactory(
     private val typingManager: ChatTypingManager,
     private val appPreferences: AppPreferencesProvider,
     private val userFullInfoDao: UserFullInfoDao,
+    private val muteResolver: NotificationMuteResolver = NotificationMuteResolver(),
     private val triggerUpdate: (Long?) -> Unit,
     private val fetchUser: (Long) -> Unit
 ) {
@@ -260,15 +268,24 @@ class ChatModelFactory(
             cache.usersCache[userId]?.firstName ?: run { fetchUser(userId); null }
         }
 
-        val isMuted = when {
-            chat.notificationSettings.muteFor > 0 -> true
-            chat.notificationSettings.useDefaultMuteFor -> when {
-                isChannel -> !appPreferences.channelsNotifications.value
-                isSupergroup || chat.type is TdApi.ChatTypeBasicGroup -> !appPreferences.groupsNotifications.value
-                else -> !appPreferences.privateChatsNotifications.value
-            }
-            else -> false
-        }
+        val scopeState = NotificationScopeState(
+            loadedScopes = setOf(
+                TdNotificationScope.PRIVATE_CHATS,
+                TdNotificationScope.GROUPS,
+                TdNotificationScope.CHANNELS
+            ),
+            enabledByScope = mapOf(
+                TdNotificationScope.PRIVATE_CHATS to appPreferences.privateChatsNotifications.value,
+                TdNotificationScope.GROUPS to appPreferences.groupsNotifications.value,
+                TdNotificationScope.CHANNELS to appPreferences.channelsNotifications.value
+            )
+        )
+
+        val isMuted = muteResolver.resolve(
+            chat = chat,
+            cachedSettings = null,
+            scopeState = scopeState
+        ).isMuted
 
         return chatMapper.mapChatToModel(
             chat = chat,

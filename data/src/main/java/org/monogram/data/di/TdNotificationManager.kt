@@ -44,6 +44,9 @@ import org.monogram.data.db.dao.NotificationSettingDao
 import org.monogram.data.db.model.NotificationSettingEntity
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
+import org.monogram.data.notifications.NotificationMuteDecision
+import org.monogram.data.notifications.NotificationMuteResolver
+import org.monogram.data.notifications.NotificationScopeState
 import org.monogram.data.push.UnifiedPushManager
 import org.monogram.data.service.NotificationDismissReceiver
 import org.monogram.data.service.NotificationReadReceiver
@@ -64,7 +67,8 @@ class TdNotificationManager(
     private val notificationSettingDao: NotificationSettingDao,
     private val fileQueue: FileDownloadQueue,
     private val stringProvider: StringProvider,
-    private val unifiedPushManager: UnifiedPushManager
+    private val unifiedPushManager: UnifiedPushManager,
+    private val muteResolver: NotificationMuteResolver
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val notificationManager = NotificationManagerCompat.from(context)
@@ -80,17 +84,11 @@ class TdNotificationManager(
     }
     private val activeDownloads = ConcurrentHashMap<Int, MutableList<(Bitmap?) -> Unit>>()
     private val notificationSettingsCache = ConcurrentHashMap<Long, NotificationSettingEntity>()
-    private val scopeNotificationsEnabled = ConcurrentHashMap<NotificationScopeKey, Boolean>()
-    private val loadedScopeSettings = ConcurrentHashMap.newKeySet<NotificationScopeKey>()
+    private val scopeNotificationsEnabled = ConcurrentHashMap<TdNotificationScope, Boolean>()
+    private val loadedScopeSettings = ConcurrentHashMap.newKeySet<TdNotificationScope>()
 
     @Volatile
     private var myUserId: Long = 0L
-
-    private enum class NotificationScopeKey {
-        PRIVATE,
-        GROUPS,
-        CHANNELS
-    }
 
     companion object {
         private const val TAG = "TdNotificationManager"
@@ -138,7 +136,15 @@ class TdNotificationManager(
         scope.launch {
             gateway.updates.collect { update ->
                 when (update) {
-                    is TdApi.UpdateNewMessage -> handleNewMessage(update.message)
+                    is TdApi.UpdateNewMessage -> {
+                        val senderDebug = senderIdToDebug(update.message.senderId)
+                        Log.d(
+                            TAG,
+                            "UpdateNewMessage chatId=${update.message.chatId} messageId=${update.message.id} " +
+                                    "outgoing=${update.message.isOutgoing} sender=$senderDebug"
+                        )
+                        handleNewMessage(update.message)
+                    }
                     is TdApi.UpdateUser -> userCache[update.user.id] = update.user
                     is TdApi.UpdateFile -> {
                         val file = update.file
@@ -200,6 +206,10 @@ class TdNotificationManager(
         scope.launch {
             unifiedPushManager.endpoint.collect {
                 if (appPreferences.pushProvider.value == PushProvider.UNIFIED_PUSH && !it.isNullOrBlank()) {
+                    Log.d(
+                        TAG,
+                        "UnifiedPush endpoint update observed, refreshing TDLib registration"
+                    )
                     updatePushRegistration()
                 }
             }
@@ -232,6 +242,7 @@ class TdNotificationManager(
                             longArrayOf()
                         )
                     )
+                    Log.d(TAG, "RegisterDevice success for FCM")
                 }.onFailure { Log.e(TAG, "FCM token registration failed", it) }
             }
 
@@ -250,6 +261,10 @@ class TdNotificationManager(
                             longArrayOf()
                         )
                     )
+                    Log.d(
+                        TAG,
+                        "RegisterDevice success for UnifiedPush endpoint=${endpoint.take(120)}"
+                    )
                 }.onFailure { Log.e(TAG, "UnifiedPush registration failed", it) }
             }
 
@@ -262,6 +277,7 @@ class TdNotificationManager(
                             longArrayOf()
                         )
                     )
+                    Log.d(TAG, "RegisterDevice success for GMS-less fallback")
                 }.onFailure { Log.e(TAG, "GMS-less token registration failed", it) }
             }
         }
@@ -299,57 +315,42 @@ class TdNotificationManager(
         if (!gateway.isAuthenticated.value) return
 
         val scopes = listOf(
-            NotificationScopeKey.PRIVATE to TdNotificationScope.PRIVATE_CHATS,
-            NotificationScopeKey.GROUPS to TdNotificationScope.GROUPS,
-            NotificationScopeKey.CHANNELS to TdNotificationScope.CHANNELS
+            TdNotificationScope.PRIVATE_CHATS,
+            TdNotificationScope.GROUPS,
+            TdNotificationScope.CHANNELS
         )
 
-        scopes.forEach { (key, scope) ->
+        scopes.forEach { scope ->
             val enabled = coRunCatching { notificationSettingsRepository.getNotificationSettings(scope) }
                 .getOrDefault(false)
 
-            scopeNotificationsEnabled[key] = enabled
-            loadedScopeSettings.add(key)
+            scopeNotificationsEnabled[scope] = enabled
+            loadedScopeSettings.add(scope)
 
-            when (key) {
-                NotificationScopeKey.PRIVATE -> appPreferences.setPrivateChatsNotifications(enabled)
-                NotificationScopeKey.GROUPS -> appPreferences.setGroupsNotifications(enabled)
-                NotificationScopeKey.CHANNELS -> appPreferences.setChannelsNotifications(enabled)
+            when (scope) {
+                TdNotificationScope.PRIVATE_CHATS -> appPreferences.setPrivateChatsNotifications(
+                    enabled
+                )
+
+                TdNotificationScope.GROUPS -> appPreferences.setGroupsNotifications(enabled)
+                TdNotificationScope.CHANNELS -> appPreferences.setChannelsNotifications(enabled)
             }
         }
     }
 
     fun isChatMuted(chat: TdApi.Chat): Boolean {
-        val cached = notificationSettingsCache[chat.id]
-        val chatSettings = chat.notificationSettings
-        val muteFor = cached?.muteFor ?: chatSettings?.muteFor ?: 0
-        val useDefault = cached?.useDefault ?: chatSettings?.useDefaultMuteFor ?: true
+        return resolveMuteDecision(chat).isMuted
+    }
 
-        return if (useDefault) {
-            val chatType = chat.type ?: return muteFor > 0
-            val scopeKey = when (chatType) {
-                is TdApi.ChatTypePrivate -> NotificationScopeKey.PRIVATE
-                is TdApi.ChatTypeBasicGroup -> NotificationScopeKey.GROUPS
-                is TdApi.ChatTypeSupergroup -> {
-                    if (chatType.isChannel) NotificationScopeKey.CHANNELS else NotificationScopeKey.GROUPS
-                }
-
-                else -> null
-            }
-
-            if (scopeKey == null) {
-                return muteFor > 0
-            }
-
-            if (!loadedScopeSettings.contains(scopeKey)) {
-                return false
-            }
-
-            val globalEnabled = scopeNotificationsEnabled[scopeKey] ?: true
-            !globalEnabled
-        } else {
-            muteFor > 0
-        }
+    private fun resolveMuteDecision(chat: TdApi.Chat): NotificationMuteDecision {
+        return muteResolver.resolve(
+            chat = chat,
+            cachedSettings = notificationSettingsCache[chat.id],
+            scopeState = NotificationScopeState(
+                loadedScopes = loadedScopeSettings.toSet(),
+                enabledByScope = scopeNotificationsEnabled.toMap()
+            )
+        )
     }
 
     fun clearHistory(chatId: Long) {
@@ -383,7 +384,19 @@ class TdNotificationManager(
     }
 
     private fun handleNewMessage(message: TdApi.Message) {
-        if (message.isOutgoing) return
+        Log.d(
+            TAG,
+            "handleNewMessage enter chatId=${message.chatId} messageId=${message.id} outgoing=${message.isOutgoing} " +
+                    "content=${message.content?.javaClass?.simpleName ?: "null"}"
+        )
+
+        if (message.isOutgoing) {
+            Log.d(
+                TAG,
+                "Skip notification: outgoing message, chatId=${message.chatId}, messageId=${message.id}"
+            )
+            return
+        }
 
         val messageContent = message.content
         if (messageContent == null) {
@@ -398,17 +411,32 @@ class TdNotificationManager(
         }
 
         if (senderId is TdApi.MessageSenderUser && senderId.userId != 0L && senderId.userId == myUserId) {
+            Log.d(
+                TAG,
+                "Skip notification: sender is self, chatId=${message.chatId}, messageId=${message.id}"
+            )
             return
         }
 
         val lastId = lastMessageIds[message.chatId]
         if (lastId != null && message.id <= lastId) {
+            Log.d(
+                TAG,
+                "Skip notification: stale/duplicate message, chatId=${message.chatId}, messageId=${message.id}, lastId=$lastId"
+            )
             return
         }
         lastMessageIds[message.chatId] = message.id
 
         scope.launch {
-            val chat = getChatSuspend(message.chatId) ?: return@launch
+            val chat = getChatSuspend(message.chatId)
+            if (chat == null) {
+                Log.d(
+                    TAG,
+                    "Skip notification: chat unavailable, chatId=${message.chatId}, messageId=${message.id}"
+                )
+                return@launch
+            }
 
             val chatType = chat.type
             if (chatType == null) {
@@ -422,20 +450,50 @@ class TdNotificationManager(
                 return@launch
             }
 
-            if (isChatMuted(chat)) return@launch
+            val muteDecision = resolveMuteDecision(chat)
+            if (muteDecision.isMuted) {
+                Log.d(
+                    TAG,
+                    "Skip notification: muted reason=${muteDecision.reason} scope=${muteDecision.scope} " +
+                            "muteFor=${muteDecision.muteFor} useDefault=${muteDecision.useDefault} " +
+                            "chatId=${chat.id} messageId=${message.id}"
+                )
+                return@launch
+            }
 
             val contentText =
                 if (appPreferences.showSenderOnly.value) stringProvider.getString("notification_new_message") else getMessageText(
                     messageContent
                 )
 
-            if (contentText.isBlank()) return@launch
+            if (contentText.isBlank()) {
+                Log.d(
+                    TAG,
+                    "Skip notification: empty content text, chatId=${chat.id}, messageId=${message.id}"
+                )
+                return@launch
+            }
 
             val timestamp = message.date.toLong() * 1000
             val shouldPreloadAvatar =
                 !appPreferences.isPowerSavingMode.value && !appPreferences.batteryOptimizationEnabled.value
 
             resolveSender(senderId, chat, true) { senderName, senderBitmap ->
+                Log.d(
+                    TAG,
+                    "Resolved sender for notification chatId=${chat.id} messageId=${message.id} " +
+                            "senderName=$senderName hasBitmap=${senderBitmap != null}"
+                )
+
+                Log.d(
+                    TAG,
+                    "Append notification chatId=${chat.id} messageId=${message.id} " +
+                            "chatType=${chatType.javaClass.simpleName} text=${
+                                previewText(
+                                    contentText
+                                )
+                            }"
+                )
                 appendMessageToNotification(
                     chatId = chat.id,
                     messageId = message.id,
@@ -495,9 +553,16 @@ class TdNotificationManager(
         text: String,
         timestamp: Long
     ) {
-        if (text.isBlank()) return
+        if (text.isBlank()) {
+            Log.d(
+                TAG,
+                "Skip appendMessageToNotification: blank text, chatId=$chatId, messageId=$messageId"
+            )
+            return
+        }
 
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "Skip appendMessageToNotification: missing POST_NOTIFICATIONS permission")
             return
         }
 
@@ -529,6 +594,11 @@ class TdNotificationManager(
         if (history.size > 10) {
             history.removeAt(0)
         }
+
+        Log.d(
+            TAG,
+            "Notification history updated chatId=$chatId size=${history.size} notificationId=${chatId.toInt()}"
+        )
 
         val notificationId = chatId.toInt()
         activeNotifications.getOrPut(chatId) { ConcurrentHashMap.newKeySet() }.add(notificationId)
@@ -658,7 +728,20 @@ class TdNotificationManager(
         }
 
         notificationManager.notify(notificationId, builder.build())
+        Log.d(TAG, "Notification posted chatId=$chatId notificationId=$notificationId")
         updateSummary()
+    }
+
+    private fun senderIdToDebug(senderId: TdApi.MessageSender?): String = when (senderId) {
+        null -> "null"
+        is TdApi.MessageSenderUser -> "user:${senderId.userId}"
+        is TdApi.MessageSenderChat -> "chat:${senderId.chatId}"
+        else -> senderId.javaClass.simpleName
+    }
+
+    private fun previewText(text: String, max: Int = 80): String {
+        val normalized = text.replace('\n', ' ').trim()
+        return if (normalized.length <= max) normalized else normalized.take(max) + "..."
     }
 
     private fun getCircularBitmap(bitmap: Bitmap): Bitmap {

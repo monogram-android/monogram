@@ -18,21 +18,50 @@ class UnifiedPushService : PushService(), KoinComponent {
     private val appPreferences: AppPreferencesProvider by inject()
 
     override fun onMessage(message: PushMessage, instance: String) {
-        if (!isUnifiedPushSelected()) return
-        pushSyncTrigger.requestSync("unified_push_message")
+        val payload =
+            runCatching { message.content.toString(Charsets.UTF_8) }.getOrDefault("<binary>")
+        Log.d(
+            TAG,
+            "onMessage instance=$instance decrypted=${message.decrypted} bytes=${message.content.size} payload=${
+                payload.take(
+                    96
+                )
+            }"
+        )
+
+        if (!isUnifiedPushSelected()) {
+            Log.d(TAG, "Ignore UnifiedPush message: provider is not UnifiedPush")
+            return
+        }
+
+        val reason =
+            if (payload.startsWith("version=")) "unified_push_telegram_simple" else "unified_push_message"
+        pushSyncTrigger.requestSync(reason)
     }
 
     override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
-        if (!isUnifiedPushSelected()) return
+        Log.d(
+            TAG,
+            "onNewEndpoint instance=$instance temporary=${endpoint.temporary} hasPubKeySet=${endpoint.pubKeySet != null} url=${
+                endpoint.url.take(
+                    120
+                )
+            }"
+        )
+
         unifiedPushManager.onNewEndpoint(endpoint)
+
+        if (!isUnifiedPushSelected()) return
         pushSyncTrigger.requestSync("unified_push_new_endpoint")
     }
 
     override fun onRegistrationFailed(reason: FailedReason, instance: String) {
+        Log.w(TAG, "onRegistrationFailed instance=$instance reason=$reason")
         unifiedPushManager.onRegistrationFailed(reason)
     }
 
     override fun onUnregistered(instance: String) {
+        Log.w(TAG, "onUnregistered instance=$instance")
         unifiedPushManager.onUnregistered()
     }
 

@@ -81,6 +81,7 @@ import org.monogram.data.mapper.WebPageMapper
 import org.monogram.data.mapper.message.MessageContentMapper
 import org.monogram.data.mapper.message.MessagePersistenceMapper
 import org.monogram.data.mapper.message.MessageSenderResolver
+import org.monogram.data.notifications.NotificationMuteResolver
 import org.monogram.data.push.PushSyncTrigger
 import org.monogram.data.push.UnifiedPushManager
 import org.monogram.data.repository.AttachMenuBotRepositoryImpl
@@ -489,8 +490,9 @@ val dataModule = module {
         )
     }
 
-    single { PushSyncTrigger(connectionManager = get()) }
+    single { PushSyncTrigger(connectionManager = get(), gateway = get()) }
     single { UnifiedPushManager(androidContext()) }
+    single { NotificationMuteResolver() }
 
     single {
         ChatsListRepositoryImpl(
@@ -814,6 +816,16 @@ val dataModule = module {
     }
 
     single(createdAtStart = true) {
-        TdNotificationManager(androidContext(), get(), get(), get(), get(), get(), get(), get())
+        TdNotificationManager(
+            androidContext(),
+            get(),
+            get(),
+            get(),
+            get(),
+            get(),
+            get(),
+            get(),
+            get()
+        )
     }
 }

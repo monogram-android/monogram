@@ -41,31 +41,43 @@ class UnifiedPushManager(
         val distributors = getDistributors()
         val ack = getAckDistributor()
         if (!ack.isNullOrBlank() && distributors.contains(ack)) {
+            Log.d(TAG, "Select distributor from ack: $ack")
             return ack
         }
 
         val saved = getSavedDistributor()
         if (!saved.isNullOrBlank() && distributors.contains(saved)) {
+            Log.d(TAG, "Select distributor from saved: $saved")
             return saved
         }
 
         val resolved = UnifiedPush.resolveDefaultDistributor(context)
         if (resolved is ResolvedDistributor.Found && distributors.contains(resolved.packageName)) {
+            Log.d(TAG, "Select distributor from default resolver: ${resolved.packageName}")
             return resolved.packageName
         }
 
-        return distributors.firstOrNull()
+        val first = distributors.firstOrNull()
+        if (first != null) {
+            Log.d(TAG, "Select distributor fallback first installed: $first")
+        }
+        return first
     }
 
     fun ensureRegistered(force: Boolean = false): Boolean {
         val distributor = currentDistributor() ?: return false
         val endpointKnown = !_endpoint.value.isNullOrBlank()
         if (!force && endpointKnown && _status.value == Status.REGISTERED && !shouldRefreshRegistration()) {
+            Log.d(TAG, "Skip re-register: endpoint already known and fresh")
             return true
         }
 
         _status.value = Status.REGISTERING
         markRegistrationAttempt()
+        Log.d(
+            TAG,
+            "Request UnifiedPush register: distributor=$distributor force=$force endpointKnown=$endpointKnown"
+        )
 
         return runCatching {
             UnifiedPush.saveDistributor(context, distributor)
@@ -103,6 +115,7 @@ class UnifiedPushManager(
             .apply()
         _endpoint.value = value
         _status.value = Status.REGISTERED
+        Log.d(TAG, "UnifiedPush endpoint saved: ${value.take(140)}")
     }
 
     fun onRegistrationFailed(reason: FailedReason?) {

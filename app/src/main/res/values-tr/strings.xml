@@ -1,0 +1,44 @@
+<resources>
+    <!-- Lock Screen -->
+    <string name="lock_unlock_title">MonoGram Kilidini Aç</string>
+    <string name="lock_unlock_subtitle">Biyometrik verilerinizi kullanarak giriş yapın</string>
+    <string name="lock_use_passcode">Şifre kullan</string>
+    <string name="lock_enter_passcode">Şifreyi Girin</string>
+    <string name="lock_messages_protected">Mesajlarınız korunuyor</string>
+    <string name="lock_invalid_passcode">Geçersiz şifre</string>
+    <string name="lock_biometric_unlock">Biyometrik Kilidi Aç</string>
+
+    <!-- Main Content / Proxy Confirm -->
+    <string name="proxy_details">Proxy Detayları</string>
+    <string name="proxy_add_connect">Bu proxy sunucusunu ekleyin ve bağlanın</string>
+    <string name="proxy_server">Sunucu</string>
+    <string name="proxy_port">Port</string>
+    <string name="proxy_type">Tür</string>
+    <string name="proxy_unknown">Bilinmiyor</string>
+    <string name="cancel">İptal</string>
+    <string name="connect">Bağlan</string>
+	
+    <!-- Main Content / Chat Confirm -->
+    <string name="chat_join">Katıl</string>
+    <string name="chat_channel">Kanal</string>
+    <string name="chat_group">Grup</string>
+    <plurals name="members_count">
+        <item quantity="one">%d üye</item>
+        <item quantity="other">%d üye</item>
+    </plurals>
+	
+    <!-- Tablet Layout -->
+    <string name="tablet_select_setting">Bir ayar seçin</string>
+    <string name="tablet_select_chat">Mesajlaşmaya başlamak için bir sohbet seçin</string>
+
+    <!-- Crash Activity -->
+    <string name="crash_log_label">Hata Günlüğü</string>
+    <string name="crash_copied_to_clipboard">Panoya kopyalandı</string>
+    <string name="crash_share_title">Hata Günlüğünü Paylaş</string>
+    <string name="crash_share">Paylaş</string>
+    <string name="crash_copy">Kopyala</string>
+    <string name="crash_restart">Uygulamayı Yeniden Başlat</string>
+    <string name="crash_error_details">Hata Detayları</string>
+    <string name="crash_description">Bir şeyler ters gitti. Bu sorunu geliştiricilere bildirmek için lütfen aşağıdaki günlükleri paylaşın veya kopyalayın.</string>
+
+</resources>

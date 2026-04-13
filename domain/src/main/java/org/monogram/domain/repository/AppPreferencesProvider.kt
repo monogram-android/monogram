@@ -44,6 +44,48 @@ fun defaultProxyNetworkMode(networkType: ProxyNetworkType): ProxyNetworkMode {
     return ProxyNetworkMode.BEST_PROXY
 }
 
+enum class ProxyNetworkType {
+    WIFI,
+    MOBILE,
+    VPN,
+    OTHER
+}
+
+enum class ProxyNetworkMode {
+    DIRECT,
+    BEST_PROXY,
+    LAST_USED,
+    SPECIFIC_PROXY
+}
+
+enum class ProxySortMode {
+    ACTIVE_FIRST,
+    LOWEST_PING,
+    SERVER_NAME,
+    PROXY_TYPE,
+    STATUS
+}
+
+enum class ProxyUnavailableFallback {
+    BEST_PROXY,
+    DIRECT,
+    KEEP_CURRENT
+}
+
+data class ProxyNetworkRule(
+    val mode: ProxyNetworkMode,
+    val specificProxyId: Int? = null,
+    val lastUsedProxyId: Int? = null
+)
+
+fun defaultProxyNetworkMode(networkType: ProxyNetworkType): ProxyNetworkMode {
+    return if (networkType == ProxyNetworkType.VPN) {
+        ProxyNetworkMode.DIRECT
+    } else {
+        ProxyNetworkMode.BEST_PROXY
+    }
+}
+
 interface AppPreferencesProvider {
     val autoDownloadMobile: StateFlow<Boolean>
     val autoDownloadWifi: StateFlow<Boolean>

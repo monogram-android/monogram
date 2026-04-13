@@ -447,6 +447,18 @@ class TdNotificationManager(
             return
         }
 
+        val messageContent = message.content
+        if (messageContent == null) {
+            Log.w(TAG, "Skipping notification for message ${message.id}: content is null")
+            return
+        }
+
+        val senderId = message.senderId
+        if (senderId == null) {
+            Log.w(TAG, "Skipping notification for message ${message.id}: senderId is null")
+            return
+        }
+
         val lastId = lastMessageIds[message.chatId]
         if (lastId != null && message.id <= lastId) {
             Log.d(

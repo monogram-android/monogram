@@ -124,6 +124,21 @@ class App : Application(), SingletonImageLoader.Factory {
         }
     }
 
+    private fun trimInMemoryCaches(reason: String) {
+        if (!::container.isInitialized) return
+        runCatching {
+            get<DataMemoryPressureHandler>().clearDataCaches(reason)
+        }.onFailure { error ->
+            Log.w(TAG, "Failed to clear data caches for $reason", error)
+        }
+
+        runCatching {
+            get<ImageLoader>().memoryCache?.clear()
+        }.onFailure { error ->
+            Log.w(TAG, "Failed to clear Coil memory cache for $reason", error)
+        }
+    }
+
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         return get<ImageLoader>()
     }

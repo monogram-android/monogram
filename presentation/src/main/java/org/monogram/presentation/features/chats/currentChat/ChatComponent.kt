@@ -321,6 +321,7 @@ interface ChatComponent {
         val isInlineBotLoading: Boolean = false,
         val isInstalledFromGooglePlay: Boolean = true,
         val attachMenuBots: List<AttachMenuBotModel> = emptyList(),
-        val scheduledMessages: List<MessageModel> = emptyList()
+        val scheduledMessages: List<MessageModel> = emptyList(),
+        val lastReadInboxMessageId: Long = 0L,
     )
 }

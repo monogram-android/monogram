@@ -155,7 +155,8 @@ internal fun DefaultChatComponent.updateChatState(chat: ChatModel) {
             viewAsTopics = chat.viewAsTopics,
             isMuted = chat.isMuted,
             permissions = chat.permissions,
-            isMember = chat.isMember
+            isMember = chat.isMember,
+            lastReadInboxMessageId = chat.lastReadInboxMessageId,
         )
     }
 }

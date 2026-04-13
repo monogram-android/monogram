@@ -150,7 +150,8 @@ class DefaultChatComponent(
             highlightedMessageId = initialMessageId,
             lastScrollPosition = cacheProvider.getChatScrollPosition(chatId),
             lastSavedViewport = cacheProvider.getChatViewport(chatId, null),
-            isInstalledFromGooglePlay = distrManager.isInstalledFromGooglePlay()
+            isInstalledFromGooglePlay = distrManager.isInstalledFromGooglePlay(),
+            lastReadInboxMessageId = 0L
         )
     )
 

@@ -56,6 +56,29 @@ fun groupMessagesByAlbum(messages: List<MessageModel>): List<GroupedMessageItem>
     return result
 }
 
+fun findFirstUnreadBoundary(
+    messages: List<MessageModel>,
+    groupedItems: List<GroupedMessageItem>,
+    firstUnreadMessageId: Long?
+): GroupedMessageItem? {
+    if (firstUnreadMessageId == null) return null
+
+    val messageIdToGroupMap = mutableMapOf<Long, GroupedMessageItem>()
+    for (item in groupedItems) {
+        when (item) {
+            is GroupedMessageItem.Single -> messageIdToGroupMap[item.message.id] = item
+            is GroupedMessageItem.Album -> item.messages.forEach { messageIdToGroupMap[it.id] = item }
+        }
+    }
+
+    for (msg in messages) {
+        if (msg.id == firstUnreadMessageId) {
+            return messageIdToGroupMap[msg.id]
+        }
+    }
+    return null
+}
+
 fun shouldShowDate(current: MessageModel, older: MessageModel?): Boolean {
     val currentTimestamp = System.currentTimeMillis()
     val msgTimestamp = current.date.toLong() * 1000

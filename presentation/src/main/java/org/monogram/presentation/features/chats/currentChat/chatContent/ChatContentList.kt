@@ -83,9 +83,11 @@ import org.monogram.presentation.features.chats.currentChat.components.AlbumMess
 import org.monogram.presentation.features.chats.currentChat.components.DateSeparator
 import org.monogram.presentation.features.chats.currentChat.components.MessageBubbleContainer
 import org.monogram.presentation.features.chats.currentChat.components.ServiceMessage
+import org.monogram.presentation.features.chats.currentChat.components.UnreadMessagesSeparator
 import org.monogram.presentation.features.chats.currentChat.components.channels.ChannelMessageBubbleContainer
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import java.io.File
+import kotlin.compareTo
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -116,6 +118,27 @@ fun ChatContentList(
     var lastOlderLoadTriggerUptimeMs by remember { mutableLongStateOf(0L) }
     var lastNewerLoadTriggerUptimeMs by remember { mutableLongStateOf(0L) }
     val loadTriggerThrottleMs = 350L
+    val unreadBoundaryIndex = remember(
+        isComments,
+        groupedMessages,
+        state.messages,
+        state.lastReadInboxMessageId
+    ) {
+        if (isComments) {
+            null // suppress in thread/comments mode
+        } else {
+            val boundaryItem = findFirstUnreadBoundary(
+                messages = state.messages,
+                groupedItems = groupedMessages,
+                firstUnreadMessageId = state.lastReadInboxMessageId
+            )
+            boundaryItem?.let { target ->
+                groupedMessages.indexOfFirst { it.firstMessageId == target.firstMessageId }
+                    .takeIf { it >= 0 }
+            }
+        }
+    }
+
 
     LaunchedEffect(
         scrollState,
@@ -255,7 +278,9 @@ fun ChatContentList(
                     toProfile = toProfile,
                     isScrolling = isScrolling,
                     downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
+                    isAnyViewerOpen = isAnyViewerOpen,
+                    showUnreadSeparator = index == unreadBoundaryIndex,
+                    unreadCount = state.unreadCount
                 )
             }
         } else {
@@ -309,7 +334,9 @@ fun ChatContentList(
                     toProfile = toProfile,
                     isScrolling = isScrolling,
                     downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
+                    isAnyViewerOpen = isAnyViewerOpen,
+                    showUnreadSeparator = index == unreadBoundaryIndex,
+                    unreadCount = state.unreadCount
                 )
             }
         }
@@ -388,7 +415,9 @@ private fun MessageRowItem(
     toProfile: (Long) -> Unit,
     isScrolling: Boolean,
     downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false
+    isAnyViewerOpen: Boolean = false,
+    showUnreadSeparator: Boolean,
+    unreadCount: Int
 ) {
     val mainMsg = remember(item) {
         if (item is GroupedMessageItem.Single) item.message else (item as GroupedMessageItem.Album).messages.last()
@@ -465,6 +494,11 @@ private fun MessageRowItem(
             Column(modifier = Modifier.weight(1f)) {
                 if (shouldShowDate(mainMsg, olderMsg)) {
                     DateSeparator(mainMsg.date)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                if (showUnreadSeparator) {
+                    UnreadMessagesSeparator(unreadCount = unreadCount)
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 

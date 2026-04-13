@@ -71,6 +71,7 @@ import androidx.window.core.layout.WindowSizeClass
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.AvatarForChat
 import org.monogram.presentation.core.ui.ConfirmationSheet
+import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.ui.TypingDots
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
@@ -115,6 +116,7 @@ fun ChatTopBar(
     var showMenu by rememberSaveable { mutableStateOf(false) }
     var showClearHistorySheet by rememberSaveable { mutableStateOf(false) }
     var showDeleteChatSheet by rememberSaveable { mutableStateOf(false) }
+    val iconButtonShapes = ExpressiveDefaults.iconButtonShapes()
 
     val windowInsets = if (isTablet) WindowInsets(0, 0, 0, 0) else WindowInsets.statusBars
     val topInsetModifier = if (isTablet) {
@@ -153,7 +155,7 @@ fun ChatTopBar(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onSearchToggle) {
+                        IconButton(onClick = onSearchToggle, shapes = iconButtonShapes) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.cd_back)
@@ -162,11 +164,14 @@ fun ChatTopBar(
                     },
                     actions = {
                         if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { onSearchQueryChange("") }) {
+                            IconButton(onClick = { onSearchQueryChange("") }, shapes = iconButtonShapes) {
                                 Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_clear))
                             }
                         }
-                    }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    )
                 )
             } else {
                 TopAppBar(
@@ -290,7 +295,7 @@ fun ChatTopBar(
                     },
                     navigationIcon = {
                         if (showBack) {
-                            IconButton(onClick = onBack) {
+                            IconButton(onClick = onBack, shapes = iconButtonShapes) {
                                 Icon(
                                     Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = stringResource(R.string.cd_back)
@@ -302,12 +307,12 @@ fun ChatTopBar(
                         IconButton(onClick = {
                             onMenu()
                             showMenu = true
-                        }) {
+                        }, shapes = iconButtonShapes) {
                             Icon(Icons.Default.MoreVert, contentDescription = null)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     )
                 )
             }

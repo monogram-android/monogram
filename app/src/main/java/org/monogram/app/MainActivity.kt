@@ -107,7 +107,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun startNotificationService() {
-        if (appPreferences.pushProvider.value == PushProvider.FCM) return
+        if (appPreferences.pushProvider.value != PushProvider.GMS_LESS) return
         val intent = Intent(this, TdNotificationService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)

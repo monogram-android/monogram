@@ -5,8 +5,56 @@ import kotlinx.coroutines.CoroutineScope
 import org.koin.core.Koin
 import org.monogram.core.DispatcherProvider
 import org.monogram.core.Logger
-import org.monogram.domain.managers.*
-import org.monogram.domain.repository.*
+import org.monogram.domain.managers.AssetsManager
+import org.monogram.domain.managers.ClipManager
+import org.monogram.domain.managers.DistrManager
+import org.monogram.domain.managers.DomainManager
+import org.monogram.domain.managers.PhoneManager
+import org.monogram.domain.repository.AppPreferencesProvider
+import org.monogram.domain.repository.AttachMenuBotRepository
+import org.monogram.domain.repository.AuthRepository
+import org.monogram.domain.repository.BotPreferencesProvider
+import org.monogram.domain.repository.BotRepository
+import org.monogram.domain.repository.CacheProvider
+import org.monogram.domain.repository.ChatCreationRepository
+import org.monogram.domain.repository.ChatEventLogRepository
+import org.monogram.domain.repository.ChatFolderRepository
+import org.monogram.domain.repository.ChatInfoRepository
+import org.monogram.domain.repository.ChatListRepository
+import org.monogram.domain.repository.ChatOperationsRepository
+import org.monogram.domain.repository.ChatSearchRepository
+import org.monogram.domain.repository.ChatSettingsRepository
+import org.monogram.domain.repository.ChatStatisticsRepository
+import org.monogram.domain.repository.EditorSnippetProvider
+import org.monogram.domain.repository.EmojiRepository
+import org.monogram.domain.repository.ExternalNavigator
+import org.monogram.domain.repository.ExternalProxyRepository
+import org.monogram.domain.repository.FileRepository
+import org.monogram.domain.repository.ForumTopicsRepository
+import org.monogram.domain.repository.GifRepository
+import org.monogram.domain.repository.InlineBotRepository
+import org.monogram.domain.repository.LinkHandlerRepository
+import org.monogram.domain.repository.LocationRepository
+import org.monogram.domain.repository.MessageAiRepository
+import org.monogram.domain.repository.MessageDisplayer
+import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.NetworkStatisticsRepository
+import org.monogram.domain.repository.NotificationSettingsRepository
+import org.monogram.domain.repository.PaymentRepository
+import org.monogram.domain.repository.PremiumRepository
+import org.monogram.domain.repository.PrivacyRepository
+import org.monogram.domain.repository.ProfilePhotoRepository
+import org.monogram.domain.repository.PushDebugRepository
+import org.monogram.domain.repository.SessionRepository
+import org.monogram.domain.repository.SponsorRepository
+import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.StorageRepository
+import org.monogram.domain.repository.StringProvider
+import org.monogram.domain.repository.UpdateRepository
+import org.monogram.domain.repository.UserProfileEditRepository
+import org.monogram.domain.repository.UserRepository
+import org.monogram.domain.repository.WallpaperRepository
+import org.monogram.domain.repository.WebAppRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.components.ExoPlayerCache
@@ -65,6 +113,7 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val gifRepository: GifRepository by lazy { koin.get() }
     override val emojiRepository: EmojiRepository by lazy { koin.get() }
     override val updateRepository: UpdateRepository by lazy { koin.get() }
+    override val pushDebugRepository: PushDebugRepository by lazy { koin.get() }
 }
 
 class KoinUtilsContainer(private val koin: Koin) : UtilsContainer {

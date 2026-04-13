@@ -381,6 +381,12 @@
     <string name="debug_sponsor_sheet_subtitle">Open sponsor info bottom sheet</string>
     <string name="debug_force_sponsor_sync_title">Force sponsor sync</string>
     <string name="debug_force_sponsor_sync_subtitle">Fetch sponsor IDs from channel now</string>
+    <string name="debug_section_push_diagnostics">Push Diagnostics</string>
+    <string name="debug_section_runtime_flags">Runtime Flags</string>
+    <string name="debug_section_push_environment">Push Environment</string>
+    <string name="debug_section_unifiedpush_details">UnifiedPush Details</string>
+    <string name="debug_section_sponsor">Sponsor</string>
+    <string name="debug_section_danger_zone">Danger Zone</string>
     <string name="log_out_title">Log Out</string>
     <string name="log_out_subtitle">Disconnect from account</string>
 
@@ -612,6 +618,7 @@
     <string name="repeat_hour_format">Every 1 hour</string>
     <string name="repeat_hours_format">Every %1$d hours</string>
     <string name="push_provider_fcm">Firebase Cloud Messaging</string>
+    <string name="push_provider_unified">UnifiedPush (Simple Push)</string>
     <string name="push_provider_gms_less">GMS-less (Background Service)</string>
 
     <!-- Chat Settings -->

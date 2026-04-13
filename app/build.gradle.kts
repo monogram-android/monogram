@@ -110,6 +110,16 @@ androidComponents {
     }
 }
 
+configurations.configureEach {
+    val tink = "com.google.crypto.tink:tink-android:1.21.0"
+    resolutionStrategy {
+        force(tink)
+        dependencySubstitution {
+            substitute(module("com.google.crypto.tink:tink")).using(module(tink))
+        }
+    }
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.androidx.compose)
@@ -126,6 +136,7 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation(libs.unifiedpush.connector)
 
     implementation(libs.maplibre.compose)
 

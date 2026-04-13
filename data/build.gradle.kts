@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.androidx.media3.datasource)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+    implementation(libs.unifiedpush.connector)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

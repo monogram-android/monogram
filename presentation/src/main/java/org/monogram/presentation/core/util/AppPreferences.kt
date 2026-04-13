@@ -296,8 +296,7 @@ class AppPreferences(
     private val _showSenderOnly = MutableStateFlow(prefs.getBoolean(KEY_SHOW_SENDER_ONLY, false))
     override val showSenderOnly: StateFlow<Boolean> = _showSenderOnly
 
-    private val _pushProvider =
-        MutableStateFlow(PushProvider.entries[prefs.getInt(KEY_PUSH_PROVIDER, PushProvider.FCM.ordinal)])
+    private val _pushProvider = MutableStateFlow(loadPushProvider())
     override val pushProvider: StateFlow<PushProvider> = _pushProvider
 
     private val _isArchivePinned = MutableStateFlow(prefs.getBoolean(KEY_IS_ARCHIVE_PINNED, true))
@@ -893,7 +892,10 @@ class AppPreferences(
     }
 
     override fun setPushProvider(provider: PushProvider) {
-        prefs.edit().putInt(KEY_PUSH_PROVIDER, provider.ordinal).apply()
+        prefs.edit()
+            .putString(KEY_PUSH_PROVIDER_NAME, provider.name)
+            .putInt(KEY_PUSH_PROVIDER, provider.ordinal)
+            .apply()
         _pushProvider.value = provider
     }
 
@@ -1144,6 +1146,24 @@ class AppPreferences(
         _isSupportViewed.value = viewed
     }
 
+    private fun loadPushProvider(): PushProvider {
+        val byName = prefs.getString(KEY_PUSH_PROVIDER_NAME, null)
+            ?.let { stored -> PushProvider.entries.firstOrNull { it.name == stored } }
+        if (byName != null) {
+            return byName
+        }
+
+        val legacyOrdinal = prefs.getInt(KEY_PUSH_PROVIDER, PushProvider.FCM.ordinal)
+        val migrated = when (legacyOrdinal) {
+            0 -> PushProvider.FCM
+            1 -> PushProvider.GMS_LESS
+            else -> PushProvider.entries.getOrNull(legacyOrdinal) ?: PushProvider.FCM
+        }
+
+        prefs.edit().putString(KEY_PUSH_PROVIDER_NAME, migrated.name).apply()
+        return migrated
+    }
+
     companion object {
         private const val KEY_FONT_SIZE = "font_size"
         private const val KEY_LETTER_SPACING = "letter_spacing"
@@ -1226,6 +1246,7 @@ class AppPreferences(
         private const val KEY_REPEAT_NOTIFICATIONS = "repeat_notifications"
         private const val KEY_SHOW_SENDER_ONLY = "show_sender_only"
         private const val KEY_PUSH_PROVIDER = "push_provider"
+        private const val KEY_PUSH_PROVIDER_NAME = "push_provider_name"
 
         private const val KEY_IS_ARCHIVE_PINNED = "is_archive_pinned"
         private const val KEY_IS_ARCHIVE_ALWAYS_VISIBLE = "is_archive_always_visible"

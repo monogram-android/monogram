@@ -20,7 +20,6 @@ import org.monogram.presentation.di.AppContainer
 import org.monogram.presentation.di.KoinAppContainer
 import java.io.PrintWriter
 import java.io.StringWriter
-import kotlin.jvm.java
 import kotlin.system.exitProcess
 
 class App : Application(), SingletonImageLoader.Factory {
@@ -86,10 +85,18 @@ class App : Application(), SingletonImageLoader.Factory {
         val distrManager = get<DistrManager>()
         val isGmsAvailable = distrManager.isGmsAvailable()
         val isFcmAvailable = distrManager.isFcmAvailable()
+        val isUnifiedPushAvailable = distrManager.isUnifiedPushDistributorAvailable()
 
         val prefs = get<AppPreferencesProvider>()
-        if (!(isGmsAvailable && isFcmAvailable) && prefs.pushProvider.value == PushProvider.FCM) {
-            prefs.setPushProvider(PushProvider.GMS_LESS)
+        val currentProvider = prefs.pushProvider.value
+        if (currentProvider == PushProvider.FCM && !(isGmsAvailable && isFcmAvailable)) {
+            val fallback =
+                if (isUnifiedPushAvailable) PushProvider.UNIFIED_PUSH else PushProvider.GMS_LESS
+            prefs.setPushProvider(fallback)
+        } else if (currentProvider == PushProvider.UNIFIED_PUSH && !isUnifiedPushAvailable) {
+            val fallback =
+                if (isGmsAvailable && isFcmAvailable) PushProvider.FCM else PushProvider.GMS_LESS
+            prefs.setPushProvider(fallback)
         }
     }
 

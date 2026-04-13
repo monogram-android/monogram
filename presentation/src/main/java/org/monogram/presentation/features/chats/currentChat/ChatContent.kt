@@ -37,9 +37,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -111,6 +113,7 @@ import org.monogram.presentation.features.chats.currentChat.components.*
 import org.monogram.presentation.features.chats.currentChat.components.chats.BotCommandsSheet
 import org.monogram.presentation.features.chats.currentChat.components.chats.LocalLinkHandler
 import org.monogram.presentation.features.chats.currentChat.components.chats.PollVotersSheet
+import org.monogram.presentation.features.chats.currentChat.components.pins.PinnedMessageBar
 import org.monogram.presentation.features.chats.currentChat.components.pins.PinnedMessagesListSheet
 import org.monogram.presentation.features.chats.currentChat.editor.photo.PhotoEditorScreen
 import org.monogram.presentation.features.chats.currentChat.editor.video.VideoEditorScreen
@@ -189,6 +192,7 @@ fun ChatContent(
     var editingPhotoPath by rememberSaveable { mutableStateOf<String?>(null) }
     var editingVideoPath by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBlockUserId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var pendingUnpinMessage by rememberSaveable { mutableStateOf<MessageModel?>(null) }
 
     val groupedMessages by remember {
         derivedStateOf { groupMessagesByAlbum(displayMessages) }
@@ -695,9 +699,7 @@ fun ChatContent(
         chatUiState.isInstalledFromGooglePlay,
         chatUiState.isMuted,
         searchState.isSearchActive,
-        searchState.searchQuery,
-        pinnedState.pinnedMessage,
-        pinnedState.pinnedMessageCount
+        searchState.searchQuery
     ) {
         ChatContentTopBarUiState(
             currentTopicId = chatUiState.currentTopicId,
@@ -723,9 +725,7 @@ fun ChatContent(
             isInstalledFromGooglePlay = chatUiState.isInstalledFromGooglePlay,
             isMuted = chatUiState.isMuted,
             isSearchActive = searchState.isSearchActive,
-            searchQuery = searchState.searchQuery,
-            pinnedMessage = pinnedState.pinnedMessage,
-            pinnedMessageCount = pinnedState.pinnedMessageCount
+            searchQuery = searchState.searchQuery
         )
     }
 
@@ -771,7 +771,7 @@ fun ChatContent(
                         .fillMaxSize()
                         .graphicsLayer { alpha = contentAlpha; translationY = contentOffset.toPx() }
                         .semantics { contentDescription = "ChatContent" },
-                    containerColor = Color.Transparent,
+                    containerColor = if (isTablet) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow,
                     topBar = {
                         ChatContentTopBar(
                             topBarState = topBarUiState,
@@ -791,7 +791,6 @@ fun ChatContent(
                                 keyboardController?.hide()
                                 focusManager.clearFocus(force = true)
                             },
-                            onPinnedMessageClick = { msg -> scrollToMessageState.value(msg) },
                             showBack = !isTablet
                         )
                     },
@@ -1007,27 +1006,90 @@ fun ChatContent(
                                 }
                             }
                         }
+                    },
+                    floatingActionButton = {
+                        AnimatedVisibility(
+                            visible = showScrollToBottomButton,
+                            enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+                            exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut()
+                        ) {
+                            Box {
+                                FloatingActionButton(
+                                    onClick = {
+                                        component.onScrollToBottom()
+                                    },
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    shape = CircleShape,
+                                    modifier = Modifier.size(48.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.KeyboardArrowDown,
+                                        contentDescription = stringResource(R.string.cd_scroll_to_bottom),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                AnimatedVisibility(
+                                    visible = chatUiState.unreadCount > 0,
+                                    enter = scaleIn() + fadeIn(),
+                                    exit = scaleOut() + fadeOut(),
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .offset(y = (-8).dp)
+                                ) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = CircleShape,
+                                        shadowElevation = 4.dp
+                                    ) {
+                                        AnimatedContent(
+                                            targetState = chatUiState.unreadCount,
+                                            transitionSpec = {
+                                                if (targetState > initialState) {
+                                                    (slideInVertically { height -> height } + fadeIn()).togetherWith(
+                                                        slideOutVertically { height -> -height } + fadeOut())
+                                                } else {
+                                                    (slideInVertically { height -> -height } + fadeIn()).togetherWith(
+                                                        slideOutVertically { height -> height } + fadeOut())
+                                                }.using(
+                                                    SizeTransform(clip = false)
+                                                )
+                                            },
+                                            label = "UnreadCountAnimation"
+                                        ) { count ->
+                                            Text(
+                                                text = if (count > 999) "999+" else count.toString(),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 10.sp
+                                                ),
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 ) { padding ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding)
-                            .consumeWindowInsets(padding)
-                            .onGloballyPositioned { coordinates ->
-                                contentRect = Rect(
-                                    offset = coordinates.positionInWindow(),
-                                    size = coordinates.size.toSize()
-                                )
-                            }
-                    ) {
-                        Box(
+                        Surface(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .padding(padding)
+                                .consumeWindowInsets(padding)
+                                .onGloballyPositioned { coordinates ->
+                                    contentRect = Rect(
+                                        offset = coordinates.positionInWindow(),
+                                        size = coordinates.size.toSize()
+                                    )
+                                }
                                 .graphicsLayer {
                                     alpha = contentAlpha
                                     translationY = contentOffset.toPx()
-                                }
+                                },
+                            shape = if (isTablet) RoundedCornerShape(16.dp) else RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                            color = if (isTablet) Color.Transparent else MaterialTheme.colorScheme.surface
                         ) {
                             val currentKeyboardController = rememberUpdatedState(keyboardController)
                             val currentFocusManager = rememberUpdatedState(focusManager)
@@ -1210,128 +1272,85 @@ fun ChatContent(
                                 }
                             }
 
-                            ChatContentList(
-                                showNavPadding = false,
-                                chatUiState = chatUiState,
-                                appearanceState = appearanceState,
-                                messagesState = messagesState,
-                                selectionState = selectionState,
-                                component = component,
-                                scrollState = scrollState,
-                                groupedMessages = groupedMessages,
-                                onPhotoDownload = onPhotoDownloadStable,
-                                onPhotoClick = onPhotoClickStable,
-                                onVideoClick = onVideoClickStable,
-                                onDocumentClick = onDocumentClickStable,
-                                onAudioClick = onAudioClickStable,
-                                onMessageOptionsClick = onMessageOptionsClickStable,
-                                onGoToReply = onGoToReplyStable,
-                                selectedMessageId = selectedMessageId,
-                                onMessagePositionChange = onMessagePositionChangeStable,
-                                onViaBotClick = onViaBotClickStable,
-                                toProfile = toProfileStable,
-                                downloadUtils = component.downloadUtils,
-                                isAnyViewerOpen = isAnyViewerOpen
-                            )
-
-                            AnimatedVisibility(
-                                visible = showScrollToBottomButton,
-                                enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
-                                exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut(),
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(16.dp)
+                            Box(
+                                modifier = Modifier.fillMaxSize()
                             ) {
-                                Box {
-                                    FloatingActionButton(
-                                        onClick = {
-                                            component.onScrollToBottom()
-                                        },
-                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        shape = CircleShape,
-                                        modifier = Modifier.size(48.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.KeyboardArrowDown,
-                                            contentDescription = stringResource(R.string.cd_scroll_to_bottom),
-                                            modifier = Modifier.size(24.dp)
+                                ChatContentList(
+                                    showNavPadding = false,
+                                    chatUiState = chatUiState,
+                                    appearanceState = appearanceState,
+                                    messagesState = messagesState,
+                                    selectionState = selectionState,
+                                    component = component,
+                                    scrollState = scrollState,
+                                    groupedMessages = groupedMessages,
+                                    onPhotoDownload = onPhotoDownloadStable,
+                                    onPhotoClick = onPhotoClickStable,
+                                    onVideoClick = onVideoClickStable,
+                                    onDocumentClick = onDocumentClickStable,
+                                    onAudioClick = onAudioClickStable,
+                                    onMessageOptionsClick = onMessageOptionsClickStable,
+                                    onGoToReply = onGoToReplyStable,
+                                    selectedMessageId = selectedMessageId,
+                                    onMessagePositionChange = onMessagePositionChangeStable,
+                                    onViaBotClick = onViaBotClickStable,
+                                    toProfile = toProfileStable,
+                                    downloadUtils = component.downloadUtils,
+                                    isAnyViewerOpen = isAnyViewerOpen
+                                )
+
+                                val showPinned = pinnedState.pinnedMessage != null &&
+                                        selectedCount == 0 &&
+                                        chatUiState.rootMessage == null
+                                androidx.compose.animation.AnimatedVisibility(
+                                    visible = showPinned,
+                                    enter = fadeIn(),
+                                    exit = fadeOut(),
+                                    modifier = Modifier.align(Alignment.TopCenter)
+                                ) {
+                                    pinnedState.pinnedMessage?.let { pinned ->
+                                        PinnedMessageBar(
+                                            message = pinned,
+                                            count = pinnedState.pinnedMessageCount,
+                                            onClose = { pendingUnpinMessage = pinned },
+                                            onClick = { scrollToMessageState.value(pinned) },
+                                            onShowAll = { component.onShowAllPinnedMessages() }
                                         )
                                     }
+                                }
 
-                                    AnimatedVisibility(
-                                        visible = chatUiState.unreadCount > 0,
-                                        enter = scaleIn() + fadeIn(),
-                                        exit = scaleOut() + fadeOut(),
+                                if (isRecordingVideo) {
+                                    Box(
                                         modifier = Modifier
-                                            .align(Alignment.TopCenter)
-                                            .offset(y = (-8).dp)
+                                            .fillMaxSize()
+                                            .background(Color.Black)
+                                            .zIndex(10f)
                                     ) {
-                                        Surface(
-                                            color = MaterialTheme.colorScheme.primary,
-                                            shape = CircleShape,
-                                            shadowElevation = 4.dp
-                                        ) {
-                                            AnimatedContent(
-                                                targetState = chatUiState.unreadCount,
-                                                transitionSpec = {
-                                                    if (targetState > initialState) {
-                                                        (slideInVertically { height -> height } + fadeIn()).togetherWith(
-                                                            slideOutVertically { height -> -height } + fadeOut())
-                                                    } else {
-                                                        (slideInVertically { height -> -height } + fadeIn()).togetherWith(
-                                                            slideOutVertically { height -> height } + fadeOut())
-                                                    }.using(
-                                                        SizeTransform(clip = false)
-                                                    )
-                                                },
-                                                label = "UnreadCountAnimation"
-                                            ) { count ->
-                                                Text(
-                                                    text = if (count > 999) "999+" else count.toString(),
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 10.sp
-                                                    ),
-                                                    color = MaterialTheme.colorScheme.onPrimary
-                                                )
+                                        AdvancedCircularRecorderScreen(
+                                            onClose = { isRecordingVideo = false },
+                                            onVideoRecorded = { file ->
+                                                isRecordingVideo = false
+                                                component.onVideoRecorded(file)
                                             }
-                                        }
+                                        )
                                     }
                                 }
-                            }
 
-                            if (isRecordingVideo) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Color.Black)
-                                        .zIndex(10f)
+                                androidx.compose.animation.AnimatedVisibility(
+                                    visible = showInitialLoading,
+                                    enter = fadeIn(),
+                                    exit = fadeOut(animationSpec = tween(400))
                                 ) {
-                                    AdvancedCircularRecorderScreen(
-                                        onClose = { isRecordingVideo = false },
-                                        onVideoRecorded = { file ->
-                                            isRecordingVideo = false
-                                            component.onVideoRecorded(file)
-                                        }
-                                    )
-                                }
-                            }
-
-                            AnimatedVisibility(
-                                visible = showInitialLoading,
-                                enter = fadeIn(),
-                                exit = fadeOut(animationSpec = tween(400))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(MaterialTheme.colorScheme.surface)
-                                ) {
-                                    MessageListShimmer(
-                                        isGroup = chatUiState.isGroup,
-                                        isChannel = chatUiState.isChannel
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(MaterialTheme.colorScheme.surface)
+                                    ) {
+                                        MessageListShimmer(
+                                            isGroup = chatUiState.isGroup,
+                                            isChannel = chatUiState.isChannel
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1341,6 +1360,20 @@ fun ChatContent(
 
 
             // Modals & Overlays
+            pendingUnpinMessage?.let { pinnedToUnpin ->
+                ConfirmationSheet(
+                    icon = Icons.Rounded.PushPin,
+                    title = stringResource(R.string.unpin_message_title),
+                    description = stringResource(R.string.unpin_message_confirmation),
+                    confirmText = stringResource(R.string.action_unpin),
+                    onConfirm = {
+                        component.onUnpinMessage(pinnedToUnpin)
+                        pendingUnpinMessage = null
+                    },
+                    onDismiss = { pendingUnpinMessage = null }
+                )
+            }
+
             if (renderPinnedMessagesList) {
                 PinnedMessagesListSheet(
                     isVisible = pinnedState.showPinnedMessagesList,
@@ -1541,7 +1574,6 @@ fun ChatContent(
                 else if (mediaViewerState.webViewUrl != null) component.onDismissWebView()
                 else if (chatUiState.currentTopicId != null) component.onTopicClick(0)
             }
-        }
     }
 }
 

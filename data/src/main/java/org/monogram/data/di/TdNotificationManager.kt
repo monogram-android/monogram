@@ -54,6 +54,7 @@ import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository.TdNotificationScope
 import org.monogram.domain.repository.PushProvider
 import org.monogram.domain.repository.StringProvider
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.min
 
@@ -72,7 +73,7 @@ class TdNotificationManager(
     private val notificationManager = NotificationManagerCompat.from(context)
     private val userCache = ConcurrentHashMap<Long, TdApi.User>()
     private val chatCache = ConcurrentHashMap<Long, TdApi.Chat>()
-    private val messagesHistory = ConcurrentHashMap<Long, MutableList<NotificationHistoryEntry>>()
+    private val messagesHistory = ConcurrentHashMap<Long, CopyOnWriteArrayList<NotificationHistoryEntry>>()
     private val lastMessageIds = ConcurrentHashMap<Long, Long>()
     private val activeNotifications = ConcurrentHashMap<Long, MutableSet<Int>>()
     private val bitmapCache = object : LruCache<Int, Bitmap>(5 * 1024 * 1024) {
@@ -602,7 +603,7 @@ class TdNotificationManager(
             else -> CHANNEL_OTHER
         }
 
-        val history = messagesHistory.getOrPut(chatId) { mutableListOf() }
+        val history = messagesHistory.getOrPut(chatId) { CopyOnWriteArrayList() }
         history.add(
             NotificationHistoryEntry(
                 messageId = messageId,
@@ -630,7 +631,8 @@ class TdNotificationManager(
 
         val myself = Person.Builder().setName(stringProvider.getString("notification_person_me")).build()
         val messagingStyle = NotificationCompat.MessagingStyle(myself)
-        history.forEach { entry ->
+        val historySnapshot = history.toList()
+        historySnapshot.forEach { entry ->
             val person = Person.Builder()
                 .setName(entry.senderName)
                 .setKey(entry.senderName)
@@ -913,7 +915,7 @@ class TdNotificationManager(
         }
 
         val allMessages = messagesHistory.flatMap { (chatId, messages) ->
-            messages.map { message ->
+            messages.toList().map { message ->
                 Triple(chatId, message, message.timestamp)
             }
         }.sortedByDescending { it.third }

@@ -474,7 +474,14 @@
     <string name="add_proxy_button">Добавить</string>
     <string name="connection_section_header">Соединение</string>
     <string name="smart_switching_title">Умное переключение</string>
-    <string name="smart_switching_subtitle">Автоматически выбирать самый быстрый прокси</string>
+    <string name="smart_switching_subtitle">Автоматически переключаться между доступными прокси</string>
+    <string name="smart_switch_mode_title">Режим умного переключения</string>
+    <string name="smart_switch_mode_subtitle">Как умное переключение выбирает доступные прокси</string>
+    <string name="smart_switch_mode_best_ping">Минимальный пинг</string>
+    <string name="smart_switch_mode_random_available">Случайный доступный</string>
+    <string name="smart_switch_check_interval_title">Интервал автопроверки</string>
+    <string name="smart_switch_check_interval_subtitle">Как часто умное переключение проверяет доступность прокси</string>
+    <string name="smart_switch_check_interval_format">%1$d мин</string>
     <string name="prefer_ipv6_title">Предпочитать IPv6</string>
     <string name="prefer_ipv6_subtitle">Использовать IPv6 при наличии</string>
     <string name="disable_proxy_title">Отключить прокси</string>
@@ -512,9 +519,19 @@
     <string name="hide_offline_proxies_subtitle">Показывать только доступные или непроверенные прокси</string>
     <string name="proxy_export_action">Экспорт прокси</string>
     <string name="proxy_import_action">Импорт прокси</string>
+    <string name="proxy_paste_from_clipboard_action">Вставить прокси</string>
+    <string name="proxy_scan_qr_action">Сканировать QR прокси</string>
     <string name="proxy_export_success">Список прокси экспортирован</string>
     <string name="proxy_export_failed">Не удалось экспортировать список прокси</string>
     <string name="proxy_import_failed">Не удалось прочитать файл импорта</string>
+    <string name="proxy_load_failed">Не удалось загрузить прокси</string>
+    <string name="proxy_existing_load_failed">Не удалось загрузить существующие прокси</string>
+    <string name="proxy_import_invalid_file">Ошибка импорта: некорректный файл</string>
+    <string name="proxy_import_summary_format">Импортировано: %1$d, пропущено: %2$d, некорректно: %3$d</string>
+    <string name="proxy_clipboard_empty">Буфер обмена пуст</string>
+    <string name="proxy_no_links_found">Ссылки на прокси не найдены</string>
+    <string name="proxy_add_failed">Не удалось добавить прокси</string>
+    <string name="proxy_save_failed">Не удалось сохранить прокси</string>
     <string name="proxy_action_set_favorite">Сделать избранным</string>
     <string name="proxy_action_remove_favorite">Убрать из избранного</string>
     <string name="proxy_action_copy_link">Скопировать ссылку</string>
@@ -2013,4 +2030,26 @@
     <string name="auth_phone_code_invalid_error">Неверный код подтверждения</string>
     <string name="auth_password_hash_invalid">Неверный пароль</string>
     <string name="unexpected_error">Произошла непредвиденная ошибка</string>
+
+    <!-- ProxyContent -->
+    <string name="proxy_connection_test_button">Запустить тест подключения</string>
+    <string name="proxy_connection_test_title">Тест подключения Telegram</string>
+    <string name="proxy_connection_test_subtitle">Проверяет сквозное подключение через дата-центр Telegram.</string>
+    <string name="proxy_connection_test_running">Выполняется тест подключения...</string>
+    <string name="proxy_connection_test_success">Соединение в порядке. Можно сохранить и включить этот прокси.</string>
+    <string name="proxy_connection_test_hint">В основном списке показывается только транспортный пинг. Этот тест шире, поэтому значения могут быть выше.</string>
+    <string name="proxy_tab_proxy">Прокси</string>
+    <string name="proxy_tab_dc_ping">Пинг ДЦ</string>
+    <string name="proxy_tab_settings">Настройки</string>
+    <string name="proxy_dc_ping_header">Пинг дата-центров</string>
+    <string name="proxy_dc_ping_route_proxy">Маршрут: через %1$s:%2$d</string>
+    <string name="proxy_dc_ping_route_direct">Маршрут: прямое подключение</string>
+    <string name="proxy_dc_ping_description">Проверяет доступность дата-центров Telegram по текущему маршруту. При включенном прокси проверка идет через него, иначе используется прямой маршрут.</string>
+    <string name="proxy_dc_ping_run">Запустить проверку ДЦ</string>
+    <string name="proxy_dc_ping_reachable">Доступно</string>
+    <string name="proxy_dc_ping_average">Среднее</string>
+    <string name="proxy_dc_ping_dc_label">ДЦ %1$d</string>
+    <string name="proxy_dc_ping_dc_subtitle">Проверка дата-центра Telegram через активный прокси</string>
+    <string name="proxy_dc_ping_direct_label">Прямой маршрут</string>
+    <string name="proxy_dc_ping_direct_subtitle">Проверка прямого маршрута Telegram</string>
 </resources>

@@ -219,10 +219,12 @@ fun isEmojiLegacy(codePoint: Int): Boolean {
 }
 
 fun normalizeUrl(url: String): String {
-    return if (url.startsWith("http://") || url.startsWith("https://")) {
-        url
+    val trimmed = url.trim()
+    val hasExplicitScheme = Regex("^[a-zA-Z][a-zA-Z0-9+.-]*:").containsMatchIn(trimmed)
+    return if (hasExplicitScheme) {
+        trimmed
     } else {
-        "https://$url"
+        "https://$trimmed"
     }
 }
 

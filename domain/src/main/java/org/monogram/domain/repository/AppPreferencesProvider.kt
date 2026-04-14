@@ -34,6 +34,11 @@ enum class ProxyUnavailableFallback {
     KEEP_CURRENT
 }
 
+enum class ProxySmartSwitchMode {
+    BEST_PING,
+    RANDOM_AVAILABLE
+}
+
 data class ProxyNetworkRule(
     val mode: ProxyNetworkMode,
     val specificProxyId: Int? = null,
@@ -47,6 +52,10 @@ fun defaultProxyNetworkMode(networkType: ProxyNetworkType): ProxyNetworkMode {
         ProxyNetworkMode.BEST_PROXY
     }
 }
+
+const val DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES = 5
+const val MIN_SMART_SWITCH_CHECK_INTERVAL_MINUTES = 1
+const val MAX_SMART_SWITCH_CHECK_INTERVAL_MINUTES = 60
 
 interface AppPreferencesProvider {
     val autoDownloadMobile: StateFlow<Boolean>
@@ -84,6 +93,8 @@ interface AppPreferencesProvider {
 
     val enabledProxyId: StateFlow<Int?>
     val isAutoBestProxyEnabled: StateFlow<Boolean>
+    val proxySmartSwitchMode: StateFlow<ProxySmartSwitchMode>
+    val proxyAutoCheckIntervalMinutes: StateFlow<Int>
     val preferIpv6: StateFlow<Boolean>
     val proxySortMode: StateFlow<ProxySortMode>
     val proxyUnavailableFallback: StateFlow<ProxyUnavailableFallback>
@@ -133,6 +144,8 @@ interface AppPreferencesProvider {
 
     fun setEnabledProxyId(proxyId: Int?)
     fun setAutoBestProxyEnabled(enabled: Boolean)
+    fun setProxySmartSwitchMode(mode: ProxySmartSwitchMode)
+    fun setProxyAutoCheckIntervalMinutes(minutes: Int)
     fun setPreferIpv6(enabled: Boolean)
     fun setProxySortMode(mode: ProxySortMode)
     fun setProxyUnavailableFallback(fallback: ProxyUnavailableFallback)

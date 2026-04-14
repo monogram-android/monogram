@@ -460,7 +460,14 @@
     <string name="add_proxy_button">Ավելացնել</string>
     <string name="connection_section_header">Միացում</string>
     <string name="smart_switching_title">Խելացի փոխանջատում</string>
-    <string name="smart_switching_subtitle">Ավտոմատ օգտագործել ամենաարագ պրոքսին</string>
+    <string name="smart_switching_subtitle">Ավտոմատ փոխանջատվել հասանելի պրոքսիների միջև</string>
+    <string name="smart_switch_mode_title">Խելացի փոխանջատման ռեժիմ</string>
+    <string name="smart_switch_mode_subtitle">Ինչպես է խելացի փոխանջատումը ընտրում հասանելի պրոքսիները</string>
+    <string name="smart_switch_mode_best_ping">Ամենացածր ping</string>
+    <string name="smart_switch_mode_random_available">Պատահական հասանելի</string>
+    <string name="smart_switch_check_interval_title">Ինքնաստուգման ընդմիջում</string>
+    <string name="smart_switch_check_interval_subtitle">Որքան հաճախ է խելացի փոխանջատումը ստուգում պրոքսիների հասանելիությունը</string>
+    <string name="smart_switch_check_interval_format">%1$d րոպե</string>
     <string name="prefer_ipv6_title">Նախապատվությունը տալ IPv6-ին</string>
     <string name="prefer_ipv6_subtitle">Օգտագործել IPv6, եթե հասանելի է</string>
     <string name="disable_proxy_title">Անջատել պրոքսին</string>
@@ -498,9 +505,19 @@
     <string name="hide_offline_proxies_subtitle">Ցույց տալ միայն հասանելի կամ չստուգված պրոքսիները</string>
     <string name="proxy_export_action">Արտահանել պրոքսիները</string>
     <string name="proxy_import_action">Ներմուծել պրոքսիները</string>
+    <string name="proxy_paste_from_clipboard_action">Կպցնել պրոքսիները</string>
+    <string name="proxy_scan_qr_action">Սքանավորել պրոքսի QR</string>
     <string name="proxy_export_success">Պրոքսիների ցուցակն արտահանվել է</string>
     <string name="proxy_export_failed">Չհաջողվեց արտահանել պրոքսիների ցուցակը</string>
     <string name="proxy_import_failed">Չհաջողվեց կարդալ ներմուծման ֆայլը</string>
+    <string name="proxy_load_failed">Չհաջողվեց բեռնել պրոքսիները</string>
+    <string name="proxy_existing_load_failed">Չհաջողվեց բեռնել առկա պրոքսիները</string>
+    <string name="proxy_import_invalid_file">Ներմուծումը ձախողվեց․ անվավեր ֆայլ</string>
+    <string name="proxy_import_summary_format">Ներմուծված՝ %1$d, բաց թողնված՝ %2$d, անվավեր՝ %3$d</string>
+    <string name="proxy_clipboard_empty">Փոխանակման բուֆերը դատարկ է</string>
+    <string name="proxy_no_links_found">Պրոքսի հղումներ չեն գտնվել</string>
+    <string name="proxy_add_failed">Չհաջողվեց ավելացնել պրոքսին</string>
+    <string name="proxy_save_failed">Չհաջողվեց պահպանել պրոքսին</string>
     <string name="proxy_action_set_favorite">Դարձնել ընտրյալ</string>
     <string name="proxy_action_remove_favorite">Հեռացնել ընտրյալներից</string>
     <string name="proxy_action_copy_link">Պատճենել որպես հղում</string>
@@ -1831,4 +1848,26 @@
     <string name="folder_tab_edit">Խմբագրել</string>
     <string name="folder_tab_reorder">Վերադասավորել</string>
     <string name="folder_tab_delete">Ջնջել</string>
+
+    <!-- ProxyContent -->
+    <string name="proxy_connection_test_button">Գործարկել կապի թեստը</string>
+    <string name="proxy_connection_test_title">Telegram-ի կապի թեստ</string>
+    <string name="proxy_connection_test_subtitle">Ստուգում է վերջից վերջ կապը Telegram-ի տվյալների կենտրոնի միջոցով։</string>
+    <string name="proxy_connection_test_running">Կապի թեստը կատարվում է...</string>
+    <string name="proxy_connection_test_success">Կապը լավ է։ Կարող եք պահպանել և միացնել այս proxy-ը։</string>
+    <string name="proxy_connection_test_hint">Հիմնական ցանկը ցույց է տալիս միայն տրանսպորտային պինգը։ Այս թեստն ավելի լայն է, ուստի արժեքները կարող են ավելի բարձր լինել։</string>
+    <string name="proxy_tab_proxy">Proxy</string>
+    <string name="proxy_tab_dc_ping">DC պինգ</string>
+    <string name="proxy_tab_settings">Կարգավորումներ</string>
+    <string name="proxy_dc_ping_header">Տվյալների կենտրոնների պինգ</string>
+    <string name="proxy_dc_ping_route_proxy">Երթուղի՝ %1$s:%2$d միջոցով</string>
+    <string name="proxy_dc_ping_route_direct">Երթուղի՝ ուղիղ միացում</string>
+    <string name="proxy_dc_ping_description">Ստուգում է Telegram-ի տվյալների կենտրոնների հասանելիությունը ընթացիկ երթուղով։ Երբ proxy-ը միացված է, ստուգումները կատարվում են դրա միջոցով, հակառակ դեպքում՝ ուղիղ երթուղով։</string>
+    <string name="proxy_dc_ping_run">Գործարկել DC ստուգումները</string>
+    <string name="proxy_dc_ping_reachable">Հասանելի</string>
+    <string name="proxy_dc_ping_average">Միջին</string>
+    <string name="proxy_dc_ping_dc_label">DC %1$d</string>
+    <string name="proxy_dc_ping_dc_subtitle">Telegram-ի տվյալների կենտրոնի զոնդ ակտիվ proxy-ի միջոցով</string>
+    <string name="proxy_dc_ping_direct_label">Ուղիղ երթուղի</string>
+    <string name="proxy_dc_ping_direct_subtitle">Telegram-ի ուղիղ երթուղու զոնդ</string>
 </resources>

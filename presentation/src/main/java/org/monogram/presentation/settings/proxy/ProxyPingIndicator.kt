@@ -1,8 +1,18 @@
 package org.monogram.presentation.settings.proxy
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,6 +32,7 @@ import org.monogram.presentation.R
 fun ProxyPingIndicator(
     ping: Long?,
     isChecking: Boolean,
+    showText: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     if (!isChecking && ping == null) return
@@ -49,12 +60,14 @@ fun ProxyPingIndicator(
                     .alpha(alpha)
                     .background(MaterialTheme.colorScheme.outline, CircleShape)
             )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                stringResource(R.string.proxy_checking),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-            )
+            if (showText) {
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    stringResource(R.string.proxy_checking),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
         } else {
             val (color, text) = when {
                 ping == null || ping == -1L -> Color(0xFFEA4335) to stringResource(R.string.proxy_offline)
@@ -68,14 +81,16 @@ fun ProxyPingIndicator(
                     .size(8.dp)
                     .background(color, CircleShape)
             )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = color,
-                fontSize = 11.sp
-            )
+            if (showText) {
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = color,
+                    fontSize = 11.sp
+                )
+            }
         }
     }
 }

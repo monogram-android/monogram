@@ -1,13 +1,27 @@
 package org.monogram.app.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -67,6 +81,15 @@ fun ProxyConfirmSheet(root: RootComponent) {
                             else -> stringResource(R.string.proxy_unknown)
                         }
                         DetailRow(stringResource(R.string.proxy_type), typeName)
+
+                        val ping = proxyConfirmState.ping
+                        val (statusText, statusColor) = when {
+                            proxyConfirmState.isChecking -> "Checking..." to MaterialTheme.colorScheme.onSurfaceVariant
+                            ping == null -> "Unknown" to MaterialTheme.colorScheme.onSurfaceVariant
+                            ping < 0L -> "Offline" to MaterialTheme.colorScheme.error
+                            else -> "${ping} ms" to Color(0xFF34A853)
+                        }
+                        DetailRow("Status", statusText, statusColor)
                     }
                 }
 
@@ -98,6 +121,7 @@ fun ProxyConfirmSheet(root: RootComponent) {
                                 proxyConfirmState.type!!,
                             )
                         },
+                        enabled = !proxyConfirmState.isChecking && proxyConfirmState.ping != -1L,
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
@@ -116,7 +140,11 @@ fun ProxyConfirmSheet(root: RootComponent) {
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
+private fun DetailRow(
+    label: String,
+    value: String,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -134,7 +162,7 @@ private fun DetailRow(label: String, value: String) {
             text = value,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = valueColor,
         )
     }
 }

@@ -471,7 +471,14 @@
     <string name="add_proxy_button">添加</string>
     <string name="connection_section_header">连接</string>
     <string name="smart_switching_title">智能切换</string>
-    <string name="smart_switching_subtitle">自动使用速度最快的代理</string>
+    <string name="smart_switching_subtitle">在可用代理之间自动切换</string>
+    <string name="smart_switch_mode_title">智能切换模式</string>
+    <string name="smart_switch_mode_subtitle">智能切换如何选择可用代理</string>
+    <string name="smart_switch_mode_best_ping">最低延迟</string>
+    <string name="smart_switch_mode_random_available">随机可用</string>
+    <string name="smart_switch_check_interval_title">自动检查间隔</string>
+    <string name="smart_switch_check_interval_subtitle">智能切换检查代理可用性的频率</string>
+    <string name="smart_switch_check_interval_format">%1$d 分钟</string>
     <string name="prefer_ipv6_title">IPv6 优先</string>
     <string name="prefer_ipv6_subtitle">如果可用，优先使用 IPv6</string>
     <string name="disable_proxy_title">禁用代理</string>
@@ -509,9 +516,19 @@
     <string name="hide_offline_proxies_subtitle">仅显示可用或未检测的代理</string>
     <string name="proxy_export_action">导出代理</string>
     <string name="proxy_import_action">导入代理</string>
+    <string name="proxy_paste_from_clipboard_action">粘贴代理</string>
+    <string name="proxy_scan_qr_action">扫描代理二维码</string>
     <string name="proxy_export_success">代理列表已导出</string>
     <string name="proxy_export_failed">导出代理列表失败</string>
     <string name="proxy_import_failed">读取导入文件失败</string>
+    <string name="proxy_load_failed">加载代理失败</string>
+    <string name="proxy_existing_load_failed">加载现有代理失败</string>
+    <string name="proxy_import_invalid_file">导入失败：文件无效</string>
+    <string name="proxy_import_summary_format">已导入：%1$d，已跳过：%2$d，无效：%3$d</string>
+    <string name="proxy_clipboard_empty">剪贴板为空</string>
+    <string name="proxy_no_links_found">未找到代理链接</string>
+    <string name="proxy_add_failed">添加代理失败</string>
+    <string name="proxy_save_failed">保存代理失败</string>
     <string name="proxy_action_set_favorite">设为收藏</string>
     <string name="proxy_action_remove_favorite">取消收藏</string>
     <string name="proxy_action_copy_link">复制为链接</string>
@@ -1992,4 +2009,26 @@
     <string name="auth_phone_code_invalid_error">验证码无效</string>
     <string name="auth_password_hash_invalid">密码无效</string>
     <string name="unexpected_error">发生了意外错误</string>
+
+    <!-- ProxyContent -->
+    <string name="proxy_connection_test_button">运行连接测试</string>
+    <string name="proxy_connection_test_title">Telegram 连接测试</string>
+    <string name="proxy_connection_test_subtitle">通过 Telegram 数据中心检查端到端连接。</string>
+    <string name="proxy_connection_test_running">正在运行连接测试...</string>
+    <string name="proxy_connection_test_success">连接状况良好。你可以保存并启用此代理。</string>
+    <string name="proxy_connection_test_hint">主列表仅显示传输层延迟。此测试更全面，因此数值可能更高。</string>
+    <string name="proxy_tab_proxy">代理</string>
+    <string name="proxy_tab_dc_ping">数据中心延迟</string>
+    <string name="proxy_tab_settings">设置</string>
+    <string name="proxy_dc_ping_header">数据中心延迟</string>
+    <string name="proxy_dc_ping_route_proxy">路由：通过 %1$s:%2$d</string>
+    <string name="proxy_dc_ping_route_direct">路由：直连</string>
+    <string name="proxy_dc_ping_description">使用当前路由检查 Telegram 数据中心可达性。启用代理时，将通过该代理进行检查；否则使用直连路由。</string>
+    <string name="proxy_dc_ping_run">运行数据中心检查</string>
+    <string name="proxy_dc_ping_reachable">可达</string>
+    <string name="proxy_dc_ping_average">平均</string>
+    <string name="proxy_dc_ping_dc_label">数据中心 %1$d</string>
+    <string name="proxy_dc_ping_dc_subtitle">通过当前代理探测 Telegram 数据中心</string>
+    <string name="proxy_dc_ping_direct_label">直连路由</string>
+    <string name="proxy_dc_ping_direct_subtitle">探测 Telegram 直连路由</string>
 </resources>

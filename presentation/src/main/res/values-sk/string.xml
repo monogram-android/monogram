@@ -498,7 +498,14 @@
     <string name="add_proxy_button">Pridať</string>
     <string name="connection_section_header">Pripojenie</string>
     <string name="smart_switching_title">Inteligentné prepínanie</string>
-    <string name="smart_switching_subtitle">Automaticky použiť najrýchlejšie proxy</string>
+    <string name="smart_switching_subtitle">Automaticky prepínať medzi dostupnými proxy</string>
+    <string name="smart_switch_mode_title">Režim inteligentného prepínania</string>
+    <string name="smart_switch_mode_subtitle">Ako inteligentné prepínanie vyberá dostupné proxy</string>
+    <string name="smart_switch_mode_best_ping">Najnižší ping</string>
+    <string name="smart_switch_mode_random_available">Náhodné dostupné</string>
+    <string name="smart_switch_check_interval_title">Interval automatickej kontroly</string>
+    <string name="smart_switch_check_interval_subtitle">Ako často inteligentné prepínanie kontroluje dostupnosť proxy</string>
+    <string name="smart_switch_check_interval_format">%1$d min</string>
     <string name="prefer_ipv6_title">Uprednostniť IPv6</string>
     <string name="prefer_ipv6_subtitle">Použiť IPv6, keď je dostupné</string>
     <string name="disable_proxy_title">Vypnúť proxy</string>
@@ -536,9 +543,19 @@
     <string name="hide_offline_proxies_subtitle">Zobraziť iba dostupné alebo neoverené proxy</string>
     <string name="proxy_export_action">Exportovať proxy</string>
     <string name="proxy_import_action">Importovať proxy</string>
+    <string name="proxy_paste_from_clipboard_action">Vložiť proxy</string>
+    <string name="proxy_scan_qr_action">Skenovať proxy QR</string>
     <string name="proxy_export_success">Zoznam proxy bol exportovaný</string>
     <string name="proxy_export_failed">Export zoznamu proxy zlyhal</string>
     <string name="proxy_import_failed">Nepodarilo sa načítať importovaný súbor</string>
+    <string name="proxy_load_failed">Nepodarilo sa načítať proxy</string>
+    <string name="proxy_existing_load_failed">Nepodarilo sa načítať existujúce proxy</string>
+    <string name="proxy_import_invalid_file">Import zlyhal: neplatný súbor</string>
+    <string name="proxy_import_summary_format">Importované: %1$d, preskočené: %2$d, neplatné: %3$d</string>
+    <string name="proxy_clipboard_empty">Schránka je prázdna</string>
+    <string name="proxy_no_links_found">Nenašli sa žiadne proxy odkazy</string>
+    <string name="proxy_add_failed">Nepodarilo sa pridať proxy</string>
+    <string name="proxy_save_failed">Nepodarilo sa uložiť proxy</string>
     <string name="proxy_action_set_favorite">Nastaviť ako obľúbené</string>
     <string name="proxy_action_remove_favorite">Odstrániť z obľúbených</string>
     <string name="proxy_action_copy_link">Kopírovať ako odkaz</string>
@@ -2143,4 +2160,26 @@
     <string name="auth_phone_code_invalid_error">Neplatný overovací kód</string>
     <string name="auth_password_hash_invalid">Neplatné heslo</string>
     <string name="unexpected_error">Vyskytla sa neočakávaná chyba</string>
+
+    <!-- ProxyContent -->
+    <string name="proxy_connection_test_button">Spustiť test pripojenia</string>
+    <string name="proxy_connection_test_title">Test pripojenia Telegramu</string>
+    <string name="proxy_connection_test_subtitle">Kontroluje end-to-end pripojenie cez dátové centrum Telegramu.</string>
+    <string name="proxy_connection_test_running">Prebieha test pripojenia...</string>
+    <string name="proxy_connection_test_success">Pripojenie vyzerá dobre. Tento proxy môžete uložiť a zapnúť.</string>
+    <string name="proxy_connection_test_hint">Hlavný zoznam zobrazuje iba transportný ping. Tento test je širší, takže hodnoty môžu byť vyššie.</string>
+    <string name="proxy_tab_proxy">Proxy</string>
+    <string name="proxy_tab_dc_ping">DC ping</string>
+    <string name="proxy_tab_settings">Nastavenia</string>
+    <string name="proxy_dc_ping_header">Ping dátových centier</string>
+    <string name="proxy_dc_ping_route_proxy">Trasa: cez %1$s:%2$d</string>
+    <string name="proxy_dc_ping_route_direct">Trasa: priame pripojenie</string>
+    <string name="proxy_dc_ping_description">Kontroluje dostupnosť dátových centier Telegramu cez aktuálnu trasu. Pri zapnutom proxy idú kontroly cez neho, inak sa použije priama trasa.</string>
+    <string name="proxy_dc_ping_run">Spustiť DC kontroly</string>
+    <string name="proxy_dc_ping_reachable">Dostupné</string>
+    <string name="proxy_dc_ping_average">Priemer</string>
+    <string name="proxy_dc_ping_dc_label">DC %1$d</string>
+    <string name="proxy_dc_ping_dc_subtitle">Sonda dátového centra Telegramu cez aktívny proxy</string>
+    <string name="proxy_dc_ping_direct_label">Priama trasa</string>
+    <string name="proxy_dc_ping_direct_subtitle">Sonda priamej trasy Telegramu</string>
 </resources>

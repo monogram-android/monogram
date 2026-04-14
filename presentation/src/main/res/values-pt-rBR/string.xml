@@ -480,7 +480,14 @@
     <string name="add_proxy_button">Adicionar</string>
     <string name="connection_section_header">Conexão</string>
     <string name="smart_switching_title">Troca inteligente</string>
-    <string name="smart_switching_subtitle">Use automaticamente o proxy mais rápido</string>
+    <string name="smart_switching_subtitle">Alterne automaticamente entre proxies disponíveis</string>
+    <string name="smart_switch_mode_title">Modo de troca inteligente</string>
+    <string name="smart_switch_mode_subtitle">Como a troca inteligente escolhe os proxies disponíveis</string>
+    <string name="smart_switch_mode_best_ping">Menor ping</string>
+    <string name="smart_switch_mode_random_available">Aleatório disponível</string>
+    <string name="smart_switch_check_interval_title">Intervalo de verificação automática</string>
+    <string name="smart_switch_check_interval_subtitle">Com que frequência a troca inteligente verifica a disponibilidade dos proxies</string>
+    <string name="smart_switch_check_interval_format">%1$d min</string>
     <string name="prefer_ipv6_title">Preferir IPv6</string>
     <string name="prefer_ipv6_subtitle">Use IPv6 quando disponível</string>
     <string name="disable_proxy_title">Desativar proxy</string>
@@ -518,9 +525,19 @@
     <string name="hide_offline_proxies_subtitle">Mostrar apenas proxies disponíveis ou não verificados</string>
     <string name="proxy_export_action">Exportar proxies</string>
     <string name="proxy_import_action">Importar proxies</string>
+    <string name="proxy_paste_from_clipboard_action">Colar proxies</string>
+    <string name="proxy_scan_qr_action">Escanear QR de proxy</string>
     <string name="proxy_export_success">Lista de proxies exportada</string>
     <string name="proxy_export_failed">Falha ao exportar a lista de proxies</string>
     <string name="proxy_import_failed">Falha ao ler o arquivo de importação</string>
+    <string name="proxy_load_failed">Falha ao carregar proxies</string>
+    <string name="proxy_existing_load_failed">Falha ao carregar proxies existentes</string>
+    <string name="proxy_import_invalid_file">Falha na importação: arquivo inválido</string>
+    <string name="proxy_import_summary_format">Importados: %1$d, ignorados: %2$d, inválidos: %3$d</string>
+    <string name="proxy_clipboard_empty">A área de transferência está vazia</string>
+    <string name="proxy_no_links_found">Nenhum link de proxy encontrado</string>
+    <string name="proxy_add_failed">Falha ao adicionar proxy</string>
+    <string name="proxy_save_failed">Falha ao salvar proxy</string>
     <string name="proxy_action_set_favorite">Definir como favorito</string>
     <string name="proxy_action_remove_favorite">Remover dos favoritos</string>
     <string name="proxy_action_copy_link">Copiar como link</string>
@@ -2024,4 +2041,26 @@
     <string name="auth_phone_code_invalid_error">Código de confirmação inválido</string>
     <string name="auth_password_hash_invalid">Senha inválida</string>
     <string name="unexpected_error">Ocorreu um erro inesperado</string>
+
+    <!-- ProxyContent -->
+    <string name="proxy_connection_test_button">Executar teste de conexão</string>
+    <string name="proxy_connection_test_title">Teste de conexão do Telegram</string>
+    <string name="proxy_connection_test_subtitle">Verifica a conexão de ponta a ponta via datacenter do Telegram.</string>
+    <string name="proxy_connection_test_running">Executando teste de conexão...</string>
+    <string name="proxy_connection_test_success">A conexão parece boa. Você pode salvar e ativar este proxy.</string>
+    <string name="proxy_connection_test_hint">A lista principal mostra apenas o ping de transporte. Este teste é mais amplo, então os valores podem ser maiores.</string>
+    <string name="proxy_tab_proxy">Proxy</string>
+    <string name="proxy_tab_dc_ping">Ping de DC</string>
+    <string name="proxy_tab_settings">Configurações</string>
+    <string name="proxy_dc_ping_header">Ping do datacenter</string>
+    <string name="proxy_dc_ping_route_proxy">Rota: via %1$s:%2$d</string>
+    <string name="proxy_dc_ping_route_direct">Rota: conexão direta</string>
+    <string name="proxy_dc_ping_description">Verifica a disponibilidade dos datacenters do Telegram usando a rota atual. Com proxy ativo, as verificações passam por ele; caso contrário, usa rota direta.</string>
+    <string name="proxy_dc_ping_run">Executar verificações de DC</string>
+    <string name="proxy_dc_ping_reachable">Acessíveis</string>
+    <string name="proxy_dc_ping_average">Média</string>
+    <string name="proxy_dc_ping_dc_label">DC %1$d</string>
+    <string name="proxy_dc_ping_dc_subtitle">Sonda do datacenter do Telegram via proxy ativo</string>
+    <string name="proxy_dc_ping_direct_label">Rota direta</string>
+    <string name="proxy_dc_ping_direct_subtitle">Sonda de rota direta do Telegram</string>
 </resources>

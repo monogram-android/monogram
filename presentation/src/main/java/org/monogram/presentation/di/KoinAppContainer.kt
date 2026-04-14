@@ -28,7 +28,6 @@ import org.monogram.domain.repository.ChatStatisticsRepository
 import org.monogram.domain.repository.EditorSnippetProvider
 import org.monogram.domain.repository.EmojiRepository
 import org.monogram.domain.repository.ExternalNavigator
-import org.monogram.domain.repository.ExternalProxyRepository
 import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.ForumTopicsRepository
 import org.monogram.domain.repository.GifRepository
@@ -44,6 +43,8 @@ import org.monogram.domain.repository.PaymentRepository
 import org.monogram.domain.repository.PremiumRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.ProfilePhotoRepository
+import org.monogram.domain.repository.ProxyDiagnosticsRepository
+import org.monogram.domain.repository.ProxyRepository
 import org.monogram.domain.repository.PushDebugRepository
 import org.monogram.domain.repository.SessionRepository
 import org.monogram.domain.repository.SponsorRepository
@@ -108,7 +109,8 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val locationRepository: LocationRepository by lazy { koin.get() }
     override val privacyRepository: PrivacyRepository by lazy { koin.get() }
     override val linkHandlerRepository: LinkHandlerRepository by lazy { koin.get() }
-    override val externalProxyRepository: ExternalProxyRepository by lazy { koin.get() }
+    override val proxyRepository: ProxyRepository by lazy { koin.get() }
+    override val proxyDiagnosticsRepository: ProxyDiagnosticsRepository by lazy { koin.get() }
     override val stickerRepository: StickerRepository by lazy { koin.get() }
     override val gifRepository: GifRepository by lazy { koin.get() }
     override val emojiRepository: EmojiRepository by lazy { koin.get() }

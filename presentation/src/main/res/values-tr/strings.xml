@@ -480,7 +480,7 @@
     <string name="add_proxy_button">Ekle</string>
     <string name="connection_section_header">Bağlantı</string>
     <string name="smart_switching_title">Akıllı Geçiş</string>
-    <string name="smart_switching_subtitle">Otomatik olarak en hızlı proxy\'yi kullan</string>
+    <string name="smart_switching_subtitle">Kullanılabilir proxy\'ler arasında otomatik geçiş yap</string>
     <string name="smart_switch_mode_title">Akıllı geçiş modu</string>
     <string name="smart_switch_mode_subtitle">Akıllı geçişin kullanılabilir proxy\'leri nasıl seçtiği</string>
     <string name="smart_switch_mode_best_ping">En düşük ping</string>

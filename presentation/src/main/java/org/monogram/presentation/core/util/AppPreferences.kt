@@ -352,10 +352,10 @@ class AppPreferences(
             ProxySmartSwitchMode.valueOf(
                 prefs.getString(
                     KEY_PROXY_SMART_SWITCH_MODE,
-                    ProxySmartSwitchMode.BEST_PING.name
-                ) ?: ProxySmartSwitchMode.BEST_PING.name
+                    ProxySmartSwitchMode.RANDOM_AVAILABLE.name
+                ) ?: ProxySmartSwitchMode.RANDOM_AVAILABLE.name
             )
-        }.getOrDefault(ProxySmartSwitchMode.BEST_PING)
+        }.getOrDefault(ProxySmartSwitchMode.RANDOM_AVAILABLE)
     )
     override val proxySmartSwitchMode: StateFlow<ProxySmartSwitchMode> = _proxySmartSwitchMode
 
@@ -1166,7 +1166,7 @@ class AppPreferences(
         _adBlockWhitelistedChannels.value = emptySet()
         _enabledProxyId.value = null
         _isAutoBestProxyEnabled.value = false
-        _proxySmartSwitchMode.value = ProxySmartSwitchMode.BEST_PING
+        _proxySmartSwitchMode.value = ProxySmartSwitchMode.RANDOM_AVAILABLE
         _proxyAutoCheckIntervalMinutes.value = DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES
         _preferIpv6.value = false
         _proxySortMode.value = ProxySortMode.LOWEST_PING

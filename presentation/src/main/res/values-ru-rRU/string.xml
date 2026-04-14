@@ -474,7 +474,7 @@
     <string name="add_proxy_button">Добавить</string>
     <string name="connection_section_header">Соединение</string>
     <string name="smart_switching_title">Умное переключение</string>
-    <string name="smart_switching_subtitle">Автоматически выбирать самый быстрый прокси</string>
+    <string name="smart_switching_subtitle">Автоматически переключаться между доступными прокси</string>
     <string name="smart_switch_mode_title">Режим умного переключения</string>
     <string name="smart_switch_mode_subtitle">Как умное переключение выбирает доступные прокси</string>
     <string name="smart_switch_mode_best_ping">Минимальный пинг</string>

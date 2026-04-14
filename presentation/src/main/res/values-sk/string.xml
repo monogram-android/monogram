@@ -498,7 +498,7 @@
     <string name="add_proxy_button">Pridať</string>
     <string name="connection_section_header">Pripojenie</string>
     <string name="smart_switching_title">Inteligentné prepínanie</string>
-    <string name="smart_switching_subtitle">Automaticky použiť najrýchlejšie proxy</string>
+    <string name="smart_switching_subtitle">Automaticky prepínať medzi dostupnými proxy</string>
     <string name="smart_switch_mode_title">Režim inteligentného prepínania</string>
     <string name="smart_switch_mode_subtitle">Ako inteligentné prepínanie vyberá dostupné proxy</string>
     <string name="smart_switch_mode_best_ping">Najnižší ping</string>

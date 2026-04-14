@@ -492,7 +492,7 @@
     <string name="add_proxy_button">Add</string>
     <string name="connection_section_header">Connection</string>
     <string name="smart_switching_title">Smart Switching</string>
-    <string name="smart_switching_subtitle">Automatically use the fastest proxy</string>
+    <string name="smart_switching_subtitle">Automatically switch between available proxies</string>
     <string name="smart_switch_mode_title">Smart switch mode</string>
     <string name="smart_switch_mode_subtitle">How smart switching chooses available proxies</string>
     <string name="smart_switch_mode_best_ping">Lowest ping</string>

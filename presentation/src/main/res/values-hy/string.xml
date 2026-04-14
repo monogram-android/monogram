@@ -460,7 +460,7 @@
     <string name="add_proxy_button">Ավելացնել</string>
     <string name="connection_section_header">Միացում</string>
     <string name="smart_switching_title">Խելացի փոխանջատում</string>
-    <string name="smart_switching_subtitle">Ավտոմատ օգտագործել ամենաարագ պրոքսին</string>
+    <string name="smart_switching_subtitle">Ավտոմատ փոխանջատվել հասանելի պրոքսիների միջև</string>
     <string name="smart_switch_mode_title">Խելացի փոխանջատման ռեժիմ</string>
     <string name="smart_switch_mode_subtitle">Ինչպես է խելացի փոխանջատումը ընտրում հասանելի պրոքսիները</string>
     <string name="smart_switch_mode_best_ping">Ամենացածր ping</string>

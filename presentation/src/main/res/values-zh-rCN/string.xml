@@ -471,7 +471,7 @@
     <string name="add_proxy_button">添加</string>
     <string name="connection_section_header">连接</string>
     <string name="smart_switching_title">智能切换</string>
-    <string name="smart_switching_subtitle">自动使用速度最快的代理</string>
+    <string name="smart_switching_subtitle">在可用代理之间自动切换</string>
     <string name="smart_switch_mode_title">智能切换模式</string>
     <string name="smart_switch_mode_subtitle">智能切换如何选择可用代理</string>
     <string name="smart_switch_mode_best_ping">最低延迟</string>

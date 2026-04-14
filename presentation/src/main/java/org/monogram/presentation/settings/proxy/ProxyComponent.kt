@@ -77,7 +77,7 @@ interface ProxyComponent {
         val isLoading: Boolean = false,
         val isAddingProxy: Boolean = false,
         val isAutoBestProxyEnabled: Boolean = false,
-        val smartSwitchMode: ProxySmartSwitchMode = ProxySmartSwitchMode.BEST_PING,
+        val smartSwitchMode: ProxySmartSwitchMode = ProxySmartSwitchMode.RANDOM_AVAILABLE,
         val smartSwitchAutoCheckIntervalMinutes: Int = DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES,
         val preferIpv6: Boolean = false,
         val proxySortMode: ProxySortMode = ProxySortMode.LOWEST_PING,

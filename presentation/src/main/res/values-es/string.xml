@@ -480,7 +480,7 @@
     <string name="add_proxy_button">Añadir</string>
     <string name="connection_section_header">Conexión</string>
     <string name="smart_switching_title">Cambio Inteligente</string>
-    <string name="smart_switching_subtitle">Usar automáticamente el proxy más rápido</string>
+    <string name="smart_switching_subtitle">Cambiar automáticamente entre proxys disponibles</string>
     <string name="smart_switch_mode_title">Modo de cambio inteligente</string>
     <string name="smart_switch_mode_subtitle">Cómo el cambio inteligente elige los proxies disponibles</string>
     <string name="smart_switch_mode_best_ping">Menor ping</string>

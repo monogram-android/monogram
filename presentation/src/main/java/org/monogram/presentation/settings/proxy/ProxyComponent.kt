@@ -20,6 +20,8 @@ import org.monogram.domain.models.toDomainProxyType
 import org.monogram.domain.models.toProxyModel
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES
+import org.monogram.domain.repository.LinkAction
+import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.ProxyDiagnosticsRepository
 import org.monogram.domain.repository.ProxyNetworkMode
 import org.monogram.domain.repository.ProxyNetworkRule
@@ -28,6 +30,7 @@ import org.monogram.domain.repository.ProxyRepository
 import org.monogram.domain.repository.ProxySmartSwitchMode
 import org.monogram.domain.repository.ProxySortMode
 import org.monogram.domain.repository.ProxyUnavailableFallback
+import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.defaultProxyNetworkMode
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
@@ -62,6 +65,7 @@ interface ProxyComponent {
     fun onToggleFavoriteProxy(proxyId: Int)
     fun exportProxiesJson(): String
     fun importProxiesJson(json: String)
+    fun importProxiesFromText(rawText: String)
     fun onProxyNetworkModeChanged(networkType: ProxyNetworkType, mode: ProxyNetworkMode)
     fun onSpecificProxyForNetworkSelected(networkType: ProxyNetworkType, proxyId: Int)
     fun onClearUnavailableProxies()
@@ -110,6 +114,9 @@ class DefaultProxyComponent(
 
     private val appPreferences: AppPreferencesProvider = container.preferences.appPreferences
     private val proxyRepository: ProxyRepository = container.repositories.proxyRepository
+    private val linkHandlerRepository: LinkHandlerRepository =
+        container.repositories.linkHandlerRepository
+    private val stringProvider: StringProvider = container.utils.stringProvider()
     private val proxyDiagnosticsRepository: ProxyDiagnosticsRepository =
         container.repositories.proxyDiagnosticsRepository
 
@@ -121,6 +128,10 @@ class DefaultProxyComponent(
     private var lastToastAtMs: Long = 0L
     private var pingRequestToken = 0L
     private val pingRequestByProxyId = mutableMapOf<Int, Long>()
+
+    private fun tr(resName: String, vararg args: Any): String {
+        return stringProvider.getString(resName, *args)
+    }
 
     private fun showToastThrottled(message: String, throttleMs: Long = 1500L) {
         val now = System.currentTimeMillis()
@@ -146,7 +157,7 @@ class DefaultProxyComponent(
             coRunCatching { refreshProxies(shouldPing = true) }
                 .onFailure {
                     _state.update { state -> state.copy(isLoading = false) }
-                    showToastThrottled("Failed to load proxies")
+                    showToastThrottled(tr("proxy_load_failed"))
                 }
         }
 
@@ -242,7 +253,7 @@ class DefaultProxyComponent(
         val restoredProxies = coRunCatching { restoreUserProxiesIfNeeded() }
             .getOrElse { emptyList() }
         val allProxies = coRunCatching { proxyRepository.getProxies().map { it.toProxyModel() } }
-            .onFailure { showToastThrottled("Failed to load proxies") }
+            .onFailure { showToastThrottled(tr("proxy_load_failed")) }
             .getOrElse { emptyList() }
             .ifEmpty { restoredProxies }
         _state.update {
@@ -585,7 +596,7 @@ class DefaultProxyComponent(
     override fun importProxiesJson(json: String) {
         scope.launch {
             val existing = coRunCatching { proxyRepository.getProxies().map { it.toProxyModel() } }
-                .onFailure { showToastThrottled("Failed to load existing proxies") }
+                .onFailure { showToastThrottled(tr("proxy_existing_load_failed")) }
                 .getOrElse { emptyList() }
             val fingerprintToId = existing.associate { proxy ->
                 proxyFingerprint(proxy.server, proxy.port, proxy.type) to proxy.id
@@ -609,7 +620,7 @@ class DefaultProxyComponent(
             }.getOrNull()
 
             if (parsedEntries == null) {
-                _state.update { it.copy(toastMessage = "Import failed: invalid file") }
+                _state.update { it.copy(toastMessage = tr("proxy_import_invalid_file")) }
                 return@launch
             }
 
@@ -659,9 +670,154 @@ class DefaultProxyComponent(
             favoriteProxyIdToSet?.let { appPreferences.setFavoriteProxyId(it) }
             refreshProxies(shouldPing = true)
             _state.update {
-                it.copy(toastMessage = "Imported: $added, skipped: $skipped, invalid: $invalid")
+                it.copy(toastMessage = tr("proxy_import_summary_format", added, skipped, invalid))
             }
         }
+    }
+
+    override fun importProxiesFromText(rawText: String) {
+        scope.launch {
+            val normalized = rawText.trim()
+            if (normalized.isBlank()) {
+                showToastThrottled(tr("proxy_clipboard_empty"))
+                return@launch
+            }
+
+            val candidates = extractProxyLinkCandidates(rawText)
+            if (candidates.isEmpty()) {
+                showToastThrottled(tr("proxy_no_links_found"))
+                return@launch
+            }
+
+            val existing = coRunCatching { proxyRepository.getProxies().map { it.toProxyModel() } }
+                .onFailure { showToastThrottled(tr("proxy_existing_load_failed")) }
+                .getOrElse { emptyList() }
+            val knownFingerprints = existing
+                .mapTo(mutableSetOf()) { proxyFingerprint(it.server, it.port, it.type) }
+
+            var added = 0
+            var skipped = 0
+            var invalid = 0
+
+            candidates.forEach { candidate ->
+                val action = runCatching { linkHandlerRepository.handleLink(candidate) }.getOrNull()
+                val proxy = action as? LinkAction.AddProxy
+                if (proxy == null) {
+                    invalid++
+                    return@forEach
+                }
+
+                val fingerprint = proxyFingerprint(proxy.server, proxy.port, proxy.type)
+                if (!knownFingerprints.add(fingerprint)) {
+                    skipped++
+                    return@forEach
+                }
+
+                val addedProxy = proxyRepository.addProxy(
+                    input = ProxyInput(
+                        server = proxy.server,
+                        port = proxy.port,
+                        type = proxy.type.toDomainProxyType()
+                    ),
+                    enable = false
+                )?.toProxyModel()
+
+                if (addedProxy != null) {
+                    addProxyToBackup(addedProxy)
+                    added++
+                } else {
+                    knownFingerprints.remove(fingerprint)
+                    invalid++
+                }
+            }
+
+            if (added > 0) {
+                refreshProxies(shouldPing = true)
+            }
+
+            showToastThrottled(tr("proxy_import_summary_format", added, skipped, invalid))
+        }
+    }
+
+    private fun extractProxyLinkCandidates(rawText: String): List<String> {
+        val linkRegex = Regex(
+            pattern = """(?i)(tg:(?://)?[^\s]+|https?://(?:t\.me|www\.t\.me|telegram\.me|www\.telegram\.me)/[^\s]+)"""
+        )
+        val fromRegex = linkRegex.findAll(rawText).map { it.value }
+        val fromLines = rawText.lineSequence()
+        return (fromRegex + fromLines)
+            .map { normalizeForParsing(it) }
+            .map { normalizeTelegramScheme(it) }
+            .filter { it.isNotBlank() && looksLikeProxyLink(it) }
+            .distinct()
+            .toList()
+    }
+
+    private fun normalizeTelegramScheme(link: String): String {
+        if (link.startsWith("tg://", ignoreCase = true)) return link
+        if (link.startsWith("tg:", ignoreCase = true)) {
+            return "tg://${link.substringAfter(':')}"
+        }
+        return link
+    }
+
+    private fun normalizeForParsing(link: String): String {
+        var sanitized = link.trim()
+            .removeSurrounding("<", ">")
+            .removeSurrounding("\"")
+            .removeSurrounding("'")
+
+        while (sanitized.isNotEmpty() && sanitized.last() in setOf(
+                ')',
+                ']',
+                '}',
+                '.',
+                ',',
+                ';',
+                '!',
+                '?'
+            )
+        ) {
+            sanitized = sanitized.dropLast(1)
+        }
+        return sanitized
+    }
+
+    private fun looksLikeProxyLink(link: String): Boolean {
+        val linkLower = link.lowercase()
+        return linkLower.startsWith("tg://proxy?") ||
+                linkLower.startsWith("tg:proxy?") ||
+                linkLower.startsWith("tg://proxy/") ||
+                linkLower.startsWith("tg://socks?") ||
+                linkLower.startsWith("tg:socks?") ||
+                linkLower.startsWith("tg://socks/") ||
+                linkLower.startsWith("tg://http?") ||
+                linkLower.startsWith("tg:http?") ||
+                linkLower.startsWith("tg://http/") ||
+                linkLower.startsWith("https://t.me/proxy?") ||
+                linkLower.startsWith("http://t.me/proxy?") ||
+                linkLower.startsWith("https://www.t.me/proxy?") ||
+                linkLower.startsWith("http://www.t.me/proxy?") ||
+                linkLower.startsWith("https://telegram.me/proxy?") ||
+                linkLower.startsWith("http://telegram.me/proxy?") ||
+                linkLower.startsWith("https://www.telegram.me/proxy?") ||
+                linkLower.startsWith("http://www.telegram.me/proxy?") ||
+                linkLower.startsWith("https://t.me/socks?") ||
+                linkLower.startsWith("http://t.me/socks?") ||
+                linkLower.startsWith("https://www.t.me/socks?") ||
+                linkLower.startsWith("http://www.t.me/socks?") ||
+                linkLower.startsWith("https://telegram.me/socks?") ||
+                linkLower.startsWith("http://telegram.me/socks?") ||
+                linkLower.startsWith("https://www.telegram.me/socks?") ||
+                linkLower.startsWith("http://www.telegram.me/socks?") ||
+                linkLower.startsWith("https://t.me/http?") ||
+                linkLower.startsWith("http://t.me/http?") ||
+                linkLower.startsWith("https://www.t.me/http?") ||
+                linkLower.startsWith("http://www.t.me/http?") ||
+                linkLower.startsWith("https://telegram.me/http?") ||
+                linkLower.startsWith("http://telegram.me/http?") ||
+                linkLower.startsWith("https://www.telegram.me/http?") ||
+                linkLower.startsWith("http://www.telegram.me/http?")
     }
 
     override fun onEnableProxy(proxyId: Int) {
@@ -874,7 +1030,7 @@ class DefaultProxyComponent(
                 upsertProxyLocally(proxy)
                 onPingProxy(proxy.id)
             } else {
-                showToastThrottled("Failed to add proxy")
+                showToastThrottled(tr("proxy_add_failed"))
             }
         }
     }
@@ -901,7 +1057,7 @@ class DefaultProxyComponent(
                 upsertProxyLocally(proxy, replaceId = proxyId, closeEditor = true)
                 onPingProxy(proxy.id)
             } else {
-                showToastThrottled("Failed to save proxy")
+                showToastThrottled(tr("proxy_save_failed"))
             }
         }
     }

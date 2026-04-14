@@ -2,7 +2,8 @@
 
 package org.monogram.presentation.settings.proxy
 
-import android.widget.Toast
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Download
@@ -48,6 +50,7 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Tune
@@ -79,6 +82,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -95,7 +99,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.core.content.ContextCompat
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import kotlinx.coroutines.launch
 import org.monogram.domain.repository.ProxyNetworkMode
 import org.monogram.domain.repository.ProxyNetworkRule
 import org.monogram.domain.repository.ProxyNetworkType
@@ -104,6 +110,7 @@ import org.monogram.domain.repository.ProxySortMode
 import org.monogram.domain.repository.ProxyUnavailableFallback
 import org.monogram.domain.repository.defaultProxyNetworkMode
 import org.monogram.presentation.R
+import org.monogram.presentation.core.ui.IntegratedQRScanner
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.SettingsTile
@@ -206,8 +213,9 @@ private fun DcPingRow(
 fun ProxyContent(component: ProxyComponent) {
     val state by component.state.subscribeAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val uiScope = rememberCoroutineScope()
     val context = LocalContext.current
-    LocalClipboard.current
+    val clipboard = LocalClipboard.current
     val activeProxy = state.proxies.firstOrNull { it.isEnabled }
     val prioritizedVisibleProxies = remember(state.visibleProxies) {
         state.visibleProxies.sortedByDescending { it.isEnabled }
@@ -218,8 +226,17 @@ fun ProxyContent(component: ProxyComponent) {
     var sortMenuExpanded by remember { mutableStateOf(false) }
     var fallbackMenuExpanded by remember { mutableStateOf(false) }
     var showTopMenu by remember { mutableStateOf(false) }
+    var showQrScanner by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(ProxyTab.Proxy) }
     val smartSwitchCheckIntervalOptions = remember { listOf(1, 2, 5, 10, 15, 30, 60) }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            showQrScanner = true
+        }
+    }
 
     val exportLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -229,17 +246,13 @@ fun ProxyContent(component: ProxyComponent) {
                     writer.write(component.exportProxiesJson())
                 }
             }.onSuccess {
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.proxy_export_success),
-                    Toast.LENGTH_SHORT
-                ).show()
+                uiScope.launch {
+                    snackbarHostState.showSnackbar(context.getString(R.string.proxy_export_success))
+                }
             }.onFailure {
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.proxy_export_failed),
-                    Toast.LENGTH_SHORT
-                ).show()
+                uiScope.launch {
+                    snackbarHostState.showSnackbar(context.getString(R.string.proxy_export_failed))
+                }
             }
         }
 
@@ -252,11 +265,9 @@ fun ProxyContent(component: ProxyComponent) {
             }.onSuccess { json ->
                 component.importProxiesJson(json)
             }.onFailure {
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.proxy_import_failed),
-                    Toast.LENGTH_SHORT
-                ).show()
+                uiScope.launch {
+                    snackbarHostState.showSnackbar(context.getString(R.string.proxy_import_failed))
+                }
             }
         }
 
@@ -274,6 +285,23 @@ fun ProxyContent(component: ProxyComponent) {
         }
     }
 
+    fun startQrScanWithPermission() {
+        when (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)) {
+            PackageManager.PERMISSION_GRANTED -> showQrScanner = true
+            else -> cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    fun importFromClipboard() {
+        val clip = clipboard.nativeClipboard.primaryClip
+        val rawText = if (clip != null && clip.itemCount > 0) {
+            clip.getItemAt(0).text?.toString().orEmpty()
+        } else {
+            ""
+        }
+        component.importProxiesFromText(rawText)
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -287,7 +315,9 @@ fun ProxyContent(component: ProxyComponent) {
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = component::onBackClicked) {
+                        IconButton(onClick = {
+                            if (showQrScanner) showQrScanner = false else component.onBackClicked()
+                        }) {
                             Icon(
                                 Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = stringResource(R.string.cd_back)
@@ -1037,6 +1067,26 @@ fun ProxyContent(component: ProxyComponent) {
                 ) {
                     ViewerSettingsDropdown {
                         MenuOptionRow(
+                            icon = Icons.Rounded.ContentPaste,
+                            title = stringResource(R.string.proxy_paste_from_clipboard_action),
+                            onClick = {
+                                showTopMenu = false
+                                importFromClipboard()
+                            }
+                        )
+                        MenuOptionRow(
+                            icon = Icons.Rounded.QrCodeScanner,
+                            title = stringResource(R.string.proxy_scan_qr_action),
+                            onClick = {
+                                showTopMenu = false
+                                startQrScanWithPermission()
+                            }
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                        MenuOptionRow(
                             icon = Icons.Rounded.Upload,
                             title = stringResource(R.string.proxy_export_action),
                             onClick = {
@@ -1080,6 +1130,22 @@ fun ProxyContent(component: ProxyComponent) {
                     }
                 }
             }
+        }
+    }
+
+    if (showQrScanner) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            IntegratedQRScanner(
+                onCodeDetected = { code ->
+                    showQrScanner = false
+                    component.importProxiesFromText(code)
+                },
+                onBackClicked = { showQrScanner = false }
+            )
         }
     }
 

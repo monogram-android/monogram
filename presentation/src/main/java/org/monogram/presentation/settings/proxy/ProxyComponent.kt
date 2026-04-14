@@ -19,11 +19,13 @@ import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.models.toDomainProxyType
 import org.monogram.domain.models.toProxyModel
 import org.monogram.domain.repository.AppPreferencesProvider
+import org.monogram.domain.repository.DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES
 import org.monogram.domain.repository.ProxyDiagnosticsRepository
 import org.monogram.domain.repository.ProxyNetworkMode
 import org.monogram.domain.repository.ProxyNetworkRule
 import org.monogram.domain.repository.ProxyNetworkType
 import org.monogram.domain.repository.ProxyRepository
+import org.monogram.domain.repository.ProxySmartSwitchMode
 import org.monogram.domain.repository.ProxySortMode
 import org.monogram.domain.repository.ProxyUnavailableFallback
 import org.monogram.domain.repository.defaultProxyNetworkMode
@@ -51,6 +53,8 @@ interface ProxyComponent {
     fun onConfirmDelete()
     fun onDismissAddEdit()
     fun onAutoBestProxyToggled(enabled: Boolean)
+    fun onSmartSwitchModeChanged(mode: ProxySmartSwitchMode)
+    fun onSmartSwitchAutoCheckIntervalChanged(minutes: Int)
     fun onPreferIpv6Toggled(enabled: Boolean)
     fun onProxySortModeChanged(mode: ProxySortMode)
     fun onProxyUnavailableFallbackChanged(fallback: ProxyUnavailableFallback)
@@ -73,6 +77,8 @@ interface ProxyComponent {
         val isLoading: Boolean = false,
         val isAddingProxy: Boolean = false,
         val isAutoBestProxyEnabled: Boolean = false,
+        val smartSwitchMode: ProxySmartSwitchMode = ProxySmartSwitchMode.BEST_PING,
+        val smartSwitchAutoCheckIntervalMinutes: Int = DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES,
         val preferIpv6: Boolean = false,
         val proxySortMode: ProxySortMode = ProxySortMode.LOWEST_PING,
         val proxyUnavailableFallback: ProxyUnavailableFallback = ProxyUnavailableFallback.BEST_PROXY,
@@ -146,19 +152,27 @@ class DefaultProxyComponent(
 
         combine(
             appPreferences.isAutoBestProxyEnabled,
+            appPreferences.proxySmartSwitchMode,
+            appPreferences.proxyAutoCheckIntervalMinutes,
             appPreferences.preferIpv6,
-            appPreferences.proxySortMode,
-            appPreferences.proxyUnavailableFallback,
-            appPreferences.hideOfflineProxies,
-        ) { autoBest, ipv6, sortMode, fallback, hideOffline ->
+            appPreferences.proxySortMode
+        ) { autoBest, switchMode, checkIntervalMinutes, ipv6, sortMode ->
             ProxyPreferencesBaseState(
                 autoBest = autoBest,
+                switchMode = switchMode,
+                checkIntervalMinutes = checkIntervalMinutes,
                 preferIpv6 = ipv6,
                 sortMode = sortMode,
-                fallback = fallback,
-                hideOffline = hideOffline
+                fallback = ProxyUnavailableFallback.BEST_PROXY,
+                hideOffline = false
             )
         }
+            .combine(appPreferences.proxyUnavailableFallback) { base, fallback ->
+                base.copy(fallback = fallback)
+            }
+            .combine(appPreferences.hideOfflineProxies) { base, hideOffline ->
+                base.copy(hideOffline = hideOffline)
+            }
             .combine(appPreferences.favoriteProxyId) { base, favoriteProxyId ->
                 base to favoriteProxyId
             }
@@ -166,6 +180,8 @@ class DefaultProxyComponent(
                 val (base, favoriteProxyId) = baseWithFavorite
                 ProxyPreferencesState(
                     autoBest = base.autoBest,
+                    switchMode = base.switchMode,
+                    checkIntervalMinutes = base.checkIntervalMinutes,
                     preferIpv6 = base.preferIpv6,
                     sortMode = base.sortMode,
                     fallback = base.fallback,
@@ -185,6 +201,8 @@ class DefaultProxyComponent(
                     )
                     current.copy(
                         isAutoBestProxyEnabled = prefs.autoBest,
+                        smartSwitchMode = prefs.switchMode,
+                        smartSwitchAutoCheckIntervalMinutes = prefs.checkIntervalMinutes,
                         preferIpv6 = prefs.preferIpv6,
                         proxySortMode = prefs.sortMode,
                         proxyUnavailableFallback = prefs.fallback,
@@ -199,6 +217,8 @@ class DefaultProxyComponent(
 
     private data class ProxyPreferencesBaseState(
         val autoBest: Boolean,
+        val switchMode: ProxySmartSwitchMode,
+        val checkIntervalMinutes: Int,
         val preferIpv6: Boolean,
         val sortMode: ProxySortMode,
         val fallback: ProxyUnavailableFallback,
@@ -207,6 +227,8 @@ class DefaultProxyComponent(
 
     private data class ProxyPreferencesState(
         val autoBest: Boolean,
+        val switchMode: ProxySmartSwitchMode,
+        val checkIntervalMinutes: Int,
         val preferIpv6: Boolean,
         val sortMode: ProxySortMode,
         val fallback: ProxyUnavailableFallback,
@@ -922,6 +944,14 @@ class DefaultProxyComponent(
 
     override fun onAutoBestProxyToggled(enabled: Boolean) {
         appPreferences.setAutoBestProxyEnabled(enabled)
+    }
+
+    override fun onSmartSwitchModeChanged(mode: ProxySmartSwitchMode) {
+        appPreferences.setProxySmartSwitchMode(mode)
+    }
+
+    override fun onSmartSwitchAutoCheckIntervalChanged(minutes: Int) {
+        appPreferences.setProxyAutoCheckIntervalMinutes(minutes)
     }
 
     override fun onPreferIpv6Toggled(enabled: Boolean) {

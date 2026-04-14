@@ -36,6 +36,7 @@ import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.repository.ProxyNetworkMode
 import org.monogram.domain.repository.ProxyNetworkRule
 import org.monogram.domain.repository.ProxyNetworkType
+import org.monogram.domain.repository.ProxySmartSwitchMode
 import org.monogram.domain.repository.ProxySortMode
 import org.monogram.domain.repository.ProxyUnavailableFallback
 import org.monogram.presentation.R
@@ -158,6 +159,12 @@ internal fun fallbackLabelRes(fallback: ProxyUnavailableFallback): Int = when (f
     ProxyUnavailableFallback.BEST_PROXY -> R.string.proxy_fallback_best_proxy
     ProxyUnavailableFallback.DIRECT -> R.string.proxy_fallback_direct
     ProxyUnavailableFallback.KEEP_CURRENT -> R.string.proxy_fallback_keep_current
+}
+
+@StringRes
+internal fun smartSwitchModeLabelRes(mode: ProxySmartSwitchMode): Int = when (mode) {
+    ProxySmartSwitchMode.BEST_PING -> R.string.smart_switch_mode_best_ping
+    ProxySmartSwitchMode.RANDOM_AVAILABLE -> R.string.smart_switch_mode_random_available
 }
 
 internal fun proxyToDeepLink(proxy: ProxyModel): String {

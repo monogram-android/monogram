@@ -461,6 +461,13 @@
     <string name="connection_section_header">Միացում</string>
     <string name="smart_switching_title">Խելացի փոխանջատում</string>
     <string name="smart_switching_subtitle">Ավտոմատ օգտագործել ամենաարագ պրոքսին</string>
+    <string name="smart_switch_mode_title">Խելացի փոխանջատման ռեժիմ</string>
+    <string name="smart_switch_mode_subtitle">Ինչպես է խելացի փոխանջատումը ընտրում հասանելի պրոքսիները</string>
+    <string name="smart_switch_mode_best_ping">Ամենացածր ping</string>
+    <string name="smart_switch_mode_random_available">Պատահական հասանելի</string>
+    <string name="smart_switch_check_interval_title">Ինքնաստուգման ընդմիջում</string>
+    <string name="smart_switch_check_interval_subtitle">Որքան հաճախ է խելացի փոխանջատումը ստուգում պրոքսիների հասանելիությունը</string>
+    <string name="smart_switch_check_interval_format">%1$d րոպե</string>
     <string name="prefer_ipv6_title">Նախապատվությունը տալ IPv6-ին</string>
     <string name="prefer_ipv6_subtitle">Օգտագործել IPv6, եթե հասանելի է</string>
     <string name="disable_proxy_title">Անջատել պրոքսին</string>

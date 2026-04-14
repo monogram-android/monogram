@@ -499,6 +499,13 @@
     <string name="connection_section_header">Pripojenie</string>
     <string name="smart_switching_title">Inteligentné prepínanie</string>
     <string name="smart_switching_subtitle">Automaticky použiť najrýchlejšie proxy</string>
+    <string name="smart_switch_mode_title">Režim inteligentného prepínania</string>
+    <string name="smart_switch_mode_subtitle">Ako inteligentné prepínanie vyberá dostupné proxy</string>
+    <string name="smart_switch_mode_best_ping">Najnižší ping</string>
+    <string name="smart_switch_mode_random_available">Náhodné dostupné</string>
+    <string name="smart_switch_check_interval_title">Interval automatickej kontroly</string>
+    <string name="smart_switch_check_interval_subtitle">Ako často inteligentné prepínanie kontroluje dostupnosť proxy</string>
+    <string name="smart_switch_check_interval_format">%1$d min</string>
     <string name="prefer_ipv6_title">Uprednostniť IPv6</string>
     <string name="prefer_ipv6_subtitle">Použiť IPv6, keď je dostupné</string>
     <string name="disable_proxy_title">Vypnúť proxy</string>

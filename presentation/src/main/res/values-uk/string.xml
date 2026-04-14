@@ -475,6 +475,13 @@
     <string name="connection_section_header">Підключення</string>
     <string name="smart_switching_title">Розумне перемикання</string>
     <string name="smart_switching_subtitle">Автоматично вибирати найшвидший проксі</string>
+    <string name="smart_switch_mode_title">Режим розумного перемикання</string>
+    <string name="smart_switch_mode_subtitle">Як розумне перемикання обирає доступні проксі</string>
+    <string name="smart_switch_mode_best_ping">Найменший пінг</string>
+    <string name="smart_switch_mode_random_available">Випадковий доступний</string>
+    <string name="smart_switch_check_interval_title">Інтервал автоперевірки</string>
+    <string name="smart_switch_check_interval_subtitle">Як часто розумне перемикання перевіряє доступність проксі</string>
+    <string name="smart_switch_check_interval_format">%1$d хв</string>
     <string name="prefer_ipv6_title">Віддавати перевагу IPv6</string>
     <string name="prefer_ipv6_subtitle">Використовувати IPv6 за наявності</string>
     <string name="disable_proxy_title">Вимкнути проксі</string>

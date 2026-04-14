@@ -472,6 +472,13 @@
     <string name="connection_section_header">连接</string>
     <string name="smart_switching_title">智能切换</string>
     <string name="smart_switching_subtitle">自动使用速度最快的代理</string>
+    <string name="smart_switch_mode_title">智能切换模式</string>
+    <string name="smart_switch_mode_subtitle">智能切换如何选择可用代理</string>
+    <string name="smart_switch_mode_best_ping">最低延迟</string>
+    <string name="smart_switch_mode_random_available">随机可用</string>
+    <string name="smart_switch_check_interval_title">自动检查间隔</string>
+    <string name="smart_switch_check_interval_subtitle">智能切换检查代理可用性的频率</string>
+    <string name="smart_switch_check_interval_format">%1$d 分钟</string>
     <string name="prefer_ipv6_title">IPv6 优先</string>
     <string name="prefer_ipv6_subtitle">如果可用，优先使用 IPv6</string>
     <string name="disable_proxy_title">禁用代理</string>

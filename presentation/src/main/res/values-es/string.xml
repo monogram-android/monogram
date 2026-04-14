@@ -481,6 +481,13 @@
     <string name="connection_section_header">Conexión</string>
     <string name="smart_switching_title">Cambio Inteligente</string>
     <string name="smart_switching_subtitle">Usar automáticamente el proxy más rápido</string>
+    <string name="smart_switch_mode_title">Modo de cambio inteligente</string>
+    <string name="smart_switch_mode_subtitle">Cómo el cambio inteligente elige los proxies disponibles</string>
+    <string name="smart_switch_mode_best_ping">Menor ping</string>
+    <string name="smart_switch_mode_random_available">Aleatorio disponible</string>
+    <string name="smart_switch_check_interval_title">Intervalo de comprobación automática</string>
+    <string name="smart_switch_check_interval_subtitle">Con qué frecuencia el cambio inteligente comprueba la disponibilidad de proxies</string>
+    <string name="smart_switch_check_interval_format">%1$d min</string>
     <string name="prefer_ipv6_title">Preferir IPv6</string>
     <string name="prefer_ipv6_subtitle">Usar IPv6 cuando esté disponible</string>
     <string name="disable_proxy_title">Deshabilitar Proxy</string>

@@ -11,9 +11,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.domain.repository.AppPreferencesProvider
+import org.monogram.domain.repository.DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES
+import org.monogram.domain.repository.MAX_SMART_SWITCH_CHECK_INTERVAL_MINUTES
+import org.monogram.domain.repository.MIN_SMART_SWITCH_CHECK_INTERVAL_MINUTES
 import org.monogram.domain.repository.ProxyNetworkMode
 import org.monogram.domain.repository.ProxyNetworkRule
 import org.monogram.domain.repository.ProxyNetworkType
+import org.monogram.domain.repository.ProxySmartSwitchMode
 import org.monogram.domain.repository.ProxySortMode
 import org.monogram.domain.repository.ProxyUnavailableFallback
 import org.monogram.domain.repository.PushProvider
@@ -342,6 +346,29 @@ class AppPreferences(
 
     private val _isAutoBestProxyEnabled = MutableStateFlow(prefs.getBoolean(KEY_AUTO_BEST_PROXY, false))
     override val isAutoBestProxyEnabled: StateFlow<Boolean> = _isAutoBestProxyEnabled
+
+    private val _proxySmartSwitchMode = MutableStateFlow(
+        runCatching {
+            ProxySmartSwitchMode.valueOf(
+                prefs.getString(
+                    KEY_PROXY_SMART_SWITCH_MODE,
+                    ProxySmartSwitchMode.BEST_PING.name
+                ) ?: ProxySmartSwitchMode.BEST_PING.name
+            )
+        }.getOrDefault(ProxySmartSwitchMode.BEST_PING)
+    )
+    override val proxySmartSwitchMode: StateFlow<ProxySmartSwitchMode> = _proxySmartSwitchMode
+
+    private val _proxyAutoCheckIntervalMinutes = MutableStateFlow(
+        prefs.getInt(
+            KEY_PROXY_AUTO_CHECK_INTERVAL_MINUTES,
+            DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES
+        ).coerceIn(
+            MIN_SMART_SWITCH_CHECK_INTERVAL_MINUTES,
+            MAX_SMART_SWITCH_CHECK_INTERVAL_MINUTES
+        )
+    )
+    override val proxyAutoCheckIntervalMinutes: StateFlow<Int> = _proxyAutoCheckIntervalMinutes
 
     private val _preferIpv6 = MutableStateFlow(prefs.getBoolean(KEY_PREFER_IPV6, false))
     override val preferIpv6: StateFlow<Boolean> = _preferIpv6
@@ -968,6 +995,20 @@ class AppPreferences(
         _isAutoBestProxyEnabled.value = enabled
     }
 
+    override fun setProxySmartSwitchMode(mode: ProxySmartSwitchMode) {
+        prefs.edit().putString(KEY_PROXY_SMART_SWITCH_MODE, mode.name).apply()
+        _proxySmartSwitchMode.value = mode
+    }
+
+    override fun setProxyAutoCheckIntervalMinutes(minutes: Int) {
+        val safeMinutes = minutes.coerceIn(
+            MIN_SMART_SWITCH_CHECK_INTERVAL_MINUTES,
+            MAX_SMART_SWITCH_CHECK_INTERVAL_MINUTES
+        )
+        prefs.edit().putInt(KEY_PROXY_AUTO_CHECK_INTERVAL_MINUTES, safeMinutes).apply()
+        _proxyAutoCheckIntervalMinutes.value = safeMinutes
+    }
+
     override fun setPreferIpv6(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_PREFER_IPV6, enabled).apply()
         _preferIpv6.value = enabled
@@ -1125,6 +1166,8 @@ class AppPreferences(
         _adBlockWhitelistedChannels.value = emptySet()
         _enabledProxyId.value = null
         _isAutoBestProxyEnabled.value = false
+        _proxySmartSwitchMode.value = ProxySmartSwitchMode.BEST_PING
+        _proxyAutoCheckIntervalMinutes.value = DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES
         _preferIpv6.value = false
         _proxySortMode.value = ProxySortMode.LOWEST_PING
         _proxyUnavailableFallback.value = ProxyUnavailableFallback.BEST_PROXY
@@ -1263,6 +1306,9 @@ class AppPreferences(
 
         private const val KEY_ENABLED_PROXY_ID = "enabled_proxy_id"
         private const val KEY_AUTO_BEST_PROXY = "auto_best_proxy"
+        private const val KEY_PROXY_SMART_SWITCH_MODE = "proxy_smart_switch_mode"
+        private const val KEY_PROXY_AUTO_CHECK_INTERVAL_MINUTES =
+            "proxy_auto_check_interval_minutes"
         private const val KEY_PREFER_IPV6 = "prefer_ipv6"
         private const val KEY_PROXY_SORT_MODE = "proxy_sort_mode"
         private const val KEY_PROXY_UNAVAILABLE_FALLBACK = "proxy_unavailable_fallback"

@@ -14,6 +14,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -29,9 +30,12 @@ import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.gateway.isExpectedProxyFailure
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.ConnectionStatus
+import org.monogram.domain.repository.MAX_SMART_SWITCH_CHECK_INTERVAL_MINUTES
+import org.monogram.domain.repository.MIN_SMART_SWITCH_CHECK_INTERVAL_MINUTES
 import org.monogram.domain.repository.ProxyNetworkMode
 import org.monogram.domain.repository.ProxyNetworkRule
 import org.monogram.domain.repository.ProxyNetworkType
+import org.monogram.domain.repository.ProxySmartSwitchMode
 import org.monogram.domain.repository.ProxyUnavailableFallback
 import org.monogram.domain.repository.defaultProxyNetworkMode
 import kotlin.random.Random
@@ -260,7 +264,11 @@ class ConnectionManager(
             }
 
             launch {
-                appPreferences.isAutoBestProxyEnabled.collect { autoBest ->
+                appPreferences.isAutoBestProxyEnabled
+                    .combine(appPreferences.proxyAutoCheckIntervalMinutes) { autoBest, intervalMinutes ->
+                        autoBest to intervalMinutes
+                    }
+                    .collect { (autoBest, _) ->
                     autoBestJob?.cancel()
 
                     if (autoBest) {
@@ -295,7 +303,12 @@ class ConnectionManager(
     private fun launchAutoBestLoop(): Job = scope.launch(dispatchers.default) {
         while (isActive) {
             applyNetworkProxyRuleSafely("auto_best_loop")
-            delay(300_000L)
+            val intervalMinutes = appPreferences.proxyAutoCheckIntervalMinutes.value
+                .coerceIn(
+                    MIN_SMART_SWITCH_CHECK_INTERVAL_MINUTES,
+                    MAX_SMART_SWITCH_CHECK_INTERVAL_MINUTES
+                )
+            delay(intervalMinutes * 60_000L)
         }
     }
 
@@ -377,7 +390,7 @@ class ConnectionManager(
             return false
         }
 
-        val best = coroutineScope {
+        val proxyChecks = coroutineScope {
             proxies.map { proxy ->
                 async {
                     val ping = coRunCatching {
@@ -402,24 +415,31 @@ class ConnectionManager(
                     proxy to ping
                 }
             }.awaitAll()
-        }.minByOrNull { it.second } ?: return false
+        }
 
-        if (best.second == Long.MAX_VALUE) {
+        val reachable = proxyChecks.filter { it.second != Long.MAX_VALUE }
+        if (reachable.isEmpty()) {
             Log.w(tag, "All proxies are unreachable, switching to direct connection")
             disableProxyIfNeeded("$reason:all_unreachable")
             return false
         }
 
+        val mode = appPreferences.proxySmartSwitchMode.value
+        val selected = when (mode) {
+            ProxySmartSwitchMode.BEST_PING -> reachable.minByOrNull { it.second }
+            ProxySmartSwitchMode.RANDOM_AVAILABLE -> reachable.randomOrNull()
+        } ?: return false
+
         val currentEnabled = proxies.find { it.isEnabled }
-        if (best.first.id != currentEnabled?.id) {
+        if (selected.first.id != currentEnabled?.id) {
             Log.d(
                 tag,
-                "Switching to best proxy ${best.first.server}:${best.first.port} (${best.second}ms) ($reason)"
+                "Switching proxy (${mode.name}) to ${selected.first.server}:${selected.first.port} (${selected.second}ms) ($reason)"
             )
-            return enableProxy(best.first.id, networkType, "$reason:switch")
+            return enableProxy(selected.first.id, networkType, "$reason:switch")
         }
 
-        appPreferences.setLastUsedProxyIdForNetwork(networkType, best.first.id)
+        appPreferences.setLastUsedProxyIdForNetwork(networkType, selected.first.id)
         return true
     }
 

@@ -475,6 +475,13 @@
     <string name="connection_section_header">Соединение</string>
     <string name="smart_switching_title">Умное переключение</string>
     <string name="smart_switching_subtitle">Автоматически выбирать самый быстрый прокси</string>
+    <string name="smart_switch_mode_title">Режим умного переключения</string>
+    <string name="smart_switch_mode_subtitle">Как умное переключение выбирает доступные прокси</string>
+    <string name="smart_switch_mode_best_ping">Минимальный пинг</string>
+    <string name="smart_switch_mode_random_available">Случайный доступный</string>
+    <string name="smart_switch_check_interval_title">Интервал автопроверки</string>
+    <string name="smart_switch_check_interval_subtitle">Как часто умное переключение проверяет доступность прокси</string>
+    <string name="smart_switch_check_interval_format">%1$d мин</string>
     <string name="prefer_ipv6_title">Предпочитать IPv6</string>
     <string name="prefer_ipv6_subtitle">Использовать IPv6 при наличии</string>
     <string name="disable_proxy_title">Отключить прокси</string>

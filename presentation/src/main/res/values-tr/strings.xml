@@ -481,6 +481,13 @@
     <string name="connection_section_header">Bağlantı</string>
     <string name="smart_switching_title">Akıllı Geçiş</string>
     <string name="smart_switching_subtitle">Otomatik olarak en hızlı proxy\'yi kullan</string>
+    <string name="smart_switch_mode_title">Akıllı geçiş modu</string>
+    <string name="smart_switch_mode_subtitle">Akıllı geçişin kullanılabilir proxy\'leri nasıl seçtiği</string>
+    <string name="smart_switch_mode_best_ping">En düşük ping</string>
+    <string name="smart_switch_mode_random_available">Rastgele kullanılabilir</string>
+    <string name="smart_switch_check_interval_title">Otomatik kontrol aralığı</string>
+    <string name="smart_switch_check_interval_subtitle">Akıllı geçişin proxy kullanılabilirliğini ne sıklıkla kontrol edeceği</string>
+    <string name="smart_switch_check_interval_format">%1$d dk</string>
     <string name="prefer_ipv6_title">IPv6\'yı Tercih Et</string>
     <string name="prefer_ipv6_subtitle">Mümkün olduğunda IPv6 kullan</string>
     <string name="disable_proxy_title">Proxy\'yi Devre Dışı Bırak</string>

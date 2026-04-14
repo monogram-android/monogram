@@ -37,6 +37,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Check
@@ -48,7 +49,6 @@ import androidx.compose.material.icons.rounded.LinkOff
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Upload
@@ -99,6 +99,7 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.repository.ProxyNetworkMode
 import org.monogram.domain.repository.ProxyNetworkRule
 import org.monogram.domain.repository.ProxyNetworkType
+import org.monogram.domain.repository.ProxySmartSwitchMode
 import org.monogram.domain.repository.ProxySortMode
 import org.monogram.domain.repository.ProxyUnavailableFallback
 import org.monogram.domain.repository.defaultProxyNetworkMode
@@ -212,10 +213,13 @@ fun ProxyContent(component: ProxyComponent) {
         state.visibleProxies.sortedByDescending { it.isEnabled }
     }
     var expandedNetworkMenu by remember { mutableStateOf<ProxyNetworkType?>(null) }
+    var smartSwitchModeMenuExpanded by remember { mutableStateOf(false) }
+    var smartSwitchCheckIntervalMenuExpanded by remember { mutableStateOf(false) }
     var sortMenuExpanded by remember { mutableStateOf(false) }
     var fallbackMenuExpanded by remember { mutableStateOf(false) }
     var showTopMenu by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(ProxyTab.Proxy) }
+    val smartSwitchCheckIntervalOptions = remember { listOf(1, 2, 5, 10, 15, 30, 60) }
 
     val exportLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -260,6 +264,13 @@ fun ProxyContent(component: ProxyComponent) {
         state.toastMessage?.let { message ->
             snackbarHostState.showSnackbar(message)
             component.onDismissToast()
+        }
+    }
+
+    LaunchedEffect(state.isAutoBestProxyEnabled) {
+        if (!state.isAutoBestProxyEnabled) {
+            smartSwitchModeMenuExpanded = false
+            smartSwitchCheckIntervalMenuExpanded = false
         }
     }
 
@@ -411,6 +422,114 @@ fun ProxyContent(component: ProxyComponent) {
                     onCheckedChange = component::onAutoBestProxyToggled
                 )
 
+                Box {
+                    SettingsTile(
+                        icon = Icons.Rounded.SwapHoriz,
+                        title = stringResource(R.string.smart_switch_mode_title),
+                        subtitle = stringResource(R.string.smart_switch_mode_subtitle),
+                        iconColor = Color(0xFF7E57C2),
+                        position = ItemPosition.MIDDLE,
+                        onClick = { smartSwitchModeMenuExpanded = true },
+                        enabled = state.isAutoBestProxyEnabled,
+                        trailingContent = {
+                            DropdownSelectionTrailing(
+                                text = stringResource(
+                                    smartSwitchModeLabelRes(state.smartSwitchMode)
+                                )
+                            )
+                        }
+                    )
+
+                    StyledDropdownMenu(
+                        expanded = smartSwitchModeMenuExpanded,
+                        onDismissRequest = { smartSwitchModeMenuExpanded = false }
+                    ) {
+                        ProxySmartSwitchMode.entries.forEach { mode ->
+                            DropdownMenuItem(
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Bolt,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                text = { Text(stringResource(smartSwitchModeLabelRes(mode))) },
+                                trailingIcon = {
+                                    if (state.smartSwitchMode == mode) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    component.onSmartSwitchModeChanged(mode)
+                                    smartSwitchModeMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Box {
+                    SettingsTile(
+                        icon = Icons.Rounded.Refresh,
+                        title = stringResource(R.string.smart_switch_check_interval_title),
+                        subtitle = stringResource(R.string.smart_switch_check_interval_subtitle),
+                        iconColor = Color(0xFF1E88E5),
+                        position = ItemPosition.MIDDLE,
+                        onClick = { smartSwitchCheckIntervalMenuExpanded = true },
+                        enabled = state.isAutoBestProxyEnabled,
+                        trailingContent = {
+                            DropdownSelectionTrailing(
+                                text = stringResource(
+                                    R.string.smart_switch_check_interval_format,
+                                    state.smartSwitchAutoCheckIntervalMinutes
+                                )
+                            )
+                        }
+                    )
+
+                    StyledDropdownMenu(
+                        expanded = smartSwitchCheckIntervalMenuExpanded,
+                        onDismissRequest = { smartSwitchCheckIntervalMenuExpanded = false }
+                    ) {
+                        smartSwitchCheckIntervalOptions.forEach { minutes ->
+                            DropdownMenuItem(
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Refresh,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                text = {
+                                    Text(
+                                        stringResource(
+                                            R.string.smart_switch_check_interval_format,
+                                            minutes
+                                        )
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (state.smartSwitchAutoCheckIntervalMinutes == minutes) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    component.onSmartSwitchAutoCheckIntervalChanged(minutes)
+                                    smartSwitchCheckIntervalMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
                 SettingsSwitchTile(
                     icon = Icons.Rounded.Public,
                     title = stringResource(R.string.prefer_ipv6_title),
@@ -556,7 +675,7 @@ fun ProxyContent(component: ProxyComponent) {
             item {
                 Box {
                     SettingsTile(
-                        icon = Icons.Rounded.Sort,
+                        icon = Icons.AutoMirrored.Rounded.Sort,
                         title = stringResource(R.string.proxy_sort_mode_title),
                         subtitle = stringResource(R.string.proxy_sort_mode_subtitle),
                         iconColor = Color(0xFFF9A825),

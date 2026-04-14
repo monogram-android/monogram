@@ -109,6 +109,7 @@ fun InputTextField(
     emojiFontFamily: FontFamily,
     focusRequester: FocusRequester,
     pendingMediaPaths: List<String>,
+    pendingDocumentPaths: List<String>,
     canPasteMediaFromClipboard: Boolean = false,
     onPasteImages: (List<Uri>) -> Unit = {},
     fontScale: Float = 1f,
@@ -435,7 +436,7 @@ fun InputTextField(
                         ) {
                             if (textValue.text.isEmpty()) {
                                 Text(
-                                    text = if (pendingMediaPaths.isNotEmpty())
+                                    text = if (pendingMediaPaths.isNotEmpty() || pendingDocumentPaths.isNotEmpty())
                                         stringResource(R.string.input_placeholder_caption)
                                     else
                                         stringResource(R.string.input_placeholder_message),

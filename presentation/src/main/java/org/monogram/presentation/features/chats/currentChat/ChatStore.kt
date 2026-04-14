@@ -10,6 +10,7 @@ import org.monogram.domain.models.KeyboardButtonModel
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
+import org.monogram.domain.models.PollDraft
 import java.io.File
 
 interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Label> {
@@ -38,6 +39,18 @@ interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Lab
         ) : Intent()
 
         data class SendGif(val gif: GifModel) : Intent()
+        data class SendDocument(
+            val path: String,
+            val caption: String = "",
+            val captionEntities: List<MessageEntity> = emptyList(),
+            val sendOptions: MessageSendOptions = MessageSendOptions()
+        ) : Intent()
+
+        data class SendPoll(
+            val poll: PollDraft,
+            val sendOptions: MessageSendOptions = MessageSendOptions()
+        ) : Intent()
+
         data class SendGifFile(
             val path: String,
             val caption: String = "",

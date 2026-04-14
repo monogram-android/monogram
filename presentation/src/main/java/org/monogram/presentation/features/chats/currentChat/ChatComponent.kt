@@ -15,6 +15,7 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.models.TopicModel
 import org.monogram.domain.models.UserModel
@@ -56,6 +57,18 @@ interface ChatComponent {
     )
 
     fun onSendGif(gif: GifModel)
+    fun onSendDocument(
+        documentPath: String,
+        caption: String = "",
+        captionEntities: List<MessageEntity> = emptyList(),
+        sendOptions: MessageSendOptions = MessageSendOptions()
+    )
+
+    fun onSendPoll(
+        poll: PollDraft,
+        sendOptions: MessageSendOptions = MessageSendOptions()
+    )
+
     fun onSendGifFile(
         path: String,
         caption: String = "",

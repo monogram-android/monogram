@@ -12,6 +12,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageUploadProgressEvent
 import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
@@ -78,6 +79,13 @@ interface MessageRemoteDataSource {
         documentPath: String,
         caption: String,
         captionEntities: List<MessageEntity>,
+        replyToMsgId: Long?,
+        threadId: Long?,
+        sendOptions: MessageSendOptions
+    ): TdApi.Message?
+    suspend fun sendPoll(
+        chatId: Long,
+        poll: PollDraft,
         replyToMsgId: Long?,
         threadId: Long?,
         sendOptions: MessageSendOptions

@@ -1,19 +1,41 @@
 package org.monogram.presentation.features.gallery.components
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Poll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,11 +55,12 @@ fun AttachBotsSection(
     modifier: Modifier = Modifier,
     bots: List<AttachMenuBotModel>,
     selectedCount: Int,
+    canCreatePoll: Boolean,
+    onAttachFileClick: () -> Unit,
+    onCreatePollClick: () -> Unit,
     onSendSelected: () -> Unit,
     onAttachBotClick: (AttachMenuBotModel) -> Unit
 ) {
-    if (bots.isEmpty() && selectedCount == 0) return
-
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
@@ -62,21 +85,71 @@ fun AttachBotsSection(
             }
 
             AnimatedVisibility(
-                visible = bots.isNotEmpty() && selectedCount == 0,
+                visible = selectedCount == 0,
                 enter = fadeIn(tween(220)) + slideInVertically(tween(220)) { it / 2 },
                 exit = fadeOut(tween(140))
             ) {
-                LazyRow(
-                    contentPadding = PaddingValues(bottom = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(bots, key = { it.botUserId }) { bot ->
-                        AttachBotTile(
-                            bot = bot,
-                            onClick = { onAttachBotClick(bot) }
-                        )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    QuickAttachActions(
+                        canCreatePoll = canCreatePoll,
+                        onAttachFileClick = onAttachFileClick,
+                        onCreatePollClick = onCreatePollClick
+                    )
+                    if (bots.isNotEmpty()) {
+                        LazyRow(
+                            contentPadding = PaddingValues(bottom = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(bots, key = { it.botUserId }) { bot ->
+                                AttachBotTile(
+                                    bot = bot,
+                                    onClick = { onAttachBotClick(bot) }
+                                )
+                            }
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickAttachActions(
+    canCreatePoll: Boolean,
+    onAttachFileClick: () -> Unit,
+    onCreatePollClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        val fileButtonModifier = if (canCreatePoll) Modifier.weight(1f) else Modifier.fillMaxWidth()
+        OutlinedButton(
+            onClick = onAttachFileClick,
+            modifier = fileButtonModifier
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Description,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(Modifier.size(8.dp))
+            Text(stringResource(R.string.action_attach_file))
+        }
+
+        if (canCreatePoll) {
+            OutlinedButton(
+                onClick = onCreatePollClick,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Poll,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.size(8.dp))
+                Text(stringResource(R.string.action_create_poll))
             }
         }
     }

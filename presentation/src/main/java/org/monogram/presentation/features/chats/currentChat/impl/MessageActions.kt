@@ -10,7 +10,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.monogram.domain.models.*
+import org.monogram.domain.models.GifModel
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageSendOptions
+import org.monogram.domain.models.PollDraft
 import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
 import org.monogram.presentation.features.chats.currentChat.editor.video.VideoQuality
 import org.monogram.presentation.features.chats.currentChat.editor.video.VideoTrimRange
@@ -155,6 +160,60 @@ internal fun DefaultChatComponent.handleSendGif(
         repositoryMessage.sendGif(
             chatId,
             gif.fileId.toString(),
+            replyToMsgId = replyId,
+            threadId = threadId,
+            sendOptions = sendOptions
+        )
+        onCancelReply()
+        if (!currentState.isAtBottom) {
+            onScrollToBottom()
+        }
+        if (sendOptions.scheduleDate != null) {
+            loadScheduledMessages()
+        }
+    }
+}
+
+internal fun DefaultChatComponent.handleSendDocument(
+    path: String,
+    caption: String,
+    captionEntities: List<MessageEntity> = emptyList(),
+    sendOptions: MessageSendOptions = MessageSendOptions()
+) {
+    scope.launch {
+        val currentState = _state.value
+        val replyId = currentState.replyMessage?.id
+        val threadId = currentState.currentTopicId
+        repositoryMessage.sendDocument(
+            chatId = chatId,
+            documentPath = path,
+            caption = caption,
+            captionEntities = captionEntities,
+            replyToMsgId = replyId,
+            threadId = threadId,
+            sendOptions = sendOptions
+        )
+        onCancelReply()
+        if (!currentState.isAtBottom) {
+            onScrollToBottom()
+        }
+        if (sendOptions.scheduleDate != null) {
+            loadScheduledMessages()
+        }
+    }
+}
+
+internal fun DefaultChatComponent.handleSendPoll(
+    poll: PollDraft,
+    sendOptions: MessageSendOptions = MessageSendOptions()
+) {
+    scope.launch {
+        val currentState = _state.value
+        val replyId = currentState.replyMessage?.id
+        val threadId = currentState.currentTopicId
+        repositoryMessage.sendPoll(
+            chatId = chatId,
+            poll = poll,
             replyToMsgId = replyId,
             threadId = threadId,
             sendOptions = sendOptions

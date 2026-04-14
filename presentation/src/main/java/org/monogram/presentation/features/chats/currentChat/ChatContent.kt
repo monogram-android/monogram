@@ -193,6 +193,7 @@ fun ChatContent(
     var contentRect by remember { mutableStateOf(Rect.Zero) }
 
     var pendingMediaPaths by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var pendingDocumentPaths by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var editingPhotoPath by rememberSaveable { mutableStateOf<String?>(null) }
     var editingVideoPath by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBlockUserId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -574,6 +575,7 @@ fun ChatContent(
             else albumPaths.add(file.absolutePath)
         }
         if (albumPaths.isNotEmpty()) pendingMediaPaths = (pendingMediaPaths + albumPaths).distinct()
+        if (albumPaths.isNotEmpty()) pendingDocumentPaths = emptyList()
     }
 
 
@@ -797,12 +799,14 @@ fun ChatContent(
                     },
                     bottomBar = {
                         if (showInputBar) {
-                            val inputBarState = remember(state, pendingMediaPaths) {
+                            val inputBarState =
+                                remember(state, pendingMediaPaths, pendingDocumentPaths) {
                                 ChatInputBarState(
                                     replyMessage = state.replyMessage,
                                     editingMessage = state.editingMessage,
                                     draftText = state.draftText,
                                     pendingMediaPaths = pendingMediaPaths,
+                                    pendingDocumentPaths = pendingDocumentPaths,
                                     isClosed = state.topics.find { it.id.toLong() == state.currentTopicId }?.isClosed
                                         ?: false,
                                     permissions = state.permissions,
@@ -828,7 +832,8 @@ fun ChatContent(
                                 )
                             }
 
-                            val inputBarActions = remember(component, pendingMediaPaths) {
+                            val inputBarActions =
+                                remember(component, pendingMediaPaths, pendingDocumentPaths) {
                                 ChatInputBarActions(
                                     onSend = { text, entities, options ->
                                         component.onSendMessage(
@@ -877,8 +882,32 @@ fun ChatContent(
                                             else component.onSendPhoto(it, caption, captionEntities, options)
                                         }
                                         pendingMediaPaths = emptyList()
+                                        pendingDocumentPaths = emptyList()
                                     },
-                                    onMediaOrderChange = { pendingMediaPaths = it },
+                                    onSendDocuments = { paths, caption, captionEntities, options ->
+                                        paths.forEachIndexed { index, path ->
+                                            component.onSendDocument(
+                                                path,
+                                                caption = if (index == 0) caption else "",
+                                                captionEntities = if (index == 0) captionEntities else emptyList(),
+                                                sendOptions = options
+                                            )
+                                        }
+                                        pendingDocumentPaths = emptyList()
+                                        pendingMediaPaths = emptyList()
+                                    },
+                                    onMediaOrderChange = {
+                                        pendingMediaPaths = it
+                                        if (it.isNotEmpty()) {
+                                            pendingDocumentPaths = emptyList()
+                                        }
+                                    },
+                                    onDocumentOrderChange = {
+                                        pendingDocumentPaths = it
+                                        if (it.isNotEmpty()) {
+                                            pendingMediaPaths = emptyList()
+                                        }
+                                    },
                                     onMediaClick = { path ->
                                         if (path.endsWith(".mp4")) {
                                             editingVideoPath = path
@@ -922,6 +951,9 @@ fun ChatContent(
                                     },
                                     onAttachBotClick = { bot ->
                                         component.onOpenAttachBot(bot.botUserId, bot.name)
+                                    },
+                                    onSendPoll = { poll ->
+                                        component.onSendPoll(poll)
                                     },
                                     onRefreshScheduledMessages = { component.onRefreshScheduledMessages() },
                                     onEditScheduledMessage = { message -> component.onEditMessage(message) },

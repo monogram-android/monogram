@@ -33,6 +33,7 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.WallpaperModel
 import org.monogram.domain.repository.BotPreferencesProvider
@@ -332,6 +333,25 @@ class DefaultChatComponent(
     ) = store.accept(ChatStore.Intent.SendVideo(videoPath, caption, captionEntities, sendOptions))
 
     override fun onSendGif(gif: GifModel) = store.accept(ChatStore.Intent.SendGif(gif))
+    override fun onSendDocument(
+        documentPath: String,
+        caption: String,
+        captionEntities: List<MessageEntity>,
+        sendOptions: MessageSendOptions
+    ) = store.accept(
+        ChatStore.Intent.SendDocument(
+            documentPath,
+            caption,
+            captionEntities,
+            sendOptions
+        )
+    )
+
+    override fun onSendPoll(
+        poll: PollDraft,
+        sendOptions: MessageSendOptions
+    ) = store.accept(ChatStore.Intent.SendPoll(poll, sendOptions))
+
     override fun onSendGifFile(
         path: String,
         caption: String,

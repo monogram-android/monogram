@@ -63,6 +63,7 @@ fun ChatInputBarComposerSection(
     editingMessage: MessageModel?,
     replyMessage: MessageModel?,
     pendingMediaPaths: List<String>,
+    pendingDocumentPaths: List<String>,
     mentionSuggestions: List<UserModel>,
     filteredCommands: List<BotCommandModel>,
     currentInlineBotUsername: String?,
@@ -104,7 +105,9 @@ fun ChatInputBarComposerSection(
     onCancelEdit: () -> Unit,
     onCancelReply: () -> Unit,
     onCancelMedia: () -> Unit,
+    onCancelDocuments: () -> Unit,
     onMediaOrderChange: (List<String>) -> Unit,
+    onDocumentOrderChange: (List<String>) -> Unit,
     onMediaClick: (String) -> Unit,
     onPasteImages: (List<Uri>) -> Unit,
     onMentionClick: (UserModel) -> Unit,
@@ -152,10 +155,13 @@ fun ChatInputBarComposerSection(
                 editingMessage = editingMessage,
                 replyMessage = replyMessage,
                 pendingMediaPaths = pendingMediaPaths,
+                pendingDocumentPaths = pendingDocumentPaths,
                 onCancelEdit = onCancelEdit,
                 onCancelReply = onCancelReply,
                 onCancelMedia = onCancelMedia,
+                onCancelDocuments = onCancelDocuments,
                 onMediaOrderChange = onMediaOrderChange,
+                onDocumentOrderChange = onDocumentOrderChange,
                 onMediaClick = onMediaClick
             )
 
@@ -219,6 +225,7 @@ fun ChatInputBarComposerSection(
                         InputBarLeadingIcons(
                             editingMessage = editingMessage,
                             pendingMediaPaths = pendingMediaPaths,
+                            pendingDocumentPaths = pendingDocumentPaths,
                             canSendMedia = canSendMedia,
                             onAttachClick = onAttachClick
                         )
@@ -266,6 +273,7 @@ fun ChatInputBarComposerSection(
                                     emojiFontFamily = emojiFontFamily,
                                     focusRequester = focusRequester,
                                     pendingMediaPaths = pendingMediaPaths,
+                                    pendingDocumentPaths = pendingDocumentPaths,
                                     canPasteMediaFromClipboard = canPasteMediaFromClipboard,
                                     onPasteImages = onPasteImages,
                                     onFocus = onInputFocus,
@@ -294,6 +302,7 @@ fun ChatInputBarComposerSection(
                                 textValue = textValue,
                                 editingMessage = editingMessage,
                                 pendingMediaPaths = pendingMediaPaths,
+                                pendingDocumentPaths = pendingDocumentPaths,
                                 isOverCharLimit = isOverMessageLimit,
                                 canWriteText = canWriteText,
                                 canSendVoice = canSendVoice,

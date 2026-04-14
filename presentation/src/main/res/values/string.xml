@@ -1797,7 +1797,7 @@
     <string name="poll_public">Public</string>
     <string name="poll_type_quiz">Quiz</string>
     <string name="poll_type_poll">Poll</string>
-    <string name="poll_multiple_choice"> • Multiple Choice</string>
+    <string name="poll_multiple_choice">Multiple Choice</string>
     <string name="poll_retract_vote">Retract Vote</string>
     <string name="poll_close_poll">Close Poll</string>
     <plurals name="poll_votes_count">

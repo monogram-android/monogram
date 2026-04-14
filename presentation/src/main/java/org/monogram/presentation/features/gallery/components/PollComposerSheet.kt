@@ -2,19 +2,36 @@ package org.monogram.presentation.features.gallery.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,6 +42,7 @@ import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lock
@@ -41,28 +59,38 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.launch
 import org.monogram.domain.models.PollDraft
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
@@ -74,6 +102,7 @@ import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,10 +128,19 @@ fun PollComposerSheet(
     var showCloseDatePicker by remember { mutableStateOf(false) }
     var showCloseTimePicker by remember { mutableStateOf(false) }
     var pendingCloseDateMillis by remember { mutableStateOf<Long?>(null) }
+    var draggingOptionIndex by remember { mutableStateOf<Int?>(null) }
+    var optionDragOffset by remember { mutableFloatStateOf(0f) }
+    var dismissOffsetY by remember { mutableFloatStateOf(0f) }
 
     val preparedOptions = options.map { it.trim() }.filter { it.isNotEmpty() }
     val openPeriod = openPeriodText.toIntOrNull()?.coerceAtLeast(0) ?: 0
     val closeDate = closeDateEpoch ?: 0
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    val optionDragThresholdPx = with(density) { 44.dp.toPx() }
+    val dismissDistanceThresholdPx = with(density) { 104.dp.toPx() }
+    val dismissVelocityThresholdPx = with(density) { 360.dp.toPx() }
+    val statusBarTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val hasClosingLimit = openPeriod > 0 || closeDate > 0
     val hasValidCorrectSelections = if (!isQuiz) {
         true
@@ -133,39 +171,112 @@ fun PollComposerSheet(
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 12.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.Top
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.action_create_poll),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.action_cancel))
+    val moveOption: (Int, Int) -> Unit = move@{ from, to ->
+        if (from !in options.indices || to !in options.indices || from == to) return@move
+        val movedValue = options.removeAt(from)
+        options.add(to, movedValue)
+
+        if (correctOptionIds.isNotEmpty()) {
+            val remapped = correctOptionIds.map { selected ->
+                when {
+                    selected == from -> to
+                    from < to && selected in (from + 1)..to -> selected - 1
+                    from > to && selected in to until from -> selected + 1
+                    else -> selected
                 }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
+            }.distinct()
+            correctOptionIds.clear()
+            correctOptionIds.addAll(remapped)
+        }
+    }
+    val dismissDragState = rememberDraggableState { delta ->
+        dismissOffsetY = (dismissOffsetY + delta).coerceAtLeast(0f)
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        val scrimInteractionSource = remember { MutableInteractionSource() }
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.48f))
+                    .clickable(
+                        interactionSource = scrimInteractionSource,
+                        indication = null,
+                        onClick = onDismiss
+                    )
+            )
+
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxSize()
+                    .padding(top = statusBarTopPadding)
+                    .offset { IntOffset(0, dismissOffsetY.roundToInt()) },
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                color = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .draggable(
+                                state = dismissDragState,
+                                orientation = Orientation.Vertical,
+                                onDragStopped = { velocity ->
+                                    val shouldDismiss =
+                                        dismissOffsetY > dismissDistanceThresholdPx ||
+                                                velocity > dismissVelocityThresholdPx
+                                    if (shouldDismiss) {
+                                        onDismiss()
+                                    } else {
+                                        scope.launch {
+                                            animate(
+                                                initialValue = dismissOffsetY,
+                                                targetValue = 0f,
+                                                animationSpec = spring()
+                                            ) { value, _ -> dismissOffsetY = value }
+                                        }
+                                    }
+                                }
+                            )
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        BottomSheetDefaults.DragHandle()
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.action_create_poll),
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            TextButton(onClick = onDismiss) {
+                                Text(stringResource(R.string.action_cancel))
+                            }
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp)
+                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .padding(bottom = 8.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.Top
+                    ) {
+                        Spacer(modifier = Modifier.height(8.dp))
 
             SettingsTextField(
                 value = question,
@@ -197,24 +308,36 @@ fun PollComposerSheet(
                     index == options.lastIndex -> ItemPosition.BOTTOM
                     else -> ItemPosition.MIDDLE
                 }
-                SettingsTextField(
+                PollOptionInputRow(
+                    number = index + 1,
                     value = value,
                     onValueChange = { options[index] = it },
                     placeholder = stringResource(R.string.poll_option_label, index + 1),
-                    icon = Icons.Rounded.RadioButtonUnchecked,
                     position = position,
-                    itemSpacing = 2.dp,
-                    singleLine = true,
-                    trailingIcon = if (options.size > 2) {
-                        {
-                            IconButton(onClick = { options.removeAt(index) }) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Delete,
-                                    contentDescription = stringResource(R.string.action_remove),
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
+                    isDragging = draggingOptionIndex == index,
+                    dragOffset = if (draggingOptionIndex == index) optionDragOffset else 0f,
+                    onDragStart = {
+                        draggingOptionIndex = index
+                        optionDragOffset = 0f
+                    },
+                    onDragDelta = { deltaY ->
+                        optionDragOffset += deltaY
+                        if (optionDragOffset >= optionDragThresholdPx && index < options.lastIndex) {
+                            moveOption(index, index + 1)
+                            draggingOptionIndex = index + 1
+                            optionDragOffset = 0f
+                        } else if (optionDragOffset <= -optionDragThresholdPx && index > 0) {
+                            moveOption(index, index - 1)
+                            draggingOptionIndex = index - 1
+                            optionDragOffset = 0f
                         }
+                    },
+                    onDragEnd = {
+                        draggingOptionIndex = null
+                        optionDragOffset = 0f
+                    },
+                    onRemove = if (options.size > 2) {
+                        { options.removeAt(index) }
                     } else {
                         null
                     }
@@ -433,6 +556,9 @@ fun PollComposerSheet(
             }
         }
     }
+            }
+        }
+    }
 
     if (showCloseDatePicker) {
         ScheduleDatePickerDialog(
@@ -547,6 +673,117 @@ private fun PollSwitchRow(
             )
         }
     }
+    if (position != ItemPosition.BOTTOM && position != ItemPosition.STANDALONE) {
+        Spacer(Modifier.height(2.dp))
+    }
+}
+
+@Composable
+private fun PollOptionInputRow(
+    number: Int,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    position: ItemPosition,
+    isDragging: Boolean,
+    dragOffset: Float,
+    onDragStart: () -> Unit,
+    onDragDelta: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onRemove: (() -> Unit)?
+) {
+    val cornerRadius = 24.dp
+    val shape = when (position) {
+        ItemPosition.TOP -> RoundedCornerShape(
+            topStart = cornerRadius,
+            topEnd = cornerRadius,
+            bottomStart = 4.dp,
+            bottomEnd = 4.dp
+        )
+
+        ItemPosition.MIDDLE -> RoundedCornerShape(4.dp)
+        ItemPosition.BOTTOM -> RoundedCornerShape(
+            bottomStart = cornerRadius,
+            bottomEnd = cornerRadius,
+            topStart = 4.dp,
+            topEnd = 4.dp
+        )
+
+        ItemPosition.STANDALONE -> RoundedCornerShape(cornerRadius)
+    }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = shape,
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                translationY = if (isDragging) dragOffset else 0f
+            }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "$number.",
+                modifier = Modifier.width(28.dp),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            TextField(
+                value = value,
+                onValueChange = onValueChange,
+                placeholder = { Text(placeholder) },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent
+                )
+            )
+
+            Icon(
+                imageVector = Icons.Rounded.DragHandle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier
+                    .padding(horizontal = 6.dp)
+                    .pointerInput(number) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = {
+                                onDragStart()
+                            },
+                            onDragEnd = { onDragEnd() },
+                            onDragCancel = { onDragEnd() },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                onDragDelta(dragAmount.y)
+                            }
+                        )
+                    }
+            )
+
+            if (onRemove != null) {
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        imageVector = Icons.Rounded.Delete,
+                        contentDescription = stringResource(R.string.action_remove),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+    }
+
     if (position != ItemPosition.BOTTOM && position != ItemPosition.STANDALONE) {
         Spacer(Modifier.height(2.dp))
     }

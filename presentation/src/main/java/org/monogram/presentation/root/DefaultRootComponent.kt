@@ -29,18 +29,26 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
+import org.json.JSONObject
 import org.monogram.domain.managers.PhoneManager
 import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.Proxy
+import org.monogram.domain.models.ProxyCheckResult
+import org.monogram.domain.models.ProxyInput
+import org.monogram.domain.models.ProxyType
 import org.monogram.domain.models.ProxyTypeModel
+import org.monogram.domain.models.toDomainProxyType
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.CacheProvider
 import org.monogram.domain.repository.ExternalNavigator
-import org.monogram.domain.repository.ExternalProxyRepository
 import org.monogram.domain.repository.LinkAction
 import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.MessageDisplayer
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.ProxyDiagnosticsRepository
+import org.monogram.domain.repository.ProxyNetworkType
+import org.monogram.domain.repository.ProxyRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StorageRepository
 import org.monogram.domain.repository.UpdateRepository
@@ -90,7 +98,9 @@ class DefaultRootComponent(
     private val messageRepository: MessageRepository = container.repositories.messageRepository
     private val storageRepository: StorageRepository = container.repositories.storageRepository
     private val linkHandlerRepository: LinkHandlerRepository = container.repositories.linkHandlerRepository
-    private val externalProxyRepository: ExternalProxyRepository = container.repositories.externalProxyRepository
+    private val proxyRepository: ProxyRepository = container.repositories.proxyRepository
+    private val proxyDiagnosticsRepository: ProxyDiagnosticsRepository =
+        container.repositories.proxyDiagnosticsRepository
     private val stickerRepository: StickerRepository = container.repositories.stickerRepository
     private val messageDisplayer: MessageDisplayer = container.utils.messageDisplayer()
     private val externalNavigator: ExternalNavigator = container.utils.externalNavigator()
@@ -111,6 +121,7 @@ class DefaultRootComponent(
 
     private val _proxyToConfirm = MutableStateFlow(RootComponent.ProxyConfirmState())
     override val proxyToConfirm = _proxyToConfirm.asStateFlow()
+    private var proxyCheckRequestToken = 0L
 
     private val _chatToConfirmJoin = MutableStateFlow(RootComponent.ChatConfirmJoinState())
     override val chatToConfirmJoin = _chatToConfirmJoin.asStateFlow()
@@ -325,14 +336,23 @@ class DefaultRootComponent(
     }
 
     override fun dismissProxyConfirm() {
+        proxyCheckRequestToken++
         _proxyToConfirm.update { RootComponent.ProxyConfirmState() }
     }
 
     override fun confirmProxy(server: String, port: Int, type: ProxyTypeModel) {
+        proxyCheckRequestToken++
         scope.launch {
-            val proxy = externalProxyRepository.addProxy(server, port, true, type)
+            val proxy = proxyRepository.addProxy(
+                input = ProxyInput(server = server, port = port, type = type.toDomainProxyType()),
+                enable = true
+            )
             dismissProxyConfirm()
             if (proxy != null) {
+                addProxyToBackup(proxy)
+                ProxyNetworkType.entries.forEach { networkType ->
+                    appPreferences.setLastUsedProxyIdForNetwork(networkType, proxy.id)
+                }
                 messageDisplayer.show("Proxy added and enabled")
             } else {
                 messageDisplayer.show("Failed to add proxy")
@@ -345,23 +365,62 @@ class DefaultRootComponent(
         val server = currentState.server ?: return
         val port = currentState.port ?: return
         val type = currentState.type ?: return
+        val requestToken = ++proxyCheckRequestToken
 
         _proxyToConfirm.update { it.copy(isChecking = true, ping = null) }
 
         scope.launch {
-            val ping = try {
-                withContext(Dispatchers.IO) {
-                    externalProxyRepository.testProxy(server, port, type)
-                } ?: -1L
-            } catch (e: Exception) {
-                -1L
+            val ping = when (
+                val result = withContext(Dispatchers.IO) {
+                    proxyDiagnosticsRepository.testProxy(
+                        ProxyInput(server = server, port = port, type = type.toDomainProxyType())
+                    )
+                }
+            ) {
+                is ProxyCheckResult.Success -> result.latencyMs
+                is ProxyCheckResult.Failure -> -1L
             }
 
-            if (_proxyToConfirm.value.server == server && _proxyToConfirm.value.port == port) {
+            if (
+                requestToken == proxyCheckRequestToken &&
+                _proxyToConfirm.value.server == server &&
+                _proxyToConfirm.value.port == port &&
+                _proxyToConfirm.value.type == type
+            ) {
                 _proxyToConfirm.update { it.copy(ping = ping, isChecking = false) }
             }
         }
     }
+
+    private fun addProxyToBackup(proxy: Proxy) {
+        val current = appPreferences.userProxyBackups.value.toMutableSet()
+        current.add(serializeProxyBackup(proxy))
+        appPreferences.setUserProxyBackups(current)
+    }
+
+    private fun serializeProxyBackup(proxy: Proxy): String = JSONObject().apply {
+        put("server", proxy.server)
+        put("port", proxy.port)
+        when (val type = proxy.type) {
+            is ProxyType.Mtproto -> {
+                put("type", "mtproto")
+                put("secret", type.secret)
+            }
+
+            is ProxyType.Socks5 -> {
+                put("type", "socks5")
+                put("username", type.username)
+                put("password", type.password)
+            }
+
+            is ProxyType.Http -> {
+                put("type", "http")
+                put("username", type.username)
+                put("password", type.password)
+                put("httpOnly", type.httpOnly)
+            }
+        }
+    }.toString()
 
     override fun dismissChatConfirmJoin() {
         _chatToConfirmJoin.update { RootComponent.ChatConfirmJoinState() }

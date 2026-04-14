@@ -220,6 +220,8 @@ class ConnectionManager(
     private fun startProxyManagement() {
         proxyModeWatcherJob?.cancel()
         proxyModeWatcherJob = scope.launch {
+            syncEnabledProxyPreferenceFromTdlib("startup_sync")
+
             appPreferences.enabledProxyId.value?.let { proxyId ->
                 if (!enableProxy(proxyId, getCurrentNetworkType(), "startup_restore")) {
                     appPreferences.setEnabledProxyId(null)
@@ -241,6 +243,23 @@ class ConnectionManager(
             }
 
             launch {
+                appPreferences.preferIpv6.collect { preferIpv6 ->
+                    coRunCatching {
+                        proxyRemoteSource.setOption(
+                            "prefer_ipv6",
+                            TdApi.OptionValueBoolean(preferIpv6)
+                        )
+                    }.onFailure { error ->
+                        if (error.isExpectedProxyFailure()) {
+                            Log.w(tag, "Failed to apply prefer_ipv6 option: ${error.message}")
+                        } else {
+                            Log.e(tag, "Failed to apply prefer_ipv6 option", error)
+                        }
+                    }
+                }
+            }
+
+            launch {
                 appPreferences.isAutoBestProxyEnabled.collect { autoBest ->
                     autoBestJob?.cancel()
 
@@ -250,6 +269,27 @@ class ConnectionManager(
                 }
             }
         }
+    }
+
+    private suspend fun syncEnabledProxyPreferenceFromTdlib(reason: String) {
+        coRunCatching { proxyRemoteSource.getProxies() }
+            .onSuccess { proxies ->
+                val enabledId = proxies.firstOrNull { it.isEnabled }?.id
+                if (appPreferences.enabledProxyId.value != enabledId) {
+                    Log.d(
+                        tag,
+                        "Syncing enabled proxy id from TDLib ($reason): ${appPreferences.enabledProxyId.value} -> $enabledId"
+                    )
+                    appPreferences.setEnabledProxyId(enabledId)
+                }
+            }
+            .onFailure { error ->
+                if (error.isExpectedProxyFailure()) {
+                    Log.w(tag, "Failed to sync enabled proxy id ($reason): ${error.message}")
+                } else {
+                    Log.e(tag, "Failed to sync enabled proxy id ($reason)", error)
+                }
+            }
     }
 
     private fun launchAutoBestLoop(): Job = scope.launch(dispatchers.default) {
@@ -388,11 +428,6 @@ class ConnectionManager(
         networkType: ProxyNetworkType,
         reason: String
     ): Boolean {
-        if (appPreferences.enabledProxyId.value == proxyId) {
-            appPreferences.setLastUsedProxyIdForNetwork(networkType, proxyId)
-            return true
-        }
-
         val enabled = coRunCatching {
             withContext(dispatchers.io) {
                 proxyRemoteSource.enableProxy(proxyId)

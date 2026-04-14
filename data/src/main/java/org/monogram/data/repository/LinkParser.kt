@@ -4,6 +4,8 @@ import androidx.core.net.toUri
 import org.monogram.data.core.coRunCatching
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.proxy.MtprotoSecretNormalizer
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 class LinkParser {
 
@@ -76,28 +78,90 @@ class LinkParser {
     }
 
     private fun parseProxyLink(link: String): ParsedLink.AddProxy? {
-        val uri = coRunCatching { link.toUri() }.getOrNull() ?: return null
+        val normalizedLink = normalizeTelegramScheme(link.trim())
+        val uri = coRunCatching { normalizedLink.toUri() }.getOrNull() ?: return null
 
-        val isProxy = link.contains("/proxy?") || link.startsWith("tg://proxy")
-        val isSocks = link.contains("/socks?") || link.startsWith("tg://socks")
-        val isHttp = link.contains("/http?") || link.startsWith("tg://http")
-        if (!isProxy && !isSocks && !isHttp) return null
+        val scheme = uri.scheme?.lowercase()
+        val host = uri.host?.lowercase()
+        val pathType = uri.pathSegments.firstOrNull()?.lowercase()
+        val schemeSpecificType = uri.schemeSpecificPart
+            ?.substringBefore('?')
+            ?.removePrefix("//")
+            ?.substringBefore('/')
+            ?.lowercase()
 
-        val server = uri.getQueryParameter("server") ?: return null
-        val port = uri.getQueryParameter("port")?.toIntOrNull() ?: return null
-        val secret = uri.getQueryParameter("secret")
-        val user = uri.getQueryParameter("user")
-        val pass = uri.getQueryParameter("pass")
+        val tgType = if (scheme == "tg") {
+            when (host ?: pathType ?: schemeSpecificType) {
+                "proxy" -> "proxy"
+                "socks" -> "socks"
+                "http" -> "http"
+                else -> null
+            }
+        } else {
+            null
+        }
+
+        val httpsType = if (
+            (scheme == "https" || scheme == "http") &&
+            (host == "t.me" || host == "www.t.me" || host == "telegram.me" || host == "www.telegram.me")
+        ) {
+            when (pathType) {
+                "proxy" -> "proxy"
+                "socks" -> "socks"
+                "http" -> "http"
+                else -> null
+            }
+        } else {
+            null
+        }
+
+        val proxyType = tgType ?: httpsType ?: return null
+        val queryMap = parseQueryMap(uri, normalizedLink)
+
+        val server = queryMap["server"] ?: return null
+        val port = queryMap["port"]?.toIntOrNull() ?: return null
+        if (server.isBlank() || port !in 1..65535) return null
+        val secret = queryMap["secret"]
+        val user = queryMap["user"] ?: queryMap["username"]
+        val pass = queryMap["pass"] ?: queryMap["password"]
 
         val type = when {
             secret != null -> {
                 val normalized = MtprotoSecretNormalizer.normalize(secret) ?: return null
                 ProxyTypeModel.Mtproto(normalized)
             }
-            isHttp -> ProxyTypeModel.Http(user ?: "", pass ?: "", false)
+            proxyType == "http" -> ProxyTypeModel.Http(user ?: "", pass ?: "", false)
             else -> ProxyTypeModel.Socks5(user ?: "", pass ?: "")
         }
         return ParsedLink.AddProxy(server, port, type)
+    }
+
+    private fun normalizeTelegramScheme(link: String): String {
+        if (link.startsWith("tg://", ignoreCase = true)) return link
+        if (link.startsWith("tg:", ignoreCase = true)) {
+            return "tg://${link.substringAfter(':')}"
+        }
+        return link
+    }
+
+    private fun parseQueryMap(uri: android.net.Uri, originalLink: String): Map<String, String> {
+        val rawQuery = uri.encodedQuery
+            ?: originalLink.substringAfter('?', missingDelimiterValue = "")
+                .takeIf { it.isNotBlank() }
+            ?: return emptyMap()
+        return rawQuery.split('&')
+            .mapNotNull { pair ->
+                if (pair.isBlank()) return@mapNotNull null
+                val key = pair.substringBefore('=')
+                if (key.isBlank()) return@mapNotNull null
+                val value = pair.substringAfter('=', missingDelimiterValue = "")
+                decode(key).lowercase() to decode(value)
+            }.toMap()
+    }
+
+    private fun decode(value: String): String {
+        return runCatching { URLDecoder.decode(value, StandardCharsets.UTF_8.toString()) }
+            .getOrDefault(value)
     }
 
     private fun parseUserLink(link: String): ParsedLink.OpenUser? {

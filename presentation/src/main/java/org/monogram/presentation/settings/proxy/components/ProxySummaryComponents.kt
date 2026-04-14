@@ -61,15 +61,19 @@ internal fun ProxyConnectionSummaryCard(
     val ping = activeProxy?.ping
     val isChecking = activeProxy?.id in checkingProxyIds
     val errorMessage = activeProxy?.id?.let(proxyErrors::get)
+    val offlineLabel = stringResource(R.string.proxy_offline)
+    val detailErrorMessage = errorMessage
+        ?.takeIf { it.isNotBlank() }
+        ?.takeUnless { it.equals(offlineLabel, ignoreCase = true) }
     val statusText = when {
         isChecking -> stringResource(R.string.proxy_checking)
         !errorMessage.isNullOrBlank() -> stringResource(R.string.proxy_offline)
         ping != null && ping >= 0L -> stringResource(R.string.proxy_ping_format, ping.toInt())
         activeProxy != null -> stringResource(R.string.proxy_enabled)
-        else -> stringResource(R.string.connected_directly_subtitle)
+        else -> stringResource(R.string.proxy_network_mode_direct)
     }
     val subtitle = when {
-        !errorMessage.isNullOrBlank() -> errorMessage
+        !detailErrorMessage.isNullOrBlank() -> detailErrorMessage
         activeProxy != null -> buildString {
             append(
                 when (activeProxy.type) {
@@ -86,7 +90,7 @@ internal fun ProxyConnectionSummaryCard(
 
         proxyCount == 0 -> stringResource(R.string.no_proxies_label)
         isAutoBestProxyEnabled -> stringResource(R.string.smart_switching_subtitle)
-        else -> stringResource(R.string.connected_directly_subtitle)
+        else -> stringResource(R.string.proxy_network_mode_direct_subtitle)
     }
     val containerColor by animateColorAsState(
         targetValue = if (activeProxy != null) {
@@ -100,7 +104,7 @@ internal fun ProxyConnectionSummaryCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp),
+            .padding(bottom = 6.dp),
         shape = RoundedCornerShape(22.dp),
         color = containerColor
     ) {
@@ -134,7 +138,11 @@ internal fun ProxyConnectionSummaryCard(
                 Column(modifier = Modifier.weight(1f)) {
                     AnimatedContent(
                         targetState = activeProxy?.server
-                            ?: stringResource(R.string.connected_directly_subtitle),
+                            ?: if (proxyCount == 0) {
+                                stringResource(R.string.no_proxies_label)
+                            } else {
+                                stringResource(R.string.connected_directly_subtitle)
+                            },
                         transitionSpec = {
                             fadeIn() + scaleIn(initialScale = 0.96f) togetherWith fadeOut() + scaleOut(
                                 targetScale = 0.96f

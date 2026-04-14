@@ -545,8 +545,8 @@
     <string name="test_proxy_button">Перевірити</string>
     <string name="test_proxy_result">Результат перевірки</string>
     <string name="action_delete">Видалити</string>
-    <string name="proxy_checking">檢查中...</string>
-    <string name="proxy_offline">離線</string>
+    <string name="proxy_checking">Перевірка...</string>
+    <string name="proxy_offline">Офлайн</string>
     <string name="proxy_ping_format">%1$dms</string>
 
     <!-- Settings General -->
@@ -2013,4 +2013,26 @@
     <string name="auth_phone_code_invalid_error">Невірний код підтвердження</string>
     <string name="auth_password_hash_invalid">Невірний пароль</string>
     <string name="unexpected_error">Сталася непередбачена помилка</string>
+
+    <!-- ProxyContent -->
+    <string name="proxy_connection_test_button">Запустити тест підключення</string>
+    <string name="proxy_connection_test_title">Тест підключення Telegram</string>
+    <string name="proxy_connection_test_subtitle">Перевіряє наскрізне підключення через дата-центр Telegram.</string>
+    <string name="proxy_connection_test_running">Виконується тест підключення...</string>
+    <string name="proxy_connection_test_success">Зʼєднання виглядає добре. Ви можете зберегти та увімкнути цей проксі.</string>
+    <string name="proxy_connection_test_hint">Основний список показує лише транспортний пінг. Цей тест ширший, тому значення можуть бути вищими.</string>
+    <string name="proxy_tab_proxy">Проксі</string>
+    <string name="proxy_tab_dc_ping">Пінг ДЦ</string>
+    <string name="proxy_tab_settings">Налаштування</string>
+    <string name="proxy_dc_ping_header">Пінг дата-центрів</string>
+    <string name="proxy_dc_ping_route_proxy">Маршрут: через %1$s:%2$d</string>
+    <string name="proxy_dc_ping_route_direct">Маршрут: пряме підключення</string>
+    <string name="proxy_dc_ping_description">Перевіряє доступність дата-центрів Telegram за поточним маршрутом. Якщо проксі увімкнено, перевірка йде через нього; інакше використовується прямий маршрут.</string>
+    <string name="proxy_dc_ping_run">Запустити перевірку ДЦ</string>
+    <string name="proxy_dc_ping_reachable">Доступні</string>
+    <string name="proxy_dc_ping_average">Середнє</string>
+    <string name="proxy_dc_ping_dc_label">ДЦ %1$d</string>
+    <string name="proxy_dc_ping_dc_subtitle">Перевірка дата-центру Telegram через активний проксі</string>
+    <string name="proxy_dc_ping_direct_label">Прямий маршрут</string>
+    <string name="proxy_dc_ping_direct_subtitle">Перевірка прямого маршруту Telegram</string>
 </resources>

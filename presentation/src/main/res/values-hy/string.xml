@@ -1831,4 +1831,26 @@
     <string name="folder_tab_edit">Խմբագրել</string>
     <string name="folder_tab_reorder">Վերադասավորել</string>
     <string name="folder_tab_delete">Ջնջել</string>
+
+    <!-- ProxyContent -->
+    <string name="proxy_connection_test_button">Գործարկել կապի թեստը</string>
+    <string name="proxy_connection_test_title">Telegram-ի կապի թեստ</string>
+    <string name="proxy_connection_test_subtitle">Ստուգում է վերջից վերջ կապը Telegram-ի տվյալների կենտրոնի միջոցով։</string>
+    <string name="proxy_connection_test_running">Կապի թեստը կատարվում է...</string>
+    <string name="proxy_connection_test_success">Կապը լավ է։ Կարող եք պահպանել և միացնել այս proxy-ը։</string>
+    <string name="proxy_connection_test_hint">Հիմնական ցանկը ցույց է տալիս միայն տրանսպորտային պինգը։ Այս թեստն ավելի լայն է, ուստի արժեքները կարող են ավելի բարձր լինել։</string>
+    <string name="proxy_tab_proxy">Proxy</string>
+    <string name="proxy_tab_dc_ping">DC պինգ</string>
+    <string name="proxy_tab_settings">Կարգավորումներ</string>
+    <string name="proxy_dc_ping_header">Տվյալների կենտրոնների պինգ</string>
+    <string name="proxy_dc_ping_route_proxy">Երթուղի՝ %1$s:%2$d միջոցով</string>
+    <string name="proxy_dc_ping_route_direct">Երթուղի՝ ուղիղ միացում</string>
+    <string name="proxy_dc_ping_description">Ստուգում է Telegram-ի տվյալների կենտրոնների հասանելիությունը ընթացիկ երթուղով։ Երբ proxy-ը միացված է, ստուգումները կատարվում են դրա միջոցով, հակառակ դեպքում՝ ուղիղ երթուղով։</string>
+    <string name="proxy_dc_ping_run">Գործարկել DC ստուգումները</string>
+    <string name="proxy_dc_ping_reachable">Հասանելի</string>
+    <string name="proxy_dc_ping_average">Միջին</string>
+    <string name="proxy_dc_ping_dc_label">DC %1$d</string>
+    <string name="proxy_dc_ping_dc_subtitle">Telegram-ի տվյալների կենտրոնի զոնդ ակտիվ proxy-ի միջոցով</string>
+    <string name="proxy_dc_ping_direct_label">Ուղիղ երթուղի</string>
+    <string name="proxy_dc_ping_direct_subtitle">Telegram-ի ուղիղ երթուղու զոնդ</string>
 </resources>

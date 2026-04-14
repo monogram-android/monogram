@@ -10,11 +10,15 @@ import java.nio.charset.StandardCharsets
 class LinkParser {
 
     fun normalize(link: String): String = when {
-        link.startsWith("tg://") -> link
-        link.startsWith("https://t.me/") -> link
-        link.startsWith("http://t.me/") -> link.replace("http://", "https://")
-        link.startsWith("t.me/") -> "https://$link"
-        else -> link
+        normalizeForParsing(link).startsWith("tg://") -> normalizeForParsing(link)
+        normalizeForParsing(link).startsWith("https://t.me/") -> normalizeForParsing(link)
+        normalizeForParsing(link).startsWith("http://t.me/") -> normalizeForParsing(link).replace(
+            "http://",
+            "https://"
+        )
+
+        normalizeForParsing(link).startsWith("t.me/") -> "https://${normalizeForParsing(link)}"
+        else -> normalizeForParsing(link)
     }
 
     fun parsePrimary(link: String): ParsedLink? {
@@ -79,12 +83,12 @@ class LinkParser {
 
     private fun parseProxyLink(link: String): ParsedLink.AddProxy? {
         val normalizedLink = normalizeTelegramScheme(link.trim())
-        val uri = coRunCatching { normalizedLink.toUri() }.getOrNull() ?: return null
+        val uri = coRunCatching { normalizedLink.toUri() }.getOrNull()
 
-        val scheme = uri.scheme?.lowercase()
-        val host = uri.host?.lowercase()
-        val pathType = uri.pathSegments.firstOrNull()?.lowercase()
-        val schemeSpecificType = uri.schemeSpecificPart
+        val scheme = uri?.scheme?.lowercase()
+        val host = uri?.host?.lowercase()
+        val pathType = uri?.pathSegments?.firstOrNull()?.lowercase()
+        val schemeSpecificType = uri?.schemeSpecificPart
             ?.substringBefore('?')
             ?.removePrefix("//")
             ?.substringBefore('/')
@@ -115,8 +119,13 @@ class LinkParser {
             null
         }
 
-        val proxyType = tgType ?: httpsType ?: return null
-        val queryMap = parseQueryMap(uri, normalizedLink)
+        val manualType = detectProxyTypeFromString(normalizedLink.lowercase())
+        val proxyType = tgType ?: httpsType ?: manualType ?: return null
+        val queryMap = if (uri != null) {
+            parseQueryMap(uri, normalizedLink)
+        } else {
+            parseQueryMapFromLink(normalizedLink)
+        }
 
         val server = queryMap["server"] ?: return null
         val port = queryMap["port"]?.toIntOrNull() ?: return null
@@ -144,11 +153,44 @@ class LinkParser {
         return link
     }
 
+    private fun normalizeForParsing(link: String): String {
+        var sanitized = link.trim()
+            .removeSurrounding("<", ">")
+            .removeSurrounding("\"")
+            .removeSurrounding("'")
+
+        while (sanitized.isNotEmpty() && sanitized.last() in setOf(
+                ')',
+                ']',
+                '}',
+                '.',
+                ',',
+                ';',
+                '!',
+                '?'
+            )
+        ) {
+            sanitized = sanitized.dropLast(1)
+        }
+        return sanitized
+    }
+
     private fun parseQueryMap(uri: android.net.Uri, originalLink: String): Map<String, String> {
         val rawQuery = uri.encodedQuery
             ?: originalLink.substringAfter('?', missingDelimiterValue = "")
                 .takeIf { it.isNotBlank() }
             ?: return emptyMap()
+        return parseQueryMapFromRawQuery(rawQuery)
+    }
+
+    private fun parseQueryMapFromLink(originalLink: String): Map<String, String> {
+        val rawQuery = originalLink.substringAfter('?', missingDelimiterValue = "")
+            .takeIf { it.isNotBlank() }
+            ?: return emptyMap()
+        return parseQueryMapFromRawQuery(rawQuery)
+    }
+
+    private fun parseQueryMapFromRawQuery(rawQuery: String): Map<String, String> {
         return rawQuery.split('&')
             .mapNotNull { pair ->
                 if (pair.isBlank()) return@mapNotNull null
@@ -157,6 +199,49 @@ class LinkParser {
                 val value = pair.substringAfter('=', missingDelimiterValue = "")
                 decode(key).lowercase() to decode(value)
             }.toMap()
+    }
+
+    private fun detectProxyTypeFromString(linkLower: String): String? = when {
+        linkLower.startsWith("tg://proxy?") ||
+                linkLower.startsWith("tg:proxy?") ||
+                linkLower.startsWith("tg://proxy/") -> "proxy"
+
+        linkLower.startsWith("tg://socks?") ||
+                linkLower.startsWith("tg:socks?") ||
+                linkLower.startsWith("tg://socks/") -> "socks"
+
+        linkLower.startsWith("tg://http?") ||
+                linkLower.startsWith("tg:http?") ||
+                linkLower.startsWith("tg://http/") -> "http"
+
+        linkLower.startsWith("https://t.me/proxy?") ||
+                linkLower.startsWith("http://t.me/proxy?") ||
+                linkLower.startsWith("https://www.t.me/proxy?") ||
+                linkLower.startsWith("http://www.t.me/proxy?") ||
+                linkLower.startsWith("https://telegram.me/proxy?") ||
+                linkLower.startsWith("http://telegram.me/proxy?") ||
+                linkLower.startsWith("https://www.telegram.me/proxy?") ||
+                linkLower.startsWith("http://www.telegram.me/proxy?") -> "proxy"
+
+        linkLower.startsWith("https://t.me/socks?") ||
+                linkLower.startsWith("http://t.me/socks?") ||
+                linkLower.startsWith("https://www.t.me/socks?") ||
+                linkLower.startsWith("http://www.t.me/socks?") ||
+                linkLower.startsWith("https://telegram.me/socks?") ||
+                linkLower.startsWith("http://telegram.me/socks?") ||
+                linkLower.startsWith("https://www.telegram.me/socks?") ||
+                linkLower.startsWith("http://www.telegram.me/socks?") -> "socks"
+
+        linkLower.startsWith("https://t.me/http?") ||
+                linkLower.startsWith("http://t.me/http?") ||
+                linkLower.startsWith("https://www.t.me/http?") ||
+                linkLower.startsWith("http://www.t.me/http?") ||
+                linkLower.startsWith("https://telegram.me/http?") ||
+                linkLower.startsWith("http://telegram.me/http?") ||
+                linkLower.startsWith("https://www.telegram.me/http?") ||
+                linkLower.startsWith("http://www.telegram.me/http?") -> "http"
+
+        else -> null
     }
 
     private fun decode(value: String): String {

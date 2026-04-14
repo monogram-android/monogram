@@ -2024,4 +2024,26 @@
     <string name="auth_phone_code_invalid_error">Código de confirmação inválido</string>
     <string name="auth_password_hash_invalid">Senha inválida</string>
     <string name="unexpected_error">Ocorreu um erro inesperado</string>
+
+    <!-- ProxyContent -->
+    <string name="proxy_connection_test_button">Executar teste de conexão</string>
+    <string name="proxy_connection_test_title">Teste de conexão do Telegram</string>
+    <string name="proxy_connection_test_subtitle">Verifica a conexão de ponta a ponta via datacenter do Telegram.</string>
+    <string name="proxy_connection_test_running">Executando teste de conexão...</string>
+    <string name="proxy_connection_test_success">A conexão parece boa. Você pode salvar e ativar este proxy.</string>
+    <string name="proxy_connection_test_hint">A lista principal mostra apenas o ping de transporte. Este teste é mais amplo, então os valores podem ser maiores.</string>
+    <string name="proxy_tab_proxy">Proxy</string>
+    <string name="proxy_tab_dc_ping">Ping de DC</string>
+    <string name="proxy_tab_settings">Configurações</string>
+    <string name="proxy_dc_ping_header">Ping do datacenter</string>
+    <string name="proxy_dc_ping_route_proxy">Rota: via %1$s:%2$d</string>
+    <string name="proxy_dc_ping_route_direct">Rota: conexão direta</string>
+    <string name="proxy_dc_ping_description">Verifica a disponibilidade dos datacenters do Telegram usando a rota atual. Com proxy ativo, as verificações passam por ele; caso contrário, usa rota direta.</string>
+    <string name="proxy_dc_ping_run">Executar verificações de DC</string>
+    <string name="proxy_dc_ping_reachable">Acessíveis</string>
+    <string name="proxy_dc_ping_average">Média</string>
+    <string name="proxy_dc_ping_dc_label">DC %1$d</string>
+    <string name="proxy_dc_ping_dc_subtitle">Sonda do datacenter do Telegram via proxy ativo</string>
+    <string name="proxy_dc_ping_direct_label">Rota direta</string>
+    <string name="proxy_dc_ping_direct_subtitle">Sonda de rota direta do Telegram</string>
 </resources>

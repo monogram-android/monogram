@@ -2013,4 +2013,26 @@
     <string name="auth_phone_code_invalid_error">Неверный код подтверждения</string>
     <string name="auth_password_hash_invalid">Неверный пароль</string>
     <string name="unexpected_error">Произошла непредвиденная ошибка</string>
+
+    <!-- ProxyContent -->
+    <string name="proxy_connection_test_button">Запустить тест подключения</string>
+    <string name="proxy_connection_test_title">Тест подключения Telegram</string>
+    <string name="proxy_connection_test_subtitle">Проверяет сквозное подключение через дата-центр Telegram.</string>
+    <string name="proxy_connection_test_running">Выполняется тест подключения...</string>
+    <string name="proxy_connection_test_success">Соединение в порядке. Можно сохранить и включить этот прокси.</string>
+    <string name="proxy_connection_test_hint">В основном списке показывается только транспортный пинг. Этот тест шире, поэтому значения могут быть выше.</string>
+    <string name="proxy_tab_proxy">Прокси</string>
+    <string name="proxy_tab_dc_ping">Пинг ДЦ</string>
+    <string name="proxy_tab_settings">Настройки</string>
+    <string name="proxy_dc_ping_header">Пинг дата-центров</string>
+    <string name="proxy_dc_ping_route_proxy">Маршрут: через %1$s:%2$d</string>
+    <string name="proxy_dc_ping_route_direct">Маршрут: прямое подключение</string>
+    <string name="proxy_dc_ping_description">Проверяет доступность дата-центров Telegram по текущему маршруту. При включенном прокси проверка идет через него, иначе используется прямой маршрут.</string>
+    <string name="proxy_dc_ping_run">Запустить проверку ДЦ</string>
+    <string name="proxy_dc_ping_reachable">Доступно</string>
+    <string name="proxy_dc_ping_average">Среднее</string>
+    <string name="proxy_dc_ping_dc_label">ДЦ %1$d</string>
+    <string name="proxy_dc_ping_dc_subtitle">Проверка дата-центра Telegram через активный прокси</string>
+    <string name="proxy_dc_ping_direct_label">Прямой маршрут</string>
+    <string name="proxy_dc_ping_direct_subtitle">Проверка прямого маршрута Telegram</string>
 </resources>

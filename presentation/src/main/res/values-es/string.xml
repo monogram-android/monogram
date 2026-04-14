@@ -1995,4 +1995,26 @@
     <string name="auth_phone_code_invalid_error">Código de confirmación inválido</string>
     <string name="auth_password_hash_invalid">Contraseña inválida</string>
     <string name="unexpected_error">Ocurrió un error inesperado</string>
+
+    <!-- ProxyContent -->
+    <string name="proxy_connection_test_button">Ejecutar prueba de conexión</string>
+    <string name="proxy_connection_test_title">Prueba de conexión de Telegram</string>
+    <string name="proxy_connection_test_subtitle">Comprueba la conexión de extremo a extremo a través del centro de datos de Telegram.</string>
+    <string name="proxy_connection_test_running">Ejecutando prueba de conexión...</string>
+    <string name="proxy_connection_test_success">La conexión se ve bien. Puedes guardar y activar este proxy.</string>
+    <string name="proxy_connection_test_hint">La lista principal muestra solo el ping de transporte. Esta prueba es más amplia, por lo que los valores pueden ser mayores.</string>
+    <string name="proxy_tab_proxy">Proxy</string>
+    <string name="proxy_tab_dc_ping">Ping de DC</string>
+    <string name="proxy_tab_settings">Ajustes</string>
+    <string name="proxy_dc_ping_header">Ping de centros de datos</string>
+    <string name="proxy_dc_ping_route_proxy">Ruta: vía %1$s:%2$d</string>
+    <string name="proxy_dc_ping_route_direct">Ruta: conexión directa</string>
+    <string name="proxy_dc_ping_description">Comprueba la disponibilidad de los centros de datos de Telegram usando la ruta actual. Con un proxy habilitado, las comprobaciones se hacen a través de ese proxy; de lo contrario se usa ruta directa.</string>
+    <string name="proxy_dc_ping_run">Ejecutar comprobaciones de DC</string>
+    <string name="proxy_dc_ping_reachable">Accesibles</string>
+    <string name="proxy_dc_ping_average">Promedio</string>
+    <string name="proxy_dc_ping_dc_label">DC %1$d</string>
+    <string name="proxy_dc_ping_dc_subtitle">Sonda del centro de datos de Telegram a través del proxy activo</string>
+    <string name="proxy_dc_ping_direct_label">Ruta directa</string>
+    <string name="proxy_dc_ping_direct_subtitle">Sonda de ruta directa de Telegram</string>
 </resources>

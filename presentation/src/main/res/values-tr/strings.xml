@@ -2012,4 +2012,26 @@
     <string name="auth_phone_code_invalid_error">Geçersiz onay kodu</string>
     <string name="auth_password_hash_invalid">Geçersiz şifre</string>
     <string name="unexpected_error">Beklenmedik bir hata oluştu</string>
+
+    <!-- ProxyContent -->
+    <string name="proxy_connection_test_button">Bağlantı testini çalıştır</string>
+    <string name="proxy_connection_test_title">Telegram bağlantı testi</string>
+    <string name="proxy_connection_test_subtitle">Telegram veri merkezi üzerinden uçtan uca bağlantıyı kontrol eder.</string>
+    <string name="proxy_connection_test_running">Bağlantı testi çalışıyor...</string>
+    <string name="proxy_connection_test_success">Bağlantı iyi görünüyor. Bu proxiyi kaydedip etkinleştirebilirsiniz.</string>
+    <string name="proxy_connection_test_hint">Ana liste yalnızca taşıma gecikmesini gösterir. Bu test daha kapsamlıdır, bu yüzden değerler daha yüksek olabilir.</string>
+    <string name="proxy_tab_proxy">Proxy</string>
+    <string name="proxy_tab_dc_ping">DC pingi</string>
+    <string name="proxy_tab_settings">Ayarlar</string>
+    <string name="proxy_dc_ping_header">Veri merkezi pingi</string>
+    <string name="proxy_dc_ping_route_proxy">Rota: %1$s:%2$d üzerinden</string>
+    <string name="proxy_dc_ping_route_direct">Rota: doğrudan bağlantı</string>
+    <string name="proxy_dc_ping_description">Geçerli rota kullanılarak Telegram veri merkezi erişilebilirliği kontrol edilir. Proxy etkinse kontroller bu proxy üzerinden yapılır; aksi halde doğrudan rota kullanılır.</string>
+    <string name="proxy_dc_ping_run">DC kontrollerini çalıştır</string>
+    <string name="proxy_dc_ping_reachable">Erişilebilir</string>
+    <string name="proxy_dc_ping_average">Ortalama</string>
+    <string name="proxy_dc_ping_dc_label">DC %1$d</string>
+    <string name="proxy_dc_ping_dc_subtitle">Etkin proxy üzerinden Telegram veri merkezi yoklaması</string>
+    <string name="proxy_dc_ping_direct_label">Doğrudan rota</string>
+    <string name="proxy_dc_ping_direct_subtitle">Doğrudan Telegram rota yoklaması</string>
 </resources>

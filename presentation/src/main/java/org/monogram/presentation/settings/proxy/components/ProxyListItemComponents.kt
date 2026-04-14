@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -68,6 +69,10 @@ fun ProxyItem(
 
     val isEnabled = proxy.isEnabled
     val ping = proxy.ping
+    val offlineLabel = stringResource(R.string.proxy_offline)
+    val detailErrorMessage = errorMessage
+        ?.takeIf { it.isNotBlank() }
+        ?.takeUnless { it.equals(offlineLabel, ignoreCase = true) }
     val statusText = when {
         isChecking -> stringResource(R.string.proxy_checking)
         !errorMessage.isNullOrBlank() -> stringResource(R.string.proxy_offline)
@@ -115,13 +120,13 @@ fun ProxyItem(
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(46.dp)
                     .background(
-                        color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                        color = if (isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.92f) else MaterialTheme.colorScheme.surfaceVariant,
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -129,18 +134,19 @@ fun ProxyItem(
                 Icon(
                     imageVector = if (isEnabled) Icons.Rounded.Check else Icons.Rounded.Language,
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(22.dp),
                     tint = if (isEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = proxy.server,
                         style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f, fill = false)
@@ -155,26 +161,15 @@ fun ProxyItem(
                         )
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = typeName,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                RoundedCornerShape(4.dp)
-                            )
-                            .padding(horizontal = 4.dp, vertical = 1.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "Port ${proxy.port}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
-                    )
-                    Spacer(Modifier.width(8.dp))
+
+                Spacer(Modifier.height(6.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    ProxyMetaChip(text = typeName)
+                    ProxyMetaChip(text = "Port ${proxy.port}")
                     ProxyStatusPill(
                         text = statusText,
                         backgroundColor = when {
@@ -190,10 +185,11 @@ fun ProxyItem(
                         }
                     )
                 }
-                if (!errorMessage.isNullOrBlank()) {
-                    Spacer(Modifier.height(4.dp))
+
+                if (!detailErrorMessage.isNullOrBlank()) {
+                    Spacer(Modifier.height(6.dp))
                     Text(
-                        text = errorMessage,
+                        text = detailErrorMessage,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
                         maxLines = 2,
@@ -202,32 +198,61 @@ fun ProxyItem(
                 }
             }
 
-            Column(horizontalAlignment = Alignment.End) {
+            Spacer(Modifier.width(8.dp))
+
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 ProxyPingIndicator(
                     ping = proxy.ping,
                     isChecking = isChecking,
+                    showText = false,
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onRefreshPing, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            Icons.Rounded.Refresh,
-                            contentDescription = stringResource(R.string.refresh_list_title),
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = onOpenMenu, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            Icons.Rounded.MoreVert,
-                            contentDescription = stringResource(R.string.more_options_cd),
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 2.dp, vertical = 1.dp)
+                    ) {
+                        IconButton(onClick = onRefreshPing, modifier = Modifier.size(30.dp)) {
+                            Icon(
+                                Icons.Rounded.Refresh,
+                                contentDescription = stringResource(R.string.refresh_list_title),
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = onOpenMenu, modifier = Modifier.size(30.dp)) {
+                            Icon(
+                                Icons.Rounded.MoreVert,
+                                contentDescription = stringResource(R.string.more_options_cd),
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ProxyMetaChip(text: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(7.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
     }
 }
 

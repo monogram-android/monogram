@@ -27,10 +27,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -83,6 +85,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -106,10 +109,22 @@ import org.monogram.presentation.core.ui.SettingsTile
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.viewers.components.ViewerSettingsDropdown
 
-private enum class ProxyTab {
-    Proxy,
-    DcPing,
-    Settings
+private enum class ProxyTab(
+    val titleRes: Int,
+    val icon: ImageVector
+) {
+    Proxy(
+        titleRes = R.string.proxy_tab_proxy,
+        icon = Icons.Rounded.Language
+    ),
+    DcPing(
+        titleRes = R.string.proxy_tab_dc_ping,
+        icon = Icons.Rounded.Bolt
+    ),
+    Settings(
+        titleRes = R.string.proxy_tab_settings,
+        icon = Icons.Rounded.Tune
+    )
 }
 
 private data class DcDescriptor(
@@ -288,20 +303,22 @@ fun ProxyContent(component: ProxyComponent) {
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
+                        containerColor = MaterialTheme.colorScheme.background,
+                        scrolledContainerColor = MaterialTheme.colorScheme.background
                     )
                 )
 
                 Row(
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .selectableGroup()
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height(48.dp)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
                         .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    listOf(ProxyTab.Proxy, ProxyTab.DcPing, ProxyTab.Settings).forEach { tab ->
+                    ProxyTab.entries.forEach { tab ->
                         val selected = selectedTab == tab
                         Box(
                             modifier = Modifier
@@ -316,37 +333,47 @@ fun ProxyContent(component: ProxyComponent) {
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = when (tab) {
-                                    ProxyTab.Proxy -> stringResource(R.string.proxy_tab_proxy)
-                                    ProxyTab.DcPing -> stringResource(R.string.proxy_tab_dc_ping)
-                                    ProxyTab.Settings -> stringResource(R.string.proxy_tab_settings)
-                                },
-                                style = MaterialTheme.typography.labelLarge,
-                                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = tab.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(tab.titleRes),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
             }
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { component.onAddProxyClicked() },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-                text = { Text(stringResource(R.string.add_proxy_button)) }
-            )
+            if (selectedTab == ProxyTab.Proxy) {
+                ExtendedFloatingActionButton(
+                    onClick = { component.onAddProxyClicked() },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
+                    text = { Text(stringResource(R.string.add_proxy_button)) }
+                )
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = padding.calculateTopPadding()),
-            contentPadding = PaddingValues(16.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = padding.calculateTopPadding(),
+                bottom = padding.calculateBottomPadding() + 16.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             if (selectedTab == ProxyTab.Proxy) {
@@ -374,49 +401,46 @@ fun ProxyContent(component: ProxyComponent) {
                 SectionHeader(stringResource(R.string.connection_section_header))
             }
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                ) {
-                    SettingsSwitchTile(
-                        icon = Icons.Rounded.Bolt,
-                        title = stringResource(R.string.smart_switching_title),
-                        subtitle = stringResource(R.string.smart_switching_subtitle),
-                        checked = state.isAutoBestProxyEnabled,
-                        iconColor = Color(0xFFAF52DE),
-                        position = ItemPosition.TOP,
-                        onCheckedChange = component::onAutoBestProxyToggled
-                    )
+                SettingsSwitchTile(
+                    icon = Icons.Rounded.Bolt,
+                    title = stringResource(R.string.smart_switching_title),
+                    subtitle = stringResource(R.string.smart_switching_subtitle),
+                    checked = state.isAutoBestProxyEnabled,
+                    iconColor = Color(0xFFAF52DE),
+                    position = ItemPosition.TOP,
+                    onCheckedChange = component::onAutoBestProxyToggled
+                )
 
-                    SettingsSwitchTile(
-                        icon = Icons.Rounded.Public,
-                        title = stringResource(R.string.prefer_ipv6_title),
-                        subtitle = stringResource(R.string.prefer_ipv6_subtitle),
-                        checked = state.preferIpv6,
-                        iconColor = Color(0xFF34A853),
-                        position = ItemPosition.MIDDLE,
-                        onCheckedChange = component::onPreferIpv6Toggled
-                    )
+                SettingsSwitchTile(
+                    icon = Icons.Rounded.Public,
+                    title = stringResource(R.string.prefer_ipv6_title),
+                    subtitle = stringResource(R.string.prefer_ipv6_subtitle),
+                    checked = state.preferIpv6,
+                    iconColor = Color(0xFF34A853),
+                    position = ItemPosition.MIDDLE,
+                    onCheckedChange = component::onPreferIpv6Toggled
+                )
 
-                    val isDirect = state.proxies.none { it.isEnabled }
-                    SettingsTile(
-                        icon = Icons.Rounded.LinkOff,
-                        title = stringResource(R.string.disable_proxy_title),
-                        subtitle = if (isDirect) stringResource(R.string.connected_directly_subtitle) else stringResource(
-                            R.string.switch_to_direct_subtitle
-                        ),
-                        iconColor = if (isDirect) Color(0xFF34A853) else MaterialTheme.colorScheme.error,
-                        position = ItemPosition.BOTTOM,
-                        onClick = { component.onDisableProxy() },
-                        trailingContent = {
-                            if (isDirect) {
-                                Icon(Icons.Rounded.Check, contentDescription = null, tint = Color(0xFF34A853))
-                            }
+                val isDirect = state.proxies.none { it.isEnabled }
+                SettingsTile(
+                    icon = Icons.Rounded.LinkOff,
+                    title = stringResource(R.string.disable_proxy_title),
+                    subtitle = if (isDirect) stringResource(R.string.connected_directly_subtitle) else stringResource(
+                        R.string.switch_to_direct_subtitle
+                    ),
+                    iconColor = if (isDirect) Color(0xFF34A853) else MaterialTheme.colorScheme.error,
+                    position = ItemPosition.BOTTOM,
+                    onClick = { component.onDisableProxy() },
+                    trailingContent = {
+                        if (isDirect) {
+                            Icon(
+                                Icons.Rounded.Check,
+                                contentDescription = null,
+                                tint = Color(0xFF34A853)
+                            )
                         }
-                    )
-                }
+                    }
+                )
             }
 
             item {
@@ -427,50 +451,82 @@ fun ProxyContent(component: ProxyComponent) {
             }
 
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                ) {
-                    ProxyNetworkType.entries.forEachIndexed { index, networkType ->
-                        val rule = state.proxyNetworkRules[networkType] ?: ProxyNetworkRule(
-                            defaultProxyNetworkMode(networkType)
-                        )
-                        val position = itemPosition(index, ProxyNetworkType.entries.size)
-                        Box {
-                            SettingsTile(
-                                icon = Icons.Rounded.Wifi,
-                                title = stringResource(networkTitleRes(networkType)),
-                                subtitle = stringResource(networkRuleSubtitleRes(rule)),
-                                iconColor = Color(0xFF1E88E5),
-                                position = position,
-                                onClick = { expandedNetworkMenu = networkType },
-                                trailingContent = {
-                                    DropdownSelectionTrailing(
-                                        text = stringResource(
-                                            networkModeLabelRes(rule.mode)
-                                        )
+                ProxyNetworkType.entries.forEachIndexed { index, networkType ->
+                    val rule = state.proxyNetworkRules[networkType] ?: ProxyNetworkRule(
+                        defaultProxyNetworkMode(networkType)
+                    )
+                    val position = itemPosition(index, ProxyNetworkType.entries.size)
+                    Box {
+                        SettingsTile(
+                            icon = Icons.Rounded.Wifi,
+                            title = stringResource(networkTitleRes(networkType)),
+                            subtitle = stringResource(networkRuleSubtitleRes(rule)),
+                            iconColor = Color(0xFF1E88E5),
+                            position = position,
+                            onClick = { expandedNetworkMenu = networkType },
+                            trailingContent = {
+                                DropdownSelectionTrailing(
+                                    text = stringResource(
+                                        networkModeLabelRes(rule.mode)
                                     )
-                                }
-                            )
+                                )
+                            }
+                        )
 
-                            StyledDropdownMenu(
-                                expanded = expandedNetworkMenu == networkType,
-                                onDismissRequest = { expandedNetworkMenu = null }
-                            ) {
-                                ProxyNetworkMode.entries.forEach { mode ->
+                        StyledDropdownMenu(
+                            expanded = expandedNetworkMenu == networkType,
+                            onDismissRequest = { expandedNetworkMenu = null }
+                        ) {
+                            ProxyNetworkMode.entries.forEach { mode ->
+                                DropdownMenuItem(
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = networkModeIcon(mode),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    },
+                                    text = { Text(stringResource(networkModeLabelRes(mode))) },
+                                    trailingIcon = {
+                                        if (rule.mode == mode) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        component.onProxyNetworkModeChanged(networkType, mode)
+                                        expandedNetworkMenu = null
+                                    }
+                                )
+                            }
+                            if (state.proxies.isNotEmpty()) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                )
+                                state.proxies.forEach { proxy ->
                                     DropdownMenuItem(
                                         leadingIcon = {
                                             Icon(
-                                                imageVector = networkModeIcon(mode),
+                                                imageVector = Icons.Rounded.Tune,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                         },
-                                        text = { Text(stringResource(networkModeLabelRes(mode))) },
+                                        text = {
+                                            Text(
+                                                stringResource(
+                                                    R.string.proxy_specific_target_format,
+                                                    proxy.server,
+                                                    proxy.port
+                                                )
+                                            )
+                                        },
                                         trailingIcon = {
-                                            if (rule.mode == mode) {
+                                            if (rule.mode == ProxyNetworkMode.SPECIFIC_PROXY && rule.specificProxyId == proxy.id) {
                                                 Icon(
                                                     imageVector = Icons.Rounded.Check,
                                                     contentDescription = null,
@@ -479,52 +535,13 @@ fun ProxyContent(component: ProxyComponent) {
                                             }
                                         },
                                         onClick = {
-                                            component.onProxyNetworkModeChanged(networkType, mode)
+                                            component.onSpecificProxyForNetworkSelected(
+                                                networkType,
+                                                proxy.id
+                                            )
                                             expandedNetworkMenu = null
                                         }
                                     )
-                                }
-                                if (state.proxies.isNotEmpty()) {
-                                    HorizontalDivider(
-                                        modifier = Modifier.padding(horizontal = 12.dp),
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                                    )
-                                    state.proxies.forEach { proxy ->
-                                        DropdownMenuItem(
-                                            leadingIcon = {
-                                                Icon(
-                                                    imageVector = Icons.Rounded.Tune,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary
-                                                )
-                                            },
-                                            text = {
-                                                Text(
-                                                    stringResource(
-                                                        R.string.proxy_specific_target_format,
-                                                        proxy.server,
-                                                        proxy.port
-                                                    )
-                                                )
-                                            },
-                                            trailingIcon = {
-                                                if (rule.mode == ProxyNetworkMode.SPECIFIC_PROXY && rule.specificProxyId == proxy.id) {
-                                                    Icon(
-                                                        imageVector = Icons.Rounded.Check,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.primary
-                                                    )
-                                                }
-                                            },
-                                            onClick = {
-                                                component.onSpecificProxyForNetworkSelected(
-                                                    networkType,
-                                                    proxy.id
-                                                )
-                                                expandedNetworkMenu = null
-                                            }
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -537,124 +554,117 @@ fun ProxyContent(component: ProxyComponent) {
             }
 
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                ) {
-                    Box {
-                        SettingsTile(
-                            icon = Icons.Rounded.Sort,
-                            title = stringResource(R.string.proxy_sort_mode_title),
-                            subtitle = stringResource(R.string.proxy_sort_mode_subtitle),
-                            iconColor = Color(0xFFF9A825),
-                            position = ItemPosition.TOP,
-                            onClick = { sortMenuExpanded = true },
-                            trailingContent = {
-                                DropdownSelectionTrailing(
-                                    text = stringResource(
-                                        sortModeLabelRes(
-                                            state.proxySortMode
-                                        )
+                Box {
+                    SettingsTile(
+                        icon = Icons.Rounded.Sort,
+                        title = stringResource(R.string.proxy_sort_mode_title),
+                        subtitle = stringResource(R.string.proxy_sort_mode_subtitle),
+                        iconColor = Color(0xFFF9A825),
+                        position = ItemPosition.TOP,
+                        onClick = { sortMenuExpanded = true },
+                        trailingContent = {
+                            DropdownSelectionTrailing(
+                                text = stringResource(
+                                    sortModeLabelRes(
+                                        state.proxySortMode
                                     )
                                 )
-                            }
-                        )
-
-                        StyledDropdownMenu(
-                            expanded = sortMenuExpanded,
-                            onDismissRequest = { sortMenuExpanded = false }
-                        ) {
-                            ProxySortMode.entries.forEach { mode ->
-                                DropdownMenuItem(
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = sortModeIcon(mode),
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    },
-                                    text = { Text(stringResource(sortModeLabelRes(mode))) },
-                                    trailingIcon = {
-                                        if (state.proxySortMode == mode) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.Check,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    },
-                                    onClick = {
-                                        component.onProxySortModeChanged(mode)
-                                        sortMenuExpanded = false
-                                    }
-                                )
-                            }
+                            )
                         }
-                    }
-
-                    Box {
-                        SettingsTile(
-                            icon = Icons.Rounded.SwapHoriz,
-                            title = stringResource(R.string.proxy_unavailable_fallback_title),
-                            subtitle = stringResource(R.string.proxy_unavailable_fallback_subtitle),
-                            iconColor = Color(0xFF6A1B9A),
-                            position = ItemPosition.MIDDLE,
-                            onClick = { fallbackMenuExpanded = true },
-                            trailingContent = {
-                                DropdownSelectionTrailing(
-                                    text = stringResource(
-                                        fallbackLabelRes(
-                                            state.proxyUnavailableFallback
-                                        )
-                                    )
-                                )
-                            }
-                        )
-
-                        StyledDropdownMenu(
-                            expanded = fallbackMenuExpanded,
-                            onDismissRequest = { fallbackMenuExpanded = false }
-                        ) {
-                            ProxyUnavailableFallback.entries.forEach { fallback ->
-                                DropdownMenuItem(
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = fallbackIcon(fallback),
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    },
-                                    text = { Text(stringResource(fallbackLabelRes(fallback))) },
-                                    trailingIcon = {
-                                        if (state.proxyUnavailableFallback == fallback) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.Check,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    },
-                                    onClick = {
-                                        component.onProxyUnavailableFallbackChanged(fallback)
-                                        fallbackMenuExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    SettingsSwitchTile(
-                        icon = Icons.Rounded.VisibilityOff,
-                        title = stringResource(R.string.hide_offline_proxies_title),
-                        subtitle = stringResource(R.string.hide_offline_proxies_subtitle),
-                        checked = state.hideOfflineProxies,
-                        iconColor = Color(0xFF00897B),
-                        position = ItemPosition.BOTTOM,
-                        onCheckedChange = component::onHideOfflineProxiesToggled
                     )
+
+                    StyledDropdownMenu(
+                        expanded = sortMenuExpanded,
+                        onDismissRequest = { sortMenuExpanded = false }
+                    ) {
+                        ProxySortMode.entries.forEach { mode ->
+                            DropdownMenuItem(
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = sortModeIcon(mode),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                text = { Text(stringResource(sortModeLabelRes(mode))) },
+                                trailingIcon = {
+                                    if (state.proxySortMode == mode) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    component.onProxySortModeChanged(mode)
+                                    sortMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
                 }
+
+                Box {
+                    SettingsTile(
+                        icon = Icons.Rounded.SwapHoriz,
+                        title = stringResource(R.string.proxy_unavailable_fallback_title),
+                        subtitle = stringResource(R.string.proxy_unavailable_fallback_subtitle),
+                        iconColor = Color(0xFF6A1B9A),
+                        position = ItemPosition.MIDDLE,
+                        onClick = { fallbackMenuExpanded = true },
+                        trailingContent = {
+                            DropdownSelectionTrailing(
+                                text = stringResource(
+                                    fallbackLabelRes(
+                                        state.proxyUnavailableFallback
+                                    )
+                                )
+                            )
+                        }
+                    )
+
+                    StyledDropdownMenu(
+                        expanded = fallbackMenuExpanded,
+                        onDismissRequest = { fallbackMenuExpanded = false }
+                    ) {
+                        ProxyUnavailableFallback.entries.forEach { fallback ->
+                            DropdownMenuItem(
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = fallbackIcon(fallback),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                text = { Text(stringResource(fallbackLabelRes(fallback))) },
+                                trailingIcon = {
+                                    if (state.proxyUnavailableFallback == fallback) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    component.onProxyUnavailableFallbackChanged(fallback)
+                                    fallbackMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                SettingsSwitchTile(
+                    icon = Icons.Rounded.VisibilityOff,
+                    title = stringResource(R.string.hide_offline_proxies_title),
+                    subtitle = stringResource(R.string.hide_offline_proxies_subtitle),
+                    checked = state.hideOfflineProxies,
+                    iconColor = Color(0xFF00897B),
+                    position = ItemPosition.BOTTOM,
+                    onCheckedChange = component::onHideOfflineProxiesToggled
+                )
             }
             }
 
@@ -797,38 +807,22 @@ fun ProxyContent(component: ProxyComponent) {
 
             if (selectedTab == ProxyTab.Proxy) {
             item {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 12.dp, bottom = 8.dp, top = 24.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(start = 12.dp, end = 4.dp, bottom = 8.dp, top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = stringResource(R.string.your_proxies_header),
+                        text = if (state.proxies.isNotEmpty()) {
+                            "${stringResource(R.string.your_proxies_header)} (${prioritizedVisibleProxies.size})"
+                        } else {
+                            stringResource(R.string.your_proxies_header)
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
-
-                    if (state.proxies.isNotEmpty()) {
-                        Row {
-                            IconButton(onClick = { component.onClearUnavailableProxies() }) {
-                                Icon(
-                                    Icons.Rounded.DeleteSweep,
-                                    stringResource(R.string.clear_offline_cd),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            IconButton(onClick = { component.onRemoveAllProxies() }) {
-                                Icon(
-                                    Icons.Rounded.DeleteForever,
-                                    stringResource(R.string.remove_all_cd),
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
                 }
             }
 
@@ -886,8 +880,6 @@ fun ProxyContent(component: ProxyComponent) {
                 }
                 }
             }
-
-            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
 
@@ -941,6 +933,31 @@ fun ProxyContent(component: ProxyComponent) {
                                 importLauncher.launch(arrayOf("application/json", "text/plain"))
                             }
                         )
+                        if (state.proxies.isNotEmpty()) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+                            MenuOptionRow(
+                                icon = Icons.Rounded.DeleteSweep,
+                                title = stringResource(R.string.clear_offline_cd),
+                                onClick = {
+                                    showTopMenu = false
+                                    component.onClearUnavailableProxies()
+                                },
+                                iconTint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            MenuOptionRow(
+                                icon = Icons.Rounded.DeleteForever,
+                                title = stringResource(R.string.remove_all_cd),
+                                onClick = {
+                                    showTopMenu = false
+                                    component.onRemoveAllProxies()
+                                },
+                                iconTint = MaterialTheme.colorScheme.error,
+                                textColor = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
             }

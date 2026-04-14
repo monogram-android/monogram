@@ -1992,4 +1992,26 @@
     <string name="auth_phone_code_invalid_error">验证码无效</string>
     <string name="auth_password_hash_invalid">密码无效</string>
     <string name="unexpected_error">发生了意外错误</string>
+
+    <!-- ProxyContent -->
+    <string name="proxy_connection_test_button">运行连接测试</string>
+    <string name="proxy_connection_test_title">Telegram 连接测试</string>
+    <string name="proxy_connection_test_subtitle">通过 Telegram 数据中心检查端到端连接。</string>
+    <string name="proxy_connection_test_running">正在运行连接测试...</string>
+    <string name="proxy_connection_test_success">连接状况良好。你可以保存并启用此代理。</string>
+    <string name="proxy_connection_test_hint">主列表仅显示传输层延迟。此测试更全面，因此数值可能更高。</string>
+    <string name="proxy_tab_proxy">代理</string>
+    <string name="proxy_tab_dc_ping">数据中心延迟</string>
+    <string name="proxy_tab_settings">设置</string>
+    <string name="proxy_dc_ping_header">数据中心延迟</string>
+    <string name="proxy_dc_ping_route_proxy">路由：通过 %1$s:%2$d</string>
+    <string name="proxy_dc_ping_route_direct">路由：直连</string>
+    <string name="proxy_dc_ping_description">使用当前路由检查 Telegram 数据中心可达性。启用代理时，将通过该代理进行检查；否则使用直连路由。</string>
+    <string name="proxy_dc_ping_run">运行数据中心检查</string>
+    <string name="proxy_dc_ping_reachable">可达</string>
+    <string name="proxy_dc_ping_average">平均</string>
+    <string name="proxy_dc_ping_dc_label">数据中心 %1$d</string>
+    <string name="proxy_dc_ping_dc_subtitle">通过当前代理探测 Telegram 数据中心</string>
+    <string name="proxy_dc_ping_direct_label">直连路由</string>
+    <string name="proxy_dc_ping_direct_subtitle">探测 Telegram 直连路由</string>
 </resources>

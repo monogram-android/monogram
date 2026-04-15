@@ -295,9 +295,35 @@ class ProfilePhotoRepositoryImpl(
         trackedFileIds: MutableSet<Int>? = null
     ): String? {
         val animationFile = photo.animation?.file
-        animationFile?.id?.takeIf { it != 0 }?.let { trackedFileIds?.add(it) }
+        val animationFileId = animationFile?.id?.takeIf { it != 0 }
+        animationFileId?.let { trackedFileIds?.add(it) }
         val animationPath = animationFile?.local?.path?.takeIf { isValidFilePath(it) }
         if (animationPath != null) return animationPath
+        val downloadedAnimationPath = resolveDownloadedFilePath(animationFileId)
+        if (downloadedAnimationPath != null) return downloadedAnimationPath
+
+        if (animationFileId != null) {
+            if (!ensureFullRes) {
+                fileQueue.enqueue(
+                    fileId = animationFileId,
+                    priority = avatarDownloadPriority,
+                    type = FileDownloadQueue.DownloadType.DEFAULT,
+                    synchronous = false
+                )
+            } else {
+                fileQueue.enqueue(
+                    fileId = animationFileId,
+                    priority = FULL_RES_DOWNLOAD_PRIORITY,
+                    type = FileDownloadQueue.DownloadType.DEFAULT,
+                    synchronous = false,
+                    ignoreSuppression = true
+                )
+                withTimeoutOrNull(FILE_DOWNLOAD_TIMEOUT_MS) {
+                    coRunCatching { fileQueue.waitForDownload(animationFileId).await() }
+                }
+                resolveDownloadedFilePath(animationFileId)?.let { return it }
+            }
+        }
 
         photo.sizes.forEach { size ->
             size.photo.id.takeIf { it != 0 }?.let { trackedFileIds?.add(it) }

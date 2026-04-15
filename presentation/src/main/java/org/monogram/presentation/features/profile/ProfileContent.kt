@@ -106,11 +106,16 @@ fun ProfileContent(component: ProfileComponent) {
     val isInitialLoading = state.isLoading && chat == null && user == null
 
     val avatarPath = remember(state.profilePhotos, state.chat, state.user, state.personalAvatarPath) {
-        state.personalAvatarPath
-            ?: state.profilePhotos.firstOrNull()
-            ?: state.user?.avatarPath
-            ?: state.chat?.personalAvatarPath
-            ?: state.chat?.avatarPath
+        state.profilePhotos.firstOrNull()
+            ?: state.user?.avatarPath?.takeIf { it.isNotBlank() }
+            ?: state.chat?.avatarPath?.takeIf { it.isNotBlank() }
+            ?: state.personalAvatarPath?.takeIf { it.isNotBlank() }
+            ?: state.chat?.personalAvatarPath?.takeIf { it.isNotBlank() }
+    }
+    val avatarFallbackPath = remember(state.chat, state.user, state.personalAvatarPath) {
+        state.personalAvatarPath?.takeIf { it.isNotBlank() }
+            ?: state.user?.personalAvatarPath?.takeIf { it.isNotBlank() }
+            ?: state.chat?.personalAvatarPath?.takeIf { it.isNotBlank() }
     }
 
 
@@ -305,6 +310,7 @@ fun ProfileContent(component: ProfileComponent) {
                         } else {
                             ProfileHeaderTransformed(
                                 avatarPath = avatarPath,
+                                avatarFallbackPath = avatarFallbackPath,
                                 title = title,
                                 subtitle = subtitle,
                                 avatarSize = avatarSize,

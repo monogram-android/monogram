@@ -84,6 +84,7 @@ class DefaultProfileComponent(
     private val PROFILE_PHOTOS_LIMIT = 50
     private var membersOffset = 0
     private var isCurrentlyLoadingMedia = false
+    private var hasStartedProfilePhotoListPreload = false
     private val canLoadMoreMediaByFilter = mutableMapOf<ProfileMediaFilter, Boolean>()
 
     init {
@@ -148,6 +149,12 @@ class DefaultProfileComponent(
                         isTOSAccepted = isTOSAccepted
                     )
                 }
+
+                preloadProfilePhotoList(
+                    resolvedChatId = chat?.id ?: chatId,
+                    resolvedUserId = user?.id?.takeIf { it > 0 },
+                    isGroupOrChannel = chat?.let { it.isGroup || it.isChannel } ?: (chatId < 0)
+                )
             } finally {
                 _state.update { it.copy(isLoading = false) }
             }
@@ -503,6 +510,48 @@ class DefaultProfileComponent(
             .launchIn(scope)
     }
 
+    private fun preloadProfilePhotoList(
+        resolvedChatId: Long,
+        resolvedUserId: Long?,
+        isGroupOrChannel: Boolean
+    ) {
+        if (hasStartedProfilePhotoListPreload) return
+        hasStartedProfilePhotoListPreload = true
+
+        scope.launch {
+            val preloadedPhotos = if (isGroupOrChannel) {
+                coRunCatching {
+                    profilePhotoRepository.getChatProfilePhotos(
+                        chatId = resolvedChatId,
+                        offset = 0,
+                        limit = PROFILE_PHOTOS_LIMIT,
+                        ensureFullRes = false
+                    )
+                }.getOrDefault(emptyList())
+            } else {
+                val userId = resolvedUserId ?: resolvedChatId.takeIf { it > 0 } ?: return@launch
+                coRunCatching {
+                    profilePhotoRepository.getUserProfilePhotos(
+                        userId = userId,
+                        offset = 0,
+                        limit = PROFILE_PHOTOS_LIMIT,
+                        ensureFullRes = false
+                    )
+                }.getOrDefault(emptyList())
+            }
+
+            if (preloadedPhotos.isNotEmpty()) {
+                _state.update { current ->
+                    if (current.profilePhotos.isEmpty()) {
+                        current.copy(profilePhotos = preloadedPhotos)
+                    } else {
+                        current
+                    }
+                }
+            }
+        }
+    }
+
     override fun onBack() {
         onBackClicked()
     }
@@ -632,9 +681,10 @@ class DefaultProfileComponent(
         if (initialPhotos.isNotEmpty()) {
             openProfilePhotos(initialPhotos)
         } else {
-            val avatarPath = snapshot.personalAvatarPath
-                ?: snapshot.chat?.avatarPath
-                ?: snapshot.user?.avatarPath
+            val avatarPath = snapshot.user?.avatarPath?.takeIf { it.isNotBlank() }
+                ?: snapshot.chat?.avatarPath?.takeIf { it.isNotBlank() }
+                ?: snapshot.personalAvatarPath?.takeIf { it.isNotBlank() }
+                ?: snapshot.chat?.personalAvatarPath?.takeIf { it.isNotBlank() }
             avatarPath?.let { openProfilePhotos(listOf(it)) }
         }
 

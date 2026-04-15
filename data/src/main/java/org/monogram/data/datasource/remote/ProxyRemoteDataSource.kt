@@ -13,5 +13,7 @@ interface ProxyRemoteDataSource {
     suspend fun removeProxy(proxyId: Int)
     suspend fun pingProxy(server: String, port: Int, type: ProxyTypeModel): Long
     suspend fun testProxy(server: String, port: Int, type: ProxyTypeModel): Long
+    suspend fun testProxyAtDc(server: String, port: Int, type: ProxyTypeModel, dcId: Int): Long
+    suspend fun testDirectDc(dcId: Int): Long
     suspend fun setOption(key: String, value: TdApi.OptionValue)
 }

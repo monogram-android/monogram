@@ -1,6 +1,12 @@
 package org.monogram.presentation.features.chats.currentChat.components.inputbar
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -19,10 +25,12 @@ import org.monogram.presentation.R
 fun InputBarLeadingIcons(
     editingMessage: MessageModel?,
     pendingMediaPaths: List<String>,
+    pendingDocumentPaths: List<String>,
     canSendMedia: Boolean,
     onAttachClick: () -> Unit
 ) {
-    val canAttachMedia = editingMessage == null && pendingMediaPaths.isEmpty() && canSendMedia
+    val canAttachMedia =
+        editingMessage == null && pendingMediaPaths.isEmpty() && pendingDocumentPaths.isEmpty() && canSendMedia
 
     AnimatedContent(
         targetState = canAttachMedia,

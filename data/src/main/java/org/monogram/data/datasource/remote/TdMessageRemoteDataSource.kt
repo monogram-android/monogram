@@ -36,6 +36,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageUploadProgressEvent
 import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
@@ -614,6 +615,63 @@ class TdMessageRemoteDataSource(
             waitForUpload(fileId).await()
         }
         return response
+    }
+
+    override suspend fun sendPoll(
+        chatId: Long,
+        poll: PollDraft,
+        replyToMsgId: Long?,
+        threadId: Long?,
+        sendOptions: MessageSendOptions
+    ): TdApi.Message? {
+        val formattedQuestion = TdApi.FormattedText(poll.question, emptyArray())
+        val pollOptions = poll.options.map { option ->
+            TdApi.InputPollOption(TdApi.FormattedText(option, emptyArray()))
+        }.toTypedArray()
+        val type = if (poll.isQuiz) {
+            val correctOptionIds = poll.correctOptionIds
+                .map { it.coerceAtLeast(0) }
+                .distinct()
+                .toIntArray()
+            TdApi.InputPollTypeQuiz(
+                if (correctOptionIds.isNotEmpty()) correctOptionIds else intArrayOf(0),
+                TdApi.FormattedText(poll.explanation.orEmpty(), emptyArray())
+            )
+        } else {
+            TdApi.InputPollTypeRegular()
+        }
+        val content = TdApi.InputMessagePoll().apply {
+            this.question = formattedQuestion
+            this.options = pollOptions
+            this.description = poll.description
+                ?.takeIf { it.isNotBlank() }
+                ?.let { TdApi.FormattedText(it, emptyArray()) }
+            this.isAnonymous = poll.isAnonymous
+            this.allowsMultipleAnswers = poll.allowsMultipleAnswers
+            this.allowsRevoting = poll.allowsRevoting
+            this.shuffleOptions = poll.shuffleOptions
+            this.hideResultsUntilCloses = poll.hideResultsUntilCloses
+            this.type = type
+            this.openPeriod = poll.openPeriod.coerceAtLeast(0)
+            this.closeDate = poll.closeDate.coerceAtLeast(0)
+            this.isClosed = poll.isClosed
+        }
+        val replyTo =
+            if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(
+                replyToMsgId,
+                null,
+                0,
+                ""
+            ) else null
+        val topicId = resolveTopicId(chatId, threadId)
+        val req = TdApi.SendMessage().apply {
+            this.chatId = chatId
+            this.topicId = topicId
+            this.replyTo = replyTo
+            this.inputMessageContent = content
+            this.options = sendOptions.toTdMessageSendOptions()
+        }
+        return safeExecute(req)
     }
 
     override suspend fun sendSticker(chatId: Long, stickerPath: String, replyToMsgId: Long?, threadId: Long?): TdApi.Message? {

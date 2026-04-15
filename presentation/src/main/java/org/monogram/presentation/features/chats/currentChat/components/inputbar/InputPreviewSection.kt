@@ -1,13 +1,29 @@
 package org.monogram.presentation.features.chats.currentChat.components.inputbar
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -21,7 +37,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,13 +63,14 @@ import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.components.chats.buildAnnotatedMessageTextWithEmoji
 import org.monogram.presentation.features.chats.currentChat.components.chats.rememberMessageInlineContent
 import java.io.File
-import java.util.*
+import java.util.Collections
 
 sealed class InputPreviewState {
     object None : InputPreviewState()
     data class Reply(val message: MessageModel) : InputPreviewState()
     data class Edit(val message: MessageModel) : InputPreviewState()
     data class Media(val paths: List<String>) : InputPreviewState()
+    data class Documents(val paths: List<String>) : InputPreviewState()
 }
 
 @Composable
@@ -57,15 +78,20 @@ fun InputPreviewSection(
     editingMessage: MessageModel?,
     replyMessage: MessageModel?,
     pendingMediaPaths: List<String>,
+    pendingDocumentPaths: List<String>,
     onCancelEdit: () -> Unit,
     onCancelReply: () -> Unit,
     onCancelMedia: () -> Unit,
+    onCancelDocuments: () -> Unit,
     onMediaOrderChange: (List<String>) -> Unit,
+    onDocumentOrderChange: (List<String>) -> Unit,
     onMediaClick: (String) -> Unit
 ) {
-    val previewState = remember(editingMessage, replyMessage, pendingMediaPaths) {
+    val previewState =
+        remember(editingMessage, replyMessage, pendingMediaPaths, pendingDocumentPaths) {
         when {
             pendingMediaPaths.isNotEmpty() -> InputPreviewState.Media(pendingMediaPaths)
+            pendingDocumentPaths.isNotEmpty() -> InputPreviewState.Documents(pendingDocumentPaths)
             editingMessage != null -> InputPreviewState.Edit(editingMessage)
             replyMessage != null -> InputPreviewState.Reply(replyMessage)
             else -> InputPreviewState.None
@@ -101,9 +127,99 @@ fun InputPreviewSection(
                 },
                 onMediaClick = onMediaClick
             )
+            is InputPreviewState.Documents -> DocumentPreview(
+                paths = state.paths,
+                onCancel = onCancelDocuments,
+                onRemove = { path ->
+                    val newList = pendingDocumentPaths.toMutableList()
+                    newList.remove(path)
+                    onDocumentOrderChange(newList)
+                }
+            )
 
             InputPreviewState.None -> Spacer(modifier = Modifier.height(0.dp))
         }
+    }
+}
+
+@Composable
+private fun DocumentPreview(
+    paths: List<String>,
+    onCancel: () -> Unit,
+    onRemove: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.action_attach_file_count, paths.size),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            IconButton(onClick = onCancel, modifier = Modifier.size(24.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.action_cancel),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        paths.forEach { path ->
+            val file = File(path)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = file.name.ifBlank { "File" },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = formatFileSize(file.length()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = { onRemove(path) }) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.action_remove)
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatFileSize(bytes: Long): String {
+    if (bytes <= 0L) return "0 B"
+    val units = listOf("B", "KB", "MB", "GB")
+    var value = bytes.toDouble()
+    var index = 0
+    while (value >= 1024 && index < units.lastIndex) {
+        value /= 1024.0
+        index++
+    }
+    return if (index == 0) {
+        "${value.toInt()} ${units[index]}"
+    } else {
+        String.format("%.1f %s", value, units[index])
     }
 }
 

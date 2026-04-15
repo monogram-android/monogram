@@ -48,11 +48,13 @@ import org.monogram.presentation.features.chats.currentChat.impl.handleReportRea
 import org.monogram.presentation.features.chats.currentChat.impl.handleRetractVote
 import org.monogram.presentation.features.chats.currentChat.impl.handleSaveEditedMessage
 import org.monogram.presentation.features.chats.currentChat.impl.handleSendAlbum
+import org.monogram.presentation.features.chats.currentChat.impl.handleSendDocument
 import org.monogram.presentation.features.chats.currentChat.impl.handleSendGif
 import org.monogram.presentation.features.chats.currentChat.impl.handleSendGifFile
 import org.monogram.presentation.features.chats.currentChat.impl.handleSendInlineResult
 import org.monogram.presentation.features.chats.currentChat.impl.handleSendMessage
 import org.monogram.presentation.features.chats.currentChat.impl.handleSendPhoto
+import org.monogram.presentation.features.chats.currentChat.impl.handleSendPoll
 import org.monogram.presentation.features.chats.currentChat.impl.handleSendReaction
 import org.monogram.presentation.features.chats.currentChat.impl.handleSendScheduledNow
 import org.monogram.presentation.features.chats.currentChat.impl.handleSendSticker
@@ -107,6 +109,18 @@ class ChatStoreFactory(
                 )
 
                 is Intent.SendGif -> component.handleSendGif(intent.gif)
+                is Intent.SendDocument -> component.handleSendDocument(
+                    path = intent.path,
+                    caption = intent.caption,
+                    captionEntities = intent.captionEntities,
+                    sendOptions = intent.sendOptions
+                )
+
+                is Intent.SendPoll -> component.handleSendPoll(
+                    poll = intent.poll,
+                    sendOptions = intent.sendOptions
+                )
+
                 is Intent.SendGifFile -> component.handleSendGifFile(
                     path = intent.path,
                     caption = intent.caption,

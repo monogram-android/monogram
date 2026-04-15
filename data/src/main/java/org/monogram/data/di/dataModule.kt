@@ -91,7 +91,6 @@ import org.monogram.data.repository.ChatInfoRepositoryImpl
 import org.monogram.data.repository.ChatStatisticsRepositoryImpl
 import org.monogram.data.repository.ChatsListRepositoryImpl
 import org.monogram.data.repository.EmojiRepositoryImpl
-import org.monogram.data.repository.ExternalProxyRepositoryImpl
 import org.monogram.data.repository.GifRepositoryImpl
 import org.monogram.data.repository.LinkHandlerRepositoryImpl
 import org.monogram.data.repository.LinkParser
@@ -103,6 +102,8 @@ import org.monogram.data.repository.PollRepositoryImpl
 import org.monogram.data.repository.PremiumRepositoryImpl
 import org.monogram.data.repository.PrivacyRepositoryImpl
 import org.monogram.data.repository.ProfilePhotoRepositoryImpl
+import org.monogram.data.repository.ProxyDiagnosticsRepositoryImpl
+import org.monogram.data.repository.ProxyRepositoryImpl
 import org.monogram.data.repository.PushDebugRepositoryImpl
 import org.monogram.data.repository.SessionRepositoryImpl
 import org.monogram.data.repository.SponsorRepositoryImpl
@@ -127,7 +128,6 @@ import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.ChatSettingsRepository
 import org.monogram.domain.repository.ChatStatisticsRepository
 import org.monogram.domain.repository.EmojiRepository
-import org.monogram.domain.repository.ExternalProxyRepository
 import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.ForumTopicsRepository
 import org.monogram.domain.repository.GifRepository
@@ -144,6 +144,8 @@ import org.monogram.domain.repository.PollRepository
 import org.monogram.domain.repository.PremiumRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.ProfilePhotoRepository
+import org.monogram.domain.repository.ProxyDiagnosticsRepository
+import org.monogram.domain.repository.ProxyRepository
 import org.monogram.domain.repository.PushDebugRepository
 import org.monogram.domain.repository.SessionRepository
 import org.monogram.domain.repository.SponsorRepository
@@ -775,10 +777,16 @@ val dataModule = module {
         )
     }
 
-    single<ExternalProxyRepository> {
-        ExternalProxyRepositoryImpl(
+    single<ProxyRepository> {
+        ProxyRepositoryImpl(
             remote = get(),
             appPreferences = get()
+        )
+    }
+
+    single<ProxyDiagnosticsRepository> {
+        ProxyDiagnosticsRepositoryImpl(
+            remote = get()
         )
     }
 

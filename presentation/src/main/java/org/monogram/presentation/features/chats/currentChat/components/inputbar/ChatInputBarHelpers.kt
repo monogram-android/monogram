@@ -2,12 +2,19 @@ package org.monogram.presentation.features.chats.currentChat.components.inputbar
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.provider.OpenableColumns
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.core.content.ContextCompat
-import org.monogram.domain.models.*
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageEntityType
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.StickerFormat
+import org.monogram.domain.models.StickerModel
+import org.monogram.domain.models.UserModel
 import java.io.File
 import java.io.FileOutputStream
 
@@ -172,6 +179,39 @@ internal fun Context.copyUriToTempPath(uri: android.net.Uri): String? {
             else -> "jpg"
         }
         val file = File(cacheDir, "attach_${System.nanoTime()}.$ext")
+        contentResolver.openInputStream(uri)?.use { input ->
+            FileOutputStream(file).use { output -> input.copyTo(output) }
+        } ?: return null
+        file.absolutePath
+    } catch (_: Exception) {
+        null
+    }
+}
+
+internal fun Context.copyUriToTempDocumentPath(uri: android.net.Uri): String? {
+    return try {
+        if (uri.scheme == "file") return uri.path
+
+        val displayName =
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (index >= 0) cursor.getString(index) else null
+                    } else {
+                        null
+                    }
+                }
+                ?.trim()
+                .orEmpty()
+
+        val mime = contentResolver.getType(uri).orEmpty()
+        val safeName = when {
+            displayName.isNotBlank() -> displayName.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+            mime.startsWith("application/pdf") -> "document_${System.nanoTime()}.pdf"
+            else -> "document_${System.nanoTime()}.bin"
+        }
+        val file = File(cacheDir, "doc_${System.nanoTime()}_$safeName")
         contentResolver.openInputStream(uri)?.use { input ->
             FileOutputStream(file).use { output -> input.copyTo(output) }
         } ?: return null

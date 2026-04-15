@@ -9,6 +9,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageUploadProgressEvent
 import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.InstantViewModel
 
@@ -123,6 +124,14 @@ interface MessageRepository :
         documentPath: String,
         caption: String = "",
         captionEntities: List<MessageEntity> = emptyList(),
+        replyToMsgId: Long? = null,
+        threadId: Long? = null,
+        sendOptions: MessageSendOptions = MessageSendOptions()
+    )
+
+    suspend fun sendPoll(
+        chatId: Long,
+        poll: PollDraft,
         replyToMsgId: Long? = null,
         threadId: Long? = null,
         sendOptions: MessageSendOptions = MessageSendOptions()

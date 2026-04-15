@@ -8,7 +8,11 @@ import org.monogram.data.mapper.CustomEmojiLoader
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.data.mapper.WebPageMapper
 import org.monogram.data.mapper.toMessageEntityOrNull
-import org.monogram.domain.models.*
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.PollOption
+import org.monogram.domain.models.PollType
+import org.monogram.domain.models.StickerFormat
 import org.monogram.domain.repository.AppPreferencesProvider
 
 internal data class ContentMappingContext(
@@ -494,7 +498,7 @@ internal class MessageContentMapper(
                 val pollType = when (val type = poll.type) {
                     is TdApi.PollTypeRegular -> PollType.Regular(poll.allowsMultipleAnswers)
                     is TdApi.PollTypeQuiz -> {
-                        PollType.Quiz(type.correctOptionIds.firstOrNull() ?: -1, type.explanation?.text)
+                        PollType.Quiz(type.correctOptionIds.toList(), type.explanation?.text)
                     }
 
                     else -> PollType.Regular(poll.allowsMultipleAnswers)
@@ -503,6 +507,7 @@ internal class MessageContentMapper(
                 MessageContent.Poll(
                     id = poll.id,
                     question = poll.question.text,
+                    description = null,
                     options = poll.options.map { option ->
                         PollOption(
                             text = option.text.text,
@@ -515,6 +520,9 @@ internal class MessageContentMapper(
                     totalVoterCount = poll.totalVoterCount,
                     isClosed = poll.isClosed,
                     isAnonymous = poll.isAnonymous,
+                    allowsRevoting = true,
+                    shuffleOptions = false,
+                    hideResultsUntilCloses = false,
                     type = pollType,
                     openPeriod = poll.openPeriod,
                     closeDate = poll.closeDate

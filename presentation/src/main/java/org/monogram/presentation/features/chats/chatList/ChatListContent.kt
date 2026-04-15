@@ -98,6 +98,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -518,8 +519,9 @@ fun ChatListContent(component: ChatListComponent) {
                                         )
                                         if (selectionState.selectedChatIds.isNotEmpty()) {
                                             Text(
-                                                text = stringResource(
-                                                    R.string.chats_selected_format,
+                                                text = pluralStringResource(
+                                                    R.plurals.chats_selected_format,
+                                                    selectionState.selectedChatIds.size,
                                                     selectionState.selectedChatIds.size
                                                 ),
                                                 style = MaterialTheme.typography.bodySmall,

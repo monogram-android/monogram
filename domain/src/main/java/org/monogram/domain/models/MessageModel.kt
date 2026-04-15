@@ -367,10 +367,14 @@ sealed interface MessageContent {
     data class Poll(
         val id: Long,
         val question: String,
+        val description: String? = null,
         val options: List<PollOption>,
         val totalVoterCount: Int,
         val isClosed: Boolean,
         val isAnonymous: Boolean,
+        val allowsRevoting: Boolean = true,
+        val shuffleOptions: Boolean = false,
+        val hideResultsUntilCloses: Boolean = false,
         val type: PollType,
         val openPeriod: Int,
         val closeDate: Int
@@ -544,7 +548,7 @@ data class PollOption(
 
 sealed interface PollType {
     data class Regular(val allowMultipleAnswers: Boolean) : PollType
-    data class Quiz(val correctOptionId: Int, val explanation: String?) : PollType
+    data class Quiz(val correctOptionIds: List<Int>, val explanation: String?) : PollType
 }
 
 @Serializable

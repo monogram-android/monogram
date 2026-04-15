@@ -12,16 +12,25 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import org.monogram.domain.models.ProxyCheckResult
+import org.monogram.domain.models.ProxyInput
 import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
+import org.monogram.domain.models.toDomainProxyType
+import org.monogram.domain.models.toProxyModel
 import org.monogram.domain.repository.AppPreferencesProvider
-import org.monogram.domain.repository.ExternalProxyRepository
+import org.monogram.domain.repository.DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES
+import org.monogram.domain.repository.LinkAction
+import org.monogram.domain.repository.LinkHandlerRepository
+import org.monogram.domain.repository.ProxyDiagnosticsRepository
 import org.monogram.domain.repository.ProxyNetworkMode
 import org.monogram.domain.repository.ProxyNetworkRule
 import org.monogram.domain.repository.ProxyNetworkType
+import org.monogram.domain.repository.ProxyRepository
+import org.monogram.domain.repository.ProxySmartSwitchMode
 import org.monogram.domain.repository.ProxySortMode
-import org.monogram.domain.repository.ProxyTestResult
 import org.monogram.domain.repository.ProxyUnavailableFallback
+import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.defaultProxyNetworkMode
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
@@ -40,13 +49,15 @@ interface ProxyComponent {
     fun onRemoveProxy(proxyId: Int)
     fun onPingAll()
     fun onPingProxy(proxyId: Int)
-    fun onTestProxy(server: String, port: Int, type: ProxyTypeModel)
+    fun onPingDatacenters()
     fun onAddProxy(server: String, port: Int, type: ProxyTypeModel)
     fun onEditProxy(proxyId: Int, server: String, port: Int, type: ProxyTypeModel)
     fun onDismissDeleteConfirmation()
     fun onConfirmDelete()
     fun onDismissAddEdit()
     fun onAutoBestProxyToggled(enabled: Boolean)
+    fun onSmartSwitchModeChanged(mode: ProxySmartSwitchMode)
+    fun onSmartSwitchAutoCheckIntervalChanged(minutes: Int)
     fun onPreferIpv6Toggled(enabled: Boolean)
     fun onProxySortModeChanged(mode: ProxySortMode)
     fun onProxyUnavailableFallbackChanged(fallback: ProxyUnavailableFallback)
@@ -54,6 +65,7 @@ interface ProxyComponent {
     fun onToggleFavoriteProxy(proxyId: Int)
     fun exportProxiesJson(): String
     fun importProxiesJson(json: String)
+    fun importProxiesFromText(rawText: String)
     fun onProxyNetworkModeChanged(networkType: ProxyNetworkType, mode: ProxyNetworkMode)
     fun onSpecificProxyForNetworkSelected(networkType: ProxyNetworkType, proxyId: Int)
     fun onClearUnavailableProxies()
@@ -69,6 +81,8 @@ interface ProxyComponent {
         val isLoading: Boolean = false,
         val isAddingProxy: Boolean = false,
         val isAutoBestProxyEnabled: Boolean = false,
+        val smartSwitchMode: ProxySmartSwitchMode = ProxySmartSwitchMode.RANDOM_AVAILABLE,
+        val smartSwitchAutoCheckIntervalMinutes: Int = DEFAULT_SMART_SWITCH_CHECK_INTERVAL_MINUTES,
         val preferIpv6: Boolean = false,
         val proxySortMode: ProxySortMode = ProxySortMode.LOWEST_PING,
         val proxyUnavailableFallback: ProxyUnavailableFallback = ProxyUnavailableFallback.BEST_PROXY,
@@ -79,13 +93,14 @@ interface ProxyComponent {
         },
         val proxyToEdit: ProxyModel? = null,
         val proxyToDelete: ProxyModel? = null,
-        val testPing: Long? = null,
-        val testError: String? = null,
+        val isDcTesting: Boolean = false,
+        val dcPingByDcId: Map<Int, Long?> = emptyMap(),
+        val dcPingErrorsByDcId: Map<Int, String> = emptyMap(),
         val proxyErrors: Map<Int, String> = emptyMap(),
-        val isTesting: Boolean = false,
         val toastMessage: String? = null,
         val showClearOfflineConfirmation: Boolean = false,
-        val showRemoveAllConfirmation: Boolean = false
+        val showRemoveAllConfirmation: Boolean = false,
+        val checkingProxyIds: Set<Int> = emptySet()
     )
 }
 
@@ -93,9 +108,17 @@ class DefaultProxyComponent(
     context: AppComponentContext,
     private val onBack: () -> Unit
 ) : ProxyComponent, AppComponentContext by context {
+    private companion object {
+        val DC_IDS = listOf(2, 1, 3, 4, 5)
+    }
 
     private val appPreferences: AppPreferencesProvider = container.preferences.appPreferences
-    private val externalProxyRepository: ExternalProxyRepository = container.repositories.externalProxyRepository
+    private val proxyRepository: ProxyRepository = container.repositories.proxyRepository
+    private val linkHandlerRepository: LinkHandlerRepository =
+        container.repositories.linkHandlerRepository
+    private val stringProvider: StringProvider = container.utils.stringProvider()
+    private val proxyDiagnosticsRepository: ProxyDiagnosticsRepository =
+        container.repositories.proxyDiagnosticsRepository
 
     private val _state = MutableValue(ProxyComponent.State())
     override val state: Value<ProxyComponent.State> = _state
@@ -103,6 +126,12 @@ class DefaultProxyComponent(
     private var restoreAttempted = false
     private var lastToastMessage: String? = null
     private var lastToastAtMs: Long = 0L
+    private var pingRequestToken = 0L
+    private val pingRequestByProxyId = mutableMapOf<Int, Long>()
+
+    private fun tr(resName: String, vararg args: Any): String {
+        return stringProvider.getString(resName, *args)
+    }
 
     private fun showToastThrottled(message: String, throttleMs: Long = 1500L) {
         val now = System.currentTimeMillis()
@@ -113,30 +142,48 @@ class DefaultProxyComponent(
         _state.update { it.copy(toastMessage = message) }
     }
 
+    private fun reservePingRequest(proxyIds: Collection<Int>): Long {
+        val token = ++pingRequestToken
+        proxyIds.forEach { proxyId -> pingRequestByProxyId[proxyId] = token }
+        return token
+    }
+
+    private fun isLatestPingRequest(proxyId: Int, token: Long): Boolean {
+        return pingRequestByProxyId[proxyId] == token
+    }
+
     init {
         scope.launch {
             coRunCatching { refreshProxies(shouldPing = true) }
                 .onFailure {
                     _state.update { state -> state.copy(isLoading = false) }
-                    showToastThrottled("Failed to load proxies")
+                    showToastThrottled(tr("proxy_load_failed"))
                 }
         }
 
         combine(
             appPreferences.isAutoBestProxyEnabled,
+            appPreferences.proxySmartSwitchMode,
+            appPreferences.proxyAutoCheckIntervalMinutes,
             appPreferences.preferIpv6,
-            appPreferences.proxySortMode,
-            appPreferences.proxyUnavailableFallback,
-            appPreferences.hideOfflineProxies,
-        ) { autoBest, ipv6, sortMode, fallback, hideOffline ->
+            appPreferences.proxySortMode
+        ) { autoBest, switchMode, checkIntervalMinutes, ipv6, sortMode ->
             ProxyPreferencesBaseState(
                 autoBest = autoBest,
+                switchMode = switchMode,
+                checkIntervalMinutes = checkIntervalMinutes,
                 preferIpv6 = ipv6,
                 sortMode = sortMode,
-                fallback = fallback,
-                hideOffline = hideOffline
+                fallback = ProxyUnavailableFallback.BEST_PROXY,
+                hideOffline = false
             )
         }
+            .combine(appPreferences.proxyUnavailableFallback) { base, fallback ->
+                base.copy(fallback = fallback)
+            }
+            .combine(appPreferences.hideOfflineProxies) { base, hideOffline ->
+                base.copy(hideOffline = hideOffline)
+            }
             .combine(appPreferences.favoriteProxyId) { base, favoriteProxyId ->
                 base to favoriteProxyId
             }
@@ -144,6 +191,8 @@ class DefaultProxyComponent(
                 val (base, favoriteProxyId) = baseWithFavorite
                 ProxyPreferencesState(
                     autoBest = base.autoBest,
+                    switchMode = base.switchMode,
+                    checkIntervalMinutes = base.checkIntervalMinutes,
                     preferIpv6 = base.preferIpv6,
                     sortMode = base.sortMode,
                     fallback = base.fallback,
@@ -163,6 +212,8 @@ class DefaultProxyComponent(
                     )
                     current.copy(
                         isAutoBestProxyEnabled = prefs.autoBest,
+                        smartSwitchMode = prefs.switchMode,
+                        smartSwitchAutoCheckIntervalMinutes = prefs.checkIntervalMinutes,
                         preferIpv6 = prefs.preferIpv6,
                         proxySortMode = prefs.sortMode,
                         proxyUnavailableFallback = prefs.fallback,
@@ -177,6 +228,8 @@ class DefaultProxyComponent(
 
     private data class ProxyPreferencesBaseState(
         val autoBest: Boolean,
+        val switchMode: ProxySmartSwitchMode,
+        val checkIntervalMinutes: Int,
         val preferIpv6: Boolean,
         val sortMode: ProxySortMode,
         val fallback: ProxyUnavailableFallback,
@@ -185,6 +238,8 @@ class DefaultProxyComponent(
 
     private data class ProxyPreferencesState(
         val autoBest: Boolean,
+        val switchMode: ProxySmartSwitchMode,
+        val checkIntervalMinutes: Int,
         val preferIpv6: Boolean,
         val sortMode: ProxySortMode,
         val fallback: ProxyUnavailableFallback,
@@ -197,8 +252,8 @@ class DefaultProxyComponent(
         _state.update { it.copy(isLoading = true) }
         val restoredProxies = coRunCatching { restoreUserProxiesIfNeeded() }
             .getOrElse { emptyList() }
-        val allProxies = coRunCatching { externalProxyRepository.getProxies() }
-            .onFailure { showToastThrottled("Failed to load proxies") }
+        val allProxies = coRunCatching { proxyRepository.getProxies().map { it.toProxyModel() } }
+            .onFailure { showToastThrottled(tr("proxy_load_failed")) }
             .getOrElse { emptyList() }
             .ifEmpty { restoredProxies }
         _state.update {
@@ -212,6 +267,7 @@ class DefaultProxyComponent(
                     it.favoriteProxyId
                 ),
                 proxyErrors = it.proxyErrors.filterKeys { id -> id in availableIds },
+                checkingProxyIds = it.checkingProxyIds.filter { id -> id in availableIds }.toSet(),
                 isLoading = false
             )
         }
@@ -330,7 +386,7 @@ class DefaultProxyComponent(
             return emptyList()
         }
 
-        val existing = coRunCatching { externalProxyRepository.getProxies() }
+        val existing = coRunCatching { proxyRepository.getProxies() }
             .getOrElse { emptyList() }
         if (existing.isNotEmpty()) {
             restoreAttempted = true
@@ -338,12 +394,14 @@ class DefaultProxyComponent(
         }
 
         val restored = backups.mapNotNull { parseProxyBackup(it) }.mapNotNull { backup ->
-            externalProxyRepository.addProxy(
-                server = backup.server,
-                port = backup.port,
-                enable = false,
-                type = backup.type
-            )
+            proxyRepository.addProxy(
+                input = ProxyInput(
+                    server = backup.server,
+                    port = backup.port,
+                    type = backup.type.toDomainProxyType()
+                ),
+                enable = false
+            )?.toProxyModel()
         }
         restoreAttempted = true
         return restored
@@ -491,10 +549,7 @@ class DefaultProxyComponent(
         _state.update {
             it.copy(
                 isAddingProxy = true,
-                proxyToEdit = null,
-                testPing = null,
-                testError = null,
-                isTesting = false
+                proxyToEdit = null
             )
         }
     }
@@ -503,10 +558,7 @@ class DefaultProxyComponent(
         _state.update {
             it.copy(
                 proxyToEdit = proxy,
-                isAddingProxy = false,
-                testPing = null,
-                testError = null,
-                isTesting = false
+                isAddingProxy = false
             )
         }
     }
@@ -543,8 +595,8 @@ class DefaultProxyComponent(
 
     override fun importProxiesJson(json: String) {
         scope.launch {
-            val existing = coRunCatching { externalProxyRepository.getProxies() }
-                .onFailure { showToastThrottled("Failed to load existing proxies") }
+            val existing = coRunCatching { proxyRepository.getProxies().map { it.toProxyModel() } }
+                .onFailure { showToastThrottled(tr("proxy_existing_load_failed")) }
                 .getOrElse { emptyList() }
             val fingerprintToId = existing.associate { proxy ->
                 proxyFingerprint(proxy.server, proxy.port, proxy.type) to proxy.id
@@ -568,7 +620,7 @@ class DefaultProxyComponent(
             }.getOrNull()
 
             if (parsedEntries == null) {
-                _state.update { it.copy(toastMessage = "Import failed: invalid file") }
+                _state.update { it.copy(toastMessage = tr("proxy_import_invalid_file")) }
                 return@launch
             }
 
@@ -594,12 +646,14 @@ class DefaultProxyComponent(
                     return@forEach
                 }
 
-                val proxy = externalProxyRepository.addProxy(
-                    server = backup.server,
-                    port = backup.port,
-                    enable = false,
-                    type = backup.type
-                )
+                val proxy = proxyRepository.addProxy(
+                    input = ProxyInput(
+                        server = backup.server,
+                        port = backup.port,
+                        type = backup.type.toDomainProxyType()
+                    ),
+                    enable = false
+                )?.toProxyModel()
 
                 if (proxy != null) {
                     addProxyToBackup(proxy)
@@ -614,19 +668,165 @@ class DefaultProxyComponent(
             }
 
             favoriteProxyIdToSet?.let { appPreferences.setFavoriteProxyId(it) }
-            refreshProxies(shouldPing = false)
+            refreshProxies(shouldPing = true)
             _state.update {
-                it.copy(toastMessage = "Imported: $added, skipped: $skipped, invalid: $invalid")
+                it.copy(toastMessage = tr("proxy_import_summary_format", added, skipped, invalid))
             }
         }
     }
 
+    override fun importProxiesFromText(rawText: String) {
+        scope.launch {
+            val normalized = rawText.trim()
+            if (normalized.isBlank()) {
+                showToastThrottled(tr("proxy_clipboard_empty"))
+                return@launch
+            }
+
+            val candidates = extractProxyLinkCandidates(rawText)
+            if (candidates.isEmpty()) {
+                showToastThrottled(tr("proxy_no_links_found"))
+                return@launch
+            }
+
+            val existing = coRunCatching { proxyRepository.getProxies().map { it.toProxyModel() } }
+                .onFailure { showToastThrottled(tr("proxy_existing_load_failed")) }
+                .getOrElse { emptyList() }
+            val knownFingerprints = existing
+                .mapTo(mutableSetOf()) { proxyFingerprint(it.server, it.port, it.type) }
+
+            var added = 0
+            var skipped = 0
+            var invalid = 0
+
+            candidates.forEach { candidate ->
+                val action = runCatching { linkHandlerRepository.handleLink(candidate) }.getOrNull()
+                val proxy = action as? LinkAction.AddProxy
+                if (proxy == null) {
+                    invalid++
+                    return@forEach
+                }
+
+                val fingerprint = proxyFingerprint(proxy.server, proxy.port, proxy.type)
+                if (!knownFingerprints.add(fingerprint)) {
+                    skipped++
+                    return@forEach
+                }
+
+                val addedProxy = proxyRepository.addProxy(
+                    input = ProxyInput(
+                        server = proxy.server,
+                        port = proxy.port,
+                        type = proxy.type.toDomainProxyType()
+                    ),
+                    enable = false
+                )?.toProxyModel()
+
+                if (addedProxy != null) {
+                    addProxyToBackup(addedProxy)
+                    added++
+                } else {
+                    knownFingerprints.remove(fingerprint)
+                    invalid++
+                }
+            }
+
+            if (added > 0) {
+                refreshProxies(shouldPing = true)
+            }
+
+            showToastThrottled(tr("proxy_import_summary_format", added, skipped, invalid))
+        }
+    }
+
+    private fun extractProxyLinkCandidates(rawText: String): List<String> {
+        val linkRegex = Regex(
+            pattern = """(?i)(tg:(?://)?[^\s]+|https?://(?:t\.me|www\.t\.me|telegram\.me|www\.telegram\.me)/[^\s]+)"""
+        )
+        val fromRegex = linkRegex.findAll(rawText).map { it.value }
+        val fromLines = rawText.lineSequence()
+        return (fromRegex + fromLines)
+            .map { normalizeForParsing(it) }
+            .map { normalizeTelegramScheme(it) }
+            .filter { it.isNotBlank() && looksLikeProxyLink(it) }
+            .distinct()
+            .toList()
+    }
+
+    private fun normalizeTelegramScheme(link: String): String {
+        if (link.startsWith("tg://", ignoreCase = true)) return link
+        if (link.startsWith("tg:", ignoreCase = true)) {
+            return "tg://${link.substringAfter(':')}"
+        }
+        return link
+    }
+
+    private fun normalizeForParsing(link: String): String {
+        var sanitized = link.trim()
+            .removeSurrounding("<", ">")
+            .removeSurrounding("\"")
+            .removeSurrounding("'")
+
+        while (sanitized.isNotEmpty() && sanitized.last() in setOf(
+                ')',
+                ']',
+                '}',
+                '.',
+                ',',
+                ';',
+                '!',
+                '?'
+            )
+        ) {
+            sanitized = sanitized.dropLast(1)
+        }
+        return sanitized
+    }
+
+    private fun looksLikeProxyLink(link: String): Boolean {
+        val linkLower = link.lowercase()
+        return linkLower.startsWith("tg://proxy?") ||
+                linkLower.startsWith("tg:proxy?") ||
+                linkLower.startsWith("tg://proxy/") ||
+                linkLower.startsWith("tg://socks?") ||
+                linkLower.startsWith("tg:socks?") ||
+                linkLower.startsWith("tg://socks/") ||
+                linkLower.startsWith("tg://http?") ||
+                linkLower.startsWith("tg:http?") ||
+                linkLower.startsWith("tg://http/") ||
+                linkLower.startsWith("https://t.me/proxy?") ||
+                linkLower.startsWith("http://t.me/proxy?") ||
+                linkLower.startsWith("https://www.t.me/proxy?") ||
+                linkLower.startsWith("http://www.t.me/proxy?") ||
+                linkLower.startsWith("https://telegram.me/proxy?") ||
+                linkLower.startsWith("http://telegram.me/proxy?") ||
+                linkLower.startsWith("https://www.telegram.me/proxy?") ||
+                linkLower.startsWith("http://www.telegram.me/proxy?") ||
+                linkLower.startsWith("https://t.me/socks?") ||
+                linkLower.startsWith("http://t.me/socks?") ||
+                linkLower.startsWith("https://www.t.me/socks?") ||
+                linkLower.startsWith("http://www.t.me/socks?") ||
+                linkLower.startsWith("https://telegram.me/socks?") ||
+                linkLower.startsWith("http://telegram.me/socks?") ||
+                linkLower.startsWith("https://www.telegram.me/socks?") ||
+                linkLower.startsWith("http://www.telegram.me/socks?") ||
+                linkLower.startsWith("https://t.me/http?") ||
+                linkLower.startsWith("http://t.me/http?") ||
+                linkLower.startsWith("https://www.t.me/http?") ||
+                linkLower.startsWith("http://www.t.me/http?") ||
+                linkLower.startsWith("https://telegram.me/http?") ||
+                linkLower.startsWith("http://telegram.me/http?") ||
+                linkLower.startsWith("https://www.telegram.me/http?") ||
+                linkLower.startsWith("http://www.telegram.me/http?")
+    }
+
     override fun onEnableProxy(proxyId: Int) {
         scope.launch {
-            if (externalProxyRepository.enableProxy(proxyId)) {
+            if (proxyRepository.enableProxy(proxyId)) {
                 ProxyNetworkType.entries.forEach { networkType ->
                     appPreferences.setLastUsedProxyIdForNetwork(networkType, proxyId)
                 }
+                resetDcDiagnostics()
                 refreshProxies(shouldPing = false)
                 onPingProxy(proxyId)
             }
@@ -635,7 +835,8 @@ class DefaultProxyComponent(
 
     override fun onDisableProxy() {
         scope.launch {
-            if (externalProxyRepository.disableProxy()) {
+            if (proxyRepository.disableProxy()) {
+                resetDcDiagnostics()
                 refreshProxies(shouldPing = false)
             }
         }
@@ -654,26 +855,52 @@ class DefaultProxyComponent(
 
     private suspend fun performPingAll() {
         val allProxies = _state.value.proxies
+        if (allProxies.isEmpty()) return
+        val proxyIds = allProxies.map { it.id }
+        val requestToken = reservePingRequest(proxyIds)
+
+        _state.update {
+            val updatedProxies = it.proxies.map { proxy ->
+                if (proxy.id in proxyIds) proxy.copy(ping = null) else proxy
+            }
+            it.copy(
+                proxies = updatedProxies,
+                visibleProxies = buildVisibleProxies(
+                    updatedProxies,
+                    it.proxySortMode,
+                    it.hideOfflineProxies,
+                    it.favoriteProxyId
+                ),
+                checkingProxyIds = it.checkingProxyIds + proxyIds
+            )
+        }
+
         val pingResults = coroutineScope {
             allProxies.map { proxy ->
                 proxy.id to async {
-                    externalProxyRepository.pingProxyDetailed(proxy.id)
+                    proxyDiagnosticsRepository.pingProxy(proxy.id)
                 }
             }.associate { (id, job) -> id to job.await() }
         }
 
-        val updatedProxies = _state.value.proxies.map { proxy ->
-            when (val result = pingResults[proxy.id]) {
-                is ProxyTestResult.Success -> proxy.copy(ping = result.ping)
-                is ProxyTestResult.Failure -> proxy.copy(ping = -1L)
-                else -> proxy
-            }
-        }
-
         _state.update {
             val updatedErrors = it.proxyErrors.toMutableMap()
+            val finishedIds = mutableSetOf<Int>()
+            val updatedProxies = it.proxies.map { proxy ->
+                val result = pingResults[proxy.id]
+                if (!isLatestPingRequest(proxy.id, requestToken) || result == null) {
+                    proxy
+                } else {
+                    finishedIds += proxy.id
+                    when (result) {
+                        is ProxyCheckResult.Success -> proxy.copy(ping = result.latencyMs)
+                        is ProxyCheckResult.Failure -> proxy.copy(ping = -1L)
+                    }
+                }
+            }
             pingResults.forEach { (proxyId, result) ->
-                if (result is ProxyTestResult.Failure) {
+                if (!isLatestPingRequest(proxyId, requestToken)) return@forEach
+                if (result is ProxyCheckResult.Failure) {
                     updatedErrors[proxyId] = result.message
                 } else {
                     updatedErrors.remove(proxyId)
@@ -687,22 +914,40 @@ class DefaultProxyComponent(
                     it.hideOfflineProxies,
                     it.favoriteProxyId
                 ),
-                proxyErrors = updatedErrors
+                proxyErrors = updatedErrors,
+                checkingProxyIds = it.checkingProxyIds - finishedIds
             )
         }
     }
 
     override fun onPingProxy(proxyId: Int) {
         scope.launch {
-            val result = externalProxyRepository.pingProxyDetailed(proxyId)
-            val ping = if (result is ProxyTestResult.Success) result.ping else -1L
-            val errorMessage = (result as? ProxyTestResult.Failure)?.message
-
-            val updatedProxies = _state.value.proxies.map {
-                if (it.id == proxyId) it.copy(ping = ping) else it
+            val requestToken = reservePingRequest(listOf(proxyId))
+            _state.update {
+                val updatedProxies = it.proxies.map { proxy ->
+                    if (proxy.id == proxyId) proxy.copy(ping = null) else proxy
+                }
+                it.copy(
+                    proxies = updatedProxies,
+                    visibleProxies = buildVisibleProxies(
+                        updatedProxies,
+                        it.proxySortMode,
+                        it.hideOfflineProxies,
+                        it.favoriteProxyId
+                    ),
+                    checkingProxyIds = it.checkingProxyIds + proxyId
+                )
             }
 
+            val result = proxyDiagnosticsRepository.pingProxy(proxyId)
+            val ping = if (result is ProxyCheckResult.Success) result.latencyMs else -1L
+            val errorMessage = (result as? ProxyCheckResult.Failure)?.message
+
             _state.update {
+                if (!isLatestPingRequest(proxyId, requestToken)) return@update it
+                val updatedProxies = it.proxies.map { proxy ->
+                    if (proxy.id == proxyId) proxy.copy(ping = ping) else proxy
+                }
                 val updatedErrors = it.proxyErrors.toMutableMap()
                 if (errorMessage != null) updatedErrors[proxyId] =
                     errorMessage else updatedErrors.remove(proxyId)
@@ -714,51 +959,78 @@ class DefaultProxyComponent(
                         it.hideOfflineProxies,
                         it.favoriteProxyId
                     ),
-                    proxyErrors = updatedErrors
+                    proxyErrors = updatedErrors,
+                    checkingProxyIds = it.checkingProxyIds - proxyId
                 )
             }
         }
     }
 
-    override fun onTestProxy(server: String, port: Int, type: ProxyTypeModel) {
-        _state.update { it.copy(isTesting = true, testPing = null, testError = null) }
+    override fun onPingDatacenters() {
         scope.launch {
-            when (val result = externalProxyRepository.testProxyDetailed(server, port, type)) {
-                is ProxyTestResult.Success -> {
-                    _state.update {
-                        it.copy(
-                            isTesting = false,
-                            testPing = result.ping,
-                            testError = null
-                        )
-                    }
-                }
+            val activeProxy = _state.value.proxies.firstOrNull { it.isEnabled }
+            _state.update {
+                it.copy(
+                    isDcTesting = true,
+                    dcPingByDcId = DC_IDS.associateWith { null },
+                    dcPingErrorsByDcId = emptyMap()
+                )
+            }
 
-                is ProxyTestResult.Failure -> {
-                    _state.update {
-                        it.copy(
-                            isTesting = false,
-                            testPing = -1L,
-                            testError = result.message
-                        )
+            val results = coroutineScope {
+                DC_IDS.map { dcId ->
+                    dcId to async {
+                        if (activeProxy != null) {
+                            val input = ProxyInput(
+                                server = activeProxy.server,
+                                port = activeProxy.port,
+                                type = activeProxy.type.toDomainProxyType()
+                            )
+                            proxyDiagnosticsRepository.testProxyAtDc(input, dcId)
+                        } else {
+                            proxyDiagnosticsRepository.testDirectDc(dcId)
+                        }
+                    }
+                }.associate { (dcId, job) -> dcId to job.await() }
+            }
+
+            _state.update {
+                val pings = mutableMapOf<Int, Long?>()
+                val errors = mutableMapOf<Int, String>()
+                results.forEach { (dcId, result) ->
+                    when (result) {
+                        is ProxyCheckResult.Success -> pings[dcId] = result.latencyMs
+                        is ProxyCheckResult.Failure -> {
+                            pings[dcId] = -1L
+                            errors[dcId] = result.message
+                        }
                     }
                 }
+                it.copy(
+                    isDcTesting = false,
+                    dcPingByDcId = pings,
+                    dcPingErrorsByDcId = errors
+                )
             }
         }
     }
 
     override fun onAddProxy(server: String, port: Int, type: ProxyTypeModel) {
         scope.launch {
-            val proxy = externalProxyRepository.addProxy(server, port, true, type)
+            val proxy = proxyRepository.addProxy(
+                input = ProxyInput(server = server, port = port, type = type.toDomainProxyType()),
+                enable = true
+            )?.toProxyModel()
             if (proxy != null) {
                 addProxyToBackup(proxy)
                 ProxyNetworkType.entries.forEach { networkType ->
                     appPreferences.setLastUsedProxyIdForNetwork(networkType, proxy.id)
                 }
+                resetDcDiagnostics()
                 upsertProxyLocally(proxy)
                 onPingProxy(proxy.id)
             } else {
-                showToastThrottled("Failed to add proxy")
+                showToastThrottled(tr("proxy_add_failed"))
             }
         }
     }
@@ -766,7 +1038,11 @@ class DefaultProxyComponent(
     override fun onEditProxy(proxyId: Int, server: String, port: Int, type: ProxyTypeModel) {
         scope.launch {
             val oldProxy = _state.value.proxies.find { it.id == proxyId }
-            val proxy = externalProxyRepository.editProxy(proxyId, server, port, true, type)
+            val proxy = proxyRepository.editProxy(
+                proxyId = proxyId,
+                input = ProxyInput(server = server, port = port, type = type.toDomainProxyType()),
+                enable = true
+            )?.toProxyModel()
             if (proxy != null) {
                 replaceProxyInBackup(oldProxy, proxy)
                 ProxyNetworkType.entries.forEach { networkType ->
@@ -777,10 +1053,11 @@ class DefaultProxyComponent(
                         appPreferences.setLastUsedProxyIdForNetwork(networkType, proxy.id)
                     }
                 }
+                resetDcDiagnostics()
                 upsertProxyLocally(proxy, replaceId = proxyId, closeEditor = true)
                 onPingProxy(proxy.id)
             } else {
-                showToastThrottled("Failed to save proxy")
+                showToastThrottled(tr("proxy_save_failed"))
             }
         }
     }
@@ -792,7 +1069,7 @@ class DefaultProxyComponent(
     override fun onConfirmDelete() {
         val proxy = _state.value.proxyToDelete ?: return
         scope.launch {
-            if (externalProxyRepository.removeProxy(proxy.id)) {
+            if (proxyRepository.removeProxy(proxy.id)) {
                 removeProxyFromBackup(proxy)
                 if (appPreferences.favoriteProxyId.value == proxy.id) {
                     appPreferences.setFavoriteProxyId(null)
@@ -816,10 +1093,7 @@ class DefaultProxyComponent(
         _state.update {
             it.copy(
                 isAddingProxy = false,
-                proxyToEdit = null,
-                testPing = null,
-                testError = null,
-                isTesting = false
+                proxyToEdit = null
             )
         }
     }
@@ -828,8 +1102,16 @@ class DefaultProxyComponent(
         appPreferences.setAutoBestProxyEnabled(enabled)
     }
 
+    override fun onSmartSwitchModeChanged(mode: ProxySmartSwitchMode) {
+        appPreferences.setProxySmartSwitchMode(mode)
+    }
+
+    override fun onSmartSwitchAutoCheckIntervalChanged(minutes: Int) {
+        appPreferences.setProxyAutoCheckIntervalMinutes(minutes)
+    }
+
     override fun onPreferIpv6Toggled(enabled: Boolean) {
-        externalProxyRepository.setPreferIpv6(enabled)
+        appPreferences.setPreferIpv6(enabled)
     }
 
     override fun onProxySortModeChanged(mode: ProxySortMode) {
@@ -864,15 +1146,27 @@ class DefaultProxyComponent(
 
     override fun onConfirmClearUnavailableProxies() {
         scope.launch {
-            val proxiesToDelete = _state.value.proxies.filter { it.ping == -1L }
+            val checkingIds = _state.value.checkingProxyIds
+            val proxiesToDelete = _state.value.proxies.filter {
+                (it.ping == -1L || it.ping == null) && it.id !in checkingIds
+            }
             val deletedIds = proxiesToDelete.map { it.id }.toSet()
             proxiesToDelete.forEach { proxy ->
-                if (externalProxyRepository.removeProxy(proxy.id)) {
+                if (proxyRepository.removeProxy(proxy.id)) {
                     removeProxyFromBackup(proxy)
                 }
             }
             if (appPreferences.favoriteProxyId.value in deletedIds) {
                 appPreferences.setFavoriteProxyId(null)
+            }
+            ProxyNetworkType.entries.forEach { networkType ->
+                val rule = appPreferences.proxyNetworkRules.value[networkType]
+                if (rule?.specificProxyId in deletedIds) {
+                    appPreferences.setSpecificProxyIdForNetwork(networkType, null)
+                }
+                if (rule?.lastUsedProxyId in deletedIds) {
+                    appPreferences.setLastUsedProxyIdForNetwork(networkType, null)
+                }
             }
             _state.update { it.copy(showClearOfflineConfirmation = false) }
             refreshProxies(shouldPing = false)
@@ -891,7 +1185,7 @@ class DefaultProxyComponent(
     override fun onConfirmRemoveAllProxies() {
         scope.launch {
             _state.value.proxies.forEach { proxy ->
-                if (externalProxyRepository.removeProxy(proxy.id)) {
+                if (proxyRepository.removeProxy(proxy.id)) {
                     removeProxyFromBackup(proxy)
                 }
             }
@@ -917,4 +1211,15 @@ class DefaultProxyComponent(
             )
         }
     }
+
+    private fun resetDcDiagnostics() {
+        _state.update {
+            it.copy(
+                isDcTesting = false,
+                dcPingByDcId = emptyMap(),
+                dcPingErrorsByDcId = emptyMap()
+            )
+        }
+    }
+
 }

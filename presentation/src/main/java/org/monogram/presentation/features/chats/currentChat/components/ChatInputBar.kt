@@ -40,18 +40,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -77,6 +77,7 @@ import org.monogram.domain.models.KeyboardButtonModel
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
+import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.ReplyMarkupModel
 import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.UserModel
@@ -94,6 +95,7 @@ import org.monogram.presentation.features.chats.currentChat.components.inputbar.
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.applyMentionSuggestion
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.buildEditingMessageTextValue
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.buildScheduledDateEpochSeconds
+import org.monogram.presentation.features.chats.currentChat.components.inputbar.copyUriToTempDocumentPath
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.copyUriToTempPath
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.declaredPermissions
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.extractEntities
@@ -102,6 +104,7 @@ import org.monogram.presentation.features.chats.currentChat.components.inputbar.
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.parseInlineQueryInput
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.rememberVoiceRecorder
 import org.monogram.presentation.features.gallery.GalleryScreen
+import org.monogram.presentation.features.gallery.components.PollComposerSheet
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
@@ -114,6 +117,7 @@ data class ChatInputBarState(
     val editingMessage: MessageModel? = null,
     val draftText: String = "",
     val pendingMediaPaths: List<String> = emptyList(),
+    val pendingDocumentPaths: List<String> = emptyList(),
     val isClosed: Boolean = false,
     val permissions: ChatPermissionsModel = ChatPermissionsModel(),
     val slowModeDelay: Int = 0,
@@ -152,8 +156,11 @@ data class ChatInputBarActions(
     val onTyping: () -> Unit = {},
     val onCancelMedia: () -> Unit = {},
     val onSendMedia: (List<String>, String, List<MessageEntity>, MessageSendOptions) -> Unit = { _, _, _, _ -> },
+    val onSendDocuments: (List<String>, String, List<MessageEntity>, MessageSendOptions) -> Unit = { _, _, _, _ -> },
     val onMediaOrderChange: (List<String>) -> Unit = {},
+    val onDocumentOrderChange: (List<String>) -> Unit = {},
     val onMediaClick: (String) -> Unit = {},
+    val onSendPoll: (PollDraft) -> Unit = {},
     val onShowBotCommands: () -> Unit = {},
     val onReplyMarkupButtonClick: (KeyboardButtonModel) -> Unit = {},
     val onOpenMiniApp: (String, String) -> Unit = { _, _ -> },
@@ -218,6 +225,9 @@ fun ChatInputBar(
     val canSendVoice by remember(state.isChannel, state.isAdmin, state.permissions.canSendVoiceNotes) {
         derivedStateOf { if (state.isChannel) true else (state.isAdmin || state.permissions.canSendVoiceNotes) }
     }
+    val canSendPolls by remember(state.isChannel, state.isAdmin, state.permissions.canSendPolls) {
+        derivedStateOf { if (state.isChannel) true else (state.isAdmin || state.permissions.canSendPolls) }
+    }
     val canSendVideoNotes by remember(state.isChannel, state.isAdmin, state.permissions.canSendVideoNotes) {
         derivedStateOf { if (state.isChannel) true else (state.isAdmin || state.permissions.canSendVideoNotes) }
     }
@@ -240,6 +250,7 @@ fun ChatInputBar(
     var isGifSearchFocused by remember { mutableStateOf(false) }
     var showGallery by remember { mutableStateOf(false) }
     var showCamera by remember { mutableStateOf(false) }
+    var showPollComposer by rememberSaveable { mutableStateOf(false) }
     var showFullScreenEditor by rememberSaveable { mutableStateOf(false) }
     var showSendOptionsSheet by rememberSaveable { mutableStateOf(false) }
     var showScheduleDatePicker by rememberSaveable { mutableStateOf(false) }
@@ -303,6 +314,16 @@ fun ChatInputBar(
         }
     }
 
+    LaunchedEffect(showPollComposer) {
+        if (showPollComposer) {
+            openStickerMenuAfterKeyboardClosed = false
+            openKeyboardAfterStickerMenuClosed = false
+            closeStickerMenuWithoutSlide = false
+            isStickerMenuVisible = false
+            hideKeyboardAndClearFocus()
+        }
+    }
+
     LaunchedEffect(canSendStickers) {
         if (!canSendStickers && isStickerMenuVisible) {
             isStickerMenuVisible = false
@@ -351,8 +372,15 @@ fun ChatInputBar(
         actions.onSendVoice(path, duration, waveform)
         activateSlowModeCooldown()
     }
-    val maxMessageLength by remember(state.pendingMediaPaths, state.isPremiumUser) {
-        derivedStateOf { if (state.pendingMediaPaths.isNotEmpty() && !state.isPremiumUser) 1024 else 4096 }
+    val maxMessageLength by remember(
+        state.pendingMediaPaths,
+        state.pendingDocumentPaths,
+        state.isPremiumUser
+    ) {
+        derivedStateOf {
+            if ((state.pendingMediaPaths.isNotEmpty() || state.pendingDocumentPaths.isNotEmpty()) && !state.isPremiumUser) 1024
+            else 4096
+        }
     }
     val currentMessageLength by remember(textValue.text) {
         derivedStateOf { textValue.text.length }
@@ -370,6 +398,7 @@ fun ChatInputBar(
 
         val canSendNow = when {
             state.pendingMediaPaths.isNotEmpty() && canSendMedia -> true
+            state.pendingDocumentPaths.isNotEmpty() && canSendMedia -> true
             state.editingMessage != null -> false
             canWriteText && !isTextEmpty -> true
             else -> false
@@ -381,6 +410,11 @@ fun ChatInputBar(
 
         if (state.pendingMediaPaths.isNotEmpty() && canSendMedia) {
             actions.onSendMedia(state.pendingMediaPaths, textValue.text, captionEntities, it)
+            textValue = TextFieldValue("")
+            knownCustomEmojis.clear()
+            sentInstantMessage = !isScheduling
+        } else if (state.pendingDocumentPaths.isNotEmpty() && canSendMedia) {
+            actions.onSendDocuments(state.pendingDocumentPaths, textValue.text, captionEntities, it)
             textValue = TextFieldValue("")
             knownCustomEmojis.clear()
             sentInstantMessage = !isScheduling
@@ -497,7 +531,7 @@ fun ChatInputBar(
         }
     }
 
-    BackHandler(enabled = isStickerMenuVisible || openStickerMenuAfterKeyboardClosed || openKeyboardAfterStickerMenuClosed || state.pendingMediaPaths.isNotEmpty() || showGallery || showCamera || showFullScreenEditor || showSendOptionsSheet || showScheduledMessagesSheet || showScheduleDatePicker || showScheduleTimePicker) {
+    BackHandler(enabled = isStickerMenuVisible || openStickerMenuAfterKeyboardClosed || openKeyboardAfterStickerMenuClosed || state.pendingMediaPaths.isNotEmpty() || state.pendingDocumentPaths.isNotEmpty() || showGallery || showCamera || showPollComposer || showFullScreenEditor || showSendOptionsSheet || showScheduledMessagesSheet || showScheduleDatePicker || showScheduleTimePicker) {
         if (isGifSearchFocused) {
             focusManager.clearFocus()
         } else if (openStickerMenuAfterKeyboardClosed) {
@@ -521,8 +555,12 @@ fun ChatInputBar(
             showFullScreenEditor = false
         } else if (state.pendingMediaPaths.isNotEmpty()) {
             actions.onCancelMedia()
+        } else if (state.pendingDocumentPaths.isNotEmpty()) {
+            actions.onDocumentOrderChange(emptyList())
         } else if (showGallery) {
             showGallery = false
+        } else if (showPollComposer) {
+            showPollComposer = false
         } else if (showCamera) {
             showCamera = false
         }
@@ -597,12 +635,22 @@ fun ChatInputBar(
         hasCameraPermission.value = granted
         if (granted) showCamera = true
     }
+    val documentsPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        val localPaths = uris.mapNotNull { uri -> context.copyUriToTempDocumentPath(uri) }
+        if (localPaths.isNotEmpty()) {
+            actions.onDocumentOrderChange((state.pendingDocumentPaths + localPaths).distinct())
+            actions.onMediaOrderChange(emptyList())
+        }
+    }
 
     val inputBarMode by remember(
         canSendAnything,
         isSlowModeActive,
         textValue.text,
         state.pendingMediaPaths,
+        state.pendingDocumentPaths,
         state.editingMessage,
         voiceRecorder.isRecording
     ) {
@@ -612,6 +660,7 @@ fun ChatInputBar(
                 isSlowModeActive &&
                         textValue.text.isBlank() &&
                         state.pendingMediaPaths.isEmpty() &&
+                        state.pendingDocumentPaths.isEmpty() &&
                         state.editingMessage == null &&
                         !voiceRecorder.isRecording -> InputBarMode.SlowMode
 
@@ -626,6 +675,7 @@ fun ChatInputBar(
                 val path = context.copyUriToTempPath(uri)
                 if (path != null) {
                     actions.onMediaOrderChange((state.pendingMediaPaths + path).distinct())
+                    actions.onDocumentOrderChange(emptyList())
                 }
                 showCamera = false
             },
@@ -648,6 +698,7 @@ fun ChatInputBar(
                         editingMessage = state.editingMessage,
                         replyMessage = state.replyMessage,
                         pendingMediaPaths = state.pendingMediaPaths,
+                        pendingDocumentPaths = state.pendingDocumentPaths,
                         mentionSuggestions = state.mentionSuggestions,
                         filteredCommands = filteredCommands,
                         currentInlineBotUsername = state.currentInlineBotUsername,
@@ -688,7 +739,9 @@ fun ChatInputBar(
                         onCancelEdit = actions.onCancelEdit,
                         onCancelReply = actions.onCancelReply,
                         onCancelMedia = actions.onCancelMedia,
+                        onCancelDocuments = { actions.onDocumentOrderChange(emptyList()) },
                         onMediaOrderChange = actions.onMediaOrderChange,
+                        onDocumentOrderChange = actions.onDocumentOrderChange,
                         onMediaClick = actions.onMediaClick,
                         onPasteImages = { uris ->
                             if (!canSendMedia || state.editingMessage != null) return@ChatInputBarComposerSection
@@ -697,6 +750,7 @@ fun ChatInputBar(
                             }
                             if (localPaths.isNotEmpty()) {
                                 actions.onMediaOrderChange((state.pendingMediaPaths + localPaths).distinct())
+                                actions.onDocumentOrderChange(emptyList())
                             }
                         },
                         onMentionClick = { user ->
@@ -846,7 +900,7 @@ fun ChatInputBar(
                 textValue = textValue,
                 onTextValueChange = { textValue = it },
                 canWriteText = canWriteText,
-                pendingMediaPaths = state.pendingMediaPaths,
+                pendingMediaPaths = if (state.pendingMediaPaths.isNotEmpty()) state.pendingMediaPaths else state.pendingDocumentPaths,
                 knownCustomEmojis = knownCustomEmojis,
                 emojiFontFamily = emojiFontFamily,
                 isKeyboardVisible = isKeyboardVisible,
@@ -942,6 +996,7 @@ fun ChatInputBar(
                     }
                     if (localPaths.isNotEmpty()) {
                         actions.onMediaOrderChange((state.pendingMediaPaths + localPaths).distinct())
+                        actions.onDocumentOrderChange(emptyList())
                     }
                     showGallery = false
                 },
@@ -956,6 +1011,17 @@ fun ChatInputBar(
                         showCamera = true
                     } else {
                         cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                },
+                canCreatePoll = canSendPolls && !state.isSecretChat,
+                onAttachFileClick = {
+                    showGallery = false
+                    documentsPickerLauncher.launch(arrayOf("*/*"))
+                },
+                onCreatePollClick = {
+                    if (canSendPolls && !state.isSecretChat) {
+                        showGallery = false
+                        showPollComposer = true
                     }
                 },
                 attachBots = state.attachBots,
@@ -977,6 +1043,18 @@ fun ChatInputBar(
                 modifier = Modifier.fillMaxHeight()
             )
         }
+    }
+
+    if (showPollComposer) {
+        PollComposerSheet(
+            onDismiss = { showPollComposer = false },
+            onCreatePoll = { poll: PollDraft ->
+                if (isSlowModeActive) return@PollComposerSheet
+                showPollComposer = false
+                actions.onSendPoll(poll)
+                activateSlowModeCooldown()
+            }
+        )
     }
 }
 

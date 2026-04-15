@@ -36,13 +36,14 @@ import org.monogram.domain.models.ChatEventModel
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.FileModel
 import org.monogram.domain.models.InlineQueryResultModel
+import org.monogram.domain.models.MessageDownloadEvent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
-import org.monogram.domain.models.MessageDownloadEvent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageSenderModel
 import org.monogram.domain.models.MessageViewerModel
+import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.InstantViewModel
 import org.monogram.domain.models.webapp.InvoiceModel
@@ -334,6 +335,22 @@ class MessageRepositoryImpl(
             documentPath = documentPath,
             caption = caption,
             captionEntities = captionEntities,
+            replyToMsgId = replyToMsgId,
+            threadId = threadId,
+            sendOptions = sendOptions
+        )
+    }
+
+    override suspend fun sendPoll(
+        chatId: Long,
+        poll: PollDraft,
+        replyToMsgId: Long?,
+        threadId: Long?,
+        sendOptions: MessageSendOptions
+    ) {
+        messageRemoteDataSource.sendPoll(
+            chatId = chatId,
+            poll = poll,
             replyToMsgId = replyToMsgId,
             threadId = threadId,
             sendOptions = sendOptions

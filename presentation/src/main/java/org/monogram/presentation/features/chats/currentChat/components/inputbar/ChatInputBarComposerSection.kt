@@ -217,20 +217,6 @@ fun ChatInputBarComposerSection(
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AnimatedVisibility(
-                        visible = !voiceRecorder.isRecording,
-                        enter = fadeIn(tween(250)) + expandHorizontally(tween(250)),
-                        exit = fadeOut(tween(200)) + shrinkHorizontally(tween(200))
-                    ) {
-                        InputBarLeadingIcons(
-                            editingMessage = editingMessage,
-                            pendingMediaPaths = pendingMediaPaths,
-                            pendingDocumentPaths = pendingDocumentPaths,
-                            canSendMedia = canSendMedia,
-                            onAttachClick = onAttachClick
-                        )
-                    }
-
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -266,7 +252,10 @@ fun ChatInputBarComposerSection(
                                     canSendStickers = canSendStickers,
                                     canWriteText = canWriteText,
                                     isStickerMenuVisible = isStickerMenuVisible,
+                                    editingMessage = editingMessage,
+                                    canSendMedia = canSendMedia,
                                     onStickerMenuToggle = onStickerMenuToggle,
+                                    onAttachClick = onAttachClick,
                                     onShowBotCommands = onShowBotCommands,
                                     onOpenMiniApp = onOpenMiniApp,
                                     knownCustomEmojis = knownCustomEmojis,

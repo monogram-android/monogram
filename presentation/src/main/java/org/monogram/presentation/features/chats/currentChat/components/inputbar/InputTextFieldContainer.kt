@@ -3,9 +3,12 @@ package org.monogram.presentation.features.chats.currentChat.components.inputbar
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Row
@@ -15,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Menu
@@ -36,6 +40,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.BotCommandModel
 import org.monogram.domain.models.BotMenuButtonModel
+import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.StickerModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
@@ -51,7 +56,10 @@ fun InputTextFieldContainer(
     canSendStickers: Boolean,
     canWriteText: Boolean,
     isStickerMenuVisible: Boolean,
+    editingMessage: MessageModel?,
+    canSendMedia: Boolean,
     onStickerMenuToggle: () -> Unit,
+    onAttachClick: () -> Unit,
     onShowBotCommands: () -> Unit,
     onOpenMiniApp: (String, String) -> Unit,
     knownCustomEmojis: Map<Long, StickerModel>,
@@ -73,47 +81,45 @@ fun InputTextFieldContainer(
         val isTablet =
             LocalConfiguration.current.screenWidthDp >= 600 && LocalTabletInterfaceEnabled.current
 
+        val canAttachMedia = remember(
+            editingMessage,
+            pendingMediaPaths,
+            pendingDocumentPaths,
+            canSendMedia
+        ) {
+            editingMessage == null && pendingMediaPaths.isEmpty() && pendingDocumentPaths.isEmpty() && canSendMedia
+        }
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp)
         ) {
-            val showBotActions = remember(isBot, textValue.text) { isBot && textValue.text.isEmpty() }
             AnimatedContent(
-                targetState = showBotActions to canSendStickers,
+                targetState = canAttachMedia,
                 transitionSpec = {
-                    (fadeIn() + expandHorizontally()).togetherWith(fadeOut() + shrinkHorizontally())
+                    (fadeIn() + scaleIn(initialScale = 0.85f)).togetherWith(
+                        fadeOut() + scaleOut(targetScale = 0.85f)
+                    ).using(SizeTransform(clip = false))
                 },
-                label = "InputActionsVisibility"
-            ) { (showBotActionsState, canSendStickersState) ->
-                when {
-                    showBotActionsState -> {
-                        BotInputActions(
-                            botMenuButton = botMenuButton,
-                            botCommands = botCommands,
-                            canSendStickers = canSendStickersState,
-                            isStickerMenuVisible = isStickerMenuVisible,
-                            onStickerMenuToggle = onStickerMenuToggle,
-                            onShowBotCommands = onShowBotCommands,
-                            onOpenMiniApp = onOpenMiniApp
+                label = "AttachIconInFieldVisibility"
+            ) { showAttach ->
+                if (showAttach) {
+                    IconButton(
+                        onClick = onAttachClick,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AddCircleOutline,
+                            contentDescription = stringResource(R.string.cd_attach),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-
-                    canSendStickersState -> {
-                        IconButton(
-                            onClick = onStickerMenuToggle,
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isStickerMenuVisible) Icons.Default.Keyboard else Icons.Outlined.EmojiEmotions,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    else -> Spacer(modifier = Modifier.width(8.dp))
+                } else {
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
             }
+
+            val showBotActions = remember(isBot, textValue.text) { isBot && textValue.text.isEmpty() }
 
             InputTextField(
                 textValue = textValue,
@@ -130,6 +136,19 @@ fun InputTextFieldContainer(
                 onFocus = onFocus,
                 modifier = Modifier.weight(1f)
             )
+
+            AnimatedVisibility(
+                visible = showBotActions,
+                enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
+                exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End)
+            ) {
+                BotInputActions(
+                    botMenuButton = botMenuButton,
+                    botCommands = botCommands,
+                    onShowBotCommands = onShowBotCommands,
+                    onOpenMiniApp = onOpenMiniApp
+                )
+            }
 
             if (canWriteText) {
                 AnimatedVisibility(
@@ -151,6 +170,23 @@ fun InputTextFieldContainer(
                     }
                 }
             }
+
+            AnimatedVisibility(
+                visible = canSendStickers,
+                enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
+                exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End)
+            ) {
+                IconButton(
+                    onClick = onStickerMenuToggle,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isStickerMenuVisible) Icons.Default.Keyboard else Icons.Outlined.EmojiEmotions,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
@@ -159,9 +195,6 @@ fun InputTextFieldContainer(
 private fun BotInputActions(
     botMenuButton: BotMenuButtonModel,
     botCommands: List<BotCommandModel>,
-    canSendStickers: Boolean,
-    isStickerMenuVisible: Boolean,
-    onStickerMenuToggle: () -> Unit,
     onShowBotCommands: () -> Unit,
     onOpenMiniApp: (String, String) -> Unit
 ) {
@@ -188,17 +221,6 @@ private fun BotInputActions(
                     imageVector = Icons.Default.Menu,
                     contentDescription = stringResource(R.string.bot_commands),
                     tint = MaterialTheme.colorScheme.primary
-                )
-            }
-        } else if (botMenuButton !is BotMenuButtonModel.WebApp && canSendStickers) {
-            IconButton(
-                onClick = onStickerMenuToggle,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = if (isStickerMenuVisible) Icons.Default.Keyboard else Icons.Outlined.EmojiEmotions,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

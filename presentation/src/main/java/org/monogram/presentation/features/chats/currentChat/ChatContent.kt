@@ -72,6 +72,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -158,6 +159,7 @@ fun ChatContent(
     var isVisible by remember { mutableStateOf(false) }
     var showInitialLoading by remember { mutableStateOf(false) }
     var isRecordingVideo by remember { mutableStateOf(false) }
+    var topOverlayHeight by remember { mutableStateOf(0.dp) }
 
     // Menu States
     var selectedMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -775,27 +777,33 @@ fun ChatContent(
                         .semantics { contentDescription = "ChatContent" },
                     containerColor = Color.Transparent,
                     topBar = {
-                        ChatContentTopBar(
-                            topBarState = topBarUiState,
-                            selectedCount = selectedCount,
-                            canRevokeSelected = canRevokeSelected,
-                            component = component,
-                            contentAlpha = contentAlpha,
-                            onBack = {
-                                keyboardController?.hide()
-                                if (state.currentTopicId != null) {
-                                    component.onTopicClick(0)
-                                } else {
-                                    component.onBackClicked()
-                                }
-                            },
-                            onOpenMenu = {
-                                keyboardController?.hide()
-                                focusManager.clearFocus(force = true)
-                            },
-                            onPinnedMessageClick = { msg -> scrollToMessageState.value(msg) },
-                            showBack = !isTablet
-                        )
+                        Box(
+                            modifier = Modifier.onSizeChanged {
+                                topOverlayHeight = with(density) { it.height.toDp() }
+                            }
+                        ) {
+                            ChatContentTopBar(
+                                topBarState = topBarUiState,
+                                selectedCount = selectedCount,
+                                canRevokeSelected = canRevokeSelected,
+                                component = component,
+                                contentAlpha = contentAlpha,
+                                onBack = {
+                                    keyboardController?.hide()
+                                    if (state.currentTopicId != null) {
+                                        component.onTopicClick(0)
+                                    } else {
+                                        component.onBackClicked()
+                                    }
+                                },
+                                onOpenMenu = {
+                                    keyboardController?.hide()
+                                    focusManager.clearFocus(force = true)
+                                },
+                                onPinnedMessageClick = { msg -> scrollToMessageState.value(msg) },
+                                showBack = !isTablet
+                            )
+                        }
                     },
                     bottomBar = {
                         if (showInputBar) {
@@ -1196,6 +1204,11 @@ fun ChatContent(
 
                             ChatContentList(
                                 showNavPadding = false,
+                                topOverlayPadding = if (state.viewAsTopics && state.currentTopicId == null) {
+                                    topOverlayHeight
+                                } else {
+                                    0.dp
+                                },
                                 state = state,
                                 component = component,
                                 scrollState = scrollState,

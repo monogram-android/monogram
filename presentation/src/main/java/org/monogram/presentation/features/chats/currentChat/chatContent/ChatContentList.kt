@@ -66,6 +66,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -99,6 +100,7 @@ fun ChatContentList(
     onPhotoDownload: (Int) -> Unit,
     modifier: Modifier = Modifier,
     showNavPadding: Boolean = false,
+    topOverlayPadding: Dp = 0.dp,
     onVideoClick: (MessageModel, String?, String?) -> Unit,
     onDocumentClick: (MessageModel) -> Unit,
     onAudioClick: (MessageModel) -> Unit,
@@ -195,6 +197,7 @@ fun ChatContentList(
         TopicsList(
             topics = state.topics,
             onTopicClick = { component.onTopicClick(it.id) },
+            topOverlayPadding = topOverlayPadding,
             modifier = modifier
         )
         return
@@ -1126,6 +1129,7 @@ private fun MessageModel.mediaCaption(): String? {
 fun TopicsList(
     topics: List<TopicModel>,
     onTopicClick: (TopicModel) -> Unit,
+    topOverlayPadding: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     val sortedTopics = remember(topics) {
@@ -1134,7 +1138,12 @@ fun TopicsList(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(
+            start = 12.dp,
+            top = topOverlayPadding + 8.dp,
+            end = 12.dp,
+            bottom = 8.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         itemsIndexed(sortedTopics, key = { _, topic -> topic.id }) { _, topic ->

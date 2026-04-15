@@ -109,7 +109,10 @@
 
     <!-- Chat List -->
     <string name="forward_to_title">转发至…</string>
-    <string name="chats_selected_format">已选择 %1$d 个会话</string>
+    <plurals name="chats_selected_format">
+        <item quantity="one">已选择 %1$d 个会话</item>
+        <item quantity="other">已选择 %1$d 个会话</item>
+    </plurals>
     <string name="action_send">发送</string>
     <string name="archived_chats_title">已归档会话</string>
     <string name="new_chat_fab">新消息</string>

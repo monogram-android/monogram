@@ -109,7 +109,10 @@
 
     <!-- Chat List -->
     <string name="forward_to_title">Переслати…</string>
-    <string name="chats_selected_format">Вибрано чатів: %1$d</string>
+    <plurals name="chats_selected_format">
+        <item quantity="one">Вибрано чатів: %1$d</item>
+        <item quantity="other">Вибрано чатів: %1$d</item>
+    </plurals>
     <string name="action_send">Надіслати</string>
     <string name="archived_chats_title">Архів</string>
     <string name="new_chat_fab">Новий чат</string>
@@ -2058,7 +2061,7 @@
     <string name="poll_create_section_schedule">Закриття</string>
     <string name="poll_create_section_quiz">Вікторина</string>
     <string name="poll_create_question_label">Питання</string>
-    <string name="poll_create_description_label">Опис (необов'язково)</string>
+    <string name="poll_create_description_label">Опис (необов\'язково)</string>
     <string name="poll_create_option_label">Варіант %1$d</string>
     <string name="poll_create_add_option">Додати варіант</string>
     <string name="poll_create_anonymous">Анонімне голосування</string>
@@ -2070,7 +2073,7 @@
     <string name="poll_create_close_date_not_set">Не встановлено</string>
     <string name="poll_create_quiz_mode">Режим вікторини</string>
     <string name="poll_create_correct_options">Правильні відповіді</string>
-    <string name="poll_create_explanation_label">Пояснення (необов'язково)</string>
+    <string name="poll_create_explanation_label">Пояснення (необов\'язково)</string>
     <string name="poll_create_subtitle">Сформулюйте питання, налаштуйте варіанти та вирішіть, коли відкрити результати.</string>
     <string name="poll_create_options_hint">Утримуйте ручку, щоб змінювати порядок варіантів.</string>
     <string name="poll_create_settings_hint">Оберіть правила голосування перед публікацією опитування.</string>

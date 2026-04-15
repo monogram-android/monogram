@@ -112,7 +112,10 @@
 
     <!-- Chat List -->
     <string name="forward_to_title">Preposlať do...</string>
-    <string name="chats_selected_format">Vybraných %1$d chatov</string>
+    <plurals name="chats_selected_format">
+        <item quantity="one">Vybraných %1$d chatov</item>
+        <item quantity="other">Vybraných %1$d chatov</item>
+    </plurals>
     <string name="action_send">Odoslať</string>
     <string name="archived_chats_title">Archivované chaty</string>
     <string name="new_chat_fab">Nový chat</string>

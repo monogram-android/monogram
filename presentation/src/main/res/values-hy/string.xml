@@ -103,7 +103,10 @@
     <string name="loading_reset_connection">Վերակայել միացումը</string>
 
     <string name="forward_to_title">Վերահասցեագրել…</string>
-    <string name="chats_selected_format">Ընտրված է %1$d չատ</string>
+    <plurals name="chats_selected_format">
+        <item quantity="one">Ընտրված է %1$d չատ</item>
+        <item quantity="other">Ընտրված է %1$d չատ</item>
+    </plurals>
     <string name="action_send">Ուղարկել</string>
     <string name="archived_chats_title">Արխիվացված չատեր</string>
     <string name="new_chat_fab">Նոր չատ</string>

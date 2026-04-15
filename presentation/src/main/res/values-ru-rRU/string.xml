@@ -109,7 +109,10 @@
 
     <!-- Chat List -->
     <string name="forward_to_title">Переслать…</string>
-    <string name="chats_selected_format">Выбрано чатов: %1$d</string>
+    <plurals name="chats_selected_format">
+        <item quantity="one">Выбрано чатов: %1$d</item>
+        <item quantity="other">Выбрано чатов: %1$d</item>
+    </plurals>
     <string name="action_send">Отправить</string>
     <string name="archived_chats_title">Архив</string>
     <string name="new_chat_fab">Новый чат</string>

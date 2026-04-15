@@ -2124,4 +2124,11 @@
     <string name="poll_meta_open_period">Період відкриття: %1$s</string>
     <string name="poll_meta_closes_at">Закриється: %1$s</string>
     <string name="poll_meta_time_left">Залишилось часу: %1$s</string>
+    <string name="stickers_search_suggestions">Підказки</string>
+    <string name="unread_messages">%1$d непрочитаних повідомлень</string>
+    <string name="emoji_pack_title">Набір емодзі</string>
+    <string name="menu_view_used_packs">Використані набори</string>
+    <string name="sticker_pack_title">Набір наліпок</string>
+    <string name="menu_view_emoji_pack">Набір емодзі</string>
+    <string name="menu_view_sticker_pack">Набір наліпок</string>
 </resources>

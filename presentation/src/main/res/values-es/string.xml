@@ -2133,6 +2133,13 @@
     <string name="poll_meta_open_period">Periodo de apertura: %1$s</string>
     <string name="poll_meta_closes_at">Cierra el: %1$s</string>
     <string name="poll_meta_time_left">Tiempo restante: %1$s</string>
+    <string name="stickers_search_suggestions">Sugerencias</string>
+    <string name="unread_messages">%1$d mensajes no leídos</string>
+    <string name="emoji_pack_title">Pack de Emoji</string>
+    <string name="menu_view_used_packs">Packs usados</string>
+    <string name="sticker_pack_title">Pack de Stickers</string>
+    <string name="menu_view_emoji_pack">Pack de Emoji</string>
+    <string name="menu_view_sticker_pack">Pack de Stickers</string>
 </resources>
 
 

@@ -2112,4 +2112,11 @@
     <string name="poll_meta_open_period">Acik kalma suresi: %1$s</string>
     <string name="poll_meta_closes_at">Kapanis: %1$s</string>
     <string name="poll_meta_time_left">Kalan sure: %1$s</string>
+    <string name="stickers_search_suggestions">Öneriler</string>
+    <string name="unread_messages">%1$d okunmamış mesaj</string>
+    <string name="emoji_pack_title">Emoji Paketi</string>
+    <string name="menu_view_used_packs">Kullanılan Paketler</string>
+    <string name="sticker_pack_title">Çıkartma Paketi</string>
+    <string name="menu_view_emoji_pack">Emoji Paketi</string>
+    <string name="menu_view_sticker_pack">Çıkartma Paketi</string>
 </resources>

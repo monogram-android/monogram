@@ -2125,4 +2125,10 @@
     <string name="poll_meta_open_period">Период открытия: %1$s</string>
     <string name="poll_meta_closes_at">Закроется: %1$s</string>
     <string name="poll_meta_time_left">Осталось времени: %1$s</string>
+    <string name="stickers_search_suggestions">Подсказки</string>
+    <string name="emoji_pack_title">Набор эмодзи</string>
+    <string name="menu_view_used_packs">Использованные наборы</string>
+    <string name="sticker_pack_title">Набор стикеров</string>
+    <string name="menu_view_emoji_pack">Набор эмодзи</string>
+    <string name="menu_view_sticker_pack">Набор стикеров</string>
 </resources>

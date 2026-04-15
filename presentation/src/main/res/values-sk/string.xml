@@ -2254,4 +2254,11 @@
     <string name="poll_meta_open_period">Obdobie otvorenia: %1$s</string>
     <string name="poll_meta_closes_at">Ukoncenie: %1$s</string>
     <string name="poll_meta_time_left">Zostavajuci cas: %1$s</string>
+    <string name="stickers_search_suggestions">Návrhy</string>
+    <string name="unread_messages">%1$d neprečítaných správ</string>
+    <string name="emoji_pack_title">Balíček emoji</string>
+    <string name="menu_view_used_packs">Použité balíčky</string>
+    <string name="sticker_pack_title">Balíček nálepiek</string>
+    <string name="menu_view_emoji_pack">Balíček emoji</string>
+    <string name="menu_view_sticker_pack">Balíček nálepiek</string>
 </resources>

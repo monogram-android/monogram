@@ -2103,4 +2103,11 @@
     <string name="poll_meta_open_period">开放时长：%1$s</string>
     <string name="poll_meta_closes_at">关闭时间：%1$s</string>
     <string name="poll_meta_time_left">剩余时间：%1$s</string>
+    <string name="stickers_search_suggestions">推荐</string>
+    <string name="unread_messages">%1$d 条未读消息</string>
+    <string name="emoji_pack_title">表情包</string>
+    <string name="menu_view_used_packs">已使用包</string>
+    <string name="sticker_pack_title">贴纸包</string>
+    <string name="menu_view_emoji_pack">表情包</string>
+    <string name="menu_view_sticker_pack">贴纸包</string>
 </resources>

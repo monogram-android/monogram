@@ -65,8 +65,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -209,7 +209,10 @@ fun ChatContentList(
             .fillMaxSize()
             .semantics { contentDescription = "ChatMessages" },
         reverseLayout = !isComments,
-        contentPadding = PaddingValues(vertical = 8.dp)
+        contentPadding = PaddingValues(
+            top = if (isComments) topOverlayPadding + 8.dp else 8.dp,
+            bottom = 8.dp
+        )
     ) {
         if (isComments && state.isLoadingOlder && groupedMessages.isNotEmpty()) {
             item(key = "loading_older_top") {

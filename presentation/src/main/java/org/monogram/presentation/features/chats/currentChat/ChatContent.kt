@@ -369,6 +369,13 @@ fun ChatContent(
                 )
                 component.onScrollCommandConsumed()
             }
+
+            is ChatScrollCommand.ScrollToStart -> {
+                scrollState.scrollToChatStartStaged(
+                    animated = command.animated && state.isChatAnimationsEnabled
+                )
+                component.onScrollCommandConsumed()
+            }
         }
     }
 
@@ -1204,7 +1211,10 @@ fun ChatContent(
 
                             ChatContentList(
                                 showNavPadding = false,
-                                topOverlayPadding = if (state.viewAsTopics && state.currentTopicId == null) {
+                                topOverlayPadding = if (
+                                    (state.viewAsTopics && state.currentTopicId == null) ||
+                                    state.rootMessage != null
+                                ) {
                                     topOverlayHeight
                                 } else {
                                     0.dp
@@ -1684,6 +1694,29 @@ private suspend fun LazyListState.scrollToChatBottomStaged(
     }
 
     scrollToItem(targetIndex)
+}
+
+private suspend fun LazyListState.scrollToChatStartStaged(
+    animated: Boolean
+) {
+    val total = layoutInfo.totalItemsCount
+    if (total <= 0) return
+
+    if (animated) {
+        animateScrollToItem(0)
+    } else {
+        scrollToItem(0)
+    }
+
+    val targetInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == 0 }
+    if (targetInfo != null) {
+        val delta = (targetInfo.offset - layoutInfo.viewportStartOffset).toFloat()
+        if (abs(delta) > 1f) {
+            scrollBy(delta)
+        }
+    }
+
+    scrollToItem(0)
 }
 
 private suspend fun awaitGroupedIndex(

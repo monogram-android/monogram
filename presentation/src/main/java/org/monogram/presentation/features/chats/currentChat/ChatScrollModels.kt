@@ -23,6 +23,11 @@ sealed interface ChatScrollCommand {
     data class ScrollToBottom(
         val animated: Boolean = true
     ) : ChatScrollCommand
+
+    @Immutable
+    data class ScrollToStart(
+        val animated: Boolean = true
+    ) : ChatScrollCommand
 }
 
 enum class ScrollAlign {

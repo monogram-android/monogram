@@ -280,7 +280,7 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
                 } else {
                     loadComments(
                         threadId = threadId,
-                        scrollCommand = ChatScrollCommand.ScrollToBottom(animated = false)
+                        scrollCommand = ChatScrollCommand.ScrollToStart(animated = false)
                     )
                 }
             } else if (firstUnreadId != null) {
@@ -332,7 +332,7 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
 
 internal suspend fun DefaultChatComponent.loadComments(
     threadId: Long,
-    scrollCommand: ChatScrollCommand? = ChatScrollCommand.ScrollToBottom(animated = false)
+    scrollCommand: ChatScrollCommand? = ChatScrollCommand.ScrollToStart(animated = false)
 ) {
     lastLoadedOlderId = 0L
     lastLoadedNewerId = 0L
@@ -1355,6 +1355,9 @@ internal fun DefaultChatComponent.handleCommentsClick(messageId: Long) {
                 pendingScrollCommand = null
             )
         }
-        loadComments(messageId)
+        loadComments(
+            threadId = messageId,
+            scrollCommand = ChatScrollCommand.ScrollToStart(animated = false)
+        )
     }
 }

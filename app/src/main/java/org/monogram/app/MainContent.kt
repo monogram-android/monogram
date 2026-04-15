@@ -172,9 +172,15 @@ fun MainContent(
 
         when (activeChild) {
             is RootComponent.Child.ChatDetailChild -> {
-                val chatState by activeChild.component.state.collectAsState()
+                val chatUiState by activeChild.component.chatUiState.collectAsState()
+                val appearanceState by activeChild.component.appearanceState.collectAsState()
+                val messagesState by activeChild.component.messagesState.collectAsState()
+                val mediaViewerState by activeChild.component.mediaViewerState.collectAsState()
                 ChatContentViewers(
-                    state = chatState,
+                    chatUiState = chatUiState,
+                    appearanceState = appearanceState,
+                    messagesState = messagesState,
+                    mediaViewerState = mediaViewerState,
                     component = activeChild.component,
                     localClipboard = localClipboard
                 )

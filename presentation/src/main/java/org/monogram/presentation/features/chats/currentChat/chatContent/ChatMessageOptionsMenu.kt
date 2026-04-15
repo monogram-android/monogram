@@ -36,7 +36,9 @@ import java.util.Locale
 
 @Composable
 fun ChatMessageOptionsMenu(
-    state: ChatComponent.State,
+    chatUiState: ChatComponent.ChatUiState,
+    appearanceState: ChatComponent.AppearanceState,
+    pinnedState: ChatComponent.PinnedState,
     component: ChatComponent,
     selectedMessage: MessageModel,
     menuOffset: Offset,
@@ -54,14 +56,14 @@ fun ChatMessageOptionsMenu(
 ) {
     val nativeClipboard = localClipboard.nativeClipboard
     val messageRepository: MessageAiRepository = koinInject()
-    val canCheckViewersList = remember(state.isChannel, state.isGroup, state.memberCount) {
-        !state.isChannel && (!state.isGroup || state.memberCount in 1 until 100)
+    val canCheckViewersList = remember(chatUiState.isChannel, chatUiState.isGroup, chatUiState.memberCount) {
+        !chatUiState.isChannel && (!chatUiState.isGroup || chatUiState.memberCount in 1 until 100)
     }
     val messageViewsCount = remember(selectedMessage.viewCount, selectedMessage.views) {
         selectedMessage.viewCount ?: selectedMessage.views
     }
-    val shouldShowViewsInfo = remember(state.isChannel, messageViewsCount) {
-        state.isChannel && (messageViewsCount ?: 0) > 0
+    val shouldShowViewsInfo = remember(chatUiState.isChannel, messageViewsCount) {
+        chatUiState.isChannel && (messageViewsCount ?: 0) > 0
     }
 
     val index = groupedMessages.indexOfFirst { item ->
@@ -105,10 +107,10 @@ fun ChatMessageOptionsMenu(
         }
     }
 
-    val canShowViewersList = remember(state.memberCount, state.isChannel, selectedMessage) {
-        state.memberCount in 1 until 100 &&
+    val canShowViewersList = remember(chatUiState.memberCount, chatUiState.isChannel, selectedMessage) {
+        chatUiState.memberCount in 1 until 100 &&
                 selectedMessage.isOutgoing &&
-                (selectedMessage.canGetReadReceipts || selectedMessage.canGetViewers || !state.isChannel)
+                (selectedMessage.canGetReadReceipts || selectedMessage.canGetViewers || !chatUiState.isChannel)
     }
 
     suspend fun reloadViewers() {
@@ -141,7 +143,7 @@ fun ChatMessageOptionsMenu(
     val splitOffset = remember(selectedMessage, menuMessageSize, density, shouldShowSeparatePost) {
         if (!shouldShowSeparatePost) return@remember null
 
-        val isChannel = state.isChannel && state.currentTopicId == null
+        val isChannel = chatUiState.isChannel && chatUiState.currentTopicId == null
         val width = menuMessageSize.width.toFloat()
 
         when (val content = selectedMessage.content) {
@@ -204,18 +206,18 @@ fun ChatMessageOptionsMenu(
     }
 
     val senderIsUser = selectedMessage.senderId > 0L
-    val canModerateInChat = (state.isGroup || state.isChannel) && state.isAdmin
+    val canModerateInChat = (chatUiState.isGroup || chatUiState.isChannel) && chatUiState.isAdmin
     val canBlockUser = !selectedMessage.isOutgoing && senderIsUser &&
-            (canModerateInChat || (!state.isGroup && !state.isChannel))
-    val canRestrictUser = canBlockUser && (state.isGroup || state.isChannel) && state.isAdmin
-    val isOtherUserDialog = state.otherUser?.id?.let { it != state.currentUser?.id } == true
+            (canModerateInChat || (!chatUiState.isGroup && !chatUiState.isChannel))
+    val canRestrictUser = canBlockUser && (chatUiState.isGroup || chatUiState.isChannel) && chatUiState.isAdmin
+    val isOtherUserDialog = chatUiState.otherUser?.id?.let { it != chatUiState.currentUser?.id } == true
     val canReportMessage = !selectedMessage.isOutgoing && (
-            state.isGroup || state.isChannel ||
+            chatUiState.isGroup || chatUiState.isChannel ||
                     isOtherUserDialog
             )
-    val canCopyLink = state.isGroup || state.isChannel
-    val canPinMessages = state.isAdmin || state.permissions.canPinMessages
-    val isPremiumUser = state.currentUser?.isPremium == true
+    val canCopyLink = chatUiState.isGroup || chatUiState.isChannel
+    val canPinMessages = chatUiState.isAdmin || chatUiState.permissions.canPinMessages
+    val isPremiumUser = chatUiState.currentUser?.isPremium == true
     val canUseTelegramSummary =
         isPremiumUser && !canRestoreOriginalText && canSummarize(selectedMessage)
     val canUseTelegramTranslator =
@@ -230,9 +232,9 @@ fun ChatMessageOptionsMenu(
     }
     MessageOptionsMenu(
         message = menuMessage.copy(readDate = messageWithReadDate.readDate),
-        canWrite = state.canWrite,
+        canWrite = chatUiState.canWrite,
         canPinMessages = canPinMessages,
-        isPinned = selectedMessage.id == state.pinnedMessage?.id,
+        isPinned = selectedMessage.id == pinnedState.pinnedMessage?.id,
         messageOffset = menuOffset,
         messageSize = menuMessageSize,
         clickOffset = clickOffset,
@@ -261,14 +263,14 @@ fun ChatMessageOptionsMenu(
             scope.launch { reloadViewers() }
         },
         onViewerClick = { component.toProfile(it) },
-        bubbleRadius = state.bubbleRadius,
+        bubbleRadius = appearanceState.bubbleRadius,
         splitOffset = splitOffset,
         onReply = {
             component.onReplyMessage(selectedMessage)
             onDismiss()
         },
         onPin = {
-            if (selectedMessage.id == state.pinnedMessage?.id) component.onUnpinMessage(selectedMessage) else component.onPinMessage(
+            if (selectedMessage.id == pinnedState.pinnedMessage?.id) component.onUnpinMessage(selectedMessage) else component.onPinMessage(
                 selectedMessage
             )
             onDismiss()
@@ -290,10 +292,10 @@ fun ChatMessageOptionsMenu(
             onDismiss()
         },
         onCopyLink = {
-            val link = if (!state.isGroup && !state.isChannel) {
-                "tg://openmessage?user_id=${state.chatId}&message_id=${selectedMessage.id shr 20}"
+            val link = if (!chatUiState.isGroup && !chatUiState.isChannel) {
+                "tg://openmessage?user_id=${chatUiState.chatId}&message_id=${selectedMessage.id shr 20}"
             } else {
-                "https://t.me/c/${state.chatId.toString().removePrefix("-100")}/${selectedMessage.id shr 20}"
+                "https://t.me/c/${chatUiState.chatId.toString().removePrefix("-100")}/${selectedMessage.id shr 20}"
             }
 
             nativeClipboard.setPrimaryClip(
@@ -367,7 +369,7 @@ fun ChatMessageOptionsMenu(
         },
         onTelegramTranslator = {
             telegramAiScope.launch {
-                val languageCode = state.currentUser?.languageCode?.takeIf { it.isNotBlank() }
+                val languageCode = chatUiState.currentUser?.languageCode?.takeIf { it.isNotBlank() }
                     ?: Locale.getDefault().language
                 coRunCatching {
                     messageRepository.translateMessage(

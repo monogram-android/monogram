@@ -17,7 +17,7 @@ import java.io.File
 
 @Composable
 fun ChatContentBackground(
-    state: ChatComponent.State,
+    state: ChatComponent.AppearanceState,
     modifier: Modifier = Modifier
 ) {
     val wallpaper = state.wallpaperModel

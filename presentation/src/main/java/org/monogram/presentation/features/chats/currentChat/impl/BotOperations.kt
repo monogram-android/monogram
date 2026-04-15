@@ -68,10 +68,6 @@ internal fun DefaultChatComponent.handleInlineQueryChange(botUsername: String, q
     }
 
     val normalizedQuery = query
-    if (normalizedQuery.isBlank()) {
-        clearInlineBotState()
-        return
-    }
 
     val state = _state.value
     if (

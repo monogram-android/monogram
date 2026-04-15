@@ -35,7 +35,7 @@ internal fun parseInlineQueryInput(text: String, selection: TextRange): InlineQu
     if (botUsername.any { !it.isLetterOrDigit() && it != '_' }) return null
 
     val query = text.substring(firstSpaceIndex + 1)
-    if (query.isBlank() || query.contains('\n')) return null
+    if (query.contains('\n')) return null
 
     return InlineQueryInput(botUsername = botUsername, query = query)
 }

@@ -9,13 +9,18 @@ import com.arkivanov.mvikotlin.extensions.coroutines.labels
 import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -71,6 +76,7 @@ import org.monogram.presentation.settings.storage.CacheController
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DefaultChatComponent(
     context: AppComponentContext,
     val chatId: Long,
@@ -157,15 +163,187 @@ class DefaultChatComponent(
         )
     )
 
+    private fun ChatComponent.State.toMessagesState() = ChatComponent.MessagesState(
+        chatId = chatId,
+        messages = messages,
+        isLoading = isLoading,
+        isLoadingOlder = isLoadingOlder,
+        isLoadingNewer = isLoadingNewer,
+        scrollToMessageId = scrollToMessageId,
+        pendingScrollCommand = pendingScrollCommand,
+        highlightedMessageId = highlightedMessageId,
+        isAtBottom = isAtBottom,
+        currentScrollMessageId = currentScrollMessageId,
+        lastScrollPosition = lastScrollPosition,
+        lastSavedViewport = lastSavedViewport,
+        isLatestLoaded = isLatestLoaded,
+        isOldestLoaded = isOldestLoaded,
+        lastReadInboxMessageId = lastReadInboxMessageId,
+        unreadSeparatorCount = unreadSeparatorCount,
+        unreadSeparatorLastReadInboxMessageId = unreadSeparatorLastReadInboxMessageId
+    )
+
+    private fun ChatComponent.State.toChatUiState() = ChatComponent.ChatUiState(
+        chatId = chatId,
+        chatTitle = chatTitle,
+        chatAvatar = chatAvatar,
+        chatPersonalAvatar = chatPersonalAvatar,
+        chatEmojiStatus = chatEmojiStatus,
+        isGroup = isGroup,
+        isChannel = isChannel,
+        isSecretChat = isSecretChat,
+        isOnline = isOnline,
+        isVerified = isVerified,
+        isSponsor = isSponsor,
+        canWrite = canWrite,
+        isAdmin = isAdmin,
+        permissions = permissions,
+        slowModeDelay = slowModeDelay,
+        slowModeDelayExpiresIn = slowModeDelayExpiresIn,
+        isCurrentUserRestricted = isCurrentUserRestricted,
+        restrictedUntilDate = restrictedUntilDate,
+        memberCount = memberCount,
+        onlineCount = onlineCount,
+        unreadCount = unreadCount,
+        unreadMentionCount = unreadMentionCount,
+        unreadReactionCount = unreadReactionCount,
+        userStatus = userStatus,
+        typingAction = typingAction,
+        pollVoters = pollVoters,
+        showPollVoters = showPollVoters,
+        isPollVotersLoading = isPollVotersLoading,
+        viewAsTopics = viewAsTopics,
+        topics = topics,
+        currentTopicId = currentTopicId,
+        rootMessage = rootMessage,
+        isLoadingTopics = isLoadingTopics,
+        isWhitelistedInAdBlock = isWhitelistedInAdBlock,
+        isMuted = isMuted,
+        showReportDialog = showReportDialog,
+        showBotCommands = showBotCommands,
+        currentUser = currentUser,
+        otherUser = otherUser,
+        isMember = isMember,
+        restrictUserId = restrictUserId,
+        isInstalledFromGooglePlay = isInstalledFromGooglePlay
+    )
+
+    private fun ChatComponent.State.toSelectionState() = ChatComponent.MessageSelectionState(
+        selectedMessageIds = selectedMessageIds
+    )
+
+    private fun ChatComponent.State.toSearchState() = ChatComponent.SearchState(
+        isSearchActive = isSearchActive,
+        searchQuery = searchQuery
+    )
+
+    private fun ChatComponent.State.toAppearanceState() = ChatComponent.AppearanceState(
+        fontSize = fontSize,
+        letterSpacing = letterSpacing,
+        bubbleRadius = bubbleRadius,
+        stickerSize = stickerSize,
+        wallpaper = wallpaper,
+        wallpaperModel = wallpaperModel,
+        isWallpaperBlurred = isWallpaperBlurred,
+        wallpaperBlurIntensity = wallpaperBlurIntensity,
+        isWallpaperMoving = isWallpaperMoving,
+        wallpaperDimming = wallpaperDimming,
+        isWallpaperGrayscale = isWallpaperGrayscale,
+        isPlayerGesturesEnabled = isPlayerGesturesEnabled,
+        isPlayerDoubleTapSeekEnabled = isPlayerDoubleTapSeekEnabled,
+        playerSeekDuration = playerSeekDuration,
+        isPlayerZoomEnabled = isPlayerZoomEnabled,
+        autoDownloadMobile = autoDownloadMobile,
+        autoDownloadWifi = autoDownloadWifi,
+        autoDownloadRoaming = autoDownloadRoaming,
+        autoDownloadFiles = autoDownloadFiles,
+        autoplayGifs = autoplayGifs,
+        autoplayVideos = autoplayVideos,
+        showLinkPreviews = showLinkPreviews,
+        isChatAnimationsEnabled = isChatAnimationsEnabled
+    )
+
+    private fun ChatComponent.State.toInputState() = ChatComponent.InputState(
+        chatId = chatId,
+        replyMessage = replyMessage,
+        editingMessage = editingMessage,
+        draftText = draftText,
+        selectedStickerSet = selectedStickerSet,
+        isBot = isBot,
+        botCommands = botCommands,
+        botMenuButton = botMenuButton,
+        mentionSuggestions = mentionSuggestions,
+        inlineBotResults = inlineBotResults,
+        currentInlineBotUsername = currentInlineBotUsername,
+        currentInlineQuery = currentInlineQuery,
+        isInlineBotLoading = isInlineBotLoading,
+        attachMenuBots = attachMenuBots,
+        scheduledMessages = scheduledMessages
+    )
+
+    private fun ChatComponent.State.toPinnedState() = ChatComponent.PinnedState(
+        pinnedMessage = pinnedMessage,
+        allPinnedMessages = allPinnedMessages,
+        showPinnedMessagesList = showPinnedMessagesList,
+        isLoadingPinnedMessages = isLoadingPinnedMessages,
+        pinnedMessageCount = pinnedMessageCount,
+        pinnedMessageIndex = pinnedMessageIndex
+    )
+
+    private fun ChatComponent.State.toMediaViewerState() = ChatComponent.MediaViewerState(
+        instantViewUrl = instantViewUrl,
+        youtubeUrl = youtubeUrl,
+        miniAppUrl = miniAppUrl,
+        miniAppName = miniAppName,
+        miniAppBotUserId = miniAppBotUserId,
+        showMiniAppTOS = showMiniAppTOS,
+        miniAppTOSBotUserId = miniAppTOSBotUserId,
+        miniAppTOSUrl = miniAppTOSUrl,
+        miniAppTOSName = miniAppTOSName,
+        webViewUrl = webViewUrl,
+        fullScreenImages = fullScreenImages,
+        fullScreenImageMessageIds = fullScreenImageMessageIds,
+        fullScreenCaptions = fullScreenCaptions,
+        fullScreenStartIndex = fullScreenStartIndex,
+        fullScreenVideoMessageId = fullScreenVideoMessageId,
+        fullScreenVideoPath = fullScreenVideoPath,
+        fullScreenVideoCaption = fullScreenVideoCaption,
+        invoiceSlug = invoiceSlug,
+        invoiceMessageId = invoiceMessageId
+    )
+
     private val store = ChatStoreFactory(
         storeFactory = DefaultStoreFactory(),
         component = this
     ).create()
 
     override val state: StateFlow<ChatComponent.State> = store.stateFlow
+    override val chatUiState: StateFlow<ChatComponent.ChatUiState> =
+        state.selectState(state.value.toChatUiState()) { it.toChatUiState() }
+    override val selectionState: StateFlow<ChatComponent.MessageSelectionState> =
+        state.selectState(state.value.toSelectionState()) { it.toSelectionState() }
+    override val searchState: StateFlow<ChatComponent.SearchState> =
+        state.selectState(state.value.toSearchState()) { it.toSearchState() }
+    override val appearanceState: StateFlow<ChatComponent.AppearanceState> =
+        state.selectState(state.value.toAppearanceState()) { it.toAppearanceState() }
+    override val messagesState: StateFlow<ChatComponent.MessagesState> =
+        state.selectState(state.value.toMessagesState()) { it.toMessagesState() }
+    override val inputState: StateFlow<ChatComponent.InputState> =
+        state.selectState(state.value.toInputState()) { it.toInputState() }
+    override val pinnedState: StateFlow<ChatComponent.PinnedState> =
+        state.selectState(state.value.toPinnedState()) { it.toPinnedState() }
+    override val mediaViewerState: StateFlow<ChatComponent.MediaViewerState> =
+        state.selectState(state.value.toMediaViewerState()) { it.toMediaViewerState() }
 
     private var availableWallpapers: List<WallpaperModel> = emptyList()
     internal var allMembers: List<UserModel> = emptyList()
+
+    private inline fun <T> StateFlow<ChatComponent.State>.selectState(
+        initialValue: T,
+        crossinline selector: (ChatComponent.State) -> T
+    ): StateFlow<T> = map { selector(it) }
+        .distinctUntilChanged()
+        .stateIn(scope, SharingStarted.Eagerly, initialValue)
 
     init {
         setupLifecycle()

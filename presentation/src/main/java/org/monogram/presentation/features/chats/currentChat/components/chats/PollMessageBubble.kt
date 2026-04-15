@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -8,28 +9,72 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.CheckBoxOutlineBlank
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.HowToVote
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
-import org.monogram.domain.models.*
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageSendingState
+import org.monogram.domain.models.PollOption
+import org.monogram.domain.models.PollType
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.DateFormatManager
 
@@ -73,16 +118,25 @@ fun PollMessageBubble(
         if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh
     val contentColor =
         if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    val accentColor = if (isOutgoing) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
 
     val hasVoted = content.options.any { it.isChosen }
     val isQuiz = content.type is PollType.Quiz
     val quizType = content.type as? PollType.Quiz
-    val isMultiChoice = (content.type as? PollType.Regular)?.allowMultipleAnswers == true
+    val isMultiChoice = when (val type = content.type) {
+        is PollType.Regular -> type.allowMultipleAnswers
+        is PollType.Quiz -> type.correctOptionIds.size > 1
+    }
+    val showResults = content.isClosed || (hasVoted && !content.hideResultsUntilCloses)
 
     Column(
         modifier = modifier
             .width(IntrinsicSize.Max)
-            .widthIn(min = 240.dp, max = 320.dp)
+            .widthIn(min = 240.dp, max = 332.dp)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onLongPress = { onLongClick(it) }
@@ -97,42 +151,45 @@ fun PollMessageBubble(
             tonalElevation = 1.dp
         ) {
             Column(
-                modifier = Modifier.padding(12.dp)
+                modifier = Modifier
+                    .padding(12.dp)
+                    .animateContentSize()
             ) {
                 msg.forwardInfo?.let { ForwardContent(it, isOutgoing, onForwardClick = toProfile) }
                 msg.replyToMsg?.let { ReplyContent(it, isOutgoing) { onReplyClick(it) } }
 
-                PollHeader(
-                    question = content.question,
-                    pollType = content.type,
+                PollHeroHeader(
+                    content = content,
                     fontSize = fontSize,
                     letterSpacing = letterSpacing,
                     hasVoted = hasVoted,
-                    isClosed = content.isClosed,
-                    isAnonymous = content.isAnonymous,
                     isOutgoing = isOutgoing,
+                    accentColor = accentColor,
+                    contentColor = contentColor,
                     onRetractVote = onRetractVote,
                     onClosePoll = onClosePoll
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     content.options.forEachIndexed { index, option ->
-                        val isCorrect = isQuiz && quizType?.correctOptionId == index
-                        val isWrong = isQuiz && option.isChosen && quizType?.correctOptionId != index
-
+                        val isCorrect =
+                            isQuiz && (quizType?.correctOptionIds?.contains(index) == true)
+                        val isWrong = isQuiz && option.isChosen && !isCorrect
                         val canVote = !content.isClosed && !hasVoted
 
-                        PollOptionItem(
+                        PollOptionCard(
+                            index = index,
                             option = option,
                             isMultiChoice = isMultiChoice,
                             isQuiz = isQuiz,
                             isCorrect = isCorrect,
                             isWrong = isWrong,
-                            showResults = hasVoted || content.isClosed,
+                            showResults = showResults,
                             isAnonymous = content.isAnonymous,
                             canVote = canVote,
+                            accentColor = accentColor,
                             onClick = { onOptionClick(index) },
                             onShowVoters = { onShowVoters(index) }
                         )
@@ -142,16 +199,14 @@ fun PollMessageBubble(
                 AnimatedVisibility(
                     visible = isQuiz && hasVoted && !quizType?.explanation.isNullOrBlank()
                 ) {
-                    QuizExplanationBox(
-                        text = quizType?.explanation ?: "",
-                        containerColor = contentColor.copy(alpha = 0.05f),
-                        textColor = contentColor
+                    QuizExplanationCard(
+                        text = quizType?.explanation.orEmpty(),
+                        accentColor = accentColor,
+                        contentColor = contentColor
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                PollFooter(
+                PollFooterBar(
                     totalVotes = content.totalVoterCount,
                     date = msg.date,
                     isOutgoing = isOutgoing,
@@ -171,93 +226,149 @@ fun PollMessageBubble(
 }
 
 @Composable
-private fun PollHeader(
-    question: String,
-    pollType: PollType,
+private fun PollHeroHeader(
+    content: MessageContent.Poll,
     fontSize: Float,
     letterSpacing: Float,
     hasVoted: Boolean,
-    isClosed: Boolean,
-    isAnonymous: Boolean,
     isOutgoing: Boolean,
+    accentColor: Color,
+    contentColor: Color,
     onRetractVote: () -> Unit,
     onClosePoll: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val dateFormatManager: DateFormatManager = koinInject()
+    val timeFormat = dateFormatManager.getHourMinuteFormat()
+    var nowEpochSeconds by remember { mutableIntStateOf((System.currentTimeMillis() / 1000L).toInt()) }
 
-    Column {
+    LaunchedEffect(content.closeDate, content.isClosed) {
+        if (content.closeDate <= 0 || content.isClosed) return@LaunchedEffect
+        while (true) {
+            nowEpochSeconds = (System.currentTimeMillis() / 1000L).toInt()
+            if (nowEpochSeconds >= content.closeDate) break
+            delay(1_000L)
+        }
+    }
+
+    val remainingSeconds = (content.closeDate - nowEpochSeconds).coerceAtLeast(0)
+    val isQuiz = content.type is PollType.Quiz
+    val isMultiChoice = when (val type = content.type) {
+        is PollType.Regular -> type.allowMultipleAnswers
+        is PollType.Quiz -> type.correctOptionIds.size > 1
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            val isQuiz = pollType is PollType.Quiz
-            val isMultiChoice = (pollType as? PollType.Regular)?.allowMultipleAnswers == true
-
-            val label = if (isClosed) {
-                stringResource(R.string.poll_final_results)
-            } else {
-                buildString {
-                    append(if (isAnonymous) stringResource(R.string.poll_anonymous) else stringResource(R.string.poll_public))
-                    append(" ")
-                    append(if (isQuiz) stringResource(R.string.poll_type_quiz) else stringResource(R.string.poll_type_poll))
-                    if (isMultiChoice) append(stringResource(R.string.poll_multiple_choice))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PollHeaderPill(
+                    text = if (content.isClosed) {
+                        stringResource(R.string.poll_final_results)
+                    } else if (content.isAnonymous) {
+                        stringResource(R.string.poll_anonymous)
+                    } else {
+                        stringResource(R.string.poll_public)
+                    },
+                    accentColor = accentColor,
+                    prominent = true
+                )
+                PollHeaderPill(
+                    text = if (isQuiz) {
+                        stringResource(R.string.poll_type_quiz)
+                    } else {
+                        stringResource(R.string.poll_type_poll)
+                    },
+                    accentColor = accentColor
+                )
+                if (isMultiChoice) {
+                    PollHeaderPill(
+                        text = stringResource(R.string.poll_create_chip_multiple_answers),
+                        accentColor = accentColor
+                    )
                 }
             }
 
-            Text(
-                text = label.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            if (!isClosed && (hasVoted || isOutgoing)) {
+            if (!content.isClosed && (hasVoted || isOutgoing)) {
                 Box {
                     IconButton(
                         onClick = { showMenu = true },
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = stringResource(R.string.cd_more),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
+
                     DropdownMenu(
                         expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
+                        onDismissRequest = { showMenu = false },
+                        offset = DpOffset(x = 0.dp, y = 8.dp),
+                        shape = RoundedCornerShape(22.dp),
+                        containerColor = Color.Transparent,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 0.dp
                     ) {
-                        if (hasVoted) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.poll_retract_vote)) },
-                                onClick = {
-                                    showMenu = false
-                                    onRetractVote()
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Cancel,
-                                        contentDescription = null
+                        Surface(
+                            modifier = Modifier.widthIn(min = 220.dp, max = 260.dp),
+                            shape = RoundedCornerShape(22.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh
+                        ) {
+                            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                                if (hasVoted) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.poll_retract_vote)) },
+                                        onClick = {
+                                            showMenu = false
+                                            onRetractVote()
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Cancel,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     )
                                 }
-                            )
-                        }
-                        if (isOutgoing) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.poll_close_poll)) },
-                                onClick = {
-                                    showMenu = false
-                                    onClosePoll()
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Stop,
-                                        contentDescription = null
+                                if (isOutgoing) {
+                                    if (hasVoted) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(horizontal = 12.dp),
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(
+                                                alpha = 0.5f
+                                            )
+                                        )
+                                    }
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = stringResource(R.string.poll_close_poll),
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        },
+                                        onClick = {
+                                            showMenu = false
+                                            onClosePoll()
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Stop,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
                                     )
                                 }
-                            )
+                            }
                         }
                     }
                 }
@@ -265,19 +376,117 @@ private fun PollHeader(
         }
 
         Text(
-            text = question,
+            text = content.question,
             style = MaterialTheme.typography.titleMedium.copy(
                 fontSize = (fontSize + 2).sp,
                 letterSpacing = letterSpacing.sp,
                 fontWeight = FontWeight.Bold,
-                lineHeight = (fontSize + 6).sp
+                lineHeight = (fontSize + 7).sp
             )
+        )
+
+        if (!content.description.isNullOrBlank()) {
+            Text(
+                text = content.description.orEmpty(),
+                style = MaterialTheme.typography.bodySmall.copy(letterSpacing = letterSpacing.sp),
+                color = contentColor.copy(alpha = 0.78f)
+            )
+        }
+
+        AnimatedVisibility(visible = content.closeDate > 0) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = accentColor.copy(alpha = 0.09f),
+                modifier = Modifier.animateContentSize()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Event,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(
+                                R.string.poll_meta_closes_at,
+                                formatTime(content.closeDate, timeFormat)
+                            ),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = contentColor
+                        )
+                        if (!content.isClosed && remainingSeconds > 0) {
+                            Text(
+                                text = stringResource(
+                                    R.string.poll_meta_time_left,
+                                    formatRemainingDuration(remainingSeconds)
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = contentColor.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                    if (content.hideResultsUntilCloses && !content.isClosed) {
+                        Icon(
+                            imageVector = Icons.Rounded.Lock,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        val metaLabel = buildList {
+            if (content.hideResultsUntilCloses && !content.isClosed && content.closeDate <= 0) {
+                add(stringResource(R.string.poll_meta_results_hidden_until_close))
+            }
+            if (content.allowsRevoting) add(stringResource(R.string.poll_meta_revoting_enabled))
+            if (content.shuffleOptions) add(stringResource(R.string.poll_meta_shuffle_enabled))
+        }.joinToString(" • ")
+
+        if (metaLabel.isNotBlank()) {
+            Text(
+                text = metaLabel,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor.copy(alpha = 0.68f)
+            )
+        }
+    }
+}
+@Composable
+private fun PollHeaderPill(
+    text: String,
+    accentColor: Color,
+    prominent: Boolean = false
+) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = if (prominent) accentColor.copy(alpha = 0.14f) else accentColor.copy(alpha = 0.08f)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = accentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
 
 @Composable
-private fun PollOptionItem(
+private fun PollOptionCard(
+    index: Int,
     option: PollOption,
     isMultiChoice: Boolean,
     isQuiz: Boolean,
@@ -286,44 +495,56 @@ private fun PollOptionItem(
     showResults: Boolean,
     isAnonymous: Boolean,
     canVote: Boolean,
+    accentColor: Color,
     onClick: () -> Unit,
     onShowVoters: () -> Unit
 ) {
     val progress by animateFloatAsState(
         targetValue = if (showResults) option.votePercentage / 100f else 0f,
-        animationSpec = tween(durationMillis = 600), label = "progress"
+        animationSpec = tween(durationMillis = 650),
+        label = "pollProgress"
     )
 
-    val baseContentColor = MaterialTheme.colorScheme.onSurface
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val errorColor = MaterialTheme.colorScheme.error
-    val successColor = Color(0xFF4CAF50)
-
+    val successColor = Color(0xFF2E8B57)
+    val cardScale by animateFloatAsState(
+        targetValue = if (option.isBeingChosen) 0.985f else 1f,
+        animationSpec = tween(durationMillis = 180),
+        label = "pollOptionScale"
+    )
+    val cardAlpha by animateFloatAsState(
+        targetValue = if (option.isBeingChosen) 0.78f else 1f,
+        animationSpec = tween(durationMillis = 180),
+        label = "pollOptionAlpha"
+    )
     val stateColor = when {
         showResults && isCorrect -> successColor
-        showResults && isWrong -> errorColor
-        option.isChosen -> primaryColor
+        showResults && isWrong -> MaterialTheme.colorScheme.error
+        option.isChosen || option.isBeingChosen -> accentColor
         else -> MaterialTheme.colorScheme.outline
     }
-
-    val shape = RoundedCornerShape(12.dp)
-    val borderColor =
-        if (option.isChosen || (showResults && isCorrect)) stateColor else MaterialTheme.colorScheme.outlineVariant.copy(
-            alpha = 0.5f
-        )
-    val backgroundColor = MaterialTheme.colorScheme.surfaceContainer
+    val borderColor = when {
+        option.isBeingChosen -> accentColor
+        option.isChosen || (showResults && isCorrect) -> stateColor.copy(alpha = 0.55f)
+        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+    }
+    val backgroundColor = if (showResults && (isCorrect || isWrong || option.isChosen)) {
+        stateColor.copy(alpha = 0.08f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val clickEnabled = canVote || (showResults && !isAnonymous)
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min)
-            .clip(shape)
-            .background(backgroundColor)
-            .border(
-                border = BorderStroke(if (option.isChosen) 2.dp else 1.dp, borderColor),
-                shape = shape
-            )
-            .clickable(enabled = canVote || (showResults && !isAnonymous)) {
+            .clip(RoundedCornerShape(20.dp))
+            .graphicsLayer {
+                scaleX = cardScale
+                scaleY = cardScale
+                alpha = cardAlpha
+            }
+            .animateContentSize()
+            .clickable(enabled = clickEnabled) {
                 if (canVote) onClick() else if (showResults && !isAnonymous) onShowVoters()
             }
     ) {
@@ -332,103 +553,140 @@ private fun PollOptionItem(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(progress)
-                    .background(stateColor.copy(alpha = 0.15f))
+                    .background(stateColor.copy(alpha = 0.12f))
             )
         }
 
         Row(
             modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 10.dp)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .border(
+                    BorderStroke(if (option.isChosen) 2.dp else 1.dp, borderColor),
+                    RoundedCornerShape(20.dp)
+                )
+                .background(backgroundColor)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
-                if (showResults) {
-                    if (isCorrect || isWrong || option.isChosen) {
+            Surface(
+                shape = CircleShape,
+                color = stateColor.copy(alpha = 0.12f)
+            ) {
+                Box(
+                    modifier = Modifier.size(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (showResults && (isCorrect || isWrong)) {
                         Icon(
-                            imageVector = when {
-                                isCorrect -> Icons.Default.CheckCircle
-                                isWrong -> Icons.Default.Cancel
-                                else -> Icons.Default.CheckCircle
-                            },
+                            imageVector = if (isCorrect) Icons.Default.CheckCircle else Icons.Default.Cancel,
                             contentDescription = null,
                             tint = stateColor,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     } else {
                         Text(
-                            text = "${option.votePercentage}%",
-                            style = MaterialTheme.typography.labelSmall,
+                            text = (index + 1).toString(),
+                            style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
-                            color = baseContentColor.copy(alpha = 0.6f)
+                            color = stateColor
                         )
                     }
-                } else {
-                    val unselectedIcon =
-                        if (isMultiChoice) Icons.Rounded.CheckBoxOutlineBlank else Icons.Outlined.RadioButtonUnchecked
-                    Icon(
-                        imageVector = unselectedIcon,
-                        contentDescription = stringResource(R.string.cd_vote),
-                        tint = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.size(20.dp)
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = option.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (showResults && (isCorrect || isWrong)) stateColor else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (showResults) {
+                    Text(
+                        text = pluralStringResource(
+                            R.plurals.poll_votes_count,
+                            option.voterCount,
+                            option.voterCount
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Text(
-                text = option.text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (showResults && (isCorrect || isWrong)) stateColor else baseContentColor,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-
-            if (showResults) {
-                Spacer(modifier = Modifier.width(8.dp))
-                if (isCorrect || isWrong || option.isChosen) {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                if (showResults) {
                     Text(
                         text = "${option.votePercentage}%",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         color = stateColor
                     )
                 }
+                Icon(
+                    imageVector = when {
+                        showResults && isQuiz && isCorrect -> Icons.Default.CheckCircle
+                        showResults && isQuiz && isWrong -> Icons.Default.Cancel
+                        option.isChosen -> Icons.Default.Check
+                        isMultiChoice -> Icons.Rounded.CheckBoxOutlineBlank
+                        else -> Icons.Outlined.RadioButtonUnchecked
+                    },
+                    contentDescription = null,
+                    tint = if (option.isChosen || (showResults && (isCorrect || isWrong))) {
+                        stateColor
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }
 }
 
 @Composable
-private fun QuizExplanationBox(
+private fun QuizExplanationCard(
     text: String,
-    containerColor: Color,
-    textColor: Color
+    accentColor: Color,
+    contentColor: Color
 ) {
-    Column(modifier = Modifier.padding(top = 12.dp)) {
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = containerColor
+    Surface(
+        modifier = Modifier.padding(top = 10.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = accentColor.copy(alpha = 0.08f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Top
         ) {
-            Row(
-                modifier = Modifier.padding(8.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Lightbulb,
-                    contentDescription = stringResource(R.string.cd_explanation),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .size(16.dp)
-                        .padding(top = 2.dp)
+            Icon(
+                imageVector = Icons.Default.Lightbulb,
+                contentDescription = stringResource(R.string.cd_explanation),
+                tint = accentColor,
+                modifier = Modifier
+                    .size(18.dp)
+                    .padding(top = 1.dp)
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(R.string.poll_create_section_quiz),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = accentColor
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = text,
                     style = MaterialTheme.typography.bodySmall,
-                    color = textColor
+                    color = contentColor
                 )
             }
         }
@@ -436,7 +694,7 @@ private fun QuizExplanationBox(
 }
 
 @Composable
-private fun PollFooter(
+private fun PollFooterBar(
     totalVotes: Int,
     date: Int,
     isOutgoing: Boolean,
@@ -445,18 +703,26 @@ private fun PollFooter(
     contentColor: Color
 ) {
     val metaColor = contentColor.copy(alpha = 0.65f)
-
     val dateFormatManager: DateFormatManager = koinInject()
     val timeFormat = dateFormatManager.getHourMinuteFormat()
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp),
+            .padding(top = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.HowToVote,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = metaColor
+            )
             Text(
                 text = pluralStringResource(R.plurals.poll_votes_count, totalVotes, totalVotes),
                 style = MaterialTheme.typography.labelSmall,
@@ -476,8 +742,7 @@ private fun PollFooter(
                 val (icon, tint) = when (sendingState) {
                     is MessageSendingState.Pending -> Icons.Default.Schedule to metaColor
                     is MessageSendingState.Failed -> Icons.Default.Error to MaterialTheme.colorScheme.error
-                    null -> if (isRead) Icons.Default.DoneAll to MaterialTheme.colorScheme.primary
-                    else Icons.Default.Check to metaColor
+                    null -> if (isRead) Icons.Default.DoneAll to MaterialTheme.colorScheme.primary else Icons.Default.Check to metaColor
                 }
 
                 Icon(
@@ -488,5 +753,17 @@ private fun PollFooter(
                 )
             }
         }
+    }
+}
+
+private fun formatRemainingDuration(totalSeconds: Int): String {
+    val days = totalSeconds / 86_400
+    val hours = (totalSeconds % 86_400) / 3_600
+    val minutes = (totalSeconds % 3_600) / 60
+    val seconds = totalSeconds % 60
+    return when {
+        days > 0 -> String.format("%dd %02dh", days, hours)
+        hours > 0 -> String.format("%02d:%02d:%02d", hours, minutes, seconds)
+        else -> String.format("%02d:%02d", minutes, seconds)
     }
 }

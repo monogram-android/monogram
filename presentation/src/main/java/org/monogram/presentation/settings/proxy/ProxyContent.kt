@@ -7,10 +7,12 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -68,7 +70,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -109,6 +113,7 @@ import org.monogram.domain.repository.ProxySmartSwitchMode
 import org.monogram.domain.repository.ProxySortMode
 import org.monogram.domain.repository.ProxyUnavailableFallback
 import org.monogram.domain.repository.defaultProxyNetworkMode
+import org.monogram.presentation.BuildConfig
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.IntegratedQRScanner
 import org.monogram.presentation.core.ui.ItemPosition
@@ -229,6 +234,8 @@ fun ProxyContent(component: ProxyComponent) {
     var showQrScanner by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(ProxyTab.Proxy) }
     val smartSwitchCheckIntervalOptions = remember { listOf(1, 2, 5, 10, 15, 30, 60) }
+    var showDnsUrlDialog by remember { mutableStateOf(false) }
+    var showDnsHeadersDialog by remember { mutableStateOf(false) }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -438,206 +445,54 @@ fun ProxyContent(component: ProxyComponent) {
             }
 
             if (selectedTab == ProxyTab.Settings) {
-            item {
-                SectionHeader(stringResource(R.string.connection_section_header))
-            }
-            item {
-                SettingsSwitchTile(
-                    icon = Icons.Rounded.Bolt,
-                    title = stringResource(R.string.smart_switching_title),
-                    subtitle = stringResource(R.string.smart_switching_subtitle),
-                    checked = state.isAutoBestProxyEnabled,
-                    iconColor = Color(0xFFAF52DE),
-                    position = ItemPosition.TOP,
-                    onCheckedChange = component::onAutoBestProxyToggled
-                )
-
-                Box {
-                    SettingsTile(
-                        icon = Icons.Rounded.SwapHoriz,
-                        title = stringResource(R.string.smart_switch_mode_title),
-                        subtitle = stringResource(R.string.smart_switch_mode_subtitle),
-                        iconColor = Color(0xFF7E57C2),
-                        position = ItemPosition.MIDDLE,
-                        onClick = { smartSwitchModeMenuExpanded = true },
-                        enabled = state.isAutoBestProxyEnabled,
-                        trailingContent = {
-                            DropdownSelectionTrailing(
-                                text = stringResource(
-                                    smartSwitchModeLabelRes(state.smartSwitchMode)
-                                )
-                            )
-                        }
-                    )
-
-                    StyledDropdownMenu(
-                        expanded = smartSwitchModeMenuExpanded,
-                        onDismissRequest = { smartSwitchModeMenuExpanded = false }
-                    ) {
-                        ProxySmartSwitchMode.entries.forEach { mode ->
-                            DropdownMenuItem(
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Bolt,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                },
-                                text = { Text(stringResource(smartSwitchModeLabelRes(mode))) },
-                                trailingIcon = {
-                                    if (state.smartSwitchMode == mode) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Check,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                },
-                                onClick = {
-                                    component.onSmartSwitchModeChanged(mode)
-                                    smartSwitchModeMenuExpanded = false
-                                }
-                            )
-                        }
-                    }
+                item {
+                    SectionHeader(stringResource(R.string.connection_section_header))
                 }
-
-                Box {
-                    SettingsTile(
-                        icon = Icons.Rounded.Refresh,
-                        title = stringResource(R.string.smart_switch_check_interval_title),
-                        subtitle = stringResource(R.string.smart_switch_check_interval_subtitle),
-                        iconColor = Color(0xFF1E88E5),
-                        position = ItemPosition.MIDDLE,
-                        onClick = { smartSwitchCheckIntervalMenuExpanded = true },
-                        enabled = state.isAutoBestProxyEnabled,
-                        trailingContent = {
-                            DropdownSelectionTrailing(
-                                text = stringResource(
-                                    R.string.smart_switch_check_interval_format,
-                                    state.smartSwitchAutoCheckIntervalMinutes
-                                )
-                            )
-                        }
+                item {
+                    SettingsSwitchTile(
+                        icon = Icons.Rounded.Bolt,
+                        title = stringResource(R.string.smart_switching_title),
+                        subtitle = stringResource(R.string.smart_switching_subtitle),
+                        checked = state.isAutoBestProxyEnabled,
+                        iconColor = Color(0xFFAF52DE),
+                        position = ItemPosition.TOP,
+                        onCheckedChange = component::onAutoBestProxyToggled
                     )
 
-                    StyledDropdownMenu(
-                        expanded = smartSwitchCheckIntervalMenuExpanded,
-                        onDismissRequest = { smartSwitchCheckIntervalMenuExpanded = false }
-                    ) {
-                        smartSwitchCheckIntervalOptions.forEach { minutes ->
-                            DropdownMenuItem(
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Refresh,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                },
-                                text = {
-                                    Text(
-                                        stringResource(
-                                            R.string.smart_switch_check_interval_format,
-                                            minutes
-                                        )
-                                    )
-                                },
-                                trailingIcon = {
-                                    if (state.smartSwitchAutoCheckIntervalMinutes == minutes) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Check,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                },
-                                onClick = {
-                                    component.onSmartSwitchAutoCheckIntervalChanged(minutes)
-                                    smartSwitchCheckIntervalMenuExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                SettingsSwitchTile(
-                    icon = Icons.Rounded.Public,
-                    title = stringResource(R.string.prefer_ipv6_title),
-                    subtitle = stringResource(R.string.prefer_ipv6_subtitle),
-                    checked = state.preferIpv6,
-                    iconColor = Color(0xFF34A853),
-                    position = ItemPosition.MIDDLE,
-                    onCheckedChange = component::onPreferIpv6Toggled
-                )
-
-                val isDirect = state.proxies.none { it.isEnabled }
-                SettingsTile(
-                    icon = Icons.Rounded.LinkOff,
-                    title = stringResource(R.string.disable_proxy_title),
-                    subtitle = if (isDirect) stringResource(R.string.connected_directly_subtitle) else stringResource(
-                        R.string.switch_to_direct_subtitle
-                    ),
-                    iconColor = if (isDirect) Color(0xFF34A853) else MaterialTheme.colorScheme.error,
-                    position = ItemPosition.BOTTOM,
-                    onClick = { component.onDisableProxy() },
-                    trailingContent = {
-                        if (isDirect) {
-                            Icon(
-                                Icons.Rounded.Check,
-                                contentDescription = null,
-                                tint = Color(0xFF34A853)
-                            )
-                        }
-                    }
-                )
-            }
-
-            item {
-                SectionHeader(
-                    text = stringResource(R.string.proxy_network_rules_header),
-                    subtitle = stringResource(R.string.proxy_network_rules_subtitle)
-                )
-            }
-
-            item {
-                ProxyNetworkType.entries.forEachIndexed { index, networkType ->
-                    val rule = state.proxyNetworkRules[networkType] ?: ProxyNetworkRule(
-                        defaultProxyNetworkMode(networkType)
-                    )
-                    val position = itemPosition(index, ProxyNetworkType.entries.size)
                     Box {
                         SettingsTile(
-                            icon = Icons.Rounded.Wifi,
-                            title = stringResource(networkTitleRes(networkType)),
-                            subtitle = stringResource(networkRuleSubtitleRes(rule)),
-                            iconColor = Color(0xFF1E88E5),
-                            position = position,
-                            onClick = { expandedNetworkMenu = networkType },
+                            icon = Icons.Rounded.SwapHoriz,
+                            title = stringResource(R.string.smart_switch_mode_title),
+                            subtitle = stringResource(R.string.smart_switch_mode_subtitle),
+                            iconColor = Color(0xFF7E57C2),
+                            position = ItemPosition.MIDDLE,
+                            onClick = { smartSwitchModeMenuExpanded = true },
+                            enabled = state.isAutoBestProxyEnabled,
                             trailingContent = {
                                 DropdownSelectionTrailing(
                                     text = stringResource(
-                                        networkModeLabelRes(rule.mode)
+                                        smartSwitchModeLabelRes(state.smartSwitchMode)
                                     )
                                 )
                             }
                         )
 
                         StyledDropdownMenu(
-                            expanded = expandedNetworkMenu == networkType,
-                            onDismissRequest = { expandedNetworkMenu = null }
+                            expanded = smartSwitchModeMenuExpanded,
+                            onDismissRequest = { smartSwitchModeMenuExpanded = false }
                         ) {
-                            ProxyNetworkMode.entries.forEach { mode ->
+                            ProxySmartSwitchMode.entries.forEach { mode ->
                                 DropdownMenuItem(
                                     leadingIcon = {
                                         Icon(
-                                            imageVector = networkModeIcon(mode),
+                                            imageVector = Icons.Rounded.Bolt,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary
                                         )
                                     },
-                                    text = { Text(stringResource(networkModeLabelRes(mode))) },
+                                    text = { Text(stringResource(smartSwitchModeLabelRes(mode))) },
                                     trailingIcon = {
-                                        if (rule.mode == mode) {
+                                        if (state.smartSwitchMode == mode) {
                                             Icon(
                                                 imageVector = Icons.Rounded.Check,
                                                 contentDescription = null,
@@ -646,36 +501,150 @@ fun ProxyContent(component: ProxyComponent) {
                                         }
                                     },
                                     onClick = {
-                                        component.onProxyNetworkModeChanged(networkType, mode)
-                                        expandedNetworkMenu = null
+                                        component.onSmartSwitchModeChanged(mode)
+                                        smartSwitchModeMenuExpanded = false
                                     }
                                 )
                             }
-                            if (state.proxies.isNotEmpty()) {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 12.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        }
+                    }
+
+                    Box {
+                        SettingsTile(
+                            icon = Icons.Rounded.Refresh,
+                            title = stringResource(R.string.smart_switch_check_interval_title),
+                            subtitle = stringResource(R.string.smart_switch_check_interval_subtitle),
+                            iconColor = Color(0xFF1E88E5),
+                            position = ItemPosition.MIDDLE,
+                            onClick = { smartSwitchCheckIntervalMenuExpanded = true },
+                            enabled = state.isAutoBestProxyEnabled,
+                            trailingContent = {
+                                DropdownSelectionTrailing(
+                                    text = stringResource(
+                                        R.string.smart_switch_check_interval_format,
+                                        state.smartSwitchAutoCheckIntervalMinutes
+                                    )
                                 )
-                                state.proxies.forEach { proxy ->
+                            }
+                        )
+
+                        StyledDropdownMenu(
+                            expanded = smartSwitchCheckIntervalMenuExpanded,
+                            onDismissRequest = { smartSwitchCheckIntervalMenuExpanded = false }
+                        ) {
+                            smartSwitchCheckIntervalOptions.forEach { minutes ->
+                                DropdownMenuItem(
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Refresh,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    },
+                                    text = {
+                                        Text(
+                                            stringResource(
+                                                R.string.smart_switch_check_interval_format,
+                                                minutes
+                                            )
+                                        )
+                                    },
+                                    trailingIcon = {
+                                        if (state.smartSwitchAutoCheckIntervalMinutes == minutes) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        component.onSmartSwitchAutoCheckIntervalChanged(minutes)
+                                        smartSwitchCheckIntervalMenuExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    SettingsSwitchTile(
+                        icon = Icons.Rounded.Public,
+                        title = stringResource(R.string.prefer_ipv6_title),
+                        subtitle = stringResource(R.string.prefer_ipv6_subtitle),
+                        checked = state.preferIpv6,
+                        iconColor = Color(0xFF34A853),
+                        position = ItemPosition.MIDDLE,
+                        onCheckedChange = component::onPreferIpv6Toggled
+                    )
+
+                    val isDirect = state.proxies.none { it.isEnabled }
+                    SettingsTile(
+                        icon = Icons.Rounded.LinkOff,
+                        title = stringResource(R.string.disable_proxy_title),
+                        subtitle = if (isDirect) stringResource(R.string.connected_directly_subtitle) else stringResource(
+                            R.string.switch_to_direct_subtitle
+                        ),
+                        iconColor = if (isDirect) Color(0xFF34A853) else MaterialTheme.colorScheme.error,
+                        position = ItemPosition.BOTTOM,
+                        onClick = { component.onDisableProxy() },
+                        trailingContent = {
+                            if (isDirect) {
+                                Icon(
+                                    Icons.Rounded.Check,
+                                    contentDescription = null,
+                                    tint = Color(0xFF34A853)
+                                )
+                            }
+                        }
+                    )
+                }
+
+                item {
+                    SectionHeader(
+                        text = stringResource(R.string.proxy_network_rules_header),
+                        subtitle = stringResource(R.string.proxy_network_rules_subtitle)
+                    )
+                }
+
+                item {
+                    ProxyNetworkType.entries.forEachIndexed { index, networkType ->
+                        val rule = state.proxyNetworkRules[networkType] ?: ProxyNetworkRule(
+                            defaultProxyNetworkMode(networkType)
+                        )
+                        val position = itemPosition(index, ProxyNetworkType.entries.size)
+                        Box {
+                            SettingsTile(
+                                icon = Icons.Rounded.Wifi,
+                                title = stringResource(networkTitleRes(networkType)),
+                                subtitle = stringResource(networkRuleSubtitleRes(rule)),
+                                iconColor = Color(0xFF1E88E5),
+                                position = position,
+                                onClick = { expandedNetworkMenu = networkType },
+                                trailingContent = {
+                                    DropdownSelectionTrailing(
+                                        text = stringResource(
+                                            networkModeLabelRes(rule.mode)
+                                        )
+                                    )
+                                }
+                            )
+
+                            StyledDropdownMenu(
+                                expanded = expandedNetworkMenu == networkType,
+                                onDismissRequest = { expandedNetworkMenu = null }
+                            ) {
+                                ProxyNetworkMode.entries.forEach { mode ->
                                     DropdownMenuItem(
                                         leadingIcon = {
                                             Icon(
-                                                imageVector = Icons.Rounded.Tune,
+                                                imageVector = networkModeIcon(mode),
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                         },
-                                        text = {
-                                            Text(
-                                                stringResource(
-                                                    R.string.proxy_specific_target_format,
-                                                    proxy.server,
-                                                    proxy.port
-                                                )
-                                            )
-                                        },
+                                        text = { Text(stringResource(networkModeLabelRes(mode))) },
                                         trailingIcon = {
-                                            if (rule.mode == ProxyNetworkMode.SPECIFIC_PROXY && rule.specificProxyId == proxy.id) {
+                                            if (rule.mode == mode) {
                                                 Icon(
                                                     imageVector = Icons.Rounded.Check,
                                                     contentDescription = null,
@@ -684,137 +653,305 @@ fun ProxyContent(component: ProxyComponent) {
                                             }
                                         },
                                         onClick = {
-                                            component.onSpecificProxyForNetworkSelected(
-                                                networkType,
-                                                proxy.id
-                                            )
+                                            component.onProxyNetworkModeChanged(networkType, mode)
                                             expandedNetworkMenu = null
                                         }
                                     )
+                                }
+                                if (state.proxies.isNotEmpty()) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(horizontal = 12.dp),
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                    )
+                                    state.proxies.forEach { proxy ->
+                                        DropdownMenuItem(
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Tune,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            },
+                                            text = {
+                                                Text(
+                                                    stringResource(
+                                                        R.string.proxy_specific_target_format,
+                                                        proxy.server,
+                                                        proxy.port
+                                                    )
+                                                )
+                                            },
+                                            trailingIcon = {
+                                                if (rule.mode == ProxyNetworkMode.SPECIFIC_PROXY && rule.specificProxyId == proxy.id) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Check,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+                                            },
+                                            onClick = {
+                                                component.onSpecificProxyForNetworkSelected(
+                                                    networkType,
+                                                    proxy.id
+                                                )
+                                                expandedNetworkMenu = null
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            item {
-                SectionHeader(stringResource(R.string.proxy_list_behavior_header))
-            }
+                item {
+                    SectionHeader(stringResource(R.string.proxy_list_behavior_header))
+                }
 
-            item {
-                Box {
-                    SettingsTile(
-                        icon = Icons.AutoMirrored.Rounded.Sort,
-                        title = stringResource(R.string.proxy_sort_mode_title),
-                        subtitle = stringResource(R.string.proxy_sort_mode_subtitle),
-                        iconColor = Color(0xFFF9A825),
-                        position = ItemPosition.TOP,
-                        onClick = { sortMenuExpanded = true },
-                        trailingContent = {
-                            DropdownSelectionTrailing(
-                                text = stringResource(
-                                    sortModeLabelRes(
-                                        state.proxySortMode
+                item {
+                    Box {
+                        SettingsTile(
+                            icon = Icons.AutoMirrored.Rounded.Sort,
+                            title = stringResource(R.string.proxy_sort_mode_title),
+                            subtitle = stringResource(R.string.proxy_sort_mode_subtitle),
+                            iconColor = Color(0xFFF9A825),
+                            position = ItemPosition.TOP,
+                            onClick = { sortMenuExpanded = true },
+                            trailingContent = {
+                                DropdownSelectionTrailing(
+                                    text = stringResource(
+                                        sortModeLabelRes(
+                                            state.proxySortMode
+                                        )
                                     )
                                 )
-                            )
-                        }
-                    )
+                            }
+                        )
 
-                    StyledDropdownMenu(
-                        expanded = sortMenuExpanded,
-                        onDismissRequest = { sortMenuExpanded = false }
-                    ) {
-                        ProxySortMode.entries.forEach { mode ->
-                            DropdownMenuItem(
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = sortModeIcon(mode),
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                },
-                                text = { Text(stringResource(sortModeLabelRes(mode))) },
-                                trailingIcon = {
-                                    if (state.proxySortMode == mode) {
+                        StyledDropdownMenu(
+                            expanded = sortMenuExpanded,
+                            onDismissRequest = { sortMenuExpanded = false }
+                        ) {
+                            ProxySortMode.entries.forEach { mode ->
+                                DropdownMenuItem(
+                                    leadingIcon = {
                                         Icon(
-                                            imageVector = Icons.Rounded.Check,
+                                            imageVector = sortModeIcon(mode),
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary
                                         )
+                                    },
+                                    text = { Text(stringResource(sortModeLabelRes(mode))) },
+                                    trailingIcon = {
+                                        if (state.proxySortMode == mode) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        component.onProxySortModeChanged(mode)
+                                        sortMenuExpanded = false
                                     }
-                                },
-                                onClick = {
-                                    component.onProxySortModeChanged(mode)
-                                    sortMenuExpanded = false
-                                }
-                            )
+                                )
+                            }
                         }
                     }
-                }
 
-                Box {
-                    SettingsTile(
-                        icon = Icons.Rounded.SwapHoriz,
-                        title = stringResource(R.string.proxy_unavailable_fallback_title),
-                        subtitle = stringResource(R.string.proxy_unavailable_fallback_subtitle),
-                        iconColor = Color(0xFF6A1B9A),
-                        position = ItemPosition.MIDDLE,
-                        onClick = { fallbackMenuExpanded = true },
-                        trailingContent = {
-                            DropdownSelectionTrailing(
-                                text = stringResource(
-                                    fallbackLabelRes(
-                                        state.proxyUnavailableFallback
+                    Box {
+                        SettingsTile(
+                            icon = Icons.Rounded.SwapHoriz,
+                            title = stringResource(R.string.proxy_unavailable_fallback_title),
+                            subtitle = stringResource(R.string.proxy_unavailable_fallback_subtitle),
+                            iconColor = Color(0xFF6A1B9A),
+                            position = ItemPosition.MIDDLE,
+                            onClick = { fallbackMenuExpanded = true },
+                            trailingContent = {
+                                DropdownSelectionTrailing(
+                                    text = stringResource(
+                                        fallbackLabelRes(
+                                            state.proxyUnavailableFallback
+                                        )
                                     )
                                 )
-                            )
-                        }
-                    )
+                            }
+                        )
 
-                    StyledDropdownMenu(
-                        expanded = fallbackMenuExpanded,
-                        onDismissRequest = { fallbackMenuExpanded = false }
-                    ) {
-                        ProxyUnavailableFallback.entries.forEach { fallback ->
-                            DropdownMenuItem(
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = fallbackIcon(fallback),
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                },
-                                text = { Text(stringResource(fallbackLabelRes(fallback))) },
-                                trailingIcon = {
-                                    if (state.proxyUnavailableFallback == fallback) {
+                        StyledDropdownMenu(
+                            expanded = fallbackMenuExpanded,
+                            onDismissRequest = { fallbackMenuExpanded = false }
+                        ) {
+                            ProxyUnavailableFallback.entries.forEach { fallback ->
+                                DropdownMenuItem(
+                                    leadingIcon = {
                                         Icon(
-                                            imageVector = Icons.Rounded.Check,
+                                            imageVector = fallbackIcon(fallback),
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary
                                         )
+                                    },
+                                    text = { Text(stringResource(fallbackLabelRes(fallback))) },
+                                    trailingIcon = {
+                                        if (state.proxyUnavailableFallback == fallback) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        component.onProxyUnavailableFallbackChanged(fallback)
+                                        fallbackMenuExpanded = false
                                     }
-                                },
-                                onClick = {
-                                    component.onProxyUnavailableFallbackChanged(fallback)
-                                    fallbackMenuExpanded = false
+                                )
+                            }
+                        }
+                    }
+
+                    SettingsSwitchTile(
+                        icon = Icons.Rounded.VisibilityOff,
+                        title = stringResource(R.string.hide_offline_proxies_title),
+                        subtitle = stringResource(R.string.hide_offline_proxies_subtitle),
+                        checked = state.hideOfflineProxies,
+                        iconColor = Color(0xFF00897B),
+                        position = ItemPosition.BOTTOM,
+                        onCheckedChange = component::onHideOfflineProxiesToggled
+                    )
+                }
+
+                if (BuildConfig.ENABLE_TELEMT_DNS) {
+                    item {
+                        SectionHeader(
+                            text = stringResource(R.string.telemt_dns_section_header),
+                            subtitle = stringResource(R.string.telemt_dns_section_subtitle)
+                        )
+                    }
+
+                    item {
+                        var dnsProviderMenuExpanded by remember { mutableStateOf(false) }
+                        val dnsProviders = listOf("google", "cloudflare", "custom")
+                        val isCustomSelected = state.dnsProvider == "custom"
+
+                        Column {
+                            Box {
+                                SettingsTile(
+                                    icon = Icons.Rounded.Public,
+                                    title = stringResource(R.string.telemt_dns_provider_title),
+                                    subtitle = stringResource(R.string.telemt_dns_provider_subtitle),
+                                    iconColor = Color(0xFF4285F4),
+                                    position = if (isCustomSelected) ItemPosition.TOP else ItemPosition.STANDALONE,
+                                    onClick = { dnsProviderMenuExpanded = true },
+                                    trailingContent = {
+                                        DropdownSelectionTrailing(
+                                            text = when (state.dnsProvider) {
+                                                "google" -> stringResource(R.string.telemt_dns_provider_google)
+                                                "cloudflare" -> stringResource(R.string.telemt_dns_provider_cloudflare)
+                                                "custom" -> stringResource(R.string.telemt_dns_provider_custom)
+                                                else -> stringResource(R.string.telemt_dns_provider_google)
+                                            }
+                                        )
+                                    }
+                                )
+
+                                StyledDropdownMenu(
+                                    expanded = dnsProviderMenuExpanded,
+                                    onDismissRequest = { dnsProviderMenuExpanded = false }
+                                ) {
+                                    dnsProviders.forEach { provider ->
+                                        DropdownMenuItem(
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Public,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            },
+                                            text = {
+                                                Text(
+                                                    when (provider) {
+                                                        "google" -> stringResource(R.string.telemt_dns_provider_google)
+                                                        "cloudflare" -> stringResource(R.string.telemt_dns_provider_cloudflare)
+                                                        "custom" -> stringResource(R.string.telemt_dns_provider_custom)
+                                                        else -> provider
+                                                    }
+                                                )
+                                            },
+                                            trailingIcon = {
+                                                if (state.dnsProvider == provider) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Check,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+                                            },
+                                            onClick = {
+                                                component.onDnsProviderChanged(provider)
+                                                dnsProviderMenuExpanded = false
+                                            }
+                                        )
+                                    }
                                 }
-                            )
+                            }
+
+                            AnimatedVisibility(
+                                visible = isCustomSelected,
+                                enter = fadeIn() + expandVertically(),
+                                exit = fadeOut() + shrinkVertically()
+                            ) {
+                                Column {
+                                    SettingsTile(
+                                        icon = Icons.Rounded.Language,
+                                        title = stringResource(R.string.telemt_dns_custom_url_title),
+                                        subtitle = state.customDnsUrl.ifEmpty {
+                                            stringResource(R.string.telemt_dns_custom_url_subtitle)
+                                        },
+                                        iconColor = Color(0xFFFF9800),
+                                        position = ItemPosition.MIDDLE,
+                                        onClick = {
+                                            showDnsUrlDialog = true
+                                        }
+                                    )
+
+                                    SettingsTile(
+                                        icon = Icons.Rounded.Tune,
+                                        title = stringResource(R.string.telemt_dns_custom_headers_title),
+                                        subtitle = state.customDnsHeaders.ifEmpty {
+                                            stringResource(R.string.telemt_dns_custom_headers_subtitle)
+                                        },
+                                        iconColor = Color(0xFF9C27B0),
+                                        position = ItemPosition.BOTTOM,
+                                        onClick = {
+                                            showDnsHeadersDialog = true
+                                        }
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainer
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.telemt_dns_fallback_info),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(
+                                        horizontal = 16.dp,
+                                        vertical = 12.dp
+                                    )
+                                )
+                            }
                         }
                     }
                 }
-
-                SettingsSwitchTile(
-                    icon = Icons.Rounded.VisibilityOff,
-                    title = stringResource(R.string.hide_offline_proxies_title),
-                    subtitle = stringResource(R.string.hide_offline_proxies_subtitle),
-                    checked = state.hideOfflineProxies,
-                    iconColor = Color(0xFF00897B),
-                    position = ItemPosition.BOTTOM,
-                    onCheckedChange = component::onHideOfflineProxiesToggled
-                )
-            }
             }
 
             if (selectedTab == ProxyTab.DcPing) {
@@ -955,78 +1092,78 @@ fun ProxyContent(component: ProxyComponent) {
             }
 
             if (selectedTab == ProxyTab.Proxy) {
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 12.dp, end = 4.dp, bottom = 8.dp, top = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = if (state.proxies.isNotEmpty()) {
-                            "${stringResource(R.string.your_proxies_header)} (${prioritizedVisibleProxies.size})"
-                        } else {
-                            stringResource(R.string.your_proxies_header)
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-                itemsIndexed(prioritizedVisibleProxies, key = { _, it -> it.id }) { index, proxy ->
-                val position = when {
-                    prioritizedVisibleProxies.size == 1 -> ItemPosition.STANDALONE
-                    index == 0 -> ItemPosition.TOP
-                    index == prioritizedVisibleProxies.size - 1 -> ItemPosition.BOTTOM
-                    else -> ItemPosition.MIDDLE
-                }
-
-                SwipeToDeleteContainer(
-                    onDelete = { component.onRemoveProxy(proxy.id) }
-                ) {
-                    ProxyItem(
-                        proxy = proxy,
-                        errorMessage = state.proxyErrors[proxy.id],
-                        isChecking = proxy.id in state.checkingProxyIds,
-                        isFavorite = state.favoriteProxyId == proxy.id,
-                        position = position,
-                        onClick = { component.onProxyClicked(proxy) },
-                        onLongClick = { component.onProxyLongClicked(proxy) },
-                        onRefreshPing = { component.onPingProxy(proxy.id) },
-                        onOpenMenu = { component.onEditProxyClicked(proxy) }
-                    )
-                }
-            }
-
-                if (prioritizedVisibleProxies.isEmpty() && !state.isLoading) {
                 item {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 48.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                            .padding(start = 12.dp, end = 4.dp, bottom = 8.dp, top = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            Icons.Rounded.Language,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-                        )
-                        Spacer(Modifier.height(16.dp))
                         Text(
-                            stringResource(if (state.proxies.isEmpty()) R.string.no_proxies_label else R.string.no_proxies_match_filter_label),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = if (state.proxies.isNotEmpty()) {
+                                "${stringResource(R.string.your_proxies_header)} (${prioritizedVisibleProxies.size})"
+                            } else {
+                                stringResource(R.string.your_proxies_header)
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        Spacer(Modifier.height(16.dp))
-                        Button(onClick = component::onAddProxyClicked) {
-                            Text(stringResource(R.string.add_proxy_button))
-                        }
                     }
                 }
+
+                itemsIndexed(prioritizedVisibleProxies, key = { _, it -> it.id }) { index, proxy ->
+                    val position = when {
+                        prioritizedVisibleProxies.size == 1 -> ItemPosition.STANDALONE
+                        index == 0 -> ItemPosition.TOP
+                        index == prioritizedVisibleProxies.size - 1 -> ItemPosition.BOTTOM
+                        else -> ItemPosition.MIDDLE
+                    }
+
+                    SwipeToDeleteContainer(
+                        onDelete = { component.onRemoveProxy(proxy.id) }
+                    ) {
+                        ProxyItem(
+                            proxy = proxy,
+                            errorMessage = state.proxyErrors[proxy.id],
+                            isChecking = proxy.id in state.checkingProxyIds,
+                            isFavorite = state.favoriteProxyId == proxy.id,
+                            position = position,
+                            onClick = { component.onProxyClicked(proxy) },
+                            onLongClick = { component.onProxyLongClicked(proxy) },
+                            onRefreshPing = { component.onPingProxy(proxy.id) },
+                            onOpenMenu = { component.onEditProxyClicked(proxy) }
+                        )
+                    }
+                }
+
+                if (prioritizedVisibleProxies.isEmpty() && !state.isLoading) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Rounded.Language,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                stringResource(if (state.proxies.isEmpty()) R.string.no_proxies_label else R.string.no_proxies_match_filter_label),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Button(onClick = component::onAddProxyClicked) {
+                                Text(stringResource(R.string.add_proxy_button))
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1177,7 +1314,14 @@ fun ProxyContent(component: ProxyComponent) {
         AlertDialog(
             onDismissRequest = component::onDismissDeleteConfirmation,
             title = { Text(stringResource(R.string.delete_proxy_title)) },
-            text = { Text(stringResource(R.string.delete_proxy_confirmation_format, proxy.server)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.delete_proxy_confirmation_format,
+                        proxy.server
+                    )
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = component::onConfirmDelete,
@@ -1236,5 +1380,86 @@ fun ProxyContent(component: ProxyComponent) {
         )
     }
 
+    if (showDnsUrlDialog) {
+        DnsTextInputBottomSheet(
+            title = stringResource(R.string.telemt_dns_custom_url_title),
+            initialValue = state.customDnsUrl,
+            placeholder = "https://dns.example.com/dns-query",
+            onDismiss = { showDnsUrlDialog = false },
+            onSave = { url ->
+                component.onCustomDnsUrlChanged(url)
+                showDnsUrlDialog = false
+            }
+        )
+    }
+
+    if (showDnsHeadersDialog) {
+        DnsTextInputBottomSheet(
+            title = stringResource(R.string.telemt_dns_custom_headers_title),
+            initialValue = state.customDnsHeaders,
+            placeholder = "Authorization: Bearer token",
+            onDismiss = { showDnsHeadersDialog = false },
+            onSave = { headers ->
+                component.onCustomDnsHeadersChanged(headers)
+                showDnsHeadersDialog = false
+            }
+        )
+    }
+
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DnsTextInputBottomSheet(
+    title: String,
+    initialValue: String,
+    placeholder: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var text by remember { mutableStateOf(initialValue) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text(placeholder) },
+                singleLine = false,
+                minLines = 2,
+                maxLines = 5
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.cancel_button))
+                }
+                Spacer(Modifier.width(8.dp))
+                Button(onClick = { onSave(text) }) {
+                    Text(stringResource(R.string.action_save))
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}

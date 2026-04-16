@@ -569,6 +569,23 @@
     <string name="proxy_offline">Недоступен</string>
     <string name="proxy_ping_format">%1$d мс</string>
 
+    <!-- Telemt DNS Settings -->
+    <string name="telemt_dns_section_header">Telemt DNS</string>
+    <string name="telemt_dns_section_subtitle">Настройка DNS-over-HTTPS провайдера для TDLib</string>
+    <string name="telemt_dns_provider_title">DNS провайдер</string>
+    <string name="telemt_dns_provider_subtitle">Выберите DoH провайдер для разрешения доменов</string>
+    <string name="telemt_dns_provider_google">Google DNS</string>
+    <string name="telemt_dns_provider_cloudflare">CloudFlare DNS</string>
+    <string name="telemt_dns_provider_custom">Пользовательский DoH</string>
+    <string name="telemt_dns_custom_url_title">URL пользовательского DoH</string>
+    <string name="telemt_dns_custom_url_subtitle">Введите URL сервера DNS-over-HTTPS</string>
+    <string name="telemt_dns_custom_headers_title">Пользовательские заголовки</string>
+    <string name="telemt_dns_custom_headers_subtitle">Опциональные заголовки для DoH (например, Authorization)</string>
+    <string name="telemt_dns_fallback_info">Резерв: Google ↔ CloudFlare. Пользовательский DoH без резерва.</string>
+    <string name="dns_provider_change_failed">Не удалось изменить DNS провайдер</string>
+    <string name="dns_url_change_failed">Не удалось изменить DNS URL</string>
+    <string name="dns_headers_change_failed">Не удалось изменить DNS заголовки</string>
+
     <!-- Settings General -->
     <string name="your_usernames_header">Ваши имена пользователя</string>
     <string name="more_options_cd">Дополнительно</string>

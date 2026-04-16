@@ -940,7 +940,12 @@ fun ProxyContent(component: ProxyComponent) {
                                 color = MaterialTheme.colorScheme.surfaceContainer
                             ) {
                                 Text(
-                                    text = stringResource(R.string.telemt_dns_fallback_info),
+                                    text = when (state.dnsProvider) {
+                                        "google" -> stringResource(R.string.telemt_dns_fallback_google)
+                                        "cloudflare" -> stringResource(R.string.telemt_dns_fallback_cloudflare)
+                                        "custom" -> stringResource(R.string.telemt_dns_fallback_custom)
+                                        else -> stringResource(R.string.telemt_dns_fallback_google)
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(

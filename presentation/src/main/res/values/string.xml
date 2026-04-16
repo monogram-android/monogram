@@ -622,7 +622,9 @@
     <string name="telemt_dns_custom_url_subtitle">Enter custom DNS-over-HTTPS server URL</string>
     <string name="telemt_dns_custom_headers_title">Custom Headers</string>
     <string name="telemt_dns_custom_headers_subtitle">Optional headers for custom DoH (e.g., Authorization)</string>
-    <string name="telemt_dns_fallback_info">Fallback: Google ↔ CloudFlare. Custom DoH has no fallback.</string>
+    <string name="telemt_dns_fallback_google">Fallback: Google DNS → CloudFlare DNS</string>
+    <string name="telemt_dns_fallback_cloudflare">Fallback: CloudFlare DNS → Google DNS</string>
+    <string name="telemt_dns_fallback_custom">Custom DoH has no fallback</string>
     <string name="dns_provider_change_failed">Failed to change DNS provider</string>
     <string name="dns_url_change_failed">Failed to change DNS URL</string>
     <string name="dns_headers_change_failed">Failed to change DNS headers</string>

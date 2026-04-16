@@ -581,7 +581,9 @@
     <string name="telemt_dns_custom_url_subtitle">Введите URL сервера DNS-over-HTTPS</string>
     <string name="telemt_dns_custom_headers_title">Пользовательские заголовки</string>
     <string name="telemt_dns_custom_headers_subtitle">Опциональные заголовки для DoH (например, Authorization)</string>
-    <string name="telemt_dns_fallback_info">Резерв: Google ↔ CloudFlare. Пользовательский DoH без резерва.</string>
+    <string name="telemt_dns_fallback_google">Резерв: Google DNS → CloudFlare DNS</string>
+    <string name="telemt_dns_fallback_cloudflare">Резерв: CloudFlare DNS → Google DNS</string>
+    <string name="telemt_dns_fallback_custom">Пользовательский DoH без резерва</string>
     <string name="dns_provider_change_failed">Не удалось изменить DNS провайдер</string>
     <string name="dns_url_change_failed">Не удалось изменить DNS URL</string>
     <string name="dns_headers_change_failed">Не удалось изменить DNS заголовки</string>

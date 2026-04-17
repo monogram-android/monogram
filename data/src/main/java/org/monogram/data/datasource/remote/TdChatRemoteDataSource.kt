@@ -13,8 +13,14 @@ class TdChatRemoteSource(
     private val connectivityManager: ConnectivityManager
 ) : ChatRemoteSource {
 
-    override suspend fun loadChats(chatList: TdApi.ChatList, limit: Int) {
-        coRunCatching { gateway.execute(TdApi.LoadChats(chatList, limit)) }
+    override suspend fun loadChats(chatList: TdApi.ChatList, limit: Int): Result<Unit> =
+        coRunCatching {
+            gateway.execute(TdApi.LoadChats(chatList, limit))
+            Unit
+        }
+
+    override suspend fun getChats(chatList: TdApi.ChatList, limit: Int): TdApi.Chats? {
+        return coRunCatching { gateway.execute(TdApi.GetChats(chatList, limit)) }.getOrNull()
     }
 
     override suspend fun searchChats(query: String, limit: Int): TdApi.Chats? {

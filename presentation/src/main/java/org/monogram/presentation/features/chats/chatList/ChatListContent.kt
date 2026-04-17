@@ -43,7 +43,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -718,9 +717,19 @@ fun ChatListContent(component: ChatListComponent) {
                 var showAllGlobal by remember { mutableStateOf(false) }
                 var showAllMessages by remember { mutableStateOf(false) }
 
-                val scrollState = rememberLazyListState(
-                    initialFirstVisibleItemIndex = if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) foldersState.scrollPositions[-2]?.first ?: 0 else 0,
-                    initialFirstVisibleItemScrollOffset = if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) foldersState.scrollPositions[-2]?.second ?: 0 else 0
+                val archiveScrollPosition =
+                    if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) {
+                        foldersState.scrollPositions[-2]
+                    } else {
+                        null
+                    }
+                val scrollState = rememberManagedChatListState(
+                    stateKey = if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) {
+                        "archive"
+                    } else {
+                        "search"
+                    },
+                    restoredPosition = archiveScrollPosition
                 )
 
                 if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) {
@@ -1071,9 +1080,9 @@ fun ChatListContent(component: ChatListComponent) {
                     val showFolderShimmer = folderChats.isEmpty() && (isFolderLoading || !hasFolderLoadState)
                     val shouldAnimateFirstFolderTransition = firstFolderTransitionCompleted[folderId] != true
 
-                    val scrollState = rememberLazyListState(
-                        initialFirstVisibleItemIndex = foldersState.scrollPositions[folderId]?.first ?: 0,
-                        initialFirstVisibleItemScrollOffset = foldersState.scrollPositions[folderId]?.second ?: 0
+                    val scrollState = rememberManagedChatListState(
+                        stateKey = "folder:$folderId",
+                        restoredPosition = foldersState.scrollPositions[folderId]
                     )
 
                     scrollStates[folderId] = scrollState
@@ -1458,4 +1467,19 @@ private fun ArchiveModeTopBar(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     )
+}
+
+@Composable
+private fun rememberManagedChatListState(
+    stateKey: String,
+    restoredPosition: Pair<Int, Int>?
+): LazyListState {
+    val initialIndex = restoredPosition?.first ?: 0
+    val initialOffset = restoredPosition?.second ?: 0
+    return remember(stateKey) {
+        LazyListState(
+            firstVisibleItemIndex = initialIndex,
+            firstVisibleItemScrollOffset = initialOffset
+        )
+    }
 }

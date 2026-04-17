@@ -259,7 +259,6 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_29_30,
                 MonogramMigrations.MIGRATION_30_31
             )
-            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
     single { get<MonogramDatabase>().chatDao() }

@@ -30,8 +30,21 @@ class ChatUpdateHandler(
     fun handle(update: TdApi.Update) {
         when (update) {
             is TdApi.UpdateNewChat -> {
+                val activeChatList = activeChatListProvider()
+                val existingPositions = cache.getChat(update.chat.id)?.positions ?: emptyArray()
+                update.chat.positions = listManager.sanitizePositionsForActiveList(
+                    chatId = update.chat.id,
+                    currentPositions = existingPositions,
+                    incomingPositions = update.chat.positions,
+                    activeChatList = activeChatList,
+                    source = "UpdateNewChat"
+                )
                 cache.putChat(update.chat)
-                listManager.updateActiveListPositions(update.chat.id, update.chat.positions, activeChatListProvider())
+                listManager.updateActiveListPositions(
+                    update.chat.id,
+                    update.chat.positions,
+                    activeChatList
+                )
                 onSaveChat(update.chat.id)
                 onTriggerUpdate(update.chat.id)
             }
@@ -55,11 +68,23 @@ class ChatUpdateHandler(
             }
 
             is TdApi.UpdateChatDraftMessage -> {
+                val activeChatList = activeChatListProvider()
                 cache.updateChat(update.chatId) { chat ->
                     chat.draftMessage = update.draftMessage
                     if (!update.positions.isNullOrEmpty()) {
-                        chat.positions = update.positions
-                        listManager.updateActiveListPositions(update.chatId, update.positions, activeChatListProvider())
+                        val mergedPositions = listManager.sanitizePositionsForActiveList(
+                            chatId = update.chatId,
+                            currentPositions = chat.positions,
+                            incomingPositions = update.positions,
+                            activeChatList = activeChatList,
+                            source = "UpdateChatDraftMessage"
+                        )
+                        chat.positions = mergedPositions
+                        listManager.updateActiveListPositions(
+                            update.chatId,
+                            mergedPositions,
+                            activeChatList
+                        )
                     }
                 }
                 onSaveChat(update.chatId)
@@ -74,11 +99,23 @@ class ChatUpdateHandler(
             }
 
             is TdApi.UpdateChatLastMessage -> {
+                val activeChatList = activeChatListProvider()
                 cache.updateChat(update.chatId) { chat ->
                     chat.lastMessage = update.lastMessage
                     if (!update.positions.isNullOrEmpty()) {
-                        chat.positions = update.positions
-                        listManager.updateActiveListPositions(update.chatId, update.positions, activeChatListProvider())
+                        val mergedPositions = listManager.sanitizePositionsForActiveList(
+                            chatId = update.chatId,
+                            currentPositions = chat.positions,
+                            incomingPositions = update.positions,
+                            activeChatList = activeChatList,
+                            source = "UpdateChatLastMessage"
+                        )
+                        chat.positions = mergedPositions
+                        listManager.updateActiveListPositions(
+                            update.chatId,
+                            mergedPositions,
+                            activeChatList
+                        )
                     }
                     typingManager.clearTypingStatus(update.chatId)
                 }

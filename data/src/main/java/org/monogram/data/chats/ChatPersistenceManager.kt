@@ -78,7 +78,37 @@ class ChatPersistenceManager(
     }
 
     suspend fun persistChatModels(models: List<ChatModel>, activeChatList: TdApi.ChatList) {
-        val toSave = models
+        val renderedModelsById = models.associateBy { it.id }
+        val snapshotEntries = cache.activeListPositions.entries
+            .asSequence()
+            .filter { (_, position) ->
+                position.order != 0L && listManager.isSameChatList(position.list, activeChatList)
+            }
+            .sortedWith(
+                compareByDescending<Map.Entry<Long, TdApi.ChatPosition>> { it.value.isPinned }
+                    .thenByDescending { it.value.order }
+                    .thenByDescending { it.key }
+            )
+            .take(SNAPSHOT_PERSIST_LIMIT)
+            .toList()
+
+        val visibleIds = renderedModelsById.keys
+        val missingSnapshotIds = snapshotEntries.asSequence()
+            .map { it.key }
+            .filterNot(visibleIds::contains)
+            .toList()
+
+        val snapshotModels = snapshotEntries.mapNotNull { (chatId, position) ->
+            val chat = cache.getChat(chatId) ?: return@mapNotNull null
+            renderedModelsById[chatId] ?: modelFactory.mapChatToModel(
+                chat = chat,
+                order = position.order,
+                isPinned = position.isPinned,
+                allowMediaDownloads = false
+            )
+        }
+
+        val toSave = snapshotModels
             .map { model -> mapModelToEntity(model, activeChatList) }
             .filter { entity ->
                 val last = lastSavedEntities[entity.id]
@@ -92,6 +122,14 @@ class ChatPersistenceManager(
 
         if (toSave.isNotEmpty()) {
             chatLocalDataSource.insertChats(toSave)
+        }
+
+        val totalSnapshotSize = snapshotEntries.size
+        if (missingSnapshotIds.isNotEmpty() || totalSnapshotSize == SNAPSHOT_PERSIST_LIMIT) {
+            android.util.Log.d(
+                TAG,
+                "Persist snapshot: rendered=${models.size} snapshot=$totalSnapshotSize saved=${toSave.size} hiddenBackfill=${missingSnapshotIds.size} truncated=${totalSnapshotSize == SNAPSHOT_PERSIST_LIMIT}"
+            )
         }
     }
 
@@ -135,6 +173,8 @@ class ChatPersistenceManager(
     private fun ChatEntity.withoutCreatedAt(): ChatEntity = copy(createdAt = 0L)
 
     companion object {
+        private const val TAG = "ChatPersistence"
         private const val SINGLE_CHAT_SAVE_DEBOUNCE_MS = 2000L
+        private const val SNAPSHOT_PERSIST_LIMIT = 1000
     }
 }

@@ -49,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -226,6 +227,8 @@ fun ChatContentList(
             }
         }
 
+        val isSelectionMode = mutableStateOf(state.selectedMessageIds.isNotEmpty())
+
         if (isComments) {
             item(key = "root_header") {
                 RootMessageSection(
@@ -241,7 +244,8 @@ fun ChatContentList(
                     onViaBotClick,
                     toProfile,
                     downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
+                    isAnyViewerOpen = isAnyViewerOpen,
+                    isSelectionMode = isSelectionMode.value
                 )
             }
 
@@ -270,7 +274,7 @@ fun ChatContentList(
                     olderMsg = olderMsg,
                     newerMsg = newerMsg,
                     isSelected = isItemSelected(item, state.selectedMessageIds),
-                    isSelectionMode = state.selectedMessageIds.isNotEmpty(),
+                    isSelectionMode = isSelectionMode.value,
                     selectedMessageId = selectedMessageId,
                     onPhotoClick = onPhotoClick,
                     onPhotoDownload = onPhotoDownload,
@@ -605,7 +609,7 @@ private fun MessageBubbleSwitcher(
                             click
                         )
                     },
-                    onLongReplyClick = { component.onToggleMessageSelection(item.message.id) },
+                    onSelectClick = { component.onToggleMessageSelection(item.message.id) },
                     onGoToReply = onGoToReply,
                     onReactionClick = { id, r ->
                         if (isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(
@@ -661,7 +665,8 @@ private fun MessageBubbleSwitcher(
                     onYouTubeClick = { component.onOpenYouTube(it) },
                     onInstantViewClick = { component.onOpenInstantView(it) },
                     downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
+                    isAnyViewerOpen = isAnyViewerOpen,
+                    isSelectionMode = isSelectionMode,
                 )
             } else {
                 MessageBubbleContainer(
@@ -714,7 +719,7 @@ private fun MessageBubbleSwitcher(
                             click
                         )
                     },
-                    onLongReplyClick = { component.onToggleMessageSelection(item.message.id) },
+                    onSelectClick = { component.onToggleMessageSelection(item.message.id) },
                     onGoToReply = onGoToReply,
                     onReactionClick = { id, r ->
                         if (isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(
@@ -766,7 +771,8 @@ private fun MessageBubbleSwitcher(
                     onReplySwipe = { component.onReplyMessage(it) },
                     swipeEnabled = !isSelectionMode,
                     downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
+                    isAnyViewerOpen = isAnyViewerOpen,
+                    isSelectionMode = isSelectionMode,
                 )
             }
         }
@@ -818,7 +824,7 @@ private fun MessageBubbleSwitcher(
                         click
                     )
                 },
-                onLongReplyClick = { component.onToggleMessageSelection(item.messages.last().id) },
+                onSelectClick = { component.onToggleMessageSelection(item.messages.last().id) },
                 onGoToReply = onGoToReply,
                 onReactionClick = { id, r ->
                     if (isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(
@@ -835,7 +841,8 @@ private fun MessageBubbleSwitcher(
                 onReplySwipe = { component.onReplyMessage(it) },
                 swipeEnabled = !isSelectionMode,
                 downloadUtils = downloadUtils,
-                isAnyViewerOpen = isAnyViewerOpen
+                isAnyViewerOpen = isAnyViewerOpen,
+                isSelectionMode = isSelectionMode,
             )
         }
     }
@@ -878,7 +885,8 @@ private fun RootMessageSection(
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
     downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false
+    isAnyViewerOpen: Boolean = false,
+    isSelectionMode: Boolean = false,
 ) {
     val root = state.rootMessage ?: return
     Column(
@@ -898,7 +906,7 @@ private fun RootMessageSection(
                 onAudioClick = onAudioClick,
                 onCancelDownload = { component.onCancelDownloadFile(it) },
                 onReplyClick = { pos, size, click -> onMessageOptionsClick(root, pos, size, click) },
-                onLongReplyClick = { component.onToggleMessageSelection(root.id) },
+                onSelectClick = { component.onToggleMessageSelection(root.id) },
                 onGoToReply = onGoToReply,
                 onReactionClick = { id, r -> component.onSendReaction(id, r) },
                 onReplyMarkupButtonClick = { id, btn -> component.onReplyMarkupButtonClick(id, btn, root.senderId) },
@@ -917,7 +925,8 @@ private fun RootMessageSection(
                 onYouTubeClick = { component.onOpenYouTube(it) },
                 onInstantViewClick = { component.onOpenInstantView(it) },
                 downloadUtils = downloadUtils,
-                isAnyViewerOpen = isAnyViewerOpen
+                isAnyViewerOpen = isAnyViewerOpen,
+                isSelectionMode = isSelectionMode,
             )
         } else {
             MessageBubbleContainer(
@@ -936,7 +945,7 @@ private fun RootMessageSection(
                 onAudioClick = onAudioClick,
                 onCancelDownload = { component.onCancelDownloadFile(it) },
                 onReplyClick = { pos, size, click -> onMessageOptionsClick(root, pos, size, click) },
-                onLongReplyClick = { component.onToggleMessageSelection(root.id) },
+                onSelectClick = { component.onToggleMessageSelection(root.id) },
                 onGoToReply = onGoToReply,
                 onReactionClick = { id, r -> component.onSendReaction(id, r) },
                 onReplyMarkupButtonClick = { id, btn -> component.onReplyMarkupButtonClick(id, btn, root.senderId) },
@@ -951,7 +960,8 @@ private fun RootMessageSection(
                 onInstantViewClick = { component.onOpenInstantView(it) },
                 onYouTubeClick = { component.onOpenYouTube(it) },
                 downloadUtils = downloadUtils,
-                isAnyViewerOpen = isAnyViewerOpen
+                isAnyViewerOpen = isAnyViewerOpen,
+                isSelectionMode = isSelectionMode,
             )
         }
 

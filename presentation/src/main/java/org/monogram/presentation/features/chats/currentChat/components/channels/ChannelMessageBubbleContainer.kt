@@ -50,7 +50,7 @@ fun ChannelMessageBubbleContainer(
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onReplyClick: (Offset, IntSize, Offset) -> Unit,
-    onLongReplyClick: () -> Unit = {},
+    onSelectClick: () -> Unit = {},
     onGoToReply: (MessageModel) -> Unit = {},
     autoDownloadMobile: Boolean = false,
     autoDownloadWifi: Boolean = false,
@@ -78,6 +78,7 @@ fun ChannelMessageBubbleContainer(
     onReplySwipe: (MessageModel) -> Unit = {},
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false,
+    isSelectionMode: Boolean = false,
 ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -129,13 +130,17 @@ fun ChannelMessageBubbleContainer(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { offset ->
-                        val clickPos = outerColumnPosition + offset
-                        val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
-                        if (!bubbleRect.contains(clickPos)) {
-                            onReplyClick(bubblePosition, bubbleSize, clickPos)
+                        if (isSelectionMode) {
+                            onSelectClick()
+                        } else {
+                            val clickPos = outerColumnPosition + offset
+                            val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
+                            if (!bubbleRect.contains(clickPos)) {
+                                onReplyClick(bubblePosition, bubbleSize, clickPos)
+                            }
                         }
                     },
-                    onLongPress = { _ -> onLongReplyClick() }
+                    onLongPress = { _ -> onSelectClick() }
                 )
             }
     ) {

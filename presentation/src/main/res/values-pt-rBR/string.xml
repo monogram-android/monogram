@@ -1217,22 +1217,22 @@
     <string name="notification_channel_other_description">Outras notificações</string>
 
     <!-- Chat Mapper / Media Types -->
-    <string name="chat_mapper_photo">📷 Foto</string>
-    <string name="chat_mapper_video">📹 Vídeo</string>
-    <string name="chat_mapper_voice">🎤 Mensagem de voz</string>
-    <string name="chat_mapper_sticker">🧩 Figurinha</string>
-    <string name="chat_mapper_document">📎 Documento</string>
-    <string name="chat_mapper_audio">🎵 Áudio</string>
+    <string name="chat_mapper_photo">Foto</string>
+    <string name="chat_mapper_video">Vídeo</string>
+    <string name="chat_mapper_voice">Mensagem de voz</string>
+    <string name="chat_mapper_sticker">Figurinha</string>
+    <string name="chat_mapper_document">Documento</string>
+    <string name="chat_mapper_audio">Áudio</string>
     <string name="chat_mapper_gif">GIF</string>
-    <string name="chat_mapper_video_note">🎬 Mensagem de vídeo</string>
-    <string name="chat_mapper_contact">👤 Contato</string>
-    <string name="chat_mapper_poll">📊 Enquete</string>
-    <string name="chat_mapper_location">📍 Localização</string>
-    <string name="chat_mapper_call">📞 Chamada</string>
-    <string name="chat_mapper_game">🎮 Jogo</string>
-    <string name="chat_mapper_invoice">💳 Fatura</string>
-    <string name="chat_mapper_story">📚 História</string>
-    <string name="chat_mapper_pinned">📌 Mensagem fixada</string>
+    <string name="chat_mapper_video_note">Mensagem de vídeo</string>
+    <string name="chat_mapper_contact">Contato</string>
+    <string name="chat_mapper_poll">Enquete</string>
+    <string name="chat_mapper_location">Localização</string>
+    <string name="chat_mapper_call">Chamada</string>
+    <string name="chat_mapper_game">Jogo</string>
+    <string name="chat_mapper_invoice">Fatura</string>
+    <string name="chat_mapper_story">História</string>
+    <string name="chat_mapper_pinned">Mensagem fixada</string>
     <string name="chat_mapper_message">Mensagem</string>
     <string name="chat_mapper_bot">Bot</string>
     <string name="chat_mapper_online">Online</string>

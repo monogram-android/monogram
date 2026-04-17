@@ -627,7 +627,11 @@ class ChatsListRepositoryImpl(
     override fun toggleReadChats(chatIds: Set<Long>, markAsUnread: Boolean) {
         chatIds.forEach { chatId ->
             scope.launch(dispatchers.io) {
-                chatRemoteSource.toggleChatIsMarkedAsUnread(chatId, markAsUnread)
+                if (markAsUnread) {
+                    chatRemoteSource.toggleChatIsMarkedAsUnread(chatId, true)
+                } else {
+                    chatRemoteSource.markChatAsRead(chatId)
+                }
             }
         }
     }

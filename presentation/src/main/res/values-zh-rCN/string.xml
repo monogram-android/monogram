@@ -1136,22 +1136,22 @@
     <string name="notification_channel_other_description">其他通知</string>
 
     <!-- Chat Mapper / Media Types -->
-    <string name="chat_mapper_photo">📷 照片</string>
-    <string name="chat_mapper_video">📹 视频</string>
-    <string name="chat_mapper_voice">🎤 语音消息</string>
-    <string name="chat_mapper_sticker">🧩 贴纸</string>
-    <string name="chat_mapper_document">📎 文档</string>
-    <string name="chat_mapper_audio">🎵 音频</string>
+    <string name="chat_mapper_photo">照片</string>
+    <string name="chat_mapper_video">视频</string>
+    <string name="chat_mapper_voice">语音消息</string>
+    <string name="chat_mapper_sticker">贴纸</string>
+    <string name="chat_mapper_document">文档</string>
+    <string name="chat_mapper_audio">音频</string>
     <string name="chat_mapper_gif">GIF</string>
-    <string name="chat_mapper_video_note">🎬 视频消息</string>
-    <string name="chat_mapper_contact">👤 联系人</string>
-    <string name="chat_mapper_poll">📊 投票</string>
-    <string name="chat_mapper_location">📍 位置</string>
-    <string name="chat_mapper_call">📞 通话</string>
-    <string name="chat_mapper_game">🎮 游戏</string>
-    <string name="chat_mapper_invoice">💳 账单</string>
-    <string name="chat_mapper_story">📚 故事</string>
-    <string name="chat_mapper_pinned">📌 已置顶消息</string>
+    <string name="chat_mapper_video_note">视频消息</string>
+    <string name="chat_mapper_contact">联系人</string>
+    <string name="chat_mapper_poll">投票</string>
+    <string name="chat_mapper_location">位置</string>
+    <string name="chat_mapper_call">通话</string>
+    <string name="chat_mapper_game">游戏</string>
+    <string name="chat_mapper_invoice">账单</string>
+    <string name="chat_mapper_story">故事</string>
+    <string name="chat_mapper_pinned">已置顶消息</string>
     <string name="chat_mapper_message">消息</string>
     <string name="chat_mapper_bot">机器人</string>
     <string name="chat_mapper_online">在线</string>

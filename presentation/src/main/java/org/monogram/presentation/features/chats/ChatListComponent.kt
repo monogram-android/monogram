@@ -2,7 +2,12 @@ package org.monogram.presentation.features.chats
 
 import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.flow.StateFlow
-import org.monogram.domain.models.*
+import org.monogram.domain.models.AttachMenuBotModel
+import org.monogram.domain.models.ChatModel
+import org.monogram.domain.models.FolderModel
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.UpdateState
+import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.presentation.core.util.AppPreferences
 
@@ -129,9 +134,23 @@ interface ChatListComponent {
     )
 
     @Immutable
+    data class SelectionCapabilities(
+        val canPin: Boolean = false,
+        val canMute: Boolean = false,
+        val canArchive: Boolean = false,
+        val canDelete: Boolean = false,
+        val canToggleRead: Boolean = false
+    )
+
+    @Immutable
     data class SelectionState(
         val selectedChatIds: Set<Long> = emptySet(),
-        val activeChatId: Long? = null
+        val activeChatId: Long? = null,
+        val selectedChats: List<ChatModel> = emptyList(),
+        val allPinned: Boolean = false,
+        val allMuted: Boolean = false,
+        val canMarkUnread: Boolean = false,
+        val capabilities: SelectionCapabilities = SelectionCapabilities()
     )
 
     @Immutable

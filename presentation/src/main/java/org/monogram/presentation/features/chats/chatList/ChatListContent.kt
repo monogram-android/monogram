@@ -114,6 +114,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
@@ -434,7 +435,6 @@ fun ChatListContent(component: ChatListComponent) {
                 currentUser?.id?.let { component.onChatClicked(it) }
             },
             onSettingsClick = { component.onSettingsClicked() },
-            onAddAccountClick = { /* TODO */ },
             onHelpClick = {
                 component.onOpenInstantView("https://telegram.org/faq#general-questions")
             },
@@ -476,6 +476,32 @@ fun ChatListContent(component: ChatListComponent) {
         animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
         label = "ChatListStatusMenuScrimAlpha"
     )
+    val topBarMode = remember(
+        selectionState.selectedChatIds,
+        uiState.isForwarding,
+        foldersState.selectedFolderId,
+        searchState.isSearchActive,
+        currentUser,
+        uiState.connectionStatus,
+        uiState.isProxyEnabled,
+        searchState.searchQuery
+    ) {
+        when {
+            selectionState.selectedChatIds.isNotEmpty() && !uiState.isForwarding -> {
+                ChatListTopBarMode.Selection(isInArchive = foldersState.selectedFolderId == -2)
+            }
+
+            uiState.isForwarding -> ChatListTopBarMode.Forwarding
+            foldersState.selectedFolderId == -2 && !searchState.isSearchActive -> ChatListTopBarMode.Archive
+            else -> ChatListTopBarMode.Default(
+                user = currentUser,
+                connectionStatus = uiState.connectionStatus,
+                isProxyEnabled = uiState.isProxyEnabled,
+                isSearchActive = searchState.isSearchActive,
+                searchQuery = searchState.searchQuery
+            )
+        }
+    }
 
     Scaffold(
         containerColor = if (isTablet) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow,
@@ -483,103 +509,48 @@ fun ChatListContent(component: ChatListComponent) {
         topBar = {
             Column(Modifier.fillMaxWidth()) {
                 AnimatedContent(
-                    targetState = selectionState.selectedChatIds.isNotEmpty() && !uiState.isForwarding,
+                    targetState = topBarMode,
                     label = "TopBarSelectionAnimation",
                     transitionSpec = { fadeIn() togetherWith fadeOut() }
-                ) { isSelectionMode ->
-                    if (isSelectionMode) {
-                        val selectedChats = chatsState.chats.filter { selectionState.selectedChatIds.contains(it.id) }
-                        val canMarkUnread = selectedChats.any { !it.isMarkedAsUnread }
-                        val allPinned = selectedChats.isNotEmpty() && selectedChats.all { it.isPinned }
-                        val allMuted = selectedChats.isNotEmpty() && selectedChats.all { it.isMuted }
-                        val isInArchive = foldersState.selectedFolderId == -2
+                ) { mode ->
+                    when (mode) {
+                        is ChatListTopBarMode.Selection -> {
+                            SelectionModeTopBar(
+                                selectionState = selectionState,
+                                isInArchive = mode.isInArchive,
+                                onClearSelection = component::clearSelection,
+                                onPinClick = component::onPinSelected,
+                                onMuteClick = { component.onMuteSelected(!selectionState.allMuted) },
+                                onArchiveClick = { component.onArchiveSelected(!mode.isInArchive) },
+                                onDeleteClick = { showDeleteChatsSheet = true },
+                                onToggleReadClick = component::onToggleReadSelected
+                            )
+                        }
 
-                        SelectionTopBar(
-                            selectedCount = selectionState.selectedChatIds.size,
-                            isInArchive = isInArchive,
-                            allPinned = allPinned,
-                            allMuted = allMuted,
-                            onClearSelection = { component.clearSelection() },
-                            onPinClick = { component.onPinSelected() },
-                            onMuteClick = { component.onMuteSelected(!allMuted) },
-                            onArchiveClick = { component.onArchiveSelected(!isInArchive) },
-                            onDeleteClick = { showDeleteChatsSheet = true },
-                            onToggleReadClick = { component.onToggleReadSelected() },
-                            canMarkUnread = canMarkUnread
-                        )
-                    } else {
-                        if (uiState.isForwarding) {
-                            TopAppBar(
-                                title = {
-                                    Column {
-                                        Text(
-                                            stringResource(R.string.forward_to_title),
-                                            fontWeight = FontWeight.SemiBold,
-                                            style = MaterialTheme.typography.titleMedium
-                                        )
-                                        if (selectionState.selectedChatIds.isNotEmpty()) {
-                                            Text(
-                                                text = pluralStringResource(
-                                                    R.plurals.chats_selected_format,
-                                                    selectionState.selectedChatIds.size,
-                                                    selectionState.selectedChatIds.size
-                                                ),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    }
-                                },
-                                navigationIcon = {
-                                    IconButton(onClick = { component.handleBack() }) {
-                                        Icon(Icons.Rounded.Close, stringResource(R.string.cancel_button))
-                                    }
-                                },
-                                actions = {
-                                    if (selectionState.selectedChatIds.isNotEmpty()) {
-                                        IconButton(onClick = { component.onConfirmForwarding() }) {
-                                            Icon(
-                                                Icons.AutoMirrored.Rounded.Send,
-                                                stringResource(R.string.action_send),
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                    }
-                                },
-                                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                        ChatListTopBarMode.Forwarding -> {
+                            ForwardingModeTopBar(
+                                selectedCount = selectionState.selectedChatIds.size,
+                                onBackClick = component::handleBack,
+                                onConfirmClick = component::onConfirmForwarding
                             )
-                        } else if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) {
-                            TopAppBar(
-                                title = {
-                                    Text(
-                                        stringResource(R.string.archived_chats_title),
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                },
-                                navigationIcon = {
-                                    IconButton(onClick = { component.handleBack() }) {
-                                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.cd_back))
-                                    }
-                                },
-                                actions = {
-                                    IconButton(onClick = { component.onSearchToggle() }) {
-                                        Icon(
-                                            Icons.Rounded.Search,
-                                            contentDescription = stringResource(R.string.action_search)
-                                        )
-                                    }
-                                },
-                                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                        }
+
+                        ChatListTopBarMode.Archive -> {
+                            ArchiveModeTopBar(
+                                onBackClick = component::handleBack,
+                                onSearchClick = component::onSearchToggle
                             )
-                        } else {
+                        }
+
+                        is ChatListTopBarMode.Default -> {
                             ChatListTopBar(
-                                user = currentUser,
-                                connectionStatus = uiState.connectionStatus,
-                                isProxyEnabled = uiState.isProxyEnabled,
+                                user = mode.user,
+                                connectionStatus = mode.connectionStatus,
+                                isProxyEnabled = mode.isProxyEnabled,
                                 onRetryConnection = { component.retryConnection() },
                                 onProxySettingsClick = { component.onProxySettingsClicked() },
-                                isSearchActive = searchState.isSearchActive,
-                                searchQuery = searchState.searchQuery,
+                                isSearchActive = mode.isSearchActive,
+                                searchQuery = mode.searchQuery,
                                 onSearchQueryChange = component::onSearchQueryChange,
                                 onSearchToggle = component::onSearchToggle,
                                 onStatusClick = { anchorBounds ->
@@ -1360,4 +1331,131 @@ fun ChatListContent(component: ChatListComponent) {
             onDismiss = { showDeleteChatsSheet = false }
         )
     }
+}
+
+private sealed interface ChatListTopBarMode {
+    data class Selection(val isInArchive: Boolean) : ChatListTopBarMode
+    data object Forwarding : ChatListTopBarMode
+    data object Archive : ChatListTopBarMode
+    data class Default(
+        val user: UserModel?,
+        val connectionStatus: ConnectionStatus,
+        val isProxyEnabled: Boolean,
+        val isSearchActive: Boolean,
+        val searchQuery: String
+    ) : ChatListTopBarMode
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SelectionModeTopBar(
+    selectionState: ChatListComponent.SelectionState,
+    isInArchive: Boolean,
+    onClearSelection: () -> Unit,
+    onPinClick: () -> Unit,
+    onMuteClick: () -> Unit,
+    onArchiveClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    onToggleReadClick: () -> Unit
+) {
+    SelectionTopBar(
+        selectedCount = selectionState.selectedChatIds.size,
+        isInArchive = isInArchive,
+        allPinned = selectionState.allPinned,
+        allMuted = selectionState.allMuted,
+        canPin = selectionState.capabilities.canPin,
+        canMute = selectionState.capabilities.canMute,
+        canArchive = selectionState.capabilities.canArchive,
+        canDelete = selectionState.capabilities.canDelete,
+        canToggleRead = selectionState.capabilities.canToggleRead,
+        onClearSelection = onClearSelection,
+        onPinClick = onPinClick,
+        onMuteClick = onMuteClick,
+        onArchiveClick = onArchiveClick,
+        onDeleteClick = onDeleteClick,
+        onToggleReadClick = onToggleReadClick,
+        canMarkUnread = selectionState.canMarkUnread
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ForwardingModeTopBar(
+    selectedCount: Int,
+    onBackClick: () -> Unit,
+    onConfirmClick: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            Column {
+                Text(
+                    stringResource(R.string.forward_to_title),
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                if (selectedCount > 0) {
+                    Text(
+                        text = pluralStringResource(
+                            R.plurals.chats_selected_format,
+                            selectedCount,
+                            selectedCount
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(Icons.Rounded.Close, stringResource(R.string.cancel_button))
+            }
+        },
+        actions = {
+            if (selectedCount > 0) {
+                IconButton(onClick = onConfirmClick) {
+                    Icon(
+                        Icons.AutoMirrored.Rounded.Send,
+                        stringResource(R.string.action_send),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArchiveModeTopBar(
+    onBackClick: () -> Unit,
+    onSearchClick: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            Text(
+                stringResource(R.string.archived_chats_title),
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.cd_back))
+            }
+        },
+        actions = {
+            IconButton(onClick = onSearchClick) {
+                Icon(
+                    Icons.Rounded.Search,
+                    contentDescription = stringResource(R.string.action_search)
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    )
 }

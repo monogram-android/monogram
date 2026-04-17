@@ -177,6 +177,37 @@ class TdChatRemoteSource(
         }
     }
 
+    override suspend fun markChatAsRead(chatId: Long) {
+        coRunCatching {
+            val chat = gateway.execute(TdApi.GetChat(chatId))
+
+            if (chat.isMarkedAsUnread) {
+                gateway.execute(TdApi.ToggleChatIsMarkedAsUnread(chatId, false))
+            }
+
+            if (chat.unreadMentionCount > 0) {
+                gateway.execute(TdApi.ReadAllChatMentions(chatId))
+            }
+
+            if (chat.unreadReactionCount > 0) {
+                gateway.execute(TdApi.ReadAllChatReactions(chatId))
+            }
+
+            if (chat.unreadCount > 0) {
+                chat.lastMessage?.let { lastMessage ->
+                    gateway.execute(
+                        TdApi.ViewMessages(
+                            chatId,
+                            longArrayOf(lastMessage.id),
+                            null,
+                            true
+                        )
+                    )
+                }
+            }
+        }
+    }
+
     override suspend fun deleteChat(chatId: Long) {
         coRunCatching { gateway.execute(TdApi.DeleteChat(chatId)) }
     }

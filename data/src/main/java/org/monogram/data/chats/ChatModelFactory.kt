@@ -270,9 +270,16 @@ class ChatModelFactory(
             if (emojiPath == null && allowMediaDownloads) fileManager.loadEmoji(emojiStatusId)
         }
 
-        val (txt, entities, time) = chatMapper.formatMessageInfo(chat.lastMessage, chat) { userId ->
-            cache.usersCache[userId]?.firstName ?: run { fetchUser(userId); null }
-        }
+        val albumMessages = resolveAlbumMessages(chat)
+        val preview = resolveLastMessagePreview(chat.lastMessage, albumMessages)
+        val previewPaths = resolveLastMessagePreviewPaths(
+            lastMessage = chat.lastMessage,
+            albumMessages = albumMessages,
+            chatId = chat.id,
+            allowDownload = allowMediaDownloads
+        )
+        val lastMessagePreviewPath = previewPaths.firstOrNull()
+        val lastMessageSenderName = resolveLastMessageSenderName(chat)
 
         val scopeState = NotificationScopeState(
             loadedScopes = setOf(
@@ -321,9 +328,13 @@ class ChatModelFactory(
             onlineCount = onlineCount,
             emojiPath = emojiPath,
             typingAction = typingManager.formatTypingAction(chat.id),
-            lastMessageText = txt,
-            lastMessageEntities = entities,
-            lastMessageTime = time,
+            lastMessageText = preview.text,
+            lastMessageEntities = preview.entities,
+            lastMessageContentType = preview.contentType,
+            lastMessageSenderName = lastMessageSenderName,
+            lastMessagePreviewPath = lastMessagePreviewPath,
+            lastMessagePreviewPaths = previewPaths,
+            lastMessageTime = preview.time,
             lastMessageDate = chat.lastMessage?.date ?: 0,
             isMuted = isMuted,
             isAdmin = isAdmin,
@@ -335,6 +346,149 @@ class ChatModelFactory(
             hasAutomaticTranslation = hasAutomaticTranslation,
             personalAvatarPath = personalAvatarPath
         )
+    }
+
+    private fun resolveLastMessagePreview(
+        lastMessage: TdApi.Message?,
+        albumMessages: List<TdApi.Message>
+    ): ChatMapper.MessagePreviewInfo {
+        val basePreview = chatMapper.formatMessageInfo(lastMessage) { userId ->
+            cache.usersCache[userId]?.firstName ?: run { fetchUser(userId); null }
+        }
+
+        if (albumMessages.size <= 1) {
+            return basePreview
+        }
+
+        val captionPreview = albumMessages
+            .sortedWith(compareBy<TdApi.Message>({ it.date }, { it.id }))
+            .asSequence()
+            .map { message ->
+                chatMapper.formatMessageInfo(message) { userId ->
+                    cache.usersCache[userId]?.firstName ?: run { fetchUser(userId); null }
+                }
+            }
+            .firstOrNull { it.text.isNotBlank() }
+
+        return if (captionPreview != null) {
+            basePreview.copy(text = captionPreview.text, entities = captionPreview.entities)
+        } else {
+            basePreview
+        }
+    }
+
+    private fun resolveAlbumMessages(chat: TdApi.Chat): List<TdApi.Message> {
+        val lastMessage = chat.lastMessage ?: return emptyList()
+        val mediaAlbumId = lastMessage.mediaAlbumId
+        if (mediaAlbumId == 0L) return emptyList()
+
+        return (cache.getAlbumMessages(chat.id, mediaAlbumId) + lastMessage)
+            .distinctBy { it.id }
+            .sortedWith(compareBy<TdApi.Message>({ it.date }, { it.id }))
+    }
+
+    private fun resolveLastMessagePreviewPaths(
+        lastMessage: TdApi.Message?,
+        albumMessages: List<TdApi.Message>,
+        chatId: Long,
+        allowDownload: Boolean
+    ): List<String> {
+        val sourceMessages =
+            if (albumMessages.isNotEmpty()) albumMessages else listOfNotNull(lastMessage)
+
+        return sourceMessages
+            .asSequence()
+            .mapNotNull { message ->
+                resolveLastMessagePreviewPath(message.content, chatId, allowDownload)
+            }
+            .distinct()
+            .take(MAX_PREVIEW_THUMBNAILS)
+            .toList()
+    }
+
+    private fun resolveLastMessageSenderName(chat: TdApi.Chat): String {
+        val lastMessage = chat.lastMessage ?: return ""
+        if (
+            lastMessage.isOutgoing ||
+            chat.type is TdApi.ChatTypePrivate ||
+            (chat.type as? TdApi.ChatTypeSupergroup)?.isChannel == true
+        ) {
+            return ""
+        }
+
+        return when (val senderId = lastMessage.senderId) {
+            is TdApi.MessageSenderUser -> cache.usersCache[senderId.userId]?.firstName.orEmpty()
+                .also { name ->
+                    if (name.isEmpty()) {
+                        fetchUser(senderId.userId)
+                    }
+                }
+
+            is TdApi.MessageSenderChat -> cache.getChat(senderId.chatId)?.title.orEmpty()
+            else -> ""
+        }
+    }
+
+    private fun resolveLastMessagePreviewPath(
+        content: TdApi.MessageContent?,
+        chatId: Long,
+        allowDownload: Boolean
+    ): String? {
+        return when (content) {
+            is TdApi.MessagePhoto -> {
+                val sizes = content.photo.sizes
+                val thumbnail = sizes.find { it.type == "m" }
+                    ?: sizes.find { it.type == "s" }
+                    ?: sizes.firstOrNull()
+                thumbnail?.photo?.let { resolvePreviewFilePath(it, chatId, allowDownload) }
+            }
+
+            is TdApi.MessageVideo -> content.video.thumbnail?.file?.let {
+                resolvePreviewFilePath(it, chatId, allowDownload)
+            }
+
+            is TdApi.MessageAnimation -> content.animation.thumbnail?.file?.let {
+                resolvePreviewFilePath(it, chatId, allowDownload)
+            } ?: resolvePreviewFilePath(content.animation.animation, chatId, allowDownload)
+
+            is TdApi.MessageSticker -> resolvePreviewFilePath(
+                content.sticker.sticker,
+                chatId,
+                allowDownload
+            )
+
+            is TdApi.MessageVideoNote -> content.videoNote.thumbnail?.file?.let {
+                resolvePreviewFilePath(it, chatId, allowDownload)
+            }
+
+            else -> null
+        }
+    }
+
+    private fun resolvePreviewFilePath(
+        file: TdApi.File?,
+        chatId: Long,
+        allowDownload: Boolean
+    ): String? {
+        if (file == null || file.id == 0) return null
+
+        fileManager.registerTrackedFile(file.id)
+        fileManager.registerChatPhoto(file.id, chatId)
+
+        val localPath = file.local.path
+        if (isValidFilePath(localPath)) {
+            return localPath
+        }
+
+        val cachedPath = fileManager.getFilePath(file.id)
+        if (isValidFilePath(cachedPath)) {
+            return cachedPath
+        }
+
+        if (allowDownload) {
+            fileManager.downloadFile(file.id, 16, synchronous = false)
+        }
+        return null
     }
 
     private fun <K> lazyLoad(pendingSet: MutableSet<K>, key: K, block: suspend () -> Unit) {
@@ -403,6 +557,7 @@ class ChatModelFactory(
 
     companion object {
         private const val USER_FULL_INFO_RETRY_TTL_MS = 5 * 60 * 1000L
+        private const val MAX_PREVIEW_THUMBNAILS = 3
     }
 }
 

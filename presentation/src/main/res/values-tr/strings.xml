@@ -1198,22 +1198,22 @@
     <string name="notification_channel_other_description">Diğer bildirimler</string>
 
     <!-- Chat Mapper / Media Types -->
-    <string name="chat_mapper_photo">📷 Fotoğraf</string>
-    <string name="chat_mapper_video">📹 Video</string>
-    <string name="chat_mapper_voice">🎤 Sesli mesaj</string>
-    <string name="chat_mapper_sticker">🧩 Çıkartma</string>
-    <string name="chat_mapper_document">📎 Belge</string>
-    <string name="chat_mapper_audio">🎵 Müzik</string>
+    <string name="chat_mapper_photo">Fotoğraf</string>
+    <string name="chat_mapper_video">Video</string>
+    <string name="chat_mapper_voice">Sesli mesaj</string>
+    <string name="chat_mapper_sticker">Çıkartma</string>
+    <string name="chat_mapper_document">Belge</string>
+    <string name="chat_mapper_audio">Müzik</string>
     <string name="chat_mapper_gif">GIF</string>
-    <string name="chat_mapper_video_note">🎬 Görüntülü mesaj</string>
-    <string name="chat_mapper_contact">👤 Kişi</string>
-    <string name="chat_mapper_poll">📊 Anket</string>
-    <string name="chat_mapper_location">📍 Konum</string>
-    <string name="chat_mapper_call">📞 Arama</string>
-    <string name="chat_mapper_game">🎮 Oyun</string>
-    <string name="chat_mapper_invoice">💳 Fatura</string>
-    <string name="chat_mapper_story">🎬 Hikaye</string>
-    <string name="chat_mapper_pinned">📌 Sabitlenmiş mesaj</string>
+    <string name="chat_mapper_video_note">Görüntülü mesaj</string>
+    <string name="chat_mapper_contact">Kişi</string>
+    <string name="chat_mapper_poll">Anket</string>
+    <string name="chat_mapper_location">Konum</string>
+    <string name="chat_mapper_call">Arama</string>
+    <string name="chat_mapper_game">Oyun</string>
+    <string name="chat_mapper_invoice">Fatura</string>
+    <string name="chat_mapper_story">Hikaye</string>
+    <string name="chat_mapper_pinned">Sabitlenmiş mesaj</string>
     <string name="chat_mapper_message">Mesaj</string>
     <string name="chat_mapper_bot">Bot</string>
     <string name="chat_mapper_online">Çevrimiçi</string>

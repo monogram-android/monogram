@@ -14,6 +14,7 @@ import org.monogram.domain.models.PollOption
 import org.monogram.domain.models.PollType
 import org.monogram.domain.models.StickerFormat
 import org.monogram.domain.repository.AppPreferencesProvider
+import org.monogram.domain.repository.StringProvider
 
 internal data class ContentMappingContext(
     val chatId: Long,
@@ -28,7 +29,8 @@ internal class MessageContentMapper(
     private val appPreferences: AppPreferencesProvider,
     private val customEmojiLoader: CustomEmojiLoader,
     private val webPageMapper: WebPageMapper,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val stringProvider: StringProvider
 ) {
     fun mapContent(msg: TdApi.Message, context: ContentMappingContext): MessageContent {
         return when (val content = msg.content) {
@@ -456,7 +458,11 @@ internal class MessageContentMapper(
                 )
             }
 
-            is TdApi.MessageCall -> MessageContent.Text("📞 Call (${content.duration}s)")
+            is TdApi.MessageCall -> {
+                val label = stringProvider.getString("chat_mapper_call")
+                val text = if (content.duration > 0) "$label (${content.duration}s)" else label
+                MessageContent.Text(text)
+            }
             is TdApi.MessageContact -> {
                 val contact = content.contact
                 MessageContent.Contact(
@@ -529,11 +535,21 @@ internal class MessageContentMapper(
                 )
             }
 
-            is TdApi.MessageGame -> MessageContent.Text("🎮 Game: ${content.game.title}")
-            is TdApi.MessageInvoice -> MessageContent.Text("💳 Invoice: ${content.productInfo.title}")
-            is TdApi.MessageStory -> MessageContent.Text("📖 Story")
-            is TdApi.MessageExpiredPhoto -> MessageContent.Text("📷 Photo has expired")
-            is TdApi.MessageExpiredVideo -> MessageContent.Text("📹 Video has expired")
+            is TdApi.MessageGame -> {
+                val label = stringProvider.getString("chat_mapper_game")
+                val title = content.game.title.takeIf { it.isNotBlank() }
+                MessageContent.Text(title?.let { "$label: $it" } ?: label)
+            }
+
+            is TdApi.MessageInvoice -> {
+                val label = stringProvider.getString("chat_mapper_invoice")
+                val title = content.productInfo.title.takeIf { it.isNotBlank() }
+                MessageContent.Text(title?.let { "$label: $it" } ?: label)
+            }
+
+            is TdApi.MessageStory -> MessageContent.Text(stringProvider.getString("chat_mapper_story"))
+            is TdApi.MessageExpiredPhoto -> MessageContent.Text(stringProvider.getString("message_expired_photo"))
+            is TdApi.MessageExpiredVideo -> MessageContent.Text(stringProvider.getString("message_expired_video"))
 
             is TdApi.MessageChatJoinByLink -> MessageContent.Service("${context.senderName} has joined the group via invite link")
             is TdApi.MessageChatAddMembers -> MessageContent.Service("${context.senderName} added members")

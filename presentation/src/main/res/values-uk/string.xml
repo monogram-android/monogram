@@ -1149,22 +1149,22 @@
     <string name="notification_channel_other_description">Інші сповіщення</string>
 
     <!-- Chat Mapper / Media Types -->
-    <string name="chat_mapper_photo">📷 Фото</string>
-    <string name="chat_mapper_video">📹 Відео</string>
-    <string name="chat_mapper_voice">🎤 Голосове повідомлення</string>
-    <string name="chat_mapper_sticker">🧩 Стікер</string>
-    <string name="chat_mapper_document">📎 Документ</string>
-    <string name="chat_mapper_audio">🎵 Аудіо</string>
+    <string name="chat_mapper_photo">Фото</string>
+    <string name="chat_mapper_video">Відео</string>
+    <string name="chat_mapper_voice">Голосове повідомлення</string>
+    <string name="chat_mapper_sticker">Стікер</string>
+    <string name="chat_mapper_document">Документ</string>
+    <string name="chat_mapper_audio">Аудіо</string>
     <string name="chat_mapper_gif">GIF</string>
-    <string name="chat_mapper_video_note">🎬 Відеоповідомлення</string>
-    <string name="chat_mapper_contact">👤 Контакт</string>
-    <string name="chat_mapper_poll">📊 Опитування</string>
-    <string name="chat_mapper_location">📍 Геолокація</string>
-    <string name="chat_mapper_call">📞 Дзвінок</string>
-    <string name="chat_mapper_game">🎮 Гра</string>
-    <string name="chat_mapper_invoice">💳 Рахунок</string>
-    <string name="chat_mapper_story">📚 Історія</string>
-    <string name="chat_mapper_pinned">📌 Закріплене повідомлення</string>
+    <string name="chat_mapper_video_note">Відеоповідомлення</string>
+    <string name="chat_mapper_contact">Контакт</string>
+    <string name="chat_mapper_poll">Опитування</string>
+    <string name="chat_mapper_location">Геолокація</string>
+    <string name="chat_mapper_call">Дзвінок</string>
+    <string name="chat_mapper_game">Гра</string>
+    <string name="chat_mapper_invoice">Рахунок</string>
+    <string name="chat_mapper_story">Історія</string>
+    <string name="chat_mapper_pinned">Закріплене повідомлення</string>
     <string name="chat_mapper_message">Повідомлення</string>
     <string name="chat_mapper_bot">Бот</string>
     <string name="chat_mapper_online">В мережі</string>

@@ -1149,22 +1149,22 @@
     <string name="notification_channel_other_description">Прочие уведомления</string>
 
     <!-- Chat Mapper / Media Types -->
-    <string name="chat_mapper_photo">📷 Фото</string>
-    <string name="chat_mapper_video">📹 Видео</string>
-    <string name="chat_mapper_voice">🎤 Голосовое сообщение</string>
-    <string name="chat_mapper_sticker">🧩 Стикер</string>
-    <string name="chat_mapper_document">📎 Документ</string>
-    <string name="chat_mapper_audio">🎵 Аудио</string>
+    <string name="chat_mapper_photo">Фото</string>
+    <string name="chat_mapper_video">Видео</string>
+    <string name="chat_mapper_voice">Голосовое сообщение</string>
+    <string name="chat_mapper_sticker">Стикер</string>
+    <string name="chat_mapper_document">Документ</string>
+    <string name="chat_mapper_audio">Аудио</string>
     <string name="chat_mapper_gif">GIF</string>
-    <string name="chat_mapper_video_note">🎬 Видеосообщение</string>
-    <string name="chat_mapper_contact">👤 Контакт</string>
-    <string name="chat_mapper_poll">📊 Опрос</string>
-    <string name="chat_mapper_location">📍 Геолокация</string>
-    <string name="chat_mapper_call">📞 Звонок</string>
-    <string name="chat_mapper_game">🎮 Игра</string>
-    <string name="chat_mapper_invoice">💳 Счёт</string>
-    <string name="chat_mapper_story">📚 История</string>
-    <string name="chat_mapper_pinned">📌 Закреплённое сообщение</string>
+    <string name="chat_mapper_video_note">Видеосообщение</string>
+    <string name="chat_mapper_contact">Контакт</string>
+    <string name="chat_mapper_poll">Опрос</string>
+    <string name="chat_mapper_location">Геолокация</string>
+    <string name="chat_mapper_call">Звонок</string>
+    <string name="chat_mapper_game">Игра</string>
+    <string name="chat_mapper_invoice">Счёт</string>
+    <string name="chat_mapper_story">История</string>
+    <string name="chat_mapper_pinned">Закреплённое сообщение</string>
     <string name="chat_mapper_message">Сообщение</string>
     <string name="chat_mapper_bot">Бот</string>
     <string name="chat_mapper_online">В сети</string>
@@ -1716,6 +1716,8 @@
     <string name="reply_content_video_message">Видеосообщение</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">Сообщение</string>
+    <string name="message_expired_photo">Фото недоступно</string>
+    <string name="message_expired_video">Видео недоступно</string>
 
     <!-- Chat Folders -->
     <string name="folders_title">Папки с чатами</string>

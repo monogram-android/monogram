@@ -259,6 +259,7 @@ fun MessageBubbleContainer(
                         onAudioClick = onAudioClick,
                         onCancelDownload = onCancelDownload,
                         onReplyClick = onReplyClick,
+                        onLongReplyClick = onLongReplyClick,
                         onGoToReply = onGoToReply,
                         onReactionClick = onReactionClick,
                         onStickerClick = onStickerClick,
@@ -350,6 +351,7 @@ private fun MessageContentSelector(
     onAudioClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onReplyClick: (Offset, IntSize, Offset) -> Unit,
+    onLongReplyClick: () -> Unit,
     onGoToReply: (MessageModel) -> Unit,
     onReactionClick: (Long, String) -> Unit,
     onStickerClick: (Long) -> Unit,
@@ -389,9 +391,7 @@ private fun MessageContentSelector(
                     onClick = { offset ->
                         onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
                     },
-                    onLongClick = { offset ->
-                        onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
-                    },
+                    onLongClick = { onLongReplyClick() },
                     toProfile = toProfile
                 )
             }
@@ -405,13 +405,7 @@ private fun MessageContentSelector(
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     onStickerClick = { onStickerClick(it) },
-                    onLongClick = {
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + (bubbleSize.toSize() / 2f).toOffset()
-                        )
-                    }
+                    onLongClick = { onLongReplyClick() },
                 )
             }
 
@@ -431,13 +425,7 @@ private fun MessageContentSelector(
                     onPhotoClick = onPhotoClick,
                     onDownloadPhoto = onDownloadPhoto,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = { onLongReplyClick() },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
@@ -461,13 +449,7 @@ private fun MessageContentSelector(
                     autoplayVideos = autoplayVideos,
                     onVideoClick = onVideoClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = { onLongReplyClick() },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
@@ -484,13 +466,7 @@ private fun MessageContentSelector(
                     isOutgoing = isOutgoing,
                     onVideoClick = onVideoClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = { onLongReplyClick() },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) }
                 )
@@ -512,13 +488,7 @@ private fun MessageContentSelector(
                     autoDownloadRoaming = autoDownloadRoaming,
                     onVoiceClick = onAudioClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = { onLongReplyClick() },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
@@ -541,13 +511,7 @@ private fun MessageContentSelector(
                     autoplayGifs = autoplayGifs,
                     onGifClick = onVideoClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = { onLongReplyClick() },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
@@ -572,13 +536,7 @@ private fun MessageContentSelector(
                     autoDownloadRoaming = autoDownloadRoaming,
                     onDocumentClick = onDocumentClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = { onLongReplyClick() },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     downloadUtils = downloadUtils
@@ -601,13 +559,7 @@ private fun MessageContentSelector(
                     autoDownloadRoaming = autoDownloadRoaming,
                     onAudioClick = onAudioClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = { onLongReplyClick() },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     downloadUtils = downloadUtils
@@ -626,13 +578,7 @@ private fun MessageContentSelector(
                     bubbleRadius = bubbleRadius,
                     isGroup = isGroup,
                     onClick = { onGoToReply(msg) },
-                    onLongClick = {
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + (bubbleSize.toSize() / 2f).toOffset()
-                        )
-                    },
+                    onLongClick = { onLongReplyClick() },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
@@ -652,13 +598,7 @@ private fun MessageContentSelector(
                     bubbleRadius = bubbleRadius,
                     onOptionClick = { onPollOptionClick(msg.id, it) },
                     onRetractVote = { onRetractVote(msg.id) },
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = { onLongReplyClick() },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     onShowVoters = { onShowVoters(msg.id, it) },
@@ -679,13 +619,7 @@ private fun MessageContentSelector(
                     isGroup = isGroup,
                     bubbleRadius = bubbleRadius,
                     onClick = { onGoToReply(msg) },
-                    onLongClick = {
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + (bubbleSize.toSize() / 2f).toOffset()
-                        )
-                    },
+                    onLongClick = { onLongReplyClick() },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile
@@ -704,13 +638,7 @@ private fun MessageContentSelector(
                     isGroup = isGroup,
                     bubbleRadius = bubbleRadius,
                     onClick = { onGoToReply(msg) },
-                    onLongClick = {
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + (bubbleSize.toSize() / 2f).toOffset()
-                        )
-                    },
+                    onLongClick = { onLongReplyClick() },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile

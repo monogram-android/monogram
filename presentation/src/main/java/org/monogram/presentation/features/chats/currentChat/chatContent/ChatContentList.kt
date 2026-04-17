@@ -818,7 +818,7 @@ private fun MessageBubbleSwitcher(
                         click
                     )
                 },
-                onLongReplyClick = { component.onToggleMessageSelection(item.message.last().id) },
+                onLongReplyClick = { component.onToggleMessageSelection(item.messages.last().id) },
                 onGoToReply = onGoToReply,
                 onReactionClick = { id, r ->
                     if (isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(

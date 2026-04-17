@@ -92,12 +92,26 @@ API_ID=12345678
 API_HASH=your_api_hash_here
 ```
 
+For signed release builds from Gradle, add these properties too:
+
+```properties
+RELEASE_STORE_FILE=keystore/release.jks
+RELEASE_STORE_PASSWORD=your_store_password
+RELEASE_KEY_ALIAS=your_key_alias
+RELEASE_KEY_PASSWORD=your_key_password
+```
+
 ### 3. Configure Push Notifications
 
 1. Log in to the [Firebase console](https://console.firebase.google.com).
 2. Create a new project.
-3. Add a new application with the `applicationId` you need. If you have multiple applications with different IDs, create multiple Firebase applications. **By default, the `applicationId` for debug and release builds is different.**
-4. Download the `google-services.json` file and copy it to the root of the **app** module (`monogram/app/google-services.json`). If you created multiple applications, copy only the most recent config.
+3. Add two Firebase Android apps:
+
+    - `org.monogram` for release builds
+    - `org.monogram.debug` for debug builds
+
+4. Download the `google-services.json` file and copy it to the root of the **app** module (
+   `monogram/app/google-services.json`). Make sure it contains clients for both package names above.
 5. Go to the **Cloud Messaging** section.
 6. Click **Manage service accounts**.
 7. Select the **Keys** section at the top of the window that opens.
@@ -147,6 +161,40 @@ Then run the build script from the root of your project:
 ```bash
 ./build-tdlib.sh
 ```
+
+The script supports:
+
+- `./build-tdlib.sh official`
+- `./build-tdlib.sh telemt`
+- `./build-tdlib.sh both`
+
+If you run `./build-tdlib.sh` without arguments, it will prompt you to choose one of these modes
+interactively.
+
+### Build Variants and Gradle Tasks
+
+Use these variants in Android Studio:
+
+- `officialDebug`
+- `officialRelease`
+- `telemtDebug`
+- `telemtRelease`
+
+Useful Gradle tasks:
+
+```bash
+./gradlew assembleOfficialReleaseTdlibApks
+./gradlew assembleTelemtReleaseTdlibApks
+./gradlew assembleAllReleaseTdlibApks
+./gradlew assembleOfficialDebugTdlibApks
+./gradlew assembleTelemtDebugTdlibApks
+./gradlew assembleAllDebugTdlibApks
+```
+
+APK names:
+
+- regular TDLib: `monogram-arm64-v8a-<version>-release.apk`
+- Telemt TDLib: `monogram-telemt-arm64-v8a-<version>-release.apk`
 
 ---
 

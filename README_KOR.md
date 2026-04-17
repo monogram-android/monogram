@@ -91,12 +91,26 @@ API_ID=12345678
 API_HASH=your_api_hash_here
 ```
 
+Gradle에서 서명된 release 빌드를 만들려면 다음 값도 추가하세요:
+
+```properties
+RELEASE_STORE_FILE=keystore/release.jks
+RELEASE_STORE_PASSWORD=your_store_password
+RELEASE_KEY_ALIAS=your_key_alias
+RELEASE_KEY_PASSWORD=your_key_password
+```
+
 ### 3. 푸시 알림 설정
 
 1. [Firebase Console](https://console.firebase.google.com)에 로그인합니다.
 2. 새 프로젝트를 생성합니다.
-3. 필요한 `applicationId`로 새 애플리케이션을 추가합니다. 다른 ID를 가진 여러 애플리케이션이 있는 경우 여러 Firebase 애플리케이션을 생성하세요. **기본적으로 디버그 빌드와 릴리스 빌드의 `applicationId`는 다릅니다.**
-4. `google-services.json` 파일을 다운로드하여 **app** 모듈의 루트(`monogram/app/google-services.json`)에 복사합니다. 여러 애플리케이션을 생성한 경우 가장 최근의 구성 파일만 복사하세요.
+3. Firebase에 Android 앱 두 개를 추가합니다:
+
+    - `org.monogram` for release builds
+    - `org.monogram.debug` for debug builds
+
+4. `google-services.json` 파일을 다운로드하여 **app** 모듈의 루트(`monogram/app/google-services.json`)에 복사합니다. 파일
+   안에 두 package name 모두에 대한 client가 들어 있어야 합니다.
 5. **Cloud Messaging** 섹션으로 이동합니다.
 6. **서비스 계정 관리(Manage service accounts)**를 클릭합니다.
 7. 열린 창 상단에서 **키(Keys)** 섹션을 선택합니다.
@@ -146,6 +160,39 @@ sudo apt-get install build-essential git curl wget php perl gperf unzip zip defa
 ```bash
 ./build-tdlib.sh
 ```
+
+스크립트는 다음 모드를 지원합니다:
+
+- `./build-tdlib.sh official`
+- `./build-tdlib.sh telemt`
+- `./build-tdlib.sh both`
+
+인자 없이 실행하면 선택 메뉴가 표시됩니다.
+
+### Build Variants 및 Gradle 작업
+
+Android Studio에서는 다음 variants를 사용하세요:
+
+- `officialDebug`
+- `officialRelease`
+- `telemtDebug`
+- `telemtRelease`
+
+유용한 Gradle 작업:
+
+```bash
+./gradlew assembleOfficialReleaseTdlibApks
+./gradlew assembleTelemtReleaseTdlibApks
+./gradlew assembleAllReleaseTdlibApks
+./gradlew assembleOfficialDebugTdlibApks
+./gradlew assembleTelemtDebugTdlibApks
+./gradlew assembleAllDebugTdlibApks
+```
+
+APK 이름:
+
+- 일반 TDLib: `monogram-arm64-v8a-<version>-release.apk`
+- Telemt TDLib: `monogram-telemt-arm64-v8a-<version>-release.apk`
 
 ---
 

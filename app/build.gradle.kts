@@ -3,6 +3,7 @@ import com.android.build.api.variant.FilterConfiguration
 import com.android.build.api.variant.impl.VariantOutputImpl
 import com.google.android.gms.oss.licenses.plugin.DependencyTask
 import com.google.gms.googleservices.GoogleServicesPlugin
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -12,9 +13,34 @@ plugins {
     alias(libs.plugins.androidx.baselineprofile)
 }
 
+val localProperties = rootProject.extra["localProperties"] as Properties
+
+val releaseStoreFile = localProperties.getProperty("RELEASE_STORE_FILE")?.takeIf { it.isNotBlank() }
+val releaseStorePassword =
+    localProperties.getProperty("RELEASE_STORE_PASSWORD")?.takeIf { it.isNotBlank() }
+val releaseKeyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS")?.takeIf { it.isNotBlank() }
+val releaseKeyPassword =
+    localProperties.getProperty("RELEASE_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
+
+val hasReleaseSigning =
+    listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all {
+        !it.isNullOrBlank()
+    }
+
 android {
     namespace = "org.monogram.app"
     compileSdk = 36
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "org.monogram"
@@ -22,6 +48,17 @@ android {
         targetSdk = 36
         versionCode = 8
         versionName = "0.0.8"
+    }
+
+    flavorDimensions += "tdlib"
+
+    productFlavors {
+        create("official") {
+            dimension = "tdlib"
+        }
+        create("telemt") {
+            dimension = "tdlib"
+        }
     }
 
     splits {
@@ -48,7 +85,12 @@ android {
             buildFeatures {
                 resValues = true
             }
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig =
+                if (hasReleaseSigning) {
+                    signingConfigs.getByName("release")
+                } else {
+                    signingConfigs.getByName("debug")
+                }
             resValue("string", "app_name", "MonoGram")
         }
         debug {
@@ -71,7 +113,11 @@ android {
 
 androidComponents {
     onVariants { variant ->
-        if (variant.buildType != "release") return@onVariants
+        val flavorName = variant.productFlavors
+            .map { it.second }
+            .joinToString("-")
+            .ifEmpty { "default" }
+        val apkNamePrefix = if (flavorName == "telemt") "monogram-telemt" else "monogram"
 
         variant.outputs.forEach { output ->
             val variantOutput = output as? VariantOutputImpl ?: return@forEach
@@ -81,9 +127,11 @@ androidComponents {
             val versionName = variantOutput.versionName.orNull ?: "unknown"
 
             variantOutput.outputFileName.set(
-                "monogram-$abi-$versionName-${variant.buildType}.apk"
+                "$apkNamePrefix-$abi-$versionName-${variant.buildType}.apk"
             )
         }
+
+        if (variant.buildType != "release") return@onVariants
 
         val apkDirProvider = variant.artifacts.get(SingleArtifact.APK)
 
@@ -91,17 +139,10 @@ androidComponents {
             if (it.isLowerCase()) it.titlecase() else it.toString()
         }
 
-        val copyTask = tasks.register<Sync>("copy${capitalizedVariantName}Apk") {
+        val copyTask = tasks.register<Copy>("copy${capitalizedVariantName}Apk") {
             from(apkDirProvider)
             include("*.apk")
             into(layout.projectDirectory.dir("releases"))
-
-            doFirst {
-                destinationDir.mkdirs()
-                destinationDir.listFiles()
-                    ?.filter { it.isFile && it.extension == "apk" && it.name.startsWith("monogram-") }
-                    ?.forEach { it.delete() }
-            }
         }
 
         project.tasks.matching { it.name == "assemble${capitalizedVariantName}" }.configureEach {

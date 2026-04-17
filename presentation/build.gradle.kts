@@ -20,7 +20,19 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
-        buildConfigField("boolean", "ENABLE_TELEMT_DNS", "true")
+    }
+
+    flavorDimensions += "tdlib"
+
+    productFlavors {
+        create("official") {
+            dimension = "tdlib"
+            buildConfigField("boolean", "ENABLE_TELEMT_DNS", "false")
+        }
+        create("telemt") {
+            dimension = "tdlib"
+            buildConfigField("boolean", "ENABLE_TELEMT_DNS", "true")
+        }
     }
 
     buildTypes {

@@ -120,13 +120,13 @@ import org.monogram.presentation.features.chats.currentChat.chatContent.groupedI
 import org.monogram.presentation.features.chats.currentChat.chatContent.lazyIndexToGroupedIndex
 import org.monogram.presentation.features.chats.currentChat.components.AdvancedCircularRecorderScreen
 import org.monogram.presentation.features.chats.currentChat.components.ChatInputBar
-import org.monogram.presentation.features.chats.currentChat.components.ChatInputBarActions
-import org.monogram.presentation.features.chats.currentChat.components.ChatInputBarState
 import org.monogram.presentation.features.chats.currentChat.components.MessageListShimmer
 import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
 import org.monogram.presentation.features.chats.currentChat.components.chats.BotCommandsSheet
 import org.monogram.presentation.features.chats.currentChat.components.chats.LocalLinkHandler
 import org.monogram.presentation.features.chats.currentChat.components.chats.PollVotersSheet
+import org.monogram.presentation.features.chats.currentChat.components.inputbar.ChatInputBarActions
+import org.monogram.presentation.features.chats.currentChat.components.inputbar.ChatInputBarState
 import org.monogram.presentation.features.chats.currentChat.components.pins.PinnedMessagesListSheet
 import org.monogram.presentation.features.chats.currentChat.editor.photo.PhotoEditorScreen
 import org.monogram.presentation.features.chats.currentChat.editor.video.VideoEditorScreen
@@ -824,7 +824,8 @@ fun ChatContent(
                                     pendingDocumentPaths = pendingDocumentPaths,
                                     isClosed = state.topics.find { it.id.toLong() == state.currentTopicId }?.isClosed
                                         ?: false,
-                                    permissions = state.permissions,
+                                    permissions = state.effectiveInputPermissions
+                                        ?: state.permissions,
                                     slowModeDelay = state.slowModeDelay,
                                     slowModeDelayExpiresIn = state.slowModeDelayExpiresIn,
                                     isCurrentUserRestricted = state.isCurrentUserRestricted,

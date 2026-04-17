@@ -254,7 +254,8 @@ private suspend fun DefaultChatComponent.refreshCurrentUserRestrictionState() {
     _state.update {
         it.copy(
             isCurrentUserRestricted = restrictedStatus != null,
-            restrictedUntilDate = restrictedStatus?.restrictedUntilDate ?: 0
+            restrictedUntilDate = restrictedStatus?.restrictedUntilDate ?: 0,
+            effectiveInputPermissions = restrictedStatus?.permissions
         )
     }
 }

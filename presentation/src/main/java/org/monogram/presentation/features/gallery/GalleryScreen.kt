@@ -63,6 +63,9 @@ fun GalleryScreen(
     onMediaSelected: (List<Uri>) -> Unit,
     onDismiss: () -> Unit,
     onCameraClick: () -> Unit,
+    canSelectMedia: Boolean,
+    canUseCamera: Boolean,
+    canAttachFiles: Boolean,
     canCreatePoll: Boolean,
     onAttachFileClick: () -> Unit,
     onCreatePollClick: () -> Unit,
@@ -84,9 +87,10 @@ fun GalleryScreen(
     var filter by remember { mutableStateOf(GalleryFilter.All) }
     var bucketFilter by remember { mutableStateOf<BucketFilter>(BucketFilter.All) }
     var isLoading by remember { mutableStateOf(false) }
+    val showPermissionCard = canSelectMedia && !hasMediaAccess
 
-    LaunchedEffect(hasMediaAccess) {
-        if (!hasMediaAccess) {
+    LaunchedEffect(hasMediaAccess, canSelectMedia) {
+        if (!hasMediaAccess || !canSelectMedia) {
             mediaList.clear()
             selectedMedia.clear()
             return@LaunchedEffect
@@ -141,6 +145,8 @@ fun GalleryScreen(
         topBar = {
             GalleryToolbar(
                 onDismiss = onDismiss,
+                showOtherSourcesAction = canSelectMedia,
+                showCameraAction = canUseCamera,
                 onPickFromOtherSources = onPickFromOtherSources,
                 onCameraClick = onCameraClick
             )
@@ -161,13 +167,13 @@ fun GalleryScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                if (!hasMediaAccess) {
+                if (showPermissionCard) {
                     PermissionCard(onRequestMediaAccess = onRequestMediaAccess)
                     return@Column
                 }
 
                 AnimatedVisibility(
-                    visible = isPartialAccess,
+                    visible = canSelectMedia && isPartialAccess,
                     enter = fadeIn(tween(160)) + slideInVertically(tween(160)) { -it / 4 },
                     exit = fadeOut(tween(120))
                 ) {
@@ -179,56 +185,79 @@ fun GalleryScreen(
                     )
                 }
 
-                GalleryTabs(
-                    filter = filter,
-                    onFilterChange = { newFilter -> filter = newFilter }
-                )
-
-                AnimatedVisibility(
-                    visible = filter == GalleryFilter.Photos,
-                    enter = fadeIn(tween(160)) + slideInVertically(tween(160)) { -it / 4 },
-                    exit = fadeOut(tween(120)) + slideOutVertically(tween(120)) { -it / 4 }
-                ) {
-                    FolderRow(
-                        buckets = buckets,
-                        selectedBucket = bucketFilter,
-                        onBucketChange = { bucketFilter = it }
+                if (canSelectMedia) {
+                    GalleryTabs(
+                        filter = filter,
+                        onFilterChange = { newFilter -> filter = newFilter }
                     )
-                }
 
-                val gridStateKey = remember(filter, bucketFilter) {
-                    val bucketKey = when (val value = bucketFilter) {
-                        BucketFilter.All -> value.key
-                        BucketFilter.Camera -> value.key
-                        BucketFilter.Screenshots -> value.key
-                        is BucketFilter.Custom -> value.name.lowercase()
-                    }
-                    "${filter.name}_$bucketKey"
-                }
-
-                AnimatedContent(
-                    targetState = gridStateKey,
-                    transitionSpec = {
-                        fadeIn(tween(180)) togetherWith fadeOut(tween(120))
-                    },
-                    label = "galleryGridTransition",
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
+                    AnimatedVisibility(
+                        visible = filter == GalleryFilter.Photos,
+                        enter = fadeIn(tween(160)) + slideInVertically(tween(160)) { -it / 4 },
+                        exit = fadeOut(tween(120)) + slideOutVertically(tween(120)) { -it / 4 }
                     ) {
-                        GalleryGrid(
-                            media = filteredMedia,
-                            selected = selectedMedia,
-                            isLoading = isLoading,
-                            modifier = Modifier.fillMaxSize()
+                        FolderRow(
+                            buckets = buckets,
+                            selectedBucket = bucketFilter,
+                            onBucketChange = { bucketFilter = it }
                         )
+                    }
+
+                    val gridStateKey = remember(filter, bucketFilter) {
+                        val bucketKey = when (val value = bucketFilter) {
+                            BucketFilter.All -> value.key
+                            BucketFilter.Camera -> value.key
+                            BucketFilter.Screenshots -> value.key
+                            is BucketFilter.Custom -> value.name.lowercase()
+                        }
+                        "${filter.name}_$bucketKey"
+                    }
+
+                    AnimatedContent(
+                        targetState = gridStateKey,
+                        transitionSpec = {
+                            fadeIn(tween(180)) togetherWith fadeOut(tween(120))
+                        },
+                        label = "galleryGridTransition",
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            GalleryGrid(
+                                media = filteredMedia,
+                                selected = selectedMedia,
+                                isLoading = isLoading,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                } else {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        shape = MaterialTheme.shapes.large
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(20.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.gallery_action_other_sources),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
 
-            if (hasMediaAccess) {
+            if (canAttachFiles || canCreatePoll || visibleBots.isNotEmpty()) {
                 AttachBotsSection(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -236,6 +265,7 @@ fun GalleryScreen(
                         .padding(horizontal = 12.dp, vertical = 4.dp)
                         .windowInsetsPadding(WindowInsets.navigationBars),
                     bots = visibleBots,
+                    canAttachFiles = canAttachFiles,
                     canCreatePoll = canCreatePoll,
                     onAttachFileClick = onAttachFileClick,
                     onCreatePollClick = onCreatePollClick,
@@ -244,7 +274,7 @@ fun GalleryScreen(
             }
 
             AnimatedVisibility(
-                visible = hasMediaAccess && selectedMedia.isNotEmpty(),
+                visible = canSelectMedia && hasMediaAccess && selectedMedia.isNotEmpty(),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 20.dp, bottom = 62.dp)
@@ -279,6 +309,8 @@ fun GalleryScreen(
 @Composable
 private fun GalleryToolbar(
     onDismiss: () -> Unit,
+    showOtherSourcesAction: Boolean,
+    showCameraAction: Boolean,
     onPickFromOtherSources: () -> Unit,
     onCameraClick: () -> Unit
 ) {
@@ -301,17 +333,21 @@ private fun GalleryToolbar(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            IconButton(onClick = onPickFromOtherSources) {
-                Icon(
-                    imageVector = Icons.Filled.PhotoLibrary,
-                    contentDescription = stringResource(R.string.gallery_action_other_sources)
-                )
+            if (showOtherSourcesAction) {
+                IconButton(onClick = onPickFromOtherSources) {
+                    Icon(
+                        imageVector = Icons.Filled.PhotoLibrary,
+                        contentDescription = stringResource(R.string.gallery_action_other_sources)
+                    )
+                }
             }
-            IconButton(onClick = onCameraClick) {
-                Icon(
-                    imageVector = Icons.Filled.PhotoCamera,
-                    contentDescription = stringResource(R.string.permission_camera_title)
-                )
+            if (showCameraAction) {
+                IconButton(onClick = onCameraClick) {
+                    Icon(
+                        imageVector = Icons.Filled.PhotoCamera,
+                        contentDescription = stringResource(R.string.permission_camera_title)
+                    )
+                }
             }
         }
     }

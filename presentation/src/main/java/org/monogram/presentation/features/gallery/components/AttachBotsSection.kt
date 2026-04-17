@@ -50,16 +50,19 @@ private sealed interface GalleryRailItem {
 fun AttachBotsSection(
     modifier: Modifier = Modifier,
     bots: List<AttachMenuBotModel>,
+    canAttachFiles: Boolean,
     canCreatePoll: Boolean,
     onAttachFileClick: () -> Unit,
     onCreatePollClick: () -> Unit,
     onAttachBotClick: (AttachMenuBotModel) -> Unit
 ) {
     val items = buildList {
-        add(GalleryRailItem.File)
+        if (canAttachFiles) add(GalleryRailItem.File)
         if (canCreatePoll) add(GalleryRailItem.Poll)
         addAll(bots.map(GalleryRailItem::Bot))
     }
+
+    if (items.isEmpty()) return
 
     Surface(
         modifier = modifier,

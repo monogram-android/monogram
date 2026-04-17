@@ -63,6 +63,7 @@ fun AlbumMessageBubbleContainer(
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onReplyClick: (Offset, IntSize, Offset) -> Unit,
+    onLongReplyClick: () -> Unit = {},
     onGoToReply: (MessageModel) -> Unit = {},
     onReactionClick: (Long, String) -> Unit = { _, _ -> },
     onReplyMarkupButtonClick: (Long, InlineKeyboardButtonModel) -> Unit = { _, _ -> },
@@ -172,13 +173,7 @@ fun AlbumMessageBubbleContainer(
                             onReplyClick(bubblePosition, bubbleSize, clickPos)
                         }
                     },
-                    onLongPress = { offset ->
-                        val clickPos = outerColumnPosition + offset
-                        val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
-                        if (!bubbleRect.contains(clickPos)) {
-                            onReplyClick(bubblePosition, bubbleSize, clickPos)
-                        }
-                    }
+                    onLongPress = { _ -> onLongReplyClick() }
                 )
             }
     ) {

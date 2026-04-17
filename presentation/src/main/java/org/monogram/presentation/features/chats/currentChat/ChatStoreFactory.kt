@@ -244,13 +244,19 @@ class ChatStoreFactory(
 
                 is Intent.OpenInstantView -> component._state.update { it.copy(instantViewUrl = intent.url) }
                 is Intent.DismissInstantView -> component._state.update { it.copy(instantViewUrl = null) }
-                is Intent.OpenYouTube -> publish(Label.Link(intent.url))
+                is Intent.OpenYouTube -> component._state.update { it.copy(youtubeUrl = intent.url) }
                 is Intent.DismissYouTube -> component._state.update { it.copy(youtubeUrl = null) }
                 is Intent.OpenMiniApp -> component.handleOpenMiniApp(intent.url, intent.name, intent.botUserId)
-                is Intent.DismissMiniApp -> component._state.update { it.copy(miniAppUrl = null) }
+                is Intent.DismissMiniApp -> component._state.update {
+                    it.copy(
+                        miniAppUrl = null,
+                        miniAppName = null,
+                        miniAppBotUserId = 0L
+                    )
+                }
                 is Intent.AcceptMiniAppTOS -> component.handleAcceptMiniAppTOS()
                 is Intent.DismissMiniAppTOS -> component.handleDismissMiniAppTOS()
-                is Intent.OpenWebView -> publish(Label.Link(intent.url))
+                is Intent.OpenWebView -> component._state.update { it.copy(webViewUrl = intent.url) }
                 is Intent.DismissWebView -> component._state.update { it.copy(webViewUrl = null) }
                 is Intent.OpenImages -> component._state.update {
                     it.copy(
@@ -268,6 +274,8 @@ class ChatStoreFactory(
                     it.copy(
                         fullScreenImages = null,
                         fullScreenImageMessageIds = emptyList(),
+                        fullScreenCaptions = emptyList(),
+                        fullScreenStartIndex = 0,
                         fullScreenVideoMessageId = null,
                         fullScreenVideoPath = null,
                         fullScreenVideoCaption = null
@@ -280,7 +288,9 @@ class ChatStoreFactory(
                         fullScreenVideoMessageId = intent.messageId,
                         fullScreenVideoCaption = intent.caption,
                         fullScreenImages = null,
-                        fullScreenImageMessageIds = emptyList()
+                        fullScreenImageMessageIds = emptyList(),
+                        fullScreenCaptions = emptyList(),
+                        fullScreenStartIndex = 0
                     )
                 }
 

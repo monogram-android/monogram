@@ -10,6 +10,7 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.Message
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -117,10 +118,30 @@ fun YouTubeViewer(
                 mediaPlaybackRequiresUserGesture = false
                 userAgentString =
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.5632.145 Safari/537.36"
-                setSupportMultipleWindows(true)
+                setSupportMultipleWindows(false)
             }
 
             webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): Boolean {
+                    val url = request?.url?.toString().orEmpty()
+                    if (url.startsWith("http://") || url.startsWith("https://")) {
+                        view?.loadUrl(url)
+                    }
+                    return true
+                }
+
+                @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                    val targetUrl = url.orEmpty()
+                    if (targetUrl.startsWith("http://") || targetUrl.startsWith("https://")) {
+                        view?.loadUrl(targetUrl)
+                    }
+                    return true
+                }
+
                 override fun shouldInterceptRequest(
                     view: WebView?,
                     request: WebResourceRequest?
@@ -141,7 +162,33 @@ fun YouTubeViewer(
                     onLoaded = { playerState.isLoading = false }
                 ), "YoutubeProxy"
             )
-            webChromeClient = WebChromeClient()
+            webChromeClient = object : WebChromeClient() {
+                override fun onCreateWindow(
+                    view: WebView?,
+                    isDialog: Boolean,
+                    isUserGesture: Boolean,
+                    resultMsg: Message?
+                ): Boolean {
+                    val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
+                    val popupWebView = WebView(context)
+                    popupWebView.webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(
+                            nestedView: WebView?,
+                            request: WebResourceRequest?
+                        ): Boolean {
+                            val targetUrl = request?.url?.toString().orEmpty()
+                            if (targetUrl.startsWith("http://") || targetUrl.startsWith("https://")) {
+                                popupWebView.destroy()
+                                view?.loadUrl(targetUrl)
+                            }
+                            return true
+                        }
+                    }
+                    transport.webView = popupWebView
+                    resultMsg.sendToTarget()
+                    return true
+                }
+            }
             setBackgroundColor(0)
         }
     }

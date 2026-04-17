@@ -140,8 +140,7 @@ class DefaultRootComponent(
         serializer = Config.serializer(),
         initialConfiguration = Config.Startup,
         handleBackButton = true,
-        childFactory = ::createChild,
-        key = "RootStack"
+        childFactory = ::createChild
     )
 
     init {

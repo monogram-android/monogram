@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,9 +30,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
 import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.currentChat.components.chats.buildAnnotatedMessageTextWithEmoji
@@ -228,83 +228,12 @@ private fun ReplyPreview(
     message: MessageModel,
     onCancel: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-            .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.Reply,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(end = 12.dp)
-        )
-
-        Box(
-            modifier = Modifier
-                .width(2.dp)
-                .height(36.dp)
-                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp))
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = message.senderName,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            val (previewText, previewEntities) = when (val content = message.content) {
-                is MessageContent.Text -> content.text to content.entities
-                else -> {
-                    val fallback = when (content) {
-                        is MessageContent.Photo -> stringResource(R.string.media_type_photo)
-                        is MessageContent.Video -> stringResource(R.string.media_type_video)
-                        is MessageContent.Sticker -> stringResource(R.string.media_type_sticker)
-                        is MessageContent.Voice -> stringResource(R.string.media_type_voice)
-                        is MessageContent.VideoNote -> stringResource(R.string.media_type_video_note)
-                        is MessageContent.Gif -> stringResource(R.string.media_type_gif)
-                        is MessageContent.Location -> stringResource(R.string.media_type_location)
-                        is MessageContent.Venue -> content.title
-                        else -> stringResource(R.string.media_type_message)
-                    }
-                    fallback to emptyList()
-                }
-            }
-            val annotatedPreviewText = buildAnnotatedMessageTextWithEmoji(
-                text = previewText,
-                entities = previewEntities
-            )
-            val previewInlineContent = rememberMessageInlineContent(
-                entities = previewEntities,
-                fontSize = MaterialTheme.typography.bodySmall.fontSize.value
-            )
-
-            Text(
-                text = annotatedPreviewText,
-                inlineContent = previewInlineContent,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        IconButton(onClick = onCancel) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = stringResource(R.string.action_cancel_reply),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
+    val data = buildReplyPreviewData(message = message)
+    InputContextPreviewCard(
+        data = data,
+        accentColor = MaterialTheme.colorScheme.primary,
+        onCancel = onCancel
+    )
 }
 
 @Composable
@@ -312,69 +241,327 @@ private fun EditPreview(
     message: MessageModel,
     onCancel: () -> Unit
 ) {
+    val data = buildEditPreviewData(message = message)
+    InputContextPreviewCard(
+        data = data,
+        accentColor = MaterialTheme.colorScheme.tertiary,
+        onCancel = onCancel
+    )
+}
+
+private data class InputContextPreviewData(
+    val title: String,
+    val sender: String?,
+    val mediaTypeLabel: String?,
+    val previewText: String,
+    val previewEntities: List<MessageEntity>,
+    val previewThumbnailPath: String?,
+    val cancelDescription: String,
+    val maxPreviewLines: Int
+)
+
+@Composable
+private fun InputContextPreviewCard(
+    data: InputContextPreviewData,
+    accentColor: Color,
+    onCancel: () -> Unit
+) {
+    val annotatedPreviewText = buildAnnotatedMessageTextWithEmoji(
+        text = data.previewText,
+        entities = data.previewEntities
+    )
+    val previewInlineContent = rememberMessageInlineContent(
+        entities = data.previewEntities,
+        fontSize = MaterialTheme.typography.bodySmall.fontSize.value
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(12.dp))
-            .padding(12.dp),
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = Icons.Default.Edit,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(end = 12.dp)
-        )
-
         Box(
             modifier = Modifier
-                .width(2.dp)
-                .height(36.dp)
-                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp))
+                .width(3.dp)
+                .height(40.dp)
+                .background(accentColor, RoundedCornerShape(999.dp))
         )
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.action_edit_message),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            val (previewText, previewEntities) = when (val content = message.content) {
-                is MessageContent.Text -> content.text to content.entities
-                else -> stringResource(R.string.media_type_message) to emptyList()
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .defaultMinSize(minHeight = 40.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = data.title,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                data.sender?.takeIf { it.isNotBlank() }?.let { senderName ->
+                    Text(
+                        text = senderName,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = accentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
-            val annotatedPreviewText = buildAnnotatedMessageTextWithEmoji(
-                text = previewText,
-                entities = previewEntities
-            )
-            val previewInlineContent = rememberMessageInlineContent(
-                entities = previewEntities,
-                fontSize = MaterialTheme.typography.bodySmall.fontSize.value
-            )
 
-            Text(
-                text = annotatedPreviewText,
-                inlineContent = previewInlineContent,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+            Row(
+                modifier = Modifier.padding(top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                data.mediaTypeLabel?.let { typeLabel ->
+                    Box(
+                        modifier = Modifier
+                            .background(accentColor.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = typeLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = accentColor,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                Text(
+                    text = annotatedPreviewText,
+                    inlineContent = previewInlineContent,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = data.maxPreviewLines,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        data.previewThumbnailPath?.let { path ->
+            AsyncImage(
+                model = File(path),
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentScale = ContentScale.Crop
             )
         }
 
-        IconButton(onClick = onCancel) {
+        IconButton(
+            onClick = onCancel,
+            modifier = Modifier.size(30.dp)
+        ) {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = stringResource(R.string.action_cancel_edit),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                contentDescription = data.cancelDescription,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun buildReplyPreviewData(message: MessageModel): InputContextPreviewData {
+    val mediaTypeMessage = stringResource(R.string.media_type_message)
+    val mediaTypePhoto = stringResource(R.string.media_type_photo)
+    val mediaTypeVideo = stringResource(R.string.media_type_video)
+    val mediaTypeSticker = stringResource(R.string.media_type_sticker)
+    val mediaTypeVoice = stringResource(R.string.media_type_voice)
+    val mediaTypeVideoNote = stringResource(R.string.media_type_video_note)
+    val mediaTypeGif = stringResource(R.string.media_type_gif)
+    val mediaTypeLocation = stringResource(R.string.media_type_location)
+
+    val previewContent = message.content.toPreviewContent(
+        mediaTypeMessage = mediaTypeMessage,
+        mediaTypePhoto = mediaTypePhoto,
+        mediaTypeVideo = mediaTypeVideo,
+        mediaTypeSticker = mediaTypeSticker,
+        mediaTypeVoice = mediaTypeVoice,
+        mediaTypeVideoNote = mediaTypeVideoNote,
+        mediaTypeGif = mediaTypeGif,
+        mediaTypeLocation = mediaTypeLocation
+    )
+
+    return InputContextPreviewData(
+        title = stringResource(R.string.menu_reply),
+        sender = message.senderName,
+        mediaTypeLabel = previewContent.mediaTypeLabel,
+        previewText = previewContent.text,
+        previewEntities = previewContent.entities,
+        previewThumbnailPath = previewContent.thumbnailPath,
+        cancelDescription = stringResource(R.string.action_cancel_reply),
+        maxPreviewLines = 2
+    )
+}
+
+@Composable
+private fun buildEditPreviewData(message: MessageModel): InputContextPreviewData {
+    val mediaTypeMessage = stringResource(R.string.media_type_message)
+    val mediaTypePhoto = stringResource(R.string.media_type_photo)
+    val mediaTypeVideo = stringResource(R.string.media_type_video)
+    val mediaTypeSticker = stringResource(R.string.media_type_sticker)
+    val mediaTypeVoice = stringResource(R.string.media_type_voice)
+    val mediaTypeVideoNote = stringResource(R.string.media_type_video_note)
+    val mediaTypeGif = stringResource(R.string.media_type_gif)
+    val mediaTypeLocation = stringResource(R.string.media_type_location)
+
+    val previewContent = message.content.toPreviewContent(
+        mediaTypeMessage = mediaTypeMessage,
+        mediaTypePhoto = mediaTypePhoto,
+        mediaTypeVideo = mediaTypeVideo,
+        mediaTypeSticker = mediaTypeSticker,
+        mediaTypeVoice = mediaTypeVoice,
+        mediaTypeVideoNote = mediaTypeVideoNote,
+        mediaTypeGif = mediaTypeGif,
+        mediaTypeLocation = mediaTypeLocation
+    )
+
+    return InputContextPreviewData(
+        title = stringResource(R.string.action_edit_message),
+        sender = null,
+        mediaTypeLabel = previewContent.mediaTypeLabel,
+        previewText = previewContent.text,
+        previewEntities = previewContent.entities,
+        previewThumbnailPath = previewContent.thumbnailPath,
+        cancelDescription = stringResource(R.string.action_cancel_edit),
+        maxPreviewLines = 1
+    )
+}
+
+private data class PreviewContentData(
+    val text: String,
+    val entities: List<MessageEntity>,
+    val mediaTypeLabel: String?,
+    val thumbnailPath: String?
+)
+
+private fun MessageContent.toPreviewContent(
+    mediaTypeMessage: String,
+    mediaTypePhoto: String,
+    mediaTypeVideo: String,
+    mediaTypeSticker: String,
+    mediaTypeVoice: String,
+    mediaTypeVideoNote: String,
+    mediaTypeGif: String,
+    mediaTypeLocation: String
+): PreviewContentData {
+    return when (this) {
+        is MessageContent.Text -> PreviewContentData(
+            text = text,
+            entities = entities,
+            mediaTypeLabel = null,
+            thumbnailPath = null
+        )
+
+        is MessageContent.Photo -> {
+            val captionText = caption.ifBlank { mediaTypePhoto }
+            PreviewContentData(
+                text = captionText,
+                entities = if (caption.isBlank()) emptyList() else entities,
+                mediaTypeLabel = mediaTypePhoto,
+                thumbnailPath = thumbnailPath ?: path
+            )
+        }
+
+        is MessageContent.Video -> {
+            val captionText = caption.ifBlank { mediaTypeVideo }
+            PreviewContentData(
+                text = captionText,
+                entities = if (caption.isBlank()) emptyList() else entities,
+                mediaTypeLabel = mediaTypeVideo,
+                thumbnailPath = thumbnailPath ?: path
+            )
+        }
+
+        is MessageContent.Gif -> {
+            val captionText = caption.ifBlank { mediaTypeGif }
+            PreviewContentData(
+                text = captionText,
+                entities = if (caption.isBlank()) emptyList() else entities,
+                mediaTypeLabel = mediaTypeGif,
+                thumbnailPath = path
+            )
+        }
+
+        is MessageContent.Sticker -> PreviewContentData(
+            text = mediaTypeSticker,
+            entities = emptyList(),
+            mediaTypeLabel = mediaTypeSticker,
+            thumbnailPath = path
+        )
+
+        is MessageContent.Voice -> PreviewContentData(
+            text = mediaTypeVoice,
+            entities = emptyList(),
+            mediaTypeLabel = mediaTypeVoice,
+            thumbnailPath = null
+        )
+
+        is MessageContent.VideoNote -> PreviewContentData(
+            text = mediaTypeVideoNote,
+            entities = emptyList(),
+            mediaTypeLabel = mediaTypeVideoNote,
+            thumbnailPath = thumbnail ?: path
+        )
+
+        is MessageContent.Location -> PreviewContentData(
+            text = mediaTypeLocation,
+            entities = emptyList(),
+            mediaTypeLabel = mediaTypeLocation,
+            thumbnailPath = null
+        )
+
+        is MessageContent.Venue -> PreviewContentData(
+            text = title.ifBlank { mediaTypeLocation },
+            entities = emptyList(),
+            mediaTypeLabel = mediaTypeLocation,
+            thumbnailPath = null
+        )
+
+        is MessageContent.Document -> {
+            val fallback = fileName.ifBlank { mediaTypeMessage }
+            val captionText = caption.ifBlank { fallback }
+            PreviewContentData(
+                text = captionText,
+                entities = if (caption.isBlank()) emptyList() else entities,
+                mediaTypeLabel = mediaTypeMessage,
+                thumbnailPath = null
+            )
+        }
+
+        is MessageContent.Audio -> {
+            val captionText = caption.ifBlank { title.ifBlank { mediaTypeMessage } }
+            PreviewContentData(
+                text = captionText,
+                entities = if (caption.isBlank()) emptyList() else entities,
+                mediaTypeLabel = mediaTypeMessage,
+                thumbnailPath = null
+            )
+        }
+
+        else -> PreviewContentData(
+            text = mediaTypeMessage,
+            entities = emptyList(),
+            mediaTypeLabel = mediaTypeMessage,
+            thumbnailPath = null
+        )
     }
 }
 

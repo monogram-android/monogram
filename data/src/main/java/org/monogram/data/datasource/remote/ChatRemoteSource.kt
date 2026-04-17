@@ -26,6 +26,7 @@ interface ChatRemoteSource {
     suspend fun archiveChat(chatId: Long, archive: Boolean)
     suspend fun toggleChatIsPinned(chatList: TdApi.ChatList, chatId: Long, isPinned: Boolean)
     suspend fun toggleChatIsMarkedAsUnread(chatId: Long, isMarkedAsUnread: Boolean)
+    suspend fun markChatAsRead(chatId: Long)
     suspend fun deleteChat(chatId: Long)
     suspend fun leaveChat(chatId: Long)
     suspend fun clearChatHistory(chatId: Long, revoke: Boolean)

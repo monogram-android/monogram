@@ -1518,7 +1518,20 @@
     <string name="settings_quality">Kvalita</string>
     <string name="settings_video_quality">Kvalita videa</string>
     <string name="settings_quality_auto">Automaticky</string>
-    <string name="settings_quality_high_res">Vysoké rozlíšenie</string>
+    <string name="settings_quality_high_res">Vysoká</string>
+    <string name="settings_quality_medium">Stredná</string>
+    <string name="settings_quality_low">Nízka</string>
+    <string name="quality_status_recovering">Používa sa kvalita…</string>
+    <string name="quality_status_downgraded">YouTube znížil kvalitu</string>
+    <string name="quality_status_unavailable_at_request">Požadovaná kvalita nie je dostupná</string>
+    <string name="quality_status_error_video_not_found">Video nie je dostupné</string>
+    <string name="quality_status_error_embedding_forbidden">Prehrávanie v aplikácii je obmedzené</string>
+    <string name="quality_status_error_html5">Chyba prehrávania (HTML5/WebView)</string>
+    <string name="quality_status_error_unknown">Chyba prehrávania (%1$d)</string>
+    <string name="action_retry_stream">Skúsiť stream znova</string>
+    <string name="action_switch_to_auto">Prepnúť na Automaticky</string>
+    <string name="action_use_low_quality">Použiť nízku kvalitu</string>
+    <string name="action_open_in_browser">Otvoriť v prehliadači</string>
     <string name="settings_speed_normal">Normálna</string>
 
     <!-- Selection: Picture-in-Picture -->

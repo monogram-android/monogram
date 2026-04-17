@@ -56,9 +56,9 @@ fun InputBarSendButton(
     pendingDocumentPaths: List<String>,
     isOverCharLimit: Boolean,
     canWriteText: Boolean,
+    canSendAttachments: Boolean,
     canSendVoice: Boolean,
     canSendVideoNotes: Boolean,
-    canSendMedia: Boolean,
     isVideoMessageMode: Boolean,
     isSlowModeActive: Boolean,
     slowModeRemainingSeconds: Int,
@@ -73,7 +73,7 @@ fun InputBarSendButton(
     val haptic = LocalHapticFeedback.current
     val isTextEmpty = textValue.text.isBlank()
     val hasPendingAttachments = pendingMediaPaths.isNotEmpty() || pendingDocumentPaths.isNotEmpty()
-    val canSendContent = canWriteText || (hasPendingAttachments && canSendMedia)
+    val canSendContent = canWriteText || (hasPendingAttachments && canSendAttachments)
     val isSlowModeBlocked = isSlowModeActive && editingMessage == null
     val isSendEnabled =
         (!isTextEmpty || editingMessage != null || hasPendingAttachments) &&
@@ -103,7 +103,7 @@ fun InputBarSendButton(
         label = "ContentColor"
     )
 
-    if (canWriteText || canSendVoice || canSendVideoNotes) {
+    if (canWriteText || canSendVoice || canSendVideoNotes || (hasPendingAttachments && canSendAttachments)) {
         val sendIcon = when {
             hasPendingAttachments -> Icons.AutoMirrored.Filled.Send
             editingMessage != null -> Icons.Default.Check
@@ -111,8 +111,9 @@ fun InputBarSendButton(
             effectiveVideoMode -> Icons.Default.Videocam
             else -> Icons.Outlined.Mic
         }
-        val canShowOptions = editingMessage == null && canWriteText &&
-                (!isTextEmpty || (hasPendingAttachments && canSendMedia)) &&
+        val canShowOptions = editingMessage == null &&
+                (!isTextEmpty || (hasPendingAttachments && canSendAttachments)) &&
+                (canWriteText || (hasPendingAttachments && canSendAttachments)) &&
                 !isOverCharLimit &&
                 !isSlowModeBlocked
 

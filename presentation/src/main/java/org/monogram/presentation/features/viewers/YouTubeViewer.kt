@@ -6,32 +6,64 @@ import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.ApplicationInfo
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.Message
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
-import android.webkit.*
+import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.BrightnessMedium
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -40,6 +72,8 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
@@ -51,13 +85,41 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.DateFormatManager
-import org.monogram.presentation.features.viewers.components.*
+import org.monogram.presentation.features.viewers.components.GestureOverlay
+import org.monogram.presentation.features.viewers.components.PipController
+import org.monogram.presentation.features.viewers.components.SeekFeedback
+import org.monogram.presentation.features.viewers.components.YouTubePlayerControlsUI
+import org.monogram.presentation.features.viewers.components.YouTubeSettingsMenu
+import org.monogram.presentation.features.viewers.components.baseQualityLabel
+import org.monogram.presentation.features.viewers.components.enterPipMode
+import org.monogram.presentation.features.viewers.components.findActivity
+import org.monogram.presentation.features.viewers.components.normalizeYouTubeQualityCode
+import org.monogram.presentation.features.viewers.components.youtubeQualityRank
 import java.io.ByteArrayInputStream
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 import java.util.regex.Pattern
 import kotlin.math.max
+
+private const val QUALITY_STABILIZATION_TIMEOUT_MS = 4000L
+
+enum class PlayerErrorCategory {
+    VIDEO_NOT_FOUND,
+    EMBEDDING_FORBIDDEN,
+    HTML5,
+    UNKNOWN
+}
+
+sealed class QualityStatus {
+    object Stable : QualityStatus()
+    object Recovering : QualityStatus()
+    object Downgraded : QualityStatus()
+    object UnavailableAtRequest : QualityStatus()
+    data class PlayerError(val category: PlayerErrorCategory, val code: Int) : QualityStatus()
+}
 
 @Composable
 fun YouTubeViewer(
@@ -73,6 +135,9 @@ fun YouTubeViewer(
     val youtubeId = extractYouTubeId(videoUrl) ?: return
     val startTime = extractYouTubeTime(videoUrl)
     val context = LocalContext.current
+    val isDebuggableBuild = remember(context) {
+        (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    }
     val dateFormatManager: DateFormatManager = koinInject()
     val timeFormat = dateFormatManager.getHourMinuteFormat()
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -117,10 +182,30 @@ fun YouTubeViewer(
                 mediaPlaybackRequiresUserGesture = false
                 userAgentString =
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.5632.145 Safari/537.36"
-                setSupportMultipleWindows(true)
+                setSupportMultipleWindows(false)
             }
 
             webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): Boolean {
+                    val url = request?.url?.toString().orEmpty()
+                    if (url.startsWith("http://") || url.startsWith("https://")) {
+                        view?.loadUrl(url)
+                    }
+                    return true
+                }
+
+                @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                    val targetUrl = url.orEmpty()
+                    if (targetUrl.startsWith("http://") || targetUrl.startsWith("https://")) {
+                        view?.loadUrl(targetUrl)
+                    }
+                    return true
+                }
+
                 override fun shouldInterceptRequest(
                     view: WebView?,
                     request: WebResourceRequest?
@@ -141,7 +226,33 @@ fun YouTubeViewer(
                     onLoaded = { playerState.isLoading = false }
                 ), "YoutubeProxy"
             )
-            webChromeClient = WebChromeClient()
+            webChromeClient = object : WebChromeClient() {
+                override fun onCreateWindow(
+                    view: WebView?,
+                    isDialog: Boolean,
+                    isUserGesture: Boolean,
+                    resultMsg: Message?
+                ): Boolean {
+                    val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
+                    val popupWebView = WebView(context)
+                    popupWebView.webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(
+                            nestedView: WebView?,
+                            request: WebResourceRequest?
+                        ): Boolean {
+                            val targetUrl = request?.url?.toString().orEmpty()
+                            if (targetUrl.startsWith("http://") || targetUrl.startsWith("https://")) {
+                                popupWebView.destroy()
+                                view?.loadUrl(targetUrl)
+                            }
+                            return true
+                        }
+                    }
+                    transport.webView = popupWebView
+                    resultMsg.sendToTarget()
+                    return true
+                }
+            }
             setBackgroundColor(0)
         }
     }
@@ -194,6 +305,7 @@ fun YouTubeViewer(
     )
 
     LaunchedEffect(youtubeId) {
+        playerState.resetForNewVideo()
         webView.loadDataWithBaseURL(
             "https://www.youtube-nocookie.com",
             getYouTubeHtml(youtubeId, startTime),
@@ -316,6 +428,14 @@ fun YouTubeViewer(
         webView.evaluateJavascript("setCaptionsEnabled(${playerState.isCaptionsEnabled})", null)
     }
 
+    LaunchedEffect(playerState.qualityRequestedAtMs, playerState.currentQuality) {
+        val requestedAt = playerState.qualityRequestedAtMs ?: return@LaunchedEffect
+        delay(QUALITY_STABILIZATION_TIMEOUT_MS)
+        if (playerState.qualityRequestedAtMs == requestedAt) {
+            playerState.recalculateQualityStatus()
+        }
+    }
+
     LaunchedEffect(forwardSeekFeedback) {
         if (forwardSeekFeedback) {
             delay(600); forwardSeekFeedback = false
@@ -333,6 +453,45 @@ fun YouTubeViewer(
         else onDismiss()
     }
 
+    fun requestQuality(quality: String) {
+        val normalized = normalizeYouTubeQualityCode(quality)
+        playerState.onQualityRequested(normalized)
+        webView.evaluateJavascript("setPlaybackQuality('$normalized')", null)
+    }
+
+    fun retryCurrentQuality() {
+        val requested = normalizeYouTubeQualityCode(playerState.currentQuality)
+        requestQuality(if (requested.isBlank()) "auto" else requested)
+    }
+
+    fun switchToAutoQuality() {
+        requestQuality("auto")
+    }
+
+    fun useLowQuality() {
+        val available = playerState.availableQualities
+        val target = when {
+            "small" in available -> "small"
+            "medium" in available -> "medium"
+            "large" in available -> "large"
+            else -> "auto"
+        }
+        requestQuality(target)
+    }
+
+    fun openInBrowser() {
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(videoUrl)))
+        }
+    }
+
+    val qualityStatusMessage = qualityStatusMessage(playerState.qualityStatus)
+    val showRetryStream = playerState.qualityStatus is QualityStatus.Downgraded
+    val showSwitchToAuto = playerState.qualityStatus is QualityStatus.Downgraded ||
+            playerState.qualityStatus is QualityStatus.UnavailableAtRequest
+    val showUseLowQuality = playerState.qualityStatus is QualityStatus.Downgraded
+    val showOpenInBrowser = playerState.qualityStatus is QualityStatus.PlayerError
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -349,6 +508,16 @@ fun YouTubeViewer(
                 }
             }
         )
+
+        if (isDebuggableBuild && !isInPipMode) {
+            YouTubeDebugInfo(
+                state = playerState,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(16.dp)
+            )
+        }
 
         if (!isInPipMode) {
             Box(
@@ -432,19 +601,27 @@ fun YouTubeViewer(
                                 if (isLeft && activity != null) {
                                     val lp = activity.window.attributes
                                     var newBrightness =
-                                        (lp.screenBrightness.takeIf { it != -1f } ?: 0.5f) - (dragAmount / 1000f)
+                                        (lp.screenBrightness.takeIf { it != -1f }
+                                            ?: 0.5f) - (dragAmount / 1000f)
                                     newBrightness = newBrightness.coerceIn(0f, 1f)
                                     lp.screenBrightness = newBrightness
                                     activity.window.attributes = lp
                                     gestureIcon = Icons.Rounded.BrightnessMedium
                                     gestureText = "${(newBrightness * 100).toInt()}%"
                                 } else {
-                                    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                                    val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                                    val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                    val audioManager =
+                                        context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                                    val maxVol =
+                                        audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                    val currentVol =
+                                        audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                                     val delta = -(dragAmount / 50f)
                                     val newVol = (currentVol + delta).coerceIn(0f, maxVol.toFloat())
-                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol.toInt(), 0)
+                                    audioManager.setStreamVolume(
+                                        AudioManager.STREAM_MUSIC,
+                                        newVol.toInt(),
+                                        0
+                                    )
                                     gestureIcon = Icons.AutoMirrored.Rounded.VolumeUp
                                     gestureText = "${((newVol / maxVol) * 100).toInt()}%"
                                 }
@@ -481,7 +658,10 @@ fun YouTubeViewer(
                                     .align(Alignment.TopEnd)
                                     .windowInsetsPadding(WindowInsets.statusBars)
                                     .padding(16.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceContainer, CircleShape)
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceContainer,
+                                        CircleShape
+                                    )
                             ) {
                                 Icon(Icons.Rounded.Lock, "Unlock", tint = MaterialTheme.colorScheme.onSurface)
                             }
@@ -551,9 +731,14 @@ fun YouTubeViewer(
                                 isCaptionsEnabled = playerState.isCaptionsEnabled,
                                 availableQualities = playerState.availableQualities,
                                 currentQuality = playerState.currentQuality,
+                                appliedQuality = playerState.appliedQuality,
+                                qualityStatusMessage = qualityStatusMessage,
+                                showRetryStream = showRetryStream,
+                                showSwitchToAuto = showSwitchToAuto,
+                                showUseLowQuality = showUseLowQuality,
+                                showOpenInBrowser = showOpenInBrowser,
                                 onQualitySelected = {
-                                    playerState.currentQuality = it
-                                    webView.evaluateJavascript("setPlaybackQuality('$it')", null)
+                                    requestQuality(it)
                                 },
                                 onSpeedSelected = { playerState.playbackSpeed = it },
                                 onMuteToggle = { playerState.isMuted = !playerState.isMuted },
@@ -587,7 +772,11 @@ fun YouTubeViewer(
                                 onCopyText = if (!caption.isNullOrBlank()) {
                                     { onCopyText?.invoke(caption); showSettingsMenu = false }
                                 } else null,
-                                onForward = { onForward(videoUrl); showSettingsMenu = false }
+                                onForward = { onForward(videoUrl); showSettingsMenu = false },
+                                onRetryStream = { retryCurrentQuality() },
+                                onSwitchToAuto = { switchToAutoQuality() },
+                                onUseLowQuality = { useLowQuality() },
+                                onOpenInBrowser = { openInBrowser() }
                             )
                         }
                     }
@@ -610,7 +799,82 @@ class YouTubePlayerState {
     var isLooping by mutableStateOf(false)
     var isCaptionsEnabled by mutableStateOf(false)
     var availableQualities by mutableStateOf<List<String>>(emptyList())
+    var availableQualitiesAtRequest by mutableStateOf<List<String>>(emptyList())
     var currentQuality by mutableStateOf("auto")
+    var appliedQuality by mutableStateOf("auto")
+    var playerStateCode by mutableIntStateOf(-1)
+    var lastErrorCode by mutableStateOf<Int?>(null)
+    var qualityRequestedAtMs by mutableStateOf<Long?>(null)
+    var qualityAppliedAtMs by mutableStateOf<Long?>(null)
+    var qualityStatus by mutableStateOf<QualityStatus>(QualityStatus.Stable)
+    var qualityStatusSinceMs by mutableStateOf<Long?>(null)
+    var isRecovering by mutableStateOf(false)
+
+    fun onQualityRequested(quality: String) {
+        currentQuality = quality
+        availableQualitiesAtRequest = availableQualities
+        qualityRequestedAtMs = System.currentTimeMillis()
+        lastErrorCode = null
+        updateQualityStatus(QualityStatus.Recovering)
+        isRecovering = true
+    }
+
+    fun recalculateQualityStatus(nowMs: Long = System.currentTimeMillis()) {
+        val requested = normalizeYouTubeQualityCode(currentQuality)
+        val applied = normalizeYouTubeQualityCode(appliedQuality)
+        val requestedAt = qualityRequestedAtMs
+        val isRequestedAvailable = requested in availableQualitiesAtRequest
+
+        val newStatus = when {
+            lastErrorCode != null -> {
+                QualityStatus.PlayerError(
+                    category = mapErrorCodeToCategory(lastErrorCode!!),
+                    code = lastErrorCode!!
+                )
+            }
+
+            requested == "auto" -> QualityStatus.Stable
+            requestedAt != null && (nowMs - requestedAt) < QUALITY_STABILIZATION_TIMEOUT_MS && requested != applied -> {
+                QualityStatus.Recovering
+            }
+
+            requested == applied -> QualityStatus.Stable
+            !isRequestedAvailable -> QualityStatus.UnavailableAtRequest
+            else -> QualityStatus.Downgraded
+        }
+
+        isRecovering = newStatus is QualityStatus.Recovering
+        updateQualityStatus(newStatus)
+    }
+
+    private fun updateQualityStatus(status: QualityStatus) {
+        if (qualityStatus != status) {
+            qualityStatus = status
+            qualityStatusSinceMs = System.currentTimeMillis()
+        } else if (qualityStatusSinceMs == null) {
+            qualityStatusSinceMs = System.currentTimeMillis()
+        }
+    }
+
+    fun resetForNewVideo() {
+        isPlaying = false
+        currentTime = 0f
+        duration = 0f
+        isLoading = true
+        videoTitle = ""
+        bufferedAmount = 0f
+        availableQualities = emptyList()
+        availableQualitiesAtRequest = emptyList()
+        currentQuality = "auto"
+        appliedQuality = "auto"
+        playerStateCode = -1
+        lastErrorCode = null
+        qualityRequestedAtMs = null
+        qualityAppliedAtMs = null
+        qualityStatus = QualityStatus.Stable
+        qualityStatusSinceMs = null
+        isRecovering = false
+    }
 }
 
 class YoutubeProxy(
@@ -622,6 +886,7 @@ class YoutubeProxy(
     @JavascriptInterface
     fun onPlayerStateChange(playerState: Int) {
         handler.post {
+            state.playerStateCode = playerState
             state.isPlaying = playerState == 1 || playerState == 3
         }
     }
@@ -653,18 +918,213 @@ class YoutubeProxy(
 
     @JavascriptInterface
     fun onPlayerError(error: Int) {
+        handler.post {
+            state.lastErrorCode = error
+            state.recalculateQualityStatus()
+        }
     }
 
     @JavascriptInterface
     fun onAvailableQualities(qualities: String) {
-        handler.post { state.availableQualities = qualities.split(",").filter { it.isNotBlank() } }
+        handler.post {
+            state.availableQualities = normalizeQualityLevels(qualities.split(","))
+            state.recalculateQualityStatus()
+        }
     }
 
     @JavascriptInterface
     fun onQualityChange(quality: String) {
-        handler.post { state.currentQuality = quality }
+        handler.post {
+            state.appliedQuality = normalizeReportedQuality(quality, state.currentQuality)
+            state.qualityAppliedAtMs = System.currentTimeMillis()
+            state.recalculateQualityStatus()
+        }
     }
 }
+
+@Composable
+private fun YouTubeDebugInfo(
+    state: YouTubePlayerState,
+    modifier: Modifier = Modifier
+) {
+    val bufferedSeconds = (state.bufferedAmount * state.duration).coerceAtLeast(0f)
+    val errorLabel = state.lastErrorCode?.let(::youtubeErrorLabel) ?: "none"
+    val qualityFallback = isQualityFallback(
+        requestedQuality = state.currentQuality,
+        appliedQuality = state.appliedQuality
+    )
+    val requestAvailable =
+        state.currentQuality == "auto" || state.currentQuality in state.availableQualities
+    val requestAvailableAtRequest =
+        state.currentQuality == "auto" || state.currentQuality in state.availableQualitiesAtRequest
+    val fallbackReason = qualityFallbackReason(
+        requestedQuality = state.currentQuality,
+        appliedQuality = state.appliedQuality,
+        requestAvailableAtRequest = requestAvailableAtRequest,
+        errorCode = state.lastErrorCode
+    )
+    val debugLines = listOf(
+        "DEBUG",
+        "state=${youtubePlayerStateLabel(state.playerStateCode)}(${state.playerStateCode}) loading=${state.isLoading}",
+        "quality requested=${formatDebugQualityLabel(state.currentQuality)} applied=${
+            formatDebugQualityLabel(
+                state.appliedQuality
+            )
+        }",
+        "quality fallback=$qualityFallback reason=$fallbackReason",
+        "quality req_available_at_request=$requestAvailableAtRequest available_now=$requestAvailable",
+        "quality req_at=${formatDebugTimestamp(state.qualityRequestedAtMs)} applied_at=${
+            formatDebugTimestamp(
+                state.qualityAppliedAtMs
+            )
+        }",
+        "qualities_at_request=${
+            state.availableQualitiesAtRequest.joinToString(",") {
+                formatDebugQualityLabel(
+                    it
+                )
+            }.ifBlank { "none" }
+        }",
+        "qualities=${
+            state.availableQualities.joinToString(",") { formatDebugQualityLabel(it) }
+                .ifBlank { "none" }
+        }",
+        "time=${"%.1f".format(Locale.US, state.currentTime)}/${
+            "%.1f".format(
+                Locale.US,
+                state.duration
+            )
+        } buffer=${"%.1f".format(Locale.US, bufferedSeconds)}",
+        "speed=${state.playbackSpeed} muted=${state.isMuted} loop=${state.isLooping} cc=${state.isCaptionsEnabled}",
+        "error=$errorLabel"
+    )
+
+    Box(
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.68f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Text(
+            text = debugLines.joinToString("\n"),
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
+            color = Color.White
+        )
+    }
+}
+
+private fun isQualityFallback(
+    requestedQuality: String,
+    appliedQuality: String
+): Boolean {
+    val requested = normalizeYouTubeQualityCode(requestedQuality)
+    val applied = normalizeYouTubeQualityCode(appliedQuality)
+    return requested.isNotBlank() &&
+            requested != "auto" &&
+            applied.isNotBlank() &&
+            requested != applied
+}
+
+private fun qualityFallbackReason(
+    requestedQuality: String,
+    appliedQuality: String,
+    requestAvailableAtRequest: Boolean,
+    errorCode: Int?
+): String {
+    val requested = normalizeYouTubeQualityCode(requestedQuality)
+    val applied = normalizeYouTubeQualityCode(appliedQuality)
+
+    return when {
+        errorCode != null -> "player_error_${youtubeErrorLabel(errorCode)}"
+        requested.isBlank() || requested == "auto" -> "none"
+        applied.isBlank() -> "unknown"
+        requested == applied -> "none"
+        !requestAvailableAtRequest -> "unavailable_at_request"
+        else -> "youtube_downgrade"
+    }
+}
+
+@Composable
+private fun qualityStatusMessage(status: QualityStatus): String? {
+    return when (status) {
+        QualityStatus.Stable -> null
+        QualityStatus.Recovering -> stringResource(R.string.quality_status_recovering)
+        QualityStatus.Downgraded -> stringResource(R.string.quality_status_downgraded)
+        QualityStatus.UnavailableAtRequest -> stringResource(R.string.quality_status_unavailable_at_request)
+        is QualityStatus.PlayerError -> when (status.category) {
+            PlayerErrorCategory.VIDEO_NOT_FOUND -> stringResource(R.string.quality_status_error_video_not_found)
+            PlayerErrorCategory.EMBEDDING_FORBIDDEN -> stringResource(R.string.quality_status_error_embedding_forbidden)
+            PlayerErrorCategory.HTML5 -> stringResource(R.string.quality_status_error_html5)
+            PlayerErrorCategory.UNKNOWN -> stringResource(
+                R.string.quality_status_error_unknown,
+                status.code
+            )
+        }
+    }
+}
+
+private fun formatDebugTimestamp(timestampMs: Long?): String {
+    if (timestampMs == null) return "none"
+    return SimpleDateFormat("HH:mm:ss", Locale.US).format(Date(timestampMs))
+}
+
+private fun formatDebugQualityLabel(quality: String): String {
+    val normalized = normalizeYouTubeQualityCode(quality)
+    val pretty = baseQualityLabel(quality)
+
+    return when {
+        normalized.isBlank() -> "unknown"
+        pretty.equals(quality, ignoreCase = true) -> pretty
+        else -> "$pretty [$quality]"
+    }
+}
+
+private fun normalizeQualityLevels(qualities: List<String>): List<String> {
+    return qualities
+        .map(::normalizeYouTubeQualityCode)
+        .filter { it.isNotBlank() && it != "default" && it != "unknown" && it != "auto" }
+        .distinct()
+        .sortedByDescending(::youtubeQualityRank)
+}
+
+private fun normalizeReportedQuality(
+    quality: String,
+    selectedQuality: String
+): String {
+    val normalized = normalizeYouTubeQualityCode(quality)
+    return when {
+        normalized.isBlank() || normalized == "default" || normalized == "unknown" -> {
+            if (normalizeYouTubeQualityCode(selectedQuality) == "auto") "auto" else normalizeYouTubeQualityCode(
+                selectedQuality
+            )
+        }
+
+        else -> normalized
+    }
+}
+
+private fun youtubePlayerStateLabel(stateCode: Int): String {
+    return when (stateCode) {
+        -1 -> "UNSTARTED"
+        0 -> "ENDED"
+        1 -> "PLAYING"
+        2 -> "PAUSED"
+        3 -> "BUFFERING"
+        5 -> "CUED"
+        else -> "UNKNOWN"
+    }
+}
+
+private fun youtubeErrorLabel(errorCode: Int): String {
+    return when (errorCode) {
+        2 -> "invalid_parameter"
+        5 -> "html5_error"
+        100 -> "video_not_found"
+        101, 150 -> "embedding_forbidden"
+        else -> "unknown_$errorCode"
+    }
+}
+
 
 fun getYouTubeHtml(videoId: String, startTime: Int = 0): String {
     val cssHide = """
@@ -704,6 +1164,7 @@ fun getYouTubeHtml(videoId: String, startTime: Int = 0): String {
                 var player;
                 var isLooping = false;
                 var lastState = -1;
+                var preferredQuality = "auto";
                 
                 function onYouTubeIframeAPIReady() {
                     player = new YT.Player("player", {
@@ -731,7 +1192,7 @@ fun getYouTubeHtml(videoId: String, startTime: Int = 0): String {
                             YoutubeProxy.onVideoTitle(videoData.title);
                         }
                         updateQualities();
-                        YoutubeProxy.onQualityChange(player.getPlaybackQuality());
+                        notifyQuality();
                         
                         if (player.getPlayerState) {
                             lastState = player.getPlayerState();
@@ -817,8 +1278,23 @@ fun getYouTubeHtml(videoId: String, startTime: Int = 0): String {
 
                 function onPlaybackQualityChange(event) {
                     if (window.YoutubeProxy) {
-                        YoutubeProxy.onQualityChange(event.data);
+                        notifyQuality();
                         updateQualities();
+                    }
+                }
+
+                function getReportedQuality() {
+                    if (!player || !player.getPlaybackQuality) return preferredQuality;
+                    var quality = player.getPlaybackQuality();
+                    if (!quality || quality === "default" || quality === "unknown") {
+                        return preferredQuality;
+                    }
+                    return quality;
+                }
+
+                function notifyQuality() {
+                    if (window.YoutubeProxy) {
+                        YoutubeProxy.onQualityChange(getReportedQuality());
                     }
                 }
 
@@ -850,6 +1326,7 @@ fun getYouTubeHtml(videoId: String, startTime: Int = 0): String {
                                 YoutubeProxy.onPlayerStateChange(currentState);
                             }
                         }
+                        notifyQuality();
                     }
                 }
                 
@@ -860,15 +1337,37 @@ fun getYouTubeHtml(videoId: String, startTime: Int = 0): String {
                 
                 function setPlaybackQuality(quality) { 
                     if(player) {
-                        var targetQuality = quality === 'auto' ? 'default' : quality;
+                        preferredQuality = quality || "auto";
+                        var targetQuality = preferredQuality === "auto" ? "default" : preferredQuality;
+                        var currentTime = player.getCurrentTime ? player.getCurrentTime() : 0;
+                        var wasPlaying = player.getPlayerState && player.getPlayerState() === YT.PlayerState.PLAYING;
+                        var videoData = player.getVideoData ? player.getVideoData() : null;
+                        var targetVideoId = videoData && videoData.video_id ? videoData.video_id : "$videoId";
+
                         if (player.setPlaybackQualityRange) {
                             player.setPlaybackQualityRange(targetQuality, targetQuality);
                         }
                         if (player.setPlaybackQuality) {
                             player.setPlaybackQuality(targetQuality);
                         }
-                        var currentTime = player.getCurrentTime();
-                        player.seekTo(currentTime, true);
+                        if (player.loadVideoById && targetVideoId) {
+                            player.loadVideoById({
+                                videoId: targetVideoId,
+                                startSeconds: currentTime,
+                                suggestedQuality: targetQuality
+                            });
+                            if (!wasPlaying && player.pauseVideo) {
+                                setTimeout(function() {
+                                    player.pauseVideo();
+                                }, 150);
+                            }
+                        } else if (player.seekTo) {
+                            player.seekTo(currentTime, true);
+                        }
+                        setTimeout(function() {
+                            notifyQuality();
+                            updateQualities();
+                        }, 300);
                     }
                 }
                 
@@ -919,4 +1418,13 @@ fun extractYouTubeTime(url: String): Int {
         return hours * 3600 + minutes * 60 + seconds
     }
     return 0
+}
+
+private fun mapErrorCodeToCategory(errorCode: Int): PlayerErrorCategory {
+    return when (errorCode) {
+        100 -> PlayerErrorCategory.VIDEO_NOT_FOUND
+        101, 150 -> PlayerErrorCategory.EMBEDDING_FORBIDDEN
+        5 -> PlayerErrorCategory.HTML5
+        else -> PlayerErrorCategory.UNKNOWN
+    }
 }

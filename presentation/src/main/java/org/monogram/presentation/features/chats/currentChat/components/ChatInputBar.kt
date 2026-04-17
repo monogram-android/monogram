@@ -7,40 +7,22 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -52,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalConfiguration
@@ -60,38 +41,28 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
-import org.monogram.domain.models.AttachMenuBotModel
-import org.monogram.domain.models.BotCommandModel
-import org.monogram.domain.models.BotMenuButtonModel
-import org.monogram.domain.models.ChatPermissionsModel
-import org.monogram.domain.models.GifModel
-import org.monogram.domain.models.KeyboardButtonModel
-import org.monogram.domain.models.MessageEntity
-import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
-import org.monogram.domain.models.PollDraft
-import org.monogram.domain.models.ReplyMarkupModel
 import org.monogram.domain.models.StickerModel
-import org.monogram.domain.models.UserModel
-import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.domain.repository.StickerRepository
-import org.monogram.presentation.R
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.features.camera.CameraScreen
 import org.monogram.presentation.features.chats.currentChat.components.chats.getEmojiFontFamily
+import org.monogram.presentation.features.chats.currentChat.components.inputbar.ChatInputBarActions
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.ChatInputBarComposerSection
+import org.monogram.presentation.features.chats.currentChat.components.inputbar.ChatInputBarState
+import org.monogram.presentation.features.chats.currentChat.components.inputbar.ClosedTopicBar
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.FullScreenEditorSheet
+import org.monogram.presentation.features.chats.currentChat.components.inputbar.InputBarMode
+import org.monogram.presentation.features.chats.currentChat.components.inputbar.RestrictedInputBar
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.ScheduleDatePickerDialog
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.ScheduleTimePickerDialog
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.ScheduledMessagesSheet
+import org.monogram.presentation.features.chats.currentChat.components.inputbar.SlowModeInputBar
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.applyMentionSuggestion
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.buildEditingMessageTextValue
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.buildScheduledDateEpochSeconds
@@ -105,83 +76,8 @@ import org.monogram.presentation.features.chats.currentChat.components.inputbar.
 import org.monogram.presentation.features.chats.currentChat.components.inputbar.rememberVoiceRecorder
 import org.monogram.presentation.features.gallery.GalleryScreen
 import org.monogram.presentation.features.gallery.components.PollComposerSheet
-import java.text.DateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 import kotlin.math.ceil
-
-@Immutable
-data class ChatInputBarState(
-    val replyMessage: MessageModel? = null,
-    val editingMessage: MessageModel? = null,
-    val draftText: String = "",
-    val pendingMediaPaths: List<String> = emptyList(),
-    val pendingDocumentPaths: List<String> = emptyList(),
-    val isClosed: Boolean = false,
-    val permissions: ChatPermissionsModel = ChatPermissionsModel(),
-    val slowModeDelay: Int = 0,
-    val slowModeDelayExpiresIn: Double = 0.0,
-    val isCurrentUserRestricted: Boolean = false,
-    val restrictedUntilDate: Int = 0,
-    val isAdmin: Boolean = false,
-    val isChannel: Boolean = false,
-    val isBot: Boolean = false,
-    val botCommands: List<BotCommandModel> = emptyList(),
-    val botMenuButton: BotMenuButtonModel = BotMenuButtonModel.Default,
-    val replyMarkup: ReplyMarkupModel? = null,
-    val mentionSuggestions: List<UserModel> = emptyList(),
-    val inlineBotResults: InlineBotResultsModel? = null,
-    val currentInlineBotUsername: String? = null,
-    val currentInlineQuery: String? = null,
-    val isInlineBotLoading: Boolean = false,
-    val attachBots: List<AttachMenuBotModel> = emptyList(),
-    val scheduledMessages: List<MessageModel> = emptyList(),
-    val isPremiumUser: Boolean = false,
-    val isSecretChat: Boolean = false,
-)
-
-@Immutable
-data class ChatInputBarActions(
-    val onSend: (String, List<MessageEntity>, MessageSendOptions) -> Unit,
-    val onStickerClick: (String) -> Unit = {},
-    val onGifClick: (GifModel) -> Unit = {},
-    val onAttachClick: () -> Unit = {},
-    val onCameraClick: () -> Unit = {},
-    val onSendVoice: (String, Int, ByteArray) -> Unit = { _, _, _ -> },
-    val onCancelReply: () -> Unit = {},
-    val onCancelEdit: () -> Unit = {},
-    val onSaveEdit: (String, List<MessageEntity>) -> Unit = { _, _ -> },
-    val onDraftChange: (String) -> Unit = {},
-    val onTyping: () -> Unit = {},
-    val onCancelMedia: () -> Unit = {},
-    val onSendMedia: (List<String>, String, List<MessageEntity>, MessageSendOptions) -> Unit = { _, _, _, _ -> },
-    val onSendDocuments: (List<String>, String, List<MessageEntity>, MessageSendOptions) -> Unit = { _, _, _, _ -> },
-    val onMediaOrderChange: (List<String>) -> Unit = {},
-    val onDocumentOrderChange: (List<String>) -> Unit = {},
-    val onMediaClick: (String) -> Unit = {},
-    val onSendPoll: (PollDraft) -> Unit = {},
-    val onShowBotCommands: () -> Unit = {},
-    val onReplyMarkupButtonClick: (KeyboardButtonModel) -> Unit = {},
-    val onOpenMiniApp: (String, String) -> Unit = { _, _ -> },
-    val onMentionQueryChange: (String?) -> Unit = {},
-    val onInlineQueryChange: (String, String) -> Unit = { _, _ -> },
-    val onLoadMoreInlineResults: (String) -> Unit = {},
-    val onSendInlineResult: (String) -> Unit = {},
-    val onInlineSwitchPm: (String, String) -> Unit = { _, _ -> },
-    val onAttachBotClick: (AttachMenuBotModel) -> Unit = {},
-    val onGalleryClick: () -> Unit = {},
-    val onRefreshScheduledMessages: () -> Unit = {},
-    val onEditScheduledMessage: (MessageModel) -> Unit = {},
-    val onDeleteScheduledMessage: (MessageModel) -> Unit = {},
-    val onSendScheduledNow: (MessageModel) -> Unit = {},
-)
-
-private enum class InputBarMode {
-    Composer,
-    SlowMode,
-    Restricted
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -196,43 +92,58 @@ fun ChatInputBar(
         return
     }
 
-    val canWriteText by remember(state.isChannel, state.isAdmin, state.permissions.canSendBasicMessages) {
-        derivedStateOf { if (state.isChannel) true else (state.isAdmin || state.permissions.canSendBasicMessages) }
+    val canWriteText by remember(state.isAdmin, state.permissions.canSendBasicMessages) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendBasicMessages }
     }
-    val canSendMedia by remember(
-        state.isChannel,
-        state.isAdmin,
-        state.permissions.canSendPhotos,
-        state.permissions.canSendVideos,
-        state.permissions.canSendDocuments,
-        state.permissions.canSendAudios
+    val canSendPhotos by remember(state.isAdmin, state.permissions.canSendPhotos) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendPhotos }
+    }
+    val canSendVideos by remember(state.isAdmin, state.permissions.canSendVideos) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendVideos }
+    }
+    val canSendDocuments by remember(state.isAdmin, state.permissions.canSendDocuments) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendDocuments }
+    }
+    val canSendAudios by remember(state.isAdmin, state.permissions.canSendAudios) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendAudios }
+    }
+    val canUseMediaPicker by remember(canSendPhotos, canSendVideos) {
+        derivedStateOf { canSendPhotos || canSendVideos }
+    }
+    val canUseDocumentPicker by remember(canSendDocuments, canSendAudios) {
+        derivedStateOf { canSendDocuments || canSendAudios }
+    }
+    val canSendPolls by remember(state.isAdmin, state.permissions.canSendPolls) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendPolls }
+    }
+    val canOpenAttachSheet by remember(
+        canUseMediaPicker,
+        canUseDocumentPicker,
+        canSendPolls,
+        state.attachBots
+    ) {
+        derivedStateOf { canUseMediaPicker || canUseDocumentPicker || canSendPolls || state.attachBots.isNotEmpty() }
+    }
+    val canSendStickers by remember(state.isAdmin, state.permissions.canSendOtherMessages) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendOtherMessages }
+    }
+    val canSendVoice by remember(state.isAdmin, state.permissions.canSendVoiceNotes) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendVoiceNotes }
+    }
+    val canSendVideoNotes by remember(state.isAdmin, state.permissions.canSendVideoNotes) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendVideoNotes }
+    }
+    val canSendAnything by remember(
+        canWriteText,
+        canOpenAttachSheet,
+        canSendStickers,
+        canSendVoice,
+        canSendVideoNotes,
+        canSendPolls
     ) {
         derivedStateOf {
-            if (state.isChannel) {
-                true
-            } else {
-                state.isAdmin ||
-                        state.permissions.canSendPhotos ||
-                        state.permissions.canSendVideos ||
-                        state.permissions.canSendDocuments ||
-                        state.permissions.canSendAudios
-            }
+            canWriteText || canOpenAttachSheet || canSendStickers || canSendVoice || canSendVideoNotes || canSendPolls
         }
-    }
-    val canSendStickers by remember(state.isChannel, state.isAdmin, state.permissions.canSendOtherMessages) {
-        derivedStateOf { if (state.isChannel) true else (state.isAdmin || state.permissions.canSendOtherMessages) }
-    }
-    val canSendVoice by remember(state.isChannel, state.isAdmin, state.permissions.canSendVoiceNotes) {
-        derivedStateOf { if (state.isChannel) true else (state.isAdmin || state.permissions.canSendVoiceNotes) }
-    }
-    val canSendPolls by remember(state.isChannel, state.isAdmin, state.permissions.canSendPolls) {
-        derivedStateOf { if (state.isChannel) true else (state.isAdmin || state.permissions.canSendPolls) }
-    }
-    val canSendVideoNotes by remember(state.isChannel, state.isAdmin, state.permissions.canSendVideoNotes) {
-        derivedStateOf { if (state.isChannel) true else (state.isAdmin || state.permissions.canSendVideoNotes) }
-    }
-    val canSendAnything by remember(canWriteText, canSendMedia, canSendStickers, canSendVoice, canSendVideoNotes) {
-        derivedStateOf { canWriteText || canSendMedia || canSendStickers || canSendVoice || canSendVideoNotes }
     }
 
     val context = LocalContext.current
@@ -388,6 +299,17 @@ fun ChatInputBar(
     val isOverMessageLimit by remember(currentMessageLength, maxMessageLength) {
         derivedStateOf { currentMessageLength > maxMessageLength }
     }
+    val canSendPendingAttachments by remember(
+        state.pendingMediaPaths,
+        state.pendingDocumentPaths,
+        canUseMediaPicker,
+        canUseDocumentPicker
+    ) {
+        derivedStateOf {
+            (state.pendingMediaPaths.isNotEmpty() && canUseMediaPicker) ||
+                    (state.pendingDocumentPaths.isNotEmpty() && canUseDocumentPicker)
+        }
+    }
 
     val sendWithOptions: (MessageSendOptions) -> Unit = sendWithOptions@{
         if (isOverMessageLimit) return@sendWithOptions
@@ -397,8 +319,8 @@ fun ChatInputBar(
         var sentInstantMessage = false
 
         val canSendNow = when {
-            state.pendingMediaPaths.isNotEmpty() && canSendMedia -> true
-            state.pendingDocumentPaths.isNotEmpty() && canSendMedia -> true
+            state.pendingMediaPaths.isNotEmpty() && canUseMediaPicker -> true
+            state.pendingDocumentPaths.isNotEmpty() && canUseDocumentPicker -> true
             state.editingMessage != null -> false
             canWriteText && !isTextEmpty -> true
             else -> false
@@ -408,12 +330,12 @@ fun ChatInputBar(
             return@sendWithOptions
         }
 
-        if (state.pendingMediaPaths.isNotEmpty() && canSendMedia) {
+        if (state.pendingMediaPaths.isNotEmpty() && canUseMediaPicker) {
             actions.onSendMedia(state.pendingMediaPaths, textValue.text, captionEntities, it)
             textValue = TextFieldValue("")
             knownCustomEmojis.clear()
             sentInstantMessage = !isScheduling
-        } else if (state.pendingDocumentPaths.isNotEmpty() && canSendMedia) {
+        } else if (state.pendingDocumentPaths.isNotEmpty() && canUseDocumentPicker) {
             actions.onSendDocuments(state.pendingDocumentPaths, textValue.text, captionEntities, it)
             textValue = TextFieldValue("")
             knownCustomEmojis.clear()
@@ -476,7 +398,12 @@ fun ChatInputBar(
     }
 
     val currentOnInlineQueryChange by rememberUpdatedState(actions.onInlineQueryChange)
-    LaunchedEffect(textValue.text, textValue.selection) {
+    LaunchedEffect(textValue.text, textValue.selection, canSendStickers) {
+        if (!canSendStickers) {
+            currentOnInlineQueryChange("", "")
+            return@LaunchedEffect
+        }
+
         val inlineQuery = parseInlineQueryInput(
             text = textValue.text,
             selection = textValue.selection
@@ -701,9 +628,9 @@ fun ChatInputBar(
                         pendingDocumentPaths = state.pendingDocumentPaths,
                         mentionSuggestions = state.mentionSuggestions,
                         filteredCommands = filteredCommands,
-                        currentInlineBotUsername = state.currentInlineBotUsername,
-                        isInlineBotLoading = state.isInlineBotLoading,
-                        inlineBotResults = state.inlineBotResults,
+                        currentInlineBotUsername = state.currentInlineBotUsername.takeIf { canSendStickers },
+                        isInlineBotLoading = canSendStickers && state.isInlineBotLoading,
+                        inlineBotResults = state.inlineBotResults.takeIf { canSendStickers },
                         isBot = state.isBot,
                         botMenuButton = state.botMenuButton,
                         botCommands = state.botCommands,
@@ -714,8 +641,10 @@ fun ChatInputBar(
                         emojiFontFamily = emojiFontFamily,
                         focusRequester = focusRequester,
                         canWriteText = canWriteText,
-                        canSendMedia = canSendMedia,
-                        canPasteMediaFromClipboard = canSendMedia && state.editingMessage == null,
+                        canOpenAttachSheet = canOpenAttachSheet,
+                        canSendAttachments = canSendPendingAttachments,
+                        canShowBotActions = canWriteText,
+                        canPasteMediaFromClipboard = canUseMediaPicker && state.editingMessage == null,
                         canSendStickers = canSendStickers,
                         canSendVoice = canSendVoice,
                         canSendVideoNotes = canSendVideoNotes,
@@ -744,7 +673,7 @@ fun ChatInputBar(
                         onDocumentOrderChange = actions.onDocumentOrderChange,
                         onMediaClick = actions.onMediaClick,
                         onPasteImages = { uris ->
-                            if (!canSendMedia || state.editingMessage != null) return@ChatInputBarComposerSection
+                            if (!canUseMediaPicker || state.editingMessage != null) return@ChatInputBarComposerSection
                             val localPaths = uris.mapNotNull { uri ->
                                 context.copyUriToTempPath(uri)
                             }
@@ -764,11 +693,15 @@ fun ChatInputBar(
                             activateSlowModeCooldown()
                         },
                         onInlineSwitchPmClick = { text ->
+                            if (!canSendStickers) return@ChatInputBarComposerSection
                             state.currentInlineBotUsername?.let { username ->
                                 actions.onInlineSwitchPm(username, text)
                             }
                         },
-                        onLoadMoreInlineResults = actions.onLoadMoreInlineResults,
+                        onLoadMoreInlineResults = { offset ->
+                            if (!canSendStickers) return@ChatInputBarComposerSection
+                            actions.onLoadMoreInlineResults(offset)
+                        },
                         onCommandClick = { command ->
                             if (isSlowModeActive || !canWriteText) return@ChatInputBarComposerSection
                             actions.onSend("/$command", emptyList(), MessageSendOptions())
@@ -776,6 +709,7 @@ fun ChatInputBar(
                             activateSlowModeCooldown()
                         },
                         onAttachClick = {
+                            if (!canOpenAttachSheet) return@ChatInputBarComposerSection
                             openStickerMenuAfterKeyboardClosed = false
                             openKeyboardAfterStickerMenuClosed = false
                             closeStickerMenuWithoutSlide = false
@@ -1002,6 +936,7 @@ fun ChatInputBar(
                 },
                 onDismiss = { showGallery = false },
                 onCameraClick = {
+                    if (!canUseMediaPicker) return@GalleryScreen
                     showGallery = false
                     if (hasCameraPermission.value || ContextCompat.checkSelfPermission(
                             context,
@@ -1013,8 +948,12 @@ fun ChatInputBar(
                         cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     }
                 },
+                canSelectMedia = canUseMediaPicker,
+                canUseCamera = canUseMediaPicker,
+                canAttachFiles = canUseDocumentPicker,
                 canCreatePoll = canSendPolls && !state.isSecretChat,
                 onAttachFileClick = {
+                    if (!canUseDocumentPicker) return@GalleryScreen
                     showGallery = false
                     documentsPickerLauncher.launch(arrayOf("*/*"))
                 },
@@ -1025,14 +964,15 @@ fun ChatInputBar(
                     }
                 },
                 attachBots = state.attachBots,
-                hasMediaAccess = hasGalleryPermission.value || hasFullGalleryPermission() || hasPartialGalleryPermission(),
-                isPartialAccess = isPartialGalleryAccess,
+                hasMediaAccess = canUseMediaPicker && (hasGalleryPermission.value || hasFullGalleryPermission() || hasPartialGalleryPermission()),
+                isPartialAccess = canUseMediaPicker && isPartialGalleryAccess,
                 onPickFromOtherSources = {
+                    if (!canUseMediaPicker) return@GalleryScreen
                     showGallery = false
                     actions.onAttachClick()
                 },
                 onRequestMediaAccess = {
-                    if (requestableGalleryPermissions.isNotEmpty()) {
+                    if (canUseMediaPicker && requestableGalleryPermissions.isNotEmpty()) {
                         galleryPermissionLauncher.launch(requestableGalleryPermissions.toTypedArray())
                     }
                 },
@@ -1048,183 +988,12 @@ fun ChatInputBar(
     if (showPollComposer) {
         PollComposerSheet(
             onDismiss = { showPollComposer = false },
-            onCreatePoll = { poll: PollDraft ->
+            onCreatePoll = { poll ->
                 if (isSlowModeActive) return@PollComposerSheet
                 showPollComposer = false
                 actions.onSendPoll(poll)
                 activateSlowModeCooldown()
             }
         )
-    }
-}
-
-@Composable
-private fun ClosedTopicBar() {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(
-            text = stringResource(R.string.topic_closed_bar),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .windowInsetsPadding(WindowInsets.navigationBars),
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-private fun SlowModeInputBar(
-    remainingSeconds: Int,
-    scheduledMessagesCount: Int,
-    onOpenScheduledMessages: () -> Unit
-) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-                .windowInsetsPadding(WindowInsets.navigationBars),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.slow_mode_title),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            AnimatedContent(
-                targetState = remainingSeconds.coerceAtLeast(0),
-                transitionSpec = {
-                    (fadeIn(animationSpec = tween(200)) + slideInVertically(animationSpec = tween(200)) { it / 2 })
-                        .togetherWith(
-                            fadeOut(animationSpec = tween(120)) + slideOutVertically(animationSpec = tween(120)) { -it / 2 }
-                        )
-                },
-                label = "SlowModeRemaining"
-            ) { seconds ->
-                Text(
-                    text = formatSlowModeDuration(seconds),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            if (scheduledMessagesCount > 0) {
-                IconButton(onClick = onOpenScheduledMessages) {
-                    Icon(
-                        imageVector = Icons.Default.Schedule,
-                        contentDescription = stringResource(R.string.action_scheduled_messages),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun RestrictedInputBar(
-    isCurrentUserRestricted: Boolean,
-    restrictedUntilDate: Int
-) {
-    val restrictionDetails = remember(isCurrentUserRestricted, restrictedUntilDate) {
-        if (!isCurrentUserRestricted) {
-            null
-        } else if (restrictedUntilDate <= 0) {
-            RestrictionDetails.Permanent
-        } else {
-            RestrictionDetails.Until(formatRestrictedUntilDate(restrictedUntilDate))
-        }
-    }
-
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .windowInsetsPadding(WindowInsets.navigationBars),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.input_error_not_allowed),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            AnimatedVisibility(
-                visible = restrictionDetails != null,
-                enter = fadeIn(animationSpec = tween(220)) + expandVertically(animationSpec = tween(220)),
-                exit = fadeOut(animationSpec = tween(140)) + shrinkVertically(animationSpec = tween(140))
-            ) {
-                val detailsText = when (restrictionDetails) {
-                    is RestrictionDetails.Until -> stringResource(
-                        R.string.logs_restricted_until,
-                        restrictionDetails.value
-                    )
-
-                    RestrictionDetails.Permanent -> stringResource(R.string.logs_restricted_permanently)
-                    null -> ""
-                }
-
-                Text(
-                    text = detailsText,
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-private sealed interface RestrictionDetails {
-    data class Until(val value: String) : RestrictionDetails
-    data object Permanent : RestrictionDetails
-}
-
-private fun formatRestrictedUntilDate(epochSeconds: Int): String {
-    val formatter = DateFormat.getDateTimeInstance(
-        DateFormat.MEDIUM,
-        DateFormat.SHORT,
-        Locale.getDefault()
-    )
-    return formatter.format(Date(epochSeconds.toLong() * 1000L))
-}
-
-private fun formatSlowModeDuration(totalSeconds: Int): String {
-    val clamped = totalSeconds.coerceAtLeast(0)
-    val hours = clamped / 3600
-    val minutes = (clamped % 3600) / 60
-    val seconds = clamped % 60
-
-    return if (hours > 0) {
-        "%d:%02d:%02d".format(hours, minutes, seconds)
-    } else {
-        "%d:%02d".format(minutes, seconds)
     }
 }

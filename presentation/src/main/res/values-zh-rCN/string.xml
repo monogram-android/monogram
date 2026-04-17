@@ -1136,22 +1136,22 @@
     <string name="notification_channel_other_description">其他通知</string>
 
     <!-- Chat Mapper / Media Types -->
-    <string name="chat_mapper_photo">📷 照片</string>
-    <string name="chat_mapper_video">📹 视频</string>
-    <string name="chat_mapper_voice">🎤 语音消息</string>
-    <string name="chat_mapper_sticker">🧩 贴纸</string>
-    <string name="chat_mapper_document">📎 文档</string>
-    <string name="chat_mapper_audio">🎵 音频</string>
+    <string name="chat_mapper_photo">照片</string>
+    <string name="chat_mapper_video">视频</string>
+    <string name="chat_mapper_voice">语音消息</string>
+    <string name="chat_mapper_sticker">贴纸</string>
+    <string name="chat_mapper_document">文档</string>
+    <string name="chat_mapper_audio">音频</string>
     <string name="chat_mapper_gif">GIF</string>
-    <string name="chat_mapper_video_note">🎬 视频消息</string>
-    <string name="chat_mapper_contact">👤 联系人</string>
-    <string name="chat_mapper_poll">📊 投票</string>
-    <string name="chat_mapper_location">📍 位置</string>
-    <string name="chat_mapper_call">📞 通话</string>
-    <string name="chat_mapper_game">🎮 游戏</string>
-    <string name="chat_mapper_invoice">💳 账单</string>
-    <string name="chat_mapper_story">📚 故事</string>
-    <string name="chat_mapper_pinned">📌 已置顶消息</string>
+    <string name="chat_mapper_video_note">视频消息</string>
+    <string name="chat_mapper_contact">联系人</string>
+    <string name="chat_mapper_poll">投票</string>
+    <string name="chat_mapper_location">位置</string>
+    <string name="chat_mapper_call">通话</string>
+    <string name="chat_mapper_game">游戏</string>
+    <string name="chat_mapper_invoice">账单</string>
+    <string name="chat_mapper_story">故事</string>
+    <string name="chat_mapper_pinned">已置顶消息</string>
     <string name="chat_mapper_message">消息</string>
     <string name="chat_mapper_bot">机器人</string>
     <string name="chat_mapper_online">在线</string>
@@ -1440,7 +1440,20 @@
     <string name="settings_quality">清晰度</string>
     <string name="settings_video_quality">视频质量</string>
     <string name="settings_quality_auto">自动</string>
-    <string name="settings_quality_high_res">高画质</string>
+    <string name="settings_quality_high_res">高</string>
+    <string name="settings_quality_medium">中</string>
+    <string name="settings_quality_low">低</string>
+    <string name="quality_status_recovering">正在应用画质…</string>
+    <string name="quality_status_downgraded">YouTube 已降低画质</string>
+    <string name="quality_status_unavailable_at_request">请求的画质不可用</string>
+    <string name="quality_status_error_video_not_found">视频不可用</string>
+    <string name="quality_status_error_embedding_forbidden">应用内播放受限</string>
+    <string name="quality_status_error_html5">播放错误（HTML5/WebView）</string>
+    <string name="quality_status_error_unknown">播放错误（%1$d）</string>
+    <string name="action_retry_stream">重试播放</string>
+    <string name="action_switch_to_auto">切换为自动</string>
+    <string name="action_use_low_quality">使用低画质</string>
+    <string name="action_open_in_browser">在浏览器中打开</string>
     <string name="settings_speed_normal">正常</string>
 
     <!-- Selection: Picture-in-Picture -->

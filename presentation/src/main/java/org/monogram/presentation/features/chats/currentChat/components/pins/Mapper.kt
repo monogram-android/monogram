@@ -12,7 +12,7 @@ import org.monogram.presentation.R
 internal fun MessageContent.toTypeName(): String = when (this) {
     is MessageContent.Text -> text
     is MessageContent.Photo ->caption.ifEmpty { stringResource(R.string.chat_mapper_photo) }
-    is MessageContent.Sticker -> stringResource(R.string.message_type_sticker_format, emoji)
+    is MessageContent.Sticker -> stringResource(R.string.reply_content_sticker)
     is MessageContent.Video -> caption.ifEmpty { stringResource(R.string.chat_mapper_video) }
     is MessageContent.VideoNote -> stringResource(R.string.message_type_video_message)
     is MessageContent.Voice -> stringResource(R.string.chat_mapper_voice)

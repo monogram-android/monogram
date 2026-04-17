@@ -17,6 +17,13 @@ class ChatMapper(
     private val stringProvider: StringProvider,
     private val dateFormatManager: DateFormatManager
 ) {
+    data class MessagePreviewInfo(
+        val text: String,
+        val entities: List<MessageEntity>,
+        val time: String,
+        val contentType: String
+    )
+
     fun mapChatToModel(
         chat: TdApi.Chat,
         order: Long,
@@ -47,6 +54,10 @@ class ChatMapper(
         typingAction: String?,
         lastMessageText: String,
         lastMessageEntities: List<MessageEntity>,
+        lastMessageContentType: String,
+        lastMessageSenderName: String,
+        lastMessagePreviewPath: String?,
+        lastMessagePreviewPaths: List<String>,
         lastMessageTime: String,
         lastMessageDate: Int,
         isMuted: Boolean,
@@ -100,6 +111,10 @@ class ChatMapper(
             typingAction = typingAction,
             draftMessage = draftText,
             draftMessageEntities = draftEntities,
+            lastMessageContentType = lastMessageContentType,
+            lastMessageSenderName = lastMessageSenderName,
+            lastMessagePreviewPath = lastMessagePreviewPath,
+            lastMessagePreviewPaths = lastMessagePreviewPaths,
             isMuted = isMuted,
             isMarkedAsUnread = chat.isMarkedAsUnread,
             hasProtectedContent = chat.hasProtectedContent,
@@ -203,6 +218,8 @@ class ChatMapper(
             hasForumTabs = entity.hasForumTabs,
             isAdministeredDirectMessagesGroup = entity.isAdministeredDirectMessagesGroup,
             paidMessageStarCount = entity.paidMessageStarCount,
+            lastMessageContentType = entity.lastMessageContentType,
+            lastMessageSenderName = entity.lastMessageSenderName,
             isSponsor = entity.isSponsor || (entity.privateUserId != 0L && isSponsoredUser(entity.privateUserId)),
             viewAsTopics = entity.viewAsTopics,
             isForum = entity.isForum,
@@ -277,6 +294,8 @@ class ChatMapper(
             hasForumTabs = domain.hasForumTabs,
             isAdministeredDirectMessagesGroup = domain.isAdministeredDirectMessagesGroup,
             paidMessageStarCount = domain.paidMessageStarCount,
+            lastMessageContentType = domain.lastMessageContentType,
+            lastMessageSenderName = domain.lastMessageSenderName,
             isSponsor = domain.isSponsor,
             viewAsTopics = domain.viewAsTopics,
             isForum = domain.isForum,
@@ -285,8 +304,6 @@ class ChatMapper(
             username = domain.username,
             description = domain.description,
             inviteLink = domain.inviteLink,
-            lastMessageContentType = "text",
-            lastMessageSenderName = "",
             createdAt = System.currentTimeMillis()
         ).withPermissions(domain.permissions)
     }
@@ -294,31 +311,6 @@ class ChatMapper(
     fun mapToEntity(chat: TdApi.Chat, domain: ChatModel): ChatEntity {
         val typeIds = chat.type.extractTypeIds()
         val encodedPositions = encodeChatPositions(chat.positions)
-        val (lastMessageContentType, lastMessageSenderName) = chat.lastMessage?.let { message ->
-            val type = when (message.content) {
-                is TdApi.MessageText -> "text"
-                is TdApi.MessagePhoto -> "photo"
-                is TdApi.MessageVideo -> "video"
-                is TdApi.MessageVoiceNote -> "voice"
-                is TdApi.MessageVideoNote -> "video_note"
-                is TdApi.MessageSticker -> "sticker"
-                is TdApi.MessageDocument -> "document"
-                is TdApi.MessageAudio -> "audio"
-                is TdApi.MessageAnimation -> "gif"
-                is TdApi.MessageContact -> "contact"
-                is TdApi.MessagePoll -> "poll"
-                is TdApi.MessageLocation -> "location"
-                is TdApi.MessageVenue -> "location"
-                is TdApi.MessageCall -> "call"
-                is TdApi.MessageGame -> "game"
-                is TdApi.MessageInvoice -> "invoice"
-                is TdApi.MessageStory -> "story"
-                is TdApi.MessagePinMessage -> "pinned"
-                else -> "message"
-            }
-            val sender = ""
-            type to sender
-        } ?: ("text" to "")
 
         return mapToEntity(domain).copy(
             privateUserId = typeIds.privateUserId,
@@ -326,29 +318,26 @@ class ChatMapper(
             supergroupId = typeIds.supergroupId,
             secretChatId = typeIds.secretChatId,
             positionsCache = encodedPositions,
-            lastMessageDate = chat.lastMessage?.date ?: domain.lastMessageDate,
-            lastMessageContentType = lastMessageContentType,
-            lastMessageSenderName = lastMessageSenderName
+            lastMessageDate = chat.lastMessage?.date ?: domain.lastMessageDate
         )
     }
 
     fun formatMessageInfo(
         lastMsg: TdApi.Message?,
-        chat: TdApi.Chat?,
         getUserName: (Long) -> String?
-    ): Triple<String, List<MessageEntity>, String> {
-        if (lastMsg == null) return Triple("", emptyList(), "")
+    ): MessagePreviewInfo {
+        if (lastMsg == null) return MessagePreviewInfo("", emptyList(), "", "text")
         var entities = emptyList<MessageEntity>()
 
-        fun captionOrFallback(caption: TdApi.FormattedText?, emojiPrefix: String, fallbackKey: String): String {
+        fun captionText(caption: TdApi.FormattedText?): String {
             val text = caption?.text?.trim().orEmpty()
             if (text.isNotEmpty()) {
                 entities = caption?.entities
                     ?.mapNotNull { it.toMessageEntityOrNull(mapUnsupportedToOther = true) }
                     ?: emptyList()
-                return "$emojiPrefix$text"
+                return text
             }
-            return stringProvider.getString(fallbackKey)
+            return ""
         }
 
         var txt = when (val c = lastMsg.content) {
@@ -357,93 +346,88 @@ class ChatMapper(
                     .mapNotNull { it.toMessageEntityOrNull(mapUnsupportedToOther = true) }
                 c.text.text
             }
-            is TdApi.MessagePhoto -> captionOrFallback(c.caption, "📷 ", "chat_mapper_photo")
-            is TdApi.MessageVideo -> captionOrFallback(c.caption, "📹 ", "chat_mapper_video")
+            is TdApi.MessagePhoto -> captionText(c.caption)
+            is TdApi.MessageVideo -> captionText(c.caption)
             is TdApi.MessageDocument -> {
                 val fileName = c.document.fileName?.trim().orEmpty()
-                val captionText = captionOrFallback(c.caption, "📎 ", "chat_mapper_document")
-                if (c.caption.text.trim().isNotEmpty()) {
-                    captionText
-                } else if (fileName.isNotEmpty()) {
-                    "📎 $fileName"
-                } else {
-                    captionText
-                }
+                captionText(c.caption).ifEmpty { fileName }
             }
 
             is TdApi.MessageAudio -> {
                 val title = c.audio.title?.trim().orEmpty()
-                val captionText = captionOrFallback(c.caption, "🎵 ", "chat_mapper_audio")
-                if (c.caption.text.trim().isNotEmpty()) {
-                    captionText
-                } else if (title.isNotEmpty()) {
-                    "🎵 $title"
-                } else {
-                    captionText
+                val performer = c.audio.performer?.trim().orEmpty()
+                captionText(c.caption).ifEmpty {
+                    when {
+                        title.isNotEmpty() && performer.isNotEmpty() -> "$performer - $title"
+                        title.isNotEmpty() -> title
+                        performer.isNotEmpty() -> performer
+                        else -> ""
+                    }
                 }
             }
 
-            is TdApi.MessageAnimation -> captionOrFallback(c.caption, "GIF · ", "chat_mapper_gif")
-            is TdApi.MessageVoiceNote -> stringProvider.getString("chat_mapper_voice")
-            is TdApi.MessageVideoNote -> stringProvider.getString("chat_mapper_video_note")
-            is TdApi.MessageSticker -> stringProvider.getString("chat_mapper_sticker")
+            is TdApi.MessageAnimation -> captionText(c.caption)
+            is TdApi.MessageVoiceNote -> ""
+            is TdApi.MessageVideoNote -> ""
+            is TdApi.MessageSticker -> ""
             is TdApi.MessageContact -> {
                 val fullName = listOf(c.contact.firstName, c.contact.lastName)
                     .filter { it.isNotBlank() }
                     .joinToString(" ")
-                if (fullName.isNotBlank()) "👤 $fullName" else stringProvider.getString("chat_mapper_contact")
+                fullName
             }
 
-            is TdApi.MessagePoll -> {
-                val question = c.poll.question.text.trim()
-                if (question.isNotEmpty()) "📊 $question" else stringProvider.getString("chat_mapper_poll")
-            }
+            is TdApi.MessagePoll -> c.poll.question.text.trim()
 
-            is TdApi.MessageLocation -> stringProvider.getString("chat_mapper_location")
-            is TdApi.MessageVenue -> {
-                val title = c.venue.title.trim()
-                if (title.isNotEmpty()) "📍 $title" else stringProvider.getString("chat_mapper_location")
-            }
+            is TdApi.MessageLocation -> ""
+            is TdApi.MessageVenue -> c.venue.title.trim()
 
-            is TdApi.MessageCall -> stringProvider.getString("chat_mapper_call")
-            is TdApi.MessageGame -> {
-                val title = c.game.title.trim()
-                if (title.isNotEmpty()) "🎮 $title" else stringProvider.getString("chat_mapper_game")
-            }
+            is TdApi.MessageCall -> ""
+            is TdApi.MessageGame -> c.game.title.trim()
 
-            is TdApi.MessageInvoice -> {
-                val title = c.productInfo.title.trim()
-                if (title.isNotEmpty()) "💳 $title" else stringProvider.getString("chat_mapper_invoice")
-            }
+            is TdApi.MessageInvoice -> c.productInfo.title.trim()
 
-            is TdApi.MessageStory -> stringProvider.getString("chat_mapper_story")
-            is TdApi.MessagePinMessage -> stringProvider.getString("chat_mapper_pinned")
-            else -> stringProvider.getString("chat_mapper_message")
+            is TdApi.MessageStory -> ""
+            is TdApi.MessagePinMessage -> ""
+            else -> ""
         }.replace("\n", " ")
-
-        if (chat != null && !lastMsg.isOutgoing) {
-            if (chat.type !is TdApi.ChatTypePrivate) {
-                val senderId = lastMsg.senderId
-                if (senderId is TdApi.MessageSenderUser) {
-                    val userName = getUserName(senderId.userId)
-                    if (userName != null) {
-                        val prefix = "$userName: "
-                        txt = prefix + txt
-                        entities = entities.map { it.copy(offset = it.offset + prefix.length) }
-                    }
-                }
-            }
-        }
 
         if (entities.any { it.type is MessageEntityType.Spoiler }) {
             txt = maskSpoilerText(txt, entities)
+        }
+
+        val contentType = when (lastMsg.content) {
+            is TdApi.MessageText -> "text"
+            is TdApi.MessagePhoto -> "photo"
+            is TdApi.MessageVideo -> "video"
+            is TdApi.MessageVoiceNote -> "voice"
+            is TdApi.MessageVideoNote -> "video_note"
+            is TdApi.MessageSticker -> "sticker"
+            is TdApi.MessageDocument -> "document"
+            is TdApi.MessageAudio -> "audio"
+            is TdApi.MessageAnimation -> "gif"
+            is TdApi.MessageContact -> "contact"
+            is TdApi.MessagePoll -> "poll"
+            is TdApi.MessageLocation -> "location"
+            is TdApi.MessageVenue -> "location"
+            is TdApi.MessageCall -> "call"
+            is TdApi.MessageGame -> "game"
+            is TdApi.MessageInvoice -> "invoice"
+            is TdApi.MessageStory -> "story"
+            is TdApi.MessagePinMessage -> "pinned"
+            else -> "message"
         }
 
         val date = lastMsg.date
         val timeFormat =
             SimpleDateFormat(dateFormatManager.getHourMinuteFormat(), Locale.getDefault())
         val time = if (date > 0) timeFormat.format(Date(date.toLong() * 1000)) else ""
-        return Triple(txt, entities, time)
+        return MessagePreviewInfo(
+            text = txt,
+            entities = entities,
+            time = time,
+            contentType = contentType
+        )
     }
 
     private fun maskSpoilerText(text: String, entities: List<MessageEntity>): String {

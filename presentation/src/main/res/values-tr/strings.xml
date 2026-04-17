@@ -1198,22 +1198,22 @@
     <string name="notification_channel_other_description">Diğer bildirimler</string>
 
     <!-- Chat Mapper / Media Types -->
-    <string name="chat_mapper_photo">📷 Fotoğraf</string>
-    <string name="chat_mapper_video">📹 Video</string>
-    <string name="chat_mapper_voice">🎤 Sesli mesaj</string>
-    <string name="chat_mapper_sticker">🧩 Çıkartma</string>
-    <string name="chat_mapper_document">📎 Belge</string>
-    <string name="chat_mapper_audio">🎵 Müzik</string>
+    <string name="chat_mapper_photo">Fotoğraf</string>
+    <string name="chat_mapper_video">Video</string>
+    <string name="chat_mapper_voice">Sesli mesaj</string>
+    <string name="chat_mapper_sticker">Çıkartma</string>
+    <string name="chat_mapper_document">Belge</string>
+    <string name="chat_mapper_audio">Müzik</string>
     <string name="chat_mapper_gif">GIF</string>
-    <string name="chat_mapper_video_note">🎬 Görüntülü mesaj</string>
-    <string name="chat_mapper_contact">👤 Kişi</string>
-    <string name="chat_mapper_poll">📊 Anket</string>
-    <string name="chat_mapper_location">📍 Konum</string>
-    <string name="chat_mapper_call">📞 Arama</string>
-    <string name="chat_mapper_game">🎮 Oyun</string>
-    <string name="chat_mapper_invoice">💳 Fatura</string>
-    <string name="chat_mapper_story">🎬 Hikaye</string>
-    <string name="chat_mapper_pinned">📌 Sabitlenmiş mesaj</string>
+    <string name="chat_mapper_video_note">Görüntülü mesaj</string>
+    <string name="chat_mapper_contact">Kişi</string>
+    <string name="chat_mapper_poll">Anket</string>
+    <string name="chat_mapper_location">Konum</string>
+    <string name="chat_mapper_call">Arama</string>
+    <string name="chat_mapper_game">Oyun</string>
+    <string name="chat_mapper_invoice">Fatura</string>
+    <string name="chat_mapper_story">Hikaye</string>
+    <string name="chat_mapper_pinned">Sabitlenmiş mesaj</string>
     <string name="chat_mapper_message">Mesaj</string>
     <string name="chat_mapper_bot">Bot</string>
     <string name="chat_mapper_online">Çevrimiçi</string>
@@ -1508,7 +1508,20 @@
     <string name="settings_quality">Kalite</string>
     <string name="settings_video_quality">Video Kalitesi</string>
     <string name="settings_quality_auto">Otomatik</string>
-    <string name="settings_quality_high_res">Yüksek Çözünürlük</string>
+    <string name="settings_quality_high_res">Yüksek</string>
+    <string name="settings_quality_medium">Orta</string>
+    <string name="settings_quality_low">Düşük</string>
+    <string name="quality_status_recovering">Kalite uygulanıyor…</string>
+    <string name="quality_status_downgraded">YouTube kaliteyi düşürdü</string>
+    <string name="quality_status_unavailable_at_request">İstenen kalite kullanılamıyor</string>
+    <string name="quality_status_error_video_not_found">Video kullanılamıyor</string>
+    <string name="quality_status_error_embedding_forbidden">Uygulamada oynatma kısıtlandı</string>
+    <string name="quality_status_error_html5">Oynatma hatası (HTML5/WebView)</string>
+    <string name="quality_status_error_unknown">Oynatma hatası (%1$d)</string>
+    <string name="action_retry_stream">Yayını yeniden dene</string>
+    <string name="action_switch_to_auto">Otomatiğe geç</string>
+    <string name="action_use_low_quality">Düşük kaliteyi kullan</string>
+    <string name="action_open_in_browser">Tarayıcıda aç</string>
     <string name="settings_speed_normal">Normal</string>
 
     <!-- Selection: Picture-in-Picture -->

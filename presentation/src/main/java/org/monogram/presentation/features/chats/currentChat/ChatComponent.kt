@@ -231,6 +231,7 @@ interface ChatComponent {
         val slowModeDelayExpiresIn: Double = 0.0,
         val isCurrentUserRestricted: Boolean = false,
         val restrictedUntilDate: Int = 0,
+        val effectiveInputPermissions: ChatPermissionsModel? = null,
         val memberCount: Int = 0,
         val onlineCount: Int = 0,
         val unreadCount: Int = 0,

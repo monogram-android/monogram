@@ -18,10 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.outlined.AddCircleOutline
 import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material3.Icon
@@ -55,9 +55,10 @@ fun InputTextFieldContainer(
     botCommands: List<BotCommandModel>,
     canSendStickers: Boolean,
     canWriteText: Boolean,
+    canShowBotActions: Boolean,
     isStickerMenuVisible: Boolean,
     editingMessage: MessageModel?,
-    canSendMedia: Boolean,
+    canOpenAttachSheet: Boolean,
     onStickerMenuToggle: () -> Unit,
     onAttachClick: () -> Unit,
     onShowBotCommands: () -> Unit,
@@ -85,9 +86,9 @@ fun InputTextFieldContainer(
             editingMessage,
             pendingMediaPaths,
             pendingDocumentPaths,
-            canSendMedia
+            canOpenAttachSheet
         ) {
-            editingMessage == null && pendingMediaPaths.isEmpty() && pendingDocumentPaths.isEmpty() && canSendMedia
+            editingMessage == null && pendingMediaPaths.isEmpty() && pendingDocumentPaths.isEmpty() && canOpenAttachSheet
         }
 
         Row(
@@ -119,7 +120,9 @@ fun InputTextFieldContainer(
                 }
             }
 
-            val showBotActions = remember(isBot, textValue.text) { isBot && textValue.text.isEmpty() }
+            val showBotActions = remember(isBot, textValue.text, canShowBotActions) {
+                isBot && canShowBotActions && textValue.text.isEmpty()
+            }
 
             InputTextField(
                 textValue = textValue,

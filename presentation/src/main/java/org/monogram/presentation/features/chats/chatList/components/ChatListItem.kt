@@ -41,11 +41,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -56,9 +58,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import org.monogram.core.date.toDate
+import coil3.compose.AsyncImage
 import org.koin.compose.koinInject
+import org.monogram.core.date.toDate
 import org.monogram.domain.models.ChatModel
+import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.AvatarForChat
@@ -314,8 +318,6 @@ private fun ChatListItemContent(
     emojiFontFamily: FontFamily,
     messageLines: Int
 ) {
-    val fontSize = MaterialTheme.typography.bodyMedium.fontSize.value
-
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.weight(1f)) {
             if (chat.typingAction != null) {
@@ -334,88 +336,20 @@ private fun ChatListItemContent(
                     )
                 }
             } else if (chat.draftMessage != null) {
-                val draftHasSpoiler = chat.draftMessageEntities.any { it.type is MessageEntityType.Spoiler }
-                val inlineContent = if (!draftHasSpoiler) {
-                    rememberMessageInlineContent(
-                        entities = chat.draftMessageEntities,
-                        fontSize = fontSize
-                    )
-                } else {
-                    emptyMap()
-                }
-                val spoilerLabel = stringResource(R.string.message_spoiler)
-                val annotatedDraft = if (draftHasSpoiler) {
-                    buildAnnotatedString {
-                        append(spoilerLabel)
-                        addStyle(
-                            SpanStyle(
-                                background = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                fontWeight = FontWeight.Bold
-                            ),
-                            0,
-                            spoilerLabel.length
-                        )
-                    }
-                } else {
-                    buildAnnotatedMessageTextWithEmoji(
-                        text = chat.draftMessage ?: "",
-                        entities = chat.draftMessageEntities
-                    )
-                }
-                Text(
-                    text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.error)) { append(stringResource(R.string.message_draft_prefix)) }
-                        append(annotatedDraft)
-                    },
-                    inlineContent = inlineContent,
+                ChatListPreviewText(
+                    text = chat.draftMessage.orEmpty(),
+                    entities = chat.draftMessageEntities,
+                    emojiFontFamily = emojiFontFamily,
                     maxLines = messageLines,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    prefix = stringResource(R.string.message_draft_prefix),
+                    prefixColor = MaterialTheme.colorScheme.error
                 )
             } else {
-                val lastText = chat.lastMessageText.ifEmpty {
-                    if (chat.isChannel) stringResource(R.string.no_posts_yet) else stringResource(R.string.no_messages_yet)
-                }
-                val inlineContent = rememberMessageInlineContent(
-                    entities = chat.lastMessageEntities,
-                    fontSize = fontSize
-                )
-                val spoilerLabel = stringResource(R.string.message_spoiler)
-                val annotatedText = if (chat.lastMessageText.isNotEmpty()) {
-                    val hasSpoiler = chat.lastMessageEntities.any { it.type is MessageEntityType.Spoiler }
-                    if (hasSpoiler) {
-                        buildAnnotatedString {
-                            append(spoilerLabel)
-                            addStyle(
-                                SpanStyle(
-                                    background = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                0,
-                                spoilerLabel.length
-                            )
-                        }
-                    } else {
-                        buildAnnotatedMessageTextWithEmoji(
-                            text = chat.lastMessageText,
-                            entities = chat.lastMessageEntities
-                        )
-                    }
-                } else {
-                    buildAnnotatedString {
-                        append(lastText)
-                        addEmojiStyle(lastText, emojiFontFamily)
-                    }
-                }
-                Text(
-                    text = annotatedText,
-                    inlineContent = inlineContent,
+                ChatListMessagePreview(
+                    chat = chat,
+                    emojiFontFamily = emojiFontFamily,
                     maxLines = messageLines,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
             }
@@ -425,6 +359,503 @@ private fun ChatListItemContent(
 
         ChatListItemStatus(chat = chat)
     }
+}
+
+@Composable
+private fun ChatListMessagePreview(
+    chat: ChatModel,
+    emojiFontFamily: FontFamily,
+    maxLines: Int,
+    color: Color
+) {
+    val previewPaths = remember(chat.lastMessagePreviewPaths, chat.lastMessagePreviewPath) {
+        chat.lastMessagePreviewPaths.ifEmpty {
+            listOfNotNull(chat.lastMessagePreviewPath?.takeIf { it.isNotBlank() })
+        }
+    }
+    val showThumbnail = shouldShowMediaThumbnail(chat.lastMessageContentType, previewPaths)
+    val mediaLabel = rememberMediaLabel(chat.lastMessageContentType)
+    val visibleMediaLabel =
+        if (showThumbnail && shouldHideMediaLabelWhenThumbnailShown(chat.lastMessageContentType)) {
+            null
+        } else {
+            mediaLabel
+        }
+    val hasLastMessage = remember(
+        chat.lastMessageId,
+        chat.lastMessageDate,
+        chat.lastMessageText,
+        chat.lastMessageEntities,
+        chat.lastMessageContentType
+    ) {
+        hasLastMessagePreview(chat)
+    }
+    val fallbackText = if (chat.isChannel) {
+        stringResource(R.string.no_posts_yet)
+    } else {
+        stringResource(R.string.no_messages_yet)
+    }
+    val payload = remember(chat.lastMessageText, chat.lastMessageEntities) {
+        sanitizePreviewPayload(chat.lastMessageText, chat.lastMessageEntities)
+    }
+    val renderText = if (!hasLastMessage) {
+        fallbackText
+    } else {
+        payload.text
+    }
+    val renderEntities = if (renderText == payload.text) payload.entities else emptyList()
+    val visibleBodyPayload = remember(
+        renderText,
+        renderEntities,
+        chat.lastMessageContentType,
+        mediaLabel,
+        hasLastMessage
+    ) {
+        if (!hasLastMessage) {
+            PreviewPayload(renderText, renderEntities)
+        } else {
+            sanitizeMeaningfulPreviewBody(
+                text = renderText,
+                entities = renderEntities,
+                contentType = chat.lastMessageContentType,
+                mediaLabel = mediaLabel
+            )
+        }
+    }
+    val bodyText = rememberPreviewBodyText(
+        text = visibleBodyPayload.text,
+        entities = visibleBodyPayload.entities,
+        emojiFontFamily = emojiFontFamily
+    )
+    val inlineContent = rememberPreviewInlineContent(
+        text = visibleBodyPayload.text,
+        entities = visibleBodyPayload.entities
+    )
+    val hasVisibleTail = visibleMediaLabel != null || bodyText.text.isNotBlank()
+    val finalText = buildAnnotatedString {
+        if (!chat.isChannel && chat.lastMessageSenderName.isNotBlank()) {
+            withStyle(
+                SpanStyle(
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            ) {
+                append(chat.lastMessageSenderName)
+                if (hasVisibleTail) {
+                    append(": ")
+                }
+            }
+        }
+
+        if (visibleMediaLabel != null) {
+            withStyle(
+                SpanStyle(
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            ) {
+                append(visibleMediaLabel)
+            }
+            if (bodyText.text.isNotBlank()) {
+                append(" ")
+            }
+        }
+
+        if (bodyText.text.isNotBlank()) {
+            append(bodyText)
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (showThumbnail) {
+            ChatListPreviewThumbnails(
+                contentType = chat.lastMessageContentType,
+                paths = previewPaths
+            )
+            Spacer(Modifier.width(8.dp))
+        }
+
+        Text(
+            modifier = Modifier.weight(1f),
+            text = finalText,
+            inlineContent = inlineContent,
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.bodyMedium,
+            color = color
+        )
+    }
+}
+
+@Composable
+private fun rememberMediaLabel(contentType: String): String? {
+    return when (contentType) {
+        "photo" -> stringResource(R.string.chat_mapper_photo)
+        "video" -> stringResource(R.string.chat_mapper_video)
+        "voice" -> stringResource(R.string.chat_mapper_voice)
+        "video_note" -> stringResource(R.string.chat_mapper_video_note)
+        "sticker" -> stringResource(R.string.chat_mapper_sticker)
+        "document" -> stringResource(R.string.chat_mapper_document)
+        "audio" -> stringResource(R.string.chat_mapper_audio)
+        "gif" -> stringResource(R.string.chat_mapper_gif)
+        "contact" -> stringResource(R.string.chat_mapper_contact)
+        "poll" -> stringResource(R.string.chat_mapper_poll)
+        "location" -> stringResource(R.string.chat_mapper_location)
+        "call" -> stringResource(R.string.chat_mapper_call)
+        "game" -> stringResource(R.string.chat_mapper_game)
+        "invoice" -> stringResource(R.string.chat_mapper_invoice)
+        "story" -> stringResource(R.string.chat_mapper_story)
+        "pinned" -> stringResource(R.string.chat_mapper_pinned)
+        "message" -> stringResource(R.string.chat_mapper_message)
+        else -> null
+    }
+}
+
+@Composable
+private fun ChatListPreviewThumbnails(
+    contentType: String,
+    paths: List<String>
+) {
+    val visiblePaths = paths.filter { it.isNotBlank() }.take(3)
+    if (visiblePaths.isEmpty()) return
+
+    if (visiblePaths.size == 1) {
+        ChatListPreviewThumbnail(
+            contentType = contentType,
+            path = visiblePaths.first(),
+            modifier = Modifier
+        )
+        return
+    }
+
+    Box(
+        modifier = Modifier
+            .width((38 + (visiblePaths.lastIndex * 10)).dp)
+            .height(38.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        visiblePaths.forEachIndexed { index, path ->
+            ChatListPreviewThumbnail(
+                contentType = contentType,
+                path = path,
+                modifier = Modifier
+                    .padding(start = (index * 10).dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChatListPreviewThumbnail(
+    contentType: String,
+    path: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(38.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        contentAlignment = Alignment.Center
+    ) {
+        if (contentType == "sticker") {
+            StickerImage(
+                path = path,
+                modifier = Modifier.size(30.dp)
+            )
+        } else {
+            AsyncImage(
+                model = path,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChatListPreviewText(
+    text: String,
+    entities: List<MessageEntity>,
+    emojiFontFamily: FontFamily,
+    maxLines: Int,
+    color: Color,
+    prefix: String? = null,
+    prefixColor: Color = Color.Unspecified,
+    fallbackText: String? = null
+) {
+    val payload = remember(text, entities) { sanitizePreviewPayload(text, entities) }
+
+    val renderText = if (payload.text.isBlank() && !fallbackText.isNullOrBlank()) {
+        fallbackText
+    } else {
+        payload.text
+    }
+    val renderEntities = if (renderText == payload.text) payload.entities else emptyList()
+    val inlineContent = rememberPreviewInlineContent(
+        text = renderText,
+        entities = renderEntities
+    )
+    val bodyText = rememberPreviewBodyText(
+        text = renderText,
+        entities = renderEntities,
+        emojiFontFamily = emojiFontFamily
+    )
+
+    val finalText = if (prefix == null) {
+        bodyText
+    } else {
+        buildAnnotatedString {
+            withStyle(SpanStyle(color = prefixColor)) {
+                append(prefix)
+            }
+            append(bodyText)
+        }
+    }
+
+    Text(
+        text = finalText,
+        inlineContent = inlineContent,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+        style = MaterialTheme.typography.bodyMedium,
+        color = color
+    )
+}
+
+@Composable
+private fun rememberPreviewInlineContent(
+    text: String,
+    entities: List<MessageEntity>
+) =
+    if (text.isNotBlank() && entities.isNotEmpty() && entities.none { it.type is MessageEntityType.Spoiler }) {
+        rememberMessageInlineContent(
+            entities = entities,
+            fontSize = MaterialTheme.typography.bodyMedium.fontSize.value
+        )
+    } else {
+        emptyMap()
+    }
+
+@Composable
+private fun rememberPreviewBodyText(
+    text: String,
+    entities: List<MessageEntity>,
+    emojiFontFamily: FontFamily
+) = when {
+    entities.any { it.type is MessageEntityType.Spoiler } -> {
+        val spoilerLabel = stringResource(R.string.message_spoiler)
+        buildAnnotatedString {
+            append(spoilerLabel)
+            addStyle(
+                SpanStyle(
+                    background = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    fontWeight = FontWeight.Bold
+                ),
+                0,
+                spoilerLabel.length
+            )
+        }
+    }
+
+    entities.isNotEmpty() -> buildAnnotatedMessageTextWithEmoji(
+        text = text,
+        entities = entities
+    )
+
+    else -> buildAnnotatedString {
+        append(text)
+        addEmojiStyle(text, emojiFontFamily)
+    }
+}
+
+private data class PreviewPayload(
+    val text: String,
+    val entities: List<MessageEntity>
+)
+
+private fun shouldShowMediaThumbnail(contentType: String, paths: List<String>): Boolean {
+    if (paths.isEmpty()) return false
+    return contentType == "photo" ||
+            contentType == "video" ||
+            contentType == "gif" ||
+            contentType == "sticker" ||
+            contentType == "video_note"
+}
+
+private fun shouldHideMediaLabelWhenThumbnailShown(contentType: String): Boolean {
+    return contentType == "photo" ||
+            contentType == "video" ||
+            contentType == "gif" ||
+            contentType == "sticker" ||
+            contentType == "video_note"
+}
+
+private fun hasLastMessagePreview(chat: ChatModel): Boolean {
+    return chat.lastMessageId != 0L ||
+            chat.lastMessageDate != 0 ||
+            chat.lastMessageText.isNotBlank() ||
+            chat.lastMessageEntities.isNotEmpty() ||
+            chat.lastMessageContentType != "text"
+}
+
+private fun sanitizePreviewPayload(
+    text: String,
+    entities: List<MessageEntity>
+): PreviewPayload {
+    if (text.isEmpty() || entities.isEmpty()) {
+        return PreviewPayload(
+            text = text,
+            entities = entities.filterNot(::isMissingCustomEmoji)
+        )
+    }
+
+    val removedChars = BooleanArray(text.length)
+    entities.forEach { entity ->
+        if (!isMissingCustomEmoji(entity)) return@forEach
+
+        val safeStart = entity.offset.coerceIn(0, text.length)
+        val safeEnd = (entity.offset.toLong() + entity.length.toLong())
+            .coerceIn(safeStart.toLong(), text.length.toLong())
+            .toInt()
+
+        for (index in safeStart until safeEnd) {
+            removedChars[index] = true
+        }
+    }
+
+    if (!removedChars.any { it }) {
+        return PreviewPayload(
+            text = text,
+            entities = entities.filterNot(::isMissingCustomEmoji)
+        )
+    }
+
+    val mapping = IntArray(text.length + 1)
+    val rebuiltText = StringBuilder(text.length)
+    var newIndex = 0
+
+    for (oldIndex in text.indices) {
+        mapping[oldIndex] = newIndex
+        if (!removedChars[oldIndex]) {
+            rebuiltText.append(text[oldIndex])
+            newIndex++
+        }
+    }
+    mapping[text.length] = newIndex
+
+    val rebuiltEntities = entities.mapNotNull { entity ->
+        if (isMissingCustomEmoji(entity)) return@mapNotNull null
+
+        val safeStart = entity.offset.coerceIn(0, text.length)
+        val safeEnd = (entity.offset.toLong() + entity.length.toLong())
+            .coerceIn(safeStart.toLong(), text.length.toLong())
+            .toInt()
+
+        val mappedStart = mapping[safeStart]
+        val mappedEnd = mapping[safeEnd]
+        if (mappedStart >= mappedEnd) return@mapNotNull null
+
+        entity.copy(offset = mappedStart, length = mappedEnd - mappedStart)
+    }
+
+    return PreviewPayload(
+        text = rebuiltText.toString(),
+        entities = rebuiltEntities
+    )
+}
+
+private fun sanitizeMeaningfulPreviewBody(
+    text: String,
+    entities: List<MessageEntity>,
+    contentType: String,
+    mediaLabel: String?
+): PreviewPayload {
+    if (text.isBlank()) return PreviewPayload("", emptyList())
+
+    if (
+        contentType != "photo" &&
+        contentType != "video" &&
+        contentType != "gif" &&
+        contentType != "sticker" &&
+        contentType != "video_note"
+    ) {
+        return PreviewPayload(text, entities)
+    }
+
+    val normalized = normalizePreviewMeaning(text, entities)
+    if (normalized.isBlank()) {
+        return PreviewPayload("", emptyList())
+    }
+
+    val genericTokens = buildList {
+        mediaLabel?.trim()?.lowercase()?.takeIf { it.isNotBlank() }?.let(::add)
+        mediaContentEnglishLabel(contentType)?.let(::add)
+    }.distinct()
+
+    val reduced = genericTokens
+        .fold(normalized) { acc, token -> acc.replace(token, " ") }
+        .replace(Regex("\\s+"), " ")
+        .trim()
+
+    return if (reduced.isBlank()) {
+        PreviewPayload("", emptyList())
+    } else {
+        PreviewPayload(text, entities)
+    }
+}
+
+private fun normalizePreviewMeaning(
+    text: String,
+    entities: List<MessageEntity>
+): String {
+    val customEmojiRanges = entities
+        .filter { it.type is MessageEntityType.CustomEmoji }
+        .map { entity ->
+            val start = entity.offset.coerceIn(0, text.length)
+            val end = (entity.offset + entity.length).coerceIn(start, text.length)
+            start until end
+        }
+
+    val builder = StringBuilder(text.length)
+    var index = 0
+    while (index < text.length) {
+        val insideCustomEmoji = customEmojiRanges.any { index in it }
+        if (insideCustomEmoji) {
+            index++
+            continue
+        }
+
+        val codePoint = text.codePointAt(index)
+        if (Character.isLetterOrDigit(codePoint) || Character.isWhitespace(codePoint)) {
+            builder.appendCodePoint(codePoint)
+        }
+        index += Character.charCount(codePoint)
+    }
+
+    return builder.toString()
+        .lowercase()
+        .replace(Regex("\\s+"), " ")
+        .trim()
+}
+
+private fun mediaContentEnglishLabel(contentType: String): String? = when (contentType) {
+    "photo" -> "photo"
+    "video" -> "video"
+    "gif" -> "gif"
+    "sticker" -> "sticker"
+    "video_note" -> "video message"
+    else -> null
+}
+
+private fun isMissingCustomEmoji(entity: MessageEntity): Boolean {
+    val customEmoji = entity.type as? MessageEntityType.CustomEmoji ?: return false
+    return customEmoji.path.isNullOrBlank()
 }
 
 @Composable

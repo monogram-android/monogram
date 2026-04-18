@@ -1217,22 +1217,22 @@
     <string name="notification_channel_other_description">Outras notificações</string>
 
     <!-- Chat Mapper / Media Types -->
-    <string name="chat_mapper_photo">📷 Foto</string>
-    <string name="chat_mapper_video">📹 Vídeo</string>
-    <string name="chat_mapper_voice">🎤 Mensagem de voz</string>
-    <string name="chat_mapper_sticker">🧩 Figurinha</string>
-    <string name="chat_mapper_document">📎 Documento</string>
-    <string name="chat_mapper_audio">🎵 Áudio</string>
+    <string name="chat_mapper_photo">Foto</string>
+    <string name="chat_mapper_video">Vídeo</string>
+    <string name="chat_mapper_voice">Mensagem de voz</string>
+    <string name="chat_mapper_sticker">Figurinha</string>
+    <string name="chat_mapper_document">Documento</string>
+    <string name="chat_mapper_audio">Áudio</string>
     <string name="chat_mapper_gif">GIF</string>
-    <string name="chat_mapper_video_note">🎬 Mensagem de vídeo</string>
-    <string name="chat_mapper_contact">👤 Contato</string>
-    <string name="chat_mapper_poll">📊 Enquete</string>
-    <string name="chat_mapper_location">📍 Localização</string>
-    <string name="chat_mapper_call">📞 Chamada</string>
-    <string name="chat_mapper_game">🎮 Jogo</string>
-    <string name="chat_mapper_invoice">💳 Fatura</string>
-    <string name="chat_mapper_story">📚 História</string>
-    <string name="chat_mapper_pinned">📌 Mensagem fixada</string>
+    <string name="chat_mapper_video_note">Mensagem de vídeo</string>
+    <string name="chat_mapper_contact">Contato</string>
+    <string name="chat_mapper_poll">Enquete</string>
+    <string name="chat_mapper_location">Localização</string>
+    <string name="chat_mapper_call">Chamada</string>
+    <string name="chat_mapper_game">Jogo</string>
+    <string name="chat_mapper_invoice">Fatura</string>
+    <string name="chat_mapper_story">História</string>
+    <string name="chat_mapper_pinned">Mensagem fixada</string>
     <string name="chat_mapper_message">Mensagem</string>
     <string name="chat_mapper_bot">Bot</string>
     <string name="chat_mapper_online">Online</string>
@@ -1522,7 +1522,20 @@
     <string name="settings_quality">Qualidade</string>
     <string name="settings_video_quality">Qualidade do vídeo</string>
     <string name="settings_quality_auto">Automática</string>
-    <string name="settings_quality_high_res">Alta definição</string>
+    <string name="settings_quality_high_res">Alta</string>
+    <string name="settings_quality_medium">Média</string>
+    <string name="settings_quality_low">Baixa</string>
+    <string name="quality_status_recovering">Aplicando qualidade…</string>
+    <string name="quality_status_downgraded">Qualidade reduzida pelo YouTube</string>
+    <string name="quality_status_unavailable_at_request">A qualidade solicitada não está disponível</string>
+    <string name="quality_status_error_video_not_found">Vídeo indisponível</string>
+    <string name="quality_status_error_embedding_forbidden">A reprodução no app está restrita</string>
+    <string name="quality_status_error_html5">Erro de reprodução (HTML5/WebView)</string>
+    <string name="quality_status_error_unknown">Erro de reprodução (%1$d)</string>
+    <string name="action_retry_stream">Tentar novamente a transmissão</string>
+    <string name="action_switch_to_auto">Mudar para Automática</string>
+    <string name="action_use_low_quality">Usar qualidade baixa</string>
+    <string name="action_open_in_browser">Abrir no navegador</string>
     <string name="settings_speed_normal">Normal</string>
 
     <!-- Selection: Picture-in-Picture -->

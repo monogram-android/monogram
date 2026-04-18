@@ -6,16 +6,30 @@ import com.arkivanov.mvikotlin.core.instancekeeper.getStore
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
 import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.BotMenuButtonModel
+import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatType
 import org.monogram.domain.models.UpdateState
-import org.monogram.domain.repository.*
+import org.monogram.domain.repository.AttachMenuBotRepository
+import org.monogram.domain.repository.BotRepository
+import org.monogram.domain.repository.ChatFolderRepository
+import org.monogram.domain.repository.ChatListRepository
+import org.monogram.domain.repository.ChatOperationsRepository
+import org.monogram.domain.repository.ChatSearchRepository
+import org.monogram.domain.repository.UpdateRepository
+import org.monogram.domain.repository.UserProfileEditRepository
+import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
@@ -111,10 +125,71 @@ class DefaultChatListComponent(
         isLoading = isLoading
     )
 
-    private fun ChatListComponent.State.toSelectionState() = ChatListComponent.SelectionState(
-        selectedChatIds = selectedChatIds,
-        activeChatId = activeChatId
-    )
+    private fun ChatListComponent.State.toSelectionState(): ChatListComponent.SelectionState {
+        val selectedChats = resolveSelectedChats(selectedChatIds)
+        val capabilities = computeSelectionCapabilities(selectedChatIds, selectedChats)
+        val allPinned = selectedChats.isNotEmpty() && selectedChats.all { it.isPinned }
+        val allMuted = selectedChats.isNotEmpty() && selectedChats.all { it.isMuted }
+        val canMarkUnread = selectedChats.isNotEmpty() && selectedChats.none(::hasUnreadState)
+
+        return ChatListComponent.SelectionState(
+            selectedChatIds = selectedChatIds,
+            activeChatId = activeChatId,
+            selectedChats = selectedChats,
+            allPinned = allPinned,
+            allMuted = allMuted,
+            canMarkUnread = canMarkUnread,
+            capabilities = capabilities
+        )
+    }
+
+    private fun ChatListComponent.State.resolveSelectedChats(selectedIds: Set<Long>): List<ChatModel> {
+        if (selectedIds.isEmpty()) return emptyList()
+
+        val chatsById = LinkedHashMap<Long, ChatModel>()
+
+        chatsByFolder.values.forEach { chats ->
+            chats.forEach { chat ->
+                chatsById.putIfAbsent(chat.id, chat)
+            }
+        }
+
+        searchResults.forEach { chat -> chatsById.putIfAbsent(chat.id, chat) }
+        globalSearchResults.forEach { chat -> chatsById.putIfAbsent(chat.id, chat) }
+        recentUsers.forEach { chat -> chatsById.putIfAbsent(chat.id, chat) }
+        recentOthers.forEach { chat -> chatsById.putIfAbsent(chat.id, chat) }
+
+        return selectedIds.mapNotNull { chatsById[it] }
+    }
+
+    private fun ChatListComponent.State.computeSelectionCapabilities(
+        selectedIds: Set<Long>,
+        selectedChats: List<ChatModel>
+    ): ChatListComponent.SelectionCapabilities {
+        if (selectedIds.isEmpty()) return ChatListComponent.SelectionCapabilities()
+
+        val hasUnknownSelectedChats = selectedChats.size != selectedIds.size
+        if (hasUnknownSelectedChats) {
+            return ChatListComponent.SelectionCapabilities()
+        }
+
+        val currentFolderChatIds = chatsByFolder[selectedFolderId].orEmpty()
+            .asSequence()
+            .map { it.id }
+            .toSet()
+
+        val canPin = selectedChats.all { currentFolderChatIds.contains(it.id) }
+        val canDelete =
+            selectedChats.all { it.canBeDeletedOnlyForSelf || it.canBeDeletedForAllUsers }
+
+        return ChatListComponent.SelectionCapabilities(
+            canPin = canPin,
+            canMute = true,
+            canArchive = true,
+            canDelete = canDelete,
+            canToggleRead = true
+        )
+    }
 
     private fun ChatListComponent.State.toSearchState() = ChatListComponent.SearchState(
         isSearchActive = isSearchActive,
@@ -501,20 +576,27 @@ class DefaultChatListComponent(
     override fun onMuteSelected(mute: Boolean) = store.accept(ChatListStore.Intent.MuteSelected(mute))
 
     internal fun handleMuteSelected(mute: Boolean) {
-        val selectedIds = _state.value.selectedChatIds
-        val selectedChats = _state.value.chats.filter { selectedIds.contains(it.id) }
-        val shouldMute = selectedChats.any { !it.isMuted }
+        val selection = _selectionState.value
+        if (!selection.capabilities.canMute) return
+
+        val selectedIds = selection.selectedChatIds
+        if (selectedIds.isEmpty()) return
 
         scope.launch(Dispatchers.IO) {
-            chatOperationsRepository.toggleMuteChats(selectedIds, shouldMute)
-            clearSelection()
+            chatOperationsRepository.toggleMuteChats(selectedIds, mute)
+            handleClearSelection()
         }
     }
 
     override fun onArchiveSelected(archive: Boolean) = store.accept(ChatListStore.Intent.ArchiveSelected(archive))
 
     internal fun handleArchiveSelected(archive: Boolean) {
-        val selectedIds = _state.value.selectedChatIds
+        val selection = _selectionState.value
+        if (!selection.capabilities.canArchive) return
+
+        val selectedIds = selection.selectedChatIds
+        if (selectedIds.isEmpty()) return
+
         scope.launch(Dispatchers.IO) {
             chatOperationsRepository.toggleArchiveChats(selectedIds, archive)
             handleClearSelection()
@@ -524,9 +606,13 @@ class DefaultChatListComponent(
     override fun onPinSelected() = store.accept(ChatListStore.Intent.PinSelected)
 
     internal fun handlePinSelected() {
-        val selectedIds = _state.value.selectedChatIds
-        val selectedChats = _state.value.chats.filter { selectedIds.contains(it.id) }
-        val shouldPin = selectedChats.any { !it.isPinned }
+        val selection = _selectionState.value
+        if (!selection.capabilities.canPin) return
+
+        val selectedIds = selection.selectedChatIds
+        if (selectedIds.isEmpty()) return
+
+        val shouldPin = selection.selectedChats.any { !it.isPinned }
         val folderId = _state.value.selectedFolderId
 
         scope.launch(Dispatchers.IO) {
@@ -538,9 +624,13 @@ class DefaultChatListComponent(
     override fun onToggleReadSelected() = store.accept(ChatListStore.Intent.ToggleReadSelected)
 
     internal fun handleToggleReadSelected() {
-        val selectedIds = _state.value.selectedChatIds
-        val selectedChats = _state.value.chats.filter { selectedIds.contains(it.id) }
-        val shouldMarkUnread = selectedChats.any { !it.isMarkedAsUnread }
+        val selection = _selectionState.value
+        if (!selection.capabilities.canToggleRead) return
+
+        val selectedIds = selection.selectedChatIds
+        if (selectedIds.isEmpty()) return
+
+        val shouldMarkUnread = selection.canMarkUnread
 
         scope.launch(Dispatchers.IO) {
             chatOperationsRepository.toggleReadChats(selectedIds, shouldMarkUnread)
@@ -551,7 +641,12 @@ class DefaultChatListComponent(
     override fun onDeleteSelected() = store.accept(ChatListStore.Intent.DeleteSelected)
 
     internal fun handleDeleteSelected() {
-        val selectedIds = _state.value.selectedChatIds
+        val selection = _selectionState.value
+        if (!selection.capabilities.canDelete) return
+
+        val selectedIds = selection.selectedChatIds
+        if (selectedIds.isEmpty()) return
+
         scope.launch(Dispatchers.IO) {
             chatOperationsRepository.deleteChats(selectedIds)
             handleClearSelection()
@@ -729,4 +824,11 @@ class DefaultChatListComponent(
         }
         _state.value = _state.value.copy(selectedChatIds = newSelection)
     }
+}
+
+private fun hasUnreadState(chat: ChatModel): Boolean {
+    return chat.unreadCount > 0 ||
+            chat.isMarkedAsUnread ||
+            chat.unreadMentionCount > 0 ||
+            chat.unreadReactionCount > 0
 }

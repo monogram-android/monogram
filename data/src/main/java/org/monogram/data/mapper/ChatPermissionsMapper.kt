@@ -23,7 +23,7 @@ internal data class ChatEntityPermissionValues(
 )
 
 internal fun TdApi.ChatPermissions?.toDomainChatPermissions(): ChatPermissionsModel {
-    val permissions = this ?: TdApi.ChatPermissions()
+    val permissions = this ?: return ChatPermissionsModel()
     return ChatPermissionsModel(
         canSendBasicMessages = permissions.canSendBasicMessages,
         canSendAudios = permissions.canSendAudios,

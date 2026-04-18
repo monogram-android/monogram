@@ -123,8 +123,10 @@ fun MobileLayout(root: RootComponent) {
                 onBack = root::onBack,
                 fallbackAnimation = if (!swipeBackInProgress) stackAnimation(slide() + fade()) else null,
             ),
-        ) {
-            RenderChild(it.instance, isOverlay = false)
+        ) { child ->
+            key(child.key) {
+                RenderChild(child.instance, isOverlay = false)
+            }
         }
     }
 }

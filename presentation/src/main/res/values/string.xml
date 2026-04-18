@@ -1336,22 +1336,22 @@
     <string name="notification_channel_other_description">Other notifications</string>
 
     <!-- Chat Mapper / Media Types -->
-    <string name="chat_mapper_photo">📷 Photo</string>
-    <string name="chat_mapper_video">📹 Video</string>
-    <string name="chat_mapper_voice">🎤 Voice message</string>
-    <string name="chat_mapper_sticker">🧩 Sticker</string>
-    <string name="chat_mapper_document">📎 Document</string>
-    <string name="chat_mapper_audio">🎵 Audio</string>
+    <string name="chat_mapper_photo">Photo</string>
+    <string name="chat_mapper_video">Video</string>
+    <string name="chat_mapper_voice">Voice message</string>
+    <string name="chat_mapper_sticker">Sticker</string>
+    <string name="chat_mapper_document">Document</string>
+    <string name="chat_mapper_audio">Audio</string>
     <string name="chat_mapper_gif">GIF</string>
-    <string name="chat_mapper_video_note">🎬 Video message</string>
-    <string name="chat_mapper_contact">👤 Contact</string>
-    <string name="chat_mapper_poll">📊 Poll</string>
-    <string name="chat_mapper_location">📍 Location</string>
-    <string name="chat_mapper_call">📞 Call</string>
-    <string name="chat_mapper_game">🎮 Game</string>
-    <string name="chat_mapper_invoice">💳 Invoice</string>
-    <string name="chat_mapper_story">📚 Story</string>
-    <string name="chat_mapper_pinned">📌 Pinned message</string>
+    <string name="chat_mapper_video_note">Video message</string>
+    <string name="chat_mapper_contact">Contact</string>
+    <string name="chat_mapper_poll">Poll</string>
+    <string name="chat_mapper_location">Location</string>
+    <string name="chat_mapper_call">Call</string>
+    <string name="chat_mapper_game">Game</string>
+    <string name="chat_mapper_invoice">Invoice</string>
+    <string name="chat_mapper_story">Story</string>
+    <string name="chat_mapper_pinned">Pinned message</string>
     <string name="chat_mapper_message">Message</string>
     <string name="chat_mapper_bot">Bot</string>
     <string name="chat_mapper_online">Online</string>
@@ -1641,8 +1641,21 @@
     <string name="settings_quality">Quality</string>
     <string name="settings_video_quality">Video Quality</string>
     <string name="settings_quality_auto">Auto</string>
-    <string name="settings_quality_high_res">High Res</string>
+    <string name="settings_quality_high_res">High</string>
+    <string name="settings_quality_medium">Medium</string>
+    <string name="settings_quality_low">Low</string>
     <string name="settings_speed_normal">Normal</string>
+    <string name="quality_status_recovering">Applying quality…</string>
+    <string name="quality_status_downgraded">Quality downgraded by YouTube</string>
+    <string name="quality_status_unavailable_at_request">Requested quality is unavailable</string>
+    <string name="quality_status_error_video_not_found">Video unavailable</string>
+    <string name="quality_status_error_embedding_forbidden">Playback in app is restricted</string>
+    <string name="quality_status_error_html5">Playback error (HTML5/WebView)</string>
+    <string name="quality_status_error_unknown">Playback error (%1$d)</string>
+    <string name="action_retry_stream">Retry stream</string>
+    <string name="action_switch_to_auto">Switch to Auto</string>
+    <string name="action_use_low_quality">Use Low quality</string>
+    <string name="action_open_in_browser">Open in browser</string>
 
     <!-- Selection: Picture-in-Picture -->
     <string name="pip_play">Play</string>
@@ -1893,6 +1906,8 @@
     <string name="reply_content_video_message">Video message</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">Message</string>
+    <string name="message_expired_photo">Photo expired</string>
+    <string name="message_expired_video">Video expired</string>
 
     <!-- Chat Folders -->
     <string name="folders_title">Chat Folders</string>

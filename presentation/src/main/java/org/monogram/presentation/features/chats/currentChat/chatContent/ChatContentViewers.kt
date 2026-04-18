@@ -149,9 +149,10 @@ private fun ImagesOverlay(
             }
 
             val viewerItems = remember(images, state.fullScreenImageMessageIds, state.messages) {
-                if (state.fullScreenImageMessageIds.size == images.size) {
+                val messageMap = state.messages.associateBy { it.id }
+                val items = if (state.fullScreenImageMessageIds.size == images.size) {
                     state.fullScreenImageMessageIds.mapIndexed { index, messageId ->
-                        val message = state.messages.firstOrNull { it.id == messageId }
+                        val message = messageMap[messageId]
                         val resolvedPath = message?.displayMediaPathForViewer() ?: images[index]
                         ViewerMediaItem(messageId = messageId, path = resolvedPath)
                     }
@@ -164,16 +165,24 @@ private fun ImagesOverlay(
                         )
                     }
                 }
+                items.sortedBy { it.messageId }
             }
 
             val viewerImages = remember(viewerItems) { viewerItems.map { it.path } }
             val imageMessageIds = remember(viewerItems) { viewerItems.map { it.messageId } }
-            var currentImageIndex by remember(viewerImages, state.fullScreenStartIndex) {
+            val startMessageId = state.fullScreenImageMessageIds.getOrNull(state.fullScreenStartIndex)
+
+            val startIndex = remember(viewerItems, startMessageId) {
+                val index = viewerItems.indexOfFirst { it.messageId == startMessageId }
+                index
+                    .takeIf { it != -1 }
+                    ?.coerceIn(0, viewerItems.lastIndex.coerceAtLeast(0))
+                    ?: 0
+            }
+
+            var currentImageIndex by remember(viewerItems, startIndex) {
                 mutableIntStateOf(
-                    state.fullScreenStartIndex.coerceIn(
-                        0,
-                        (viewerImages.lastIndex).coerceAtLeast(0)
-                    )
+                    startIndex.coerceIn(0, viewerItems.lastIndex.coerceAtLeast(0))
                 )
             }
 
@@ -206,7 +215,7 @@ private fun ImagesOverlay(
             if (viewerImages.isNotEmpty()) {
                 ImageViewer(
                     images = viewerImages,
-                    startIndex = state.fullScreenStartIndex.coerceIn(0, viewerImages.lastIndex),
+                    startIndex = startIndex.coerceIn(0, viewerImages.lastIndex.coerceAtLeast(0)),
                     onDismiss = component::onDismissImages,
                     autoDownload = autoDownload,
                     onPageChanged = { index ->

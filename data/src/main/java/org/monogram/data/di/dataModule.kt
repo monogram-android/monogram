@@ -259,7 +259,6 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_29_30,
                 MonogramMigrations.MIGRATION_30_31
             )
-            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
     single { get<MonogramDatabase>().chatDao() }
@@ -446,7 +445,8 @@ val dataModule = module {
             appPreferences = get(),
             customEmojiLoader = get(),
             webPageMapper = get(),
-            scope = get()
+            scope = get(),
+            stringProvider = get()
         )
     }
 

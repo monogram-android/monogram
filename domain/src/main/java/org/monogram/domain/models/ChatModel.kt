@@ -74,6 +74,10 @@ data class ChatModel(
     val hasForumTabs: Boolean = false,
     val isAdministeredDirectMessagesGroup: Boolean = false,
     val paidMessageStarCount: Long = 0L,
+    val lastMessageContentType: String = "text",
+    val lastMessageSenderName: String = "",
+    val lastMessagePreviewPath: String? = null,
+    val lastMessagePreviewPaths: List<String> = emptyList(),
 )
 
 @Serializable

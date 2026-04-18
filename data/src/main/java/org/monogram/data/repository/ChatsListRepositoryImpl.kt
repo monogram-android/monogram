@@ -34,6 +34,7 @@ import org.monogram.data.datasource.remote.ChatsRemoteDataSource
 import org.monogram.data.db.dao.ChatFolderDao
 import org.monogram.data.db.dao.SearchHistoryDao
 import org.monogram.data.db.dao.UserFullInfoDao
+import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.infra.ConnectionManager
@@ -54,6 +55,7 @@ import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.ChatOperationsRepository
 import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.ChatSettingsRepository
+import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.domain.repository.FolderChatsUpdate
 import org.monogram.domain.repository.FolderLoadingUpdate
 import org.monogram.domain.repository.ForumTopicsRepository
@@ -62,6 +64,7 @@ import org.monogram.domain.repository.StringProvider
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.system.measureTimeMillis
 
 class ChatsListRepositoryImpl(
     private val remoteDataSource: ChatsRemoteDataSource,
@@ -223,8 +226,14 @@ class ChatsListRepositoryImpl(
     private var pendingSelectFolderJob: Job? = null
 
     private val maxChatListLimit = 10_000
-    private val initialChatListLimit = 50
+    private val initialChatListLimit = 200
     private var currentLimit = initialChatListLimit
+
+    @Volatile
+    private var lastRecoveryAttemptAtMs = 0L
+
+    @Volatile
+    private var lastConnectionStatus: ConnectionStatus? = null
 
     private val modelCache = SynchronizedLruMap<Long, ChatModel>(MODEL_CACHE_SIZE)
     private val invalidatedModels = ConcurrentHashMap.newKeySet<Long>()
@@ -264,23 +273,7 @@ class ChatsListRepositoryImpl(
         }
 
         scope.launch(dispatchers.io) {
-            coRunCatching {
-                val entities = chatLocalDataSource.getAllChats().first()
-                if (entities.isNotEmpty()) {
-                    entities.forEach { entity ->
-                        cache.putChatFromEntity(entity)
-                        persistenceManager.rememberSavedEntity(entity)
-                    }
-                    updateActiveListPositionsFromCache()
-                    triggerUpdate()
-                }
-            }.onFailure { error ->
-                Log.e(TAG, "Failed to hydrate chat cache", error)
-            }
-
-            if (!cacheHydrated.isCompleted) {
-                cacheHydrated.complete(Unit)
-            }
+            hydrateCacheFromPersistence()
         }
 
         scope.launch(dispatchers.io) {
@@ -297,6 +290,25 @@ class ChatsListRepositoryImpl(
         }
 
         scope.launch {
+            updates.authorizationState.collect { update ->
+                if (update.authorizationState is TdApi.AuthorizationStateReady) {
+                    scheduleRecoveryIfNeeded("auth_ready", force = true)
+                }
+            }
+        }
+
+        scope.launch {
+            connectionStateFlow
+                .collect { status ->
+                    val previous = lastConnectionStatus
+                    lastConnectionStatus = status
+                    if (status is ConnectionStatus.Connected && previous !is ConnectionStatus.Connected) {
+                        scheduleRecoveryIfNeeded("connection_ready")
+                    }
+                }
+        }
+
+        scope.launch {
             updates.chatFolders.collect { update ->
                 folderManager.handleChatFoldersUpdate(update)
                 triggerUpdate()
@@ -305,6 +317,9 @@ class ChatsListRepositoryImpl(
     }
 
     private suspend fun rebuildAndEmit() {
+        if (!cacheHydrated.isCompleted) {
+            return
+        }
         coRunCatching {
             val folderId = activeFolderId
             val limit = currentLimit.coerceAtMost(maxChatListLimit)
@@ -316,6 +331,13 @@ class ChatsListRepositoryImpl(
 
             if (!shouldEmitList(folderId, newList)) {
                 return@coRunCatching
+            }
+
+            if (newList.isEmpty() && cache.activeListPositions.isNotEmpty()) {
+                Log.w(
+                    TAG,
+                    "Rebuild produced empty list with non-empty active positions: folder=$folderId list=${activeChatList.debugName()} positions=${cache.activeListPositions.size} chats=${cache.allChats.size} limit=$limit"
+                )
             }
 
             emitListUpdate(folderId, newList)
@@ -460,18 +482,52 @@ class ChatsListRepositoryImpl(
         val requestId = requestIdGenerator.incrementAndGet()
         activeRequestId = requestId
         setLoadingState(folderId, requestId, true)
+        Log.i(
+            TAG,
+            "Select folder start: folder=$folderId requestId=$requestId list=${newList.debugName()} limit=$initialLoadLimit cachedChats=${cache.allChats.size} activePositions=${cache.activeListPositions.size}"
+        )
         triggerUpdate()
 
         scope.launch(dispatchers.io) {
-            chatRemoteSource.loadChats(newList, initialLoadLimit)
+            val durationMs = measureTimeMillis {
+                val result = loadAndStabilizeChats(
+                    source = "selectFolder",
+                    folderId = folderId,
+                    requestId = requestId,
+                    chatList = newList,
+                    limit = initialLoadLimit
+                )
+                logLoadChatsResult(
+                    source = "selectFolder",
+                    folderId = folderId,
+                    requestId = requestId,
+                    chatList = newList,
+                    limit = initialLoadLimit,
+                    result = result
+                )
+            }
             setLoadingState(folderId, requestId, false)
             if (isRequestActive(folderId, requestId)) {
+                Log.d(
+                    TAG,
+                    "Select folder complete: folder=$folderId requestId=$requestId list=${newList.debugName()} durationMs=$durationMs rendered=${_chatListFlow.value.size} activePositions=${cache.activeListPositions.size}"
+                )
                 triggerUpdate()
+                if (_chatListFlow.value.isEmpty()) {
+                    scheduleRecoveryIfNeeded("selectFolder_empty:$folderId", force = true)
+                }
             }
         }
     }
 
     private fun updateActiveListPositionsFromCache() {
+        val currentActivePositions = HashMap<Long, TdApi.ChatPosition>()
+        cache.activeListPositions.forEach { (chatId, position) ->
+            if (position.order != 0L && listManager.isSameChatList(position.list, activeChatList)) {
+                currentActivePositions[chatId] = position
+            }
+        }
+
         val savedAuthoritative = HashMap<Long, TdApi.ChatPosition>()
         cache.authoritativeActiveListChatIds.forEach { chatId ->
             val currentPos = cache.activeListPositions[chatId] ?: return@forEach
@@ -501,6 +557,27 @@ class ChatsListRepositoryImpl(
                 cache.protectedPinnedChatIds.add(chatId)
             }
         }
+
+        currentActivePositions.forEach { (chatId, position) ->
+            val rebuilt = cache.activeListPositions[chatId]
+            val shouldRestore =
+                rebuilt == null ||
+                        rebuilt.order == 0L ||
+                        (position.isPinned && !rebuilt.isPinned) ||
+                        position.order > rebuilt.order
+
+            if (shouldRestore) {
+                cache.activeListPositions[chatId] = position
+                if (position.isPinned) {
+                    cache.protectedPinnedChatIds.add(chatId)
+                }
+            }
+        }
+
+        Log.d(
+            TAG,
+            "Active list positions refreshed from cache: list=${activeChatList.debugName()} positions=${cache.activeListPositions.size} chats=${cache.allChats.size} authoritative=${cache.authoritativeActiveListChatIds.size} restoredCurrent=${currentActivePositions.size}"
+        )
     }
 
     override fun refresh() {
@@ -521,8 +598,28 @@ class ChatsListRepositoryImpl(
         val chatList = activeChatList
         scope.launch(dispatchers.io) {
             val limit = currentLimit.coerceAtLeast(initialChatListLimit).coerceAtMost(maxChatListLimit)
-            chatRemoteSource.loadChats(chatList, limit)
+            val durationMs = measureTimeMillis {
+                val result = loadAndStabilizeChats(
+                    source = "refresh",
+                    folderId = folderId,
+                    requestId = requestId,
+                    chatList = chatList,
+                    limit = limit
+                )
+                logLoadChatsResult(
+                    source = "refresh",
+                    folderId = folderId,
+                    requestId = requestId,
+                    chatList = chatList,
+                    limit = limit,
+                    result = result
+                )
+            }
             if (isRequestActive(folderId, requestId)) {
+                Log.d(
+                    TAG,
+                    "Refresh complete: folder=$folderId requestId=$requestId list=${chatList.debugName()} durationMs=$durationMs rendered=${_chatListFlow.value.size} activePositions=${cache.activeListPositions.size}"
+                )
                 triggerUpdate()
             }
         }
@@ -553,9 +650,29 @@ class ChatsListRepositoryImpl(
                 }
             }
 
-            chatRemoteSource.loadChats(chatList, requestedLimit)
+            val durationMs = measureTimeMillis {
+                val result = loadAndStabilizeChats(
+                    source = "loadNextChunk",
+                    folderId = folderId,
+                    requestId = requestId,
+                    chatList = chatList,
+                    limit = requestedLimit
+                )
+                logLoadChatsResult(
+                    source = "loadNextChunk",
+                    folderId = folderId,
+                    requestId = requestId,
+                    chatList = chatList,
+                    limit = requestedLimit,
+                    result = result
+                )
+            }
             setLoadingState(folderId, requestId, false)
             if (isRequestActive(folderId, requestId)) {
+                Log.d(
+                    TAG,
+                    "Load next chunk complete: folder=$folderId requestId=$requestId list=${chatList.debugName()} durationMs=$durationMs rendered=${_chatListFlow.value.size} activePositions=${cache.activeListPositions.size} targetLimit=$requestedLimit"
+                )
                 triggerUpdate()
             }
         }
@@ -569,6 +686,14 @@ class ChatsListRepositoryImpl(
                 cache.getChat(chatId)
             }
             ?: remoteDataSource.getChat(chatId)?.also { chat ->
+                val existingPositions = cache.getChat(chat.id)?.positions ?: emptyArray()
+                chat.positions = listManager.sanitizePositionsForActiveList(
+                    chatId = chat.id,
+                    currentPositions = existingPositions,
+                    incomingPositions = chat.positions,
+                    activeChatList = activeChatList,
+                    source = "GetChatById"
+                )
                 cache.putChat(chat)
                 listManager.updateActiveListPositions(chat.id, chat.positions, activeChatList)
                 persistenceManager.scheduleChatSave(chat.id)
@@ -627,7 +752,11 @@ class ChatsListRepositoryImpl(
     override fun toggleReadChats(chatIds: Set<Long>, markAsUnread: Boolean) {
         chatIds.forEach { chatId ->
             scope.launch(dispatchers.io) {
-                chatRemoteSource.toggleChatIsMarkedAsUnread(chatId, markAsUnread)
+                if (markAsUnread) {
+                    chatRemoteSource.toggleChatIsMarkedAsUnread(chatId, true)
+                } else {
+                    chatRemoteSource.markChatAsRead(chatId)
+                }
             }
         }
     }
@@ -812,15 +941,289 @@ class ChatsListRepositoryImpl(
 
     private suspend fun refreshChat(chatId: Long) {
         val chatObj = remoteDataSource.getChat(chatId) ?: return
+        val existingPositions = cache.getChat(chatObj.id)?.positions ?: emptyArray()
+        chatObj.positions = listManager.sanitizePositionsForActiveList(
+            chatId = chatObj.id,
+            currentPositions = existingPositions,
+            incomingPositions = chatObj.positions,
+            activeChatList = activeChatList,
+            source = "RefreshChat"
+        )
         cache.putChat(chatObj)
         listManager.updateActiveListPositions(chatObj.id, chatObj.positions, activeChatList)
         persistenceManager.scheduleChatSave(chatObj.id)
         triggerUpdate(chatObj.id)
     }
 
+    private suspend fun hydrateCacheFromPersistence() {
+        coRunCatching {
+            val topEntities = chatLocalDataSource.getTopChats(INITIAL_CACHE_HYDRATION_LIMIT)
+            if (topEntities.isNotEmpty()) {
+                topEntities.forEach { entity ->
+                    cache.putChatFromEntity(entity)
+                    persistenceManager.rememberSavedEntity(entity)
+                }
+                updateActiveListPositionsFromCache()
+                Log.i(
+                    TAG,
+                    "Cache top hydrated: entities=${topEntities.size} chats=${cache.allChats.size} activePositions=${cache.activeListPositions.size} activeFolder=$activeFolderId list=${activeChatList.debugName()}"
+                )
+                triggerUpdate()
+            } else {
+                Log.i(TAG, "Cache top hydrated: no persisted chats found")
+            }
+        }.onFailure { error ->
+            Log.e(TAG, "Failed to hydrate top chat cache", error)
+        }
+
+        if (!cacheHydrated.isCompleted) {
+            cacheHydrated.complete(Unit)
+        }
+
+        triggerUpdate()
+        scheduleRecoveryIfNeeded("cache_top_hydrated")
+
+        coRunCatching {
+            val entities = chatLocalDataSource.getAllChats().first()
+            if (entities.isNotEmpty()) {
+                entities.forEach { entity ->
+                    cache.putChatFromEntity(entity)
+                    persistenceManager.rememberSavedEntity(entity)
+                }
+                updateActiveListPositionsFromCache()
+                Log.i(
+                    TAG,
+                    "Cache hydrated: entities=${entities.size} chats=${cache.allChats.size} activePositions=${cache.activeListPositions.size} activeFolder=$activeFolderId list=${activeChatList.debugName()}"
+                )
+                triggerUpdate()
+                scheduleRecoveryIfNeeded("cache_hydrated")
+            } else {
+                Log.i(TAG, "Cache hydrated: no persisted chats found")
+            }
+        }.onFailure { error ->
+            Log.e(TAG, "Failed to hydrate chat cache", error)
+        }
+    }
+
+    private suspend fun loadAndStabilizeChats(
+        source: String,
+        folderId: Int,
+        requestId: Long,
+        chatList: TdApi.ChatList,
+        limit: Int
+    ): Result<Unit> {
+        var lastResult = chatRemoteSource.loadChats(chatList, limit)
+        if (!lastResult.isSuccess && lastResult.exceptionOrNull()?.asTdErrorCode() != 404) {
+            return lastResult
+        }
+
+        repeat(LOAD_CHATS_STABILIZATION_PASSES) { pass ->
+            if (!isRequestActive(folderId, requestId)) {
+                return lastResult
+            }
+
+            val chats = chatRemoteSource.getChats(chatList, limit)
+            val loadedCount = chats?.chatIds?.size ?: 0
+            val targetReached = loadedCount >= limit
+            Log.d(
+                TAG,
+                "LoadChats snapshot: source=$source folder=$folderId requestId=$requestId list=${chatList.debugName()} pass=${pass + 1} requested=$limit loadedIds=$loadedCount activePositions=${cache.activeListPositions.size}"
+            )
+
+            if (loadedCount > 0) {
+                backfillMissingChatsFromSnapshot(
+                    source = source,
+                    folderId = folderId,
+                    requestId = requestId,
+                    chatList = chatList,
+                    chatIds = chats?.chatIds ?: longArrayOf()
+                )
+            }
+
+            if (targetReached || lastResult.exceptionOrNull()?.asTdErrorCode() == 404) {
+                return lastResult
+            }
+
+            lastResult = chatRemoteSource.loadChats(chatList, limit)
+            if (!lastResult.isSuccess && lastResult.exceptionOrNull()?.asTdErrorCode() != 404) {
+                return lastResult
+            }
+        }
+
+        return lastResult
+    }
+
+    private suspend fun backfillMissingChatsFromSnapshot(
+        source: String,
+        folderId: Int,
+        requestId: Long,
+        chatList: TdApi.ChatList,
+        chatIds: LongArray
+    ) {
+        if (chatIds.isEmpty()) return
+
+        val missingIds = chatIds.filter { chatId ->
+            val activePos = cache.activeListPositions[chatId]
+            val cachedChat = cache.getChat(chatId)
+            activePos == null || cachedChat == null || cachedChat.positions.none { pos ->
+                pos.order != 0L && listManager.isSameChatList(pos.list, chatList)
+            }
+        }
+
+        if (missingIds.isEmpty()) return
+
+        Log.w(
+            TAG,
+            "Backfill missing chats: source=$source folder=$folderId requestId=$requestId list=${chatList.debugName()} missing=${missingIds.size} sample=${
+                missingIds.take(
+                    10
+                )
+            }"
+        )
+
+        var recovered = 0
+        missingIds.forEach { chatId ->
+            val cachedChat = cache.getChat(chatId)
+            if (cachedChat != null && cachedChat.positions.any { pos ->
+                    pos.order != 0L && listManager.isSameChatList(pos.list, chatList)
+                }
+            ) {
+                if (isRequestActive(folderId, requestId)) {
+                    listManager.updateActiveListPositions(chatId, cachedChat.positions, chatList)
+                }
+                recovered += 1
+                return@forEach
+            }
+
+            val fetchedChat = remoteDataSource.getChat(chatId) ?: return@forEach
+            val existingPositions = cache.getChat(fetchedChat.id)?.positions ?: emptyArray()
+            fetchedChat.positions = listManager.sanitizePositionsForActiveList(
+                chatId = fetchedChat.id,
+                currentPositions = existingPositions,
+                incomingPositions = fetchedChat.positions,
+                activeChatList = chatList,
+                source = "Backfill:$source"
+            )
+            cache.putChat(fetchedChat)
+            persistenceManager.scheduleChatSave(fetchedChat.id)
+            if (isRequestActive(folderId, requestId)) {
+                listManager.updateActiveListPositions(
+                    fetchedChat.id,
+                    fetchedChat.positions,
+                    chatList
+                )
+                recovered += 1
+            }
+        }
+
+        if (recovered > 0 && isRequestActive(folderId, requestId)) {
+            Log.i(
+                TAG,
+                "Backfill recovered chats: source=$source folder=$folderId requestId=$requestId list=${chatList.debugName()} recovered=$recovered activePositions=${cache.activeListPositions.size}"
+            )
+            triggerUpdate()
+        }
+    }
+
+    private fun Throwable.asTdErrorCode(): Int? = (this as? TdLibException)?.error?.code
+
+    private fun logLoadChatsResult(
+        source: String,
+        folderId: Int,
+        requestId: Long,
+        chatList: TdApi.ChatList,
+        limit: Int,
+        result: Result<Unit>
+    ) {
+        result.onSuccess {
+            Log.i(
+                TAG,
+                "LoadChats success: source=$source folder=$folderId requestId=$requestId list=${chatList.debugName()} limit=$limit rendered=${_chatListFlow.value.size} activePositions=${cache.activeListPositions.size}"
+            )
+        }.onFailure { error ->
+            val tdError = (error as? TdLibException)?.error
+            if (tdError?.code == 404) {
+                Log.i(
+                    TAG,
+                    "LoadChats reached end: source=$source folder=$folderId requestId=$requestId list=${chatList.debugName()} limit=$limit rendered=${_chatListFlow.value.size} activePositions=${cache.activeListPositions.size} message=${tdError.message}"
+                )
+            } else {
+                Log.e(
+                    TAG,
+                    "LoadChats failed: source=$source folder=$folderId requestId=$requestId list=${chatList.debugName()} limit=$limit rendered=${_chatListFlow.value.size} activePositions=${cache.activeListPositions.size}",
+                    error
+                )
+                scheduleRecoveryIfNeeded("load_failed:$source:$folderId", force = true)
+            }
+        }
+    }
+
+    private fun scheduleRecoveryIfNeeded(reason: String, force: Boolean = false) {
+        scope.launch(dispatchers.io) {
+            if (!cacheHydrated.isCompleted) {
+                cacheHydrated.await()
+            }
+            val now = System.currentTimeMillis()
+            if (!force && now - lastRecoveryAttemptAtMs < RECOVERY_COOLDOWN_MS) return@launch
+
+            val rendered = _chatListFlow.value.size
+            val activePositions = cache.activeListPositions.size
+            val cachedChats = cache.allChats.size
+            val hasRecoverableState = activeRequestId == 0L ||
+                    (rendered == 0 && (cachedChats > 0 || activePositions > 0)) ||
+                    (rendered < MIN_EXPECTED_RENDERED_CHATS &&
+                            currentLimit <= initialChatListLimit &&
+                            cachedChats > rendered + MIN_EXPECTED_RENDERED_CHATS)
+
+            if (!force && !hasRecoverableState) return@launch
+
+            lastRecoveryAttemptAtMs = now
+            Log.w(
+                TAG,
+                "Recovery trigger: reason=$reason rendered=$rendered activePositions=$activePositions cachedChats=$cachedChats currentLimit=$currentLimit activeRequestId=$activeRequestId list=${activeChatList.debugName()}"
+            )
+
+            if (activeRequestId == 0L) {
+                selectFolder(activeFolderId)
+                return@launch
+            }
+
+            refresh()
+            delay(RECOVERY_POST_REFRESH_DELAY_MS)
+
+            val afterRendered = _chatListFlow.value.size
+            val afterActivePositions = cache.activeListPositions.size
+            val stillLooksIncomplete = afterRendered == 0 ||
+                    (afterRendered < MIN_EXPECTED_RENDERED_CHATS &&
+                            afterActivePositions <= afterRendered &&
+                            currentLimit < maxChatListLimit)
+
+            if (!_isLoadingFlow.value && stillLooksIncomplete) {
+                Log.w(
+                    TAG,
+                    "Recovery loadNextChunk: reason=$reason rendered=$afterRendered activePositions=$afterActivePositions currentLimit=$currentLimit"
+                )
+                loadNextChunk(RECOVERY_LOAD_CHUNK)
+            }
+        }
+    }
+
+    private fun TdApi.ChatList.debugName(): String = when (this) {
+        is TdApi.ChatListMain -> "main"
+        is TdApi.ChatListArchive -> "archive"
+        is TdApi.ChatListFolder -> "folder:$chatFolderId"
+        else -> javaClass.simpleName
+    }
+
     companion object {
         private const val TAG = "ChatsListRepository"
         private const val REBUILD_THROTTLE_MS = 250L
         private const val MODEL_CACHE_SIZE = 256
+        private const val RECOVERY_COOLDOWN_MS = 10_000L
+        private const val RECOVERY_POST_REFRESH_DELAY_MS = 1_500L
+        private const val RECOVERY_LOAD_CHUNK = 200
+        private const val MIN_EXPECTED_RENDERED_CHATS = 20
+        private const val LOAD_CHATS_STABILIZATION_PASSES = 4
+        private const val INITIAL_CACHE_HYDRATION_LIMIT = 3000
     }
 }

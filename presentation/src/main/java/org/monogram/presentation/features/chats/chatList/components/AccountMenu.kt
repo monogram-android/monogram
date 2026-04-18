@@ -1,16 +1,11 @@
 package org.monogram.presentation.features.chats.chatList.components
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -31,7 +26,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -42,16 +36,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SystemUpdate
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -66,8 +58,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -107,20 +99,17 @@ fun AccountMenu(
     onDismiss: () -> Unit,
     onSavedMessagesClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onAddAccountClick: () -> Unit,
     onHelpClick: () -> Unit,
     onUpdateClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onBotClick: (AttachMenuBotModel) -> Unit = {}
 ) {
-    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
-    val addAccountNotImplemented = stringResource(R.string.not_implemented)
+    val menuIconColor = MaterialTheme.colorScheme.primary
 
     var isVisible by remember { mutableStateOf(false) }
-    var isExpanded by remember { mutableStateOf(false) }
     var isPhoneVisible by remember { mutableStateOf(false) }
 
     val offsetY = remember { Animatable(0f) }
@@ -299,48 +288,17 @@ fun AccountMenu(
                             )
                         }
 
-                        MenuHeader(onDismiss = { animateDismiss() })
+                        MenuHeader(
+                            iconColor = menuIconColor,
+                            onDismiss = { animateDismiss() }
+                        )
 
                         Column(modifier = Modifier.padding(horizontal = 12.dp)) {
                             ActiveAccountCard(
                                 user = user,
-                                isExpanded = isExpanded,
-                                onExpandToggle = {
-                                    isExpanded = !isExpanded
-                                    isPhoneVisible = isExpanded
-                                },
                                 isPhoneVisible = isPhoneVisible,
                                 onPhoneToggle = { isPhoneVisible = !isPhoneVisible }
                             )
-
-                            AnimatedVisibility(
-                                visible = isExpanded,
-                                enter = expandVertically(
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                        stiffness = Spring.StiffnessMedium
-                                    )
-                                ) + fadeIn(),
-                                exit = shrinkVertically() + fadeOut()
-                            ) {
-                                Column(modifier = Modifier.padding(top = 8.dp)) {
-                                    SettingsItem(
-                                        icon = Icons.Rounded.Add,
-                                        iconBackgroundColor = MaterialTheme.colorScheme.primary,
-                                        title = stringResource(R.string.action_add_account),
-                                        subtitle = stringResource(R.string.add_account_subtitle),
-                                        position = ItemPosition.STANDALONE,
-                                        onClick = {
-                                            Toast.makeText(
-                                                context,
-                                                addAccountNotImplemented,
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                            onAddAccountClick()
-                                        }
-                                    )
-                                }
-                            }
 
                             Spacer(modifier = Modifier.height(16.dp))
 
@@ -350,7 +308,7 @@ fun AccountMenu(
                             sideMenuBots.forEachIndexed { index, bot ->
                                 SettingsItem(
                                     icon = bot.icon!!.icon!!,
-                                    iconBackgroundColor = MaterialTheme.colorScheme.tertiary,
+                                    iconBackgroundColor = menuIconColor,
                                     title = bot.name,
                                     position = if (index == 0) ItemPosition.TOP else ItemPosition.MIDDLE,
                                     onClick = {
@@ -362,7 +320,7 @@ fun AccountMenu(
 
                             SettingsItem(
                                 icon = Icons.Rounded.Person,
-                                iconBackgroundColor = MaterialTheme.colorScheme.primary,
+                                iconBackgroundColor = menuIconColor,
                                 title = stringResource(R.string.menu_my_profile),
                                 subtitle = stringResource(R.string.menu_my_profile_subtitle),
                                 position = if (sideMenuBots.isEmpty()) ItemPosition.TOP else ItemPosition.MIDDLE,
@@ -374,7 +332,7 @@ fun AccountMenu(
 
                             SettingsItem(
                                 icon = Icons.Outlined.BookmarkBorder,
-                                iconBackgroundColor = MaterialTheme.colorScheme.primary,
+                                iconBackgroundColor = menuIconColor,
                                 title = stringResource(R.string.menu_saved_messages),
                                 subtitle = stringResource(R.string.menu_saved_messages_subtitle),
                                 position = ItemPosition.MIDDLE,
@@ -386,7 +344,7 @@ fun AccountMenu(
 
                             SettingsItem(
                                 icon = Icons.Rounded.Settings,
-                                iconBackgroundColor = MaterialTheme.colorScheme.secondary,
+                                iconBackgroundColor = menuIconColor,
                                 title = stringResource(R.string.menu_settings),
                                 subtitle = stringResource(R.string.menu_settings_subtitle),
                                 position = ItemPosition.MIDDLE,
@@ -399,7 +357,7 @@ fun AccountMenu(
                             if (updateState is UpdateState.UpdateAvailable || updateState is UpdateState.ReadyToInstall || updateState is UpdateState.Downloading) {
                                 SettingsItem(
                                     icon = Icons.Rounded.SystemUpdate,
-                                    iconBackgroundColor = MaterialTheme.colorScheme.error,
+                                    iconBackgroundColor = menuIconColor,
                                     title = stringResource(R.string.menu_update_available),
                                     subtitle = when (updateState) {
                                         is UpdateState.UpdateAvailable -> stringResource(
@@ -439,7 +397,7 @@ fun AccountMenu(
 
                             SettingsItem(
                                 icon = Icons.AutoMirrored.Outlined.HelpOutline,
-                                iconBackgroundColor = MaterialTheme.colorScheme.tertiary,
+                                iconBackgroundColor = menuIconColor,
                                 title = stringResource(R.string.menu_help_feedback),
                                 subtitle = stringResource(R.string.menu_help_feedback_subtitle),
                                 position = ItemPosition.BOTTOM,
@@ -487,7 +445,10 @@ fun AccountMenu(
 }
 
 @Composable
-private fun MenuHeader(onDismiss: () -> Unit) {
+private fun MenuHeader(
+    iconColor: Color,
+    onDismiss: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -505,14 +466,14 @@ private fun MenuHeader(onDismiss: () -> Unit) {
         IconButton(
             onClick = onDismiss,
             modifier = Modifier.background(
-                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                color = iconColor.copy(alpha = 0.15f),
                 shape = CircleShape
             )
         ) {
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = stringResource(R.string.cancel_button),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = iconColor
             )
         }
     }
@@ -522,25 +483,9 @@ private fun MenuHeader(onDismiss: () -> Unit) {
 @Composable
 private fun ActiveAccountCard(
     user: UserModel?,
-    isExpanded: Boolean,
-    onExpandToggle: () -> Unit,
     isPhoneVisible: Boolean,
     onPhoneToggle: () -> Unit
 ) {
-    val rotation by animateFloatAsState(
-        targetValue = if (isExpanded) 180f else 0f,
-        label = "rotation",
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        )
-    )
-
-    val containerColor = if (isExpanded)
-        MaterialTheme.colorScheme.surfaceContainerHighest
-    else
-        MaterialTheme.colorScheme.surfaceContainer
-
     val haptic = LocalHapticFeedback.current
 
     Surface(
@@ -548,15 +493,14 @@ private fun ActiveAccountCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .combinedClickable(
-                onClick = onExpandToggle,
+                onClick = onPhoneToggle,
                 onLongClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onPhoneToggle()
                 }
             ),
         shape = RoundedCornerShape(20.dp),
-        color = containerColor,
-        tonalElevation = if (isExpanded) 2.dp else 0.dp
+        color = MaterialTheme.colorScheme.surfaceContainer
     ) {
         Row(
             modifier = Modifier
@@ -604,25 +548,6 @@ private fun ActiveAccountCard(
                     ) {
                         onPhoneToggle()
                     }
-                )
-            }
-
-            IconButton(
-                onClick = onExpandToggle,
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                        shape = CircleShape
-                    )
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.ExpandMore,
-                    contentDescription = stringResource(R.string.cd_show_accounts),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .size(20.dp)
-                        .rotate(rotation)
                 )
             }
         }

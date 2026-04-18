@@ -13,8 +13,14 @@ class TdChatRemoteSource(
     private val connectivityManager: ConnectivityManager
 ) : ChatRemoteSource {
 
-    override suspend fun loadChats(chatList: TdApi.ChatList, limit: Int) {
-        coRunCatching { gateway.execute(TdApi.LoadChats(chatList, limit)) }
+    override suspend fun loadChats(chatList: TdApi.ChatList, limit: Int): Result<Unit> =
+        coRunCatching {
+            gateway.execute(TdApi.LoadChats(chatList, limit))
+            Unit
+        }
+
+    override suspend fun getChats(chatList: TdApi.ChatList, limit: Int): TdApi.Chats? {
+        return coRunCatching { gateway.execute(TdApi.GetChats(chatList, limit)) }.getOrNull()
     }
 
     override suspend fun searchChats(query: String, limit: Int): TdApi.Chats? {
@@ -174,6 +180,37 @@ class TdChatRemoteSource(
     override suspend fun toggleChatIsMarkedAsUnread(chatId: Long, isMarkedAsUnread: Boolean) {
         coRunCatching {
             gateway.execute(TdApi.ToggleChatIsMarkedAsUnread(chatId, isMarkedAsUnread))
+        }
+    }
+
+    override suspend fun markChatAsRead(chatId: Long) {
+        coRunCatching {
+            val chat = gateway.execute(TdApi.GetChat(chatId))
+
+            if (chat.isMarkedAsUnread) {
+                gateway.execute(TdApi.ToggleChatIsMarkedAsUnread(chatId, false))
+            }
+
+            if (chat.unreadMentionCount > 0) {
+                gateway.execute(TdApi.ReadAllChatMentions(chatId))
+            }
+
+            if (chat.unreadReactionCount > 0) {
+                gateway.execute(TdApi.ReadAllChatReactions(chatId))
+            }
+
+            if (chat.unreadCount > 0) {
+                chat.lastMessage?.let { lastMessage ->
+                    gateway.execute(
+                        TdApi.ViewMessages(
+                            chatId,
+                            longArrayOf(lastMessage.id),
+                            null,
+                            true
+                        )
+                    )
+                }
+            }
         }
     }
 

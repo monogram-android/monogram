@@ -4,7 +4,8 @@ import org.drinkless.tdlib.TdApi
 import org.monogram.domain.models.ChatPermissionsModel
 
 interface ChatRemoteSource {
-    suspend fun loadChats(chatList: TdApi.ChatList, limit: Int)
+    suspend fun loadChats(chatList: TdApi.ChatList, limit: Int): Result<Unit>
+    suspend fun getChats(chatList: TdApi.ChatList, limit: Int): TdApi.Chats?
     suspend fun searchChats(query: String, limit: Int): TdApi.Chats?
     suspend fun searchPublicChats(query: String): TdApi.Chats?
     suspend fun searchMessages(query: String, offset: String, limit: Int): TdApi.FoundMessages?
@@ -26,6 +27,7 @@ interface ChatRemoteSource {
     suspend fun archiveChat(chatId: Long, archive: Boolean)
     suspend fun toggleChatIsPinned(chatList: TdApi.ChatList, chatId: Long, isPinned: Boolean)
     suspend fun toggleChatIsMarkedAsUnread(chatId: Long, isMarkedAsUnread: Boolean)
+    suspend fun markChatAsRead(chatId: Long)
     suspend fun deleteChat(chatId: Long)
     suspend fun leaveChat(chatId: Long)
     suspend fun clearChatHistory(chatId: Long, revoke: Boolean)

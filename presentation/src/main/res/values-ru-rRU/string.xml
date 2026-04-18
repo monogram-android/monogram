@@ -1168,22 +1168,22 @@
     <string name="notification_channel_other_description">Прочие уведомления</string>
 
     <!-- Chat Mapper / Media Types -->
-    <string name="chat_mapper_photo">📷 Фото</string>
-    <string name="chat_mapper_video">📹 Видео</string>
-    <string name="chat_mapper_voice">🎤 Голосовое сообщение</string>
-    <string name="chat_mapper_sticker">🧩 Стикер</string>
-    <string name="chat_mapper_document">📎 Документ</string>
-    <string name="chat_mapper_audio">🎵 Аудио</string>
+    <string name="chat_mapper_photo">Фото</string>
+    <string name="chat_mapper_video">Видео</string>
+    <string name="chat_mapper_voice">Голосовое сообщение</string>
+    <string name="chat_mapper_sticker">Стикер</string>
+    <string name="chat_mapper_document">Документ</string>
+    <string name="chat_mapper_audio">Аудио</string>
     <string name="chat_mapper_gif">GIF</string>
-    <string name="chat_mapper_video_note">🎬 Видеосообщение</string>
-    <string name="chat_mapper_contact">👤 Контакт</string>
-    <string name="chat_mapper_poll">📊 Опрос</string>
-    <string name="chat_mapper_location">📍 Геолокация</string>
-    <string name="chat_mapper_call">📞 Звонок</string>
-    <string name="chat_mapper_game">🎮 Игра</string>
-    <string name="chat_mapper_invoice">💳 Счёт</string>
-    <string name="chat_mapper_story">📚 История</string>
-    <string name="chat_mapper_pinned">📌 Закреплённое сообщение</string>
+    <string name="chat_mapper_video_note">Видеосообщение</string>
+    <string name="chat_mapper_contact">Контакт</string>
+    <string name="chat_mapper_poll">Опрос</string>
+    <string name="chat_mapper_location">Геолокация</string>
+    <string name="chat_mapper_call">Звонок</string>
+    <string name="chat_mapper_game">Игра</string>
+    <string name="chat_mapper_invoice">Счёт</string>
+    <string name="chat_mapper_story">История</string>
+    <string name="chat_mapper_pinned">Закреплённое сообщение</string>
     <string name="chat_mapper_message">Сообщение</string>
     <string name="chat_mapper_bot">Бот</string>
     <string name="chat_mapper_online">В сети</string>
@@ -1476,7 +1476,20 @@
     <string name="settings_video_quality">Качество видео</string>
     <string name="settings_quality_auto">Авто</string>
     <string name="settings_quality_high_res">Высокое</string>
+    <string name="settings_quality_medium">Среднее</string>
+    <string name="settings_quality_low">Низкое</string>
     <string name="settings_speed_normal">Обычная</string>
+    <string name="quality_status_recovering">Применяем качество…</string>
+    <string name="quality_status_downgraded">YouTube понизил качество</string>
+    <string name="quality_status_unavailable_at_request">Запрошенное качество недоступно</string>
+    <string name="quality_status_error_video_not_found">Видео недоступно</string>
+    <string name="quality_status_error_embedding_forbidden">Воспроизведение в приложении ограничено</string>
+    <string name="quality_status_error_html5">Ошибка воспроизведения (HTML5/WebView)</string>
+    <string name="quality_status_error_unknown">Ошибка воспроизведения (%1$d)</string>
+    <string name="action_retry_stream">Повторить поток</string>
+    <string name="action_switch_to_auto">Переключить на Авто</string>
+    <string name="action_use_low_quality">Использовать низкое качество</string>
+    <string name="action_open_in_browser">Открыть в браузере</string>
 
     <!-- Selection: Picture-in-Picture -->
     <string name="pip_play">Воспроизвести</string>
@@ -1722,6 +1735,8 @@
     <string name="reply_content_video_message">Видеосообщение</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">Сообщение</string>
+    <string name="message_expired_photo">Фото недоступно</string>
+    <string name="message_expired_video">Видео недоступно</string>
 
     <!-- Chat Folders -->
     <string name="folders_title">Папки с чатами</string>

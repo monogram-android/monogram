@@ -32,15 +32,8 @@ class ChatListManager(
             compareByDescending<Pair<Long, TdApi.ChatPosition>> { it.second.order }
                 .thenByDescending { it.first }
         )
-        val otherLastMessageDates = HashMap<Long, Long>(otherEntries.size)
-        otherEntries.forEach { (chatId, _) ->
-            otherLastMessageDates[chatId] = cache.allChats[chatId]?.lastMessage?.date?.toLong() ?: 0L
-        }
         otherEntries.sortWith(
-            compareByDescending<Pair<Long, TdApi.ChatPosition>> { (chatId, _) ->
-                otherLastMessageDates[chatId] ?: 0L
-            }
-                .thenByDescending { it.second.order }
+            compareByDescending<Pair<Long, TdApi.ChatPosition>> { it.second.order }
                 .thenByDescending { it.first }
         )
 
@@ -188,16 +181,107 @@ class ChatListManager(
     ): Boolean {
         val newPos = positions.find { isSameChatList(it.list, activeChatList) }
         return if (newPos != null && newPos.order != 0L) {
-            val oldPos = cache.activeListPositions.put(chatId, newPos)
-            if (newPos.isPinned) {
-                cache.protectedPinnedChatIds.add(chatId)
+            val oldPos = cache.activeListPositions[chatId]
+            if (oldPos != null && shouldPreserveProtectedPinned(
+                    chatId,
+                    oldPos,
+                    newPos,
+                    activeChatList,
+                    "bulk_active"
+                )
+            ) {
+                false
             } else {
-                cache.protectedPinnedChatIds.remove(chatId)
+                val previous = cache.activeListPositions.put(chatId, newPos)
+                if (newPos.isPinned) {
+                    cache.protectedPinnedChatIds.add(chatId)
+                } else {
+                    cache.protectedPinnedChatIds.remove(chatId)
+                }
+                previous == null || previous.order != newPos.order || previous.isPinned != newPos.isPinned
             }
-            oldPos == null || oldPos.order != newPos.order || oldPos.isPinned != newPos.isPinned
         } else {
+            val oldPos = cache.activeListPositions[chatId]
+            if (oldPos?.isPinned == true && cache.protectedPinnedChatIds.contains(chatId)) {
+                Log.w(
+                    tag,
+                    "ignore active removal from bulk chatId=$chatId source=bulk_active oldOrder=${oldPos.order} oldPinned=${oldPos.isPinned} protected=true authoritative=${
+                        cache.authoritativeActiveListChatIds.contains(
+                            chatId
+                        )
+                    }"
+                )
+            }
             false
         }
+    }
+
+    fun sanitizePositionsForActiveList(
+        chatId: Long,
+        currentPositions: Array<TdApi.ChatPosition>,
+        incomingPositions: Array<TdApi.ChatPosition>,
+        activeChatList: TdApi.ChatList,
+        source: String
+    ): Array<TdApi.ChatPosition> {
+        if (incomingPositions.isEmpty()) return currentPositions
+
+        val mergedPositions = incomingPositions.toMutableList()
+        currentPositions.forEach { oldPos ->
+            if (oldPos.order == 0L) return@forEach
+
+            val existingIndex =
+                mergedPositions.indexOfFirst { isSameChatList(it.list, oldPos.list) }
+            if (existingIndex == -1) {
+                mergedPositions.add(oldPos)
+                return@forEach
+            }
+
+            val incomingPos = mergedPositions[existingIndex]
+            if (shouldPreserveProtectedPinned(
+                    chatId,
+                    oldPos,
+                    incomingPos,
+                    activeChatList,
+                    source
+                )
+            ) {
+                mergedPositions[existingIndex] = oldPos
+            }
+        }
+
+        return mergedPositions.toTypedArray()
+    }
+
+    private fun shouldPreserveProtectedPinned(
+        chatId: Long,
+        oldPos: TdApi.ChatPosition,
+        newPos: TdApi.ChatPosition,
+        activeChatList: TdApi.ChatList,
+        source: String
+    ): Boolean {
+        if (!isSameChatList(oldPos.list, activeChatList) || !isSameChatList(
+                newPos.list,
+                activeChatList
+            )
+        ) {
+            return false
+        }
+        if (oldPos.order == 0L || !oldPos.isPinned) return false
+        if (!cache.protectedPinnedChatIds.contains(chatId)) return false
+
+        val pinnedDowngraded = !newPos.isPinned
+        val orderCleared = newPos.order == 0L
+        if (!pinnedDowngraded && !orderCleared) return false
+
+        Log.w(
+            tag,
+            "preserve protected pinned chatId=$chatId source=$source oldOrder=${oldPos.order} newOrder=${newPos.order} oldPinned=${oldPos.isPinned} newPinned=${newPos.isPinned} protected=true authoritative=${
+                cache.authoritativeActiveListChatIds.contains(
+                    chatId
+                )
+            }"
+        )
+        return true
     }
 
     fun isSameChatList(a: TdApi.ChatList?, b: TdApi.ChatList?): Boolean {

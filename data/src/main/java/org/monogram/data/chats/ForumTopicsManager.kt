@@ -57,7 +57,7 @@ class ForumTopicsManager(
         ) ?: return emptyList()
 
         val models = result.topics.map { topic ->
-            val (lastMessageText, entities, time) = chatMapper.formatMessageInfo(topic.lastMessage, null) { userId ->
+            val preview = chatMapper.formatMessageInfo(topic.lastMessage) { userId ->
                 cache.usersCache[userId]?.firstName ?: run {
                     fetchUser(userId)
                     null
@@ -114,9 +114,9 @@ class ForumTopicsManager(
                 isClosed = topic.info.isClosed,
                 isPinned = topic.isPinned,
                 unreadCount = topic.unreadCount,
-                lastMessageText = lastMessageText,
-                lastMessageEntities = entities,
-                lastMessageTime = time,
+                lastMessageText = preview.text,
+                lastMessageEntities = preview.entities,
+                lastMessageTime = preview.time,
                 order = topic.order,
                 lastMessageSenderName = senderName,
                 lastMessageSenderAvatar = senderAvatar
@@ -125,7 +125,7 @@ class ForumTopicsManager(
 
         scope.launch(dispatchers.io) {
             chatLocalDataSource.insertTopics(result.topics.map { topic ->
-                val (text, _, time) = chatMapper.formatMessageInfo(topic.lastMessage, null) { null }
+                val preview = chatMapper.formatMessageInfo(topic.lastMessage) { null }
                 TopicEntity(
                     chatId = chatId,
                     id = topic.info.forumTopicId,
@@ -135,8 +135,8 @@ class ForumTopicsManager(
                     isClosed = topic.info.isClosed,
                     isPinned = topic.isPinned,
                     unreadCount = topic.unreadCount,
-                    lastMessageText = text,
-                    lastMessageTime = time,
+                    lastMessageText = preview.text,
+                    lastMessageTime = preview.time,
                     order = topic.order,
                     lastMessageSenderName = null
                 )

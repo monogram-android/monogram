@@ -62,13 +62,8 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                 existing.type = chat.type
                 existing.lastMessage = chat.lastMessage
 
-                val newPositions = chat.positions.toMutableList()
-                existing.positions.forEach { oldPos ->
-                    if (newPositions.none { isSameChatList(it.list, oldPos.list) }) {
-                        newPositions.add(oldPos)
-                    }
-                }
-                existing.positions = newPositions.toTypedArray()
+                existing.positions =
+                    mergePositionsPreservingStronger(existing.positions, chat.positions)
                 
                 existing.unreadCount = chat.unreadCount
                 existing.unreadMentionCount = chat.unreadMentionCount
@@ -103,6 +98,35 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
             allChats[chat.id] = chat
             indexChatByType(chat)
         }
+    }
+
+    private fun mergePositionsPreservingStronger(
+        existingPositions: Array<TdApi.ChatPosition>,
+        incomingPositions: Array<TdApi.ChatPosition>
+    ): Array<TdApi.ChatPosition> {
+        val merged = incomingPositions.toMutableList()
+        existingPositions.forEach { oldPos ->
+            val sameListIndex = merged.indexOfFirst { isSameChatList(it.list, oldPos.list) }
+            if (sameListIndex == -1) {
+                merged.add(oldPos)
+            } else {
+                val incomingPos = merged[sameListIndex]
+                if (shouldPreferExistingPosition(oldPos, incomingPos)) {
+                    merged[sameListIndex] = oldPos
+                }
+            }
+        }
+        return merged.toTypedArray()
+    }
+
+    private fun shouldPreferExistingPosition(
+        existing: TdApi.ChatPosition,
+        incoming: TdApi.ChatPosition
+    ): Boolean {
+        if (existing.order == 0L) return false
+        if (incoming.order == 0L) return true
+        if (existing.isPinned && !incoming.isPinned) return true
+        return existing.order > incoming.order
     }
 
     private fun indexChatByType(chat: TdApi.Chat) {
@@ -221,6 +245,14 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
     }
 
     override fun getMessage(chatId: Long, messageId: Long): TdApi.Message? = messages[chatId]?.get(messageId)
+    fun getMessages(chatId: Long): List<TdApi.Message> =
+        messages[chatId]?.values?.toList().orEmpty()
+
+    fun getAlbumMessages(chatId: Long, mediaAlbumId: Long): List<TdApi.Message> {
+        if (mediaAlbumId == 0L) return emptyList()
+        return getMessages(chatId).filter { it.mediaAlbumId == mediaAlbumId }
+    }
+
     override fun putMessage(message: TdApi.Message) {
         val chatMessages = messages.getOrPut(message.chatId) { ConcurrentHashMap() }
         val existing = chatMessages[message.id]
@@ -352,15 +384,83 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                         selfDestructType = null
                     }
 
+                    "gif" -> TdApi.MessageAnimation().apply {
+                        animation = TdApi.Animation()
+                        caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
+                        showCaptionAboveMedia = false
+                        hasSpoiler = false
+                    }
+
                     "voice" -> TdApi.MessageVoiceNote().apply {
                         voiceNote = TdApi.VoiceNote()
                         caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
                         isListened = false
                     }
 
+                    "video_note" -> TdApi.MessageVideoNote().apply {
+                        videoNote = TdApi.VideoNote()
+                        isViewed = false
+                    }
+
                     "sticker" -> TdApi.MessageSticker().apply {
                         sticker = TdApi.Sticker()
                         isPremium = false
+                    }
+
+                    "document" -> TdApi.MessageDocument().apply {
+                        document = TdApi.Document()
+                        caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
+                    }
+
+                    "audio" -> TdApi.MessageAudio().apply {
+                        audio = TdApi.Audio()
+                        caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
+                    }
+
+                    "contact" -> TdApi.MessageContact().apply {
+                        contact = TdApi.Contact()
+                        val parts = entity.lastMessageText.split(" ", limit = 2)
+                        contact.firstName = parts.firstOrNull().orEmpty()
+                        contact.lastName = parts.getOrNull(1).orEmpty()
+                    }
+
+                    "poll" -> TdApi.MessagePoll().apply {
+                        poll = TdApi.Poll().apply {
+                            question = TdApi.FormattedText(entity.lastMessageText, emptyArray())
+                            options = emptyArray()
+                        }
+                    }
+
+                    "location" -> TdApi.MessageLocation().apply {
+                        location = TdApi.Location()
+                    }
+
+                    "call" -> TdApi.MessageCall().apply {
+                        discardReason = null
+                        duration = 0
+                        isVideo = false
+                    }
+
+                    "game" -> TdApi.MessageGame().apply {
+                        game = TdApi.Game().apply {
+                            title = entity.lastMessageText
+                        }
+                    }
+
+                    "invoice" -> TdApi.MessageInvoice().apply {
+                        productInfo = TdApi.ProductInfo().apply {
+                            title = entity.lastMessageText
+                        }
+                    }
+
+                    "story" -> TdApi.MessageStory().apply {
+                        storyPosterChatId = 0L
+                        storyId = 0
+                        viaMention = false
+                    }
+
+                    "pinned" -> TdApi.MessagePinMessage().apply {
+                        messageId = 0L
                     }
 
                     else -> TdApi.MessageText()

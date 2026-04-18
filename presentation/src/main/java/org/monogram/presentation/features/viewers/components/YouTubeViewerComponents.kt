@@ -3,19 +3,78 @@
 package org.monogram.presentation.features.viewers.components
 
 import android.os.Build
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.*
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Forward
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ClosedCaption
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Forward10
+import androidx.compose.material.icons.rounded.HighQuality
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PictureInPicture
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.Replay10
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.ScreenRotation
+import androidx.compose.material.icons.rounded.SignalCellularAlt
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +86,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.monogram.presentation.R
+import org.monogram.presentation.features.stickers.ui.menu.MenuInfoRow
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.stickers.ui.menu.MenuToggleRow
 
@@ -120,7 +180,10 @@ fun YouTubePlayerControlsUI(
                         .size(84.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f))
-                        .clickable(interactionSource = interactionSource, indication = null) { onPlayPauseToggle() },
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null
+                        ) { onPlayPauseToggle() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -224,6 +287,54 @@ private enum class YouTubeSettingsScreen {
     MAIN, SPEED, QUALITY
 }
 
+private enum class YouTubeQualityPreset {
+    AUTO, HIGH, MEDIUM, LOW
+}
+
+private data class YouTubeQualityPresetOption(
+    val preset: YouTubeQualityPreset,
+    val mappedQuality: String
+)
+
+internal fun normalizeYouTubeQualityCode(quality: String): String {
+    return quality.trim().lowercase()
+}
+
+internal fun youtubeQualityRank(quality: String): Int {
+    return when (normalizeYouTubeQualityCode(quality)) {
+        "highres" -> 9
+        "hd4320" -> 8
+        "hd2880" -> 7
+        "hd2160" -> 6
+        "hd1440" -> 5
+        "hd1080" -> 4
+        "hd720" -> 3
+        "large" -> 2
+        "medium" -> 1
+        "small" -> 0
+        "tiny" -> -1
+        else -> Int.MIN_VALUE
+    }
+}
+
+internal fun baseQualityLabel(quality: String): String {
+    return when (normalizeYouTubeQualityCode(quality)) {
+        "hd4320" -> "4320p"
+        "hd2880" -> "2880p"
+        "hd2160" -> "2160p"
+        "hd1440" -> "1440p"
+        "hd1080" -> "1080p"
+        "hd720" -> "720p"
+        "large" -> "480p"
+        "medium" -> "360p"
+        "small" -> "240p"
+        "tiny" -> "144p"
+        "auto" -> "Auto"
+        "highres" -> "High"
+        else -> quality.ifBlank { "unknown" }
+    }
+}
+
 @Composable
 fun YouTubeSettingsMenu(
     playbackSpeed: Float,
@@ -232,6 +343,12 @@ fun YouTubeSettingsMenu(
     isCaptionsEnabled: Boolean = false,
     availableQualities: List<String> = emptyList(),
     currentQuality: String = "auto",
+    appliedQuality: String = "auto",
+    qualityStatusMessage: String? = null,
+    showRetryStream: Boolean = false,
+    showSwitchToAuto: Boolean = false,
+    showUseLowQuality: Boolean = false,
+    showOpenInBrowser: Boolean = false,
     onQualitySelected: (String) -> Unit = {},
     onSpeedSelected: (Float) -> Unit,
     onMuteToggle: () -> Unit,
@@ -243,7 +360,11 @@ fun YouTubeSettingsMenu(
     onCopyLinkWithTime: () -> Unit = {},
     onEnterPip: (() -> Unit)? = null,
     onCopyText: (() -> Unit)? = null,
-    onForward: () -> Unit = {}
+    onForward: () -> Unit = {},
+    onRetryStream: (() -> Unit)? = null,
+    onSwitchToAuto: (() -> Unit)? = null,
+    onUseLowQuality: (() -> Unit)? = null,
+    onOpenInBrowser: (() -> Unit)? = null
 ) {
     var currentScreen by remember { mutableStateOf(YouTubeSettingsScreen.MAIN) }
 
@@ -264,24 +385,54 @@ fun YouTubeSettingsMenu(
             when (screen) {
                 YouTubeSettingsScreen.MAIN -> {
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                        Text(
-                            text = stringResource(R.string.settings_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                        )
-
                         MenuOptionRow(
                             icon = Icons.Rounded.HighQuality,
                             title = stringResource(R.string.settings_quality),
-                            value = formatQualityLabel(currentQuality),
+                            value = buildCurrentQualityValue(
+                                currentQuality = currentQuality,
+                                appliedQuality = appliedQuality,
+                                availableQualities = availableQualities
+                            ),
                             onClick = { currentScreen = YouTubeSettingsScreen.QUALITY },
                             trailingIcon = Icons.AutoMirrored.Rounded.KeyboardArrowRight
                         )
+
+                        qualityStatusMessage?.let { status ->
+                            MenuInfoRow(
+                                icon = Icons.Rounded.Info,
+                                title = stringResource(R.string.settings_quality),
+                                value = status
+                            )
+                        }
+
+                        if (showRetryStream && onRetryStream != null) {
+                            MenuOptionRow(
+                                icon = Icons.Rounded.Refresh,
+                                title = stringResource(R.string.action_retry_stream),
+                                onClick = onRetryStream
+                            )
+                        }
+                        if (showSwitchToAuto && onSwitchToAuto != null) {
+                            MenuOptionRow(
+                                icon = Icons.Rounded.AutoAwesome,
+                                title = stringResource(R.string.action_switch_to_auto),
+                                onClick = onSwitchToAuto
+                            )
+                        }
+                        if (showUseLowQuality && onUseLowQuality != null) {
+                            MenuOptionRow(
+                                icon = Icons.Rounded.SignalCellularAlt,
+                                title = stringResource(R.string.action_use_low_quality),
+                                onClick = onUseLowQuality
+                            )
+                        }
+                        if (showOpenInBrowser && onOpenInBrowser != null) {
+                            MenuOptionRow(
+                                icon = Icons.AutoMirrored.Rounded.OpenInNew,
+                                title = stringResource(R.string.action_open_in_browser),
+                                onClick = onOpenInBrowser
+                            )
+                        }
 
                         MenuOptionRow(
                             icon = Icons.Rounded.Speed,
@@ -407,6 +558,14 @@ fun YouTubeSettingsMenu(
 
                 YouTubeSettingsScreen.QUALITY -> {
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        val presetOptions = remember(availableQualities) {
+                            buildQualityPresetOptions(availableQualities)
+                        }
+                        val currentPreset = resolveCurrentQualityPreset(
+                            currentQuality = currentQuality,
+                            availableQualities = availableQualities
+                        )
+
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -429,30 +588,36 @@ fun YouTubeSettingsMenu(
                         }
                         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
 
-                        val qualities = (listOf("auto") + availableQualities).distinct()
-                        qualities.forEach { quality ->
-                            val iconRes = getQualityIcon(quality)
+                        presetOptions.forEach { option ->
+                            val iconRes = getQualityPresetIcon(option.preset)
+                            val title = formatQualityPresetLabel(option.preset)
+                            val value = option.mappedQuality
+                                .takeIf { option.preset != YouTubeQualityPreset.AUTO }
+                                ?.let { formatQualityLabel(it) }
+
                             if (iconRes != null) {
                                 MenuOptionRow(
                                     iconRes = iconRes,
-                                    title = formatQualityLabel(quality),
+                                    title = title,
+                                    value = value,
                                     onClick = {
-                                        onQualitySelected(quality)
+                                        onQualitySelected(option.mappedQuality)
                                         currentScreen = YouTubeSettingsScreen.MAIN
                                     },
-                                    trailingIcon = if (currentQuality == quality) Icons.Rounded.Check else null,
-                                    iconTint = if (currentQuality == quality) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    trailingIcon = if (currentPreset == option.preset) Icons.Rounded.Check else null,
+                                    iconTint = if (currentPreset == option.preset) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                 )
                             } else {
                                 MenuOptionRow(
                                     icon = Icons.Rounded.HighQuality,
-                                    title = formatQualityLabel(quality),
+                                    title = title,
+                                    value = value,
                                     onClick = {
-                                        onQualitySelected(quality)
+                                        onQualitySelected(option.mappedQuality)
                                         currentScreen = YouTubeSettingsScreen.MAIN
                                     },
-                                    trailingIcon = if (currentQuality == quality) Icons.Rounded.Check else null,
-                                    iconTint = if (currentQuality == quality) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    trailingIcon = if (currentPreset == option.preset) Icons.Rounded.Check else null,
+                                    iconTint = if (currentPreset == option.preset) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -464,35 +629,96 @@ fun YouTubeSettingsMenu(
 }
 
 @Composable
-private fun formatQualityLabel(quality: String): String {
-    return when (quality.lowercase()) {
-        "hd4320" -> "4320p"
-        "hd2880" -> "2880p"
-        "hd2160" -> "2160p"
-        "hd1440" -> "1440p"
-        "hd1080" -> "1080p"
-        "hd720" -> "720p"
-        "large" -> "480p"
-        "medium" -> "360p"
-        "small" -> "240p"
-        "tiny" -> "144p"
-        "auto" -> stringResource(R.string.settings_quality_auto)
-        "highres" -> stringResource(R.string.settings_quality_high_res)
-        else -> quality.replaceFirstChar { it.uppercase() }
+private fun formatQualityPresetLabel(preset: YouTubeQualityPreset): String {
+    return when (preset) {
+        YouTubeQualityPreset.AUTO -> stringResource(R.string.settings_quality_auto)
+        YouTubeQualityPreset.HIGH -> stringResource(R.string.settings_quality_high_res)
+        YouTubeQualityPreset.MEDIUM -> stringResource(R.string.settings_quality_medium)
+        YouTubeQualityPreset.LOW -> stringResource(R.string.settings_quality_low)
     }
 }
 
-private fun getQualityIcon(quality: String): Int? {
-    return when (quality.lowercase()) {
-        "hd4320" -> R.drawable.ic_quality_8k
-        "hd2880" -> R.drawable.ic_quality_5k
-        "hd2160" -> R.drawable.ic_quality_4k
-        "hd1440" -> R.drawable.ic_quality_2k
-        "hd1080" -> R.drawable.ic_quality_full_hd
-        "hd720" -> R.drawable.ic_quality_hd
-        "large", "medium", "small", "tiny" -> R.drawable.ic_quality_sd
-        "auto" -> R.drawable.ic_quality_auto
-        "highres" -> R.drawable.ic_quality_high_res
-        else -> null
+private fun buildQualityPresetOptions(
+    availableQualities: List<String>
+): List<YouTubeQualityPresetOption> {
+    val normalized = availableQualities
+        .map(::normalizeYouTubeQualityCode)
+        .distinct()
+    val selectableQualities = normalized.filter { it == "large" || it == "medium" || it == "small" }
+
+    val options = mutableListOf(
+        YouTubeQualityPresetOption(YouTubeQualityPreset.AUTO, "auto")
+    )
+
+    if (selectableQualities.isEmpty()) {
+        return options
+    }
+
+    resolvePresetQuality(
+        selectableQualities = selectableQualities,
+        preferredOrder = listOf("large", "medium", "small")
+    )?.let { options += YouTubeQualityPresetOption(YouTubeQualityPreset.HIGH, it) }
+
+    resolvePresetQuality(
+        selectableQualities = selectableQualities,
+        preferredOrder = listOf("medium", "large", "small")
+    )?.let { options += YouTubeQualityPresetOption(YouTubeQualityPreset.MEDIUM, it) }
+
+    resolvePresetQuality(
+        selectableQualities = selectableQualities,
+        preferredOrder = listOf("small", "medium", "large")
+    )?.let { options += YouTubeQualityPresetOption(YouTubeQualityPreset.LOW, it) }
+
+    return options
+}
+
+private fun resolvePresetQuality(
+    selectableQualities: List<String>,
+    preferredOrder: List<String>
+): String? {
+    return preferredOrder.firstOrNull { it in selectableQualities }
+}
+
+@Composable
+private fun buildCurrentQualityValue(
+    currentQuality: String,
+    appliedQuality: String,
+    availableQualities: List<String>
+): String {
+    val preset = formatQualityPresetLabel(
+        resolveCurrentQualityPreset(
+            currentQuality = currentQuality,
+            availableQualities = availableQualities
+        )
+    )
+    val applied = formatQualityLabel(appliedQuality)
+    return "$preset • $applied"
+}
+
+private fun resolveCurrentQualityPreset(
+    currentQuality: String,
+    availableQualities: List<String>
+): YouTubeQualityPreset {
+    val presetOptions = buildQualityPresetOptions(availableQualities)
+    val normalizedCurrentQuality = normalizeYouTubeQualityCode(currentQuality)
+    return presetOptions.firstOrNull { normalizeYouTubeQualityCode(it.mappedQuality) == normalizedCurrentQuality }?.preset
+        ?: YouTubeQualityPreset.AUTO
+}
+
+@Composable
+internal fun formatQualityLabel(quality: String): String {
+    return when (normalizeYouTubeQualityCode(quality)) {
+        "auto" -> stringResource(R.string.settings_quality_auto)
+        "highres" -> stringResource(R.string.settings_quality_high_res)
+        else -> baseQualityLabel(quality)
+    }
+}
+
+private fun getQualityPresetIcon(preset: YouTubeQualityPreset): Int? {
+    return when (preset) {
+        YouTubeQualityPreset.AUTO -> R.drawable.ic_quality_auto
+        YouTubeQualityPreset.HIGH -> null
+        YouTubeQualityPreset.MEDIUM -> R.drawable.ic_quality_hd
+        YouTubeQualityPreset.LOW -> R.drawable.ic_quality_sd
     }
 }

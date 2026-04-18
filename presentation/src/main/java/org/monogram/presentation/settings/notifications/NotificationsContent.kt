@@ -47,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -74,10 +75,12 @@ import org.unifiedpush.android.connector.UnifiedPush
 
 @Composable
 fun NotificationsContent(component: NotificationsComponent) {
-    Children(stack = component.childStack) {
-        when (val child = it.instance) {
-            is NotificationsComponent.Child.Main -> NotificationsMainContent(component)
-            is NotificationsComponent.Child.Exceptions -> NotificationsExceptionsContent(component, child.scope)
+    Children(stack = component.childStack) { child ->
+        key(child.key) {
+            when (val instance = child.instance) {
+                is NotificationsComponent.Child.Main -> NotificationsMainContent(component)
+                is NotificationsComponent.Child.Exceptions -> NotificationsExceptionsContent(component, instance.scope)
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ package org.monogram.presentation.settings.privacy
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.presentation.settings.privacy.userSelection.UserSelectionContent
@@ -12,12 +13,14 @@ fun PrivacyContent(component: PrivacyComponent) {
 
     Children(
         stack = childStack
-    ) {
-        when (val child = it.instance) {
-            is PrivacyComponent.Child.ListChild -> PrivacyListContent(child.component)
-            is PrivacyComponent.Child.SettingChild -> PrivacySettingContent(child.component)
-            is PrivacyComponent.Child.BlockedUsersChild -> BlockedUsersContent(child.component)
-            is PrivacyComponent.Child.UserSelectionChild -> UserSelectionContent(child.component)
+    ) { child ->
+        key(child.key) {
+            when (val instance = child.instance) {
+                is PrivacyComponent.Child.ListChild -> PrivacyListContent(instance.component)
+                is PrivacyComponent.Child.SettingChild -> PrivacySettingContent(instance.component)
+                is PrivacyComponent.Child.BlockedUsersChild -> BlockedUsersContent(instance.component)
+                is PrivacyComponent.Child.UserSelectionChild -> UserSelectionContent(instance.component)
+            }
         }
     }
 }

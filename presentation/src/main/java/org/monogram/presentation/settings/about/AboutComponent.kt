@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.UpdateState
 import org.monogram.domain.repository.UpdateRepository
+import org.monogram.presentation.BuildConfig
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -30,6 +31,7 @@ class DefaultAboutComponent(
 ) : AboutComponent, AppComponentContext by context {
 
     private val scope = componentScope
+    private val isTelemtBuild = BuildConfig.ENABLE_TELEMT_DNS
 
     private val _tdLibVersion = MutableStateFlow("Loading...")
     override val tdLibVersion: StateFlow<String> = _tdLibVersion.asStateFlow()
@@ -51,6 +53,7 @@ class DefaultAboutComponent(
     }
 
     override fun checkForUpdates() {
+        if (isTelemtBuild) return
         scope.launch {
             updateRepository.checkForUpdates()
         }

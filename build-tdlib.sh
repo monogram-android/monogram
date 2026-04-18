@@ -46,9 +46,9 @@ build_variant() {
     local variant="$1"
     local repo_dir="$2"
     local repo_url="$3"
-    local copy_java="$4"
     local zip_path="$repo_dir/example/android/tdlib/tdlib.zip"
     local temp_dir="tdlib_temp_$variant"
+    local native_lib_dir=""
 
     ensure_repo "$repo_dir" "$repo_url"
 
@@ -70,16 +70,22 @@ build_variant() {
     rm -rf "$temp_dir"
     unzip -q "$zip_path" -d "$temp_dir"
 
+    if [ -d "$temp_dir/tdlib/lib" ]; then
+        native_lib_dir="$temp_dir/tdlib/lib"
+    elif [ -d "$temp_dir/tdlib/libs" ]; then
+        native_lib_dir="$temp_dir/tdlib/libs"
+    else
+        echo "Error: Native libraries directory not found in $zip_path."
+        exit 1
+    fi
+
     mkdir -p "data/src/$variant/jniLibs"
     rm -rf "data/src/$variant/jniLibs"/*
-    cp -r "$temp_dir/tdlib/lib/"* "data/src/$variant/jniLibs/"
+    cp -r "$native_lib_dir/"* "data/src/$variant/jniLibs/"
 
-    if [ "$copy_java" = "true" ]; then
-        mkdir -p data/src/main/java
-        cp -r "$temp_dir/tdlib/java/"* data/src/main/java/
-    else
-        echo "Skipping Java wrapper sync for $variant; keeping shared wrappers unchanged."
-    fi
+    mkdir -p "data/src/$variant/java"
+    rm -rf "data/src/$variant/java/org/drinkless/tdlib"
+    cp -r "$temp_dir/tdlib/java/"* "data/src/$variant/java/"
 
     rm -rf "$temp_dir"
     echo "Done! TDLib prebuilts copied to data/src/$variant/jniLibs"
@@ -87,13 +93,13 @@ build_variant() {
 
 case "$TARGET_SELECTION" in
     official)
-        build_variant "official" "td" "https://github.com/tdlib/td.git" "true"
+        build_variant "official" "td" "https://github.com/tdlib/td.git"
         ;;
     telemt)
-        build_variant "telemt" "td-telemt" "https://github.com/telemt/tdlib-obf.git" "false"
+        build_variant "telemt" "td-telemt" "https://github.com/telemt/tdlib-obf.git"
         ;;
     both)
-        build_variant "official" "td" "https://github.com/tdlib/td.git" "true"
-        build_variant "telemt" "td-telemt" "https://github.com/telemt/tdlib-obf.git" "false"
+        build_variant "official" "td" "https://github.com/tdlib/td.git"
+        build_variant "telemt" "td-telemt" "https://github.com/telemt/tdlib-obf.git"
         ;;
 esac

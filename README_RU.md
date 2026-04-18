@@ -169,6 +169,11 @@ sudo apt-get install build-essential git curl wget php perl gperf unzip zip defa
 - `./build-tdlib.sh telemt`
 - `./build-tdlib.sh both`
 
+Исходные репозитории, которые использует скрипт:
+
+- `official`: [tdlib/td](https://github.com/tdlib/td)
+- `telemt`: [telemt/tdlib-obf](https://github.com/telemt/tdlib-obf)
+
 Если запустить `./build-tdlib.sh` без аргументов, скрипт покажет интерактивный выбор режима.
 
 ### Build Variants и Gradle-задачи

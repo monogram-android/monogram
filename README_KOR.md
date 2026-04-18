@@ -167,6 +167,11 @@ sudo apt-get install build-essential git curl wget php perl gperf unzip zip defa
 - `./build-tdlib.sh telemt`
 - `./build-tdlib.sh both`
 
+스크립트가 사용하는 업스트림 저장소:
+
+- `official`: [tdlib/td](https://github.com/tdlib/td)
+- `telemt`: [telemt/tdlib-obf](https://github.com/telemt/tdlib-obf)
+
 인자 없이 실행하면 선택 메뉴가 표시됩니다.
 
 ### Build Variants 및 Gradle 작업

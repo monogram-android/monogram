@@ -188,6 +188,11 @@ El script soporta:
 - `./build-tdlib.sh telemt`
 - `./build-tdlib.sh both`
 
+Repositorios upstream usados por el script:
+
+- `official`: [tdlib/td](https://github.com/tdlib/td)
+- `telemt`: [telemt/tdlib-obf](https://github.com/telemt/tdlib-obf)
+
 Si lo ejecutas sin argumentos, te pedirá elegir una opción.
 
 ### Variants y tareas de Gradle

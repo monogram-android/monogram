@@ -169,6 +169,11 @@ sudo apt-get install build-essential git curl wget php perl gperf unzip zip defa
 - `./build-tdlib.sh telemt`
 - `./build-tdlib.sh both`
 
+وہ upstream repositories جو یہ اسکرپٹ استعمال کرتا ہے:
+
+- `official`: [tdlib/td](https://github.com/tdlib/td)
+- `telemt`: [telemt/tdlib-obf](https://github.com/telemt/tdlib-obf)
+
 اگر آپ اسے بغیر arguments کے چلائیں گے تو یہ آپ سے آپشن منتخب کروائے گا۔
 
 ### Build Variants اور Gradle tasks

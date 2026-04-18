@@ -168,6 +168,11 @@ The script supports:
 - `./build-tdlib.sh telemt`
 - `./build-tdlib.sh both`
 
+Upstream repositories used by the script:
+
+- `official`: [tdlib/td](https://github.com/tdlib/td)
+- `telemt`: [telemt/tdlib-obf](https://github.com/telemt/tdlib-obf)
+
 If you run `./build-tdlib.sh` without arguments, it will prompt you to choose one of these modes
 interactively.
 

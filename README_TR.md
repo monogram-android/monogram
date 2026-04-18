@@ -166,6 +166,11 @@ Script şu modları destekler:
 - `./build-tdlib.sh telemt`
 - `./build-tdlib.sh both`
 
+Scriptin kullandığı upstream depolar:
+
+- `official`: [tdlib/td](https://github.com/tdlib/td)
+- `telemt`: [telemt/tdlib-obf](https://github.com/telemt/tdlib-obf)
+
 Argümansız çalıştırırsanız, script size seçim sorar.
 
 ### Build Variantları ve Gradle Görevleri

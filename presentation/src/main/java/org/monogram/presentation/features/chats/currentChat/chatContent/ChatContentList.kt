@@ -605,7 +605,6 @@ private fun MessageBubbleSwitcher(
                             click
                         )
                     },
-                    onLongReplyClick = { component.onToggleMessageSelection(item.message.id) },
                     onGoToReply = onGoToReply,
                     onReactionClick = { id, r ->
                         if (isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(
@@ -714,7 +713,6 @@ private fun MessageBubbleSwitcher(
                             click
                         )
                     },
-                    onLongReplyClick = { component.onToggleMessageSelection(item.message.id) },
                     onGoToReply = onGoToReply,
                     onReactionClick = { id, r ->
                         if (isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(
@@ -818,7 +816,6 @@ private fun MessageBubbleSwitcher(
                         click
                     )
                 },
-                onLongReplyClick = { component.onToggleMessageSelection(item.message.last().id) },
                 onGoToReply = onGoToReply,
                 onReactionClick = { id, r ->
                     if (isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(
@@ -898,7 +895,6 @@ private fun RootMessageSection(
                 onAudioClick = onAudioClick,
                 onCancelDownload = { component.onCancelDownloadFile(it) },
                 onReplyClick = { pos, size, click -> onMessageOptionsClick(root, pos, size, click) },
-                onLongReplyClick = { component.onToggleMessageSelection(root.id) },
                 onGoToReply = onGoToReply,
                 onReactionClick = { id, r -> component.onSendReaction(id, r) },
                 onReplyMarkupButtonClick = { id, btn -> component.onReplyMarkupButtonClick(id, btn, root.senderId) },
@@ -936,7 +932,6 @@ private fun RootMessageSection(
                 onAudioClick = onAudioClick,
                 onCancelDownload = { component.onCancelDownloadFile(it) },
                 onReplyClick = { pos, size, click -> onMessageOptionsClick(root, pos, size, click) },
-                onLongReplyClick = { component.onToggleMessageSelection(root.id) },
                 onGoToReply = onGoToReply,
                 onReactionClick = { id, r -> component.onSendReaction(id, r) },
                 onReplyMarkupButtonClick = { id, btn -> component.onReplyMarkupButtonClick(id, btn, root.senderId) },

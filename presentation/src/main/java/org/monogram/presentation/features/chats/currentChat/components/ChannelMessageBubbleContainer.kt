@@ -46,7 +46,6 @@ fun ChannelMessageBubbleContainer(
     onDocumentClick: (MessageModel) -> Unit = {},
     onAudioClick: (MessageModel) -> Unit = {},
     onReplyClick: (Offset, IntSize, Offset) -> Unit,
-    onLongReplyClick: () -> Unit = {},
     onGoToReply: (MessageModel) -> Unit = {},
     autoDownloadMobile: Boolean = false,
     autoDownloadWifi: Boolean = false,
@@ -122,7 +121,9 @@ fun ChannelMessageBubbleContainer(
                             onTap = { offset ->
                                 onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
                             },
-                            onLongPress = { _ -> onLongReplyClick() }
+                            onLongPress = { offset ->
+                                onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
+                            }
                         )
                     }
 

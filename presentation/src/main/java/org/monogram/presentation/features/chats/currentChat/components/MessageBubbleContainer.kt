@@ -5,9 +5,7 @@ import androidx.compose.animation.Animatable
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -280,8 +278,7 @@ fun MessageBubbleContainer(
                         bubblePosition = bubblePosition,
                         bubbleSize = bubbleSize,
                         downloadUtils = downloadUtils,
-                        isAnyViewerOpen = isAnyViewerOpen,
-                        isSelectionMode = isSelectionMode
+                        isAnyViewerOpen = isAnyViewerOpen
                     )
 
                     MessageReplyMarkup(
@@ -373,18 +370,10 @@ private fun MessageContentSelector(
     bubblePosition: Offset,
     bubbleSize: IntSize,
     downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false,
-    isSelectionMode: Boolean = false,
+    isAnyViewerOpen: Boolean = false
 ) {
     Column(
-        modifier = Modifier
-            .width(IntrinsicSize.Max)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                enabled = isSelectionMode,
-                onClick = { onSelectClick() }
-            ),
+        modifier = Modifier.width(IntrinsicSize.Max),
         horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
     ) {
         when (val content = msg.content) {

@@ -243,7 +243,13 @@ fun AlbumMessageBubbleContainer(
                             onDocumentClick = onDocumentClick,
                             onAudioClick = onAudioClick,
                             onCancelDownload = onCancelDownload,
-                            onLongClick = { onSelectClick() },
+                            onLongClick = { offset ->
+                                onReplyClick(
+                                    bubblePosition,
+                                    bubbleSize,
+                                    bubblePosition + offset
+                                )
+                            },
                             onReplyClick = onGoToReply,
                             onReactionClick = { onReactionClick(lastMsg.id, it) },
                             onCommentsClick = onCommentsClick,
@@ -273,7 +279,13 @@ fun AlbumMessageBubbleContainer(
                             onDocumentClick = onDocumentClick,
                             onAudioClick = onAudioClick,
                             onCancelDownload = onCancelDownload,
-                            onLongClick = { onSelectClick() },
+                            onLongClick = { offset ->
+                                onReplyClick(
+                                    bubblePosition,
+                                    bubbleSize,
+                                    bubblePosition + offset
+                                )
+                            },
                             onReplyClick = onGoToReply,
                             onReactionClick = { onReactionClick(lastMsg.id, it) },
                             toProfile = toProfile,

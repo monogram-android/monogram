@@ -63,7 +63,7 @@ fun AlbumMessageBubbleContainer(
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onReplyClick: (Offset, IntSize, Offset) -> Unit,
-    onSelectClick: () -> Unit = {},
+    onLongReplyClick: () -> Unit = {},
     onGoToReply: (MessageModel) -> Unit = {},
     onReactionClick: (Long, String) -> Unit = { _, _ -> },
     onReplyMarkupButtonClick: (Long, InlineKeyboardButtonModel) -> Unit = { _, _ -> },
@@ -79,8 +79,7 @@ fun AlbumMessageBubbleContainer(
     onReplySwipe: (MessageModel) -> Unit = {},
     swipeEnabled: Boolean = true,
     downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false,
-    isSelectionMode: Boolean = false,
+    isAnyViewerOpen: Boolean = false
 ) {
     if (messages.isEmpty()) return
 
@@ -168,17 +167,13 @@ fun AlbumMessageBubbleContainer(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { offset ->
-                        if (isSelectionMode) {
-                            onSelectClick()
-                        } else {
-                            val clickPos = outerColumnPosition + offset
-                            val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
-                            if (!bubbleRect.contains(clickPos)) {
-                                onReplyClick(bubblePosition, bubbleSize, clickPos)
-                            }
+                        val clickPos = outerColumnPosition + offset
+                        val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
+                        if (!bubbleRect.contains(clickPos)) {
+                            onReplyClick(bubblePosition, bubbleSize, clickPos)
                         }
                     },
-                    onLongPress = { _ -> onSelectClick() }
+                    onLongPress = { _ -> onLongReplyClick() }
                 )
             }
     ) {

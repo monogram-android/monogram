@@ -227,8 +227,6 @@ fun ChatContentList(
             }
         }
 
-        val isSelectionMode = mutableStateOf(state.selectedMessageIds.isNotEmpty())
-
         if (isComments) {
             item(key = "root_header") {
                 RootMessageSection(
@@ -245,7 +243,7 @@ fun ChatContentList(
                     toProfile,
                     downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen,
-                    isSelectionMode = isSelectionMode.value
+                    isSelectionMode = state.selectedMessageIds.isNotEmpty()
                 )
             }
 
@@ -274,7 +272,7 @@ fun ChatContentList(
                     olderMsg = olderMsg,
                     newerMsg = newerMsg,
                     isSelected = isItemSelected(item, state.selectedMessageIds),
-                    isSelectionMode = isSelectionMode.value,
+                    isSelectionMode = state.selectedMessageIds.isNotEmpty(),
                     selectedMessageId = selectedMessageId,
                     onPhotoClick = onPhotoClick,
                     onPhotoDownload = onPhotoDownload,

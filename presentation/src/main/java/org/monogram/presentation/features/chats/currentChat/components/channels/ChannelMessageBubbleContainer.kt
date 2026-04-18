@@ -50,7 +50,6 @@ fun ChannelMessageBubbleContainer(
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onReplyClick: (Offset, IntSize, Offset) -> Unit,
-    onLongReplyClick: () -> Unit = {},
     onGoToReply: (MessageModel) -> Unit = {},
     autoDownloadMobile: Boolean = false,
     autoDownloadWifi: Boolean = false,
@@ -135,7 +134,13 @@ fun ChannelMessageBubbleContainer(
                             onReplyClick(bubblePosition, bubbleSize, clickPos)
                         }
                     },
-                    onLongPress = { _ -> onLongReplyClick() }
+                    onLongPress = { offset ->
+                        val clickPos = outerColumnPosition + offset
+                        val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
+                        if (!bubbleRect.contains(clickPos)) {
+                            onReplyClick(bubblePosition, bubbleSize, clickPos)
+                        }
+                    }
                 )
             }
     ) {

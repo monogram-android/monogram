@@ -18,7 +18,7 @@ class ChatMapperTest {
         val timestampSeconds = 1710948000
         val message = createTextMessage(timestampSeconds)
 
-        val (_, _, time) = mapper.formatMessageInfo(message, null) { null }
+        val (_, _, time) = mapper.formatMessageInfo(message) { null }
 
         val expected =
             SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestampSeconds * 1000L))
@@ -31,7 +31,7 @@ class ChatMapperTest {
         val timestampSeconds = 1710948000
         val message = createTextMessage(timestampSeconds)
 
-        val (_, _, time) = mapper.formatMessageInfo(message, null) { null }
+        val (_, _, time) = mapper.formatMessageInfo(message) { null }
 
         val expected =
             SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestampSeconds * 1000L))

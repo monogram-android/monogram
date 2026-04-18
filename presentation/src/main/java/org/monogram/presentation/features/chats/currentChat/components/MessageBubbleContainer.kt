@@ -294,8 +294,7 @@ fun MessageBubbleContainer(
                 }
 
                 FastReplyIndicator(
-                    modifier = Modifier
-                        .align(if (isOutgoing) Alignment.CenterEnd else Alignment.CenterStart),
+                    modifier = Modifier.align(Alignment.CenterEnd),
                     dragOffsetX = dragOffsetX,
                     isOutgoing = isOutgoing,
                     maxWidth = maxWidth

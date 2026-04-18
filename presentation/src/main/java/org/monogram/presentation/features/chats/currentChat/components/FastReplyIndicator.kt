@@ -30,7 +30,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -56,7 +55,7 @@ fun FastReplyIndicator(
 
     Box(
         modifier = modifier
-            .offset(x = if (isOutgoing) iconOffset else maxWidth)
+            .offset(x = iconOffset)
             .size(34.dp)
             .graphicsLayer {
                 translationX = when {

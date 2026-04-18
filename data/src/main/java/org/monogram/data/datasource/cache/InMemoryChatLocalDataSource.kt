@@ -24,6 +24,15 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
             )
         }
 
+    override suspend fun getTopChats(limit: Int): List<ChatEntity> {
+        return chats.value.values
+            .sortedWith(
+                compareByDescending<ChatEntity> { chat -> chat.isPinned }
+                    .thenByDescending { chat -> chat.order }
+            )
+            .take(limit)
+    }
+
     override suspend fun getChat(chatId: Long): ChatEntity? = chats.value[chatId]
 
     override suspend fun insertChat(chat: ChatEntity) {
@@ -218,13 +227,8 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
     }
 
     override suspend fun deleteExpired(timestamp: Long) {
-        chats.update { it.filterValues { chat -> chat.createdAt >= timestamp } }
         messages.values.forEach { flow ->
             flow.update { it.filterValues { msg -> msg.createdAt >= timestamp } }
-        }
-        fullInfos.values.removeIf { it.createdAt < timestamp }
-        topics.values.forEach { flow ->
-            flow.update { it.filterValues { topic -> topic.createdAt >= timestamp } }
         }
     }
 }

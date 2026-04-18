@@ -8,6 +8,7 @@ import org.monogram.data.db.model.TopicEntity
 
 interface ChatLocalDataSource {
     fun getAllChats(): Flow<List<ChatEntity>>
+    suspend fun getTopChats(limit: Int): List<ChatEntity>
     suspend fun getChat(chatId: Long): ChatEntity?
     suspend fun insertChat(chat: ChatEntity)
     suspend fun insertChats(chats: List<ChatEntity>)

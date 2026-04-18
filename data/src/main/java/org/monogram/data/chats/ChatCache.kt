@@ -62,13 +62,8 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                 existing.type = chat.type
                 existing.lastMessage = chat.lastMessage
 
-                val newPositions = chat.positions.toMutableList()
-                existing.positions.forEach { oldPos ->
-                    if (newPositions.none { isSameChatList(it.list, oldPos.list) }) {
-                        newPositions.add(oldPos)
-                    }
-                }
-                existing.positions = newPositions.toTypedArray()
+                existing.positions =
+                    mergePositionsPreservingStronger(existing.positions, chat.positions)
                 
                 existing.unreadCount = chat.unreadCount
                 existing.unreadMentionCount = chat.unreadMentionCount
@@ -103,6 +98,35 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
             allChats[chat.id] = chat
             indexChatByType(chat)
         }
+    }
+
+    private fun mergePositionsPreservingStronger(
+        existingPositions: Array<TdApi.ChatPosition>,
+        incomingPositions: Array<TdApi.ChatPosition>
+    ): Array<TdApi.ChatPosition> {
+        val merged = incomingPositions.toMutableList()
+        existingPositions.forEach { oldPos ->
+            val sameListIndex = merged.indexOfFirst { isSameChatList(it.list, oldPos.list) }
+            if (sameListIndex == -1) {
+                merged.add(oldPos)
+            } else {
+                val incomingPos = merged[sameListIndex]
+                if (shouldPreferExistingPosition(oldPos, incomingPos)) {
+                    merged[sameListIndex] = oldPos
+                }
+            }
+        }
+        return merged.toTypedArray()
+    }
+
+    private fun shouldPreferExistingPosition(
+        existing: TdApi.ChatPosition,
+        incoming: TdApi.ChatPosition
+    ): Boolean {
+        if (existing.order == 0L) return false
+        if (incoming.order == 0L) return true
+        if (existing.isPinned && !incoming.isPinned) return true
+        return existing.order > incoming.order
     }
 
     private fun indexChatByType(chat: TdApi.Chat) {

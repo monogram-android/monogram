@@ -59,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -106,6 +107,7 @@ fun AccountMenu(
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val menuIconColor = MaterialTheme.colorScheme.primary
 
     var isVisible by remember { mutableStateOf(false) }
     var isPhoneVisible by remember { mutableStateOf(false) }
@@ -286,7 +288,10 @@ fun AccountMenu(
                             )
                         }
 
-                        MenuHeader(onDismiss = { animateDismiss() })
+                        MenuHeader(
+                            iconColor = menuIconColor,
+                            onDismiss = { animateDismiss() }
+                        )
 
                         Column(modifier = Modifier.padding(horizontal = 12.dp)) {
                             ActiveAccountCard(
@@ -303,7 +308,7 @@ fun AccountMenu(
                             sideMenuBots.forEachIndexed { index, bot ->
                                 SettingsItem(
                                     icon = bot.icon!!.icon!!,
-                                    iconBackgroundColor = MaterialTheme.colorScheme.tertiary,
+                                    iconBackgroundColor = menuIconColor,
                                     title = bot.name,
                                     position = if (index == 0) ItemPosition.TOP else ItemPosition.MIDDLE,
                                     onClick = {
@@ -315,7 +320,7 @@ fun AccountMenu(
 
                             SettingsItem(
                                 icon = Icons.Rounded.Person,
-                                iconBackgroundColor = MaterialTheme.colorScheme.primary,
+                                iconBackgroundColor = menuIconColor,
                                 title = stringResource(R.string.menu_my_profile),
                                 subtitle = stringResource(R.string.menu_my_profile_subtitle),
                                 position = if (sideMenuBots.isEmpty()) ItemPosition.TOP else ItemPosition.MIDDLE,
@@ -327,7 +332,7 @@ fun AccountMenu(
 
                             SettingsItem(
                                 icon = Icons.Outlined.BookmarkBorder,
-                                iconBackgroundColor = MaterialTheme.colorScheme.primary,
+                                iconBackgroundColor = menuIconColor,
                                 title = stringResource(R.string.menu_saved_messages),
                                 subtitle = stringResource(R.string.menu_saved_messages_subtitle),
                                 position = ItemPosition.MIDDLE,
@@ -339,7 +344,7 @@ fun AccountMenu(
 
                             SettingsItem(
                                 icon = Icons.Rounded.Settings,
-                                iconBackgroundColor = MaterialTheme.colorScheme.secondary,
+                                iconBackgroundColor = menuIconColor,
                                 title = stringResource(R.string.menu_settings),
                                 subtitle = stringResource(R.string.menu_settings_subtitle),
                                 position = ItemPosition.MIDDLE,
@@ -352,7 +357,7 @@ fun AccountMenu(
                             if (updateState is UpdateState.UpdateAvailable || updateState is UpdateState.ReadyToInstall || updateState is UpdateState.Downloading) {
                                 SettingsItem(
                                     icon = Icons.Rounded.SystemUpdate,
-                                    iconBackgroundColor = MaterialTheme.colorScheme.error,
+                                    iconBackgroundColor = menuIconColor,
                                     title = stringResource(R.string.menu_update_available),
                                     subtitle = when (updateState) {
                                         is UpdateState.UpdateAvailable -> stringResource(
@@ -392,7 +397,7 @@ fun AccountMenu(
 
                             SettingsItem(
                                 icon = Icons.AutoMirrored.Outlined.HelpOutline,
-                                iconBackgroundColor = MaterialTheme.colorScheme.tertiary,
+                                iconBackgroundColor = menuIconColor,
                                 title = stringResource(R.string.menu_help_feedback),
                                 subtitle = stringResource(R.string.menu_help_feedback_subtitle),
                                 position = ItemPosition.BOTTOM,
@@ -440,7 +445,10 @@ fun AccountMenu(
 }
 
 @Composable
-private fun MenuHeader(onDismiss: () -> Unit) {
+private fun MenuHeader(
+    iconColor: Color,
+    onDismiss: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -458,14 +466,14 @@ private fun MenuHeader(onDismiss: () -> Unit) {
         IconButton(
             onClick = onDismiss,
             modifier = Modifier.background(
-                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                color = iconColor.copy(alpha = 0.15f),
                 shape = CircleShape
             )
         ) {
             Icon(
                 imageVector = Icons.Rounded.Close,
                 contentDescription = stringResource(R.string.cancel_button),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = iconColor
             )
         }
     }

@@ -120,7 +120,12 @@ class MessageRepositoryImpl(
 
         scope.launch(dispatcherProvider.io) {
             val ninetyDaysAgo = System.currentTimeMillis() - (90L * 24 * 60 * 60 * 1000)
+            Log.i(
+                "MessageRepository",
+                "Expired cache cleanup started: messages only, chats preserved"
+            )
             chatLocalDataSource.deleteExpired(ninetyDaysAgo)
+            Log.i("MessageRepository", "Expired cache cleanup completed")
         }
 
         scope.launch(dispatcherProvider.io) {

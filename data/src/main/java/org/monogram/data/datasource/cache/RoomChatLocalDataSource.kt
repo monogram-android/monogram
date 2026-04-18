@@ -21,6 +21,8 @@ class RoomChatLocalDataSource(
 ) : ChatLocalDataSource {
     override fun getAllChats(): Flow<List<ChatEntity>> = chatDao.getAllChats()
 
+    override suspend fun getTopChats(limit: Int): List<ChatEntity> = chatDao.getTopChats(limit)
+
     override suspend fun getChat(chatId: Long): ChatEntity? = chatDao.getChat(chatId)
 
     override suspend fun insertChat(chat: ChatEntity) = chatDao.insertChat(chat)
@@ -114,10 +116,7 @@ class RoomChatLocalDataSource(
 
     override suspend fun deleteExpired(timestamp: Long) {
         database.withTransaction {
-            chatDao.deleteExpired(timestamp)
             messageDao.deleteExpired(timestamp)
-            chatFullInfoDao.deleteExpired(timestamp)
-            topicDao.deleteExpired(timestamp)
         }
     }
 }

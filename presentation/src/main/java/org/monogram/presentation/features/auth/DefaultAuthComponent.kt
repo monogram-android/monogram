@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
+import org.monogram.domain.repository.AuthUiStatus
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -42,9 +43,21 @@ class DefaultAuthComponent(
                     _model.update {
                         it.copy(
                             authState = newAuthState,
-                            isSubmitting = false
+                            isSubmitting = repository.authUiStatus.value.isSubmitting(),
+                            uiStatus = repository.authUiStatus.value
                         )
                     }
+                }
+            }
+            .launchIn(scope)
+
+        repository.authUiStatus
+            .onEach { status ->
+                _model.update {
+                    it.copy(
+                        uiStatus = status,
+                        isSubmitting = status.isSubmitting()
+                    )
                 }
             }
             .launchIn(scope)
@@ -85,6 +98,11 @@ class DefaultAuthComponent(
         repository.reset()
     }
 
+    override fun onRetry() {
+        _model.update { it.copy(error = null) }
+        repository.retryLastAction()
+    }
+
     override fun onProxyClicked() {
         onOpenProxy()
     }
@@ -97,4 +115,8 @@ class DefaultAuthComponent(
         _model.update { it.copy(error = null) }
         repository.reset()
     }
+}
+
+private fun AuthUiStatus.isSubmitting(): Boolean {
+    return this is AuthUiStatus.Submitting || this is AuthUiStatus.SlowNetwork
 }

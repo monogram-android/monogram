@@ -72,6 +72,10 @@
     <string name="auth_title_phone">Ваш телефон</string>
     <string name="auth_title_verification">Проверка</string>
     <string name="auth_title_password">Пароль</string>
+    <string name="auth_connecting_to_telegram">Подключаемся к Telegram…</string>
+    <string name="auth_connection_taking_longer">Подключение занимает больше времени, чем обычно</string>
+    <string name="auth_network_unreachable_error">Не удалось подключиться к серверам Telegram</string>
+    <string name="auth_retry_button">Повторить</string>
     <string name="cd_proxy_settings">Настройки прокси</string>
     <string name="phone_input_title">Ваш номер телефона</string>
     <string name="phone_input_description">Пожалуйста, подтвердите код страны и введите свой номер телефона.</string>

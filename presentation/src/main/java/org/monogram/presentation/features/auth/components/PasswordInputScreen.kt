@@ -85,6 +85,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.graphics.shapes.RoundedPolygon
+import org.monogram.domain.repository.AuthUiStatus
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ExpressiveDefaults
 import kotlin.math.max
@@ -118,7 +119,8 @@ private val passwordShapes = listOf(
 @Composable
 fun PasswordInputScreen(
     onConfirm: (String) -> Unit,
-    isSubmitting: Boolean
+    isSubmitting: Boolean,
+    uiStatus: AuthUiStatus
 ) {
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -203,6 +205,7 @@ fun PasswordInputScreen(
                 topSpacerHeight = topSpacerHeight,
                 middleSpacerHeight = middleSpacerHeight,
                 isSubmitting = isSubmitting,
+                uiStatus = uiStatus,
                 onConfirm = onConfirm,
             )
         }
@@ -226,6 +229,7 @@ private fun PasswordContent(
     topSpacerHeight: Dp,
     middleSpacerHeight: Dp,
     isSubmitting: Boolean,
+    uiStatus: AuthUiStatus,
     onConfirm: (String) -> Unit,
 ) {
     val density = LocalDensity.current
@@ -413,6 +417,15 @@ private fun PasswordContent(
     }
 
     Spacer(modifier = Modifier.height(32.dp))
+
+    AuthStatusMessage(
+        uiStatus = uiStatus,
+        modifier = Modifier.fillMaxWidth()
+    )
+
+    if (uiStatus !is AuthUiStatus.Idle) {
+        Spacer(modifier = Modifier.height(16.dp))
+    }
 
     Button(
         onClick = { onConfirm(password) },

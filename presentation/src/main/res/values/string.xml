@@ -72,6 +72,10 @@
     <string name="auth_title_phone">Your Phone</string>
     <string name="auth_title_verification">Verification</string>
     <string name="auth_title_password">Password</string>
+    <string name="auth_connecting_to_telegram">Connecting to Telegram…</string>
+    <string name="auth_connection_taking_longer">Connecting is taking longer than usual</string>
+    <string name="auth_network_unreachable_error">Couldn\'t connect to Telegram servers</string>
+    <string name="auth_retry_button">Retry</string>
     <string name="cd_proxy_settings">Proxy Settings</string>
     <string name="phone_input_title">Your Phone Number</string>
     <string name="phone_input_description">Please confirm your country code and enter your phone number.</string>

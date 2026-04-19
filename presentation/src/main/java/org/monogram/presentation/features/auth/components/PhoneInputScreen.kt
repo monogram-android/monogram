@@ -95,6 +95,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.domain.repository.AuthUiStatus
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CountryFlag
 import org.monogram.presentation.core.ui.ExpressiveDefaults
@@ -112,7 +113,8 @@ enum class ActiveField {
 @Composable
 fun PhoneInputScreen(
     onConfirm: (String) -> Unit,
-    isSubmitting: Boolean
+    isSubmitting: Boolean,
+    uiStatus: AuthUiStatus
 ) {
     val isPreview = LocalInspectionMode.current
 
@@ -520,6 +522,15 @@ fun PhoneInputScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        AuthStatusMessage(
+            uiStatus = uiStatus,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        if (uiStatus !is AuthUiStatus.Idle) {
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         Button(
             onClick = { onConfirm(fullNumber) },
             shapes = ExpressiveDefaults.extraLargeButtonShapes(),
@@ -693,7 +704,8 @@ private fun PhoneInputScreenPreview() {
     MaterialTheme {
         PhoneInputScreen(
             onConfirm = { },
-            isSubmitting = false
+            isSubmitting = false,
+            uiStatus = AuthUiStatus.Idle
         )
     }
 }

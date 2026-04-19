@@ -72,6 +72,10 @@
 	<string name="auth_title_phone">Telefonunuz</string>
     <string name="auth_title_verification">Doğrulama</string>
     <string name="auth_title_password">Şifre</string>
+    <string name="auth_connecting_to_telegram">Telegram\'a bağlanılıyor…</string>
+    <string name="auth_connection_taking_longer">Bağlantı normalden uzun sürüyor</string>
+    <string name="auth_network_unreachable_error">Telegram sunucularına bağlanılamadı</string>
+    <string name="auth_retry_button">Tekrar dene</string>
     <string name="cd_proxy_settings">Proxy Ayarları</string>
     <string name="phone_input_title">Telefon Numaranız</string>
     <string name="phone_input_description">Lütfen ülke kodunuzu onaylayın ve telefon numaranızı girin.</string>

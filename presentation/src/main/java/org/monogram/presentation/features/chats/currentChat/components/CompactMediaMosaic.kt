@@ -364,7 +364,7 @@ fun PhotoItem(
                                     diskCacheKey(it)
                                 }
                             }
-                            .crossfade(true)
+                            .crossfade(false)
                             .build()
                     ),
                     contentDescription = null,

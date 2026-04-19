@@ -3,7 +3,6 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
 import androidx.annotation.OptIn
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -49,6 +48,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -163,7 +163,7 @@ fun GifMessageBubble(
         ) {
             Column(modifier = Modifier
                 .widthIn(min = 160.dp, max = 320.dp)
-                .animateContentSize()) {
+            ) {
                 msg.forwardInfo?.let { forward ->
                     Box(
                         modifier = Modifier
@@ -205,24 +205,7 @@ fun GifMessageBubble(
                         )
                         .clipToBounds()
                         .onGloballyPositioned { gifPosition = it.positionInWindow() }
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onTap = {
-                                    if (!isMediaSpoilerRevealed) {
-                                        isMediaSpoilerRevealed = true
-                                    } else if (content.isDownloading) {
-                                        isAutoDownloadSuppressed = true
-                                        AutoDownloadSuppression.suppress(content.fileId)
-                                        onCancelDownload(content.fileId)
-                                    } else {
-                                        isAutoDownloadSuppressed = false
-                                        AutoDownloadSuppression.clear(content.fileId)
-                                        onGifClick(msg)
-                                    }
-                                },
-                                onLongPress = { offset -> onLongClick(gifPosition + offset) }
-                            )
-                        }
+
                 ) {
                     if (!stablePath.isNullOrBlank()) {
                             if (autoplayGifs) {
@@ -246,7 +229,7 @@ fun GifMessageBubble(
                                                     diskCacheKey(it)
                                                 }
                                             }
-                                            .crossfade(true)
+                                            .crossfade(false)
                                             .build()
                                     ),
                                     contentDescription = content.caption,
@@ -334,6 +317,34 @@ fun GifMessageBubble(
                         Box(modifier = Modifier.fillMaxSize())
                     }
 
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .pointerInput(
+                                content.isDownloading,
+                                content.fileId,
+                                isMediaSpoilerRevealed,
+                                stablePath
+                            ) {
+                                detectTapGestures(
+                                    onTap = {
+                                        if (!isMediaSpoilerRevealed) {
+                                            isMediaSpoilerRevealed = true
+                                        } else if (content.isDownloading) {
+                                            isAutoDownloadSuppressed = true
+                                            AutoDownloadSuppression.suppress(content.fileId)
+                                            onCancelDownload(content.fileId)
+                                        } else {
+                                            isAutoDownloadSuppressed = false
+                                            AutoDownloadSuppression.clear(content.fileId)
+                                            onGifClick(msg)
+                                        }
+                                    },
+                                    onLongPress = { offset -> onLongClick(gifPosition + offset) }
+                                )
+                            }
+                    )
+
                     if (content.caption.isEmpty() && (!content.path.isNullOrBlank() || content.isUploading || content.minithumbnail != null) && showMetadata) {
                         Box(
                             modifier = Modifier
@@ -387,34 +398,43 @@ fun GifMessageBubble(
                             .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp)
                             .zIndex(1f)
                     ) {
-                        val inlineContent = rememberMessageInlineContent(content.entities, fontSize)
-                        val finalAnnotatedString = buildAnnotatedMessageTextWithEmoji(
+                        val renderData = rememberMessageTextRenderData(
                             text = content.caption,
                             entities = content.entities,
                             isOutgoing = isOutgoing,
-                            revealedSpoilers = revealedSpoilers
+                            revealedSpoilers = revealedSpoilers,
+                            fontSize = fontSize
                         )
 
-                        MessageText(
-                            text = finalAnnotatedString,
-                            rawText = content.caption,
-                            inlineContent = inlineContent,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = fontSize.sp,
-                                letterSpacing = letterSpacing.sp,
-                                lineHeight = (fontSize * 1.375f).sp
-                            ),
-                            modifier = Modifier.padding(bottom = 2.dp),
-                            onSpoilerClick = { index ->
-                                if (revealedSpoilers.contains(index)) {
-                                    revealedSpoilers.remove(index)
-                                } else {
-                                    revealedSpoilers.add(index)
-                                }
-                            },
-                            onClick = { offset -> onLongClick(gifPosition + offset) },
-                            onLongClick = { offset -> onLongClick(gifPosition + offset) }
-                        )
+                        if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
+                            BigEmojiContent(
+                                items = renderData.bigEmojiItems,
+                                sizeDp = fontSize * 5f,
+                                emojiFontFamily = FontFamily.Default,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        } else {
+                            MessageText(
+                                text = renderData.annotatedText,
+                                rawText = content.caption,
+                                inlineContent = renderData.inlineContent,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = fontSize.sp,
+                                    letterSpacing = letterSpacing.sp,
+                                    lineHeight = (fontSize * 1.375f).sp
+                                ),
+                                modifier = Modifier.padding(bottom = 2.dp),
+                                onSpoilerClick = { index ->
+                                    if (revealedSpoilers.contains(index)) {
+                                        revealedSpoilers.remove(index)
+                                    } else {
+                                        revealedSpoilers.add(index)
+                                    }
+                                },
+                                onClick = { offset -> onLongClick(gifPosition + offset) },
+                                onLongClick = { offset -> onLongClick(gifPosition + offset) }
+                            )
+                        }
                         if (showMetadata) {
                             Row(
                                 modifier = Modifier.align(Alignment.End),

@@ -110,6 +110,7 @@ import org.monogram.presentation.features.chats.currentChat.chatContent.ChatCont
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentList
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentTopBar
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentTopBarUiState
+import org.monogram.presentation.features.chats.currentChat.chatContent.ChatMessageListUiState
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatMessageOptionsMenu
 import org.monogram.presentation.features.chats.currentChat.chatContent.GroupedMessageItem
 import org.monogram.presentation.features.chats.currentChat.chatContent.ReportChatDialog
@@ -588,16 +589,89 @@ fun ChatContent(
     }
 
 
+    val shouldAnimateContentEntrance = state.isChatAnimationsEnabled && isOverlay
     val contentAlpha by animateFloatAsState(
-        targetValue = if (isVisible || !state.isChatAnimationsEnabled || isOverlay) 1f else 0f,
-        animationSpec = if (state.isChatAnimationsEnabled && !isOverlay) tween(300) else snap(),
+        targetValue = if (isVisible || !shouldAnimateContentEntrance) 1f else 0f,
+        animationSpec = if (shouldAnimateContentEntrance) tween(300) else snap(),
         label = "ContentAlpha"
     )
     val contentOffset by animateDpAsState(
-        targetValue = if (isVisible || !state.isChatAnimationsEnabled || isOverlay) 0.dp else 20.dp,
-        animationSpec = if (state.isChatAnimationsEnabled && !isOverlay) tween(300) else snap(),
+        targetValue = if (isVisible || !shouldAnimateContentEntrance) 0.dp else 20.dp,
+        animationSpec = if (shouldAnimateContentEntrance) tween(300) else snap(),
         label = "ContentOffset"
     )
+    val messageListState = remember(
+        state.chatId,
+        state.currentTopicId,
+        displayMessages,
+        state.selectedMessageIds,
+        state.unreadSeparatorCount,
+        state.unreadSeparatorLastReadInboxMessageId,
+        state.viewAsTopics,
+        state.topics,
+        state.rootMessage,
+        state.isLoading,
+        state.isLoadingOlder,
+        state.isLoadingNewer,
+        state.isAtBottom,
+        state.isLatestLoaded,
+        state.isOldestLoaded,
+        state.isGroup,
+        state.isChannel,
+        state.isAdmin,
+        state.canWrite,
+        state.highlightedMessageId,
+        state.fontSize,
+        state.letterSpacing,
+        state.bubbleRadius,
+        state.stickerSize,
+        state.autoDownloadMobile,
+        state.autoDownloadWifi,
+        state.autoDownloadRoaming,
+        state.autoDownloadFiles,
+        state.autoplayGifs,
+        state.autoplayVideos,
+        state.showLinkPreviews,
+        state.isChatAnimationsEnabled,
+        showInitialLoading,
+        state.pendingScrollCommand
+    ) {
+        ChatMessageListUiState(
+            chatId = state.chatId,
+            currentTopicId = state.currentTopicId,
+            messages = displayMessages,
+            selectedMessageIds = state.selectedMessageIds,
+            unreadSeparatorCount = state.unreadSeparatorCount,
+            unreadSeparatorLastReadInboxMessageId = state.unreadSeparatorLastReadInboxMessageId,
+            viewAsTopics = state.viewAsTopics,
+            topics = state.topics,
+            rootMessage = state.rootMessage,
+            isLoading = state.isLoading,
+            isLoadingOlder = state.isLoadingOlder,
+            isLoadingNewer = state.isLoadingNewer,
+            isAtBottom = state.isAtBottom,
+            isLatestLoaded = state.isLatestLoaded,
+            isOldestLoaded = state.isOldestLoaded,
+            isGroup = state.isGroup,
+            isChannel = state.isChannel,
+            isAdmin = state.isAdmin,
+            canWrite = state.canWrite,
+            highlightedMessageId = state.highlightedMessageId,
+            fontSize = state.fontSize,
+            letterSpacing = state.letterSpacing,
+            bubbleRadius = state.bubbleRadius,
+            stickerSize = state.stickerSize,
+            autoDownloadMobile = state.autoDownloadMobile,
+            autoDownloadWifi = state.autoDownloadWifi,
+            autoDownloadRoaming = state.autoDownloadRoaming,
+            autoDownloadFiles = state.autoDownloadFiles,
+            autoplayGifs = state.autoplayGifs,
+            autoplayVideos = state.autoplayVideos,
+            showLinkPreviews = state.showLinkPreviews,
+            isChatAnimationsEnabled = state.isChatAnimationsEnabled,
+            suppressEntryAnimations = showInitialLoading || state.pendingScrollCommand != null
+        )
+    }
 
     val showInputBar by remember(
         state.isMember,
@@ -1220,7 +1294,7 @@ fun ChatContent(
                                 } else {
                                     0.dp
                                 },
-                                state = state,
+                                state = messageListState,
                                 component = component,
                                 scrollState = scrollState,
                                 groupedMessages = groupedMessages,

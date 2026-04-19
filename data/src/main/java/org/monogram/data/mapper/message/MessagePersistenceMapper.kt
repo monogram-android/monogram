@@ -6,6 +6,8 @@ import org.monogram.data.mapper.SenderNameResolver
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.PollType
 import org.monogram.data.db.model.MessageEntity as MessageDbEntity
@@ -308,7 +310,10 @@ internal class MessagePersistenceMapper(
             }
 
         val content: MessageContent = when (entity.contentType) {
-            "text" -> MessageContent.Text(entity.content)
+            "text" -> MessageContent.Text(
+                text = entity.content,
+                entities = decodeEntities(entity.entities)
+            )
 
             "photo" -> {
                 val fileId = mediaFileId
@@ -319,6 +324,7 @@ internal class MessagePersistenceMapper(
                     width = meta.getOrNull(0)?.toIntOrNull() ?: 0,
                     height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
                     caption = entity.content,
+                    entities = decodeEntities(entity.entities),
                     fileId = fileId,
                     minithumbnail = entity.minithumbnail
                 )
@@ -342,6 +348,7 @@ internal class MessagePersistenceMapper(
                     height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
                     duration = meta.getOrNull(2)?.toIntOrNull() ?: 0,
                     caption = entity.content,
+                    entities = decodeEntities(entity.entities),
                     fileId = fileId,
                     supportsStreaming = supportsStreaming,
                     minithumbnail = entity.minithumbnail
@@ -394,6 +401,7 @@ internal class MessagePersistenceMapper(
                     mimeType = meta.getOrNull(1).orEmpty(),
                     size = meta.getOrNull(2)?.toLongOrNull() ?: 0L,
                     caption = entity.content,
+                    entities = decodeEntities(entity.entities),
                     fileId = fileId
                 )
             }
@@ -410,6 +418,7 @@ internal class MessagePersistenceMapper(
                     mimeType = "",
                     size = 0L,
                     caption = entity.content,
+                    entities = decodeEntities(entity.entities),
                     fileId = fileId
                 )
             }
@@ -422,6 +431,7 @@ internal class MessagePersistenceMapper(
                     width = meta.getOrNull(0)?.toIntOrNull() ?: 0,
                     height = meta.getOrNull(1)?.toIntOrNull() ?: 0,
                     caption = entity.content,
+                    entities = decodeEntities(entity.entities),
                     fileId = fileId
                 )
             }
@@ -678,6 +688,20 @@ internal class MessagePersistenceMapper(
             is TdApi.MessageAudio -> content.caption
             is TdApi.MessageAnimation -> content.caption
             is TdApi.MessageVoiceNote -> content.caption
+            is TdApi.MessageAnimatedEmoji -> TdApi.FormattedText(
+                content.emoji,
+                listOfNotNull(
+                    (content.animatedEmoji.sticker?.fullType as? TdApi.StickerFullTypeCustomEmoji)?.customEmojiId
+                        ?.takeIf { it != 0L }
+                        ?.let { emojiId ->
+                            TdApi.TextEntity(
+                                0,
+                                content.emoji.length,
+                                TdApi.TextEntityTypeCustomEmoji(emojiId)
+                            )
+                        }
+                ).toTypedArray()
+            )
             else -> null
         } ?: return null
 
@@ -707,6 +731,43 @@ internal class MessagePersistenceMapper(
                     else -> append("?")
                 }
             }
+        }
+    }
+
+    private fun decodeEntities(raw: String?): List<MessageEntity> {
+        if (raw.isNullOrBlank()) return emptyList()
+
+        return raw.split('|').mapNotNull { item ->
+            val parts = item.split(',', limit = 4)
+            if (parts.size < 3) return@mapNotNull null
+
+            val offset = parts[0].toIntOrNull() ?: return@mapNotNull null
+            val length = parts[1].toIntOrNull() ?: return@mapNotNull null
+            val type = when (parts[2]) {
+                "b" -> MessageEntityType.Bold
+                "i" -> MessageEntityType.Italic
+                "u" -> MessageEntityType.Underline
+                "s" -> MessageEntityType.Strikethrough
+                "sp" -> MessageEntityType.Spoiler
+                "c" -> MessageEntityType.Code
+                "p" -> MessageEntityType.Pre()
+                "url" -> MessageEntityType.Url
+                "turl" -> MessageEntityType.TextUrl(parts.getOrNull(3).orEmpty())
+                "m" -> MessageEntityType.Mention
+                "mn" -> MessageEntityType.TextMention(parts.getOrNull(3)?.toLongOrNull() ?: 0L)
+                "h" -> MessageEntityType.Hashtag
+                "bc" -> MessageEntityType.BotCommand
+                "ce" -> MessageEntityType.CustomEmoji(
+                    parts.getOrNull(3)?.toLongOrNull() ?: 0L,
+                    null
+                )
+
+                "em" -> MessageEntityType.Email
+                "ph" -> MessageEntityType.PhoneNumber
+                else -> null
+            } ?: return@mapNotNull null
+
+            MessageEntity(offset = offset, length = length, type = type)
         }
     }
 

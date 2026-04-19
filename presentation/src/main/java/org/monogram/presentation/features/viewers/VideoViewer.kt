@@ -23,14 +23,22 @@ fun VideoViewer(
     seekDuration: Int = 10,
     isZoomEnabled: Boolean = true
 ) {
-    if (path.isBlank()) {
+    val effectivePath = remember(path, fileId, supportsStreaming) {
+        when {
+            path.isNotBlank() -> path
+            supportsStreaming && fileId != 0 -> "http://streaming/$fileId"
+            else -> ""
+        }
+    }
+
+    if (effectivePath.isBlank()) {
         onDismiss()
         return
     }
 
-    Log.d("VideoViewer", "Composing VideoViewer for path=$path, fileId=$fileId")
+    Log.d("VideoViewer", "Composing VideoViewer for path=$effectivePath, fileId=$fileId")
 
-    val mediaItems = remember(path) { listOf(path) }
+    val mediaItems = remember(effectivePath) { listOf(effectivePath) }
     val captions = remember(caption) { listOf(caption) }
     val fileIds = remember(fileId) { listOf(fileId) }
 

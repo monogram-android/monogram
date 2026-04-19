@@ -4,6 +4,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -20,7 +21,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,9 +29,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import org.monogram.domain.models.MessageEntity
 import org.monogram.presentation.core.ui.spacer.WeightSpacer
 
 /**
@@ -43,18 +46,35 @@ import org.monogram.presentation.core.ui.spacer.WeightSpacer
 @Composable
 internal fun QuoteBlock(
     text: String,
+    entities: List<MessageEntity>,
     isOutgoing: Boolean,
     expandable: Boolean,
 ) {
     var isCollapsed by remember(expandable, text) { mutableStateOf(true) }
     val background = if (isOutgoing) {
-        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f)
+        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.09f)
     } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.045f)
+    }
+    val stripeColor = if (isOutgoing) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.82f)
+    } else {
+        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.78f)
+    }
+    val iconTint = if (isOutgoing) {
+        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f)
     }
     val bottomIcon = if (isCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp
+    val renderData = rememberMessageTextRenderData(
+        text = text,
+        entities = entities,
+        fontSize = MaterialTheme.typography.bodyMedium.fontSize.value,
+        isOutgoing = isOutgoing
+    )
 
-    Row(
+    Surface(
         modifier = Modifier
             .height(IntrinsicSize.Min)
             .animateContentSize()
@@ -65,50 +85,78 @@ internal fun QuoteBlock(
             ) {
                 isCollapsed = !isCollapsed
             }
-            .background(
-                color = background,
-                shape = RoundedCornerShape(4.dp)
-            )
-            .padding(horizontal = 4.dp, vertical = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = background
     ) {
-        Spacer(
-            Modifier
-                .width(2.dp)
-                .padding(vertical = 2.dp)
-                .fillMaxHeight()
-                .background(
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = RoundedCornerShape(4.dp)
-                )
-        )
-
-        Text(
-            text = text,
-            maxLines = if (expandable && isCollapsed) 3 else Int.MAX_VALUE,
-            modifier = Modifier
-                .weight(1f, fill = false),
-            overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        Column {
-            Icon(
-                imageVector = Icons.Default.FormatQuote,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+        Row(
+            modifier = Modifier.padding(start = 8.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Spacer(
+                Modifier
+                    .width(3.dp)
+                    .padding(vertical = 2.dp)
+                    .fillMaxHeight()
+                    .background(
+                        color = stripeColor,
+                        shape = RoundedCornerShape(999.dp)
+                    )
             )
 
-            WeightSpacer(1f)
-
-            if (expandable) {
-                Icon(
-                    imageVector = bottomIcon,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            val textModifier = Modifier
+                .weight(1f, fill = false)
+                .padding(top = 1.dp, bottom = 1.dp)
+            val finalFontSize = MaterialTheme.typography.bodyMedium.fontSize.value
+            if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
+                BigEmojiContent(
+                    items = renderData.bigEmojiItems,
+                    sizeDp = finalFontSize * 4.25f,
+                    emojiFontFamily = FontFamily.Default,
+                    modifier = textModifier
                 )
+            } else {
+                MessageText(
+                    text = renderData.annotatedText,
+                    rawText = text,
+                    entities = entities,
+                    inlineContent = renderData.inlineContent,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        lineHeight = MaterialTheme.typography.bodyMedium.fontSize * 1.35f
+                    ),
+                    maxLines = if (expandable && isCollapsed) 3 else Int.MAX_VALUE,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = textModifier
+                )
+            }
+
+            Column {
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = iconTint.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FormatQuote,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = iconTint,
+                    )
+                }
+
+                WeightSpacer(1f)
+
+                if (expandable) {
+                    Icon(
+                        imageVector = bottomIcon,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = iconTint,
+                    )
+                }
             }
         }
     }
@@ -124,24 +172,28 @@ private fun QuoteBlockPreview() {
         ) {
             QuoteBlock(
                 text = "Ваше мнение, конечно, очень важно, но, не очень-то и нужно...",
+                entities = emptyList(),
                 isOutgoing = true,
                 expandable = false
             )
 
             QuoteBlock(
                 text = "Ваше мнение, конечно, очень важно, но, не очень-то и нужно...",
+                entities = emptyList(),
                 isOutgoing = false,
                 expandable = false
             )
 
             QuoteBlock(
                 text = "Ваше мнение, конечно, очень важно, но, не очень-то и нужно...".repeat(4),
+                entities = emptyList(),
                 isOutgoing = true,
                 expandable = true
             )
 
             QuoteBlock(
                 text = "Ваше мнение, конечно, очень важно, но, не очень-то и нужно...".repeat(4),
+                entities = emptyList(),
                 isOutgoing = false,
                 expandable = true
             )

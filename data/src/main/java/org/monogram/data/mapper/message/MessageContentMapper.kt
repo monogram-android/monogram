@@ -10,6 +10,7 @@ import org.monogram.data.mapper.WebPageMapper
 import org.monogram.data.mapper.toMessageEntityOrNull
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.models.PollOption
 import org.monogram.domain.models.PollType
 import org.monogram.domain.models.StickerFormat
@@ -363,7 +364,33 @@ internal class MessageContentMapper(
                 )
             }
 
-            is TdApi.MessageAnimatedEmoji -> MessageContent.Text(content.emoji)
+            is TdApi.MessageAnimatedEmoji -> {
+                val customEmojiId =
+                    (content.animatedEmoji.sticker?.fullType as? TdApi.StickerFullTypeCustomEmoji)?.customEmojiId
+                val entities = if (customEmojiId != null && customEmojiId != 0L) {
+                    val resolvedPath = customEmojiLoader.getPathIfValid(customEmojiId)
+                    if (resolvedPath == null) {
+                        scope.launch {
+                            customEmojiLoader.loadIfNeeded(
+                                emojiId = customEmojiId,
+                                chatId = context.chatId,
+                                messageId = context.messageId,
+                                autoDownload = context.networkAutoDownload
+                            )
+                        }
+                    }
+                    listOf(
+                        MessageEntity(
+                            offset = 0,
+                            length = content.emoji.length,
+                            type = MessageEntityType.CustomEmoji(customEmojiId, resolvedPath)
+                        )
+                    )
+                } else {
+                    emptyList()
+                }
+                MessageContent.Text(content.emoji, entities)
+            }
             is TdApi.MessageDice -> {
                 val valueStr = if (content.value != 0) " (Result: ${content.value})" else ""
                 MessageContent.Text("${content.emoji}$valueStr")

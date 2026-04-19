@@ -45,12 +45,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -89,10 +93,59 @@ import org.monogram.presentation.features.chats.currentChat.components.channels.
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import java.io.File
 
+@Immutable
+data class ChatMessageListUiState(
+    val chatId: Long,
+    val currentTopicId: Long?,
+    val messages: List<MessageModel>,
+    val selectedMessageIds: Set<Long>,
+    val unreadSeparatorCount: Int,
+    val unreadSeparatorLastReadInboxMessageId: Long,
+    val viewAsTopics: Boolean,
+    val topics: List<TopicModel>,
+    val rootMessage: MessageModel?,
+    val isLoading: Boolean,
+    val isLoadingOlder: Boolean,
+    val isLoadingNewer: Boolean,
+    val isAtBottom: Boolean,
+    val isLatestLoaded: Boolean,
+    val isOldestLoaded: Boolean,
+    val isGroup: Boolean,
+    val isChannel: Boolean,
+    val isAdmin: Boolean,
+    val canWrite: Boolean,
+    val highlightedMessageId: Long?,
+    val fontSize: Float,
+    val letterSpacing: Float,
+    val bubbleRadius: Float,
+    val stickerSize: Float,
+    val autoDownloadMobile: Boolean,
+    val autoDownloadWifi: Boolean,
+    val autoDownloadRoaming: Boolean,
+    val autoDownloadFiles: Boolean,
+    val autoplayGifs: Boolean,
+    val autoplayVideos: Boolean,
+    val showLinkPreviews: Boolean,
+    val isChatAnimationsEnabled: Boolean,
+    val suppressEntryAnimations: Boolean
+) {
+    val isComments: Boolean
+        get() = rootMessage != null
+
+    val isForumList: Boolean
+        get() = viewAsTopics && currentTopicId == null
+
+    val isCurrentTopicClosed: Boolean
+        get() = topics.find { it.id.toLong() == currentTopicId }?.isClosed == true
+
+    val isChannelFeed: Boolean
+        get() = isChannel && currentTopicId == null
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ChatContentList(
-    state: ChatComponent.State,
+    state: ChatMessageListUiState,
     component: ChatComponent,
     scrollState: LazyListState,
     groupedMessages: List<GroupedMessageItem>,
@@ -113,12 +166,22 @@ fun ChatContentList(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
-    val isComments = state.rootMessage != null
+    val isComments = state.isComments
     val isScrolling by remember(scrollState) { derivedStateOf { scrollState.isScrollInProgress } }
     val latestState by rememberUpdatedState(state)
     var lastOlderLoadTriggerUptimeMs by remember { mutableLongStateOf(0L) }
     var lastNewerLoadTriggerUptimeMs by remember { mutableLongStateOf(0L) }
     val loadTriggerThrottleMs = 350L
+    val groupedMessageIds =
+        remember(groupedMessages) { groupedMessages.map(GroupedMessageItem::firstMessageId) }
+    var hasSeededEntryAnimations by rememberSaveable(
+        state.chatId,
+        state.currentTopicId
+    ) { mutableStateOf(false) }
+    val seenMessageIds =
+        remember(state.chatId, state.currentTopicId) { mutableStateMapOf<Long, Boolean>() }
+    val pendingEntryAnimationIds =
+        remember(state.chatId, state.currentTopicId) { mutableStateMapOf<Long, Boolean>() }
     val unreadBoundaryIndex = remember(
         isComments,
         groupedMessages,
@@ -137,6 +200,40 @@ fun ChatContentList(
             boundaryItem?.let { target ->
                 groupedMessages.indexOfFirst { it.firstMessageId == target.firstMessageId }
                     .takeIf { it >= 0 }
+            }
+        }
+    }
+
+    LaunchedEffect(groupedMessageIds, state.suppressEntryAnimations) {
+        val currentIds = groupedMessageIds.toSet()
+        seenMessageIds.keys.toList().forEach { id ->
+            if (id !in currentIds) {
+                seenMessageIds.remove(id)
+            }
+        }
+        pendingEntryAnimationIds.keys.toList().forEach { id ->
+            if (id !in currentIds) {
+                pendingEntryAnimationIds.remove(id)
+            }
+        }
+
+        if (groupedMessageIds.isEmpty()) {
+            if (state.suppressEntryAnimations || state.isLoading) {
+                hasSeededEntryAnimations = false
+            }
+            return@LaunchedEffect
+        }
+
+        if (!hasSeededEntryAnimations || state.suppressEntryAnimations) {
+            groupedMessageIds.forEach { id -> seenMessageIds[id] = true }
+            pendingEntryAnimationIds.clear()
+            hasSeededEntryAnimations = true
+            return@LaunchedEffect
+        }
+
+        groupedMessageIds.forEach { id ->
+            if (seenMessageIds.put(id, true) == null) {
+                pendingEntryAnimationIds[id] = true
             }
         }
     }
@@ -283,6 +380,8 @@ fun ChatContentList(
                     onViaBotClick = onViaBotClick,
                     toProfile = toProfile,
                     isScrolling = isScrolling,
+                    isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
+                    onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
                     downloadUtils = downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen,
                     showUnreadSeparator = index == unreadBoundaryIndex,
@@ -339,6 +438,8 @@ fun ChatContentList(
                     onViaBotClick = onViaBotClick,
                     toProfile = toProfile,
                     isScrolling = isScrolling,
+                    isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
+                    onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
                     downloadUtils = downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen,
                     showUnreadSeparator = index == unreadBoundaryIndex,
@@ -402,7 +503,7 @@ private fun PagingLoadingIndicator() {
 @Composable
 private fun MessageRowItem(
     item: GroupedMessageItem,
-    state: ChatComponent.State,
+    state: ChatMessageListUiState,
     component: ChatComponent,
     olderMsg: MessageModel?,
     newerMsg: MessageModel?,
@@ -420,6 +521,8 @@ private fun MessageRowItem(
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
     isScrolling: Boolean,
+    isEntryAnimationPending: Boolean,
+    onEntryAnimationConsumed: (Long) -> Unit,
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false,
     showUnreadSeparator: Boolean,
@@ -429,7 +532,8 @@ private fun MessageRowItem(
         if (item is GroupedMessageItem.Single) item.message else (item as GroupedMessageItem.Album).messages.last()
     }
 
-    val shouldAnimateEntry = state.isChatAnimationsEnabled && !isScrolling
+    val shouldAnimateEntry =
+        state.isChatAnimationsEnabled && isEntryAnimationPending && !isScrolling
 
     val scale = remember(mainMsg.id) {
         Animatable(
@@ -457,10 +561,14 @@ private fun MessageRowItem(
             launch { scale.animateTo(1f, spring(Spring.DampingRatioLowBouncy, stiffness)) }
             launch { itemAlpha.animateTo(1f, spring(stiffness = stiffness)) }
             launch { offsetY.animateTo(0f, spring(stiffness = Spring.StiffnessLow)) }
-        } else if (!shouldAnimateEntry) {
+            onEntryAnimationConsumed(mainMsg.id)
+        } else {
             scale.snapTo(1f)
             itemAlpha.snapTo(1f)
             offsetY.snapTo(0f)
+            if (isEntryAnimationPending) {
+                onEntryAnimationConsumed(mainMsg.id)
+            }
         }
     }
 
@@ -537,7 +645,7 @@ private fun MessageRowItem(
 @Composable
 private fun MessageBubbleSwitcher(
     item: GroupedMessageItem,
-    state: ChatComponent.State,
+    state: ChatMessageListUiState,
     component: ChatComponent,
     olderMsg: MessageModel?,
     newerMsg: MessageModel?,
@@ -556,8 +664,8 @@ private fun MessageBubbleSwitcher(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
-    val isChannel = state.isChannel && state.currentTopicId == null
-    val isTopicClosed = state.topics.find { it.id.toLong() == state.currentTopicId }?.isClosed?: false
+    val isChannel = state.isChannelFeed
+    val isTopicClosed = state.isCurrentTopicClosed
 
     when (item) {
         is GroupedMessageItem.Single -> {
@@ -863,7 +971,7 @@ private fun SelectionIndicator(isSelected: Boolean, modifier: Modifier = Modifie
 
 @Composable
 private fun RootMessageSection(
-    state: ChatComponent.State,
+    state: ChatMessageListUiState,
     component: ChatComponent,
     onPhotoClick: (MessageModel, List<String>, List<String?>, List<Long>, Int) -> Unit,
     onPhotoDownload: (Int) -> Unit,

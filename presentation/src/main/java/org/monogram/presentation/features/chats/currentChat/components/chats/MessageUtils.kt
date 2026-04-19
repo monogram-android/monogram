@@ -157,36 +157,54 @@ fun isBigEmoji(text: String, entities: List<MessageEntity>): Boolean {
 
     if (otherEntities.isNotEmpty()) return false
 
-    if (emojiEntities.size == 1) {
-        val entity = emojiEntities[0]
-        val safeStart = entity.offset.coerceIn(0, text.length)
-        val safeEnd = (entity.offset.toLong() + entity.length.toLong())
-            .coerceIn(safeStart.toLong(), text.length.toLong())
-            .toInt()
-        val textBefore = text.substring(0, safeStart)
-        val textAfter = text.substring(safeEnd)
-        return textBefore.trim().isEmpty() && textAfter.trim().isEmpty()
+    if (emojiEntities.size > 3) return false
+
+    if (emojiEntities.isNotEmpty()) {
+        val sortedEmojiEntities = emojiEntities.sortedBy { it.offset }
+        val remainingText = buildString {
+            var currentIndex = 0
+            sortedEmojiEntities.forEach { entity ->
+                val safeStart = entity.offset.coerceIn(0, text.length)
+                val safeEnd = (entity.offset.toLong() + entity.length.toLong())
+                    .coerceIn(safeStart.toLong(), text.length.toLong())
+                    .toInt()
+                if (safeStart > currentIndex) {
+                    append(text.substring(currentIndex, safeStart))
+                }
+                currentIndex = maxOf(currentIndex, safeEnd)
+            }
+            if (currentIndex < text.length) {
+                append(text.substring(currentIndex))
+            }
+        }
+
+        val trimmedRemaining = remainingText.trim()
+        val plainEmojiCount = countPlainEmojiClusters(trimmedRemaining) ?: return false
+        val totalEmojiCount = emojiEntities.size + plainEmojiCount
+        return totalEmojiCount in 1..3
     }
 
-    if (emojiEntities.isNotEmpty()) return false
+    val plainEmojiCount = countPlainEmojiClusters(text.trim()) ?: return false
+    return plainEmojiCount in 1..3
+}
 
-    val trimmed = text.trim()
-    if (trimmed.isEmpty()) return false
+private fun countPlainEmojiClusters(text: String): Int? {
+    if (text.isEmpty()) return 0
 
     var i = 0
-    while (i < trimmed.length) {
-        val codePoint = trimmed.codePointAt(i)
-        if (!isEmojiLegacy(codePoint)) return false
+    while (i < text.length) {
+        val codePoint = text.codePointAt(i)
+        if (!isEmojiLegacy(codePoint)) return null
         i += Character.charCount(codePoint)
     }
 
-    val it = BreakIterator.getCharacterInstance()
-    it.setText(trimmed)
+    val iterator = BreakIterator.getCharacterInstance()
+    iterator.setText(text)
     var count = 0
-    while (it.next() != BreakIterator.DONE) {
+    while (iterator.next() != BreakIterator.DONE) {
         count++
     }
-    return count == 1
+    return count
 }
 
 fun isEmojiLegacy(codePoint: Int): Boolean {

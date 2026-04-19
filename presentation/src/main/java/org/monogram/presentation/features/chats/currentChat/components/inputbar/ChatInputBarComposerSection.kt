@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -86,7 +84,7 @@ fun ChatInputBarComposerSection(
     isStickerMenuVisible: Boolean,
     closeStickerMenuWithoutSlide: Boolean,
     isKeyboardVisible: Boolean,
-    transitionHoldBottomInset: Dp,
+    bottomInset: Dp,
     stickerMenuHeight: Dp,
     voiceRecorder: VoiceRecorderState,
     isGifSearchFocused: Boolean,
@@ -151,8 +149,7 @@ fun ChatInputBarComposerSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .imePadding()
-                .padding(bottom = transitionHoldBottomInset)
+                .padding(bottom = bottomInset)
         ) {
             InputPreviewSection(
                 editingMessage = editingMessage,
@@ -386,9 +383,6 @@ fun ChatInputBarComposerSection(
                     canSendStickers = canSendStickers,
                     stickerRepository = stickerRepository
                 )
-            }
-            if (!isTablet) {
-                Spacer(Modifier.navigationBarsPadding())
             }
         }
     }

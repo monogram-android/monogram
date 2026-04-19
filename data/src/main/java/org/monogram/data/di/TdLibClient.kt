@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.Client
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.gateway.TdLibException
@@ -80,17 +81,14 @@ internal class TdLibClient {
     }
 
     suspend fun <T : TdApi.Object> sendSuspend(function: TdApi.Function<T>): T {
-        if (function !is TdApi.SetTdlibParameters && 
-            function !is TdApi.SetLogVerbosityLevel && 
-            function !is TdApi.GetOption &&
-            function !is TdApi.GetAuthorizationState) {
-            if (!_isInitialized.value) {
-                Log.d(TAG, "Waiting for TDLib initialization before sending $function")
-                isInitialized.first { it }
-            }
+        if (requiresInitialization(function) && !_isInitialized.value) {
+            Log.d(TAG, "Waiting for TDLib initialization before sending $function")
+            isInitialized.first { it }
         }
+        awaitAuthorizationIfNeeded(function)
 
         var retries = 0
+        var unauthorizedRetries = 0
         while (true) {
             waitForRetryWindow(function)
             val result = awaitResult(function)
@@ -109,6 +107,13 @@ internal class TdLibClient {
                     "Rate limited for $function, scope=$retryScope, retrying in ${retryAfterMs}ms (attempt $retries)"
                 )
                 updateRetryWindow(retryScope, retryAfterMs)
+                continue
+            }
+
+            if (result.code == 401 && requiresAuthorization(function) && unauthorizedRetries < 1) {
+                unauthorizedRetries++
+                Log.w(TAG, "Unauthorized for $function, waiting for authorization and retrying")
+                awaitAuthorizationIfNeeded(function)
                 continue
             }
 
@@ -131,6 +136,52 @@ internal class TdLibClient {
             }
             throw TdLibException(result)
         }
+    }
+
+    private fun requiresInitialization(function: TdApi.Function<*>): Boolean {
+        return function !is TdApi.SetTdlibParameters &&
+                function !is TdApi.SetLogVerbosityLevel &&
+                function !is TdApi.SetLogStream &&
+                function !is TdApi.SetNetworkType &&
+                function !is TdApi.SetOption &&
+                function !is TdApi.GetOption &&
+                function !is TdApi.GetAuthorizationState
+    }
+
+    private fun requiresAuthorization(function: TdApi.Function<*>): Boolean {
+        return function !is TdApi.SetTdlibParameters &&
+                function !is TdApi.SetLogVerbosityLevel &&
+                function !is TdApi.SetLogStream &&
+                function !is TdApi.SetNetworkType &&
+                function !is TdApi.SetOption &&
+                function !is TdApi.GetOption &&
+                function !is TdApi.GetAuthorizationState &&
+                function !is TdApi.SetAuthenticationPhoneNumber &&
+                function !is TdApi.ResendAuthenticationCode &&
+                function !is TdApi.CheckAuthenticationCode &&
+                function !is TdApi.CheckAuthenticationEmailCode &&
+                function !is TdApi.CheckAuthenticationPassword &&
+                function !is TdApi.CheckAuthenticationPasswordRecoveryCode &&
+                function !is TdApi.RequestAuthenticationPasswordRecovery
+    }
+
+    private suspend fun awaitAuthorizationIfNeeded(function: TdApi.Function<*>) {
+        if (!requiresAuthorization(function) || _isAuthenticated.value) return
+
+        Log.w(TAG, "Waiting for authorization before sending $function")
+        val authorized = withTimeoutOrNull(AUTH_WAIT_TIMEOUT_MS) {
+            isAuthenticated.first { it }
+            true
+        } == true
+
+        if (authorized) return
+
+        val stateName = when (val state = awaitResult(TdApi.GetAuthorizationState())) {
+            is TdApi.AuthorizationState -> state.javaClass.simpleName
+            is TdApi.Error -> "error:${state.code}"
+            else -> state.javaClass.simpleName
+        }
+        throw TdLibException(TdApi.Error(401, "Unauthorized (state=$stateName)"))
     }
 
     private suspend fun <T : TdApi.Object> awaitResult(function: TdApi.Function<T>): TdApi.Object =
@@ -174,5 +225,9 @@ internal class TdLibClient {
             ?.toLongOrNull()
             ?: 1L
         return (seconds * 1000L).coerceAtMost(60_000L)
+    }
+
+    companion object {
+        private const val AUTH_WAIT_TIMEOUT_MS = 15_000L
     }
 }

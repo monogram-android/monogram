@@ -27,12 +27,18 @@ fun AuthErrorDialog(
             Text(text = stringResource(R.string.auth_error_title))
         },
         text = {
-            val errorText = when(message) {
+            val errorText = when (message) {
                 "PHONE_CODE_INVALID" -> stringResource(R.string.auth_phone_code_invalid_error)
                 "PASSWORD_HASH_INVALID" -> stringResource(R.string.auth_password_hash_invalid)
                 else -> stringResource(R.string.unexpected_error)
             }
-            Text(text = errorText)
+            val details = message.trim()
+            val dialogText = if (details.isNotEmpty() && details != errorText) {
+                "$errorText\n\n$details"
+            } else {
+                errorText
+            }
+            Text(text = dialogText)
         },
         confirmButton = {
             Button(

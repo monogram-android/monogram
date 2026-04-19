@@ -34,9 +34,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.pow
 
-const val REPLY_TRIGGER_FRACTION = 0.35f
-const val MAX_SWIPE_FRACTION = 0.7f
+const val REPLY_TRIGGER_FRACTION = 0.4f
+const val MAX_SWIPE_FRACTION = 0.65f
 const val ICON_OFFSET_FRACTION = 0.1f
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -51,7 +52,12 @@ fun FastReplyIndicator(
     val triggerDistance = maxWidth.value * REPLY_TRIGGER_FRACTION
     val dragged = (-dragOffsetX.value).coerceAtLeast(0f)
 
-    val progress = ((dragged - 48.dp.value) / (triggerDistance - 48.dp.value)).coerceIn(0f, 1f)
+    val startOffset = 48.dp.value
+    val effectiveDrag = (dragged - startOffset).coerceAtLeast(0f)
+    val effectiveRange = (triggerDistance - startOffset).coerceAtLeast(1f)
+
+    val progress = (effectiveDrag / effectiveRange).coerceIn(0f, 1f).pow(1.3f)
+
     val animatedProgress by
         animateFloatAsState(
             targetValue = progress,
@@ -60,7 +66,6 @@ fun FastReplyIndicator(
                 stiffness = Spring.StiffnessLow
             )
         )
-    println(progress)
 
     val iconOffset = maxWidth * ICON_OFFSET_FRACTION
 
@@ -78,7 +83,7 @@ fun FastReplyIndicator(
         contentAlignment = Alignment.Center
     ) {
         AnimatedVisibility(
-            visible = dragged > 48.dp.value,
+            visible = dragged > startOffset,
             enter = fadeIn() + scaleIn(initialScale = 0.6f),
             exit = fadeOut() + scaleOut(targetScale = 0.6f)
         ) {

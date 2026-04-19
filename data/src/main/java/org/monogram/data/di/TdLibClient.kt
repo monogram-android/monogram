@@ -158,13 +158,7 @@ internal class TdLibClient {
                 function !is TdApi.GetOption &&
                 function !is TdApi.GetAuthorizationState &&
                 !isProxyFunction(function) &&
-                function !is TdApi.SetAuthenticationPhoneNumber &&
-                function !is TdApi.ResendAuthenticationCode &&
-                function !is TdApi.CheckAuthenticationCode &&
-                function !is TdApi.CheckAuthenticationEmailCode &&
-                function !is TdApi.CheckAuthenticationPassword &&
-                function !is TdApi.CheckAuthenticationPasswordRecoveryCode &&
-                function !is TdApi.RequestAuthenticationPasswordRecovery
+                !isAuthFlowFunction(function)
     }
 
     private fun isProxyFunction(function: TdApi.Function<*>): Boolean {
@@ -176,6 +170,36 @@ internal class TdLibClient {
                 function is TdApi.RemoveProxy ||
                 function is TdApi.PingProxy ||
                 function is TdApi.TestProxy
+    }
+
+    private fun isAuthFlowFunction(function: TdApi.Function<*>): Boolean {
+        return function is TdApi.SetAuthenticationPhoneNumber ||
+                function is TdApi.ResendAuthenticationCode ||
+                function is TdApi.CheckAuthenticationCode ||
+                function is TdApi.CheckAuthenticationEmailCode ||
+                function is TdApi.CheckAuthenticationPasskey ||
+                function is TdApi.CheckAuthenticationPassword ||
+                function is TdApi.CheckAuthenticationPasswordRecoveryCode ||
+                function is TdApi.CheckAuthenticationBotToken ||
+                function is TdApi.CheckAuthenticationPremiumPurchase ||
+                function is TdApi.GetAuthenticationPasskeyParameters ||
+                function is TdApi.RequestAuthenticationPasswordRecovery ||
+                function is TdApi.RecoverAuthenticationPassword ||
+                function is TdApi.RequestQrCodeAuthentication ||
+                function is TdApi.ConfirmQrCodeAuthentication ||
+                function is TdApi.SetAuthenticationEmailAddress ||
+                function is TdApi.SendAuthenticationFirebaseSms ||
+                function is TdApi.SetAuthenticationPremiumPurchaseTransaction ||
+                function is TdApi.ReportAuthenticationCodeMissing ||
+                function is TdApi.ResetAuthenticationEmailAddress ||
+                function is TdApi.LogOut ||
+                function is TdApi.SetLoginEmailAddress ||
+                function is TdApi.ResendLoginEmailAddressCode ||
+                function is TdApi.RegisterDevice ||
+                function is TdApi.SendPhoneNumberCode ||
+                function is TdApi.ResendPhoneNumberCode ||
+                function is TdApi.CheckPasswordRecoveryCode ||
+                function is TdApi.RequestPasswordRecovery
     }
 
     private suspend fun awaitAuthorizationIfNeeded(function: TdApi.Function<*>) {

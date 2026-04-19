@@ -145,7 +145,8 @@ internal class TdLibClient {
                 function !is TdApi.SetNetworkType &&
                 function !is TdApi.SetOption &&
                 function !is TdApi.GetOption &&
-                function !is TdApi.GetAuthorizationState
+                function !is TdApi.GetAuthorizationState &&
+                !isProxyFunction(function)
     }
 
     private fun requiresAuthorization(function: TdApi.Function<*>): Boolean {
@@ -156,6 +157,7 @@ internal class TdLibClient {
                 function !is TdApi.SetOption &&
                 function !is TdApi.GetOption &&
                 function !is TdApi.GetAuthorizationState &&
+                !isProxyFunction(function) &&
                 function !is TdApi.SetAuthenticationPhoneNumber &&
                 function !is TdApi.ResendAuthenticationCode &&
                 function !is TdApi.CheckAuthenticationCode &&
@@ -163,6 +165,17 @@ internal class TdLibClient {
                 function !is TdApi.CheckAuthenticationPassword &&
                 function !is TdApi.CheckAuthenticationPasswordRecoveryCode &&
                 function !is TdApi.RequestAuthenticationPasswordRecovery
+    }
+
+    private fun isProxyFunction(function: TdApi.Function<*>): Boolean {
+        return function is TdApi.GetProxies ||
+                function is TdApi.AddProxy ||
+                function is TdApi.EditProxy ||
+                function is TdApi.EnableProxy ||
+                function is TdApi.DisableProxy ||
+                function is TdApi.RemoveProxy ||
+                function is TdApi.PingProxy ||
+                function is TdApi.TestProxy
     }
 
     private suspend fun awaitAuthorizationIfNeeded(function: TdApi.Function<*>) {

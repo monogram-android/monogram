@@ -26,7 +26,9 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageEntityType
 import org.monogram.presentation.features.chats.currentChat.components.chats.model.isBlockElement
 
 @Composable
@@ -37,6 +39,8 @@ fun MessageText(
     style: TextStyle,
     modifier: Modifier = Modifier,
     color: Color = Color.Unspecified,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
     entities: List<MessageEntity> = emptyList(),
     isOutgoing: Boolean = false,
     onSpoilerClick: (Int) -> Unit = {},
@@ -59,6 +63,8 @@ fun MessageText(
                 inlineContent = inlineContent,
                 style = style,
                 color = color,
+                maxLines = maxLines,
+                overflow = overflow,
                 entities = entities,
                 onSpoilerClick = onSpoilerClick,
                 onClick = onClick,
@@ -73,8 +79,18 @@ fun MessageText(
             val displayTextLength = text.length
 
             blockEntities.forEach { entity ->
-                val safeLastOffset = lastOffset.coerceIn(0, displayTextLength)
-                val safeEntityStart = entity.offset.coerceIn(0, displayTextLength)
+                val safeLastOffset = rawOffsetToDisplayOffset(
+                    rawText = rawText,
+                    entities = entities,
+                    rawOffset = lastOffset,
+                    displayTextLength = displayTextLength
+                )
+                val safeEntityStart = rawOffsetToDisplayOffset(
+                    rawText = rawText,
+                    entities = entities,
+                    rawOffset = entity.offset,
+                    displayTextLength = displayTextLength
+                )
 
                 if (safeEntityStart > safeLastOffset) {
                     val subText = text.subSequence(safeLastOffset, safeEntityStart)
@@ -84,6 +100,8 @@ fun MessageText(
                             inlineContent = inlineContent,
                             style = style,
                             color = color,
+                            maxLines = maxLines,
+                            overflow = overflow,
                             entities = entities,
                             onSpoilerClick = onSpoilerClick,
                             onClick = onClick,
@@ -98,6 +116,7 @@ fun MessageText(
 
                 TextBlocks(
                     text = rawText,
+                    entities = entities,
                     entity = entity,
                     isOutgoing = isOutgoing,
                 )
@@ -109,7 +128,12 @@ fun MessageText(
                 lastOffset = maxOf(lastOffset, safeEntityEnd)
             }
 
-            val safeLastOffset = lastOffset.coerceIn(0, displayTextLength)
+            val safeLastOffset = rawOffsetToDisplayOffset(
+                rawText = rawText,
+                entities = entities,
+                rawOffset = lastOffset,
+                displayTextLength = displayTextLength
+            )
             if (safeLastOffset < displayTextLength) {
                 val subText = text.subSequence(safeLastOffset, displayTextLength)
                 if (subText.text.isNotBlank()) {
@@ -118,6 +142,8 @@ fun MessageText(
                         inlineContent = inlineContent,
                         style = style,
                         color = color,
+                        maxLines = maxLines,
+                        overflow = overflow,
                         entities = entities,
                         onSpoilerClick = onSpoilerClick,
                         onClick = onClick,
@@ -133,12 +159,53 @@ fun MessageText(
     }
 }
 
+private fun rawOffsetToDisplayOffset(
+    rawText: String,
+    entities: List<MessageEntity>,
+    rawOffset: Int,
+    displayTextLength: Int
+): Int {
+    val targetOffset = rawOffset.coerceIn(0, rawText.length)
+    val emojiEntities = entities
+        .filter { it.type is MessageEntityType.CustomEmoji }
+        .sortedBy { it.offset }
+
+    var rawPosition = 0
+    var displayPosition = 0
+
+    emojiEntities.forEachIndexed { index, entity ->
+        val safeStart = entity.offset.coerceIn(0, rawText.length)
+        val safeEnd = (entity.offset + entity.length).coerceIn(safeStart, rawText.length)
+
+        if (targetOffset <= safeStart) {
+            return (displayPosition + (targetOffset - rawPosition)).coerceIn(0, displayTextLength)
+        }
+
+        if (safeStart > rawPosition) {
+            displayPosition += safeStart - rawPosition
+            rawPosition = safeStart
+        }
+
+        val inlinePlaceholderLength = "[emoji]".length
+        if (targetOffset <= safeEnd) {
+            return (displayPosition + inlinePlaceholderLength).coerceIn(0, displayTextLength)
+        }
+
+        displayPosition += inlinePlaceholderLength
+        rawPosition = safeEnd
+    }
+
+    return (displayPosition + (targetOffset - rawPosition)).coerceIn(0, displayTextLength)
+}
+
 @Composable
 private fun DefaultTextRender(
     text: AnnotatedString,
     inlineContent: Map<String, InlineTextContent>,
     style: TextStyle,
     color: Color,
+    maxLines: Int,
+    overflow: TextOverflow,
     entities: List<MessageEntity>,
     onSpoilerClick: (Int) -> Unit,
     onClick: (Offset) -> Unit,
@@ -170,6 +237,8 @@ private fun DefaultTextRender(
         inlineContent = inlineContent,
         style = style,
         color = color,
+        maxLines = maxLines,
+        overflow = overflow,
         modifier = Modifier
             .drawBehind {
                 layoutResult.value?.let { result ->

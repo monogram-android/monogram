@@ -123,6 +123,7 @@ fun VideoStickerPlayer(
     val currentPath by rememberUpdatedState(path)
     val currentFileId by rememberUpdatedState(fileId)
     val currentThumbnailData by rememberUpdatedState(thumbnailData)
+    val currentAnimate by rememberUpdatedState(animate)
     val effectiveStreamingFileId = remember(currentPath, fileId) {
         if (currentPath.startsWith("http://streaming/")) fileId else 0
     }
@@ -187,7 +188,7 @@ fun VideoStickerPlayer(
                     }
                 }
 
-                DisposableEffect(currentPath, exoPlayer, animate, effectiveStreamingFileId) {
+                DisposableEffect(currentPath, exoPlayer, effectiveStreamingFileId) {
                     isDisposed.set(false)
                     val effectPath = currentPath
                     val effectFileId = fileId
@@ -296,7 +297,7 @@ fun VideoStickerPlayer(
                     val lifecycleObserver = LifecycleEventObserver { _, event ->
                         if (isDisposed.get()) return@LifecycleEventObserver
                         when (event) {
-                            Lifecycle.Event.ON_RESUME -> if (animate) exoPlayer.play()
+                            Lifecycle.Event.ON_RESUME -> if (currentAnimate) exoPlayer.play()
                             Lifecycle.Event.ON_PAUSE -> exoPlayer.pause()
                             else -> Unit
                         }
@@ -332,11 +333,9 @@ fun VideoStickerPlayer(
                             isOpaque = false
                             this.contentScale = contentScale
                             this.configure(type.useAlphaChannel, type.removeBlackBackground)
-                            this.onSurfaceReady = { surface ->
+                            bindSurface { surface ->
                                 if (!isDisposed.get()) {
                                     exoPlayer.setVideoSurface(surface)
-                                } else {
-                                    surface.release()
                                 }
                             }
                             textureViewRef.value = this
@@ -345,11 +344,9 @@ fun VideoStickerPlayer(
                     update = { view ->
                         view.contentScale = contentScale
                         view.configure(type.useAlphaChannel, type.removeBlackBackground)
-                        view.onSurfaceReady = { surface ->
+                        view.bindSurface { surface ->
                             if (!isDisposed.get()) {
                                 exoPlayer.setVideoSurface(surface)
-                            } else {
-                                surface.release()
                             }
                         }
                         textureViewRef.value = view
@@ -656,8 +653,13 @@ class NativeVideoRenderer {
 }
 
 class VideoGLTextureView(context: Context) : TextureView(context), TextureView.SurfaceTextureListener {
-    var onSurfaceReady: ((Surface) -> Unit)? = null
     var contentScale: ContentScale = ContentScale.Fit
+    var onSurfaceReady: ((Surface) -> Unit)? = null
+        set(value) {
+            field = value
+            currentSurface?.let { surface -> value?.invoke(surface) }
+        }
+    private var currentSurface: Surface? = null
 
     private var useAlpha = false
     private var removeBlackBg = false
@@ -676,6 +678,10 @@ class VideoGLTextureView(context: Context) : TextureView(context), TextureView.S
         this.removeBlackBg = removeBlackBg
     }
 
+    fun bindSurface(onReady: (Surface) -> Unit) {
+        onSurfaceReady = onReady
+    }
+
     fun setVideoSize(width: Int, height: Int) {
         this.videoWidth = width
         this.videoHeight = height
@@ -685,7 +691,10 @@ class VideoGLTextureView(context: Context) : TextureView(context), TextureView.S
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         if (videoWidth == 0 || videoHeight == 0) {
-            setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.getSize(heightMeasureSpec))
+            setMeasuredDimension(
+                MeasureSpec.getSize(widthMeasureSpec),
+                MeasureSpec.getSize(heightMeasureSpec)
+            )
             return
         }
 
@@ -722,6 +731,7 @@ class VideoGLTextureView(context: Context) : TextureView(context), TextureView.S
     override fun onSurfaceTextureAvailable(st: SurfaceTexture, width: Int, height: Int) {
         nativeRenderer = NativeVideoRenderer()
         nativeRenderer?.onSurfaceReady = { surface ->
+            currentSurface = surface
             onSurfaceReady?.invoke(surface)
         }
         nativeRenderer?.init(Surface(st), useAlpha, removeBlackBg)
@@ -733,6 +743,7 @@ class VideoGLTextureView(context: Context) : TextureView(context), TextureView.S
     }
 
     override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+        currentSurface = null
         nativeRenderer?.release()
         nativeRenderer = null
         return true

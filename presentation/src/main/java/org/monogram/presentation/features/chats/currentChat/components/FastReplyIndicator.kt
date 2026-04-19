@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -21,6 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -50,6 +52,15 @@ fun FastReplyIndicator(
     val dragged = (-dragOffsetX.value).coerceAtLeast(0f)
 
     val progress = ((dragged - 48.dp.value) / (triggerDistance - 48.dp.value)).coerceIn(0f, 1f)
+    val animatedProgress by
+        animateFloatAsState(
+            targetValue = progress,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        )
+    println(progress)
 
     val iconOffset = maxWidth * ICON_OFFSET_FRACTION
 
@@ -76,7 +87,7 @@ fun FastReplyIndicator(
                 contentAlignment = Alignment.Center
             ) {
                 CircularWavyProgressIndicator(
-                    progress = { progress },
+                    progress = { animatedProgress },
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Icon(

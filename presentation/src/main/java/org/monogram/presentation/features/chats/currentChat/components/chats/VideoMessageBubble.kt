@@ -1,6 +1,5 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,7 +38,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -50,6 +48,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -110,8 +109,6 @@ fun VideoMessageBubble(
             stablePath = content.path
             isAutoDownloadSuppressed = false
             AutoDownloadSuppression.clear(content.fileId)
-        } else {
-            stablePath = null
         }
     }
 
@@ -170,7 +167,7 @@ fun VideoMessageBubble(
         ) {
             Column(modifier = Modifier
                 .widthIn(max = 280.dp)
-                .animateContentSize()) {
+            ) {
                 msg.forwardInfo?.let { forward ->
                     Box(
                         modifier = Modifier
@@ -209,24 +206,7 @@ fun VideoMessageBubble(
                         .aspectRatio(ratio)
                         .clipToBounds()
                         .onGloballyPositioned { videoPosition = it.positionInWindow() }
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onTap = {
-                                    if (!isMediaSpoilerRevealed) {
-                                        isMediaSpoilerRevealed = true
-                                    } else if (content.isDownloading) {
-                                        isAutoDownloadSuppressed = true
-                                        AutoDownloadSuppression.suppress(content.fileId)
-                                        onCancelDownload(content.fileId)
-                                    } else {
-                                        isAutoDownloadSuppressed = false
-                                        AutoDownloadSuppression.clear(content.fileId)
-                                        onVideoClick(msg)
-                                    }
-                                },
-                                onLongPress = { offset -> onLongClick(videoPosition + offset) }
-                            )
-                        }
+
                 ) {
                     if (hasPath || content.supportsStreaming) {
                             if (autoplayVideos) {
@@ -235,7 +215,7 @@ fun VideoMessageBubble(
                                     path = videoPath,
                                     type = VideoType.Gif,
                                     modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Fit,
+                                    contentScale = ContentScale.Crop,
                                     animate = isVisible && !isAnyViewerOpen,
                                     volume = if (isMuted) 0f else 1f,
                                     reportProgress = true,
@@ -277,12 +257,12 @@ fun VideoMessageBubble(
                                                         diskCacheKey(it)
                                                     }
                                                 }
-                                                .crossfade(true)
+                                                .crossfade(false)
                                                 .build()
                                         ),
                                         contentDescription = content.caption,
                                         modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Fit
+                                        contentScale = ContentScale.Crop
                                     )
                                 } else {
                                     if (content.minithumbnail != null) {
@@ -299,10 +279,8 @@ fun VideoMessageBubble(
                                                     .build()
                                             ),
                                             contentDescription = null,
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .blur(10.dp),
-                                            contentScale = ContentScale.Fit
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
                                         )
                                     }
                                 }
@@ -329,7 +307,7 @@ fun VideoMessageBubble(
                         ) {
                             MediaLoadingBackground(
                                 previewData = content.minithumbnail,
-                                contentScale = ContentScale.Fit,
+                                contentScale = ContentScale.Crop,
                                 previewBlur = 14.dp
                             )
 
@@ -357,6 +335,35 @@ fun VideoMessageBubble(
                             )
                         }
                     }
+
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .pointerInput(
+                                content.isDownloading,
+                                content.fileId,
+                                isMediaSpoilerRevealed,
+                                stablePath,
+                                content.supportsStreaming
+                            ) {
+                                detectTapGestures(
+                                    onTap = {
+                                        if (!isMediaSpoilerRevealed) {
+                                            isMediaSpoilerRevealed = true
+                                        } else if (content.isDownloading) {
+                                            isAutoDownloadSuppressed = true
+                                            AutoDownloadSuppression.suppress(content.fileId)
+                                            onCancelDownload(content.fileId)
+                                        } else {
+                                            isAutoDownloadSuppressed = false
+                                            AutoDownloadSuppression.clear(content.fileId)
+                                            onVideoClick(msg)
+                                        }
+                                    },
+                                    onLongPress = { offset -> onLongClick(videoPosition + offset) }
+                                )
+                            }
+                    )
 
                     Box(
                         modifier = Modifier
@@ -430,34 +437,43 @@ fun VideoMessageBubble(
                             .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp)
                             .zIndex(1f)
                     ) {
-                        val inlineContent = rememberMessageInlineContent(content.entities, fontSize)
-                        val finalAnnotatedString = buildAnnotatedMessageTextWithEmoji(
+                        val renderData = rememberMessageTextRenderData(
                             text = content.caption,
                             entities = content.entities,
                             isOutgoing = isOutgoing,
-                            revealedSpoilers = revealedSpoilers
+                            revealedSpoilers = revealedSpoilers,
+                            fontSize = fontSize
                         )
 
-                        MessageText(
-                            text = finalAnnotatedString,
-                            rawText = content.caption,
-                            inlineContent = inlineContent,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = fontSize.sp,
-                                letterSpacing = letterSpacing.sp,
-                                lineHeight = (fontSize * 1.375f).sp
-                            ),
-                            modifier = Modifier.padding(bottom = 4.dp),
-                            onSpoilerClick = { index ->
-                                if (revealedSpoilers.contains(index)) {
-                                    revealedSpoilers.remove(index)
-                                } else {
-                                    revealedSpoilers.add(index)
-                                }
-                            },
-                            onClick = { offset -> onLongClick(videoPosition + offset) },
-                            onLongClick = { offset -> onLongClick(videoPosition + offset) }
-                        )
+                        if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
+                            BigEmojiContent(
+                                items = renderData.bigEmojiItems,
+                                sizeDp = fontSize * 5f,
+                                emojiFontFamily = FontFamily.Default,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        } else {
+                            MessageText(
+                                text = renderData.annotatedText,
+                                rawText = content.caption,
+                                inlineContent = renderData.inlineContent,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = fontSize.sp,
+                                    letterSpacing = letterSpacing.sp,
+                                    lineHeight = (fontSize * 1.375f).sp
+                                ),
+                                modifier = Modifier.padding(bottom = 4.dp),
+                                onSpoilerClick = { index ->
+                                    if (revealedSpoilers.contains(index)) {
+                                        revealedSpoilers.remove(index)
+                                    } else {
+                                        revealedSpoilers.add(index)
+                                    }
+                                },
+                                onClick = { offset -> onLongClick(videoPosition + offset) },
+                                onLongClick = { offset -> onLongClick(videoPosition + offset) }
+                            )
+                        }
                         if (showMetadata) {
                             Box(modifier = Modifier.align(Alignment.End)) {
                                 MessageMetadata(msg, isOutgoing, timeColor)

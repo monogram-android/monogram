@@ -1,17 +1,27 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.*
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -21,29 +31,212 @@ import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
+import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.AppPreferences
+import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
+
+@Immutable
+data class MessageTextRenderData(
+    val annotatedText: AnnotatedString,
+    val inlineContent: Map<String, InlineTextContent>,
+    val isBigEmoji: Boolean,
+    val bigEmojiItems: List<BigEmojiItem>
+)
+
+@Immutable
+sealed interface BigEmojiItem {
+    @Immutable
+    data class Plain(val emoji: String) : BigEmojiItem
+
+    @Immutable
+    data class Custom(val path: String?) : BigEmojiItem
+}
+
+@Composable
+private fun rememberResolvedCustomEmojiPaths(
+    entities: List<MessageEntity>,
+    stickerRepository: StickerRepository = koinInject()
+): List<String?> {
+    val emojiEntities = remember(entities) {
+        entities.filter { it.type is MessageEntityType.CustomEmoji }.sortedBy { it.offset }
+    }
+    val customEmojiStickerSets by stickerRepository.customEmojiStickerSets.collectAsState()
+
+    LaunchedEffect(emojiEntities, customEmojiStickerSets) {
+        if (
+            emojiEntities.any { (it.type as? MessageEntityType.CustomEmoji)?.path == null } &&
+            customEmojiStickerSets.isEmpty()
+        ) {
+            coRunCatching { stickerRepository.loadCustomEmojiStickerSets() }
+        }
+    }
+
+    val customEmojiFileIdsById = remember(customEmojiStickerSets) {
+        buildMap {
+            customEmojiStickerSets.forEach { set ->
+                set.stickers.forEach { sticker ->
+                    sticker.customEmojiId?.let { put(it, sticker.id) }
+                }
+            }
+        }
+    }
+
+    return emojiEntities.map { entity ->
+        val type = entity.type as MessageEntityType.CustomEmoji
+        val fileId = customEmojiFileIdsById[type.emojiId]
+        val resolvedPath by if (type.path == null && fileId != null) {
+            stickerRepository.getStickerFile(fileId).collectAsState(initial = null)
+        } else {
+            remember(type.path) { mutableStateOf(type.path) }
+        }
+        resolvedPath
+    }
+}
 
 @Composable
 fun rememberMessageInlineContent(
     entities: List<MessageEntity>,
-    fontSize: Float
+    fontSize: Float,
+    isBigEmoji: Boolean = false,
+    stickerRepository: StickerRepository = koinInject()
 ): Map<String, InlineTextContent> {
-    return remember(entities, fontSize) {
+    val emojiEntities = remember(entities) {
+        entities.filter { it.type is MessageEntityType.CustomEmoji }.sortedBy { it.offset }
+    }
+    val resolvedEmojiPaths = rememberResolvedCustomEmojiPaths(entities, stickerRepository)
+
+    return remember(emojiEntities, resolvedEmojiPaths, fontSize, isBigEmoji) {
         val map = mutableMapOf<String, InlineTextContent>()
-        val emojiEntities = entities.filter { it.type is MessageEntityType.CustomEmoji }.sortedBy { it.offset }
-        emojiEntities.forEachIndexed { index, entity ->
-            val emojiSize = (fontSize * 1.5f).sp
+        val emojiSizeDp = if (isBigEmoji) fontSize * 5f else fontSize * 1.5f
+        val emojiSizeSp = emojiSizeDp.sp
+        emojiEntities.forEachIndexed { index, _ ->
             map["emoji_$index"] = InlineTextContent(
-                Placeholder(emojiSize, emojiSize, PlaceholderVerticalAlign.Center)
+                Placeholder(emojiSizeSp, emojiSizeSp, PlaceholderVerticalAlign.Center)
             ) {
                 StickerImage(
-                    path = (entity.type as MessageEntityType.CustomEmoji).path,
-                    modifier = Modifier.size((fontSize * 1.5f).dp)
+                    path = resolvedEmojiPaths.getOrNull(index),
+                    modifier = Modifier.size(emojiSizeDp.dp)
                 )
             }
         }
         map
+    }
+}
+
+@Composable
+fun rememberMessageTextRenderData(
+    text: String,
+    entities: List<MessageEntity>,
+    fontSize: Float,
+    isOutgoing: Boolean = false,
+    revealedSpoilers: List<Int> = emptyList(),
+    appPreferences: AppPreferences = koinInject(),
+    stickerRepository: StickerRepository = koinInject()
+): MessageTextRenderData {
+    val bigEmoji = remember(text, entities) {
+        isBigEmoji(text, entities)
+    }
+    val resolvedEmojiPaths = rememberResolvedCustomEmojiPaths(entities, stickerRepository)
+    val annotatedText = buildAnnotatedMessageTextWithEmoji(
+        text = text,
+        entities = entities,
+        isOutgoing = isOutgoing,
+        revealedSpoilers = revealedSpoilers,
+        appPreferences = appPreferences
+    )
+    val inlineContent = rememberMessageInlineContent(
+        entities = entities,
+        fontSize = fontSize,
+        isBigEmoji = bigEmoji,
+        stickerRepository = stickerRepository
+    )
+    val bigEmojiItems = remember(text, entities, resolvedEmojiPaths, bigEmoji) {
+        if (!bigEmoji) emptyList() else buildBigEmojiItems(text, entities, resolvedEmojiPaths)
+    }
+
+    return remember(annotatedText, inlineContent, bigEmoji, bigEmojiItems) {
+        MessageTextRenderData(
+            annotatedText = annotatedText,
+            inlineContent = inlineContent,
+            isBigEmoji = bigEmoji,
+            bigEmojiItems = bigEmojiItems
+        )
+    }
+}
+
+private fun buildBigEmojiItems(
+    text: String,
+    entities: List<MessageEntity>,
+    resolvedEmojiPaths: List<String?>
+): List<BigEmojiItem> {
+    val emojiEntities =
+        entities.filter { it.type is MessageEntityType.CustomEmoji }.sortedBy { it.offset }
+    if (emojiEntities.size == 1) {
+        return listOf(BigEmojiItem.Custom(resolvedEmojiPaths.firstOrNull()))
+    }
+    val items = mutableListOf<BigEmojiItem>()
+    var currentPos = 0
+
+    fun appendPlainEmojiSegment(segment: String) {
+        if (segment.isBlank()) return
+        val iterator = java.text.BreakIterator.getCharacterInstance().apply { setText(segment) }
+        var start = iterator.first()
+        var end = iterator.next()
+        while (end != java.text.BreakIterator.DONE) {
+            val part = segment.substring(start, end)
+            if (part.isNotBlank()) items += BigEmojiItem.Plain(part)
+            start = end
+            end = iterator.next()
+        }
+    }
+
+    emojiEntities.forEachIndexed { index, entity ->
+        val safeStart = entity.offset.coerceIn(0, text.length)
+        val safeEnd = (entity.offset + entity.length).coerceIn(safeStart, text.length)
+        if (safeStart > currentPos) {
+            appendPlainEmojiSegment(text.substring(currentPos, safeStart))
+        }
+        items += BigEmojiItem.Custom(resolvedEmojiPaths.getOrNull(index))
+        currentPos = maxOf(currentPos, safeEnd)
+    }
+
+    if (currentPos < text.length) {
+        appendPlainEmojiSegment(text.substring(currentPos))
+    }
+
+    return items.filterNot {
+        it is BigEmojiItem.Plain && it.emoji.isBlank()
+    }.take(3)
+}
+
+@Composable
+fun BigEmojiContent(
+    items: List<BigEmojiItem>,
+    sizeDp: Float,
+    emojiFontFamily: FontFamily,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        items.forEach { item ->
+            when (item) {
+                is BigEmojiItem.Custom -> StickerImage(
+                    path = item.path,
+                    modifier = Modifier.size(sizeDp.dp)
+                )
+
+                is BigEmojiItem.Plain -> androidx.compose.material3.Text(
+                    text = item.emoji,
+                    fontSize = sizeDp.sp,
+                    fontFamily = emojiFontFamily,
+                    lineHeight = (sizeDp * 1.05f).sp
+                )
+            }
+        }
     }
 }
 

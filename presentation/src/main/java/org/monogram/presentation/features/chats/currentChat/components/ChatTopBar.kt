@@ -117,19 +117,9 @@ fun ChatTopBar(
     var showClearHistorySheet by rememberSaveable { mutableStateOf(false) }
     var showDeleteChatSheet by rememberSaveable { mutableStateOf(false) }
 
-    val windowInsets = if (isTablet) WindowInsets(0, 0, 0, 0) else WindowInsets.statusBars
-    val topInsetModifier = if (isTablet) {
-        Modifier
-            .fillMaxWidth()
-            .padding(top = 10.dp)
-    } else {
-        Modifier.fillMaxWidth()
-    }
-    val topBarShape = if (isTablet) {
-        RoundedCornerShape(16.dp)
-    } else {
-        RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
-    }
+    val windowInsets = WindowInsets.statusBars
+    val topInsetModifier = Modifier.fillMaxWidth()
+    val topBarShape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
 
     Surface(
         modifier = topInsetModifier,

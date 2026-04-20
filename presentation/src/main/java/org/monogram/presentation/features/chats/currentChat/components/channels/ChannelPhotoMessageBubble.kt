@@ -1,8 +1,5 @@
 package org.monogram.presentation.features.chats.currentChat.components.channels
 
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -30,17 +27,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
-import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.monogram.domain.models.MessageContent
@@ -48,6 +44,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
+import org.monogram.presentation.features.chats.currentChat.components.chats.BigEmojiContent
 import org.monogram.presentation.features.chats.currentChat.components.chats.ForwardContent
 import org.monogram.presentation.features.chats.currentChat.components.chats.MediaLoadingAction
 import org.monogram.presentation.features.chats.currentChat.components.chats.MediaLoadingBackground
@@ -55,8 +52,7 @@ import org.monogram.presentation.features.chats.currentChat.components.chats.Mes
 import org.monogram.presentation.features.chats.currentChat.components.chats.MessageReactionsView
 import org.monogram.presentation.features.chats.currentChat.components.chats.MessageText
 import org.monogram.presentation.features.chats.currentChat.components.chats.ReplyContent
-import org.monogram.presentation.features.chats.currentChat.components.chats.buildAnnotatedMessageTextWithEmoji
-import org.monogram.presentation.features.chats.currentChat.components.chats.rememberMessageInlineContent
+import org.monogram.presentation.features.chats.currentChat.components.chats.rememberMessageTextRenderData
 
 @Composable
 fun ChannelPhotoMessageBubble(
@@ -111,12 +107,6 @@ fun ChannelPhotoMessageBubble(
         namespacedCacheKey("channel_photo:${content.fileId}", stablePath)
     }
     var isAutoDownloadSuppressed by remember(msg.id) { mutableStateOf(false) }
-    var isFullImageReady by remember(msg.id) { mutableStateOf(false) }
-    val mediaAlpha by animateFloatAsState(
-        targetValue = if (hasPath && isFullImageReady) 1f else 0f,
-        animationSpec = tween(320),
-        label = "ChannelPhotoMediaAlpha"
-    )
 
     LaunchedEffect(content.path) {
         if (!content.path.isNullOrBlank()) {
@@ -126,11 +116,6 @@ fun ChannelPhotoMessageBubble(
         }
     }
 
-    LaunchedEffect(hasPath) {
-        if (!hasPath) {
-            isFullImageReady = false
-        }
-    }
     val hasCaption = content.caption.isNotEmpty()
 
     LaunchedEffect(content.path, content.isDownloading, autoDownloadMobile, autoDownloadWifi, autoDownloadRoaming) {
@@ -159,7 +144,7 @@ fun ChannelPhotoMessageBubble(
         ) {
             Column(modifier = Modifier
                 .fillMaxWidth()
-                .animateContentSize()) {
+            ) {
                 // Headers (Forward/Reply)
                 if (msg.forwardInfo != null || msg.replyToMsg != null) {
                     Column(
@@ -218,10 +203,12 @@ fun ChannelPhotoMessageBubble(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            MediaLoadingBackground(
-                                previewData = content.minithumbnail,
-                                contentScale = ContentScale.Fit
-                            )
+                            if (!hasPath) {
+                                MediaLoadingBackground(
+                                    previewData = content.minithumbnail,
+                                    contentScale = ContentScale.Fit
+                                )
+                            }
 
                             if (hasPath) {
                                 AsyncImage(
@@ -233,22 +220,17 @@ fun ChannelPhotoMessageBubble(
                                                 diskCacheKey(it)
                                             }
                                         }
-                                        .crossfade(true)
+                                        .crossfade(false)
                                         .build(),
                                     contentDescription = content.caption,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer { alpha = mediaAlpha },
-                                    contentScale = ContentScale.Fit,
-                                    onState = { state ->
-                                        isFullImageReady = state is AsyncImagePainter.State.Success
-                                }
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Fit
                                 )
                             }
 
-                            if (!hasPath || !isFullImageReady) {
+                            if (!hasPath) {
                                 MediaLoadingAction(
-                                    isDownloading = content.isDownloading || hasPath,
+                                    isDownloading = content.isDownloading,
                                     progress = content.downloadProgress,
                                     idleIcon = Icons.Default.Download,
                                     idleContentDescription = "Download",
@@ -297,33 +279,41 @@ fun ChannelPhotoMessageBubble(
                             .padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 4.dp)
                             .zIndex(1f)
                     ) {
-                        val inlineContent = rememberMessageInlineContent(content.entities, fontSize)
-                        val finalAnnotatedString = buildAnnotatedMessageTextWithEmoji(
+                        val renderData = rememberMessageTextRenderData(
                             text = content.caption,
                             entities = content.entities,
                             isOutgoing = false,
-                            revealedSpoilers = revealedSpoilers
+                            revealedSpoilers = revealedSpoilers,
+                            fontSize = fontSize
                         )
 
-                        MessageText(
-                            text = finalAnnotatedString,
-                            rawText = content.caption,
-                            inlineContent = inlineContent,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = fontSize.sp,
-                                letterSpacing = letterSpacing.sp,
-                                lineHeight = (fontSize * 1.35f).sp
-                            ),
-                            onSpoilerClick = { index ->
-                                if (revealedSpoilers.contains(index)) {
-                                    revealedSpoilers.remove(index)
-                                } else {
-                                    revealedSpoilers.add(index)
-                                }
-                            },
-                            onClick = { offset -> onLongClick(imagePosition + offset) },
-                            onLongClick = { offset -> onLongClick(imagePosition + offset) }
-                        )
+                        if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
+                            BigEmojiContent(
+                                items = renderData.bigEmojiItems,
+                                sizeDp = fontSize * 5f,
+                                emojiFontFamily = FontFamily.Default
+                            )
+                        } else {
+                            MessageText(
+                                text = renderData.annotatedText,
+                                rawText = content.caption,
+                                inlineContent = renderData.inlineContent,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = fontSize.sp,
+                                    letterSpacing = letterSpacing.sp,
+                                    lineHeight = (fontSize * 1.35f).sp
+                                ),
+                                onSpoilerClick = { index ->
+                                    if (revealedSpoilers.contains(index)) {
+                                        revealedSpoilers.remove(index)
+                                    } else {
+                                        revealedSpoilers.add(index)
+                                    }
+                                },
+                                onClick = { offset -> onLongClick(imagePosition + offset) },
+                                onLongClick = { offset -> onLongClick(imagePosition + offset) }
+                            )
+                        }
 
                         if (showMetadata) {
                             Box(

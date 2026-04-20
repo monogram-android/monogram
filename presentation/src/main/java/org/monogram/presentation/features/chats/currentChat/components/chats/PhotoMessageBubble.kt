@@ -1,8 +1,5 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -35,17 +32,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
-import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.monogram.domain.models.MessageContent
@@ -90,25 +86,11 @@ fun PhotoMessageBubble(
     val photoCacheKey = remember(stablePath, content.fileId) {
         namespacedCacheKey("chat_photo:${content.fileId}", stablePath)
     }
-    var isFullImageReady by remember(msg.id, content.fileId) { mutableStateOf(false) }
-    val mediaAlpha by animateFloatAsState(
-        targetValue = if (hasPath && isFullImageReady) 1f else 0f,
-        animationSpec = tween(320),
-        label = "PhotoMediaAlpha"
-    )
 
     LaunchedEffect(content.path, content.fileId) {
         if (!content.path.isNullOrBlank()) {
             stablePath = content.path
             AutoDownloadSuppression.clear(content.fileId)
-        } else {
-            stablePath = null
-        }
-    }
-
-    LaunchedEffect(hasPath) {
-        if (!hasPath) {
-            isFullImageReady = false
         }
     }
 
@@ -156,7 +138,7 @@ fun PhotoMessageBubble(
         ) {
             Column(modifier = Modifier
                 .widthIn(max = 280.dp)
-                .animateContentSize()) {
+            ) {
                 if (isGroup && !isOutgoing && !isSameSenderAbove) {
                     Box(
                         modifier = Modifier
@@ -235,10 +217,12 @@ fun PhotoMessageBubble(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        MediaLoadingBackground(
-                            previewData = content.minithumbnail,
-                            contentScale = ContentScale.Fit
-                        )
+                        if (!hasPath) {
+                            MediaLoadingBackground(
+                                previewData = content.minithumbnail,
+                                contentScale = ContentScale.Fit
+                            )
+                        }
 
                         if (hasPath) {
                             AsyncImage(
@@ -250,22 +234,17 @@ fun PhotoMessageBubble(
                                             diskCacheKey(it)
                                         }
                                     }
-                                    .crossfade(true)
+                                    .crossfade(false)
                                     .build(),
                                 contentDescription = content.caption,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer { alpha = mediaAlpha },
-                                contentScale = ContentScale.Fit,
-                                onState = { state ->
-                                    isFullImageReady = state is AsyncImagePainter.State.Success
-                                }
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
                             )
                         }
 
-                        if (!hasPath || !isFullImageReady) {
+                        if (!hasPath) {
                             MediaLoadingAction(
-                                isDownloading = content.isDownloading || hasPath,
+                                isDownloading = content.isDownloading,
                                 progress = content.downloadProgress,
                                 idleIcon = Icons.Default.Download,
                                 idleContentDescription = "Download",
@@ -340,34 +319,43 @@ fun PhotoMessageBubble(
                             .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp)
                             .zIndex(1f)
                     ) {
-                        val inlineContent = rememberMessageInlineContent(content.entities, fontSize)
-                        val finalAnnotatedString = buildAnnotatedMessageTextWithEmoji(
+                        val renderData = rememberMessageTextRenderData(
                             text = content.caption,
                             entities = content.entities,
                             isOutgoing = isOutgoing,
-                            revealedSpoilers = revealedSpoilers
+                            revealedSpoilers = revealedSpoilers,
+                            fontSize = fontSize
                         )
 
-                        MessageText(
-                            text = finalAnnotatedString,
-                            rawText = content.caption,
-                            inlineContent = inlineContent,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontSize = fontSize.sp,
-                                letterSpacing = letterSpacing.sp,
-                                lineHeight = (fontSize * 1.375f).sp
-                            ),
-                            modifier = Modifier.padding(bottom = 4.dp),
-                            onSpoilerClick = { index ->
-                                if (revealedSpoilers.contains(index)) {
-                                    revealedSpoilers.remove(index)
-                                } else {
-                                    revealedSpoilers.add(index)
-                                }
-                            },
-                            onClick = { offset -> onLongClick(imagePosition + offset) },
-                            onLongClick = { offset -> onLongClick(imagePosition + offset) }
-                        )
+                        if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
+                            BigEmojiContent(
+                                items = renderData.bigEmojiItems,
+                                sizeDp = fontSize * 5f,
+                                emojiFontFamily = FontFamily.Default,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        } else {
+                            MessageText(
+                                text = renderData.annotatedText,
+                                rawText = content.caption,
+                                inlineContent = renderData.inlineContent,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = fontSize.sp,
+                                    letterSpacing = letterSpacing.sp,
+                                    lineHeight = (fontSize * 1.375f).sp
+                                ),
+                                modifier = Modifier.padding(bottom = 4.dp),
+                                onSpoilerClick = { index ->
+                                    if (revealedSpoilers.contains(index)) {
+                                        revealedSpoilers.remove(index)
+                                    } else {
+                                        revealedSpoilers.add(index)
+                                    }
+                                },
+                                onClick = { offset -> onLongClick(imagePosition + offset) },
+                                onLongClick = { offset -> onLongClick(imagePosition + offset) }
+                            )
+                        }
                         if (showMetadata) {
                             Box(modifier = Modifier.align(Alignment.End)) {
                                 MessageMetadata(msg, isOutgoing, timeColor)

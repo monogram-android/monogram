@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
@@ -10,17 +10,38 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,9 +49,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -58,7 +81,7 @@ import java.io.File
 import java.io.FileNotFoundException
 
 @OptIn(UnstableApi::class, ExperimentalMaterial3ExpressiveApi::class)
-@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoNoteBubble(
     content: MessageContent.VideoNote,
@@ -74,6 +97,9 @@ fun VideoNoteBubble(
 ) {
     val size = 260.dp
     var notePosition by remember { mutableStateOf(Offset.Zero) }
+    var isVisible by remember { mutableStateOf(false) }
+    val resources = LocalResources.current
+    val screenHeightPx = remember { resources.displayMetrics.heightPixels }
 
     val dateFormatManager: DateFormatManager = koinInject()
     val timeFormat = dateFormatManager.getHourMinuteFormat()
@@ -116,6 +142,10 @@ fun VideoNoteBubble(
             modifier = Modifier
                 .size(size)
                 .padding(4.dp)
+                .onGloballyPositioned {
+                    val rect = it.boundsInWindow()
+                    isVisible = rect.bottom > 0 && rect.top < screenHeightPx
+                }
         ) {
             val context = LocalContext.current
             var isPlaying by remember { mutableStateOf(false) }
@@ -185,15 +215,19 @@ fun VideoNoteBubble(
                         exoPlayer.volume = if (isMuted) 0f else 1f
                     }
 
-                    LaunchedEffect(isPlaying) {
-                        if (isPlaying) exoPlayer.play() else exoPlayer.pause()
+                    LaunchedEffect(isPlaying, isVisible) {
+                        if (isPlaying && isVisible) exoPlayer.play() else exoPlayer.pause()
                     }
 
-                    LaunchedEffect(Unit) { isPlaying = true }
+                    LaunchedEffect(isVisible) {
+                        if (isVisible) {
+                            isPlaying = true
+                        }
+                    }
 
 
-                    LaunchedEffect(isPlaying) {
-                        while (isActive && isPlaying) {
+                    LaunchedEffect(isPlaying, isVisible) {
+                        while (isActive && isPlaying && isVisible) {
                             val current = exoPlayer.currentPosition
                             val total = exoPlayer.duration
                             if (total > 0) {

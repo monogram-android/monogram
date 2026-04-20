@@ -480,11 +480,6 @@ class DefaultChatComponent(
                 )
             }
         }
-        store.accept(ChatStore.Intent.UpdateViewport(viewport))
-        val anchor = viewport.anchorMessageId ?: 0L
-        if (_state.value.currentScrollMessageId != anchor) {
-            store.accept(ChatStore.Intent.UpdateScrollPosition(anchor))
-        }
     }
 
     override fun onBottomReached(isAtBottom: Boolean) = store.accept(ChatStore.Intent.BottomReached(isAtBottom))

@@ -1,11 +1,5 @@
 package org.monogram.presentation.features.chats.currentChat.components.channels
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,10 +10,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,21 +22,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
-import org.monogram.domain.models.MessageSendingState
 import org.monogram.presentation.core.util.DateFormatManager
+import org.monogram.presentation.features.chats.currentChat.components.chats.BigEmojiContent
 import org.monogram.presentation.features.chats.currentChat.components.chats.ForwardContent
 import org.monogram.presentation.features.chats.currentChat.components.chats.LinkPreview
 import org.monogram.presentation.features.chats.currentChat.components.chats.MessageReactionsView
+import org.monogram.presentation.features.chats.currentChat.components.chats.MessageSendingStatusIcon
 import org.monogram.presentation.features.chats.currentChat.components.chats.MessageText
 import org.monogram.presentation.features.chats.currentChat.components.chats.ReplyContent
-import org.monogram.presentation.features.chats.currentChat.components.chats.buildAnnotatedMessageTextWithEmoji
-import org.monogram.presentation.features.chats.currentChat.components.chats.isBigEmoji
-import org.monogram.presentation.features.chats.currentChat.components.chats.rememberMessageInlineContent
+import org.monogram.presentation.features.chats.currentChat.components.chats.rememberMessageTextRenderData
 
 @Composable
 fun ChannelTextMessageBubble(
@@ -101,7 +91,6 @@ fun ChannelTextMessageBubble(
             Column(
                 modifier = Modifier
                     .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)
-                    .animateContentSize()
             ) {
                 msg.forwardInfo?.let { forward ->
                     ForwardContent(forward, false, onForwardClick = toProfile)
@@ -114,41 +103,49 @@ fun ChannelTextMessageBubble(
                     )
                 }
 
-                val inlineContent = rememberMessageInlineContent(content.entities, fontSize)
-                val finalAnnotatedString = buildAnnotatedMessageTextWithEmoji(
+                val renderData = rememberMessageTextRenderData(
                     text = content.text,
                     entities = content.entities,
                     isOutgoing = false,
-                    revealedSpoilers = revealedSpoilers
+                    revealedSpoilers = revealedSpoilers,
+                    fontSize = fontSize
                 )
 
-                val isBigEmoji = remember(content.text, content.entities) {
-                    isBigEmoji(content.text, content.entities)
+                val finalFontSize = if (renderData.isBigEmoji) fontSize * 5f else fontSize
+
+                if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
+                    BigEmojiContent(
+                        items = renderData.bigEmojiItems,
+                        sizeDp = finalFontSize,
+                        emojiFontFamily = FontFamily.Default,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 2.dp)
+                    )
+                } else {
+                    MessageText(
+                        text = renderData.annotatedText,
+                        rawText = content.text,
+                        inlineContent = renderData.inlineContent,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = finalFontSize.sp,
+                            letterSpacing = letterSpacing.sp,
+                            lineHeight = (finalFontSize * 1.1f).sp
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 2.dp),
+                        onSpoilerClick = { index ->
+                            if (revealedSpoilers.contains(index)) {
+                                revealedSpoilers.remove(index)
+                            } else {
+                                revealedSpoilers.add(index)
+                            }
+                        },
+                        onClick = onClick,
+                        onLongClick = onLongClick
+                    )
                 }
-                val finalFontSize = if (isBigEmoji) fontSize * 5f else fontSize
-
-                MessageText(
-                    text = finalAnnotatedString,
-                    rawText = content.text,
-                    inlineContent = inlineContent,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = finalFontSize.sp,
-                        letterSpacing = letterSpacing.sp,
-                        lineHeight = (finalFontSize * 1.1f).sp
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 2.dp),
-                    onSpoilerClick = { index ->
-                        if (revealedSpoilers.contains(index)) {
-                            revealedSpoilers.remove(index)
-                        } else {
-                            revealedSpoilers.add(index)
-                        }
-                    },
-                    onClick = onClick,
-                    onLongClick = onLongClick
-                )
 
                 if (showLinkPreviews) {
                     content.webPage?.let { webPage ->
@@ -190,27 +187,12 @@ fun ChannelTextMessageBubble(
 
                     if (msg.isOutgoing) {
                         Spacer(modifier = Modifier.width(4.dp))
-                        AnimatedContent(
-                            targetState = msg.sendingState to msg.isRead,
-                            transitionSpec = {
-                                fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                            },
-                            label = "SendingState"
-                        ) { (sendingState, isRead) ->
-                            val statusIcon = when (sendingState) {
-                                is MessageSendingState.Pending -> Icons.Default.Schedule
-                                is MessageSendingState.Failed -> Icons.Default.Error
-                                null -> if (isRead) Icons.Default.DoneAll else Icons.Default.Check
-                            }
-                            Icon(
-                                imageVector = statusIcon,
-                                contentDescription = "Status",
-                                modifier = Modifier.size(14.dp),
-                                tint = if (sendingState is MessageSendingState.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                    0.6f
-                                )
-                            )
-                        }
+                        MessageSendingStatusIcon(
+                            sendingState = msg.sendingState,
+                            isRead = msg.isRead,
+                            baseColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f),
+                            size = 14.dp
+                        )
                     }
                 }
             }

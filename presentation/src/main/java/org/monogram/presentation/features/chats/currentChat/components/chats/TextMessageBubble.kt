@@ -1,16 +1,5 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -32,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
@@ -105,7 +95,6 @@ fun TextMessageBubble(
             Column(
                 modifier = Modifier
                     .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)
-                    .animateContentSize()
             ) {
                 if (isGroup && !isOutgoing && !isSameSenderAbove) {
                     MessageSenderName(msg, toProfile = toProfile)
@@ -122,38 +111,29 @@ fun TextMessageBubble(
                     )
                 }
 
-                val finalAnnotatedString = buildAnnotatedMessageTextWithEmoji(
+                val renderData = rememberMessageTextRenderData(
                     text = content.text,
                     entities = content.entities,
                     isOutgoing = isOutgoing,
-                    revealedSpoilers = revealedSpoilers
+                    revealedSpoilers = revealedSpoilers,
+                    fontSize = fontSize
                 )
 
-                val isBigEmoji = remember(content.text, content.entities) {
-                    isBigEmoji(content.text, content.entities)
-                }
-                val finalFontSize = if (isBigEmoji) fontSize * 5f else fontSize
+                val finalFontSize = if (renderData.isBigEmoji) fontSize * 5f else fontSize
 
-                AnimatedContent(
-                    targetState = Triple(finalAnnotatedString, content.text, content.entities),
-                    transitionSpec = {
-                        (fadeIn(animationSpec = tween(240, easing = FastOutSlowInEasing)) +
-                                scaleIn(initialScale = 0.97f, animationSpec = tween(240, easing = FastOutSlowInEasing)) +
-                                slideInVertically(initialOffsetY = { it / 8 }, animationSpec = tween(240, easing = FastOutSlowInEasing)))
-                            .togetherWith(
-                                fadeOut(animationSpec = tween(180)) +
-                                        scaleOut(targetScale = 0.99f, animationSpec = tween(180)) +
-                                        slideOutVertically(targetOffsetY = { -it / 10 }, animationSpec = tween(180))
-                            )
-                    },
-                    label = "TextEditAnimation"
-                ) { (targetText, targetRawText, targetEntities) ->
-                    val inlineContent = rememberMessageInlineContent(targetEntities, fontSize)
+                if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
+                    BigEmojiContent(
+                        items = renderData.bigEmojiItems,
+                        sizeDp = finalFontSize,
+                        emojiFontFamily = FontFamily.Default,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                } else {
                     MessageText(
-                        text = targetText,
-                        rawText = targetRawText,
-                        entities = targetEntities,
-                        inlineContent = inlineContent,
+                        text = renderData.annotatedText,
+                        rawText = content.text,
+                        entities = content.entities,
+                        inlineContent = renderData.inlineContent,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = finalFontSize.sp,
                             letterSpacing = letterSpacing.sp,

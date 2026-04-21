@@ -15,7 +15,7 @@ data class PushDiagnostics(
     val backgroundServiceEnabled: Boolean = true,
     val hideForegroundNotification: Boolean = false,
     val isPowerSavingMode: Boolean = false,
-    val isWakeLockEnabled: Boolean = true,
+    val isWakeLockEnabled: Boolean = false,
     val batteryOptimizationEnabled: Boolean = false,
     val isTdNotificationServiceRunning: Boolean = false,
     val unifiedPushStatus: UnifiedPushDebugStatus = UnifiedPushDebugStatus.IDLE,

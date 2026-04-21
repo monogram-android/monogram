@@ -23,7 +23,7 @@ interface PowerSavingComponent {
         val isChatAnimationsEnabled: Boolean = true,
         val backgroundServiceEnabled: Boolean = true,
         val isPowerSavingModeEnabled: Boolean = false,
-        val isWakeLockEnabled: Boolean = true,
+        val isWakeLockEnabled: Boolean = false,
         val batteryOptimizationEnabled: Boolean = false
     )
 }

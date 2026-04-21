@@ -276,7 +276,8 @@ class AppPreferences(
     private val _isPowerSavingMode = MutableStateFlow(prefs.getBoolean(KEY_POWER_SAVING_MODE, false))
     override val isPowerSavingMode: StateFlow<Boolean> = _isPowerSavingMode
 
-    private val _isWakeLockEnabled = MutableStateFlow(prefs.getBoolean(KEY_WAKE_LOCK_ENABLED, true))
+    private val _isWakeLockEnabled =
+        MutableStateFlow(prefs.getBoolean(KEY_WAKE_LOCK_ENABLED, false))
     override val isWakeLockEnabled: StateFlow<Boolean> = _isWakeLockEnabled
 
     private val _hideForegroundNotification =
@@ -1145,7 +1146,7 @@ class AppPreferences(
         _pinnedMessagesNotifications.value = true
         _backgroundServiceEnabled.value = true
         _isPowerSavingMode.value = false
-        _isWakeLockEnabled.value = true
+        _isWakeLockEnabled.value = false
         _hideForegroundNotification.value = false
         _batteryOptimizationEnabled.value = false
         _notificationVibrationPattern.value = "default"

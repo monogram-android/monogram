@@ -1030,6 +1030,10 @@ class ChatsListRepositoryImpl(
                 "LoadChats snapshot: source=$source folder=$folderId requestId=$requestId list=${chatList.debugName()} pass=${pass + 1} requested=$limit loadedIds=$loadedCount activePositions=${cache.activeListPositions.size}"
             )
 
+            if (chatList is TdApi.ChatListFolder && chats != null && isRequestActive(folderId, requestId)) {
+                reconcileActiveFolderSnapshot(folderId, chats.chatIds)
+            }
+
             if (loadedCount > 0) {
                 backfillMissingChatsFromSnapshot(
                     source = source,
@@ -1051,6 +1055,45 @@ class ChatsListRepositoryImpl(
         }
 
         return lastResult
+    }
+
+    private fun reconcileActiveFolderSnapshot(folderId: Int, chatIds: LongArray) {
+        val activeFolderList = activeChatList as? TdApi.ChatListFolder ?: return
+        if (activeFolderId != folderId || activeFolderList.chatFolderId != folderId) return
+
+        val pinnedChatIds = folderManager.getPinnedChatIds(folderId).toHashSet()
+        val syntheticTopOrder = chatIds.size.toLong().coerceAtLeast(1L)
+        val newPositions = LinkedHashMap<Long, TdApi.ChatPosition>(chatIds.size)
+
+        chatIds.forEachIndexed { index, chatId ->
+            val preservedPinned = cache.activeListPositions[chatId]
+                ?.takeIf { listManager.isSameChatList(it.list, activeFolderList) }
+                ?.isPinned
+                ?: cache.getChat(chatId)?.positions
+                    ?.find { pos -> pos.order != 0L && listManager.isSameChatList(pos.list, activeFolderList) }
+                    ?.isPinned
+                ?: pinnedChatIds.contains(chatId)
+
+            val syntheticOrder = syntheticTopOrder - index
+            newPositions[chatId] = TdApi.ChatPosition(
+                activeFolderList,
+                syntheticOrder,
+                preservedPinned,
+                null
+            )
+        }
+
+        cache.activeListPositions.clear()
+        cache.activeListPositions.putAll(newPositions)
+        cache.authoritativeActiveListChatIds.clear()
+        cache.authoritativeActiveListChatIds.addAll(newPositions.keys)
+        cache.protectedPinnedChatIds.clear()
+        cache.protectedPinnedChatIds.addAll(
+            newPositions.asSequence()
+                .filter { it.value.isPinned }
+                .map { it.key }
+                .toList()
+        )
     }
 
     private suspend fun backfillMissingChatsFromSnapshot(

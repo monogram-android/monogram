@@ -551,14 +551,7 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                     TdApi.ChatPosition(TdApi.ChatListArchive(), order, pinned, null)
                 }
 
-                "f" -> {
-                    if (parts.size < 4) return@mapNotNull null
-                    val folderId = parts[1].toIntOrNull() ?: return@mapNotNull null
-                    val order = parts[2].toLongOrNull() ?: return@mapNotNull null
-                    if (order == 0L) return@mapNotNull null
-                    val pinned = parts[3] == "1"
-                    TdApi.ChatPosition(TdApi.ChatListFolder(folderId), order, pinned, null)
-                }
+                "f" -> null
 
                 else -> null
             }

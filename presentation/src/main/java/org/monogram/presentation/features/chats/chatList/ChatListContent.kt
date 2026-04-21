@@ -482,8 +482,7 @@ fun ChatListContent(component: ChatListComponent) {
         searchState.isSearchActive,
         currentUser,
         uiState.connectionStatus,
-        uiState.isProxyEnabled,
-        searchState.searchQuery
+        uiState.isProxyEnabled
     ) {
         when {
             selectionState.selectedChatIds.isNotEmpty() && !uiState.isForwarding -> {
@@ -496,8 +495,7 @@ fun ChatListContent(component: ChatListComponent) {
                 user = currentUser,
                 connectionStatus = uiState.connectionStatus,
                 isProxyEnabled = uiState.isProxyEnabled,
-                isSearchActive = searchState.isSearchActive,
-                searchQuery = searchState.searchQuery
+                isSearchActive = searchState.isSearchActive
             )
         }
     }
@@ -549,7 +547,7 @@ fun ChatListContent(component: ChatListComponent) {
                                 onRetryConnection = { component.retryConnection() },
                                 onProxySettingsClick = { component.onProxySettingsClicked() },
                                 isSearchActive = mode.isSearchActive,
-                                searchQuery = mode.searchQuery,
+                                searchQuery = searchState.searchQuery,
                                 onSearchQueryChange = component::onSearchQueryChange,
                                 onSearchToggle = component::onSearchToggle,
                                 onStatusClick = { anchorBounds ->
@@ -714,8 +712,12 @@ fun ChatListContent(component: ChatListComponent) {
                         .fillMaxSize()
                 ) {
             if (searchState.isSearchActive || foldersState.selectedFolderId == -2) {
-                var showAllGlobal by remember { mutableStateOf(false) }
-                var showAllMessages by remember { mutableStateOf(false) }
+                var showAllGlobal by remember(searchState.isSearchActive, searchState.searchQuery) {
+                    mutableStateOf(false)
+                }
+                var showAllMessages by remember(searchState.isSearchActive, searchState.searchQuery) {
+                    mutableStateOf(false)
+                }
 
                 val archiveScrollPosition =
                     if (foldersState.selectedFolderId == -2 && !searchState.isSearchActive) {
@@ -1068,13 +1070,20 @@ fun ChatListContent(component: ChatListComponent) {
                     modifier = Modifier.fillMaxSize(),
                     beyondViewportPageCount = 1
                 ) { page ->
-                    val folderId = foldersState.folders.getOrNull(page)?.id
-                        ?: foldersState.folders.firstOrNull { it.id == foldersState.selectedFolderId }?.id
+                    val folder = foldersState.folders.getOrNull(page)
+                        ?: foldersState.folders.firstOrNull { it.id == foldersState.selectedFolderId }
+                    val folderId = folder?.id
                     if (folderId == null) {
                         Box(modifier = Modifier.fillMaxSize())
                         return@HorizontalPager
                     }
-                    val folderChats = foldersState.chatsByFolder[folderId] ?: emptyList()
+                    val rawFolderChats = foldersState.chatsByFolder[folderId].orEmpty()
+                    val folderChats = if (folderId > 0 && folder.includedChatIds.isNotEmpty()) {
+                        val includedChatIds = folder.includedChatIds.toHashSet()
+                        rawFolderChats.filter { chat -> chat.id in includedChatIds }
+                    } else {
+                        rawFolderChats
+                    }
                     val isFolderLoading = foldersState.isLoadingByFolder[folderId] ?: false
                     val hasFolderLoadState = foldersState.isLoadingByFolder.containsKey(folderId)
                     val showFolderShimmer = folderChats.isEmpty() && (isFolderLoading || !hasFolderLoadState)
@@ -1350,8 +1359,7 @@ private sealed interface ChatListTopBarMode {
         val user: UserModel?,
         val connectionStatus: ConnectionStatus,
         val isProxyEnabled: Boolean,
-        val isSearchActive: Boolean,
-        val searchQuery: String
+        val isSearchActive: Boolean
     ) : ChatListTopBarMode
 }
 

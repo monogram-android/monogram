@@ -32,6 +32,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,6 +42,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
@@ -233,7 +235,7 @@ fun ChannelPhotoMessageBubble(
                                     isDownloading = content.isDownloading,
                                     progress = content.downloadProgress,
                                     idleIcon = Icons.Default.Download,
-                                    idleContentDescription = "Download",
+                                    idleContentDescription = stringResource(R.string.cd_download),
                                     showCancelOnDownload = content.isDownloading,
                                     onCancelClick = {
                                         isAutoDownloadSuppressed = true

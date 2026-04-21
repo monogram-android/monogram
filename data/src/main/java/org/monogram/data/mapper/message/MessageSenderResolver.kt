@@ -9,6 +9,7 @@ import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.mapper.SenderNameResolver
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.domain.repository.ChatInfoRepository
+import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.UserRepository
 import java.util.concurrent.ConcurrentHashMap
 
@@ -29,7 +30,8 @@ internal class MessageSenderResolver(
     private val userRepository: UserRepository,
     private val chatInfoRepository: ChatInfoRepository,
     private val cache: ChatCache,
-    private val fileHelper: TdFileHelper
+    private val fileHelper: TdFileHelper,
+    private val stringProvider: StringProvider
 ) {
     private data class SenderUserSnapshot(
         val name: String,
@@ -50,6 +52,8 @@ internal class MessageSenderResolver(
     private val senderChatSnapshotCache = ConcurrentHashMap<Long, SenderChatSnapshot>()
     private val senderRankCache = ConcurrentHashMap<String, String>()
     private val queuedAvatarDownloads = ConcurrentHashMap.newKeySet<Int>()
+    private val unknownUserName: String
+        get() = stringProvider.getString("unknown_user")
 
     val senderUpdateFlow: Flow<Long>
         get() = userRepository.anyUserUpdateFlow
@@ -67,16 +71,16 @@ internal class MessageSenderResolver(
             return SenderNameResolver.fromParts(
                 firstName = user.firstName,
                 lastName = user.lastName,
-                fallback = fallback.ifBlank { "User" }
+                fallback = fallback.ifBlank { unknownUserName }
             )
         }
 
         val chat = cache.getChat(senderId)
         if (chat != null) {
-            return chat.title.takeIf { it.isNotBlank() } ?: fallback.ifBlank { "User" }
+            return chat.title.takeIf { it.isNotBlank() } ?: fallback.ifBlank { unknownUserName }
         }
 
-        return fallback.ifBlank { "User" }
+        return fallback.ifBlank { unknownUserName }
     }
 
     fun resolveFallbackSender(msg: TdApi.Message): ResolvedSender {
@@ -87,7 +91,7 @@ internal class MessageSenderResolver(
                 if (snapshot != null) {
                     ResolvedSender(
                         senderId = senderId,
-                        senderName = snapshot.name.ifBlank { "User" },
+                        senderName = snapshot.name.ifBlank { unknownUserName },
                         senderAvatar = snapshot.avatar ?: snapshot.personalAvatar,
                         senderPersonalAvatar = snapshot.personalAvatar,
                         isSenderVerified = snapshot.isVerified,
@@ -98,9 +102,9 @@ internal class MessageSenderResolver(
                 } else {
                     val user = cache.getUser(senderId)
                     val fallbackName = if (user != null) {
-                        SenderNameResolver.fromParts(user.firstName, user.lastName, "User")
+                        SenderNameResolver.fromParts(user.firstName, user.lastName, unknownUserName)
                     } else {
-                        "User"
+                        unknownUserName
                     }
                     val avatar = user?.profilePhoto?.small?.local?.path?.takeIf { fileHelper.isValidPath(it) }
                         ?: user?.profilePhoto?.big?.local?.path?.takeIf { fileHelper.isValidPath(it) }
@@ -114,23 +118,23 @@ internal class MessageSenderResolver(
                 if (snapshot != null) {
                     ResolvedSender(
                         senderId = senderId,
-                        senderName = snapshot.name.ifBlank { "User" },
+                        senderName = snapshot.name.ifBlank { unknownUserName },
                         senderAvatar = snapshot.avatar
                     )
                 } else {
                     val chat = cache.getChat(senderId)
-                    val fallbackName = chat?.title?.takeIf { it.isNotBlank() } ?: "User"
+                    val fallbackName = chat?.title?.takeIf { it.isNotBlank() } ?: unknownUserName
                     val avatar = chat?.photo?.small?.local?.path?.takeIf { fileHelper.isValidPath(it) }
                     ResolvedSender(senderId = senderId, senderName = fallbackName, senderAvatar = avatar)
                 }
             }
 
-            else -> ResolvedSender(senderId = 0L, senderName = "User")
+            else -> ResolvedSender(senderId = 0L, senderName = unknownUserName)
         }
     }
 
     suspend fun resolveSender(msg: TdApi.Message): ResolvedSender {
-        var senderName = "User"
+        var senderName = unknownUserName
         var senderAvatar: String? = null
         var senderPersonalAvatar: String? = null
         var senderCustomTitle: String? = null
@@ -163,7 +167,7 @@ internal class MessageSenderResolver(
                         senderName = SenderNameResolver.fromParts(
                             firstName = user.firstName,
                             lastName = user.lastName,
-                            fallback = "User"
+                            fallback = unknownUserName
                         )
 
                         senderAvatar = user.avatarPath.takeIf { fileHelper.isValidPath(it) }

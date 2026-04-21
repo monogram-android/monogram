@@ -333,7 +333,7 @@ fun PhoneInputScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                                contentDescription = "Unknown country",
+                                contentDescription = stringResource(R.string.unknown_country),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )

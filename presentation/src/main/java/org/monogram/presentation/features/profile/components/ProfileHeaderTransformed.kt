@@ -154,7 +154,7 @@ fun ProfileHeaderTransformed(
                             Spacer(modifier = Modifier.width(6.dp))
                             Icon(
                                 imageVector = Icons.Rounded.Verified,
-                                contentDescription = "Verified",
+                                contentDescription = stringResource(R.string.cd_verified),
                                 modifier = Modifier.size(28.dp),
                                 tint = Color(0xFF31A6FD)
                             )
@@ -163,7 +163,7 @@ fun ProfileHeaderTransformed(
                             Spacer(modifier = Modifier.width(6.dp))
                             Icon(
                                 imageVector = Icons.Default.Favorite,
-                                contentDescription = "Sponsor",
+                                contentDescription = stringResource(R.string.cd_sponsor),
                                 modifier = Modifier.size(28.dp),
                                 tint = Color(0xFFE53935)
                             )

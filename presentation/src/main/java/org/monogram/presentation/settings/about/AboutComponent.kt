@@ -32,8 +32,9 @@ class DefaultAboutComponent(
 
     private val scope = componentScope
     private val isTelemtBuild = BuildConfig.ENABLE_TELEMT_DNS
+    private val stringProvider = container.utils.stringProvider()
 
-    private val _tdLibVersion = MutableStateFlow("Loading...")
+    private val _tdLibVersion = MutableStateFlow(stringProvider.getString("loading_text"))
     override val tdLibVersion: StateFlow<String> = _tdLibVersion.asStateFlow()
 
     private val _tdLibCommitHash = MutableStateFlow("")

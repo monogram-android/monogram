@@ -98,7 +98,7 @@ fun AboutContent(component: AboutComponent) {
 
     val versionWithHashFormat = stringResource(R.string.tdlib_version_with_hash)
     val displayTdLibVersion = remember(tdLibVersion, tdLibCommitHash, versionWithHashFormat, loadingText) {
-        if (tdLibVersion == loadingText || tdLibVersion == "Loading...") {
+        if (tdLibVersion == loadingText) {
             tdLibVersion
         } else if (tdLibCommitHash.isNotEmpty()) {
             String.format(versionWithHashFormat, tdLibVersion, tdLibCommitHash.take(7))

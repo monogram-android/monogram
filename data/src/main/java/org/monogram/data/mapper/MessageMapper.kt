@@ -1,7 +1,11 @@
 package org.monogram.data.mapper
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.gateway.TelegramGateway
@@ -9,7 +13,13 @@ import org.monogram.data.mapper.message.ContentMappingContext
 import org.monogram.data.mapper.message.MessageContentMapper
 import org.monogram.data.mapper.message.MessagePersistenceMapper
 import org.monogram.data.mapper.message.MessageSenderResolver
-import org.monogram.domain.models.*
+import org.monogram.domain.models.ForwardInfo
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageReactionModel
+import org.monogram.domain.models.MessageSendingState
+import org.monogram.domain.models.ReactionSender
+import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.UserRepository
 
 class MessageMapper internal constructor(
@@ -20,8 +30,12 @@ class MessageMapper internal constructor(
     private val senderResolver: MessageSenderResolver,
     private val contentMapper: MessageContentMapper,
     private val persistenceMapper: MessagePersistenceMapper,
-    private val customEmojiLoader: CustomEmojiLoader
+    private val customEmojiLoader: CustomEmojiLoader,
+    private val stringProvider: StringProvider
 ) {
+    private val unknownUserName: String
+        get() = stringProvider.getString("unknown_user")
+
     val senderUpdateFlow: Flow<Long>
         get() = senderResolver.senderUpdateFlow
 
@@ -256,7 +270,7 @@ class MessageMapper internal constructor(
     private suspend fun resolveForwardInfo(msg: TdApi.Message): ForwardInfo? {
         val fwd = msg.forwardInfo ?: return null
         val origin = fwd.origin
-        var originName = "Unknown"
+        var originName = unknownUserName
         var originPeerId = 0L
         var originChatId: Long? = null
         var originMessageId: Long? = null
@@ -276,7 +290,7 @@ class MessageMapper internal constructor(
                     originName = if (baseName.isNotBlank()) {
                         if (username != null) "$baseName (@$username)" else baseName
                     } else {
-                        username?.let { "@$it" } ?: "Unknown"
+                        username?.let { "@$it" } ?: unknownUserName
                     }
                 }
             }

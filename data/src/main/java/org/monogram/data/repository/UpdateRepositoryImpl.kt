@@ -21,6 +21,7 @@ import org.monogram.domain.models.UpdateInfo
 import org.monogram.domain.models.UpdateState
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
+import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.UpdateRepository
 import java.io.File
 import java.io.FileInputStream
@@ -31,7 +32,8 @@ class UpdateRepositoryImpl(
     private val fileQueue: FileDownloadQueue,
     private val fileUpdateHandler: FileUpdateHandler,
     private val authRepository: AuthRepository,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val stringProvider: StringProvider
 ) : UpdateRepository {
 
     private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
@@ -69,7 +71,8 @@ class UpdateRepositoryImpl(
 
         coRunCatching {
             val info = remote.fetchLatestUpdate() ?: return@coRunCatching _updateState.value.let {
-                _updateState.value = UpdateState.Error("No update found")
+                _updateState.value =
+                    UpdateState.Error(stringProvider.getString("update_no_update_found"))
             }
 
             val currentVersionCode = try {

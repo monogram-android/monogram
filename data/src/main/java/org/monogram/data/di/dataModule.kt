@@ -456,14 +456,16 @@ val dataModule = module {
             userRepository = get(),
             chatInfoRepository = get(),
             cache = get(),
-            fileHelper = get()
+            fileHelper = get(),
+            stringProvider = get()
         )
     }
 
     single {
         MessagePersistenceMapper(
             cache = get(),
-            fileHelper = get()
+            fileHelper = get(),
+            stringProvider = get()
         )
     }
 
@@ -476,7 +478,8 @@ val dataModule = module {
             senderResolver = get(),
             contentMapper = get(),
             persistenceMapper = get(),
-            customEmojiLoader = get()
+            customEmojiLoader = get(),
+            stringProvider = get()
         )
     }
 
@@ -811,6 +814,7 @@ val dataModule = module {
             fileUpdateHandler = get(),
             authRepository = get(),
             scope = get(),
+            stringProvider = get(),
         )
     }
 

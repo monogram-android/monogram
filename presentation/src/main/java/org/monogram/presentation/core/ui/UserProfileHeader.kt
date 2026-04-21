@@ -30,10 +30,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.UserModel
+import org.monogram.presentation.R
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 @Composable
@@ -123,7 +125,7 @@ fun UserProfileHeader(
                     Spacer(modifier = Modifier.width(6.dp))
                     Icon(
                         imageVector = Icons.Rounded.Verified,
-                        contentDescription = "Verified",
+                        contentDescription = stringResource(R.string.cd_verified),
                         modifier = Modifier.size(28.dp),
                         tint = Color(0xFF31A6FD)
                     )
@@ -133,7 +135,7 @@ fun UserProfileHeader(
                     Spacer(modifier = Modifier.width(6.dp))
                     Icon(
                         imageVector = Icons.Default.Favorite,
-                        contentDescription = "Sponsor",
+                        contentDescription = stringResource(R.string.cd_sponsor),
                         modifier = Modifier.size(28.dp),
                         tint = Color(0xFFE53935)
                     )

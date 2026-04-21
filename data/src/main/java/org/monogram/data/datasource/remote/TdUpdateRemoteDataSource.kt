@@ -1,8 +1,8 @@
 package org.monogram.data.datasource.remote
 
-import org.monogram.data.core.coRunCatching
 import android.util.Log
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.mapper.toUpdateInfo
 import org.monogram.domain.models.UpdateInfo
@@ -42,7 +42,7 @@ class TdUpdateRemoteDataSource(
     override suspend fun getTdLibVersion(): String {
         return coRunCatching {
             (gateway.execute(TdApi.GetOption("version")) as? TdApi.OptionValueString)?.value
-        }.getOrNull() ?: "Unknown"
+        }.getOrNull() ?: ""
     }
 
     override suspend fun getTdLibCommitHash(): String {

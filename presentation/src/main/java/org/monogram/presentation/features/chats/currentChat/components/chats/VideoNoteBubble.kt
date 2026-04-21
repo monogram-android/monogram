@@ -54,6 +54,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -74,6 +75,7 @@ import kotlinx.coroutines.isActive
 import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.getMimeType
 import org.monogram.presentation.features.stickers.ui.view.shimmerEffect
@@ -277,7 +279,7 @@ fun VideoNoteBubble(
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.Download,
-                                    contentDescription = "Download",
+                                    contentDescription = stringResource(R.string.cd_download),
                                     modifier = Modifier.size(48.dp),
                                     tint = Color.White.copy(alpha = 0.5f)
                                 )
@@ -293,7 +295,7 @@ fun VideoNoteBubble(
                         .padding(top = 16.dp)) {
                         Icon(
                             imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                            contentDescription = "Mute",
+                            contentDescription = stringResource(R.string.menu_mute),
                             tint = Color.White.copy(alpha = 0.8f),
                             modifier = Modifier.size(24.dp)
                         )
@@ -331,7 +333,7 @@ fun VideoNoteBubble(
                 Box(modifier = Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Play",
+                        contentDescription = stringResource(R.string.action_play),
                         modifier = Modifier
                             .size(48.dp)
                             .background(Color.Black.copy(0.4f), CircleShape)
@@ -369,7 +371,7 @@ fun VideoNoteBubble(
                     if (msg.editDate > 0) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Edited",
+                            contentDescription = stringResource(R.string.info_edited),
                             modifier = Modifier.size(12.dp),
                             tint = Color.White
                         )

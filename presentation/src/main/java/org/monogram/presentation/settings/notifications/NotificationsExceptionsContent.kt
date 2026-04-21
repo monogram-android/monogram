@@ -2,23 +2,66 @@
 
 package org.monogram.presentation.settings.notifications
 
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.NotificationsOff
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -26,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.repository.NotificationSettingsRepository.TdNotificationScope
+import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ItemPosition
 
@@ -46,10 +90,15 @@ fun NotificationsExceptionsContent(
 
     val title = remember(scope) {
         when (scope) {
-            TdNotificationScope.PRIVATE_CHATS -> "Private Chats"
-            TdNotificationScope.GROUPS -> "Groups"
-            TdNotificationScope.CHANNELS -> "Channels"
+            TdNotificationScope.PRIVATE_CHATS -> "private"
+            TdNotificationScope.GROUPS -> "groups"
+            TdNotificationScope.CHANNELS -> "channels"
         }
+    }
+    val titleText = when (title) {
+        "private" -> stringResource(R.string.notifications_exceptions_private_chats)
+        "groups" -> stringResource(R.string.notifications_exceptions_groups)
+        else -> stringResource(R.string.notifications_exceptions_channels)
     }
 
     var selectedChat by remember { mutableStateOf<ChatModel?>(null) }
@@ -92,7 +141,7 @@ fun NotificationsExceptionsContent(
                                     onSearch = {},
                                     expanded = false,
                                     onExpandedChange = {},
-                                    placeholder = { Text("Search exceptions...") },
+                                    placeholder = { Text(stringResource(R.string.notifications_exceptions_search_placeholder)) },
                                     leadingIcon = {
                                         IconButton(onClick = {
                                             isSearchActive = false
@@ -100,14 +149,17 @@ fun NotificationsExceptionsContent(
                                         }) {
                                             Icon(
                                                 Icons.AutoMirrored.Rounded.ArrowBack,
-                                                contentDescription = "Back"
+                                                contentDescription = stringResource(R.string.cd_back)
                                             )
                                         }
                                     },
                                     trailingIcon = {
                                         if (searchQuery.isNotEmpty()) {
                                             IconButton(onClick = { searchQuery = "" }) {
-                                                Icon(Icons.Rounded.Close, contentDescription = "Clear")
+                                                Icon(
+                                                    Icons.Rounded.Close,
+                                                    contentDescription = stringResource(R.string.action_clear)
+                                                )
                                             }
                                         }
                                     }
@@ -127,12 +179,14 @@ fun NotificationsExceptionsContent(
                     TopAppBar(
                         title = {
                             Column {
-                                Text(title,
+                                Text(
+                                    text = titleText,
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface)
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
                                 Text(
-                                    text = "Exceptions",
+                                    text = stringResource(R.string.notifications_exceptions_label),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -146,7 +200,10 @@ fun NotificationsExceptionsContent(
                         actions = {
                             if (!exceptions.isNullOrEmpty()) {
                                 IconButton(onClick = { isSearchActive = true }) {
-                                    Icon(Icons.Rounded.Search, contentDescription = "Search")
+                                    Icon(
+                                        Icons.Rounded.Search,
+                                        contentDescription = stringResource(R.string.notifications_exceptions_search)
+                                    )
                                 }
                             }
                         }
@@ -179,7 +236,10 @@ fun NotificationsExceptionsContent(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No results found for \"$searchQuery\"",
+                        text = stringResource(
+                            R.string.notifications_exceptions_no_results_format,
+                            searchQuery
+                        ),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -195,7 +255,7 @@ fun NotificationsExceptionsContent(
                 ) {
                     item {
                         Text(
-                            text = "CHATS",
+                            text = stringResource(R.string.notifications_exceptions_chats_header),
                             modifier = Modifier.padding(start = 12.dp, bottom = 8.dp),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
@@ -221,7 +281,7 @@ fun NotificationsExceptionsContent(
                     item {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Tap on a chat to change its notification settings or remove the exception.",
+                            text = stringResource(R.string.notifications_exceptions_hint),
                             modifier = Modifier.padding(horizontal = 12.dp),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -276,12 +336,12 @@ private fun EmptyExceptionsPlaceholder(modifier: Modifier = Modifier) {
                 )
             }
             Text(
-                text = "No Exceptions",
+                text = stringResource(R.string.notifications_exceptions_empty_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "You can add specific notification settings for individual chats. These settings will override the global defaults.",
+                text = stringResource(R.string.notifications_exceptions_empty_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center

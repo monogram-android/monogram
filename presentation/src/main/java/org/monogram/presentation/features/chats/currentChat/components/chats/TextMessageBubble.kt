@@ -21,12 +21,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.DateFormatManager
 
 
@@ -171,7 +173,7 @@ fun TextMessageBubble(
                     if (msg.editDate > 0) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Edited",
+                            contentDescription = stringResource(R.string.info_edited),
                             modifier = Modifier.size(14.dp),
                             tint = timeColor
                         )

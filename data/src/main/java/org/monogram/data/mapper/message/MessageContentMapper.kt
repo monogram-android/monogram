@@ -465,8 +465,8 @@ internal class MessageContentMapper(
                 MessageContent.Audio(
                     path = path,
                     duration = audio.duration,
-                    title = audio.title ?: "Unknown",
-                    performer = audio.performer ?: "Unknown",
+                    title = audio.title ?: stringProvider.getString("unknown_user"),
+                    performer = audio.performer ?: stringProvider.getString("unknown_user"),
                     fileName = audio.fileName ?: "audio.mp3",
                     mimeType = audio.mimeType ?: "audio/mpeg",
                     size = audioFile.size,

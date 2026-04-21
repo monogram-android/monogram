@@ -51,6 +51,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,6 +63,7 @@ import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.namespacedCacheKey
@@ -247,7 +249,7 @@ fun ChannelGifMessageBubble(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.PlayArrow,
-                                        contentDescription = "Play",
+                                        contentDescription = stringResource(R.string.action_play),
                                         tint = Color.White,
                                         modifier = Modifier.size(32.dp)
                                     )
@@ -284,7 +286,7 @@ fun ChannelGifMessageBubble(
                                     isDownloading = content.isDownloading,
                                     progress = content.downloadProgress,
                                     idleIcon = Icons.Default.Download,
-                                    idleContentDescription = "Download",
+                                    idleContentDescription = stringResource(R.string.cd_download),
                                     onCancelClick = {
                                         isAutoDownloadSuppressed = true
                                         AutoDownloadSuppression.suppress(content.fileId)

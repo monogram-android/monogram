@@ -1,6 +1,11 @@
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,7 +15,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -21,10 +30,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.namespacedCacheKey
 
 @Composable
@@ -122,7 +133,7 @@ fun MediaLoadingAction(
             if (showCancelOnDownload) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Cancel",
+                    contentDescription = stringResource(R.string.cancel_button),
                     modifier = Modifier
                         .size(18.dp)
                         .clickable(enabled = onCancelClick != null) { onCancelClick?.invoke() },

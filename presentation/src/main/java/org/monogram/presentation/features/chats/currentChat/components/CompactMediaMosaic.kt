@@ -48,6 +48,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
@@ -56,6 +57,7 @@ import coil3.request.crossfade
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
@@ -415,7 +417,7 @@ fun PhotoItem(
                         isDownloading = photo.isDownloading,
                         progress = photo.downloadProgress,
                         idleIcon = Icons.Default.Download,
-                        idleContentDescription = "Download",
+                        idleContentDescription = stringResource(R.string.cd_download),
                         onCancelClick = {
                             isAutoDownloadSuppressed = true
                             AutoDownloadSuppression.suppress(photo.fileId)
@@ -580,7 +582,7 @@ fun VideoItem(
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Play",
+                            contentDescription = stringResource(R.string.action_play),
                             tint = Color.White,
                             modifier = Modifier.size(32.dp)
                         )
@@ -634,7 +636,11 @@ fun VideoItem(
                         isDownloading = video.isDownloading,
                         progress = video.downloadProgress,
                         idleIcon = if (video.supportsStreaming) Icons.Rounded.Stream else Icons.Default.Download,
-                        idleContentDescription = if (video.supportsStreaming) "Stream" else "Download",
+                        idleContentDescription = if (video.supportsStreaming) {
+                            stringResource(R.string.cd_stream)
+                        } else {
+                            stringResource(R.string.cd_download)
+                        },
                         onCancelClick = {
                             isAutoDownloadSuppressed = true
                             AutoDownloadSuppression.suppress(video.fileId)
@@ -765,7 +771,7 @@ fun VideoNoteItem(
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Play",
+                            contentDescription = stringResource(R.string.action_play),
                             tint = Color.White,
                             modifier = Modifier.size(32.dp)
                         )
@@ -817,7 +823,7 @@ fun VideoNoteItem(
                         isDownloading = videoNote.isDownloading,
                         progress = videoNote.downloadProgress,
                         idleIcon = Icons.Default.Download,
-                        idleContentDescription = "Download",
+                        idleContentDescription = stringResource(R.string.cd_download),
                         onCancelClick = {
                             isAutoDownloadSuppressed = true
                             AutoDownloadSuppression.suppress(videoNote.fileId)
@@ -918,7 +924,7 @@ fun GifItem(
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Play",
+                            contentDescription = stringResource(R.string.action_play),
                             tint = Color.White,
                             modifier = Modifier.size(32.dp)
                         )
@@ -971,7 +977,7 @@ fun GifItem(
                         isDownloading = gif.isDownloading,
                         progress = gif.downloadProgress,
                         idleIcon = Icons.Default.Download,
-                        idleContentDescription = "Download",
+                        idleContentDescription = stringResource(R.string.cd_download),
                         onCancelClick = {
                             isAutoDownloadSuppressed = true
                             AutoDownloadSuppression.suppress(gif.fileId)

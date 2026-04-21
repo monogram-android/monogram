@@ -41,11 +41,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.currentChat.components.channels.ChannelCommentsButton
@@ -278,7 +280,7 @@ fun DocumentRow(
                 )
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Cancel",
+                    contentDescription = stringResource(R.string.cancel_button),
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(20.dp)
                 )
@@ -287,7 +289,7 @@ fun DocumentRow(
                     if (content.path == null) Icons.Default.Download else Icons.AutoMirrored.Filled.InsertDriveFile
                 Icon(
                     imageVector = icon,
-                    contentDescription = "File",
+                    contentDescription = stringResource(R.string.cd_file),
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
             }

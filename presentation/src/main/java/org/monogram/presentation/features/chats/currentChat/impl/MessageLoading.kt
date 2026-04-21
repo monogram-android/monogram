@@ -27,7 +27,6 @@ import kotlin.math.abs
 
 private const val PAGE_SIZE = 50
 private const val MAX_DOWNLOAD_RETRIES = 3
-private const val DEFAULT_SENDER_NAME = "User"
 private fun isUsableAvatarPath(path: String?): Boolean {
     if (path.isNullOrBlank()) return false
     return when {
@@ -71,7 +70,7 @@ private fun mergeSenderVisuals(previous: MessageModel, incoming: MessageModel): 
 
 private fun MessageModel.needsSenderRefresh(): Boolean {
     if (senderId <= 0L) return false
-    val hasPlaceholderName = senderName.isBlank() || senderName == DEFAULT_SENDER_NAME
+    val hasPlaceholderName = senderName.isBlank()
     val hasNoAvatar = senderAvatar.isNullOrBlank() && senderPersonalAvatar.isNullOrBlank()
     return hasPlaceholderName || hasNoAvatar
 }
@@ -1312,7 +1311,7 @@ private fun DefaultChatComponent.refreshMessagesForSender(senderId: Long, user: 
     val fullName = listOfNotNull(
         user.firstName.takeIf { it.isNotBlank() },
         user.lastName?.takeIf { it.isNotBlank() }
-    ).joinToString(" ").ifBlank { "User" }
+    ).joinToString(" ").ifBlank { "" }
 
     _state.update { currentState ->
         val updatedMessages = currentState.messages.map { message ->

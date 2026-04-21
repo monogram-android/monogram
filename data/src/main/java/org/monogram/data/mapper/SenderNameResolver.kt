@@ -8,8 +8,8 @@ internal object SenderNameResolver {
         ).joinToString(" ")
     }
 
-    fun fromParts(firstName: String?, lastName: String?, fallback: String = "User"): String {
-        val normalizedFallback = fallback.ifBlank { "User" }
+    fun fromParts(firstName: String?, lastName: String?, fallback: String = ""): String {
+        val normalizedFallback = fallback.ifBlank { "" }
         return fromPartsOrBlank(firstName, lastName).ifBlank { normalizedFallback }
     }
 }

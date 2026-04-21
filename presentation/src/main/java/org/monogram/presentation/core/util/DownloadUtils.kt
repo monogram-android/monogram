@@ -16,6 +16,7 @@ import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import org.monogram.domain.repository.MessageDisplayer
+import org.monogram.presentation.R
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -27,9 +28,9 @@ class DownloadUtils(
 
     override fun saveFileToDownloads(filePath: String) {
         when (saveFileToDownloadsInternal(filePath)) {
-            SaveResult.SUCCESS -> messageDisplayer.show("Saved to Downloads/MonoGram")
-            SaveResult.NOT_FOUND -> messageDisplayer.show("File not found")
-            SaveResult.FAILED -> messageDisplayer.show("Failed to save file")
+            SaveResult.SUCCESS -> messageDisplayer.show(context.getString(R.string.download_saved_to_downloads))
+            SaveResult.NOT_FOUND -> messageDisplayer.show(context.getString(R.string.download_file_not_found))
+            SaveResult.FAILED -> messageDisplayer.show(context.getString(R.string.download_failed_to_save_file))
         }
     }
 
@@ -42,7 +43,7 @@ class DownloadUtils(
             .toList()
 
         if (paths.isEmpty()) {
-            messageDisplayer.show("No files to save")
+            messageDisplayer.show(context.getString(R.string.download_no_files_to_save))
             return
         }
 
@@ -60,24 +61,34 @@ class DownloadUtils(
 
         when {
             savedCount == 0 && notFoundCount > 0 && failedCount == 0 -> {
-                messageDisplayer.show("Files not found")
+                messageDisplayer.show(context.getString(R.string.download_files_not_found))
             }
 
             savedCount == 0 -> {
-                messageDisplayer.show("Failed to save files")
+                messageDisplayer.show(context.getString(R.string.download_failed_to_save_files))
             }
 
             notFoundCount == 0 && failedCount == 0 -> {
                 if (savedCount == 1) {
-                    messageDisplayer.show("Saved to Downloads/MonoGram")
+                    messageDisplayer.show(context.getString(R.string.download_saved_to_downloads))
                 } else {
-                    messageDisplayer.show("Saved $savedCount files to Downloads/MonoGram")
+                    messageDisplayer.show(
+                        context.getString(
+                            R.string.download_saved_files_to_downloads_format,
+                            savedCount
+                        )
+                    )
                 }
             }
 
             else -> {
                 messageDisplayer.show(
-                    "Saved $savedCount files to Downloads/MonoGram ($notFoundCount not found, $failedCount failed)"
+                    context.getString(
+                        R.string.download_saved_files_with_errors_format,
+                        savedCount,
+                        notFoundCount,
+                        failedCount
+                    )
                 )
             }
         }

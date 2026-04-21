@@ -38,12 +38,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.components.channels.ChannelCommentsButton
 
@@ -254,7 +256,7 @@ fun AudioRow(
                 )
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Cancel",
+                    contentDescription = stringResource(R.string.cancel_button),
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(20.dp)
                 )
@@ -262,7 +264,7 @@ fun AudioRow(
                 val icon = if (content.path == null) Icons.Default.Download else Icons.Default.PlayArrow
                 Icon(
                     imageVector = icon,
-                    contentDescription = "Play",
+                    contentDescription = stringResource(R.string.action_play),
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
             }

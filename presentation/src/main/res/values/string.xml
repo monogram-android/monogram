@@ -26,6 +26,12 @@
     <!-- About Screen -->
     <string name="about_title">About</string>
     <string name="cd_back">Back</string>
+    <string name="cd_close">Close</string>
+    <string name="cd_selected">Selected</string>
+    <string name="cd_download">Download</string>
+    <string name="cd_stream">Stream</string>
+    <string name="cd_file">File</string>
+    <string name="cd_toggle_sound">Toggle sound</string>
     <string name="app_name_monogram">MonoGram</string>
     <string name="version_format">Version %1$s</string>
     <string name="terms_of_service_title">Terms of Service</string>
@@ -67,6 +73,7 @@
     <string name="download_update_action">Download Update</string>
     <string name="cancel_button">Cancel</string>
     <string name="loading_text">Loading...</string>
+    <string name="update_no_update_found">No update found</string>
 
     <!-- Auth -->
     <string name="auth_title_phone">Your Phone</string>
@@ -165,6 +172,9 @@
     <string name="privacy_policy">Privacy Policy</string>
     <string name="app_version_footer_format">MonoGram Alpha for Android v%1$s</string>
     <string name="unknown_user">Unknown User</string>
+    <string name="forward_origin_chat">Chat</string>
+    <string name="forward_origin_channel">Channel</string>
+    <string name="forward_origin_hidden_user">Hidden user</string>
     <string name="no_info">No info</string>
     <string name="cd_show_accounts">Show accounts</string>
 
@@ -1627,6 +1637,31 @@
     <string name="action_restart">Restart</string>
     <string name="action_pause">Pause</string>
     <string name="action_play">Play</string>
+    <string name="notifications_exceptions_private_chats">Private Chats</string>
+    <string name="notifications_exceptions_groups">Groups</string>
+    <string name="notifications_exceptions_channels">Channels</string>
+    <string name="notifications_exceptions_label">Exceptions</string>
+    <string name="notifications_exceptions_search">Search</string>
+    <string name="notifications_exceptions_search_placeholder">Search exceptions...</string>
+    <string name="notifications_exceptions_no_results_format">No results found for &quot;%1$s&quot;</string>
+    <string name="notifications_exceptions_chats_header">CHATS</string>
+    <string name="notifications_exceptions_hint">Tap on a chat to change its notification settings or remove the exception.</string>
+    <string name="notifications_exceptions_empty_title">No Exceptions</string>
+    <string name="notifications_exceptions_empty_subtitle">You can add specific notification settings for individual chats. These settings will override the global defaults.</string>
+    <string name="wallpaper_blur">Blur</string>
+    <string name="wallpaper_motion">Motion</string>
+    <string name="wallpaper_dimming">Dimming</string>
+    <string name="wallpaper_grayscale">Grayscale</string>
+    <string name="download_saved_to_downloads">Saved to Downloads/MonoGram</string>
+    <string name="download_file_not_found">File not found</string>
+    <string name="download_failed_to_save_file">Failed to save file</string>
+    <string name="download_no_files_to_save">No files to save</string>
+    <string name="download_files_not_found">Files not found</string>
+    <string name="download_failed_to_save_files">Failed to save files</string>
+    <string name="download_saved_files_to_downloads_format">Saved %1$d files to Downloads/MonoGram</string>
+    <string name="download_saved_files_with_errors_format">Saved %1$d files to Downloads/MonoGram (%2$d not found, %3$d failed)</string>
+    <string name="logs_role_left">Left</string>
+    <string name="logs_role_unknown">Unknown</string>
     <string name="action_unlock">Unlock</string>
 
     <!-- Selection: Viewer Settings -->

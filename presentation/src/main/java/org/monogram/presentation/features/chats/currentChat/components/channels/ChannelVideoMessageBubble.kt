@@ -45,6 +45,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,6 +55,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.currentChat.AutoDownloadSuppression
@@ -336,7 +338,11 @@ fun ChannelVideoMessageBubble(
                                     isDownloading = content.isDownloading,
                                     progress = content.downloadProgress,
                                     idleIcon = if (content.supportsStreaming) Icons.Rounded.Stream else Icons.Default.Download,
-                                    idleContentDescription = if (content.supportsStreaming) "Stream" else "Download",
+                                    idleContentDescription = if (content.supportsStreaming) {
+                                        stringResource(R.string.cd_stream)
+                                    } else {
+                                        stringResource(R.string.cd_download)
+                                    },
                                     onCancelClick = {
                                         isAutoDownloadSuppressed = true
                                         AutoDownloadSuppression.suppress(content.fileId)

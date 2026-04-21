@@ -289,6 +289,7 @@ fun ChatListTopBar(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        val settingsContentDescription = stringResource(R.string.menu_settings)
                         if (isProxyEnabled) {
                             val isConnected =
                                 connectionStatus is ConnectionStatus.Connected || connectionStatus is ConnectionStatus.Updating
@@ -318,7 +319,7 @@ fun ChatListTopBar(
                             shapes = iconButtonShapes,
                             modifier = Modifier
                                 .size(40.dp)
-                                .semantics { contentDescription = "Settings" }
+                                .semantics { contentDescription = settingsContentDescription }
                         ) {
                             AvatarTopAppBar(
                                 path = user?.avatarPath,

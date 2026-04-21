@@ -1270,10 +1270,11 @@ private fun ViewerRow(
     dateFormat: SimpleDateFormat,
     onClick: () -> Unit
 ) {
-    val fullName = remember(viewer.user.firstName, viewer.user.lastName) {
+    val unknownUser = stringResource(R.string.unknown_user)
+    val fullName = remember(viewer.user.firstName, viewer.user.lastName, unknownUser) {
         listOfNotNull(viewer.user.firstName, viewer.user.lastName)
             .joinToString(" ")
-            .ifBlank { "Unknown" }
+            .ifBlank { unknownUser }
     }
     val subtitle = remember(viewer.viewedDate) {
         if (viewer.viewedDate > 0) {

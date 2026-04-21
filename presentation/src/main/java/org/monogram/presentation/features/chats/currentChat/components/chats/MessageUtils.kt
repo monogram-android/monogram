@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.Font
@@ -47,6 +48,7 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.EmojiStyle
 import org.monogram.presentation.features.chats.currentChat.components.channels.formatViews
@@ -275,7 +277,7 @@ fun MessageMetadata(
         if (msg.editDate > 0) {
             Icon(
                 imageVector = Icons.Default.Edit,
-                contentDescription = "Edited",
+                contentDescription = stringResource(R.string.info_edited),
                 modifier = Modifier.size(12.dp),
                 tint = contentColor
             )

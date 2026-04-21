@@ -491,8 +491,15 @@ class TdMessageRemoteDataSource(
     }
 
     private fun createFallbackMessage(msg: TdApi.Message): MessageModel = MessageModel(
-        id = msg.id, date = msg.date, isOutgoing = msg.isOutgoing, senderName = "Unknown", chatId = msg.chatId,
-        content = MessageContent.Text("Error loading message"), senderId = 0L, senderAvatar = null, isRead = false,
+        id = msg.id,
+        date = msg.date,
+        isOutgoing = msg.isOutgoing,
+        senderName = "",
+        chatId = msg.chatId,
+        content = MessageContent.Text(""),
+        senderId = 0L,
+        senderAvatar = null,
+        isRead = false,
         replyToMsgId = null, replyToMsg = null, forwardInfo = null, views = null, viewCount = null, mediaAlbumId = 0L,
         editDate = 0, sendingState = null, readDate = 0, reactions = emptyList(), isSenderVerified = false,
         threadId = null, replyCount = 0, canGetMessageThread = false, replyMarkup = null

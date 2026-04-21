@@ -17,7 +17,8 @@ fun StatusChangeRow(label: String, status: String) {
     val adminStr = stringResource(R.string.logs_role_admin)
     val ownerStr = stringResource(R.string.logs_role_owner)
     val bannedStr = stringResource(R.string.logs_role_banned)
-    val unknownStr = "Unknown"
+    val leftStr = stringResource(R.string.logs_role_left)
+    val unknownStr = stringResource(R.string.logs_role_unknown)
 
     val formattedStatus = remember(status) {
         val name = status.substringBefore("{").trim()
@@ -28,7 +29,7 @@ fun StatusChangeRow(label: String, status: String) {
                 status.contains("Administrator", ignoreCase = true) -> adminStr
                 status.contains("Creator", ignoreCase = true) -> ownerStr
                 status.contains("Banned", ignoreCase = true) -> bannedStr
-                status.contains("Left", ignoreCase = true) -> "Left"
+                status.contains("Left", ignoreCase = true) -> leftStr
                 else -> unknownStr
             }
         } else {

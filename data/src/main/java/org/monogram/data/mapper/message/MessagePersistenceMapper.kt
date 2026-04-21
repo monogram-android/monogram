@@ -10,11 +10,13 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.PollType
+import org.monogram.domain.repository.StringProvider
 import org.monogram.data.db.model.MessageEntity as MessageDbEntity
 
 internal class MessagePersistenceMapper(
     private val cache: ChatCache,
-    private val fileHelper: TdFileHelper
+    private val fileHelper: TdFileHelper,
+    private val stringProvider: StringProvider
 ) {
     data class CachedMessageContent(
         val type: String,
@@ -38,6 +40,9 @@ internal class MessagePersistenceMapper(
         val originChatId: Long? = null,
         val originMessageId: Long? = null
     )
+
+    private val unknownUserName: String
+        get() = stringProvider.getString("unknown_user")
 
     fun mapToEntity(
         msg: TdApi.Message,
@@ -497,16 +502,16 @@ internal class MessagePersistenceMapper(
             return SenderNameResolver.fromParts(
                 firstName = user.firstName,
                 lastName = user.lastName,
-                fallback = fallback.ifBlank { "User" }
+                fallback = fallback.ifBlank { unknownUserName }
             )
         }
 
         val chat = cache.getChat(senderId)
         if (chat != null) {
-            return chat.title.takeIf { it.isNotBlank() } ?: fallback.ifBlank { "User" }
+            return chat.title.takeIf { it.isNotBlank() } ?: fallback.ifBlank { unknownUserName }
         }
 
-        return fallback.ifBlank { "User" }
+        return fallback.ifBlank { unknownUserName }
     }
 
     private fun buildReplyPreview(msg: TdApi.Message): CachedReplyPreview? {
@@ -518,7 +523,7 @@ internal class MessagePersistenceMapper(
                 SenderNameResolver.fromParts(
                     firstName = user?.firstName,
                     lastName = user?.lastName,
-                    fallback = "User"
+                    fallback = unknownUserName
                 )
             }
 
@@ -577,7 +582,7 @@ internal class MessagePersistenceMapper(
             id = replyToMsgId,
             date = entity.date,
             isOutgoing = false,
-            senderName = preview.senderName.ifBlank { "Unknown" },
+            senderName = preview.senderName.ifBlank { unknownUserName },
             chatId = entity.chatId,
             content = mapReplyPreviewContent(preview),
             senderId = 0L,
@@ -653,29 +658,33 @@ internal class MessagePersistenceMapper(
                 val name = SenderNameResolver.fromParts(
                     firstName = user?.firstName,
                     lastName = user?.lastName,
-                    fallback = "User"
+                    fallback = unknownUserName
                 )
                 CachedForwardOrigin(fromName = name, fromId = origin.senderUserId)
             }
 
             is TdApi.MessageOriginChat -> CachedForwardOrigin(
-                fromName = cache.getChat(origin.senderChatId)?.title ?: "Chat",
+                fromName = cache.getChat(origin.senderChatId)?.title
+                    ?: stringProvider.getString("forward_origin_chat"),
                 fromId = origin.senderChatId
             )
 
             is TdApi.MessageOriginChannel -> CachedForwardOrigin(
-                fromName = cache.getChat(origin.chatId)?.title ?: "Channel",
+                fromName = cache.getChat(origin.chatId)?.title
+                    ?: stringProvider.getString("forward_origin_channel"),
                 fromId = origin.chatId,
                 originChatId = origin.chatId,
                 originMessageId = origin.messageId
             )
 
             is TdApi.MessageOriginHiddenUser -> CachedForwardOrigin(
-                fromName = origin.senderName.ifBlank { "Hidden user" },
+                fromName = origin.senderName.ifBlank {
+                    stringProvider.getString("forward_origin_hidden_user")
+                },
                 fromId = 0L
             )
 
-            else -> CachedForwardOrigin(fromName = "Unknown", fromId = 0L)
+            else -> CachedForwardOrigin(fromName = unknownUserName, fromId = 0L)
         }
     }
 

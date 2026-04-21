@@ -35,12 +35,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
+import org.monogram.presentation.R
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.NightMode
 import org.monogram.presentation.features.chats.currentChat.components.chats.code.CodeHighlighter
@@ -172,7 +174,7 @@ fun CodeBlock(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
-                        contentDescription = "Copy",
+                        contentDescription = stringResource(R.string.menu_copy),
                         modifier = Modifier.size(14.dp),
                         tint = contentColor.copy(alpha = 0.7f)
                     )

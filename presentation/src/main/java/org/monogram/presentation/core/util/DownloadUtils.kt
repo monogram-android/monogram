@@ -230,9 +230,13 @@ class DownloadUtils(
             if (extension == "apk") {
                 context.startActivity(intent)
             } else {
-                context.startActivity(
-                    Intent.createChooser(intent, "Open with")
-                )
+                val chooserIntent = Intent.createChooser(intent, "Open with").apply {
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    if (context !is Activity) {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                }
+                context.startActivity(chooserIntent)
             }
 
         } catch (e: Exception) {

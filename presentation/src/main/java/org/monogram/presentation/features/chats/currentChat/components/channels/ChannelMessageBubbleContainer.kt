@@ -418,7 +418,7 @@ fun ChannelMessageBubbleContainer(
                 }
 
                 FastReplyIndicator(
-                    modifier = Modifier.align(Alignment.CenterStart),
+                    modifier = Modifier.align(Alignment.CenterEnd),
                     dragOffsetX = dragOffsetX,
                     inverseOffset = isLandscape,
                     maxWidth = maxWidth,

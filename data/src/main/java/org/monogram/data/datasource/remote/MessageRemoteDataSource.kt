@@ -39,6 +39,7 @@ interface MessageRemoteDataSource {
     fun enqueueDownload(fileId: Int, priority: Int = 1, type: DownloadType = DownloadType.DEFAULT, offset: Long = 0, limit: Long = 0, synchronous: Boolean = false)
     suspend fun forwardMessage(toChatId: Long, fromChatId: Long, messageId: Long)
     suspend fun getMessage(chatId: Long, messageId: Long): TdApi.Message?
+    suspend fun getMessageThread(chatId: Long, messageId: Long): TdApi.MessageThreadInfo?
     suspend fun getMessages(chatId: Long, fromMessageId: Long, offset: Int, limit: Int, threadId: Long?): TdApi.Messages?
     suspend fun getChatHistory(chatId: Long, fromMessageId: Long, offset: Int, limit: Int): TdApi.Messages?
     suspend fun searchChatMessages(chatId: Long, query: String, fromMessageId: Long, limit: Int, filter: TdApi.SearchMessagesFilter, threadId: Long?): TdApi.FoundChatMessages?

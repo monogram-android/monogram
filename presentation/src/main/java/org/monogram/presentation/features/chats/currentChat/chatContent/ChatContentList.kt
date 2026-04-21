@@ -164,7 +164,8 @@ fun ChatContentList(
     onViaBotClick: (String) -> Unit = {},
     toProfile: (Long) -> Unit,
     downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false
+    isAnyViewerOpen: Boolean = false,
+    bottomContentPadding: Dp = 8.dp
 ) {
     val isComments = state.isComments
     val isScrolling by remember(scrollState) { derivedStateOf { scrollState.isScrollInProgress } }
@@ -308,7 +309,7 @@ fun ChatContentList(
         reverseLayout = !isComments,
         contentPadding = PaddingValues(
             top = if (isComments) topOverlayPadding + 8.dp else 8.dp,
-            bottom = 8.dp
+            bottom = bottomContentPadding
         )
     ) {
         if (isComments && state.isLoadingOlder && groupedMessages.isNotEmpty()) {
@@ -666,6 +667,15 @@ private fun MessageBubbleSwitcher(
 ) {
     val isChannel = state.isChannelFeed
     val isTopicClosed = state.isCurrentTopicClosed
+    val sanitizedItem = remember(item, state.rootMessage) {
+        item.withSuppressedRootReply(state.rootMessage?.id)
+    }
+    val sanitizedOlderMsg = remember(olderMsg, state.rootMessage) {
+        olderMsg?.suppressRootReply(state.rootMessage?.id)
+    }
+    val sanitizedNewerMsg = remember(newerMsg, state.rootMessage) {
+        newerMsg?.suppressRootReply(state.rootMessage?.id)
+    }
 
     val canWriteText by remember(state.isAdmin, state.permissions.canSendBasicMessages) {
         derivedStateOf { state.isAdmin || state.permissions.canSendBasicMessages }
@@ -721,19 +731,19 @@ private fun MessageBubbleSwitcher(
         }
     }
 
-    when (item) {
+    when (sanitizedItem) {
         is GroupedMessageItem.Single -> {
-            if (item.message.content is MessageContent.Service) {
-                ServiceMessage(text = (item.message.content as MessageContent.Service).text)
+            if (sanitizedItem.message.content is MessageContent.Service) {
+                ServiceMessage(text = (sanitizedItem.message.content as MessageContent.Service).text)
             } else if (isChannel) {
                 ChannelMessageBubbleContainer(
-                    msg = item.message,
-                    olderMsg = olderMsg,
-                    newerMsg = newerMsg,
+                    msg = sanitizedItem.message,
+                    olderMsg = sanitizedOlderMsg,
+                    newerMsg = sanitizedNewerMsg,
                     autoplayGifs = state.autoplayGifs,
                     autoplayVideos = state.autoplayVideos,
                     autoDownloadFiles = state.autoDownloadFiles,
-                    highlighted = state.highlightedMessageId == item.message.id,
+                    highlighted = state.highlightedMessageId == sanitizedItem.message.id,
                     onHighlightConsumed = { component.onHighlightConsumed() },
                     onPhotoClick = {
                         if (isSelectionMode) component.onToggleMessageSelection(it.id) else handlePhotoClick(
@@ -760,8 +770,8 @@ private fun MessageBubbleSwitcher(
                     },
                     onCancelDownload = { component.onCancelDownloadFile(it) },
                     onReplyClick = { pos, size, click ->
-                        if (isSelectionMode) component.onToggleMessageSelection(item.message.id) else onMessageOptionsClick(
-                            item.message,
+                        if (isSelectionMode) component.onToggleMessageSelection(sanitizedItem.message.id) else onMessageOptionsClick(
+                            sanitizedItem.message,
                             pos,
                             size,
                             click
@@ -778,11 +788,11 @@ private fun MessageBubbleSwitcher(
                         component.onReplyMarkupButtonClick(
                             id,
                             btn,
-                            item.message.senderId
+                            sanitizedItem.message.senderId
                         )
                     },
                     onStickerClick = {
-                        if (isSelectionMode) component.onToggleMessageSelection(item.message.id) else component.onStickerClick(
+                        if (isSelectionMode) component.onToggleMessageSelection(sanitizedItem.message.id) else component.onStickerClick(
                             it
                         )
                     },
@@ -812,7 +822,7 @@ private fun MessageBubbleSwitcher(
                     letterSpacing = state.letterSpacing,
                     bubbleRadius = state.bubbleRadius,
                     stickerSize = state.stickerSize,
-                    shouldReportPosition = item.message.id == selectedMessageId,
+                    shouldReportPosition = sanitizedItem.message.id == selectedMessageId,
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     onCommentsClick = { component.onCommentsClick(it) },
                     toProfile = toProfile,
@@ -826,9 +836,9 @@ private fun MessageBubbleSwitcher(
                 )
             } else {
                 MessageBubbleContainer(
-                    msg = item.message,
-                    olderMsg = olderMsg,
-                    newerMsg = newerMsg,
+                    msg = sanitizedItem.message,
+                    olderMsg = sanitizedOlderMsg,
+                    newerMsg = sanitizedNewerMsg,
                     isGroup = state.isGroup || state.currentTopicId != null,
                     fontSize = state.fontSize,
                     letterSpacing = state.letterSpacing,
@@ -841,7 +851,7 @@ private fun MessageBubbleSwitcher(
                     autoplayGifs = state.autoplayGifs,
                     autoplayVideos = state.autoplayVideos,
                     showLinkPreviews = state.showLinkPreviews,
-                    highlighted = state.highlightedMessageId == item.message.id,
+                    highlighted = state.highlightedMessageId == sanitizedItem.message.id,
                     onHighlightConsumed = { component.onHighlightConsumed() },
                     onPhotoClick = {
                         if (isSelectionMode) component.onToggleMessageSelection(it.id) else handlePhotoClick(
@@ -868,8 +878,8 @@ private fun MessageBubbleSwitcher(
                     },
                     onCancelDownload = { component.onCancelDownloadFile(it) },
                     onReplyClick = { pos, size, click ->
-                        if (isSelectionMode) component.onToggleMessageSelection(item.message.id) else onMessageOptionsClick(
-                            item.message,
+                        if (isSelectionMode) component.onToggleMessageSelection(sanitizedItem.message.id) else onMessageOptionsClick(
+                            sanitizedItem.message,
                             pos,
                             size,
                             click
@@ -886,11 +896,11 @@ private fun MessageBubbleSwitcher(
                         component.onReplyMarkupButtonClick(
                             id,
                             btn,
-                            item.message.senderId
+                            sanitizedItem.message.senderId
                         )
                     },
                     onStickerClick = {
-                        if (isSelectionMode) component.onToggleMessageSelection(item.message.id) else component.onStickerClick(
+                        if (isSelectionMode) component.onToggleMessageSelection(sanitizedItem.message.id) else component.onStickerClick(
                             it
                         )
                     },
@@ -918,7 +928,7 @@ private fun MessageBubbleSwitcher(
                     },
                     onInstantViewClick = { component.onOpenInstantView(it) },
                     onYouTubeClick = { component.onOpenYouTube(it) },
-                    shouldReportPosition = item.message.id == selectedMessageId,
+                    shouldReportPosition = sanitizedItem.message.id == selectedMessageId,
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     toProfile = toProfile,
                     onViaBotClick = onViaBotClick,
@@ -933,9 +943,9 @@ private fun MessageBubbleSwitcher(
 
         is GroupedMessageItem.Album -> {
             AlbumMessageBubbleContainer(
-                messages = item.messages,
-                olderMsg = olderMsg,
-                newerMsg = newerMsg,
+                messages = sanitizedItem.messages,
+                olderMsg = sanitizedOlderMsg,
+                newerMsg = sanitizedNewerMsg,
                 isGroup = state.isGroup || state.currentTopicId != null,
                 isChannel = isChannel,
                 autoplayGifs = state.autoplayGifs,
@@ -946,7 +956,7 @@ private fun MessageBubbleSwitcher(
                 onPhotoClick = {
                     if (isSelectionMode) component.onToggleMessageSelection(it.id) else handleAlbumPhotoClick(
                         it,
-                        item.messages,
+                        sanitizedItem.messages,
                         onPhotoClick
                     )
                 },
@@ -954,7 +964,7 @@ private fun MessageBubbleSwitcher(
                 onVideoClick = {
                     if (isSelectionMode) component.onToggleMessageSelection(it.id) else handleAlbumVideoClick(
                         it,
-                        item.messages,
+                        sanitizedItem.messages,
                         onPhotoClick,
                         onVideoClick
                     )
@@ -971,8 +981,8 @@ private fun MessageBubbleSwitcher(
                 },
                 onCancelDownload = { component.onCancelDownloadFile(it) },
                 onReplyClick = { pos, size, click ->
-                    if (isSelectionMode) component.onToggleMessageSelection(item.messages.last().id) else onMessageOptionsClick(
-                        item.messages.last(),
+                    if (isSelectionMode) component.onToggleMessageSelection(sanitizedItem.messages.last().id) else onMessageOptionsClick(
+                        sanitizedItem.messages.last(),
                         pos,
                         size,
                         click
@@ -985,7 +995,7 @@ private fun MessageBubbleSwitcher(
                         r
                     )
                 },
-                shouldReportPosition = item.messages.last().id == selectedMessageId,
+                shouldReportPosition = sanitizedItem.messages.last().id == selectedMessageId,
                 onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                 onCommentsClick = { component.onCommentsClick(it) },
                 toProfile = toProfile,
@@ -1133,6 +1143,25 @@ private fun isItemSelected(item: GroupedMessageItem, selectedIds: Set<Long>): Bo
         is GroupedMessageItem.Single -> selectedIds.contains(item.message.id)
         is GroupedMessageItem.Album -> item.messages.any { selectedIds.contains(it.id) }
     }
+}
+
+private fun GroupedMessageItem.withSuppressedRootReply(rootMessageId: Long?): GroupedMessageItem {
+    return when (this) {
+        is GroupedMessageItem.Single -> copy(message = message.suppressRootReply(rootMessageId))
+        is GroupedMessageItem.Album -> copy(messages = messages.map {
+            it.suppressRootReply(
+                rootMessageId
+            )
+        })
+    }
+}
+
+private fun MessageModel.suppressRootReply(rootMessageId: Long?): MessageModel {
+    if (rootMessageId == null || replyToMsgId != rootMessageId) return this
+    return copy(
+        replyToMsgId = null,
+        replyToMsg = null
+    )
 }
 
 internal fun chatContentLeadingItemsCount(

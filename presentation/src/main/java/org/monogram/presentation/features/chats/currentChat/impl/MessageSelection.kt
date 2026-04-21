@@ -28,7 +28,7 @@ internal fun DefaultChatComponent.handleDeleteSelectedMessages(revoke: Boolean =
     val ids = _state.value.selectedMessageIds.toList().sorted()
     if (ids.isNotEmpty()) {
         scope.launch {
-            repositoryMessage.deleteMessage(chatId, ids, revoke)
+            repositoryMessage.deleteMessage(activeThreadChatId(), ids, revoke)
             onClearSelection()
         }
     }

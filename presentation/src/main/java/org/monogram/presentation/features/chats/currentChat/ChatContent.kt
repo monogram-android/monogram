@@ -44,6 +44,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -171,12 +172,21 @@ fun ChatContent(
     val displayMessages by remember {
         derivedStateOf {
             val baseMessages = latestMessagesState.value
-            if (transformedMessageTexts.isEmpty()) {
-                baseMessages
-            } else {
-                baseMessages.map { message ->
-                    val transformedText = transformedMessageTexts[message.id] ?: return@map message
+            baseMessages.map { message ->
+                val transformedText = transformedMessageTexts[message.id]
+                val transformedMessage = if (transformedText != null) {
                     message.withUpdatedTextContent(transformedText)
+                } else {
+                    message
+                }
+
+                if (state.rootMessage != null && transformedMessage.replyToMsgId == state.rootMessage?.id) {
+                    transformedMessage.copy(
+                        replyToMsgId = null,
+                        replyToMsg = null
+                    )
+                } else {
+                    transformedMessage
                 }
             }
         }
@@ -674,18 +684,41 @@ fun ChatContent(
     }
 
     val showInputBar by remember(
-        state.isMember,
         state.isChannel,
         state.isGroup,
         state.canWrite,
+        state.isCurrentUserRestricted,
         state.currentTopicId,
         state.selectedMessageIds,
         state.viewAsTopics,
         isRecordingVideo
     ) {
         derivedStateOf {
-            (state.isMember || !state.isChannel && !state.isGroup) &&
-                    (state.canWrite || state.currentTopicId != null) &&
+            (state.canWrite || state.isCurrentUserRestricted) &&
+                    !isRecordingVideo &&
+                    state.selectedMessageIds.isEmpty() &&
+                    (!state.viewAsTopics || state.currentTopicId != null)
+        }
+    }
+
+    val showJoinButton by remember(
+        showInputBar,
+        state.isMember,
+        state.isChannel,
+        state.isGroup,
+        state.canWrite,
+        state.isCurrentUserRestricted,
+        state.selectedMessageIds,
+        state.viewAsTopics,
+        state.currentTopicId,
+        isRecordingVideo
+    ) {
+        derivedStateOf {
+            !showInputBar &&
+                    !state.isMember &&
+                    (state.isChannel || state.isGroup) &&
+                    !state.canWrite &&
+                    !state.isCurrentUserRestricted &&
                     !isRecordingVideo &&
                     state.selectedMessageIds.isEmpty() &&
                     (!state.viewAsTopics || state.currentTopicId != null)
@@ -1058,7 +1091,7 @@ fun ChatContent(
                                 appPreferences = component.appPreferences,
                                 stickerRepository = component.stickerRepository
                             )
-                        } else if (!state.isMember && (state.isChannel || state.isGroup)) {
+                        } else if (showJoinButton) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1310,7 +1343,8 @@ fun ChatContent(
                                 onViaBotClick = onViaBotClickStable,
                                 toProfile = toProfileStable,
                                 downloadUtils = component.downloadUtils,
-                                isAnyViewerOpen = isAnyViewerOpen
+                                isAnyViewerOpen = isAnyViewerOpen,
+                                bottomContentPadding = if (state.rootMessage != null && (showInputBar || showJoinButton)) 120.dp else 8.dp
                             )
 
                             AnimatedVisibility(
@@ -1327,6 +1361,12 @@ fun ChatContent(
                                             component.onScrollToBottom()
                                         },
                                         containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        elevation = FloatingActionButtonDefaults.elevation(
+                                            defaultElevation = 0.dp,
+                                            pressedElevation = 0.dp,
+                                            focusedElevation = 0.dp,
+                                            hoveredElevation = 0.dp
+                                        ),
                                         shape = CircleShape,
                                         modifier = Modifier.size(48.dp)
                                     ) {

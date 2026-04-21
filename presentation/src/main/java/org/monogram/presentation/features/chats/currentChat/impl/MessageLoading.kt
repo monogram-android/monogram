@@ -22,12 +22,12 @@ import org.monogram.presentation.features.chats.currentChat.ChatScrollCommand
 import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
 import org.monogram.presentation.features.chats.currentChat.ScrollAlign
 import java.io.File
+import kotlin.math.abs
 
 
 private const val PAGE_SIZE = 50
 private const val MAX_DOWNLOAD_RETRIES = 3
 private const val DEFAULT_SENDER_NAME = "User"
-
 private fun isUsableAvatarPath(path: String?): Boolean {
     if (path.isNullOrBlank()) return false
     return when {
@@ -209,11 +209,12 @@ private suspend fun DefaultChatComponent.updateMessagesUnsafe(
         }
 
         val mergedMessages = messageMap.values.let {
-            if (isComments) {
+            val sortedMessages = if (isComments) {
                 it.sortedWith(compareBy<MessageModel> { it.date }.thenBy { it.id })
             } else {
                 it.sortedWith(compareByDescending<MessageModel> { it.date }.thenByDescending { it.id })
             }
+            pruneDeliveredPendingDuplicates(sortedMessages)
         }
 
         if (mergedMessages == state.messages) state else state.copy(messages = mergedMessages)
@@ -223,6 +224,39 @@ private suspend fun DefaultChatComponent.updateMessagesUnsafe(
 internal suspend fun DefaultChatComponent.updateMessages(newMessages: List<MessageModel>, replace: Boolean = false) {
     messageMutex.withLock {
         updateMessagesUnsafe(newMessages, replace)
+    }
+}
+
+private fun pruneDeliveredPendingDuplicates(messages: List<MessageModel>): List<MessageModel> {
+    if (messages.none { it.sendingState is MessageSendingState.Pending }) return messages
+
+    return messages.filterNot { candidate ->
+        if (candidate.sendingState !is MessageSendingState.Pending || !candidate.isOutgoing) {
+            return@filterNot false
+        }
+
+        messages.any { confirmed ->
+            confirmed.id != candidate.id &&
+                    confirmed.isOutgoing &&
+                    confirmed.sendingState !is MessageSendingState.Pending &&
+                    confirmed.chatId == candidate.chatId &&
+                    confirmed.threadId == candidate.threadId &&
+                    confirmed.senderId == candidate.senderId &&
+                    abs(confirmed.date - candidate.date) <= 300 &&
+                    confirmed.deliverySignature() == candidate.deliverySignature()
+        }
+    }
+}
+
+private fun MessageModel.deliverySignature(): String? {
+    return when (val c = content) {
+        is MessageContent.Text -> "text:${c.text.trim()}"
+        is MessageContent.Photo -> "photo:${c.caption.trim()}"
+        is MessageContent.Video -> "video:${c.caption.trim()}"
+        is MessageContent.Gif -> "gif:${c.caption.trim()}"
+        is MessageContent.Document -> "document:${c.caption.trim()}"
+        is MessageContent.Audio -> "audio:${c.caption.trim()}"
+        else -> null
     }
 }
 
@@ -244,7 +278,8 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
 
         try {
             val currentState = _state.value
-            val threadId = currentState.currentTopicId
+            val threadId = currentState.effectiveThreadId()
+            val targetChatId = currentState.effectiveThreadChatId(chatId)
             val isComments = currentState.rootMessage != null
             val savedViewport = cacheProvider.getChatViewport(chatId, threadId)
             _state.update { it.copy(lastSavedViewport = savedViewport) }
@@ -256,7 +291,7 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
                 unreadSeparatorLastReadInboxMessageId.takeIf { unreadSeparatorCount > 0 }
                     ?.let { lastRead ->
                         if (unreadSeparatorCount > 0) {
-                    repositoryMessage.getMessagesNewer(chatId, lastRead, 1, threadId)
+                            repositoryMessage.getMessagesNewer(targetChatId, lastRead, 1, threadId)
                         .firstOrNull()?.id
                         ?: lastRead.takeIf { it > 0L }
                 } else {
@@ -265,10 +300,12 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
             }
 
             if (isComments && threadId != null) {
-                val commentsAnchorId = savedViewport?.anchorMessageId
-                if (commentsAnchorId != null && !savedViewport.atBottom) {
+                val commentsViewport = savedViewport
+                val commentsAnchorId = commentsViewport?.anchorMessageId
+                if (commentsAnchorId != null && commentsViewport.atBottom.not()) {
                     loadAroundMessage(
                         messageId = commentsAnchorId,
+                        chatId = targetChatId,
                         threadId = threadId,
                         shouldHighlight = false,
                         scrollCommand = ChatScrollCommand.RestoreViewport(
@@ -279,12 +316,22 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
                     )
                 } else {
                     loadComments(
+                        targetChatId = targetChatId,
                         threadId = threadId,
-                        scrollCommand = ChatScrollCommand.ScrollToStart(animated = false)
+                        scrollCommand = if (commentsViewport != null) {
+                            ChatScrollCommand.RestoreViewport(
+                                anchorMessageId = commentsViewport.anchorMessageId,
+                                anchorOffsetPx = commentsViewport.anchorOffsetPx,
+                                atBottom = commentsViewport.atBottom
+                            )
+                        } else {
+                            ChatScrollCommand.ScrollToStart(animated = false)
+                        }
                     )
                 }
             } else if (firstUnreadId != null) {
                 loadAroundMessage(
+                    chatId = targetChatId,
                     messageId = firstUnreadId,
                     threadId = threadId,
                     shouldHighlight = false,
@@ -298,12 +345,14 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
             } else if (savedViewport != null) {
                 if (savedViewport.atBottom || savedViewport.anchorMessageId == null) {
                     loadBottomMessages(
+                        targetChatId = targetChatId,
                         threadId = threadId,
                         scrollCommand = ChatScrollCommand.ScrollToBottom(animated = false)
                     )
                 } else {
                     val savedAnchorId = savedViewport.anchorMessageId ?: return@launch
                     loadAroundMessage(
+                        chatId = targetChatId,
                         messageId = savedAnchorId,
                         threadId = threadId,
                         shouldHighlight = false,
@@ -316,6 +365,7 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
                 }
             } else {
                 loadBottomMessages(
+                    targetChatId = targetChatId,
                     threadId = threadId,
                     scrollCommand = ChatScrollCommand.ScrollToBottom(animated = false)
                 )
@@ -331,19 +381,25 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
 }
 
 internal suspend fun DefaultChatComponent.loadComments(
+    targetChatId: Long = activeThreadChatId(),
     threadId: Long,
     scrollCommand: ChatScrollCommand? = ChatScrollCommand.ScrollToStart(animated = false)
 ) {
     lastLoadedOlderId = 0L
     lastLoadedNewerId = 0L
-    val messages = repositoryMessage.getMessagesNewer(chatId, threadId, PAGE_SIZE, threadId)
-    val reachedEnd = messages.size < PAGE_SIZE
+    val olderPage = repositoryMessage.getMessagesOlder(targetChatId, 0L, PAGE_SIZE, threadId)
+    val messages = olderPage.messages
+    val reachedOldest = olderPage.reachedOldest
 
     _state.update {
         it.copy(
-            isAtBottom = false,
-            isLatestLoaded = reachedEnd,
-            isOldestLoaded = true,
+            isAtBottom = when (scrollCommand) {
+                is ChatScrollCommand.ScrollToBottom -> true
+                is ChatScrollCommand.RestoreViewport -> scrollCommand.atBottom
+                else -> false
+            },
+            isLatestLoaded = true,
+            isOldestLoaded = reachedOldest,
             scrollToMessageId = null
         )
     }
@@ -355,6 +411,7 @@ internal suspend fun DefaultChatComponent.loadComments(
 }
 
 private suspend fun DefaultChatComponent.loadBottomMessages(
+    targetChatId: Long = activeThreadChatId(),
     threadId: Long?,
     scrollCommand: ChatScrollCommand? = null
 ) {
@@ -362,7 +419,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
     lastLoadedNewerId = 0L
 
     var hasCachedPreview = false
-    val cachedMessages = repositoryMessage.getCachedMessages(chatId, PAGE_SIZE)
+    val cachedMessages = repositoryMessage.getCachedMessages(targetChatId, PAGE_SIZE)
     if (cachedMessages.isNotEmpty()) {
         hasCachedPreview = true
         _state.update {
@@ -377,7 +434,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
         refreshCachedSenderProfiles(cachedMessages)
     }
 
-    val olderPage = repositoryMessage.getMessagesOlder(chatId, 0, PAGE_SIZE, threadId)
+    val olderPage = repositoryMessage.getMessagesOlder(targetChatId, 0, PAGE_SIZE, threadId)
     val messages = olderPage.messages
     val isRemoteSameAsCachedPreview = hasCachedPreview && cachedMessages.isNotEmpty() &&
             messages.size == cachedMessages.size &&
@@ -410,6 +467,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
 }
 
 private suspend fun DefaultChatComponent.loadAroundMessage(
+    chatId: Long = activeThreadChatId(),
     messageId: Long,
     threadId: Long?,
     shouldHighlight: Boolean = true,
@@ -442,10 +500,19 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
         loadMoreMessages()
         loadNewerMessages()
     } else {
-        loadBottomMessages(
-            threadId = threadId,
-            scrollCommand = ChatScrollCommand.ScrollToBottom(animated = false)
-        )
+        if (_state.value.rootMessage != null && threadId != null) {
+            loadComments(
+                targetChatId = chatId,
+                threadId = threadId,
+                scrollCommand = ChatScrollCommand.ScrollToStart(animated = false)
+            )
+        } else {
+            loadBottomMessages(
+                targetChatId = chatId,
+                threadId = threadId,
+                scrollCommand = ChatScrollCommand.ScrollToBottom(animated = false)
+            )
+        }
     }
 }
 
@@ -474,7 +541,8 @@ internal fun DefaultChatComponent.loadMoreMessages() {
         try {
             val currentState = _state.value
             val isComments = currentState.rootMessage != null
-            val threadId = currentState.currentTopicId
+            val threadId = currentState.effectiveThreadId()
+            val targetChatId = currentState.effectiveThreadChatId(chatId)
 
             val visibleAnchorId = if (isComments) {
                 currentState.messages.firstOrNull { it.id > 0 }?.id ?: 0L
@@ -501,7 +569,12 @@ internal fun DefaultChatComponent.loadMoreMessages() {
                 attempts++
 
                 val beforeSize = _state.value.messages.size
-                val olderPage = repositoryMessage.getMessagesOlder(chatId, currentAnchorId, PAGE_SIZE, threadId)
+                val olderPage = repositoryMessage.getMessagesOlder(
+                    targetChatId,
+                    currentAnchorId,
+                    PAGE_SIZE,
+                    threadId
+                )
                 val olderMessages = olderPage.messages
 
                 val nextOlderAnchorId = olderMessages
@@ -566,14 +639,14 @@ internal fun DefaultChatComponent.loadNewerMessages() {
             val currentState = _state.value
             val currentMessages = currentState.messages
             val isComments = currentState.rootMessage != null
-            val threadId = currentState.currentTopicId
+            val threadId = currentState.effectiveThreadId()
+            val targetChatId = currentState.effectiveThreadChatId(chatId)
 
             val anchorId = if (isComments) {
                 currentMessages.lastOrNull { it.id > 0 }?.id ?: return@launch
             } else {
                 currentMessages.firstOrNull { it.id > 0 }?.id ?: return@launch
             }
-
             inFlightNewerAnchorId = anchorId
 
             if (anchorId != 0L && anchorId == lastLoadedNewerId) {
@@ -581,7 +654,8 @@ internal fun DefaultChatComponent.loadNewerMessages() {
                 return@launch
             }
 
-            val newerMessages = repositoryMessage.getMessagesNewer(chatId, anchorId, PAGE_SIZE, threadId)
+            val newerMessages =
+                repositoryMessage.getMessagesNewer(targetChatId, anchorId, PAGE_SIZE, threadId)
             val isLatestLoaded =
                 newerMessages.size < PAGE_SIZE || (newerMessages.isNotEmpty() && newerMessages.all { msg -> currentMessages.any { it.id == msg.id } })
 
@@ -616,7 +690,8 @@ internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
         try {
             loadAroundMessage(
                 messageId = messageId,
-                threadId = _state.value.currentTopicId,
+                chatId = activeThreadChatId(),
+                threadId = activeThreadId(),
                 shouldHighlight = true,
                 scrollCommand = ChatScrollCommand.JumpToMessage(
                     messageId = messageId,
@@ -635,6 +710,9 @@ internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
 
 internal fun DefaultChatComponent.scrollToBottomInternal() {
     val currentState = _state.value
+    val threadId = currentState.effectiveThreadId()
+    val isComments = currentState.rootMessage != null
+    val targetChatId = currentState.effectiveThreadChatId(chatId)
     if (currentState.messages.isNotEmpty() && currentState.isLatestLoaded) {
         _state.update {
             it.copy(
@@ -656,10 +734,19 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
             )
         }
         try {
-            loadBottomMessages(
-                threadId = _state.value.currentTopicId,
-                scrollCommand = ChatScrollCommand.ScrollToBottom(animated = true)
-            )
+            if (isComments && threadId != null) {
+                loadComments(
+                    targetChatId = targetChatId,
+                    threadId = threadId,
+                    scrollCommand = ChatScrollCommand.ScrollToBottom(animated = true)
+                )
+            } else {
+                loadBottomMessages(
+                    targetChatId = targetChatId,
+                    threadId = threadId,
+                    scrollCommand = ChatScrollCommand.ScrollToBottom(animated = true)
+                )
+            }
         } catch (e: Exception) {
             Log.e("DefaultChatComponent", "Failed to scroll to bottom", e)
         } finally {
@@ -679,12 +766,9 @@ internal fun DefaultChatComponent.cancelAllLoadingJobs() {
 internal fun DefaultChatComponent.setupMessageCollectors() {
     repositoryMessage.newMessageFlow
         .onEach { message ->
-            if (message.chatId == chatId) {
-                if (resolveRemappedMessageId(message.id) != message.id) {
-                    return@onEach
-                }
-                val isCorrectThread =
-                    _state.value.currentTopicId == null || message.threadId == _state.value.currentTopicId
+            if (message.chatId == chatId || message.chatId == activeThreadChatId()) {
+                if (resolveRemappedMessageId(message.id) != message.id) return@onEach
+                val isCorrectThread = _state.value.isMessageInActiveThread(chatId, message)
                 if (isCorrectThread) {
                     updateMessages(listOf(message))
                     requestSenderRefreshIfNeeded(message)
@@ -703,7 +787,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
             val cId = event.chatId
             val oldId = event.oldMessageId
             val newMessage = event.message
-            if (cId == chatId) {
+            if (cId == chatId || cId == activeThreadChatId()) {
                 if (oldId != newMessage.id) {
                     remappedMessageIds[oldId] = newMessage.id
                 } else {
@@ -712,10 +796,8 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                 messageMutex.withLock {
                     _state.update { state ->
                         val isCorrectThread =
-                            state.currentTopicId == null || newMessage.threadId == state.currentTopicId
-                        if (!isCorrectThread) {
-                            return@update state
-                        }
+                            state.isMessageInActiveThread(chatId, newMessage)
+                        if (!isCorrectThread) return@update state
 
                         val withoutOldId = state.messages.filterNot { it.id == oldId }
                         val canInsert = state.isAtBottom || state.isLatestLoaded || newMessage.isOutgoing
@@ -749,7 +831,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                     }
                 }
 
-                val isCurrentThread = _state.value.currentTopicId == null || newMessage.threadId == _state.value.currentTopicId
+                val isCurrentThread = _state.value.isMessageInActiveThread(chatId, newMessage)
                 if (isCurrentThread) {
                     requestSenderRefreshIfNeeded(newMessage)
                 }
@@ -1087,7 +1169,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
         .onEach { event ->
             val cId = event.chatId
             val messageIds = event.messageIds
-            if (cId == chatId) {
+            if (cId == chatId || cId == activeThreadChatId()) {
                 messageIds.forEach(reactionUpdateSuppressedUntil::remove)
                 messageIds.forEach(remappedMessageIds::remove)
                 remappedMessageIds.entries.removeIf { (_, mappedId) -> mappedId in messageIds }
@@ -1106,7 +1188,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
 
     repositoryMessage.messageEditedFlow
         .onEach { message ->
-            if (message.chatId == chatId) {
+            if (_state.value.isMessageInActiveThread(chatId, message) || message.chatId == chatId) {
                 val now = System.currentTimeMillis()
                 val suppressUntil = reactionUpdateSuppressedUntil[message.id]
                 val suppressReactionUpdate = suppressUntil != null && now < suppressUntil
@@ -1317,8 +1399,8 @@ private inline fun DefaultChatComponent.updateMessageContent(
 
 internal fun DefaultChatComponent.loadDraft() {
     scope.launch {
-        val threadId = _state.value.currentTopicId
-        val draft = repositoryMessage.getChatDraft(chatId, threadId)
+        _state.value.currentTopicId
+        val draft = repositoryMessage.getChatDraft(activeThreadChatId(), activeThreadId())
         if (!draft.isNullOrEmpty()) {
             _state.update { it.copy(draftText = draft) }
         }
@@ -1330,6 +1412,8 @@ internal fun DefaultChatComponent.handleTopicClick(topicId: Int) {
     _state.update {
         it.copy(
             currentTopicId = id,
+            currentThreadChatId = null,
+            currentMessageThreadId = null,
             messages = emptyList(),
             isOldestLoaded = false,
             isLatestLoaded = false,
@@ -1344,9 +1428,12 @@ internal fun DefaultChatComponent.handleTopicClick(topicId: Int) {
 internal fun DefaultChatComponent.handleCommentsClick(messageId: Long) {
     scope.launch {
         val message = _state.value.messages.find { it.id == messageId }
+        val threadContext = repositoryMessage.getMessageThreadContext(chatId, messageId)
         _state.update {
             it.copy(
                 currentTopicId = messageId,
+                currentThreadChatId = threadContext?.chatId,
+                currentMessageThreadId = threadContext?.threadId ?: messageId,
                 rootMessage = message,
                 messages = emptyList(),
                 isOldestLoaded = false,
@@ -1356,7 +1443,8 @@ internal fun DefaultChatComponent.handleCommentsClick(messageId: Long) {
             )
         }
         loadComments(
-            threadId = messageId,
+            targetChatId = threadContext?.chatId ?: chatId,
+            threadId = threadContext?.threadId ?: messageId,
             scrollCommand = ChatScrollCommand.ScrollToStart(animated = false)
         )
     }

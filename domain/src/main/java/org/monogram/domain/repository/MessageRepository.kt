@@ -39,6 +39,11 @@ data class OlderMessagesPage(
     val isRemote: Boolean
 )
 
+data class MessageThreadContext(
+    val chatId: Long,
+    val threadId: Long
+)
+
 interface MessageRepository :
     FileRepository,
     InlineBotRepository,
@@ -85,6 +90,8 @@ interface MessageRepository :
     ): List<MessageModel>
 
     suspend fun getMessagesAround(chatId: Long, messageId: Long, limit: Int, threadId: Long? = null): List<MessageModel>
+
+    suspend fun getMessageThreadContext(chatId: Long, messageId: Long): MessageThreadContext?
 
     @Deprecated("Use getMessagesOlder instead")
     suspend fun getMessages(chatId: Long, fromMessageId: Long, limit: Int): List<MessageModel>

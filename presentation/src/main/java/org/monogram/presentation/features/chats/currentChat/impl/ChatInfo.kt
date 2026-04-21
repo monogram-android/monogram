@@ -18,14 +18,14 @@ import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
 
 internal fun DefaultChatComponent.loadChatInfo() {
     scope.launch {
-        val chat = chatListRepository.getChatById(chatId)
-        if (chat != null) {
-            updateChatState(chat)
-            if (chat.viewAsTopics && _state.value.topics.isEmpty()) {
+        val baseChat = chatListRepository.getChatById(chatId)
+        if (baseChat != null) {
+            updateBaseChatState(baseChat)
+            if (baseChat.viewAsTopics && _state.value.topics.isEmpty()) {
                 loadTopics()
             }
 
-            val isBot = chat.type == ChatType.PRIVATE && chat.isBot
+            val isBot = baseChat.type == ChatType.PRIVATE && baseChat.isBot
             if (isBot) {
                 val botInfo = botRepository.getBotInfo(chatId)
                 if (botInfo != null) {
@@ -40,19 +40,14 @@ internal fun DefaultChatComponent.loadChatInfo() {
             }
         }
 
-        runCatching { chatInfoRepository.getChatFullInfo(chatId) }
-            .getOrNull()
-            ?.let { fullInfo ->
-                _state.update {
-                    it.copy(
-                        slowModeDelay = fullInfo.slowModeDelay,
-                        slowModeDelayExpiresIn = fullInfo.slowModeDelayExpiresIn
-                    )
-                }
-            }
-
+        val effectiveChatId = _state.value.effectiveThreadChatId(chatId)
+        chatListRepository.getChatById(effectiveChatId)?.let(::updateEffectiveChatState)
+        refreshEffectiveChatDetails(effectiveChatId)
         refreshCurrentUserRestrictionState()
     }
+
+    if (chatInfoObserversStarted) return
+    chatInfoObserversStarted = true
 
     chatListRepository.chatListFlow
         .map { chats -> chats.find { it.id == chatId } }
@@ -74,7 +69,7 @@ internal fun DefaultChatComponent.loadChatInfo() {
         }
         .onEach { chat ->
             val wasTopics = _state.value.viewAsTopics
-            updateChatState(chat)
+            updateBaseChatState(chat)
             if (chat.viewAsTopics) {
                 if (_state.value.topics.isEmpty()) {
                     loadTopics()
@@ -85,12 +80,39 @@ internal fun DefaultChatComponent.loadChatInfo() {
         }
         .launchIn(scope)
 
+    _state
+        .map { it.effectiveThreadChatId(chatId) }
+        .distinctUntilChanged()
+        .onEach { effectiveChatId ->
+            chatListRepository.getChatById(effectiveChatId)?.let(::updateEffectiveChatState)
+            refreshEffectiveChatDetails(effectiveChatId)
+            refreshCurrentUserRestrictionState()
+        }
+        .launchIn(scope)
+
     chatListRepository.chatListFlow
-        .map { chats -> chats.find { it.id == chatId } }
+        .map { chats -> chats.find { it.id == _state.value.effectiveThreadChatId(chatId) } }
         .filterNotNull()
         .map { chat -> chat.permissions to chat.isMember }
         .distinctUntilChanged()
-        .onEach { refreshCurrentUserRestrictionState() }
+        .onEach { (_, _) ->
+            chatListRepository.getChatById(_state.value.effectiveThreadChatId(chatId))
+                ?.let(::updateEffectiveChatState)
+            refreshCurrentUserRestrictionState()
+        }
+        .launchIn(scope)
+
+    chatListRepository.chatListFlow
+        .map { chats -> chats.find { it.id == _state.value.effectiveThreadChatId(chatId) } }
+        .filterNotNull()
+        .distinctUntilChanged { old, new ->
+            old.permissions == new.permissions &&
+                    old.isMember == new.isMember &&
+                    old.isAdmin == new.isAdmin &&
+                    old.memberCount == new.memberCount &&
+                    old.onlineCount == new.onlineCount
+        }
+        .onEach(::updateEffectiveChatState)
         .launchIn(scope)
 
     forumTopicsRepository.forumTopicsFlow
@@ -135,10 +157,9 @@ internal fun DefaultChatComponent.observeUserUpdates() {
     }
 }
 
-internal fun DefaultChatComponent.updateChatState(chat: ChatModel) {
+private fun DefaultChatComponent.updateBaseChatState(chat: ChatModel) {
     _state.update { currentState ->
         val isDetailedInfoMissing = (chat.isGroup || chat.isChannel) && chat.memberCount == 0
-        val canWrite = if (chat.isAdmin) true else chat.permissions.canSendBasicMessages
         val unreadSeparatorCount = when {
             currentState.unreadSeparatorCount > 0 -> currentState.unreadSeparatorCount
             chat.unreadCount > 0 -> chat.unreadCount
@@ -160,8 +181,6 @@ internal fun DefaultChatComponent.updateChatState(chat: ChatModel) {
             isSecretChat = chat.type == ChatType.SECRET,
             isVerified = if (chat.isGroup || chat.isChannel) chat.isVerified else (chat.isVerified || currentState.isVerified),
             isSponsor = if (chat.isGroup || chat.isChannel) false else (chat.isSponsor || currentState.isSponsor),
-            canWrite = canWrite,
-            isAdmin = chat.isAdmin,
             memberCount = if (!isDetailedInfoMissing) chat.memberCount else currentState.memberCount,
             onlineCount = if (!isDetailedInfoMissing) chat.onlineCount else currentState.onlineCount,
             unreadCount = chat.unreadCount,
@@ -172,10 +191,24 @@ internal fun DefaultChatComponent.updateChatState(chat: ChatModel) {
             typingAction = chat.typingAction,
             viewAsTopics = chat.viewAsTopics,
             isMuted = chat.isMuted,
-            permissions = chat.permissions,
-            isMember = chat.isMember,
             lastReadInboxMessageId = chat.lastReadInboxMessageId,
             unreadSeparatorLastReadInboxMessageId = unreadSeparatorLastReadInboxMessageId,
+        )
+    }
+}
+
+private fun DefaultChatComponent.updateEffectiveChatState(chat: ChatModel) {
+    _state.update { currentState ->
+        val canWrite = if (chat.isAdmin) true else chat.permissions.canSendBasicMessages
+        val isDetailedInfoMissing = (chat.isGroup || chat.isChannel) && chat.memberCount == 0
+
+        currentState.copy(
+            canWrite = canWrite,
+            isAdmin = chat.isAdmin,
+            permissions = chat.permissions,
+            isMember = chat.isMember,
+            memberCount = if (!isDetailedInfoMissing) chat.memberCount else currentState.memberCount,
+            onlineCount = if (!isDetailedInfoMissing) chat.onlineCount else currentState.onlineCount
         )
     }
 }
@@ -211,7 +244,15 @@ internal fun DefaultChatComponent.handleDeleteChat() {
 
 internal fun DefaultChatComponent.handleJoinChat() {
     scope.launch {
-        chatInfoRepository.setChatMemberStatus(chatId, userRepository.getMe().id, ChatMemberStatus.Member)
+        val effectiveChatId = _state.value.effectiveThreadChatId(chatId)
+        chatInfoRepository.setChatMemberStatus(
+            effectiveChatId,
+            userRepository.getMe().id,
+            ChatMemberStatus.Member
+        )
+        chatListRepository.getChatById(effectiveChatId)?.let(::updateEffectiveChatState)
+        refreshEffectiveChatDetails(effectiveChatId)
+        refreshCurrentUserRestrictionState()
     }
 }
 
@@ -248,7 +289,9 @@ internal fun DefaultChatComponent.handleConfirmRestrict(
 
 private suspend fun DefaultChatComponent.refreshCurrentUserRestrictionState() {
     val me = runCatching { userRepository.getMe() }.getOrNull() ?: return
-    val status = runCatching { chatInfoRepository.getChatMember(chatId, me.id)?.status }.getOrNull()
+    val effectiveChatId = _state.value.effectiveThreadChatId(chatId)
+    val status =
+        runCatching { chatInfoRepository.getChatMember(effectiveChatId, me.id)?.status }.getOrNull()
     val restrictedStatus = status as? ChatMemberStatus.Restricted
 
     _state.update {
@@ -258,4 +301,17 @@ private suspend fun DefaultChatComponent.refreshCurrentUserRestrictionState() {
             effectiveInputPermissions = restrictedStatus?.permissions
         )
     }
+}
+
+private suspend fun DefaultChatComponent.refreshEffectiveChatDetails(effectiveChatId: Long) {
+    runCatching { chatInfoRepository.getChatFullInfo(effectiveChatId) }
+        .getOrNull()
+        ?.let { fullInfo ->
+            _state.update {
+                it.copy(
+                    slowModeDelay = fullInfo.slowModeDelay,
+                    slowModeDelayExpiresIn = fullInfo.slowModeDelayExpiresIn
+                )
+            }
+        }
 }

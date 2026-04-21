@@ -13,13 +13,14 @@ import org.monogram.presentation.features.chats.currentChat.ScrollAlign
 
 internal fun DefaultChatComponent.loadPinnedMessage() {
     scope.launch {
-        val threadId = _state.value.currentTopicId
+        val threadId = activeThreadId()
+        val targetChatId = activeThreadChatId()
         try {
-            val pinned = repositoryMessage.getPinnedMessage(chatId, threadId)
-            val count = repositoryMessage.getPinnedMessageCount(chatId, threadId)
+            val pinned = repositoryMessage.getPinnedMessage(targetChatId, threadId)
+            val count = repositoryMessage.getPinnedMessageCount(targetChatId, threadId)
             Log.d(
                 "DefaultChatComponent",
-                "loadPinnedMessage: chatId=$chatId, threadId=$threadId, pinnedId=${pinned?.id}, count=$count"
+                "loadPinnedMessage: chatId=$chatId, targetChatId=$targetChatId, threadId=$threadId, pinnedId=${pinned?.id}, count=$count"
             )
             _state.update {
                 it.copy(
@@ -36,10 +37,11 @@ internal fun DefaultChatComponent.loadPinnedMessage() {
 
 internal fun DefaultChatComponent.loadAllPinnedMessages() {
     scope.launch {
-        val threadId = _state.value.currentTopicId
+        val threadId = activeThreadId()
+        val targetChatId = activeThreadChatId()
         _state.update { it.copy(isLoadingPinnedMessages = true) }
         try {
-            val pinnedMessages = repositoryMessage.getAllPinnedMessages(chatId, threadId)
+            val pinnedMessages = repositoryMessage.getAllPinnedMessages(targetChatId, threadId)
             _state.update {
                 it.copy(
                     allPinnedMessages = pinnedMessages,
@@ -108,9 +110,10 @@ internal fun DefaultChatComponent.handlePinnedMessageClick(message: MessageModel
     }
 
     scope.launch {
-        val threadId = currentState.currentTopicId
+        val threadId = currentState.effectiveThreadId()
+        val targetChatId = currentState.effectiveThreadChatId(chatId)
         val nextIndex = (currentState.pinnedMessageIndex + 1) % currentState.pinnedMessageCount
-        val pinnedMessages = repositoryMessage.getAllPinnedMessages(chatId, threadId)
+        val pinnedMessages = repositoryMessage.getAllPinnedMessages(targetChatId, threadId)
         if (pinnedMessages.isNotEmpty()) {
             val nextPinned = pinnedMessages.getOrNull(nextIndex) ?: pinnedMessages.first()
             _state.update {
@@ -130,8 +133,9 @@ private fun DefaultChatComponent.jumpToMessage(message: MessageModel) {
     scope.launch {
         _state.update { it.copy(isLoading = true) }
         try {
-            val threadId = _state.value.currentTopicId
-            val messages = repositoryMessage.getMessagesAround(chatId, message.id, 50, threadId)
+            val threadId = activeThreadId()
+            val messages =
+                repositoryMessage.getMessagesAround(activeThreadChatId(), message.id, 50, threadId)
             if (messages.isNotEmpty()) {
                 updateMessages(messages, replace = true)
                 lastLoadedOlderId = 0L

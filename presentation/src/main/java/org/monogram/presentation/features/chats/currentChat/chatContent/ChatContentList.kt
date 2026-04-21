@@ -114,6 +114,7 @@ data class ChatMessageListUiState(
     val isChannel: Boolean,
     val isAdmin: Boolean,
     val canWrite: Boolean,
+    val canSendAnything: Boolean,
     val highlightedMessageId: Long?,
     val fontSize: Float,
     val letterSpacing: Float,
@@ -677,60 +678,6 @@ private fun MessageBubbleSwitcher(
         newerMsg?.suppressRootReply(state.rootMessage?.id)
     }
 
-    val canWriteText by remember(state.isAdmin, state.permissions.canSendBasicMessages) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendBasicMessages }
-    }
-    val canSendPhotos by remember(state.isAdmin, state.permissions.canSendPhotos) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendPhotos }
-    }
-    val canSendVideos by remember(state.isAdmin, state.permissions.canSendVideos) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendVideos }
-    }
-    val canSendDocuments by remember(state.isAdmin, state.permissions.canSendDocuments) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendDocuments }
-    }
-    val canSendAudios by remember(state.isAdmin, state.permissions.canSendAudios) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendAudios }
-    }
-    val canUseMediaPicker by remember(canSendPhotos, canSendVideos) {
-        derivedStateOf { canSendPhotos || canSendVideos }
-    }
-    val canUseDocumentPicker by remember(canSendDocuments, canSendAudios) {
-        derivedStateOf { canSendDocuments || canSendAudios }
-    }
-    val canSendPolls by remember(state.isAdmin, state.permissions.canSendPolls) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendPolls }
-    }
-    val canOpenAttachSheet by remember(
-        canUseMediaPicker,
-        canUseDocumentPicker,
-        canSendPolls,
-        state.attachMenuBots
-    ) {
-        derivedStateOf { canUseMediaPicker || canUseDocumentPicker || canSendPolls || state.attachMenuBots.isNotEmpty() }
-    }
-    val canSendStickers by remember(state.isAdmin, state.permissions.canSendOtherMessages) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendOtherMessages }
-    }
-    val canSendVoice by remember(state.isAdmin, state.permissions.canSendVoiceNotes) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendVoiceNotes }
-    }
-    val canSendVideoNotes by remember(state.isAdmin, state.permissions.canSendVideoNotes) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendVideoNotes }
-    }
-    val canSendAnything by remember(
-        canWriteText,
-        canOpenAttachSheet,
-        canSendStickers,
-        canSendVoice,
-        canSendVideoNotes,
-        canSendPolls
-    ) {
-        derivedStateOf {
-            canWriteText || canOpenAttachSheet || canSendStickers || canSendVoice || canSendVideoNotes || canSendPolls
-        }
-    }
-
     when (sanitizedItem) {
         is GroupedMessageItem.Single -> {
             if (sanitizedItem.message.content is MessageContent.Service) {
@@ -827,7 +774,7 @@ private fun MessageBubbleSwitcher(
                     onCommentsClick = { component.onCommentsClick(it) },
                     toProfile = toProfile,
                     onViaBotClick = onViaBotClick,
-                    canReply = state.canWrite && !isSelectionMode && canSendAnything,
+                    canReply = state.canWrite && !isSelectionMode && state.canSendAnything,
                     onReplySwipe = { component.onReplyMessage(it) },
                     onYouTubeClick = { component.onOpenYouTube(it) },
                     onInstantViewClick = { component.onOpenInstantView(it) },
@@ -932,7 +879,7 @@ private fun MessageBubbleSwitcher(
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     toProfile = toProfile,
                     onViaBotClick = onViaBotClick,
-                    canReply = state.canWrite && !isSelectionMode && (!isTopicClosed || state.isAdmin) && canSendAnything,
+                    canReply = state.canWrite && !isSelectionMode && (!isTopicClosed || state.isAdmin) && state.canSendAnything,
                     onReplySwipe = { component.onReplyMessage(it) },
                     swipeEnabled = !isSelectionMode,
                     downloadUtils = downloadUtils,
@@ -1000,7 +947,7 @@ private fun MessageBubbleSwitcher(
                 onCommentsClick = { component.onCommentsClick(it) },
                 toProfile = toProfile,
                 onViaBotClick = onViaBotClick,
-                canReply = state.canWrite && !isSelectionMode && (!isTopicClosed || state.isAdmin) && canSendAnything,
+                canReply = state.canWrite && !isSelectionMode && (!isTopicClosed || state.isAdmin) && state.canSendAnything,
                 onReplySwipe = { component.onReplyMessage(it) },
                 swipeEnabled = !isSelectionMode,
                 downloadUtils = downloadUtils,

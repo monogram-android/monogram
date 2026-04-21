@@ -610,6 +610,61 @@ fun ChatContent(
         animationSpec = if (shouldAnimateContentEntrance) tween(300) else snap(),
         label = "ContentOffset"
     )
+
+    val canWriteText by remember(state.isAdmin, state.permissions.canSendBasicMessages) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendBasicMessages }
+    }
+    val canSendPhotos by remember(state.isAdmin, state.permissions.canSendPhotos) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendPhotos }
+    }
+    val canSendVideos by remember(state.isAdmin, state.permissions.canSendVideos) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendVideos }
+    }
+    val canSendDocuments by remember(state.isAdmin, state.permissions.canSendDocuments) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendDocuments }
+    }
+    val canSendAudios by remember(state.isAdmin, state.permissions.canSendAudios) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendAudios }
+    }
+    val canUseMediaPicker by remember(canSendPhotos, canSendVideos) {
+        derivedStateOf { canSendPhotos || canSendVideos }
+    }
+    val canUseDocumentPicker by remember(canSendDocuments, canSendAudios) {
+        derivedStateOf { canSendDocuments || canSendAudios }
+    }
+    val canSendPolls by remember(state.isAdmin, state.permissions.canSendPolls) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendPolls }
+    }
+    val canOpenAttachSheet by remember(
+        canUseMediaPicker,
+        canUseDocumentPicker,
+        canSendPolls,
+        state.attachMenuBots
+    ) {
+        derivedStateOf { canUseMediaPicker || canUseDocumentPicker || canSendPolls || state.attachMenuBots.isNotEmpty() }
+    }
+    val canSendStickers by remember(state.isAdmin, state.permissions.canSendOtherMessages) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendOtherMessages }
+    }
+    val canSendVoice by remember(state.isAdmin, state.permissions.canSendVoiceNotes) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendVoiceNotes }
+    }
+    val canSendVideoNotes by remember(state.isAdmin, state.permissions.canSendVideoNotes) {
+        derivedStateOf { state.isAdmin || state.permissions.canSendVideoNotes }
+    }
+    val canSendAnything by remember(
+        canWriteText,
+        canOpenAttachSheet,
+        canSendStickers,
+        canSendVoice,
+        canSendVideoNotes,
+        canSendPolls
+    ) {
+        derivedStateOf {
+            canWriteText || canOpenAttachSheet || canSendStickers || canSendVoice || canSendVideoNotes || canSendPolls
+        }
+    }
+
     val messageListState = remember(
         state.chatId,
         state.currentTopicId,
@@ -630,6 +685,7 @@ fun ChatContent(
         state.isChannel,
         state.isAdmin,
         state.canWrite,
+        canSendAnything,
         state.highlightedMessageId,
         state.fontSize,
         state.letterSpacing,
@@ -666,6 +722,7 @@ fun ChatContent(
             isChannel = state.isChannel,
             isAdmin = state.isAdmin,
             canWrite = state.canWrite,
+            canSendAnything = canSendAnything,
             highlightedMessageId = state.highlightedMessageId,
             fontSize = state.fontSize,
             letterSpacing = state.letterSpacing,

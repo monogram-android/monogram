@@ -294,6 +294,8 @@ interface ChatComponent {
         val viewAsTopics: Boolean = false,
         val topics: List<TopicModel> = emptyList(),
         val currentTopicId: Long? = null,
+        val currentThreadChatId: Long? = null,
+        val currentMessageThreadId: Long? = null,
         val rootMessage: MessageModel? = null,
         val isLoadingTopics: Boolean = false,
         val instantViewUrl: String? = null,

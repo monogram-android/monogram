@@ -1,9 +1,18 @@
 package org.monogram.presentation.features.chats.currentChat.impl
 
 import android.util.Log
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
-import org.monogram.domain.models.*
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import org.monogram.domain.models.InlineKeyboardButtonModel
+import org.monogram.domain.models.InlineKeyboardButtonType
+import org.monogram.domain.models.KeyboardButtonModel
+import org.monogram.domain.models.KeyboardButtonType
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ChatMembersFilter
 import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
 
@@ -201,11 +210,11 @@ internal fun DefaultChatComponent.handleSendInlineResult(resultId: String) {
     scope.launch {
         try {
             inlineBotRepository.sendInlineBotResult(
-                chatId = chatId,
+                chatId = activeThreadChatId(),
                 queryId = results.queryId,
                 resultId = resultId,
                 replyToMsgId = _state.value.replyMessage?.id,
-                threadId = _state.value.currentTopicId
+                threadId = activeThreadId()
             )
         } catch (e: Exception) {
             Log.e("DefaultChatComponent", "Failed to send inline bot result", e)

@@ -53,6 +53,7 @@ import org.monogram.domain.repository.FixedTextResult
 import org.monogram.domain.repository.FormattedTextResult
 import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.MessageThreadContext
 import org.monogram.domain.repository.OlderMessagesPage
 import org.monogram.domain.repository.ProfileMediaFilter
 import org.monogram.domain.repository.SearchChatMessagesResult
@@ -530,6 +531,19 @@ class MessageRepositoryImpl(
             } catch (e: Exception) {
                 val local = chatLocalDataSource.getLatestMessages(chatId, limit)
                 mapLocalMessages(local)
+            }
+        }
+
+    override suspend fun getMessageThreadContext(
+        chatId: Long,
+        messageId: Long
+    ): MessageThreadContext? =
+        withContext(dispatcherProvider.io) {
+            messageRemoteDataSource.getMessageThread(chatId, messageId)?.let { info ->
+                MessageThreadContext(
+                    chatId = info.chatId,
+                    threadId = info.messageThreadId
+                )
             }
         }
 
@@ -1451,7 +1465,7 @@ class MessageRepositoryImpl(
     private fun persistRemoteMessages(chatId: Long, remoteMessages: List<MessageModel>) {
         scope.launch(dispatcherProvider.io) {
             val entities = remoteMessages.mapNotNull { model ->
-                messageRemoteDataSource.getMessage(chatId, model.id)?.let { message ->
+                messageRemoteDataSource.getMessage(model.chatId, model.id)?.let { message ->
                     messageMapper.mapToEntity(message, ::resolveSenderName)
                 }
             }

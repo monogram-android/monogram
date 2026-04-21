@@ -13,23 +13,21 @@ private const val REACTION_UPDATE_SUPPRESSION_MS = 1500L
 
 internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
     scope.launch {
-        repositoryMessage.markAsRead(chatId, messageId)
+        val visibleMessage = _state.value.messages.firstOrNull { it.id == messageId }
+        val targetChatId = visibleMessage?.chatId ?: activeThreadChatId()
+        repositoryMessage.markAsRead(targetChatId, messageId)
         if (_state.value.unreadCount > 0) {
-            repositoryMessage.markAllMentionsAsRead(chatId)
-            repositoryMessage.markAllReactionsAsRead(chatId)
+            repositoryMessage.markAllMentionsAsRead(targetChatId)
+            repositoryMessage.markAllReactionsAsRead(targetChatId)
         }
 
-        _state.value.messages
-            .firstOrNull { it.id == messageId }
-            ?.let { visibleMessage ->
-                requestSenderRefreshIfNeeded(visibleMessage)
-            }
+        visibleMessage?.let { requestSenderRefreshIfNeeded(it) }
     }
 }
 
 internal fun DefaultChatComponent.handleDeleteMessage(message: MessageModel, revoke: Boolean = false) {
     scope.launch {
-        repositoryMessage.deleteMessage(chatId, listOf(message.id), revoke)
+        repositoryMessage.deleteMessage(message.chatId, listOf(message.id), revoke)
     }
 }
 
@@ -47,8 +45,12 @@ internal fun DefaultChatComponent.handleDraftChange(text: String) {
     draftSaveJob = scope.launch {
         delay(200)
         val currentState = _state.value
-        val threadId = currentState.currentTopicId
-        repositoryMessage.saveChatDraft(chatId, text, currentState.replyMessage?.id, threadId)
+        repositoryMessage.saveChatDraft(
+            currentState.effectiveThreadChatId(chatId),
+            text,
+            currentState.replyMessage?.id,
+            currentState.effectiveThreadId()
+        )
     }
 }
 

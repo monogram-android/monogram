@@ -478,6 +478,10 @@ class TdMessageRemoteDataSource(
         return safeExecute(req)
     }
 
+    override suspend fun getMessageThread(chatId: Long, messageId: Long): TdApi.MessageThreadInfo? {
+        return safeExecute(TdApi.GetMessageThread(chatId, messageId))
+    }
+
     override suspend fun getMessages(chatId: Long, fromMessageId: Long, offset: Int, limit: Int, threadId: Long?): TdApi.Messages? {
         return when (val result = getChatHistoryInternal(chatId, fromMessageId, offset, limit, threadId)) {
             is TdApi.Messages -> result

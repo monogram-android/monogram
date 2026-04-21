@@ -22,6 +22,19 @@ android {
         }
     }
 
+    flavorDimensions += "tdlib"
+
+    productFlavors {
+        create("official") {
+            dimension = "tdlib"
+            buildConfigField("boolean", "ENABLE_TELEMT_DNS", "false")
+        }
+        create("telemt") {
+            dimension = "tdlib"
+            buildConfigField("boolean", "ENABLE_TELEMT_DNS", "true")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -40,6 +53,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     externalNativeBuild {
         cmake {

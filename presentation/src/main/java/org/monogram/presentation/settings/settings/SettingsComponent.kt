@@ -2,9 +2,11 @@ package org.monogram.presentation.settings.settings
 
 import com.arkivanov.decompose.value.Value
 import org.monogram.domain.models.UserModel
+import org.monogram.presentation.core.util.IDownloadUtils
 
 interface SettingsComponent {
     val state: Value<State>
+    val downloadUtils: IDownloadUtils
 
     fun onBackClicked()
     fun onEditProfileClicked()
@@ -32,6 +34,8 @@ interface SettingsComponent {
     fun onMoreOptionsClicked()
     fun onMoreOptionsDismissed()
     fun onSetEmojiStatus(customEmojiId: Long, statusPath: String?)
+    fun onAvatarClick()
+    fun onDismissAvatarViewer()
 
     data class State(
         val currentUser: UserModel? = null,
@@ -40,6 +44,8 @@ interface SettingsComponent {
         val isQrVisible: Boolean = false,
         val qrContent: String = "",
         val isSupportVisible: Boolean = false,
-        val isMoreOptionsVisible: Boolean = false
+        val isMoreOptionsVisible: Boolean = false,
+        val fullScreenImages: List<String>? = null,
+        val fullScreenVideoPath: String? = null
     )
 }

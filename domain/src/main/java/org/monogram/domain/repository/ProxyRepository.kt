@@ -10,4 +10,10 @@ interface ProxyRepository {
     suspend fun enableProxy(proxyId: Int): Boolean
     suspend fun disableProxy(): Boolean
     suspend fun removeProxy(proxyId: Int): Boolean
+    suspend fun setDnsType(type: String)
+    suspend fun setCustomDnsUrl(url: String)
+    suspend fun setCustomDnsHeaders(headers: String)
+    suspend fun getDnsType(): String
+    suspend fun getCustomDnsUrl(): String
+    suspend fun getCustomDnsHeaders(): String
 }

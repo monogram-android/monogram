@@ -32,32 +32,14 @@ jobs:
     - name: Build libvpx
       run: cd presentation/src/main/cpp && ./build.sh
 
-    - name: Build Debug APK (without GMS)
-      run: ./gradlew assembleDebug
+    - name: Build Official Debug APK
+      run: ./gradlew assembleOfficialDebug
 
-    - name: Run Unit Tests
-      run: ./gradlew testDebugUnitTest
+    - name: Run Official Debug Unit Tests
+      run: ./gradlew testOfficialDebugUnitTest
 
-    - name: Upload universal APK
-      uses: actions/upload-artifact@v7
-      with:
-        name: app-universal-no-appid
-        path: app/build/outputs/apk/debug/app-universal-debug.apk
+    - name: Build Telemt Debug APK
+      run: ./gradlew assembleTelemtDebug
 
-    - name: Upload arm64-v8a APK
-      uses: actions/upload-artifact@v7
-      with:
-        name: app-arm64-v8a-no-appid
-        path: app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
-
-    - name: Upload armeabi-v7a APK
-      uses: actions/upload-artifact@v7
-      with:
-        name: app-armeabi-v7a-no-appid
-        path: app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk
-
-    - name: Upload x86_64 APK
-      uses: actions/upload-artifact@v7
-      with:
-        name: app-x86_64-no-appid
-        path: app/build/outputs/apk/debug/app-x86_64-debug.apk
+    - name: Run Telemt Debug Unit Tests
+      run: ./gradlew testTelemtDebugUnitTest

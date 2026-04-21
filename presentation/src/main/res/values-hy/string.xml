@@ -68,6 +68,10 @@
     <string name="auth_title_phone">Ձեր հեռախոսը</string>
     <string name="auth_title_verification">Հաստատում</string>
     <string name="auth_title_password">Գաղտնաբառ</string>
+    <string name="auth_connecting_to_telegram">Միանում ենք Telegram-ին…</string>
+    <string name="auth_connection_taking_longer">Միացումը սովորականից երկար է տևում</string>
+    <string name="auth_network_unreachable_error">Չհաջողվեց միանալ Telegram-ի սերվերներին</string>
+    <string name="auth_retry_button">Կրկին փորձել</string>
     <string name="cd_proxy_settings">Պրոքսիի կարգավորումներ</string>
     <string name="phone_input_title">Ձեր հեռախոսահամարը</string>
     <string name="phone_input_description">Խնդրում ենք հաստատել երկրի կոդը և մուտքագրել հեռախոսահամարը:</string>

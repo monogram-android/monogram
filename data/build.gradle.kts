@@ -27,9 +27,26 @@ android {
         buildConfigField("String", "API_HASH", "\"$apiHash\"")
     }
 
+    flavorDimensions += "tdlib"
+
+    productFlavors {
+        create("official") {
+            dimension = "tdlib"
+        }
+        create("telemt") {
+            dimension = "tdlib"
+        }
+    }
+
     sourceSets {
         getByName("main") {
-            jniLibs.srcDirs("src/main/jniLibs")
+            jniLibs.srcDirs(emptyList<String>())
+        }
+        getByName("official") {
+            jniLibs.srcDirs("src/official/jniLibs")
+        }
+        getByName("telemt") {
+            jniLibs.srcDirs("src/telemt/jniLibs")
         }
     }
 

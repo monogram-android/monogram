@@ -74,6 +74,9 @@ interface ProxyComponent {
     fun onConfirmRemoveAllProxies()
     fun onDismissToast()
     fun onDismissMassDeleteDialogs()
+    fun onDnsProviderChanged(provider: String)
+    fun onCustomDnsUrlChanged(url: String)
+    fun onCustomDnsHeadersChanged(headers: String)
 
     data class State(
         val proxies: List<ProxyModel> = emptyList(),
@@ -100,7 +103,10 @@ interface ProxyComponent {
         val toastMessage: String? = null,
         val showClearOfflineConfirmation: Boolean = false,
         val showRemoveAllConfirmation: Boolean = false,
-        val checkingProxyIds: Set<Int> = emptySet()
+        val checkingProxyIds: Set<Int> = emptySet(),
+        val dnsProvider: String = "google",
+        val customDnsUrl: String = "",
+        val customDnsHeaders: String = ""
     )
 }
 
@@ -159,6 +165,21 @@ class DefaultProxyComponent(
                     _state.update { state -> state.copy(isLoading = false) }
                     showToastThrottled(tr("proxy_load_failed"))
                 }
+        }
+
+        scope.launch {
+            coRunCatching {
+                val dnsType = proxyRepository.getDnsType()
+                val customUrl = proxyRepository.getCustomDnsUrl()
+                val customHeaders = proxyRepository.getCustomDnsHeaders()
+                _state.update { current ->
+                    current.copy(
+                        dnsProvider = dnsType,
+                        customDnsUrl = customUrl,
+                        customDnsHeaders = customHeaders
+                    )
+                }
+            }
         }
 
         combine(
@@ -1209,6 +1230,39 @@ class DefaultProxyComponent(
                 showClearOfflineConfirmation = false,
                 showRemoveAllConfirmation = false
             )
+        }
+    }
+
+    override fun onDnsProviderChanged(provider: String) {
+        scope.launch {
+            coRunCatching {
+                proxyRepository.setDnsType(provider)
+                _state.update { it.copy(dnsProvider = provider) }
+            }.onFailure {
+                showToastThrottled(tr("dns_provider_change_failed"))
+            }
+        }
+    }
+
+    override fun onCustomDnsUrlChanged(url: String) {
+        scope.launch {
+            coRunCatching {
+                proxyRepository.setCustomDnsUrl(url)
+                _state.update { it.copy(customDnsUrl = url) }
+            }.onFailure {
+                showToastThrottled(tr("dns_url_change_failed"))
+            }
+        }
+    }
+
+    override fun onCustomDnsHeadersChanged(headers: String) {
+        scope.launch {
+            coRunCatching {
+                proxyRepository.setCustomDnsHeaders(headers)
+                _state.update { it.copy(customDnsHeaders = headers) }
+            }.onFailure {
+                showToastThrottled(tr("dns_headers_change_failed"))
+            }
         }
     }
 

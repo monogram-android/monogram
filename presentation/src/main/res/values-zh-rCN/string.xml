@@ -72,6 +72,10 @@
     <string name="auth_title_phone">您的手机</string>
     <string name="auth_title_verification">验证码</string>
     <string name="auth_title_password">密码</string>
+    <string name="auth_connecting_to_telegram">正在连接 Telegram…</string>
+    <string name="auth_connection_taking_longer">连接耗时比平时更长</string>
+    <string name="auth_network_unreachable_error">无法连接到 Telegram 服务器</string>
+    <string name="auth_retry_button">重试</string>
     <string name="cd_proxy_settings">代理设置</string>
     <string name="phone_input_title">您的手机号码</string>
     <string name="phone_input_description">请确认您的国家代码并输入手机号码。</string>

@@ -1,38 +1,105 @@
 #!/bin/bash
 set -e
 
-if [ ! -d "td" ]; then
-    echo "Cloning TDLib repository..."
-    git clone https://github.com/tdlib/td.git
+prompt_build_choice() {
+    echo "Select TDLib build target:"
+    echo "  1) official"
+    echo "  2) telemt"
+    echo "  3) both"
+    printf "Enter choice [1-3]: "
+    read -r choice
+
+    case "$choice" in
+        1) echo "official" ;;
+        2) echo "telemt" ;;
+        3) echo "both" ;;
+        *) echo "Invalid choice: $choice" >&2; exit 1 ;;
+    esac
+}
+
+TARGET_SELECTION="${1:-}"
+
+if [ -z "$TARGET_SELECTION" ]; then
+    TARGET_SELECTION="$(prompt_build_choice)"
 fi
 
-echo "Starting the build process..."
-cd td/example/android
+case "$TARGET_SELECTION" in
+    official|telemt|both)
+        ;;
+    *)
+        echo "Usage: $0 [official|telemt|both]"
+        exit 1
+        ;;
+esac
 
-./check-environment.sh
-./fetch-sdk.sh
-./build-openssl.sh
-./build-tdlib.sh
+ensure_repo() {
+    local repo_dir="$1"
+    local repo_url="$2"
 
-cd ../../../
+    if [ ! -d "$repo_dir" ]; then
+        echo "Cloning $repo_url into $repo_dir..."
+        git clone "$repo_url" "$repo_dir"
+    fi
+}
 
-ZIP_PATH="td/example/android/tdlib/tdlib.zip"
+build_variant() {
+    local variant="$1"
+    local repo_dir="$2"
+    local repo_url="$3"
+    local zip_path="$repo_dir/example/android/tdlib/tdlib.zip"
+    local temp_dir="tdlib_temp_$variant"
+    local native_lib_dir=""
 
-if [ ! -f "$ZIP_PATH" ]; then
-    echo "Error: Archive $ZIP_PATH not found."
-    exit 1
-fi
+    ensure_repo "$repo_dir" "$repo_url"
 
-echo "Extracting and copying files..."
+    echo "Starting TDLib build for $variant..."
+    (
+        cd "$repo_dir/example/android"
+        ./check-environment.sh
+        ./fetch-sdk.sh
+        ./build-openssl.sh
+        ./build-tdlib.sh
+    )
 
-unzip -q "$ZIP_PATH" -d tdlib_temp
+    if [ ! -f "$zip_path" ]; then
+        echo "Error: Archive $zip_path not found."
+        exit 1
+    fi
 
-mkdir -p data/src/main/jniLibs
-mkdir -p data/src/main/java
+    echo "Extracting and copying files for $variant..."
+    rm -rf "$temp_dir"
+    unzip -q "$zip_path" -d "$temp_dir"
 
-cp -r tdlib_temp/tdlib/lib/* data/src/main/jniLibs/
-cp -r tdlib_temp/tdlib/java/* data/src/main/java/
+    if [ -d "$temp_dir/tdlib/lib" ]; then
+        native_lib_dir="$temp_dir/tdlib/lib"
+    elif [ -d "$temp_dir/tdlib/libs" ]; then
+        native_lib_dir="$temp_dir/tdlib/libs"
+    else
+        echo "Error: Native libraries directory not found in $zip_path."
+        exit 1
+    fi
 
-rm -rf tdlib_temp
+    mkdir -p "data/src/$variant/jniLibs"
+    rm -rf "data/src/$variant/jniLibs"/*
+    cp -r "$native_lib_dir/"* "data/src/$variant/jniLibs/"
 
-echo "Done!"
+    mkdir -p "data/src/$variant/java"
+    rm -rf "data/src/$variant/java/org/drinkless/tdlib"
+    cp -r "$temp_dir/tdlib/java/"* "data/src/$variant/java/"
+
+    rm -rf "$temp_dir"
+    echo "Done! TDLib prebuilts copied to data/src/$variant/jniLibs"
+}
+
+case "$TARGET_SELECTION" in
+    official)
+        build_variant "official" "td" "https://github.com/tdlib/td.git"
+        ;;
+    telemt)
+        build_variant "telemt" "td-telemt" "https://github.com/telemt/tdlib-obf.git"
+        ;;
+    both)
+        build_variant "official" "td" "https://github.com/tdlib/td.git"
+        build_variant "telemt" "td-telemt" "https://github.com/telemt/tdlib-obf.git"
+        ;;
+esac

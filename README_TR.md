@@ -89,12 +89,27 @@ Telegram sunucularına bağlanmak için kendi API kimlik bilgilerinize ihtiyacı
 API_ID=12345678
 API_HASH=your_api_hash_here
 ```
+
+Gradle üzerinden imzalı release derlemeleri için şu değerleri de ekleyin:
+
+```properties
+RELEASE_STORE_FILE=keystore/release.jks
+RELEASE_STORE_PASSWORD=your_store_password
+RELEASE_KEY_ALIAS=your_key_alias
+RELEASE_KEY_PASSWORD=your_key_password
+```
 ### 3. Anlık Bildirimleri (Push Notifications) Yapılandırın
 
 1. [Firebase konsolunda](https://console.firebase.google.com) oturum açın.
 2. Yeni bir proje oluşturun.
-3. İhtiyacınız olan `applicationId` değerine sahip yeni bir uygulama ekleyin. Farklı ID'lere sahip birden fazla uygulamanız varsa, birden fazla Firebase uygulaması oluşturun. **Varsayılan olarak, hata ayıklama (debug) ve yayınlama (release) sürümlerinin `applicationId` değerleri farklıdır.**
-4. `google-services.json` dosyasını indirin ve **app** modülünün kök dizinine kopyalayın (`monogram/app/google-services.json`). Birden fazla uygulama oluşturduysanız, yalnızca en güncel yapılandırmayı kopyalayın.
+3. İki Firebase Android uygulaması ekleyin:
+
+    - `org.monogram` release derlemeleri için
+    - `org.monogram.debug` debug derlemeleri için
+
+4. `google-services.json` dosyasını indirin ve **app** modülünün kök dizinine kopyalayın (
+   `monogram/app/google-services.json`). Dosyanın yukarıdaki iki paket için de istemci içerdiğinden
+   emin olun.
 5. **Cloud Messaging** bölümüne gidin.
 6. **Manage service accounts** (Hizmet hesaplarını yönet) seçeneğine tıklayın.
 7. Açılan pencerenin üst kısmındaki **Keys** (Anahtarlar) sekmesini seçin.
@@ -144,6 +159,44 @@ Ardından projenin kök dizininden derleme betiğini (script) çalıştırın:
 ```bash
 ./build-tdlib.sh
 ```
+
+Script şu modları destekler:
+
+- `./build-tdlib.sh official`
+- `./build-tdlib.sh telemt`
+- `./build-tdlib.sh both`
+
+Scriptin kullandığı upstream depolar:
+
+- `official`: [tdlib/td](https://github.com/tdlib/td)
+- `telemt`: [telemt/tdlib-obf](https://github.com/telemt/tdlib-obf)
+
+Argümansız çalıştırırsanız, script size seçim sorar.
+
+### Build Variantları ve Gradle Görevleri
+
+Android Studio'da şu variantları kullanın:
+
+- `officialDebug`
+- `officialRelease`
+- `telemtDebug`
+- `telemtRelease`
+
+Kullanışlı Gradle görevleri:
+
+```bash
+./gradlew assembleOfficialReleaseTdlibApks
+./gradlew assembleTelemtReleaseTdlibApks
+./gradlew assembleAllReleaseTdlibApks
+./gradlew assembleOfficialDebugTdlibApks
+./gradlew assembleTelemtDebugTdlibApks
+./gradlew assembleAllDebugTdlibApks
+```
+
+APK adları:
+
+- normal TDLib: `monogram-arm64-v8a-<version>-release.apk`
+- Telemt TDLib: `monogram-telemt-arm64-v8a-<version>-release.apk`
 
 ---
 

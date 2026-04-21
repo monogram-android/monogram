@@ -72,6 +72,10 @@
     <string name="auth_title_phone">Ваш телефон</string>
     <string name="auth_title_verification">Проверка</string>
     <string name="auth_title_password">Пароль</string>
+    <string name="auth_connecting_to_telegram">Подключаемся к Telegram…</string>
+    <string name="auth_connection_taking_longer">Подключение занимает больше времени, чем обычно</string>
+    <string name="auth_network_unreachable_error">Не удалось подключиться к серверам Telegram</string>
+    <string name="auth_retry_button">Повторить</string>
     <string name="cd_proxy_settings">Настройки прокси</string>
     <string name="phone_input_title">Ваш номер телефона</string>
     <string name="phone_input_description">Пожалуйста, подтвердите код страны и введите свой номер телефона.</string>
@@ -568,6 +572,25 @@
     <string name="proxy_checking">Проверка...</string>
     <string name="proxy_offline">Недоступен</string>
     <string name="proxy_ping_format">%1$d мс</string>
+
+    <!-- Telemt DNS Settings -->
+    <string name="telemt_dns_section_header">Telemt DNS</string>
+    <string name="telemt_dns_section_subtitle">Настройка DNS-over-HTTPS провайдера для TDLib</string>
+    <string name="telemt_dns_provider_title">DNS провайдер</string>
+    <string name="telemt_dns_provider_subtitle">Выберите DoH провайдер для разрешения доменов</string>
+    <string name="telemt_dns_provider_google">Google DNS</string>
+    <string name="telemt_dns_provider_cloudflare">CloudFlare DNS</string>
+    <string name="telemt_dns_provider_custom">Пользовательский DoH</string>
+    <string name="telemt_dns_custom_url_title">URL пользовательского DoH</string>
+    <string name="telemt_dns_custom_url_subtitle">Введите URL сервера DNS-over-HTTPS</string>
+    <string name="telemt_dns_custom_headers_title">Пользовательские заголовки</string>
+    <string name="telemt_dns_custom_headers_subtitle">Опциональные заголовки для DoH (например, Authorization)</string>
+    <string name="telemt_dns_fallback_google">Резерв: Google DNS → CloudFlare DNS</string>
+    <string name="telemt_dns_fallback_cloudflare">Резерв: CloudFlare DNS → Google DNS</string>
+    <string name="telemt_dns_fallback_custom">Пользовательский DoH без резерва</string>
+    <string name="dns_provider_change_failed">Не удалось изменить DNS провайдер</string>
+    <string name="dns_url_change_failed">Не удалось изменить DNS URL</string>
+    <string name="dns_headers_change_failed">Не удалось изменить DNS заголовки</string>
 
     <!-- Settings General -->
     <string name="your_usernames_header">Ваши имена пользователя</string>

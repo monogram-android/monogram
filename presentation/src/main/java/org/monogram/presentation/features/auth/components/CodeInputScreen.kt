@@ -87,6 +87,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import org.monogram.domain.repository.AuthUiStatus
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ExpressiveDefaults
 import java.util.Locale
@@ -103,7 +104,8 @@ fun CodeInputScreen(
     onConfirm: (String) -> Unit,
     onResend: () -> Unit,
     onBack: () -> Unit,
-    isSubmitting: Boolean
+    isSubmitting: Boolean,
+    uiStatus: AuthUiStatus
 ) {
     var code by remember { mutableStateOf("") }
     val maxCodeLength = if (codeLength > 0) codeLength else 5
@@ -323,6 +325,15 @@ fun CodeInputScreen(
         }
 
         Spacer(modifier = Modifier.height(middleSpacerHeight))
+
+        AuthStatusMessage(
+            uiStatus = uiStatus,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        if (uiStatus !is AuthUiStatus.Idle) {
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         if (isSubmitting) {
             LoadingIndicator(modifier = Modifier.size(32.dp))

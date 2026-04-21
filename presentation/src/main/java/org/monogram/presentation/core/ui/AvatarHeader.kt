@@ -97,5 +97,5 @@ private fun resolveAvatarPath(primaryPath: String?, fallbackPath: String?): Stri
     val existingCandidates = candidates.filter { File(it).exists() }
     val source = existingCandidates.ifEmpty { candidates }
 
-    return source.firstOrNull { it.endsWith(".mp4", ignoreCase = true) } ?: source.firstOrNull()
+    return source.firstOrNull()
 }

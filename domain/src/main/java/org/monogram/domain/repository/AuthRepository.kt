@@ -19,13 +19,30 @@ sealed class AuthStep {
     object Ready : AuthStep()
 }
 
+enum class AuthSubmissionStage {
+    PHONE,
+    CODE,
+    PASSWORD
+}
+
+sealed class AuthUiStatus {
+    object Idle : AuthUiStatus()
+    data class Submitting(val stage: AuthSubmissionStage) : AuthUiStatus()
+    data class SlowNetwork(val stage: AuthSubmissionStage) : AuthUiStatus()
+    data class NetworkError(val stage: AuthSubmissionStage) : AuthUiStatus()
+}
+
+const val AUTH_NETWORK_TIMEOUT_ERROR = "__AUTH_NETWORK_TIMEOUT__"
+
 interface AuthRepository {
     val authState: StateFlow<AuthStep>
+    val authUiStatus: StateFlow<AuthUiStatus>
     val errors: SharedFlow<String>
 
     fun sendPhone(phone: String)
     fun resendCode()
     fun sendCode(code: String)
     fun sendPassword(password: String)
+    fun retryLastAction()
     fun reset()
 }

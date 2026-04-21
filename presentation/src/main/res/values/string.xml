@@ -72,6 +72,10 @@
     <string name="auth_title_phone">Your Phone</string>
     <string name="auth_title_verification">Verification</string>
     <string name="auth_title_password">Password</string>
+    <string name="auth_connecting_to_telegram">Connecting to Telegram…</string>
+    <string name="auth_connection_taking_longer">Connecting is taking longer than usual</string>
+    <string name="auth_network_unreachable_error">Couldn\'t connect to Telegram servers</string>
+    <string name="auth_retry_button">Retry</string>
     <string name="cd_proxy_settings">Proxy Settings</string>
     <string name="phone_input_title">Your Phone Number</string>
     <string name="phone_input_description">Please confirm your country code and enter your phone number.</string>
@@ -609,6 +613,25 @@
     <string name="proxy_checking">Checking...</string>
     <string name="proxy_offline">Offline</string>
     <string name="proxy_ping_format">%1$dms</string>
+
+    <!-- Telemt DNS Settings -->
+    <string name="telemt_dns_section_header">Telemt DNS</string>
+    <string name="telemt_dns_section_subtitle">Configure DNS-over-HTTPS provider for TDLib</string>
+    <string name="telemt_dns_provider_title">DNS Provider</string>
+    <string name="telemt_dns_provider_subtitle">Select DoH provider for domain resolution</string>
+    <string name="telemt_dns_provider_google">Google DNS</string>
+    <string name="telemt_dns_provider_cloudflare">CloudFlare DNS</string>
+    <string name="telemt_dns_provider_custom">Custom DoH</string>
+    <string name="telemt_dns_custom_url_title">Custom DoH URL</string>
+    <string name="telemt_dns_custom_url_subtitle">Enter custom DNS-over-HTTPS server URL</string>
+    <string name="telemt_dns_custom_headers_title">Custom Headers</string>
+    <string name="telemt_dns_custom_headers_subtitle">Optional headers for custom DoH (e.g., Authorization)</string>
+    <string name="telemt_dns_fallback_google">Fallback: Google DNS → CloudFlare DNS</string>
+    <string name="telemt_dns_fallback_cloudflare">Fallback: CloudFlare DNS → Google DNS</string>
+    <string name="telemt_dns_fallback_custom">Custom DoH has no fallback</string>
+    <string name="dns_provider_change_failed">Failed to change DNS provider</string>
+    <string name="dns_url_change_failed">Failed to change DNS URL</string>
+    <string name="dns_headers_change_failed">Failed to change DNS headers</string>
 
     <!-- Settings General -->
     <string name="your_usernames_header">Your Usernames</string>

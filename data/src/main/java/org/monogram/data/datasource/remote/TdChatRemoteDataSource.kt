@@ -5,6 +5,7 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
+import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.domain.models.ChatPermissionsModel
 
@@ -15,6 +16,9 @@ class TdChatRemoteSource(
 
     override suspend fun loadChats(chatList: TdApi.ChatList, limit: Int): Result<Unit> =
         coRunCatching {
+            if (!gateway.isAuthenticated.value) {
+                return@coRunCatching
+            }
             gateway.execute(TdApi.LoadChats(chatList, limit))
             Unit
         }

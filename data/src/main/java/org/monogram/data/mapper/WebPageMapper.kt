@@ -194,6 +194,13 @@ internal class WebPageMapper(
                 height = videoObject.height,
                 duration = videoObject.duration,
                 fileId = file.id,
+                thumbnailPath = videoObject.thumbnail?.file?.local?.path?.takeIf {
+                    fileHelper.isValidPath(
+                        it
+                    )
+                },
+                thumbnailFileId = videoObject.thumbnail?.file?.id ?: 0,
+                minithumbnail = videoObject.minithumbnail?.data,
                 supportsStreaming = videoObject.supportsStreaming
             )
         }
@@ -238,7 +245,14 @@ internal class WebPageMapper(
                 width = animationObject.width,
                 height = animationObject.height,
                 duration = animationObject.duration,
-                fileId = file.id
+                fileId = file.id,
+                thumbnailPath = animationObject.thumbnail?.file?.local?.path?.takeIf {
+                    fileHelper.isValidPath(
+                        it
+                    )
+                },
+                thumbnailFileId = animationObject.thumbnail?.file?.id ?: 0,
+                minithumbnail = animationObject.minithumbnail?.data
             )
         }
 

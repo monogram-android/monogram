@@ -105,8 +105,11 @@ fun VideoStickerPlayer(
     animate: Boolean = true,
     shouldLoop: Boolean = true,
     volume: Float = 0f,
+    startPositionMs: Long = 0L,
     contentScale: ContentScale = ContentScale.Fit,
     onProgressUpdate: (Long) -> Unit = {},
+    onDurationKnown: (Long) -> Unit = {},
+    onPlaybackEnded: () -> Unit = {},
     reportProgress: Boolean = false,
     fileId: Int = 0,
     thumbnailData: Any? = null
@@ -181,10 +184,19 @@ fun VideoStickerPlayer(
                     if (!reportProgress) return@LaunchedEffect
 
                     while (isActive && !isDisposed.get()) {
-                        if (exoPlayer.isPlaying) {
-                            onProgressUpdate(exoPlayer.currentPosition)
-                        }
+                        onProgressUpdate(exoPlayer.currentPosition)
                         delay(1000)
+                    }
+                }
+
+                LaunchedEffect(exoPlayer) {
+                    while (isActive && !isDisposed.get()) {
+                        val duration = exoPlayer.duration
+                        if (duration > 0L) {
+                            onDurationKnown(duration)
+                            break
+                        }
+                        delay(200)
                     }
                 }
 
@@ -235,6 +247,7 @@ fun VideoStickerPlayer(
                         clearMediaItems()
                         setMediaSource(mediaSource)
                         prepare()
+                        if (startPositionMs > 0L) seekTo(startPositionMs)
                         playWhenReady = animate
                         repeatMode =
                             if (shouldLoop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
@@ -289,6 +302,22 @@ fun VideoStickerPlayer(
                                         }
                                     }
                                 }, 50)
+                            }
+                        }
+
+                        override fun onPlaybackStateChanged(playbackState: Int) {
+                            if (
+                                playbackState == Player.STATE_ENDED &&
+                                !shouldLoop &&
+                                !isDisposed.get()
+                            ) {
+                                onProgressUpdate(exoPlayer.duration.coerceAtLeast(0L))
+                                onPlaybackEnded()
+                            }
+
+                            val duration = exoPlayer.duration
+                            if (duration > 0L) {
+                                onDurationKnown(duration)
                             }
                         }
                     }

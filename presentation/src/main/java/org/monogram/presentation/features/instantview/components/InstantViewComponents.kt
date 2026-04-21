@@ -1,29 +1,34 @@
 package org.monogram.presentation.features.instantview.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isUnspecified
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
@@ -60,6 +66,7 @@ fun RichTextView(
     val onUrlClick = LocalOnUrlClick.current
     val linkColor = MaterialTheme.colorScheme.primary
     val annotatedString = renderRichText(richText, linkColor)
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     val scaledStyle = style.copy(
         fontSize = style.fontSize * textSizeMultiplier,
@@ -70,18 +77,60 @@ fun RichTextView(
         fontStyle = fontStyle ?: style.fontStyle
     )
 
-    ClickableText(
+    Text(
         text = annotatedString,
         style = scaledStyle,
-        modifier = modifier,
-        maxLines = maxLines,
-        onClick = { offset ->
-            annotatedString.getStringAnnotations(tag = "URL", start = offset, end = offset)
-                .firstOrNull()?.let { annotation ->
-                    val url = normalizeUrl(annotation.item)
-                    onUrlClick(url)
+        modifier = modifier.pointerInput(annotatedString, onUrlClick) {
+            detectTapGestures { position ->
+                val layout = textLayoutResult ?: return@detectTapGestures
+                val offset = layout.getOffsetForPosition(position)
+
+                when {
+                    annotatedString.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                        .firstOrNull() != null -> {
+                        val annotation = annotatedString.getStringAnnotations(
+                            tag = "URL",
+                            start = offset,
+                            end = offset
+                        )
+                            .first()
+                        onUrlClick(normalizeUrl(annotation.item))
+                    }
+
+                    annotatedString.getStringAnnotations(
+                        tag = "EMAIL",
+                        start = offset,
+                        end = offset
+                    )
+                        .firstOrNull() != null -> {
+                        val annotation = annotatedString.getStringAnnotations(
+                            tag = "EMAIL",
+                            start = offset,
+                            end = offset
+                        )
+                            .first()
+                        onUrlClick("mailto:${annotation.item}")
+                    }
+
+                    annotatedString.getStringAnnotations(
+                        tag = "PHONE",
+                        start = offset,
+                        end = offset
+                    )
+                        .firstOrNull() != null -> {
+                        val annotation = annotatedString.getStringAnnotations(
+                            tag = "PHONE",
+                            start = offset,
+                            end = offset
+                        )
+                            .first()
+                        onUrlClick("tel:${annotation.item}")
+                    }
                 }
-        }
+            }
+        },
+        maxLines = maxLines,
+        onTextLayout = { textLayoutResult = it }
     )
 }
 
@@ -95,14 +144,19 @@ fun AsyncImageWithDownload(
     contentScale: ContentScale = ContentScale.Fit
 ) {
     val fileRepository = LocalFileRepository.current
-    var currentPath by remember(fileId) { mutableStateOf(path) }
-    var progress by remember { mutableFloatStateOf(0f) }
+    val context = LocalContext.current
+    var currentPath by rememberSaveable(fileId) { mutableStateOf(path) }
+    var progress by remember(fileId) { mutableFloatStateOf(0f) }
 
     LaunchedEffect(path, fileId) {
+        progress = 0f
         if (!path.isNullOrEmpty()) {
             currentPath = path
         }
-        if (currentPath == null) {
+        if (currentPath.isNullOrEmpty()) {
+            currentPath = fileRepository.getFilePath(fileId)
+        }
+        if (currentPath == null && fileId != 0) {
             fileRepository.downloadFile(fileId)
 
             val progressJob = launch {
@@ -128,7 +182,13 @@ fun AsyncImageWithDownload(
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         if (currentPath != null) {
             AsyncImage(
-                model = currentPath,
+                model = remember(currentPath, fileId) {
+                    ImageRequest.Builder(context)
+                        .data(currentPath)
+                        .memoryCacheKey("instant_image:$fileId:${currentPath.orEmpty()}")
+                        .diskCacheKey(currentPath.orEmpty())
+                        .build()
+                },
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = contentScale
@@ -175,17 +235,28 @@ fun AsyncVideoWithDownload(
     fileId: Int,
     modifier: Modifier = Modifier,
     shouldLoop: Boolean = true,
+    animate: Boolean = true,
+    volume: Float = 0f,
+    startPositionMs: Long = 0L,
+    onProgressUpdate: (Long) -> Unit = {},
+    onDurationKnown: (Long) -> Unit = {},
+    onPlaybackEnded: () -> Unit = {},
+    reportProgress: Boolean = false,
     contentScale: ContentScale = ContentScale.Fit
 ) {
     val fileRepository = LocalFileRepository.current
-    var currentPath by remember(fileId) { mutableStateOf(path) }
-    var progress by remember { mutableFloatStateOf(0f) }
+    var currentPath by rememberSaveable(fileId) { mutableStateOf(path) }
+    var progress by remember(fileId) { mutableFloatStateOf(0f) }
 
     LaunchedEffect(path, fileId) {
+        progress = 0f
         if (!path.isNullOrEmpty()) {
             currentPath = path
         }
-        if (currentPath == null) {
+        if (currentPath.isNullOrEmpty()) {
+            currentPath = fileRepository.getFilePath(fileId)
+        }
+        if (currentPath == null && fileId != 0) {
             fileRepository.downloadFile(fileId)
 
             val progressJob = launch {
@@ -213,9 +284,15 @@ fun AsyncVideoWithDownload(
             path = currentPath!!,
             type = VideoType.Gif,
             modifier = modifier,
-            animate = true,
+            animate = animate,
             shouldLoop = shouldLoop,
-            contentScale = contentScale
+            volume = volume,
+            startPositionMs = startPositionMs,
+            contentScale = contentScale,
+            onProgressUpdate = onProgressUpdate,
+            onDurationKnown = onDurationKnown,
+            onPlaybackEnded = onPlaybackEnded,
+            reportProgress = reportProgress
         )
     } else {
         Box(

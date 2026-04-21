@@ -502,6 +502,9 @@ data class WebPage(
         val height: Int,
         val duration: Int,
         val fileId: Int,
+        val thumbnailPath: String? = null,
+        val thumbnailFileId: Int = 0,
+        val minithumbnail: ByteArray? = null,
         val supportsStreaming: Boolean = false
     )
 
@@ -534,7 +537,10 @@ data class WebPage(
         val width: Int,
         val height: Int,
         val duration: Int,
-        val fileId: Int
+        val fileId: Int,
+        val thumbnailPath: String? = null,
+        val thumbnailFileId: Int = 0,
+        val minithumbnail: ByteArray? = null
     )
 }
 

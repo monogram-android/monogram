@@ -2,7 +2,16 @@ package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
 import org.monogram.domain.models.WebPage
-import org.monogram.domain.models.webapp.*
+import org.monogram.domain.models.webapp.HorizontalAlignment
+import org.monogram.domain.models.webapp.InstantViewModel
+import org.monogram.domain.models.webapp.Location
+import org.monogram.domain.models.webapp.PageBlock
+import org.monogram.domain.models.webapp.PageBlockCaption
+import org.monogram.domain.models.webapp.PageBlockListItem
+import org.monogram.domain.models.webapp.PageBlockRelatedArticle
+import org.monogram.domain.models.webapp.PageBlockTableCell
+import org.monogram.domain.models.webapp.RichText
+import org.monogram.domain.models.webapp.VerticalAlignment
 
 fun map(iv: TdApi.WebPageInstantView, url: String): InstantViewModel {
     return iv.toInstantViewModel(url)
@@ -157,7 +166,10 @@ private fun TdApi.Animation.toAnimation() = WebPage.Animation(
     width = width,
     height = height,
     duration = duration,
-    fileId = animation.id
+    fileId = animation.id,
+    thumbnailPath = thumbnail?.file?.local?.path?.takeIf { isValidFilePath(it) },
+    thumbnailFileId = thumbnail?.file?.id ?: 0,
+    minithumbnail = minithumbnail?.data
 )
 
 private fun TdApi.Audio.toAudio() = WebPage.Audio(
@@ -173,7 +185,11 @@ private fun TdApi.Video.toVideo() = WebPage.Video(
     width = width,
     height = height,
     duration = duration,
-    fileId = video.id
+    fileId = video.id,
+    thumbnailPath = thumbnail?.file?.local?.path?.takeIf { isValidFilePath(it) },
+    thumbnailFileId = thumbnail?.file?.id ?: 0,
+    minithumbnail = minithumbnail?.data,
+    supportsStreaming = supportsStreaming
 )
 
 private fun TdApi.Document.toDocument() = WebPage.Document(

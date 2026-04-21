@@ -2,16 +2,53 @@
 
 package org.monogram.presentation.features.instantview
 
+import android.content.ClipData
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -19,38 +56,111 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.OpenInFull
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Replay
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.TextFormat
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.VolumeUp
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import org.koin.compose.koinInject
+import org.monogram.domain.models.FileDownloadEvent
+import org.monogram.domain.models.WebPage
 import org.monogram.domain.models.webapp.InstantViewModel
 import org.monogram.domain.models.webapp.PageBlock
+import org.monogram.domain.models.webapp.PageBlockCaption
 import org.monogram.domain.models.webapp.RichText
 import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.components.chats.normalizeUrl
-import org.monogram.presentation.features.instantview.components.*
+import org.monogram.presentation.features.instantview.components.AsyncImageWithDownload
+import org.monogram.presentation.features.instantview.components.AsyncVideoWithDownload
+import org.monogram.presentation.features.instantview.components.LocalFileRepository
+import org.monogram.presentation.features.instantview.components.LocalOnUrlClick
+import org.monogram.presentation.features.instantview.components.PageBlockCaptionView
+import org.monogram.presentation.features.instantview.components.RichTextView
+import org.monogram.presentation.features.instantview.components.containsText
+import org.monogram.presentation.features.instantview.components.renderRichText
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
+import org.monogram.presentation.features.viewers.ImageViewer
+import org.monogram.presentation.features.viewers.VideoViewer
 import org.monogram.presentation.features.viewers.components.ViewerSettingsDropdown
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -70,10 +180,43 @@ fun InstantViewer(
     var isSearching by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showSettingsMenu by remember { mutableStateOf(false) }
+    var fullscreenMedia by remember { mutableStateOf<InstantViewFullscreenMedia?>(null) }
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     LocalUriHandler.current
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val downloadUtils: IDownloadUtils = koinInject()
+    val scope = rememberCoroutineScope()
+
+    val openPhotoFullscreen: (WebPage.Photo, PageBlockCaption) -> Unit = { photo, caption ->
+        scope.launch {
+            fileRepository.resolvePathForViewer(photo.fileId, photo.path)?.let { path ->
+                fullscreenMedia = InstantViewFullscreenMedia.Image(
+                    path = path,
+                    caption = caption.renderedTextOrNull()
+                )
+            }
+        }
+    }
+    val openVideoFullscreen: (String?, Int, Boolean, String?) -> Unit =
+        { path, fileId, supportsStreaming, caption ->
+            scope.launch {
+                val resolvedPath = fileRepository.resolvePathForViewer(fileId, path)
+                if (!resolvedPath.isNullOrBlank() || (supportsStreaming && fileId != 0)) {
+                    fullscreenMedia = InstantViewFullscreenMedia.Video(
+                        path = resolvedPath.orEmpty(),
+                        caption = caption,
+                        fileId = fileId,
+                        supportsStreaming = supportsStreaming
+                    )
+                }
+            }
+        }
+    val openFileExternally: (String?, Int) -> Unit = { path, fileId ->
+        scope.launch {
+            fileRepository.resolvePathForViewer(fileId, path)?.let(downloadUtils::openFile)
+        }
+    }
 
     LaunchedEffect(url) {
         if (urlStack.isEmpty() || urlStack.first() != url) {
@@ -99,7 +242,9 @@ fun InstantViewer(
     }
 
     BackHandler(onBack = {
-        if (showSettingsMenu) {
+        if (fullscreenMedia != null) {
+            fullscreenMedia = null
+        } else if (showSettingsMenu) {
             showSettingsMenu = false
         } else if (isSearching) {
             isSearching = false
@@ -248,8 +393,18 @@ fun InstantViewer(
                                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
                                 verticalArrangement = Arrangement.spacedBy(20.dp)
                             ) {
-                                items(blocks) { block ->
-                                    InstantViewBlock(block, textSizeMultiplier)
+                                itemsIndexed(
+                                    items = blocks,
+                                    key = { index, block -> instantViewBlockKey(index, block) }
+                                ) { _, block ->
+                                    InstantViewBlock(
+                                        block = block,
+                                        textSizeMultiplier = textSizeMultiplier,
+                                        searchQuery = searchQuery,
+                                        onOpenPhotoFullscreen = openPhotoFullscreen,
+                                        onOpenVideoFullscreen = openVideoFullscreen,
+                                        onOpenFileExternally = openFileExternally
+                                    )
                                 }
                                 item {
                                     Spacer(modifier = Modifier.height(48.dp))
@@ -312,7 +467,9 @@ fun InstantViewer(
                             icon = Icons.Rounded.ContentCopy,
                             title = stringResource(R.string.instant_view_copy_link),
                             onClick = {
-                                clipboardManager.setText(AnnotatedString(currentUrl))
+                                clipboard.nativeClipboard.setPrimaryClip(
+                                    ClipData.newPlainText("", currentUrl)
+                                )
                                 showSettingsMenu = false
                             }
                         )
@@ -352,12 +509,48 @@ fun InstantViewer(
                     }
                 }
             }
+
+            when (val media = fullscreenMedia) {
+                is InstantViewFullscreenMedia.Image -> {
+                    ImageViewer(
+                        images = listOf(media.path),
+                        onDismiss = { fullscreenMedia = null },
+                        captions = listOf(media.caption),
+                        downloadUtils = downloadUtils,
+                        showImageNumber = false
+                    )
+                }
+
+                is InstantViewFullscreenMedia.Video -> {
+                    VideoViewer(
+                        path = media.path,
+                        onDismiss = { fullscreenMedia = null },
+                        caption = media.caption,
+                        fileId = media.fileId,
+                        supportsStreaming = media.supportsStreaming,
+                        downloadUtils = downloadUtils
+                    )
+                }
+
+                null -> Unit
+            }
         }
     }
 }
 
+private fun instantViewBlockKey(index: Int, block: PageBlock): String {
+    return "${block::class.qualifiedName}:${block.hashCode()}:$index"
+}
+
 @Composable
-fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
+fun InstantViewBlock(
+    block: PageBlock,
+    textSizeMultiplier: Float,
+    searchQuery: String = "",
+    onOpenPhotoFullscreen: (WebPage.Photo, PageBlockCaption) -> Unit = { _, _ -> },
+    onOpenVideoFullscreen: (String?, Int, Boolean, String?) -> Unit = { _, _, _, _ -> },
+    onOpenFileExternally: (String?, Int) -> Unit = { _, _ -> }
+) {
     val onUrlClick = LocalOnUrlClick.current
     LocalUriHandler.current
     when (block) {
@@ -469,10 +662,14 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
             modifier = Modifier.padding(vertical = 16.dp),
             color = MaterialTheme.colorScheme.outlineVariant
         )
-        
+
         is PageBlock.PhotoBlock -> {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Box(modifier = Modifier.clip(RoundedCornerShape(12.dp))) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onOpenPhotoFullscreen(block.photo, block.caption) }
+                ) {
                     AsyncImageWithDownload(
                         path = block.photo.path,
                         fileId = block.photo.fileId,
@@ -486,73 +683,62 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
         }
 
         is PageBlock.VideoBlock -> {
-            var isPlaying by remember { mutableStateOf(false) }
             Column(modifier = Modifier.fillMaxWidth()) {
-                Box(
+                InstantViewPlayablePreview(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(block.video.width.toFloat() / block.video.height.toFloat())
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable { isPlaying = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isPlaying) {
-                        AsyncVideoWithDownload(
-                            path = block.video.path,
-                            fileId = block.video.fileId,
-                            modifier = Modifier.fillMaxSize(),
-                            shouldLoop = block.isLooped,
-                            contentScale = ContentScale.FillWidth
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = stringResource(R.string.instant_view_play_video),
-                            modifier = Modifier
-                                .size(64.dp)
-                                .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                                .padding(12.dp),
-                            tint = Color.White
+                        .clip(RoundedCornerShape(12.dp)),
+                    stateKey = "video:${block.hashCode()}",
+                    durationSeconds = block.video.duration,
+                    previewPath = block.video.thumbnailPath,
+                    previewFileId = block.video.thumbnailFileId,
+                    previewMiniThumbnail = block.video.minithumbnail,
+                    mediaPath = block.video.path,
+                    mediaFileId = block.video.fileId,
+                    shouldLoop = block.isLooped,
+                    supportsAudioToggle = true,
+                    allowScrubbing = true,
+                    onOpenFullscreen = {
+                        onOpenVideoFullscreen(
+                            block.video.path,
+                            block.video.fileId,
+                            block.video.supportsStreaming,
+                            block.caption.renderedTextOrNull()
                         )
                     }
-                }
+                )
                 PageBlockCaptionView(block.caption, textSizeMultiplier, modifier = Modifier.padding(top = 8.dp))
             }
         }
 
         is PageBlock.AnimationBlock -> {
-            var isPlaying by remember { mutableStateOf(block.needAutoplay) }
             Column(modifier = Modifier.fillMaxWidth()) {
-                Box(
+                InstantViewPlayablePreview(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(block.animation.width.toFloat() / block.animation.height.toFloat())
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable { isPlaying = !isPlaying },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isPlaying) {
-                        AsyncVideoWithDownload(
-                            path = block.animation.path,
-                            fileId = block.animation.fileId,
-                            modifier = Modifier.fillMaxSize(),
-                            shouldLoop = true,
-                            contentScale = ContentScale.FillWidth
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = stringResource(R.string.instant_view_play_animation),
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                                .padding(8.dp),
-                            tint = Color.White
+                        .clip(RoundedCornerShape(12.dp)),
+                    stateKey = "animation:${block.hashCode()}",
+                    durationSeconds = block.animation.duration,
+                    previewPath = block.animation.thumbnailPath,
+                    previewFileId = block.animation.thumbnailFileId,
+                    previewMiniThumbnail = block.animation.minithumbnail,
+                    mediaPath = block.animation.path,
+                    mediaFileId = block.animation.fileId,
+                    shouldLoop = true,
+                    supportsAudioToggle = false,
+                    allowScrubbing = true,
+                    initiallyActive = block.needAutoplay,
+                    onOpenFullscreen = {
+                        onOpenVideoFullscreen(
+                            block.animation.path,
+                            block.animation.fileId,
+                            false,
+                            block.caption.renderedTextOrNull()
                         )
                     }
-                }
+                )
                 PageBlockCaptionView(block.caption, textSizeMultiplier, modifier = Modifier.padding(top = 8.dp))
             }
         }
@@ -566,6 +752,9 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
             ) {
                 Column {
                     ListItem(
+                        modifier = Modifier.clickable {
+                            onOpenFileExternally(block.audio.path, block.audio.fileId)
+                        },
                         headlineContent = {
                             Text(block.audio.title ?: stringResource(R.string.instant_view_audio), fontWeight = FontWeight.SemiBold)
                         },
@@ -574,7 +763,12 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
                         },
                         leadingContent = {
                             IconButton(
-                                onClick = { /* TODO: Play audio */ },
+                                onClick = {
+                                    onOpenFileExternally(
+                                        block.audio.path,
+                                        block.audio.fileId
+                                    )
+                                },
                                 colors = IconButtonDefaults.filledIconButtonColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -650,7 +844,8 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
                                 minithumbnail = photo.minithumbnail,
                                 modifier = Modifier
                                     .size(40.dp)
-                                    .clip(CircleShape),
+                                    .clip(CircleShape)
+                                    .clickable { onOpenPhotoFullscreen(photo, block.caption) },
                                 contentScale = ContentScale.Crop
                             )
                             Spacer(modifier = Modifier.width(12.dp))
@@ -674,7 +869,14 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     block.pageBlocks.forEach { innerBlock ->
-                        InstantViewBlock(innerBlock, textSizeMultiplier)
+                        InstantViewBlock(
+                            block = innerBlock,
+                            textSizeMultiplier = textSizeMultiplier,
+                            searchQuery = searchQuery,
+                            onOpenPhotoFullscreen = onOpenPhotoFullscreen,
+                            onOpenVideoFullscreen = onOpenVideoFullscreen,
+                            onOpenFileExternally = onOpenFileExternally
+                        )
                     }
                     PageBlockCaptionView(block.caption, textSizeMultiplier, modifier = Modifier.padding(top = 12.dp))
                 }
@@ -753,16 +955,37 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         item.pageBlocks.forEach { innerBlock ->
-                            InstantViewBlock(innerBlock, textSizeMultiplier)
+                            InstantViewBlock(
+                                block = innerBlock,
+                                textSizeMultiplier = textSizeMultiplier,
+                                searchQuery = searchQuery,
+                                onOpenPhotoFullscreen = onOpenPhotoFullscreen,
+                                onOpenVideoFullscreen = onOpenVideoFullscreen,
+                                onOpenFileExternally = onOpenFileExternally
+                            )
                         }
                     }
                 }
             }
         }
 
-        is PageBlock.Cover -> InstantViewBlock(block.cover, textSizeMultiplier)
+        is PageBlock.Cover -> InstantViewBlock(
+            block = block.cover,
+            textSizeMultiplier = textSizeMultiplier,
+            searchQuery = searchQuery,
+            onOpenPhotoFullscreen = onOpenPhotoFullscreen,
+            onOpenVideoFullscreen = onOpenVideoFullscreen,
+            onOpenFileExternally = onOpenFileExternally
+        )
         is PageBlock.Details -> {
-            var isOpen by remember { mutableStateOf(block.isOpen) }
+            val shouldForceOpen =
+                searchQuery.isNotBlank() && block.pageBlocks.any { it.containsText(searchQuery) }
+            var isOpen by rememberSaveable(block.hashCode()) { mutableStateOf(block.isOpen || shouldForceOpen) }
+
+            LaunchedEffect(shouldForceOpen) {
+                if (shouldForceOpen) isOpen = true
+            }
+
             Surface(
                 modifier = Modifier.animateContentSize(animationSpec = spring(stiffness = Spring.StiffnessLow)),
                 shape = RoundedCornerShape(12.dp),
@@ -799,7 +1022,14 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             block.pageBlocks.forEach { innerBlock ->
-                                InstantViewBlock(innerBlock, textSizeMultiplier)
+                                InstantViewBlock(
+                                    block = innerBlock,
+                                    textSizeMultiplier = textSizeMultiplier,
+                                    searchQuery = searchQuery,
+                                    onOpenPhotoFullscreen = onOpenPhotoFullscreen,
+                                    onOpenVideoFullscreen = onOpenVideoFullscreen,
+                                    onOpenFileExternally = onOpenFileExternally
+                                )
                             }
                         }
                     }
@@ -810,7 +1040,14 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
         is PageBlock.Collage -> {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 block.pageBlocks.forEach { innerBlock ->
-                    InstantViewBlock(innerBlock, textSizeMultiplier)
+                    InstantViewBlock(
+                        block = innerBlock,
+                        textSizeMultiplier = textSizeMultiplier,
+                        searchQuery = searchQuery,
+                        onOpenPhotoFullscreen = onOpenPhotoFullscreen,
+                        onOpenVideoFullscreen = onOpenVideoFullscreen,
+                        onOpenFileExternally = onOpenFileExternally
+                    )
                 }
                 PageBlockCaptionView(block.caption, textSizeMultiplier)
             }
@@ -819,7 +1056,14 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
         is PageBlock.Slideshow -> {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 block.pageBlocks.forEach { innerBlock ->
-                    InstantViewBlock(innerBlock, textSizeMultiplier)
+                    InstantViewBlock(
+                        block = innerBlock,
+                        textSizeMultiplier = textSizeMultiplier,
+                        searchQuery = searchQuery,
+                        onOpenPhotoFullscreen = onOpenPhotoFullscreen,
+                        onOpenVideoFullscreen = onOpenVideoFullscreen,
+                        onOpenFileExternally = onOpenFileExternally
+                    )
                 }
                 PageBlockCaptionView(block.caption, textSizeMultiplier)
             }
@@ -830,7 +1074,11 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
                     if (block.caption !is RichText.Plain || (block.caption as RichText.Plain).text.isNotEmpty()) {
                         RichTextView(
                             richText = block.caption,
@@ -845,7 +1093,7 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
                             row.forEach { cell ->
                                 Box(
                                     modifier = Modifier
-                                        .weight(cell.colspan.toFloat())
+                                        .widthIn(min = 120.dp * cell.colspan)
                                         .border(
                                             width = if (block.isBordered) 1.dp else 0.dp,
                                             color = MaterialTheme.colorScheme.outlineVariant
@@ -920,7 +1168,16 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
                                         minithumbnail = photo.minithumbnail,
                                         modifier = Modifier
                                             .size(64.dp)
-                                            .clip(RoundedCornerShape(8.dp)),
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                onOpenPhotoFullscreen(
+                                                    photo,
+                                                    PageBlockCaption(
+                                                        RichText.Plain(article.title),
+                                                        RichText.Plain(article.author)
+                                                    )
+                                                )
+                                            },
                                         contentScale = ContentScale.Crop
                                     )
                                 }
@@ -972,4 +1229,349 @@ fun InstantViewBlock(block: PageBlock, textSizeMultiplier: Float) {
             }
         }
     }
+}
+
+private sealed interface InstantViewFullscreenMedia {
+    data class Image(val path: String, val caption: String?) : InstantViewFullscreenMedia
+    data class Video(
+        val path: String,
+        val caption: String?,
+        val fileId: Int,
+        val supportsStreaming: Boolean
+    ) : InstantViewFullscreenMedia
+}
+
+private fun PageBlockCaption.renderedTextOrNull(): String? {
+    val text = buildString {
+        renderRichText(this@renderedTextOrNull.text).text.takeIf { it.isNotBlank() }?.let(::append)
+        renderRichText(this@renderedTextOrNull.credit).text.takeIf { it.isNotBlank() }
+            ?.let { credit ->
+                if (isNotEmpty()) append("\n")
+                append(credit)
+            }
+    }
+    return text.ifBlank { null }
+}
+
+@Composable
+private fun InstantViewPlayablePreview(
+    stateKey: String,
+    durationSeconds: Int,
+    previewPath: String?,
+    previewFileId: Int,
+    previewMiniThumbnail: ByteArray?,
+    mediaPath: String?,
+    mediaFileId: Int,
+    modifier: Modifier = Modifier,
+    shouldLoop: Boolean = true,
+    supportsAudioToggle: Boolean = false,
+    allowScrubbing: Boolean = true,
+    initiallyActive: Boolean = false,
+    onOpenFullscreen: () -> Unit
+) {
+    var isActive by rememberSaveable(stateKey) { mutableStateOf(initiallyActive) }
+    var isPaused by rememberSaveable(stateKey) { mutableStateOf(false) }
+    var isMuted by rememberSaveable(stateKey) { mutableStateOf(true) }
+    var showControls by rememberSaveable(stateKey) { mutableStateOf(true) }
+    var playbackPositionMs by rememberSaveable(stateKey) { mutableLongStateOf(0L) }
+    var durationMs by rememberSaveable(stateKey) { mutableLongStateOf(durationSeconds * 1000L) }
+    var hasEnded by rememberSaveable(stateKey) { mutableStateOf(false) }
+    var hasShownPlaybackUi by rememberSaveable(stateKey) { mutableStateOf(initiallyActive) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubProgress by remember { mutableFloatStateOf(0f) }
+    var visibleFraction by remember { mutableFloatStateOf(1f) }
+    val view = LocalView.current
+    val isVisibleEnough = visibleFraction >= 0.35f
+    val effectiveAnimate = isActive && !isPaused && !hasEnded && isVisibleEnough && !isScrubbing
+
+    LaunchedEffect(isActive, isPaused, hasEnded, showControls, isScrubbing, isVisibleEnough) {
+        if (isActive && !isPaused && !hasEnded && showControls && !isScrubbing && isVisibleEnough) {
+            delay(2200)
+            showControls = false
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .onGloballyPositioned { coords ->
+                val bounds = coords.boundsInWindow()
+                val windowHeight = view.height.toFloat().coerceAtLeast(1f)
+                val visibleTop = bounds.top.coerceAtLeast(0f)
+                val visibleBottom = bounds.bottom.coerceAtMost(windowHeight)
+                val visibleHeight = (visibleBottom - visibleTop).coerceAtLeast(0f)
+                val totalHeight = bounds.height.coerceAtLeast(1f)
+                visibleFraction = (visibleHeight / totalHeight).coerceIn(0f, 1f)
+            }
+            .pointerInput(isActive, isPaused) {
+                detectTapGestures(
+                    onTap = {
+                        if (!isActive) {
+                            isActive = true
+                            isPaused = false
+                            hasEnded = false
+                            showControls = true
+                            hasShownPlaybackUi = true
+                        } else {
+                            showControls = !showControls
+                        }
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        if (isActive) {
+            AsyncVideoWithDownload(
+                path = mediaPath,
+                fileId = mediaFileId,
+                modifier = Modifier.fillMaxSize(),
+                shouldLoop = shouldLoop,
+                animate = effectiveAnimate,
+                volume = if (supportsAudioToggle && !isMuted) 1f else 0f,
+                startPositionMs = playbackPositionMs,
+                onProgressUpdate = { playbackPositionMs = it },
+                onDurationKnown = { durationMs = it.coerceAtLeast(0L) },
+                onPlaybackEnded = {
+                    hasEnded = true
+                    isPaused = true
+                    showControls = true
+                    playbackPositionMs = durationMs
+                },
+                reportProgress = true,
+                contentScale = ContentScale.FillWidth
+            )
+        } else {
+            AsyncImageWithDownload(
+                path = previewPath,
+                fileId = previewFileId,
+                minithumbnail = previewMiniThumbnail,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    if (!isActive) Color.Black.copy(alpha = 0.22f)
+                    else if (showControls || isPaused) Color.Black.copy(alpha = 0.28f)
+                    else Color.Transparent
+                )
+        )
+
+        if (!hasShownPlaybackUi) {
+            InstantViewMediaBadge(
+                label = formatMediaDuration((durationMs / 1000L).toInt()),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(12.dp)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = !isActive || showControls || isPaused,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                IconButton(
+                    onClick = onOpenFullscreen,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp)
+                        .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.OpenInFull,
+                        contentDescription = stringResource(R.string.instant_view_open),
+                        tint = Color.White
+                    )
+                }
+
+                if (isActive) {
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(top = 12.dp, start = 12.dp, end = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (supportsAudioToggle) {
+                            IconButton(
+                                onClick = { isMuted = !isMuted },
+                                modifier = Modifier
+                                    .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = if (isMuted) Icons.Rounded.VolumeOff else Icons.Rounded.VolumeUp,
+                                    contentDescription = if (isMuted) "Unmute preview" else "Mute preview",
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+
+                FilledIconButton(
+                    onClick = {
+                        if (!isActive) {
+                            isActive = true
+                            isPaused = false
+                            hasEnded = false
+                            if (playbackPositionMs >= durationMs && durationMs > 0L) {
+                                playbackPositionMs = 0L
+                            }
+                        } else if (hasEnded) {
+                            playbackPositionMs = 0L
+                            hasEnded = false
+                            isPaused = false
+                        } else {
+                            isPaused = !isPaused
+                        }
+                        showControls = true
+                    },
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(64.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Color.Black.copy(alpha = 0.5f),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(
+                        imageVector = when {
+                            hasEnded -> Icons.Rounded.Replay
+                            isActive && !isPaused -> Icons.Rounded.Pause
+                            else -> Icons.Rounded.PlayArrow
+                        },
+                        contentDescription = when {
+                            hasEnded -> "Replay preview"
+                            isActive && !isPaused -> "Pause preview"
+                            else -> "Play preview"
+                        }
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.55f))
+                            )
+                        )
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val displayPositionMs =
+                            if (isScrubbing) (scrubProgress * durationMs.toFloat()).toLong() else playbackPositionMs
+                        InstantViewMediaBadge(
+                            label = formatMediaDuration((displayPositionMs / 1000L).toInt())
+                        )
+                        InstantViewMediaBadge(label = formatMediaDuration((durationMs / 1000L).toInt()))
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (allowScrubbing) {
+                        Slider(
+                            value = if (isScrubbing) scrubProgress else previewProgress(
+                                playbackPositionMs,
+                                durationMs
+                            ),
+                            onValueChange = {
+                                isScrubbing = true
+                                scrubProgress = it
+                                showControls = true
+                            },
+                            onValueChangeFinished = {
+                                playbackPositionMs = (durationMs * scrubProgress).toLong()
+                                hasEnded = false
+                                isPaused = false
+                                isScrubbing = false
+                            },
+                            valueRange = 0f..1f,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = Color.White,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.28f)
+                            )
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            progress = { previewProgress(playbackPositionMs, durationMs) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp),
+                            color = Color.White,
+                            trackColor = Color.White.copy(alpha = 0.28f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InstantViewMediaBadge(label: String, modifier: Modifier = Modifier) {
+    if (label.isBlank()) return
+
+    Surface(
+        modifier = modifier,
+        color = Color.Black.copy(alpha = 0.55f),
+        contentColor = Color.White,
+        shape = RoundedCornerShape(999.dp)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+private fun previewProgress(positionMs: Long, durationMs: Long): Float {
+    if (durationMs <= 0L) return 0f
+    return (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+}
+
+private fun formatMediaDuration(durationSeconds: Int): String {
+    if (durationSeconds <= 0) return ""
+    val hours = durationSeconds / 3600
+    val minutes = (durationSeconds % 3600) / 60
+    val seconds = durationSeconds % 60
+
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%d:%02d".format(minutes, seconds)
+    }
+}
+
+private suspend fun FileRepository.resolvePathForViewer(
+    fileId: Int,
+    initialPath: String?
+): String? {
+    if (!initialPath.isNullOrBlank()) return initialPath
+    if (fileId == 0) return null
+    val cachedPath = getFilePath(fileId)
+    if (!cachedPath.isNullOrBlank()) return cachedPath
+
+    downloadFile(fileId)
+
+    val completedPath = withTimeoutOrNull(60_000L) {
+        fileDownloadFlow
+            .filterIsInstance<FileDownloadEvent.Completed>()
+            .filter { it.fileId == fileId }
+            .mapNotNull { event -> event.path.takeIf { it.isNotEmpty() } }
+            .first()
+    }
+
+    return completedPath ?: getFilePath(fileId)
 }

@@ -92,12 +92,27 @@ API_ID=12345678
 API_HASH=your_api_hash_here
 ```
 
+اگر آپ Gradle سے signed release builds بنانا چاہتے ہیں تو یہ properties بھی شامل کریں:
+
+```properties
+RELEASE_STORE_FILE=keystore/release.jks
+RELEASE_STORE_PASSWORD=your_store_password
+RELEASE_KEY_ALIAS=your_key_alias
+RELEASE_KEY_PASSWORD=your_key_password
+```
+
 ### 3. پش نوٹیفکیشنز کنفیگر کریں
 
 1. [Firebase console](https://console.firebase.google.com) پر لاگ ان کریں۔
 2. ایک نیا پروجیکٹ بنائیں۔
-3. اپنی مطلوبہ `applicationId` کے ساتھ ایک نئی ایپلیکیشن شامل کریں۔ اگر آپ کے پاس مختلف IDs کے ساتھ متعدد ایپلیکیشنز ہیں، تو متعدد Firebase ایپلیکیشنز بنائیں۔ **بائی ڈیفالٹ، ڈیبگ اور ریلیز بلڈز کے لیے `applicationId` مختلف ہوتی ہے۔**
-4. `google-services.json` فائل ڈاؤن لوڈ کریں اور اسے **app** ماڈیول کی روٹ (`monogram/app/google-services.json`) میں کاپی کریں۔ اگر آپ نے متعدد ایپلیکیشنز بنائی ہیں، تو صرف تازہ ترین کنفیگریشن کاپی کریں۔
+3. Firebase میں دو Android apps شامل کریں:
+
+    - `org.monogram` ریلیز builds کے لیے
+    - `org.monogram.debug` ڈیبگ builds کے لیے
+
+4. `google-services.json` فائل ڈاؤن لوڈ کریں اور اسے **app** ماڈیول کی روٹ (
+   `monogram/app/google-services.json`) میں کاپی کریں۔ یقینی بنائیں کہ اس میں اوپر والے دونوں
+   package names کے clients موجود ہوں۔
 5. **Cloud Messaging** سیکشن پر جائیں۔
 6. **Manage service accounts** پر کلک کریں۔
 7. کھلنے والی ونڈو کے اوپری حصے میں **Keys** سیکشن منتخب کریں۔
@@ -147,6 +162,44 @@ sudo apt-get install build-essential git curl wget php perl gperf unzip zip defa
 ```bash
 ./build-tdlib.sh
 ```
+
+اسکرپٹ یہ موڈز سپورٹ کرتا ہے:
+
+- `./build-tdlib.sh official`
+- `./build-tdlib.sh telemt`
+- `./build-tdlib.sh both`
+
+وہ upstream repositories جو یہ اسکرپٹ استعمال کرتا ہے:
+
+- `official`: [tdlib/td](https://github.com/tdlib/td)
+- `telemt`: [telemt/tdlib-obf](https://github.com/telemt/tdlib-obf)
+
+اگر آپ اسے بغیر arguments کے چلائیں گے تو یہ آپ سے آپشن منتخب کروائے گا۔
+
+### Build Variants اور Gradle tasks
+
+Android Studio میں یہ variants استعمال کریں:
+
+- `officialDebug`
+- `officialRelease`
+- `telemtDebug`
+- `telemtRelease`
+
+کارآمد Gradle tasks:
+
+```bash
+./gradlew assembleOfficialReleaseTdlibApks
+./gradlew assembleTelemtReleaseTdlibApks
+./gradlew assembleAllReleaseTdlibApks
+./gradlew assembleOfficialDebugTdlibApks
+./gradlew assembleTelemtDebugTdlibApks
+./gradlew assembleAllDebugTdlibApks
+```
+
+APK نام:
+
+- عام TDLib: `monogram-arm64-v8a-<version>-release.apk`
+- Telemt TDLib: `monogram-telemt-arm64-v8a-<version>-release.apk`
 
 ---
 

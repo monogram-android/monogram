@@ -1,5 +1,6 @@
 package org.monogram.data.repository
 
+import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.remote.ProxyRemoteDataSource
 import org.monogram.domain.models.Proxy
@@ -61,4 +62,31 @@ class ProxyRepositoryImpl(
         }
         true
     }.getOrDefault(false)
+
+    override suspend fun setDnsType(type: String) {
+        remote.setOption("dns_type", TdApi.OptionValueString(type))
+    }
+
+    override suspend fun setCustomDnsUrl(url: String) {
+        remote.setOption("custom_dns_url", TdApi.OptionValueString(url))
+    }
+
+    override suspend fun setCustomDnsHeaders(headers: String) {
+        remote.setOption("custom_dns_headers", TdApi.OptionValueString(headers))
+    }
+
+    override suspend fun getDnsType(): String = coRunCatching {
+        val option = remote.getOption("dns_type")
+        (option as? TdApi.OptionValueString)?.value ?: "google"
+    }.getOrDefault("google")
+
+    override suspend fun getCustomDnsUrl(): String = coRunCatching {
+        val option = remote.getOption("custom_dns_url")
+        (option as? TdApi.OptionValueString)?.value ?: ""
+    }.getOrDefault("")
+
+    override suspend fun getCustomDnsHeaders(): String = coRunCatching {
+        val option = remote.getOption("custom_dns_headers")
+        (option as? TdApi.OptionValueString)?.value ?: ""
+    }.getOrDefault("")
 }

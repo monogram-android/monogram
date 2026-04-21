@@ -105,4 +105,10 @@ class TdProxyRemoteDataSource(
     override suspend fun setOption(key: String, value: TdApi.OptionValue) {
         gateway.execute(TdApi.SetOption(key, value))
     }
+
+    override suspend fun getOption(key: String): TdApi.OptionValue? {
+        return coRunCatching {
+            gateway.execute(TdApi.GetOption(key))
+        }.getOrNull()
+    }
 }

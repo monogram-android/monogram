@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.auth
 
 import com.arkivanov.decompose.value.Value
+import org.monogram.domain.repository.AuthUiStatus
 
 interface AuthComponent {
     val model: Value<Model>
@@ -10,12 +11,14 @@ interface AuthComponent {
     fun onResendCode()
     fun onPasswordEntered(password: String)
     fun onBackToPhone()
+    fun onRetry()
     fun onProxyClicked()
     fun dismissError()
     fun onReset()
 
     data class Model(
         val authState: AuthState,
+        val uiStatus: AuthUiStatus = AuthUiStatus.Idle,
         val isSubmitting: Boolean = false,
         val error: String? = null,
         val phoneNumber: String? = null

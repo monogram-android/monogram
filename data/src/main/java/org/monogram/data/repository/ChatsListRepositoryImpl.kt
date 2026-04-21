@@ -1012,6 +1012,10 @@ class ChatsListRepositoryImpl(
         chatList: TdApi.ChatList,
         limit: Int
     ): Result<Unit> {
+        if (!gateway.isAuthenticated.value) {
+            return Result.success(Unit)
+        }
+
         var lastResult = chatRemoteSource.loadChats(chatList, limit)
         if (!lastResult.isSuccess && lastResult.exceptionOrNull()?.asTdErrorCode() != 404) {
             return lastResult

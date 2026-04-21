@@ -103,6 +103,7 @@ fun SettingsTile(
                     }
                 }
                 if (trailingContent != null) {
+                    Spacer(modifier = Modifier.width(12.dp))
                     trailingContent()
                 }
             }

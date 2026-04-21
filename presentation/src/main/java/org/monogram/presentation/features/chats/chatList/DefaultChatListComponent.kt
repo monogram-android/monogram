@@ -30,6 +30,7 @@ import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
+import org.monogram.presentation.BuildConfig
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
@@ -50,6 +51,7 @@ class DefaultChatListComponent(
     private val onEditFoldersClick: () -> Unit = {},
     activeChatId: Value<Long>
 ) : ChatListComponent, AppComponentContext by context {
+    private val isTelemtBuild = BuildConfig.ENABLE_TELEMT_DNS
 
     private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     private val chatFolderRepository: ChatFolderRepository = container.repositories.chatFolderRepository
@@ -322,7 +324,9 @@ class DefaultChatListComponent(
             .launchIn(scope)
 
         scope.launch {
-            updateRepository.checkForUpdates()
+            if (!isTelemtBuild) {
+                updateRepository.checkForUpdates()
+            }
         }
 
         _state.onEach {

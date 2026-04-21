@@ -18,3 +18,45 @@ val localProperties by lazy {
     }
 }
 extra.set("localProperties", localProperties)
+
+tasks.register("assembleOfficialReleaseTdlibApks") {
+    group = "build"
+    description = "Assembles release APKs with the official TDLib prebuilts."
+    dependsOn(":app:assembleOfficialRelease")
+}
+
+tasks.register("assembleTelemtReleaseTdlibApks") {
+    group = "build"
+    description = "Assembles release APKs with the Telemt TDLib prebuilts."
+    dependsOn(":app:assembleTelemtRelease")
+}
+
+tasks.register("assembleAllReleaseTdlibApks") {
+    group = "build"
+    description = "Assembles release APKs for both official and Telemt TDLib variants."
+    dependsOn(
+        "assembleOfficialReleaseTdlibApks",
+        "assembleTelemtReleaseTdlibApks"
+    )
+}
+
+tasks.register("assembleOfficialDebugTdlibApks") {
+    group = "build"
+    description = "Assembles debug APKs with the official TDLib prebuilts."
+    dependsOn(":app:assembleOfficialDebug")
+}
+
+tasks.register("assembleTelemtDebugTdlibApks") {
+    group = "build"
+    description = "Assembles debug APKs with the Telemt TDLib prebuilts."
+    dependsOn(":app:assembleTelemtDebug")
+}
+
+tasks.register("assembleAllDebugTdlibApks") {
+    group = "build"
+    description = "Assembles debug APKs for both official and Telemt TDLib variants."
+    dependsOn(
+        "assembleOfficialDebugTdlibApks",
+        "assembleTelemtDebugTdlibApks"
+    )
+}

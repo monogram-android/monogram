@@ -115,6 +115,12 @@ class DefaultRootComponent(
 
     private val navigation = StackNavigation<Config>()
     private val scope = componentScope
+    private val proxyComponent by lazy(LazyThreadSafetyMode.NONE) {
+        DefaultProxyComponent(
+            context = this,
+            onBack = { navigation.pop() }
+        )
+    }
 
     private val _stickerSetToPreview = MutableStateFlow(RootComponent.StickerPreviewState())
     override val stickerSetToPreview = _stickerSetToPreview.asStateFlow()
@@ -645,7 +651,7 @@ class DefaultRootComponent(
                 DefaultNotificationsComponent(context = context, onBack = { navigation.pop() })
             )
             is Config.Proxy -> RootComponent.Child.ProxyChild(
-                DefaultProxyComponent(context = context, onBack = { navigation.pop() })
+                proxyComponent
             )
             is Config.ProfileLogs -> RootComponent.Child.ProfileLogsChild(
                 DefaultProfileLogsComponent(

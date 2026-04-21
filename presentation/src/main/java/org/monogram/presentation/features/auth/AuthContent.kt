@@ -146,7 +146,8 @@ fun AuthContent(component: AuthComponent) {
                     when (targetState) {
                         is AuthComponent.AuthState.InputPhone -> PhoneInputScreen(
                             onConfirm = component::onPhoneEntered,
-                            isSubmitting = model.isSubmitting
+                            isSubmitting = model.isSubmitting,
+                            uiStatus = model.uiStatus
                         )
 
                         is AuthComponent.AuthState.InputCode -> CodeInputScreen(
@@ -159,12 +160,14 @@ fun AuthContent(component: AuthComponent) {
                             onConfirm = component::onCodeEntered,
                             onResend = component::onResendCode,
                             onBack = component::onBackToPhone,
-                            isSubmitting = model.isSubmitting
+                            isSubmitting = model.isSubmitting,
+                            uiStatus = model.uiStatus
                         )
 
                         is AuthComponent.AuthState.InputPassword -> PasswordInputScreen(
                             onConfirm = component::onPasswordEntered,
-                            isSubmitting = model.isSubmitting
+                            isSubmitting = model.isSubmitting,
+                            uiStatus = model.uiStatus
                         )
                     }
                 }
@@ -173,7 +176,9 @@ fun AuthContent(component: AuthComponent) {
             if (model.error != null) {
                 AuthErrorDialog(
                     message = model.error!!,
-                    onDismiss = component::dismissError
+                    onDismiss = component::dismissError,
+                    onRetry = component::onRetry,
+                    onOpenProxy = component::onProxyClicked
                 )
             }
         }

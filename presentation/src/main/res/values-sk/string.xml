@@ -74,6 +74,10 @@
     <string name="auth_title_phone">Váš telefón</string>
     <string name="auth_title_verification">Overenie</string>
     <string name="auth_title_password">Heslo</string>
+    <string name="auth_connecting_to_telegram">Pripájame sa k Telegramu…</string>
+    <string name="auth_connection_taking_longer">Pripojenie trvá dlhšie než zvyčajne</string>
+    <string name="auth_network_unreachable_error">Nepodarilo sa pripojiť k serverom Telegramu</string>
+    <string name="auth_retry_button">Skúsiť znova</string>
     <string name="cd_proxy_settings">Nastavenia proxy</string>
     <string name="phone_input_title">Vaše telefónne číslo</string>
     <string name="phone_input_description">Potvrďte kód krajiny a zadajte svoje telefónne číslo.</string>

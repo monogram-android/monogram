@@ -2,7 +2,15 @@ package org.monogram.presentation.core.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
@@ -37,6 +45,7 @@ fun UserProfileHeader(
     contentPadding: PaddingValues,
     currentRadius: Dp,
     alpha: Float = 1f,
+    onAvatarClick: (() -> Unit)? = null,
     onStatusClick: (() -> Unit)? = null,
     onStatusBoundsChanged: ((Rect) -> Unit)? = null
 ) {
@@ -53,7 +62,17 @@ fun UserProfileHeader(
                 .height(headerHeight)
                 .alpha(alpha)
         ) {
-            Box(modifier = Modifier.align(Alignment.Center)) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .then(
+                        if (onAvatarClick != null) {
+                            Modifier.clickable(onClick = onAvatarClick)
+                        } else {
+                            Modifier
+                        }
+                    )
+            ) {
                 AvatarHeader(
                     path = userModel.avatarPath,
                     fallbackPath = userModel.personalAvatarPath,

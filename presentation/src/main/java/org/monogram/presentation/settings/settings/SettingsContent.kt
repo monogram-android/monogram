@@ -135,6 +135,8 @@ import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.features.stickers.ui.menu.EmojisGrid
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
+import org.monogram.presentation.features.viewers.ImageViewer
+import org.monogram.presentation.features.viewers.VideoViewer
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -226,6 +228,10 @@ fun SettingsContent(component: SettingsComponent) {
 
     BackHandler(enabled = showStatusMenu) {
         showStatusMenu = false
+    }
+
+    BackHandler(enabled = state.fullScreenImages != null || state.fullScreenVideoPath != null) {
+        component.onDismissAvatarViewer()
     }
 
     if (state.isQrVisible) {
@@ -626,6 +632,7 @@ fun SettingsContent(component: SettingsComponent) {
                                     start = sidePadding,
                                     end = sidePadding
                                 ),
+                                onAvatarClick = component::onAvatarClick,
                                 onStatusClick = {
                                     statusAnchorBounds =
                                         headerStatusAnchorBounds ?: statusAnchorBounds
@@ -1005,5 +1012,21 @@ fun SettingsContent(component: SettingsComponent) {
                 }
             }
         }
+    }
+
+    state.fullScreenImages?.let { images ->
+        ImageViewer(
+            images = images,
+            onDismiss = component::onDismissAvatarViewer,
+            downloadUtils = component.downloadUtils
+        )
+    }
+
+    state.fullScreenVideoPath?.let { path ->
+        VideoViewer(
+            path = path,
+            onDismiss = component::onDismissAvatarViewer,
+            downloadUtils = component.downloadUtils
+        )
     }
 }

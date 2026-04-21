@@ -75,16 +75,16 @@ import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.core.util.getUserStatusText
 import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
+import org.monogram.presentation.features.profile.components.LocationViewer
 import org.monogram.presentation.features.profile.components.ProfileHeaderTransformed
 import org.monogram.presentation.features.profile.components.ProfileInfoSection
 import org.monogram.presentation.features.profile.components.ProfileInfoSectionSkeleton
 import org.monogram.presentation.features.profile.components.ProfilePermissionsDialog
 import org.monogram.presentation.features.profile.components.ProfileQRDialog
 import org.monogram.presentation.features.profile.components.ProfileReportDialog
-import org.monogram.presentation.features.profile.components.LocationViewer
-import org.monogram.presentation.features.profile.components.StatisticsViewer
 import org.monogram.presentation.features.profile.components.ProfileTOSDialog
 import org.monogram.presentation.features.profile.components.ProfileTopBar
+import org.monogram.presentation.features.profile.components.StatisticsViewer
 import org.monogram.presentation.features.profile.components.profileMediaSection
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,9 +107,8 @@ fun ProfileContent(component: ProfileComponent) {
     val isCurrentUserProfile = user != null && state.currentUser?.id == user.id
     val isInitialLoading = state.isLoading && chat == null && user == null
 
-    val avatarPath = remember(state.profilePhotos, state.chat, state.user, state.personalAvatarPath) {
-        state.profilePhotos.firstOrNull()
-            ?: state.user?.avatarPath?.takeIf { it.isNotBlank() }
+    val avatarPath = remember(state.chat, state.user, state.personalAvatarPath) {
+        state.user?.avatarPath?.takeIf { it.isNotBlank() }
             ?: state.chat?.avatarPath?.takeIf { it.isNotBlank() }
             ?: state.personalAvatarPath?.takeIf { it.isNotBlank() }
             ?: state.chat?.personalAvatarPath?.takeIf { it.isNotBlank() }

@@ -110,6 +110,8 @@ fun VideoStickerPlayer(
     onProgressUpdate: (Long) -> Unit = {},
     onDurationKnown: (Long) -> Unit = {},
     onPlaybackEnded: () -> Unit = {},
+    onFirstFrameRendered: () -> Unit = {},
+    onPlaybackError: (PlaybackException) -> Unit = {},
     reportProgress: Boolean = false,
     fileId: Int = 0,
     thumbnailData: Any? = null
@@ -262,6 +264,7 @@ fun VideoStickerPlayer(
                         override fun onRenderedFirstFrame() {
                             if (!isDisposed.get()) {
                                 isVideoFrameReady = true
+                                onFirstFrameRendered()
                                 if (isGif) {
                                     Log.d(
                                         GIF_PLAYER_TAG,
@@ -275,6 +278,7 @@ fun VideoStickerPlayer(
                             if (error.cause is FileNotFoundException) {
                                 isVideoFrameReady = false
                             }
+                            onPlaybackError(error)
                             if (isGif) {
                                 Log.e(
                                     GIF_PLAYER_TAG,

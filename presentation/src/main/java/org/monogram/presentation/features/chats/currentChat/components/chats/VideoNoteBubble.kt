@@ -2,9 +2,6 @@
 
 package org.monogram.presentation.features.chats.currentChat.components.chats
 
-import android.net.Uri
-import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import android.widget.FrameLayout
 import androidx.annotation.OptIn
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -35,7 +32,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -52,37 +48,21 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MimeTypes
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.extractor.DefaultExtractorsFactory
-import androidx.media3.extractor.mp4.Mp4Extractor
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import coil3.compose.rememberAsyncImagePainter
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.DateFormatManager
-import org.monogram.presentation.core.util.getMimeType
+import org.monogram.presentation.features.chats.currentChat.components.InlineVideoPlayer
 import org.monogram.presentation.features.stickers.ui.view.shimmerEffect
 import java.io.File
 import java.io.FileNotFoundException
 
-@OptIn(UnstableApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VideoNoteBubble(
@@ -149,11 +129,12 @@ fun VideoNoteBubble(
                     isVisible = rect.bottom > 0 && rect.top < screenHeightPx
                 }
         ) {
-            val context = LocalContext.current
             var isPlaying by remember { mutableStateOf(false) }
             var isMuted by remember { mutableStateOf(true) }
             var progress by remember { mutableFloatStateOf(0f) }
             var hasError by remember { mutableStateOf(false) }
+            val videoPath = content.path
+            val canRenderInlineVideo = videoPath?.let { File(it).exists() } == true && !hasError
 
 
             Box(
@@ -162,10 +143,10 @@ fun VideoNoteBubble(
                     .clip(CircleShape)
                     .background(Color.Black)
                     .onGloballyPositioned { notePosition = it.positionInWindow() }
-                    .pointerInput(content.path, content.isDownloading, hasError) {
+                    .pointerInput(content.path, content.isDownloading, canRenderInlineVideo) {
                         detectTapGestures(
                             onTap = {
-                                if (content.path != null && !hasError) {
+                                if (canRenderInlineVideo) {
                                     isMuted = !isMuted
                                 } else if (content.isDownloading) {
                                     onCancelDownload(content.fileId)
@@ -177,83 +158,36 @@ fun VideoNoteBubble(
                         )
                     }
             ) {
-                if (content.path != null && File(content.path).exists() && !hasError) {
-                    val exoPlayer = remember {
-                        val extractorsFactory = DefaultExtractorsFactory()
-                            .setConstantBitrateSeekingEnabled(true)
-                            .setMp4ExtractorFlags(Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
-
-                        ExoPlayer.Builder(context)
-                            .setMediaSourceFactory(DefaultMediaSourceFactory(context, extractorsFactory))
-                            .build().apply {
-                            repeatMode = Player.REPEAT_MODE_ONE
-                                val mediaItem = MediaItem.Builder()
-                                    .setUri(Uri.parse(content.path))
-                                    .setMimeType(getMimeType(content.path!!) ?: MimeTypes.VIDEO_MP4)
-                                    .build()
-                                setMediaItem(mediaItem)
-                            prepare()
-                            volume = 0f
-                            playWhenReady = true
-                        }
-                    }
-
-                    DisposableEffect(exoPlayer) {
-                        val listener = object : Player.Listener {
-                            override fun onPlayerError(error: PlaybackException) {
-                                if (error.cause is FileNotFoundException) {
-                                    hasError = true
-                                }
-                            }
-                        }
-                        exoPlayer.addListener(listener)
-                        onDispose {
-                            exoPlayer.removeListener(listener)
-                            exoPlayer.release()
-                        }
-                    }
-
-                    LaunchedEffect(isMuted) {
-                        exoPlayer.volume = if (isMuted) 0f else 1f
-                    }
-
-                    LaunchedEffect(isPlaying, isVisible) {
-                        if (isPlaying && isVisible) exoPlayer.play() else exoPlayer.pause()
-                    }
-
+                if (canRenderInlineVideo) {
+                    val resolvedVideoPath = requireNotNull(videoPath)
                     LaunchedEffect(isVisible) {
                         if (isVisible) {
                             isPlaying = true
                         }
                     }
 
-
-                    LaunchedEffect(isPlaying, isVisible) {
-                        while (isActive && isPlaying && isVisible) {
-                            val current = exoPlayer.currentPosition
-                            val total = exoPlayer.duration
-                            if (total > 0) {
-                                progress = current.toFloat() / total.toFloat()
+                    InlineVideoPlayer(
+                        path = resolvedVideoPath,
+                        modifier = Modifier.matchParentSize(),
+                        contentScale = ContentScale.Crop,
+                        animate = isPlaying && isVisible,
+                        volume = if (isMuted) 0f else 1f,
+                        placeholderData = content.thumbnail,
+                        reportProgress = true,
+                        onProgressUpdate = { positionMs ->
+                            val durationMs = (content.duration * 1000L).coerceAtLeast(0L)
+                            progress = if (durationMs > 0L) {
+                                (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                            } else {
+                                0f
                             }
-                            delay(50)
+                        },
+                        onPlaybackError = { error ->
+                            if (error.cause is FileNotFoundException) {
+                                hasError = true
+                            }
                         }
-                    }
-
-                    Box(
-                        modifier = Modifier.matchParentSize()
-                    ) {
-                        AndroidView(
-                            factory = { ctx ->
-                                PlayerView(ctx).apply {
-                                    player = exoPlayer
-                                    useController = false
-                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                    layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-                                }
-                            },
-                            modifier = Modifier.matchParentSize()
-                        )
-                    }
+                    )
                 } else {
 
                     if (content.thumbnail != null) {
@@ -289,7 +223,7 @@ fun VideoNoteBubble(
                 }
 
 
-                if (content.path != null && isPlaying && !hasError) {
+                if (canRenderInlineVideo && isPlaying) {
                     Box(modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = 16.dp)) {
@@ -318,7 +252,7 @@ fun VideoNoteBubble(
                         trackColor = Color.White.copy(alpha = 0.3f)
                     )
                 }
-            } else if (content.path != null && !hasError) {
+            } else if (canRenderInlineVideo) {
 
                 CircularWavyProgressIndicator(
                     progress = { progress },
@@ -329,7 +263,7 @@ fun VideoNoteBubble(
             }
 
 
-            if (!isPlaying && content.path != null && !hasError) {
+            if (!isPlaying && canRenderInlineVideo) {
                 Box(modifier = Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,

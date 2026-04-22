@@ -27,8 +27,21 @@ internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
 }
 
 internal fun DefaultChatComponent.handleDeleteMessage(message: MessageModel, revoke: Boolean = false) {
+    val messageIdsToDelete = if (message.mediaAlbumId != 0L) {
+        _state.value.messages
+            .asSequence()
+            .filter { it.chatId == message.chatId && it.mediaAlbumId == message.mediaAlbumId }
+            .map(MessageModel::id)
+            .distinct()
+            .sorted()
+            .toList()
+            .ifEmpty { listOf(message.id) }
+    } else {
+        listOf(message.id)
+    }
+
     scope.launch {
-        repositoryMessage.deleteMessage(message.chatId, listOf(message.id), revoke)
+        repositoryMessage.deleteMessage(message.chatId, messageIdsToDelete, revoke)
     }
 }
 

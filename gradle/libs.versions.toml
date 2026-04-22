@@ -1,6 +1,6 @@
 [versions]
 # Plugins
-agp = "9.1.0"
+agp = "9.1.1"
 kotlin = "2.3.20"
 google-services = "4.4.4"
 ossLicensesPlugin = "0.11.0"

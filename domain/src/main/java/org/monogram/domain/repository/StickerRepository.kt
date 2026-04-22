@@ -20,6 +20,7 @@ interface StickerRepository {
     suspend fun clearRecentStickers()
 
     fun getStickerFile(fileId: Long): Flow<String?>
+    fun getCustomEmojiFile(customEmojiId: Long): Flow<String?>
     suspend fun getTgsJson(path: String): String?
     fun clearCache()
 

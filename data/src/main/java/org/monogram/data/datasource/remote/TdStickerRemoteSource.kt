@@ -98,4 +98,11 @@ class TdStickerRemoteSource(
     override suspend fun clearRecentStickers() {
         coRunCatching { gateway.execute(TdApi.ClearRecentStickers()) }
     }
+
+    override suspend fun getCustomEmojiFileId(customEmojiId: Long): Long? {
+        return coRunCatching {
+            val result = gateway.execute(TdApi.GetCustomEmojiStickers(longArrayOf(customEmojiId)))
+            result.stickers.firstOrNull()?.sticker?.id?.toLong()
+        }.getOrNull()
+    }
 }

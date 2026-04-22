@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
@@ -117,7 +116,6 @@ fun ChannelTextMessageBubble(
                     BigEmojiContent(
                         items = renderData.bigEmojiItems,
                         sizeDp = finalFontSize,
-                        emojiFontFamily = FontFamily.Default,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 2.dp)

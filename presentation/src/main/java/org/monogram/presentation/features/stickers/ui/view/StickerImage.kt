@@ -2,6 +2,7 @@ package org.monogram.presentation.features.stickers.ui.view
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -18,6 +19,22 @@ fun StickerImage(
     animate: Boolean = true,
 ) {
     if (path == null) return
+
+    key(path) {
+        StickerImageContent(
+            modifier = modifier,
+            path = path,
+            animate = animate
+        )
+    }
+}
+
+@Composable
+private fun StickerImageContent(
+    modifier: Modifier = Modifier,
+    path: String,
+    animate: Boolean = true,
+) {
 
     val isAnimated = path.endsWith(".webm", ignoreCase = true) || 
                      path.endsWith(".tgs", ignoreCase = true) || 

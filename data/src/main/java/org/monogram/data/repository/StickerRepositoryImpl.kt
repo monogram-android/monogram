@@ -7,7 +7,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -54,6 +56,8 @@ class StickerRepositoryImpl(
 
     @Volatile
     private var lastCustomEmojiLoadTime = 0L
+
+    private val customEmojiFileIds = MutableStateFlow<Map<Long, Long>>(emptyMap())
 
     init {
         scope.launch {
@@ -254,12 +258,29 @@ class StickerRepositoryImpl(
         return fileManager.getStickerFile(fileId)
     }
 
+    override fun getCustomEmojiFile(customEmojiId: Long): Flow<String?> = flow {
+        val cachedFileId = customEmojiFileIds.value[customEmojiId]
+        val fileId =
+            cachedFileId ?: remote.getCustomEmojiFileId(customEmojiId)?.also { resolvedFileId ->
+                customEmojiFileIds.value =
+                    customEmojiFileIds.value + (customEmojiId to resolvedFileId)
+            }
+
+        if (fileId == null) {
+            emit(null)
+            return@flow
+        }
+
+        emitAll(fileManager.getStickerFile(fileId))
+    }
+
     override suspend fun getTgsJson(path: String): String? {
         return fileManager.getTgsJson(path)
     }
 
     override fun clearCache() {
         fileManager.clearCache()
+        customEmojiFileIds.value = emptyMap()
         invalidateStickerSetCaches()
     }
 

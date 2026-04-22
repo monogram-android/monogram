@@ -49,7 +49,6 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -446,6 +445,7 @@ fun VideoMessageBubble(
                         val renderData = rememberMessageTextRenderData(
                             text = content.caption,
                             entities = content.entities,
+                            allowBigEmoji = false,
                             isOutgoing = isOutgoing,
                             revealedSpoilers = revealedSpoilers,
                             fontSize = fontSize
@@ -455,7 +455,6 @@ fun VideoMessageBubble(
                             BigEmojiContent(
                                 items = renderData.bigEmojiItems,
                                 sizeDp = fontSize * 5f,
-                                emojiFontFamily = FontFamily.Default,
                                 modifier = Modifier.padding(bottom = 4.dp)
                             )
                         } else {

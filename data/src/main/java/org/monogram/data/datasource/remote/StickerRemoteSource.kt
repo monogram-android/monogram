@@ -17,4 +17,5 @@ interface StickerRemoteSource {
     suspend fun getStickerEmojiHints(query: String): List<String>
     suspend fun searchStickerSets(query: String): List<StickerSetModel>
     suspend fun clearRecentStickers()
+    suspend fun getCustomEmojiFileId(customEmojiId: Long): Long?
 }

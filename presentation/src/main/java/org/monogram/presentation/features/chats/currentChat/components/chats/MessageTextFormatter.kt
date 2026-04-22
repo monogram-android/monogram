@@ -8,10 +8,9 @@ import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +32,6 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.AppPreferences
-import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 @Immutable
@@ -58,39 +56,19 @@ private fun rememberResolvedCustomEmojiPaths(
     entities: List<MessageEntity>,
     stickerRepository: StickerRepository = koinInject()
 ): List<String?> {
-    val emojiEntities = remember(entities) {
+    val emojiEntities =
         entities.filter { it.type is MessageEntityType.CustomEmoji }.sortedBy { it.offset }
-    }
-    val customEmojiStickerSets by stickerRepository.customEmojiStickerSets.collectAsState()
-
-    LaunchedEffect(emojiEntities, customEmojiStickerSets) {
-        if (
-            emojiEntities.any { (it.type as? MessageEntityType.CustomEmoji)?.path == null } &&
-            customEmojiStickerSets.isEmpty()
-        ) {
-            coRunCatching { stickerRepository.loadCustomEmojiStickerSets() }
-        }
-    }
-
-    val customEmojiFileIdsById = remember(customEmojiStickerSets) {
-        buildMap {
-            customEmojiStickerSets.forEach { set ->
-                set.stickers.forEach { sticker ->
-                    sticker.customEmojiId?.let { put(it, sticker.id) }
-                }
-            }
-        }
-    }
 
     return emojiEntities.map { entity ->
         val type = entity.type as MessageEntityType.CustomEmoji
-        val fileId = customEmojiFileIdsById[type.emojiId]
-        val resolvedPath by if (type.path == null && fileId != null) {
-            stickerRepository.getStickerFile(fileId).collectAsState(initial = null)
-        } else {
-            remember(type.path) { mutableStateOf(type.path) }
+        key(entity.offset, entity.length, type.emojiId, type.path) {
+            val resolvedPath by if (type.path == null) {
+                stickerRepository.getCustomEmojiFile(type.emojiId).collectAsState(initial = null)
+            } else {
+                remember(type.path) { androidx.compose.runtime.mutableStateOf(type.path) }
+            }
+            resolvedPath
         }
-        resolvedPath
     }
 }
 
@@ -101,17 +79,16 @@ fun rememberMessageInlineContent(
     isBigEmoji: Boolean = false,
     stickerRepository: StickerRepository = koinInject()
 ): Map<String, InlineTextContent> {
-    val emojiEntities = remember(entities) {
+    val emojiEntities =
         entities.filter { it.type is MessageEntityType.CustomEmoji }.sortedBy { it.offset }
-    }
     val resolvedEmojiPaths = rememberResolvedCustomEmojiPaths(entities, stickerRepository)
 
     return remember(emojiEntities, resolvedEmojiPaths, fontSize, isBigEmoji) {
         val map = mutableMapOf<String, InlineTextContent>()
         val emojiSizeDp = if (isBigEmoji) fontSize * 5f else fontSize * 1.5f
         val emojiSizeSp = emojiSizeDp.sp
-        emojiEntities.forEachIndexed { index, _ ->
-            map["emoji_$index"] = InlineTextContent(
+        emojiEntities.forEachIndexed { index, entity ->
+            map[inlineEmojiContentId(index, entity)] = InlineTextContent(
                 Placeholder(emojiSizeSp, emojiSizeSp, PlaceholderVerticalAlign.Center)
             ) {
                 StickerImage(
@@ -129,13 +106,14 @@ fun rememberMessageTextRenderData(
     text: String,
     entities: List<MessageEntity>,
     fontSize: Float,
+    allowBigEmoji: Boolean = true,
     isOutgoing: Boolean = false,
     revealedSpoilers: List<Int> = emptyList(),
     appPreferences: AppPreferences = koinInject(),
     stickerRepository: StickerRepository = koinInject()
 ): MessageTextRenderData {
-    val bigEmoji = remember(text, entities) {
-        isBigEmoji(text, entities)
+    val bigEmoji = remember(text, entities, allowBigEmoji) {
+        allowBigEmoji && isBigEmoji(text, entities)
     }
     val resolvedEmojiPaths = rememberResolvedCustomEmojiPaths(entities, stickerRepository)
     val annotatedText = buildAnnotatedMessageTextWithEmoji(
@@ -172,9 +150,6 @@ private fun buildBigEmojiItems(
 ): List<BigEmojiItem> {
     val emojiEntities =
         entities.filter { it.type is MessageEntityType.CustomEmoji }.sortedBy { it.offset }
-    if (emojiEntities.size == 1) {
-        return listOf(BigEmojiItem.Custom(resolvedEmojiPaths.firstOrNull()))
-    }
     val items = mutableListOf<BigEmojiItem>()
     var currentPos = 0
 
@@ -210,13 +185,26 @@ private fun buildBigEmojiItems(
     }.take(3)
 }
 
+private fun inlineEmojiContentId(index: Int, entity: MessageEntity): String {
+    val type = entity.type as? MessageEntityType.CustomEmoji
+    return if (type != null) {
+        "emoji_${index}_${entity.offset}_${entity.length}_${type.emojiId}"
+    } else {
+        "emoji_$index"
+    }
+}
+
 @Composable
 fun BigEmojiContent(
     items: List<BigEmojiItem>,
     sizeDp: Float,
-    emojiFontFamily: FontFamily,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    appPreferences: AppPreferences = koinInject()
 ) {
+    val context = LocalContext.current
+    val emojiStyle by appPreferences.emojiStyle.collectAsState()
+    val emojiFontFamily = remember(context, emojiStyle) { getEmojiFontFamily(context, emojiStyle) }
+
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -288,7 +276,7 @@ fun buildAnnotatedMessageTextWithEmoji(
 
                 if (safeStart >= currentPos) {
                     indexMapping[safeStart] = this.length
-                    appendInlineContent("emoji_$index", "[emoji]")
+                    appendInlineContent(inlineEmojiContentId(index, entity), "[emoji]")
                     currentPos = safeEnd
                 }
             }

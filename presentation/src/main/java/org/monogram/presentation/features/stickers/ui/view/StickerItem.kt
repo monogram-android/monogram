@@ -29,24 +29,39 @@ fun StickerItem(
     stickerRepository: StickerRepository = koinInject()
 ) {
     val isScrolling = LocalIsScrolling.current
-    var currentPath by remember(sticker.id, sticker.path) {
+    val stableStickerKey = sticker.customEmojiId?.takeIf { it != 0L } ?: sticker.id
+    var currentPath by remember(stableStickerKey, sticker.path) {
         mutableStateOf(sticker.path.takeIf(::isExistingPath))
     }
 
-    LaunchedEffect(sticker.id, sticker.path, isScrolling) {
+    LaunchedEffect(stableStickerKey, sticker.id, sticker.customEmojiId, sticker.path, isScrolling) {
         if (!sticker.path.isNullOrEmpty() && isExistingPath(sticker.path)) {
             currentPath = sticker.path
-            Log.d(TAG, "path.direct stickerId=${sticker.id} stickerPath=${sticker.path}")
+            Log.d(
+                TAG,
+                "path.direct stickerId=${sticker.id} customEmojiId=${sticker.customEmojiId} stickerPath=${sticker.path}"
+            )
             return@LaunchedEffect
         }
 
         if (!isScrolling && (currentPath == null || !isExistingPath(currentPath))) {
             currentPath = null
-            currentPath = stickerRepository
-                .getStickerFile(sticker.id)
-                .firstOrNull()
-                ?.takeIf(::isExistingPath)
-            Log.d(TAG, "path.resolved stickerId=${sticker.id} resolvedPath=$currentPath")
+            val customEmojiId = sticker.customEmojiId
+            currentPath = if (customEmojiId != null && customEmojiId != 0L) {
+                stickerRepository
+                    .getCustomEmojiFile(customEmojiId)
+                    .firstOrNull()
+                    ?.takeIf(::isExistingPath)
+            } else {
+                stickerRepository
+                    .getStickerFile(sticker.id)
+                    .firstOrNull()
+                    ?.takeIf(::isExistingPath)
+            }
+            Log.d(
+                TAG,
+                "path.resolved stickerId=${sticker.id} customEmojiId=${sticker.customEmojiId} resolvedPath=$currentPath"
+            )
         }
     }
 

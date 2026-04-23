@@ -205,6 +205,20 @@ fun ChatContentList(
             }
         }
     }
+    var hasUnreadSeparatorBeenVisible by rememberSaveable(
+        state.chatId,
+        state.currentTopicId,
+        unreadBoundaryIndex,
+        state.unreadSeparatorLastReadInboxMessageId,
+        state.unreadSeparatorCount
+    ) { mutableStateOf(false) }
+    var hasUnreadSeparatorDismissed by rememberSaveable(
+        state.chatId,
+        state.currentTopicId,
+        unreadBoundaryIndex,
+        state.unreadSeparatorLastReadInboxMessageId,
+        state.unreadSeparatorCount
+    ) { mutableStateOf(false) }
 
     LaunchedEffect(groupedMessageIds, state.suppressEntryAnimations) {
         val currentIds = groupedMessageIds.toSet()
@@ -288,6 +302,42 @@ fun ChatContentList(
                             component.loadNewer()
                         }
                     }
+                }
+            }
+    }
+
+    LaunchedEffect(
+        scrollState,
+        unreadBoundaryIndex,
+        isComments,
+        showNavPadding,
+        state.isLoadingOlder,
+        state.isLoadingNewer,
+        state.isAtBottom,
+        groupedMessages.isNotEmpty()
+    ) {
+        val boundaryIndex = unreadBoundaryIndex ?: return@LaunchedEffect
+        snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
+            .filter { it.isNotEmpty() }
+            .map { visibleItems ->
+                val leadingItems = chatContentLeadingItemsCount(
+                    isComments = isComments,
+                    showNavPadding = showNavPadding,
+                    isLoadingOlder = state.isLoadingOlder,
+                    isLoadingNewer = state.isLoadingNewer,
+                    isAtBottom = state.isAtBottom,
+                    hasMessages = groupedMessages.isNotEmpty()
+                )
+                visibleItems.any { item ->
+                    lazyIndexToGroupedIndex(item.index, leadingItems) == boundaryIndex
+                }
+            }
+            .distinctUntilChanged()
+            .collect { isBoundaryVisible ->
+                if (isBoundaryVisible) {
+                    hasUnreadSeparatorBeenVisible = true
+                } else if (hasUnreadSeparatorBeenVisible) {
+                    hasUnreadSeparatorDismissed = true
                 }
             }
     }
@@ -386,7 +436,7 @@ fun ChatContentList(
                     onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
                     downloadUtils = downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen,
-                    showUnreadSeparator = index == unreadBoundaryIndex,
+                    showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
                     unreadCount = state.unreadSeparatorCount
                 )
             }
@@ -444,7 +494,7 @@ fun ChatContentList(
                     onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
                     downloadUtils = downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen,
-                    showUnreadSeparator = index == unreadBoundaryIndex,
+                    showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
                     unreadCount = state.unreadSeparatorCount
                 )
             }
@@ -613,9 +663,11 @@ private fun MessageRowItem(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                if (showUnreadSeparator) {
-                    UnreadMessagesSeparator(unreadCount = unreadCount)
-                    Spacer(modifier = Modifier.height(16.dp))
+                AnimatedVisibility(visible = showUnreadSeparator && !isScrolling) {
+                    Column {
+                        UnreadMessagesSeparator(unreadCount = unreadCount)
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                 }
 
                 MessageBubbleSwitcher(

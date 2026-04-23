@@ -111,10 +111,12 @@ import androidx.compose.ui.unit.sp
 import androidx.window.core.layout.WindowSizeClass
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ConnectionStatus
+import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ConfirmationSheet
@@ -140,6 +142,7 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChatListContent(component: ChatListComponent) {
+    val stickerRepository: StickerRepository = koinInject()
     val uiState by component.uiState.collectAsState()
     val foldersState by component.foldersState.collectAsState()
     val chatsState by component.chatsState.collectAsState()
@@ -412,6 +415,17 @@ fun ChatListContent(component: ChatListComponent) {
         val statusEmojiPath = uiState.currentUser?.statusEmojiPath
         if (!statusEmojiPath.isNullOrBlank()) {
             cachedStatusEmojiPath = statusEmojiPath
+        }
+    }
+
+    LaunchedEffect(uiState.currentUser?.statusEmojiId) {
+        val statusEmojiId = uiState.currentUser?.statusEmojiId ?: 0L
+        if (statusEmojiId != 0L) {
+            stickerRepository.getCustomEmojiFile(statusEmojiId).firstOrNull()?.let { resolvedPath ->
+                if (!resolvedPath.isNullOrBlank()) {
+                    cachedStatusEmojiPath = resolvedPath
+                }
+            }
         }
     }
 
@@ -1285,7 +1299,7 @@ fun ChatListContent(component: ChatListComponent) {
                                 if (!sticker.path.isNullOrBlank()) {
                                     cachedStatusEmojiPath = sticker.path
                                 }
-                                component.onSetEmojiStatus(customEmojiId, sticker.path)
+                                component.onSetEmojiStatus(customEmojiId, null)
                                 showStatusMenu = false
                             }
                         },

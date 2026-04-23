@@ -214,6 +214,7 @@ fun ChatContent(
     val groupedMessages by remember {
         derivedStateOf { groupMessagesByAlbum(displayMessages) }
     }
+    val latestUiState = rememberUpdatedState(state)
     val groupedMessageIndexById by remember(groupedMessages) {
         derivedStateOf {
             buildMap {
@@ -231,6 +232,10 @@ fun ChatContent(
     val isComments = state.rootMessage != null
     val isForumList = state.viewAsTopics && state.currentTopicId == null
     var showScrollToBottomButton by remember { mutableStateOf(false) }
+    var hasUserScrolledAwayFromBottom by rememberSaveable(state.chatId, state.currentTopicId) {
+        mutableStateOf(false)
+    }
+    val isDragged by scrollState.interactionSource.collectIsDraggedAsState()
 
     val isAnyViewerOpen = state.fullScreenImages != null ||
             state.fullScreenVideoPath != null ||
@@ -395,7 +400,8 @@ fun ChatContent(
         scrollState,
         isComments,
         isForumList,
-        showInitialLoading
+        showInitialLoading,
+        isDragged
     ) {
         var lastReportedBottomState: Boolean? = null
         snapshotFlow {
@@ -417,15 +423,22 @@ fun ChatContent(
                     lastReportedBottomState = snapshot.isAtBottom
                 }
 
+                if (snapshot.isNearBottom) {
+                    hasUserScrolledAwayFromBottom = false
+                } else if (isDragged) {
+                    hasUserScrolledAwayFromBottom = true
+                }
+
                 val shouldShow = !isForumList &&
                         !showInitialLoading &&
-                        (snapshot.unreadCount > 0 || !snapshot.isNearBottom)
+                        (snapshot.unreadCount > 0 || (hasUserScrolledAwayFromBottom && !snapshot.isNearBottom))
 
                 if (shouldShow) {
                     showScrollToBottomButton = true
                 } else {
                     delay(120)
-                    val keepVisible = snapshot.unreadCount > 0 || !snapshot.isNearBottom
+                    val keepVisible = snapshot.unreadCount > 0 ||
+                            (hasUserScrolledAwayFromBottom && !snapshot.isNearBottom)
                     if (!keepVisible) {
                         showScrollToBottomButton = false
                     }
@@ -491,9 +504,18 @@ fun ChatContent(
     }
 
     // Performance: Update visible range for repository
-    LaunchedEffect(scrollState, groupedMessages, state.rootMessage) {
+    LaunchedEffect(scrollState, groupedMessages) {
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
             .map { visibleItems ->
+                val currentState = latestUiState.value
+                val leadingItemsCount = chatContentLeadingItemsCount(
+                    isComments = currentState.rootMessage != null,
+                    showNavPadding = false,
+                    isLoadingOlder = currentState.isLoadingOlder,
+                    isLoadingNewer = currentState.isLoadingNewer,
+                    isAtBottom = currentState.isAtBottom,
+                    hasMessages = groupedMessages.isNotEmpty()
+                )
                 val visibleIds = LinkedHashSet<Long>()
                 val nearbyIds = LinkedHashSet<Long>()
                 if (visibleItems.isNotEmpty()) {
@@ -501,7 +523,7 @@ fun ChatContent(
                     val maxIndex = visibleItems.maxOf { it.index }
 
                     visibleItems.forEach { item ->
-                        val groupedIndex = if (state.rootMessage != null) item.index - 1 else item.index
+                        val groupedIndex = lazyIndexToGroupedIndex(item.index, leadingItemsCount)
                         groupedMessages.getOrNull(groupedIndex)?.let { grouped ->
                             when (grouped) {
                                 is GroupedMessageItem.Single -> visibleIds.add(grouped.message.id)
@@ -516,7 +538,7 @@ fun ChatContent(
                     val nearbyEnd = maxIndex + 5
                     for (index in nearbyStart..nearbyEnd) {
                         if (index in minIndex..maxIndex) continue
-                        val groupedIndex = if (state.rootMessage != null) index - 1 else index
+                        val groupedIndex = lazyIndexToGroupedIndex(index, leadingItemsCount)
                         groupedMessages.getOrNull(groupedIndex)?.let { grouped ->
                             when (grouped) {
                                 is GroupedMessageItem.Single -> nearbyIds.add(grouped.message.id)
@@ -562,7 +584,6 @@ fun ChatContent(
     }
 
     // Scroll Management
-    val isDragged by scrollState.interactionSource.collectIsDraggedAsState()
     LaunchedEffect(isDragged) {
         if (isDragged) {
             focusManager.clearFocus()
@@ -1586,7 +1607,7 @@ fun ChatContent(
                 StickerSetSheet(
                     stickerSet = stickerSet,
                     onDismiss = { component.onDismissStickerSet() },
-                    onStickerClick = { component.onSendSticker(it) }
+                    onStickerClick = { _, path -> component.onSendSticker(path) }
                 )
             }
 

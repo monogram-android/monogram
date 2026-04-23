@@ -110,8 +110,31 @@ fun EmojisGrid(
     val context = LocalContext.current
     val emojiStyle by appPreferences.emojiStyle.collectAsState()
     val emojiFontFamily = remember(context, emojiStyle) { getEmojiFontFamily(context, emojiStyle) }
-    val filteredRecentEmojis = remember(recentEmojis, emojiOnlyMode) {
-        if (emojiOnlyMode) recentEmojis.filter { it.sticker?.customEmojiId != null } else recentEmojis
+    val currentCustomEmojisById = remember(customEmojiSets) {
+        buildMap<Long, StickerModel> {
+            customEmojiSets.forEach { set ->
+                set.stickers.forEach { sticker ->
+                    val customEmojiId = sticker.customEmojiId
+                    if (customEmojiId != null && customEmojiId != 0L) {
+                        put(customEmojiId, sticker)
+                    }
+                }
+            }
+        }
+    }
+    val normalizedRecentEmojis = remember(recentEmojis, currentCustomEmojisById) {
+        recentEmojis.map { recent ->
+            val recentSticker = recent.sticker
+            val customEmojiId = recentSticker?.customEmojiId
+            if (customEmojiId != null && customEmojiId != 0L) {
+                recent.copy(sticker = currentCustomEmojisById[customEmojiId] ?: recentSticker)
+            } else {
+                recent
+            }
+        }
+    }
+    val filteredRecentEmojis = remember(normalizedRecentEmojis, emojiOnlyMode) {
+        if (emojiOnlyMode) normalizedRecentEmojis.filter { it.sticker?.customEmojiId != null } else normalizedRecentEmojis
     }
     val visibleStandardEmojis = remember(standardEmojis, emojiOnlyMode) {
         if (emojiOnlyMode) emptyList() else standardEmojis
@@ -398,9 +421,8 @@ fun EmojisGrid(
         StickerSetSheet(
             stickerSet = set,
             onDismiss = { previewStickerSet = null },
-            onStickerClick = { path ->
-                val sticker = set.stickers.find { it.path == path }
-                onEmojiSelected(sticker?.emoji ?: "", sticker)
+            onStickerClick = { sticker, _ ->
+                onEmojiSelected(sticker.emoji, sticker)
                 previewStickerSet = null
             }
         )

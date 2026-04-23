@@ -6,15 +6,43 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.models.StickerType
 import org.monogram.domain.repository.StickerRepository
@@ -40,7 +69,7 @@ import org.monogram.presentation.features.stickers.ui.view.StickerSkeleton
 fun StickerSetSheet(
     stickerSet: StickerSetModel,
     onDismiss: () -> Unit,
-    onStickerClick: (String) -> Unit,
+    onStickerClick: (StickerModel, String) -> Unit,
     stickerRepository: StickerRepository = koinInject()
 ) {
     val context = LocalContext.current
@@ -138,9 +167,15 @@ fun StickerSetSheet(
 
                     stickerSet.thumbnail?.let { thumb ->
                         var thumbPath by remember { mutableStateOf(thumb.path) }
-                        LaunchedEffect(thumb.id) {
+                        LaunchedEffect(thumb.id, thumb.customEmojiId, thumb.path) {
                             if (thumb.path == null) {
-                                thumbPath = stickerRepository.getStickerFile(thumb.id).firstOrNull()
+                                val customEmojiId = thumb.customEmojiId
+                                thumbPath = if (customEmojiId != null && customEmojiId != 0L) {
+                                    stickerRepository.getCustomEmojiFile(customEmojiId)
+                                        .firstOrNull()
+                                } else {
+                                    stickerRepository.getStickerFile(thumb.id).firstOrNull()
+                                }
                             }
                         }
                         Box(
@@ -182,9 +217,15 @@ fun StickerSetSheet(
                     items(stickerSet.stickers, key = { it.id }) { sticker ->
                         var currentPath by remember(sticker.id, sticker.path) { mutableStateOf(sticker.path) }
 
-                        LaunchedEffect(sticker.id, sticker.path) {
+                        LaunchedEffect(sticker.id, sticker.customEmojiId, sticker.path) {
                             if (sticker.path == null) {
-                                currentPath = stickerRepository.getStickerFile(sticker.id).firstOrNull()
+                                val customEmojiId = sticker.customEmojiId
+                                currentPath = if (customEmojiId != null && customEmojiId != 0L) {
+                                    stickerRepository.getCustomEmojiFile(customEmojiId)
+                                        .firstOrNull()
+                                } else {
+                                    stickerRepository.getStickerFile(sticker.id).firstOrNull()
+                                }
                             } else {
                                 currentPath = sticker.path
                             }
@@ -196,7 +237,7 @@ fun StickerSetSheet(
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable {
                                     currentPath?.let { path ->
-                                        onStickerClick(path)
+                                        onStickerClick(sticker, path)
                                         onDismiss()
                                     }
                                 }

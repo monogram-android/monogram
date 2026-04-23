@@ -319,7 +319,7 @@ fun StickersView(
         StickerSetSheet(
             stickerSet = set,
             onDismiss = { previewStickerSet = null },
-            onStickerClick = { path ->
+            onStickerClick = { _, path ->
                 onStickerSelected(path)
                 previewStickerSet = null
             }

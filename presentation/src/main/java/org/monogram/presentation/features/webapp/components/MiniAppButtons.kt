@@ -2,14 +2,25 @@
 
 package org.monogram.presentation.features.webapp.components
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -52,23 +63,8 @@ private fun CustomEmojiIcon(
     stickerRepository: StickerRepository = koinInject()
 ) {
     val emojiIdLong = customEmojiId?.toLongOrNull() ?: return
-    val customEmojiStickerSets by stickerRepository.customEmojiStickerSets.collectAsState()
-
-    LaunchedEffect(emojiIdLong) {
-        runCatching { stickerRepository.loadCustomEmojiStickerSets() }
-    }
-
-    val fileId = remember(customEmojiStickerSets, emojiIdLong) {
-        customEmojiStickerSets.firstNotNullOfOrNull { set ->
-            set.stickers.firstOrNull { it.customEmojiId == emojiIdLong }?.id
-        }
-    }
-
-    val emojiPath by if (fileId != null) {
-        stickerRepository.getStickerFile(fileId).collectAsState(initial = null)
-    } else {
-        remember(emojiIdLong) { mutableStateOf(null) }
-    }
+    val emojiPath by stickerRepository.getCustomEmojiFile(emojiIdLong)
+        .collectAsState(initial = null)
 
     Box(modifier = modifier) {
         StickerImage(path = emojiPath, modifier = Modifier.matchParentSize(), animate = true)

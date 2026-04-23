@@ -126,7 +126,7 @@ fun MainContent(
             StickerSetSheet(
                 stickerSet = set.toDomain(),
                 onDismiss = root::dismissStickerPreview,
-                onStickerClick = {}
+                onStickerClick = { _, _ -> }
             )
         }
 

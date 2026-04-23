@@ -118,6 +118,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.window.core.layout.WindowSizeClass
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import kotlinx.coroutines.flow.firstOrNull
+import org.koin.compose.koinInject
+import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
 import org.monogram.presentation.core.ui.ItemPosition
@@ -146,6 +149,7 @@ val QrSurfaceShapeColor = Color(0xFFE3E6D8)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsContent(component: SettingsComponent) {
+    val stickerRepository: StickerRepository = koinInject()
     val state by component.state.subscribeAsState()
     val adaptiveInfo = currentWindowAdaptiveInfo()
     val isTabletInterfaceEnabled = LocalTabletInterfaceEnabled.current
@@ -186,6 +190,17 @@ fun SettingsContent(component: SettingsComponent) {
         val statusEmojiPath = state.currentUser?.statusEmojiPath
         if (!statusEmojiPath.isNullOrBlank()) {
             cachedStatusEmojiPath = statusEmojiPath
+        }
+    }
+
+    LaunchedEffect(state.currentUser?.statusEmojiId) {
+        val statusEmojiId = state.currentUser?.statusEmojiId ?: 0L
+        if (statusEmojiId != 0L) {
+            stickerRepository.getCustomEmojiFile(statusEmojiId).firstOrNull()?.let { resolvedPath ->
+                if (!resolvedPath.isNullOrBlank()) {
+                    cachedStatusEmojiPath = resolvedPath
+                }
+            }
         }
     }
 
@@ -1002,7 +1017,7 @@ fun SettingsContent(component: SettingsComponent) {
                                 if (!sticker.path.isNullOrBlank()) {
                                     cachedStatusEmojiPath = sticker.path
                                 }
-                                component.onSetEmojiStatus(customEmojiId, sticker.path)
+                                component.onSetEmojiStatus(customEmojiId, null)
                                 showStatusMenu = false
                             }
                         },

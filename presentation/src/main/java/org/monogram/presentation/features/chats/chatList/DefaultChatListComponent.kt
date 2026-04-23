@@ -552,7 +552,7 @@ class DefaultChatListComponent(
             state.copy(
                 currentUser = user.copy(
                     statusEmojiId = customEmojiId,
-                    statusEmojiPath = statusPath ?: user.statusEmojiPath
+                    statusEmojiPath = statusPath
                 )
             )
         }

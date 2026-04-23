@@ -22,9 +22,9 @@ android {
 
         val apiId = localProperties.getProperty("API_ID", "0")
         val apiHash = localProperties.getProperty("API_HASH", "")
-
         buildConfigField("int", "API_ID", apiId)
         buildConfigField("String", "API_HASH", "\"$apiHash\"")
+        buildConfigField("boolean", "ENABLE_TDLIB_DEBUG", "false")
     }
 
     flavorDimensions += "tdlib"

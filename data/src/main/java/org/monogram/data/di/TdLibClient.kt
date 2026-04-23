@@ -12,6 +12,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.Client
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.BuildConfig
 import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.isExpectedProxyFailure
 import java.util.concurrent.ConcurrentHashMap
@@ -34,10 +35,12 @@ internal class TdLibClient {
 
     init {
         try {
-            Client.execute(TdApi.SetLogVerbosityLevel(0))
-            Client.execute(TdApi.SetLogStream(TdApi.LogStreamEmpty()))
+            Client.execute(TdApi.SetLogVerbosityLevel(if (BuildConfig.ENABLE_TDLIB_DEBUG) 4 else 0))
+            if (!BuildConfig.ENABLE_TDLIB_DEBUG) {
+                Client.execute(TdApi.SetLogStream(TdApi.LogStreamEmpty()))
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to disable TDLib logs", e)
+            Log.e(TAG, "Failed to configure TDLib logs", e)
         }
     }
 

@@ -4,25 +4,20 @@
     <string name="confirmation_message">Вы действительно хотите подтвердить вход на этом устройстве?</string>
     <string name="confirm_auth_action">Да, войти</string>
     <string name="cancel_action">Отмена</string>
-
     <string name="scan_qr_title">Сканировать QR-код</string>
     <string name="devices_title">Устройства</string>
     <string name="link_device_action">Подключить устройство</string>
-
     <string name="current_device_section">Это устройство</string>
     <string name="login_requests_section">Запросы на вход</string>
     <string name="active_sessions_section">Активные сеансы</string>
     <string name="sessions_login_attempt">Попытка входа</string>
     <string name="sessions_unconfirmed">Не подтверждено</string>
     <string name="sessions_terminate_action">Завершить сеанс</string>
-
     <string name="cd_navigate_back">Назад</string>
     <string name="cd_close_scanner">Закрыть сканер</string>
     <string name="cd_qr_icon">Иконка QR-сканера</string>
-
     <!-- Startup -->
     <string name="startup_connecting">Подключение к Telegram…</string>
-
     <!-- About Screen -->
     <string name="about_title">О приложении</string>
     <string name="cd_back">Назад</string>
@@ -48,7 +43,6 @@
     <string name="role_designer">Дизайнер</string>
     <string name="monogram_description">MonoGram — неофициальный клиент Telegram на базе Material Design 3</string>
     <string name="copyright_text">© 2026 MonoGram</string>
-
     <!-- Updates -->
     <string name="check_for_updates">Проверить обновления</string>
     <string name="checking_updates">Проверка…</string>
@@ -67,7 +61,6 @@
     <string name="download_update_action">Скачать обновление</string>
     <string name="cancel_button">Отмена</string>
     <string name="loading_text">Загрузка…</string>
-
     <!-- Auth -->
     <string name="auth_title_phone">Ваш телефон</string>
     <string name="auth_title_verification">Проверка</string>
@@ -105,12 +98,10 @@
     <string name="paste_action">Вставить</string>
     <string name="auth_error_title">Ошибка авторизации</string>
     <string name="dismiss_button">Закрыть</string>
-
     <!-- Loading -->
     <string name="loading_please_wait">Пожалуйста, подождите…</string>
     <string name="loading_taking_too_long">Загрузка длится слишком долго?</string>
     <string name="loading_reset_connection">Сбросить соединение</string>
-
     <!-- Chat List -->
     <string name="forward_to_title">Переслать…</string>
     <plurals name="chats_selected_format">
@@ -144,7 +135,6 @@
     <string name="no_chats_yet">Чатов пока нет</string>
     <string name="start_new_conversation">Начните новую беседу</string>
     <string name="mini_app_default_name">Mini App</string>
-
     <!-- Account Menu -->
     <string name="app_name_dev">MonoGram Alpha</string>
     <string name="action_add_account">Добавить аккаунт</string>
@@ -166,7 +156,6 @@
     <string name="unknown_user">Неизвестный пользователь</string>
     <string name="no_info">Нет информации</string>
     <string name="cd_show_accounts">Показать аккаунты</string>
-
     <!-- Current Chat -->
     <string name="search_messages_hint">Поиск сообщений…</string>
     <string name="action_clear">Очистить</string>
@@ -184,7 +173,6 @@
     <string name="cd_scroll_to_bottom">Прокрутить вниз</string>
     <string name="topic_closed_bar">Эта тема закрыта</string>
     <string name="cd_attach">Прикрепить</string>
-
     <!-- Current Chat Additions -->
     <string name="delete_message_title">Удалить сообщение?</string>
     <string name="delete_messages_title">Удалить %1$d сообщений?</string>
@@ -192,7 +180,6 @@
     <string name="delete_messages_confirmation">Вы уверены, что хотите удалить эти сообщения?</string>
     <string name="delete_for_everyone">Удалить у всех</string>
     <string name="delete_for_me">Удалить у меня</string>
-
     <string name="report_title">Почему Вы жалуетесь на это?</string>
     <string name="report_description">Ваша жалоба анонимна. Мы проверим историю чата для обеспечения безопасности.</string>
     <string name="report_details_title">Детали жалобы</string>
@@ -218,7 +205,6 @@
     <string name="report_reason_unrelated_location_description">Контент не имеет отношения к этому месту</string>
     <string name="report_reason_other">Другое</string>
     <string name="report_reason_other_description">Что-то другое, что нарушает наши условия</string>
-
     <string name="restrict_user_title">Ограничить пользователя</string>
     <string name="permission_send_messages">Отправка сообщений</string>
     <string name="permission_send_media">Отправка медиа</string>
@@ -232,7 +218,6 @@
     <string name="cd_select_date">Выбрать дату</string>
     <string name="cd_select_time">Выбрать время</string>
     <string name="action_restrict">Ограничить</string>
-
     <string name="menu_reply">Ответить</string>
     <string name="menu_copy">Копировать</string>
     <string name="menu_pin">Закрепить</string>
@@ -253,7 +238,6 @@
     <string name="info_edited">изменено</string>
     <string name="info_read">прочитано</string>
     <string name="info_views">просмотры</string>
-
     <!-- Profile -->
     <string name="unknown_title">Неизвестно</string>
     <plurals name="members_count_format">
@@ -335,7 +319,6 @@
     <string name="close_button">Закрыть</string>
     <string name="tos_dialog_description">Запуская это Mini App, Вы соглашаетесь с Условиями обслуживания и Политикой конфиденциальности. Бот сможет получить доступ к Вашей основной информации профиля.</string>
     <string name="accept_and_launch">Принять и запустить</string>
-
     <!-- Settings -->
     <string name="qr_code_title">QR-код</string>
     <string name="action_share">Поделиться</string>
@@ -386,7 +369,6 @@
     <string name="debug_force_sponsor_sync_subtitle">Сейчас загрузить ID спонсоров из канала</string>
     <string name="log_out_title">Выйти</string>
     <string name="log_out_subtitle">Завершить сеанс</string>
-
     <!-- Edit Profile -->
     <string name="usernames_title">Имена пользователя</string>
     <string name="retry_after_format">Повторите попытку через %1$d с</string>
@@ -430,7 +412,6 @@
     <string name="friday_short">Пт</string>
     <string name="saturday_short">Сб</string>
     <string name="sunday_short">Вс</string>
-
     <!-- Privacy and Security -->
     <string name="privacy_security_header">Конфиденциальность</string>
     <string name="privacy_section_header">Приватность</string>
@@ -474,7 +455,6 @@
     <string name="ttl_months_format">%1$d мес.</string>
     <string name="ttl_days_format">%1$d дн.</string>
     <string name="privacy_deletion_reason_user">Удаление по запросу пользователя</string>
-
     <!-- Proxy Settings -->
     <string name="proxy_settings_header">Настройки прокси</string>
     <string name="refresh_pings_cd">Обновить задержку</string>
@@ -569,33 +549,30 @@
     <string name="test_proxy_button">Проверить</string>
     <string name="test_proxy_result">Результат проверки</string>
     <string name="action_delete">Удалить</string>
-    <string name="proxy_checking">Проверка...</string>
+    <string name="proxy_checking">Проверка…</string>
     <string name="proxy_offline">Недоступен</string>
     <string name="proxy_ping_format">%1$d мс</string>
-
     <!-- Telemt DNS Settings -->
-    <string name="telemt_dns_section_header">Telemt DNS</string>
-    <string name="telemt_dns_section_subtitle">Настройка DNS-over-HTTPS провайдера для TDLib</string>
-    <string name="telemt_dns_provider_title">DNS провайдер</string>
-    <string name="telemt_dns_provider_subtitle">Выберите DoH провайдер для разрешения доменов</string>
+    <string name="telemt_dns_section_header">Телемт DNS</string>
+    <string name="telemt_dns_section_subtitle">Настройка поставщика DNS-over-HTTPS для TDLib</string>
+    <string name="telemt_dns_provider_title">DNS-провайдер</string>
+    <string name="telemt_dns_provider_subtitle">Выберите провайдера DoH для разрешения домена</string>
     <string name="telemt_dns_provider_google">Google DNS</string>
     <string name="telemt_dns_provider_cloudflare">CloudFlare DNS</string>
     <string name="telemt_dns_provider_custom">Пользовательский DoH</string>
-    <string name="telemt_dns_custom_url_title">URL пользовательского DoH</string>
-    <string name="telemt_dns_custom_url_subtitle">Введите URL сервера DNS-over-HTTPS</string>
+    <string name="telemt_dns_custom_url_title">Пользовательский URL-адрес DoH</string>
+    <string name="telemt_dns_custom_url_subtitle">Введите URL-адрес пользовательского DNS-over-HTTPS-сервера.</string>
     <string name="telemt_dns_custom_headers_title">Пользовательские заголовки</string>
-    <string name="telemt_dns_custom_headers_subtitle">Опциональные заголовки для DoH (например, Authorization)</string>
-    <string name="telemt_dns_fallback_google">Резерв: Google DNS → CloudFlare DNS</string>
-    <string name="telemt_dns_fallback_cloudflare">Резерв: CloudFlare DNS → Google DNS</string>
-    <string name="telemt_dns_fallback_custom">Пользовательский DoH без резерва</string>
-    <string name="dns_provider_change_failed">Не удалось изменить DNS провайдер</string>
-    <string name="dns_url_change_failed">Не удалось изменить DNS URL</string>
-    <string name="dns_headers_change_failed">Не удалось изменить DNS заголовки</string>
-
+    <string name="telemt_dns_custom_headers_subtitle">Дополнительные заголовки для пользовательского DoH (например, авторизация)</string>
+    <string name="telemt_dns_fallback_google">Резервный вариант: Google DNS → CloudFlare DNS</string>
+    <string name="telemt_dns_fallback_cloudflare">Резервный вариант: CloudFlare DNS → Google DNS</string>
+    <string name="telemt_dns_fallback_custom">Пользовательский DoH не имеет запасного варианта</string>
+    <string name="dns_provider_change_failed">Не удалось сменить поставщика DNS.</string>
+    <string name="dns_url_change_failed">Не удалось изменить URL-адрес DNS.</string>
+    <string name="dns_headers_change_failed">Не удалось изменить заголовки DNS.</string>
     <!-- Settings General -->
     <string name="your_usernames_header">Ваши имена пользователя</string>
     <string name="more_options_cd">Дополнительно</string>
-
     <!-- Notifications and Sounds -->
     <string name="notifications_sounds_header">Уведомления и звуки</string>
     <string name="message_notifications_header">Уведомления о сообщениях</string>
@@ -639,7 +616,6 @@
     <string name="repeat_hours_format">Каждые %1$d ч.</string>
     <string name="push_provider_fcm">Firebase Cloud Messaging</string>
     <string name="push_provider_gms_less">Без GMS (фоновая служба)</string>
-
     <!-- Chat Settings -->
     <string name="chat_settings_header">Настройки чатов</string>
     <string name="appearance_header">Внешний вид</string>
@@ -712,7 +688,6 @@
     <string name="emoji_style_catmoji">Catmoji</string>
     <string name="emoji_style_noto">Noto</string>
     <string name="emoji_style_system">Системные</string>
-
     <!-- Data and Storage -->
     <string name="data_storage_title_header">Данные и память</string>
     <string name="disk_network_usage_header">Использование памяти и сети</string>
@@ -737,7 +712,6 @@
     <string name="videos_autoplay_subtitle">Внутри диалогов и групп</string>
     <string name="enabled_label">Включено</string>
     <string name="disabled_label">Отключено</string>
-
     <!-- Power Saving -->
     <string name="power_saving_header">Энергосбережение</string>
     <string name="battery_header">Батарея</string>
@@ -752,7 +726,6 @@
     <string name="chat_animations_subtitle">Отключить для продления работы от аккумулятора</string>
     <string name="background_header">Фон</string>
     <string name="keep_alive_power_saving_subtitle">Отключение может привести к задержке уведомлений</string>
-
     <!-- Stickers and Emoji -->
     <string name="stickers_emoji_header">Стикеры и эмодзи</string>
     <string name="stickers_tab">Стикеры</string>
@@ -791,7 +764,6 @@
     <string name="sticker_type_custom_emojis">Эмодзи</string>
     <string name="sticker_official">Официальный</string>
     <string name="link_copied">Ссылка скопирована</string>
-
     <!-- Network Usage -->
     <string name="network_usage_header">Использование сети</string>
     <string name="reset_statistics_cd">Сбросить статистику</string>
@@ -810,7 +782,6 @@
     <string name="wifi_tab">Wi-Fi</string>
     <string name="roaming_tab">Роуминг</string>
     <string name="other_tab">Другое</string>
-
     <!-- Storage Usage -->
     <string name="storage_usage_header">Использование памяти</string>
     <string name="clear_all_cache_format">Очистить весь кэш • %1$s</string>
@@ -834,7 +805,6 @@
     <string name="total_used_label">Всего использовано</string>
     <string name="files_count_format">Файлов: %1$d</string>
     <string name="files_count_label">Файлов: %1$d</string>
-
     <!-- Privacy Setting -->
     <string name="privacy_who_can_add_me">Кто может добавлять меня в группы?</string>
     <string name="privacy_who_can_call_me">Кто может мне звонить?</string>
@@ -859,7 +829,6 @@
     <string name="privacy_block_user_cd">Заблокировать</string>
     <string name="privacy_search_users_placeholder">Поиск пользователей</string>
     <string name="privacy_no_users_found">Пользователи не найдены</string>
-
     <!-- Passcode -->
     <string name="passcode_change_title">Изменить код-пароль</string>
     <string name="passcode_set_title">Установить код-пароль</string>
@@ -872,7 +841,6 @@
     <string name="passcode_verify_title">Подтвердите код-пароль</string>
     <string name="passcode_verify_description">Перед изменением или отключением кода-пароля введите текущий.</string>
     <string name="passcode_verify_error">Неверный код-пароль.</string>
-
     <!-- AdBlock -->
     <string name="cd_add_keyword">Добавить ключевое слово</string>
     <string name="adblock_enable">Включить AdBlock</string>
@@ -894,7 +862,6 @@
     <string name="adblock_whitelisted_subtitle">Посты в этих каналах не будут фильтроваться</string>
     <string name="adblock_no_whitelisted">Список пуст</string>
     <string name="action_remove">Удалить</string>
-
     <!-- Core/Common -->
     <string name="last_seen_recently">был(а) недавно</string>
     <string name="last_seen_just_now">был(а) только что</string>
@@ -920,7 +887,6 @@
     <string name="menu_unarchive">Разархивировать</string>
     <string name="menu_archive">В архив</string>
     <string name="menu_remove_set">Удалить набор</string>
-
     <!-- New Chat -->
     <string name="new_message_title">Новое сообщение</string>
     <string name="add_members_title">Добавить участников</string>
@@ -975,7 +941,6 @@
     <string name="group_auto_delete_info">Автоматически удалять новые сообщения в этой группе через определенное время.</string>
     <string name="add_photo_cd">Добавить фото</string>
     <string name="change_photo_cd">Изменить фото</string>
-
     <!-- Permissions -->
     <string name="permissions_required_title">Необходимы разрешения</string>
     <string name="permissions_required_description">Для обеспечения наилучшего опыта MonoGram необходимы следующие разрешения.</string>
@@ -993,15 +958,12 @@
     <string name="permission_microphone_description">Записывайте голосовые и видеосообщения</string>
     <string name="permission_location_title">Местоположение</string>
     <string name="permission_location_description">Делитесь местоположением и находите пользователей рядом</string>
-
     <!-- Selection -->
     <string name="cd_clear_selection">Очистить выделение</string>
     <string name="action_pin">Закрепить</string>
-
     <!-- Bot Commands -->
     <string name="bot_commands_title">Команды бота</string>
     <string name="bot_commands_subtitle">Выберите команду для отправки боту</string>
-
     <!-- Chat List Preview -->
     <string name="chat_list_preview_title">Список чатов</string>
     <string name="preview_name_konata">Коната Идзуми</string>
@@ -1010,32 +972,27 @@
     <string name="preview_name_kagami">Кагами Хиираги</string>
     <string name="preview_message_kagami">Не забудь про домашку! Её нужно сдать завтра утром, и она довольно сложная.</string>
     <string name="preview_time_kagami">11:20</string>
-
     <!-- Chat Settings Preview -->
     <string name="chat_settings_preview_title">Предпросмотр</string>
     <string name="preview_msg_sender_me">Я</string>
     <string name="preview_msg_text_1">Я не коротышка, я просто концентрированная крутость! 🍫\nА ещё я решила стать профессиональной соней 😴</string>
-    <string name="preview_msg_text_2">Ты так говоришь каждый раз, когда не можешь дотянуться до верхней полки... 🙄\nЗацени: вот</string>
+    <string name="preview_msg_text_2">Ты так говоришь каждый раз, когда не можешь дотянуться до верхней полки… 🙄\nЗацени: вот</string>
     <string name="preview_msg_text_3">Хватит меня разоблачать! 😤✨\nЯ просто использую своё секретное оружие: 💯 чистая лень</string>
     <string name="preview_msg_text_4">Это суперэффективно! 😵‍💫</string>
     <string name="preview_date_today">Сегодня</string>
     <string name="preview_name_konata_short">Коната</string>
-
     <string name="subscribers_count_format">%1$d подписчиков</string>
     <string name="thread_title">Ветка</string>
-
     <!-- Recording UI -->
     <string name="recording_delete">Удалить запись</string>
     <string name="recording_slide_to_cancel">&lt; Проведите для отмены</string>
     <string name="recording_send">Отправить запись</string>
     <string name="recording_lock">Заблокировать запись</string>
     <string name="recording_swipe_up">Проведите вверх</string>
-
     <!-- Input Bar -->
     <string name="input_placeholder_caption">Добавить подпись…</string>
     <string name="input_placeholder_message">Сообщение</string>
     <string name="input_error_not_allowed">Отправка сообщений запрещена</string>
-
     <!-- Media Types -->
     <string name="media_type_photo">Фото</string>
     <string name="media_type_video">Видео</string>
@@ -1045,7 +1002,6 @@
     <string name="media_type_gif">GIF</string>
     <string name="media_type_location">Геопозиция</string>
     <string name="media_type_message">Сообщение</string>
-
     <!-- Actions -->
     <string name="action_cancel_reply">Отменить ответ</string>
     <string name="action_edit_message">Изменить сообщение</string>
@@ -1091,7 +1047,6 @@
     <string name="gallery_permission_description">Предоставьте доступ к фото и видео, чтобы прикреплять файлы в чате.
     </string>
     <string name="gallery_permission_grant">Предоставить доступ</string>
-
     <string name="rich_text_bold">Жирный</string>
     <string name="rich_text_italic">Курсив</string>
     <string name="rich_text_underline">Подчеркнутый</string>
@@ -1107,15 +1062,12 @@
     <string name="rich_text_link_hint">URL</string>
     <string name="rich_text_code_language_title">Язык кода</string>
     <string name="rich_text_code_language_hint">Язык (например, kotlin)</string>
-
     <string name="fullscreen_editor_meta">%1$d символов • %2$d блоков форматирования</string>
     <string name="fullscreen_editor_blocks">%1$d блоков форматирования</string>
     <string name="fullscreen_editor_hint">Выделите текст, чтобы применить форматирование как в Telegram</string>
     <string name="message_length_counter">%1$d/%2$d</string>
-
     <!-- Bot -->
     <string name="bot_commands">Команды</string>
-
     <!-- Chat Typing -->
     <string name="typing_typing">печатает</string>
     <string name="typing_recording_video">записывает видео</string>
@@ -1136,7 +1088,6 @@
         <item quantity="many">%d человек печатают</item>
         <item quantity="other">%d человек печатают</item>
     </plurals>
-
     <!-- Storage Mapper -->
     <string name="storage_photos">Фотографии</string>
     <string name="storage_videos">Видео</string>
@@ -1148,10 +1099,8 @@
     <string name="storage_other_files">Другие файлы</string>
     <string name="storage_other_cache">Прочее / Кэш</string>
     <string name="storage_chat_format">Чат %d</string>
-
     <!-- Network Mapper -->
     <string name="network_calls">Звонки</string>
-
     <!-- Notification Service -->
     <string name="notification_service_waiting">Ожидание новых сообщений</string>
     <string name="notification_service_stop">Остановить</string>
@@ -1171,7 +1120,6 @@
     <string name="notification_channel_channels_description">Уведомления из каналов</string>
     <string name="notification_channel_other_name">Другое</string>
     <string name="notification_channel_other_description">Прочие уведомления</string>
-
     <!-- Chat Mapper / Media Types -->
     <string name="chat_mapper_photo">Фото</string>
     <string name="chat_mapper_video">Видео</string>
@@ -1202,7 +1150,6 @@
     <string name="chat_mapper_seen_recently">был(а) недавно</string>
     <string name="chat_mapper_seen_week">был(а) на этой неделе</string>
     <string name="chat_mapper_seen_month">был(а) в этом месяце</string>
-
     <!-- Pinned Messages -->
     <string name="pinned_messages">Закреплённые сообщения</string>
     <string name="pinned_message">Закреплённое сообщение</string>
@@ -1215,14 +1162,12 @@
         <item quantity="many">%d сообщений</item>
         <item quantity="other">%d сообщений</item>
     </plurals>
-
     <!-- Message Types -->
     <string name="message_type_video_message">Видеосообщение</string>
     <string name="message_type_gif">GIF</string>
     <string name="message_type_document">Документ</string>
     <string name="message_type_poll_format">Опрос: %s</string>
     <string name="message_type_sticker_format">Стикер %s</string>
-
     <!-- Photo Editor Tools -->
     <string name="photo_editor_tool_view">Просмотр</string>
     <string name="photo_editor_tool_crop">Обрезка</string>
@@ -1230,7 +1175,6 @@
     <string name="photo_editor_tool_draw">Рисование</string>
     <string name="photo_editor_tool_text">Текст</string>
     <string name="photo_editor_tool_eraser">Ластик</string>
-
     <!-- Photo Editor Filters -->
     <string name="photo_editor_filter_original">Оригинал</string>
     <string name="photo_editor_filter_bw">Ч/Б</string>
@@ -1240,7 +1184,6 @@
     <string name="photo_editor_filter_warm">Теплый</string>
     <string name="photo_editor_filter_polaroid">Полароид</string>
     <string name="photo_editor_filter_invert">Инверсия</string>
-
     <!-- Photo Editor Actions -->
     <string name="photo_editor_action_save">Сохранить</string>
     <string name="photo_editor_action_cancel">Отмена</string>
@@ -1254,38 +1197,32 @@
     <string name="photo_editor_action_edit_text">Изменить текст</string>
     <string name="photo_editor_action_apply">Применить</string>
     <string name="photo_editor_action_delete">Удалить</string>
-
     <!-- Photo Editor Labels -->
     <string name="photo_editor_label_size">Размер</string>
     <string name="photo_editor_label_zoom">Масштаб</string>
-    <string name="photo_editor_label_placeholder_text">Введите текст...</string>
+    <string name="photo_editor_label_placeholder_text">Введите текст…</string>
     <string name="photo_editor_label_select_tool">Выберите инструмент для редактирования</string>
-
     <!-- Photo Editor Discard Dialog -->
     <string name="photo_editor_discard_title">Сбросить изменения?</string>
     <string name="photo_editor_discard_message">У вас есть несохраненные изменения. Вы уверены, что хотите их удалить?</string>
     <string name="photo_editor_discard_button">Сбросить</string>
-
     <!-- Video Editor Common -->
     <string name="video_editor_apply">Применить</string>
     <string name="video_editor_done">Готово</string>
     <string name="video_editor_cancel">Отмена</string>
     <string name="video_editor_low">Низкое</string>
-
     <!-- Video Editor Tools -->
     <string name="video_tool_view">Просмотр</string>
     <string name="video_tool_trim">Обрезка</string>
     <string name="video_tool_filters">Фильтры</string>
     <string name="video_tool_text">Текст</string>
     <string name="video_tool_compress">Сжатие</string>
-
     <!-- Video Editor Actions/Controls -->
     <string name="video_action_unmute">Включить звук</string>
     <string name="video_action_mute">Выключить звук</string>
     <string name="video_action_add_text">Добавить текст</string>
     <string name="video_quality_label">Качество видео</string>
     <string name="video_estimated_bitrate">Примерный битрейт: %1$d кбит/с</string>
-
     <!-- Video Editor Filters -->
     <string name="video_filter_original">Оригинал</string>
     <string name="video_filter_bw">Ч/Б</string>
@@ -1295,20 +1232,17 @@
     <string name="video_filter_warm">Тёплый</string>
     <string name="video_filter_polaroid">Полароид</string>
     <string name="video_filter_invert">Инверсия</string>
-
     <!-- Video Editor Dialogs & Toasts -->
     <string name="video_error_file_not_found">Файл не найден</string>
     <string name="video_error_file_missing">Видеофайл отсутствует</string>
     <string name="video_discard_title">Сбросить изменения?</string>
     <string name="video_discard_text">У вас есть несохранённые изменения. Вы уверены, что хотите их сбросить?</string>
     <string name="video_discard_confirm">Сбросить</string>
-
     <!-- Web View General -->
     <string name="webview_loading">Загрузка…</string>
     <string name="webview_default_title">Веб-просмотр</string>
     <string name="webview_close">Закрыть</string>
     <string name="webview_more_options">Ещё</string>
-
     <!-- Web View Options Sheet -->
     <string name="webview_options_title">Опции</string>
     <string name="webview_back">Назад</string>
@@ -1325,7 +1259,6 @@
     <string name="webview_desktop_site">Версия для ПК</string>
     <string name="webview_block_ads">Блок рекламы</string>
     <string name="webview_text_size">Размер текста: %1$d%%</string>
-
     <!-- Web View Security/Certificate -->
     <string name="webview_secure">Безопасно</string>
     <string name="webview_insecure">Небезопасно</string>
@@ -1337,13 +1270,11 @@
     <string name="webview_cert_issued_by">Кем выдан</string>
     <string name="webview_cert_valid_until">Действителен до</string>
     <string name="webview_cert_unknown">Неизвестно</string>
-
     <!-- Web View Find In Page Bar -->
     <string name="webview_find_placeholder">Поиск на странице…</string>
     <string name="webview_find_previous">Пред.</string>
     <string name="webview_find_next">След.</string>
     <string name="webview_find_close">Закрыть поиск</string>
-
     <!-- Profile & Components -->
     <string name="label_discussion">Обсуждение</string>
     <string name="label_channel">Канал</string>
@@ -1375,7 +1306,6 @@
     <string name="bot_verification_subtitle">Подтверждено сторонним ботом</string>
     <string name="opening_hours_closed">Закрыто</string>
     <string name="label_id">ID</string>
-
     <!-- Statistics Viewer -->
     <string name="statistics_analyzing">Анализ статистики…</string>
     <string name="statistics_overview">Обзор</string>
@@ -1436,7 +1366,6 @@
     <string name="profile_statistics_preview_venue_format">Место: %1$s</string>
     <string name="profile_statistics_preview_poll_format">Опрос: %1$s</string>
     <string name="profile_statistics_preview_service_message">Служебное сообщение</string>
-
     <!-- Selection: Viewer Common -->
     <string name="viewer_back">Назад</string>
     <string name="viewer_options">Опции</string>
@@ -1446,8 +1375,7 @@
     <string name="viewer_seek_forward_format">+%1$ds</string>
     <string name="viewer_thumbnail_cd">Миниатюра %1$d</string>
     <string name="viewer_page_indicator">%1$d из %2$d</string>
-    <string name="viewer_loading_original">Загружается оригинал...</string>
-
+    <string name="viewer_loading_original">Загружается оригинал…</string>
     <!-- Selection: Viewer Actions -->
     <string name="action_download">Скачать</string>
     <string name="action_download_video">Скачать видео</string>
@@ -1463,7 +1391,6 @@
     <string name="action_pause">Пауза</string>
     <string name="action_play">Воспроизвести</string>
     <string name="action_unlock">Разблокировать</string>
-
     <!-- Selection: Viewer Settings -->
     <string name="settings_title">Настройки</string>
     <string name="settings_playback_speed">Скорость</string>
@@ -1495,45 +1422,37 @@
     <string name="action_switch_to_auto">Переключить на Авто</string>
     <string name="action_use_low_quality">Использовать низкое качество</string>
     <string name="action_open_in_browser">Открыть в браузере</string>
-
     <!-- Selection: Picture-in-Picture -->
     <string name="pip_play">Воспроизвести</string>
     <string name="pip_pause">Пауза</string>
     <string name="pip_rewind">Назад</string>
     <string name="pip_forward">Вперёд</string>
-
     <!-- Sticker & Emoji Menu -->
     <string name="sticker_menu_tab_stickers">Стикеры</string>
     <string name="sticker_menu_tab_emojis">Эмодзи</string>
     <string name="sticker_menu_tab_gifs">GIF</string>
-
     <!-- Stickers View -->
     <string name="stickers_header_recent">Недавние стикеры</string>
     <string name="stickers_header_all">Стикеры</string>
     <string name="stickers_search_placeholder">Найти стикеры</string>
-
     <!-- Emojis View -->
     <string name="emojis_header_recent">Недавние эмодзи</string>
     <string name="emojis_header_standard">Стандартные эмодзи</string>
     <string name="emojis_header_custom">Пользовательские эмодзи</string>
     <string name="emojis_header_all">Эмодзи</string>
     <string name="emojis_search_placeholder">Найти эмодзи</string>
-
     <!-- GIFs View -->
     <string name="gifs_header_recent_saved">Недавние и сохранённые</string>
     <string name="gifs_no_results">GIF не найдены</string>
     <string name="gifs_search_placeholder">Найти GIF</string>
-
     <!-- Common/Accessibility -->
     <string name="common_back">Назад</string>
     <string name="common_clear">Очистить</string>
     <string name="common_recent">Недавние</string>
-
     <!-- QR Code -->
     <string name="qr_saved_to_gallery">Saved to Gallery</string>
     <string name="qr_share_title">Поделиться QR</string>
     <string name="qr_share_error">Ошибка при отправке: %1$s</string>
-
     <!-- Chat Edit (ChatEditContent.kt) -->
     <string name="edit_channel">Изм. канал</string>
     <string name="edit_group">Изм. группу</string>
@@ -1548,16 +1467,14 @@
     <string name="management">Управление</string>
     <string name="delete_channel">Удалить канал</string>
     <string name="delete_group">Удалить группу</string>
-
     <!-- Member List (MemberListContent.kt) -->
-    <string name="search_hint">Поиск...</string>
+    <string name="search_hint">Поиск…</string>
     <string name="administrators">Администраторы</string>
     <string name="subscribers">Подписчики</string>
     <string name="members">Участники</string>
     <string name="blacklist">Чёрный список</string>
     <string name="no_results_found">Ничего не найдено</string>
     <string name="no_members_yet">Участников пока нет</string>
-
     <!-- Admin Management (AdminManageContent.kt) -->
     <string name="admin_rights">Права админа</string>
     <string name="custom_title">Должность</string>
@@ -1576,12 +1493,10 @@
     <string name="permission_delete_stories">Удаление историй</string>
     <string name="permission_add_new_admins">Добавление администраторов</string>
     <string name="permission_remain_anonymous">Анонимность</string>
-
     <!-- Group Permissions (ChatPermissionsContent.kt) -->
     <string name="permissions">Разрешения</string>
     <string name="what_can_members_do">Что могут делать участники группы?</string>
     <string name="permission_add_members">Добавление участников</string>
-
     <!-- Common UI / Content Descriptions -->
     <string name="back">Назад</string>
     <string name="save">Сохранить</string>
@@ -1591,7 +1506,6 @@
     <string name="edit">Изм.</string>
     <string name="username">Имя пользователя</string>
     <string name="filters">Фильтры</string>
-
     <!-- Profile Logs / Recent Actions -->
     <string name="logs_title">Недавние действия</string>
     <string name="logs_events_count">Загружено событий: %d</string>
@@ -1599,7 +1513,6 @@
     <string name="logs_empty_subtitle">Попробуйте изменить фильтры</string>
     <string name="logs_not_implemented">Не реализовано</string>
     <string name="logs_user_id_copied">ID пользователя скопирован</string>
-
     <!-- Logs Filters -->
     <string name="logs_filter_title">Фильтры</string>
     <string name="logs_filter_reset">Сбросить</string>
@@ -1609,7 +1522,6 @@
     <string name="logs_filter_search_placeholder">Поиск…</string>
     <string name="logs_filter_no_users">Пользователи не найдены</string>
     <string name="logs_filter_no_results">Нет результатов по запросу «%s»</string>
-
     <!-- Action Types -->
     <string name="logs_action_edits">Правки</string>
     <string name="logs_action_deletions">Удаления</string>
@@ -1623,7 +1535,6 @@
     <string name="logs_action_settings">Настройки</string>
     <string name="logs_action_links">Ссылки</string>
     <string name="logs_action_video">Видео</string>
-
     <!-- Action Descriptions -->
     <string name="logs_action_edited">отредактировал(а) сообщение</string>
     <string name="logs_action_deleted">удалил(а) сообщение</string>
@@ -1644,7 +1555,6 @@
     <string name="logs_action_video_started">начал(а) видеочат</string>
     <string name="logs_action_video_ended">завершил(а) видеочат</string>
     <string name="logs_action_unknown">выполнил(а) действие: %s</string>
-
     <!-- Details and Previews -->
     <string name="logs_original_message">Старое сообщение:</string>
     <string name="logs_new_message">Новое сообщение:</string>
@@ -1661,7 +1571,6 @@
     <string name="logs_status_to">На</string>
     <string name="logs_permissions_changes">Изменения прав:</string>
     <string name="logs_permissions_current">Текущие права:</string>
-
     <!-- Permissions / Roles -->
     <string name="logs_perm_messages">Сообщения</string>
     <string name="logs_perm_media">Медиа</string>
@@ -1671,13 +1580,11 @@
     <string name="logs_perm_invite">Приглашения</string>
     <string name="logs_perm_pin">Закрепление</string>
     <string name="logs_perm_info">Данные</string>
-
     <string name="logs_role_admin">Админ</string>
     <string name="logs_role_owner">Владелец</string>
     <string name="logs_role_restricted">Ограничен</string>
     <string name="logs_role_banned">Забанен</string>
     <string name="logs_role_member">Участник</string>
-
     <!-- Media Types -->
     <string name="logs_media_photo">Фото</string>
     <string name="logs_media_video">Видео</string>
@@ -1692,20 +1599,16 @@
     <string name="logs_media_location">Геопозиция</string>
     <string name="logs_media_venue">Место</string>
     <string name="logs_media_unsupported">Неподдерживаемое сообщение</string>
-
     <!-- Date and Formats -->
     <string name="format_duration">%1$02d:%2$02d</string>
-
     <!-- Views Count -->
     <string name="views_k">%1$.1fK</string>
     <string name="views_m">%1$.1fM</string>
-
     <!-- Comments -->
     <string name="comment_leave">Прокомментировать</string>
     <string name="comment_count">%1$d комментариев</string>
     <string name="comment_count_k">%1$.1fK комментариев</string>
     <string name="comment_count_m">%1$.1fM комментариев</string>
-
     <!-- Poll Message -->
     <string name="poll_final_results">Финальные результаты</string>
     <string name="poll_anonymous">Анонимный опрос</string>
@@ -1721,17 +1624,14 @@
         <item quantity="many">%d голосов</item>
         <item quantity="other">%d голоса</item>
     </plurals>
-
     <!-- Accessibility Content Descriptions -->
     <string name="cd_more">Ещё</string>
     <string name="cd_vote">Голосовать</string>
     <string name="cd_explanation">Объяснение</string>
-
     <!-- Poll Voters Sheet -->
     <string name="poll_voters_title">Проголосовавшие</string>
     <string name="poll_no_voters">Никто ещё не проголосовал</string>
     <string name="action_close">Закрыть</string>
-
     <!-- Reply Content -->
     <string name="reply_content_photo">Фотография</string>
     <string name="reply_content_video">Видео</string>
@@ -1740,9 +1640,8 @@
     <string name="reply_content_video_message">Видеосообщение</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">Сообщение</string>
-    <string name="message_expired_photo">Фото недоступно</string>
-    <string name="message_expired_video">Видео недоступно</string>
-
+    <string name="message_expired_photo">Срок действия фотографии истек</string>
+    <string name="message_expired_video">Срок действия видео истек</string>
     <!-- Chat Folders -->
     <string name="folders_title">Папки с чатами</string>
     <string name="folders_back">Назад</string>
@@ -1752,8 +1651,8 @@
     <string name="folders_save">Сохранить</string>
     <string name="folders_default_section">Стандартные папки</string>
     <string name="folders_custom_section">Личные папки</string>
-    <string name="folders_show_all_chats_title">Показывать «Все чаты»</string>
-    <string name="folders_show_all_chats_subtitle">Оставлять папку «Все чаты» видимой в панели вкладок</string>
+    <string name="folders_show_all_chats_title">Показать все чаты</string>
+    <string name="folders_show_all_chats_subtitle">Сохраняйте папку «Все чаты» видимой на панели вкладок.</string>
     <string name="folders_delete">Удалить</string>
     <string name="folders_header_description">Создавайте папки для разных групп чатов и быстро переключайтесь между ними.</string>
     <string name="folders_empty_title">У Вас нет папок</string>
@@ -1767,13 +1666,11 @@
     <string name="folders_included_chats">Включённые чаты</string>
     <string name="folders_search_chats">Поиск чатов…</string>
     <string name="folders_cancel">Отмена</string>
-
     <!-- Premium Screen -->
     <string name="premium_title">Telegram Premium</string>
     <string name="premium_back">Назад</string>
     <string name="premium_subscribe_button">Подписаться за %s в месяц</string>
     <string name="premium_unlock_features">Разблокируйте эксклюзивные функции</string>
-
     <!-- Premium Features -->
     <string name="premium_feature_doubled_limits_title">Удвоенные лимиты</string>
     <string name="premium_feature_doubled_limits_description">До %1$d каналов, %2$d папок, %3$d закрепов, %4$d публичных ссылок и не только.</string>
@@ -1797,13 +1694,11 @@
     <string name="premium_feature_emoji_status_description">Установка любого эмодзи в качестве статуса рядом с именем.</string>
     <string name="premium_feature_app_icons_title">Иконки приложения</string>
     <string name="premium_feature_app_icons_description">Эксклюзивные иконки для приложения Telegram на главном экране.</string>
-
     <!-- Mini App Menu -->
     <string name="mini_app_menu_reload">Обновить</string>
     <string name="mini_app_menu_copy_link">Копировать ссылку</string>
     <string name="mini_app_menu_open_in_browser">Открыть в браузере</string>
     <string name="mini_app_menu_add_to_home">На главный экран</string>
-
     <!-- Mini App Dialogs -->
     <string name="mini_app_close_confirmation_title">Закрыть приложение?</string>
     <string name="mini_app_close_confirmation_text">У Вас есть несохранённые изменения. Вы уверены, что хотите закрыть мини-приложение?</string>
@@ -1827,7 +1722,6 @@
     <string name="mini_app_tos_title">Условия использования</string>
     <string name="mini_app_tos_text">Запуская это мини-приложение, Вы принимаете Условия использования и Политику конфиденциальности. Бот получит доступ к данным Вашего профиля.</string>
     <string name="mini_app_tos_accept">Принять и запустить</string>
-
     <!-- Instant View -->
     <string name="instant_view_search_placeholder">Поиск в статье…</string>
     <string name="instant_view_back">Назад</string>
@@ -1848,13 +1742,11 @@
     <string name="instant_view_collapse">Свернуть</string>
     <string name="instant_view_expand">Развернуть</string>
     <string name="instant_view_map_prefix">Карта: %1$s, %2$s</string>
-
     <!-- Settings Top -->
     <string name="share_profile_title">Поделиться профилем</string>
     <string name="share_profile_subtitle">Поделиться ссылкой на ваш профиль в Monogram</string>
     <string name="copy_link_title">Копировать ссылку</string>
     <string name="copy_link_subtitle">Копировать ссылку на профиль Monogram в буфер обмена</string>
-
     <!-- Chat Theme Editor -->
     <string name="chat_theme_editor_title">Редактор тем</string>
     <string name="chat_theme_editor_palette_mode">Режим палитры</string>
@@ -1874,13 +1766,11 @@
     <string name="chat_theme_editor_both">Обе</string>
     <string name="chat_theme_editor_hex">Hex</string>
     <string name="chat_theme_editor_theme_file_name">monogram-theme.json</string>
-
     <string name="chat_theme_editor_theme_file_saved">Файл темы сохранён</string>
     <string name="chat_theme_editor_save_failed">Ошибка сохранения</string>
     <string name="chat_theme_editor_theme_loaded">Тема загружена</string>
     <string name="chat_theme_editor_invalid_file">Некорректный файл</string>
     <string name="chat_theme_editor_load_failed">Ошибка загрузки</string>
-
     <string name="chat_theme_editor_theme_source_title">Источник темы</string>
     <string name="chat_theme_editor_theme_source_description">Выберите один источник цветов. «Своя тема» использует ваши палитры, «Monet» — динамические цвета Android. «AMOLED» влияет только на тёмный режим.</string>
     <string name="chat_theme_editor_custom_theme">Своя тема</string>
@@ -1889,7 +1779,6 @@
     <string name="chat_theme_editor_monet_description">Цвета Material You на основе обоев системы (Android 12+).</string>
     <string name="chat_theme_editor_amoled_dark">AMOLED (чёрный)</string>
     <string name="chat_theme_editor_amoled_dark_description">Чистый чёрный цвет для экономии заряда на OLED-экранах.</string>
-
     <string name="chat_theme_editor_preset_themes">Готовые темы</string>
     <string name="chat_theme_editor_preset_themes_description">У каждого пресета есть светлый и тёмный варианты. Нажмите «Светлая», «Тёмная» или «Обе», чтобы применить их.</string>
     <string name="chat_theme_editor_manual_colors_title">Ручные цвета (%1$s)</string>
@@ -1901,7 +1790,6 @@
     <string name="chat_theme_editor_saturation_format">Насыщенность %1$d%%</string>
     <string name="chat_theme_editor_brightness_format">Яркость %1$d%%</string>
     <string name="chat_theme_editor_alpha_format">Прозрачность %1$d%%</string>
-
     <string name="chat_theme_editor_role_primary">Основной</string>
     <string name="chat_theme_editor_role_secondary">Вторичный</string>
     <string name="chat_theme_editor_role_tertiary">Третичный</string>
@@ -1912,65 +1800,49 @@
     <string name="chat_theme_editor_role_tertiary_container">Контейнер трет.</string>
     <string name="chat_theme_editor_role_surface_variant">Вариант пов.</string>
     <string name="chat_theme_editor_role_outline">Контур</string>
-
     <string name="chat_theme_editor_chip_light_primary">С О</string>
     <string name="chat_theme_editor_chip_light_container">С К</string>
     <string name="chat_theme_editor_chip_light_background">С Ф</string>
     <string name="chat_theme_editor_chip_dark_primary">Т О</string>
     <string name="chat_theme_editor_chip_dark_container">Т К</string>
     <string name="chat_theme_editor_chip_dark_background">Т Ф</string>
-
     <string name="chat_theme_editor_accent_blue">Синий</string>
     <string name="chat_theme_editor_accent_green">Зелёный</string>
     <string name="chat_theme_editor_accent_orange">Оранжевый</string>
     <string name="chat_theme_editor_accent_rose">Розовый</string>
     <string name="chat_theme_editor_accent_indigo">Индиго</string>
     <string name="chat_theme_editor_accent_cyan">Голубой</string>
-
     <string name="chat_theme_editor_preset_classic_name">Классика</string>
     <string name="chat_theme_editor_preset_classic_description">Сбалансированный синий с высокой читаемостью и нейтральным фоном.</string>
-
     <string name="chat_theme_editor_preset_forest_name">Лес</string>
     <string name="chat_theme_editor_preset_forest_description">Натуральные зелёные тона со спокойным контрастом.</string>
-
     <string name="chat_theme_editor_preset_ocean_name">Океан</string>
     <string name="chat_theme_editor_preset_ocean_description">Свежий сине-голубой градиент с глубоким тёмным режимом.</string>
-
     <string name="chat_theme_editor_preset_sunset_name">Закат</string>
     <string name="chat_theme_editor_preset_sunset_description">Тёплые оранжевые и коралловые акценты с чётким текстом.</string>
-
     <string name="chat_theme_editor_preset_graphite_name">Графит</string>
     <string name="chat_theme_editor_preset_graphite_description">Нейтральная серая база с сине-серыми акцентами. Строгий стиль.</string>
-
     <string name="chat_theme_editor_preset_mint_name">Мята</string>
     <string name="chat_theme_editor_preset_mint_description">Сочетание мяты и морской волны с мягкими переходами.</string>
-
     <string name="chat_theme_editor_preset_ruby_name">Рубин</string>
     <string name="chat_theme_editor_preset_ruby_description">Глубокие красные акценты для фокуса на важных действиях.</string>
-
     <string name="chat_theme_editor_preset_lavender_gray_name">Лаванда</string>
     <string name="chat_theme_editor_preset_lavender_gray_description">Приглушённый фиолетово-серый стиль с чистым контрастом.</string>
-
     <string name="chat_theme_editor_preset_sand_name">Песок</string>
     <string name="chat_theme_editor_preset_sand_description">Бежевая и янтарная палитра для минимальной нагрузки на глаза.</string>
-
     <string name="chat_theme_editor_preset_arctic_name">Арктика</string>
     <string name="chat_theme_editor_preset_arctic_description">Ледяной сине-белый стиль с очень чёткими границами.</string>
-
     <string name="chat_theme_editor_preset_emerald_name">Изумруд</string>
     <string name="chat_theme_editor_preset_emerald_description">Яркая зелёная палитра с чистыми поверхностями и современным контрастом.</string>
-
     <string name="chat_theme_editor_preset_copper_name">Медь</string>
     <string name="chat_theme_editor_preset_copper_description">Тёплая медно-оранжевая тема с чётким текстом в обоих режимах.</string>
-
     <string name="chat_theme_editor_preset_sakura_name">Сакура</string>
     <string name="chat_theme_editor_preset_sakura_description">Мягкие розово-пурпурные тона с деликатными контейнерами и яркими акцентами.</string>
-
     <string name="chat_theme_editor_preset_nord_name">Норд</string>
     <string name="chat_theme_editor_preset_nord_description">Прохладные северные синие оттенки со спокойным профессиональным балансом.</string>
     <!-- Circular recorder -->
     <string name="recorder_permissions_required">Нужны разрешения на камеру и микрофон</string>
-    <string name="recorder_processing">Обработка...</string>
+    <string name="recorder_processing">Обработка…</string>
     <string name="recorder_processing_error">Ошибка обработки: %1$s</string>
     <string name="recorder_close_cd">Закрыть запись</string>
     <string name="recorder_switch_cd">Переключить камеру</string>
@@ -1980,7 +1852,6 @@
     <string name="recorder_time_format">Время: %1$s</string>
     <string name="recorder_zoom_format">Зум: %1$.1fx (диапазон %2$.1fx - %3$.1fx)</string>
     <string name="recorder_cancel">Отмена</string>
-
     <string name="clear_history_title">Очистить историю?</string>
     <string name="clear_history_confirmation">Вы уверены, что хотите очистить историю чата? Это действие нельзя отменить.</string>
     <string name="action_clear_history">Очистить историю</string>
@@ -2064,7 +1935,7 @@
     <string name="editor_ai_style_viking">Викинг</string>
     <string name="editor_ai_style_zen">Дзен</string>
     <string name="editor_ai_add_emojis">Добавить эмодзи</string>
-    <string name="editor_ai_loading">Обработка...</string>
+    <string name="editor_ai_loading">Обработка…</string>
     <string name="editor_ai_error_empty">Введите текст для AI</string>
     <string name="editor_ai_error_flood">Слишком много AI-запросов. Может потребоваться Telegram Premium.</string>
     <string name="editor_ai_error_generic">Не удалось обработать текст через AI</string>
@@ -2076,12 +1947,11 @@
     <string name="auth_password_hash_invalid">Неверный пароль</string>
     <string name="unexpected_error">Произошла непредвиденная ошибка</string>
     <string name="unread_messages">%1$d непрочитанных сообщений</string>
-
     <!-- ProxyContent -->
     <string name="proxy_connection_test_button">Запустить тест подключения</string>
     <string name="proxy_connection_test_title">Тест подключения Telegram</string>
     <string name="proxy_connection_test_subtitle">Проверяет сквозное подключение через дата-центр Telegram.</string>
-    <string name="proxy_connection_test_running">Выполняется тест подключения...</string>
+    <string name="proxy_connection_test_running">Выполняется тест подключения…</string>
     <string name="proxy_connection_test_success">Соединение в порядке. Можно сохранить и включить этот прокси.</string>
     <string name="proxy_connection_test_hint">В основном списке показывается только транспортный пинг. Этот тест шире, поэтому значения могут быть выше.</string>
     <string name="proxy_tab_proxy">Прокси</string>
@@ -2188,8 +2058,8 @@
     <string name="notifications_exceptions_channels">Каналы</string>
     <string name="notifications_exceptions_label">Исключения</string>
     <string name="notifications_exceptions_search">Поиск</string>
-    <string name="notifications_exceptions_search_placeholder">Поиск исключений...</string>
-    <string name="notifications_exceptions_no_results_format">Ничего не найдено по запросу &quot;%1$s&quot;</string>
+    <string name="notifications_exceptions_search_placeholder">Поиск исключений…</string>
+    <string name="notifications_exceptions_no_results_format">Ничего не найдено по запросу "%1$s"</string>
     <string name="notifications_exceptions_chats_header">ЧАТЫ</string>
     <string name="notifications_exceptions_hint">Нажмите на чат, чтобы изменить его настройки уведомлений или удалить исключение.</string>
     <string name="notifications_exceptions_empty_title">Нет исключений</string>
@@ -2208,4 +2078,199 @@
     <string name="download_saved_files_with_errors_format">Сохранено %1$d файлов в Загрузки/MonoGram (%2$d не найдено, %3$d с ошибкой)</string>
     <string name="logs_role_left">Покинул</string>
     <string name="logs_role_unknown">Неизвестно</string>
+    <string name="service_message_unknown_time">Неизвестное время</string>
+    <string name="service_message_unknown_duration">Неизвестная продолжительность</string>
+    <string name="service_message_unknown_duration_short">00:00</string>
+    <string name="service_message_auto_delete_off">Выключенный</string>
+    <string name="service_message_money_format">%2$d %2$d</string>
+    <string name="service_message_call_missed">Пропущенный звонок</string>
+    <string name="service_message_call">Вызов</string>
+    <string name="service_message_video_call_missed">Пропущенный видеовызов</string>
+    <string name="service_message_video_call">Видеозвонок</string>
+    <string name="service_message_call_declined">Отклоненный вызов</string>
+    <string name="service_message_video_call_declined">Видеовызов отклонен</string>
+    <string name="service_message_call_disconnected">Вызов прерван</string>
+    <string name="service_message_video_call_disconnected">Видеозвонок отключен</string>
+    <string name="service_message_call_hung_up">Звонок завершен</string>
+    <string name="service_message_video_call_hung_up">Видеозвонок завершен</string>
+    <string name="service_message_call_upgraded_to_group">Звонок повышен до группового звонка</string>
+    <string name="service_message_call_ended">Звонок завершен · %1$s</string>
+    <string name="service_message_video_call_ended">Видеозвонок завершен · %1$s</string>
+    <string name="service_message_group_call">Групповой звонок</string>
+    <string name="service_message_group_video_call">Групповой видеозвонок</string>
+    <string name="service_message_group_call_started">Групповой звонок начался</string>
+    <string name="service_message_group_video_call_started">Групповой видеозвонок начался</string>
+    <string name="service_message_group_call_missed">Пропущенный групповой звонок</string>
+    <string name="service_message_group_video_call_missed">Пропущенный групповой видеозвонок</string>
+    <string name="service_message_group_call_ended">Групповой звонок завершен · %1$s</string>
+    <string name="service_message_group_video_call_ended">Групповой видеозвонок завершен · %1$s</string>
+    <string name="service_message_video_chat_scheduled">Видеочат запланирован на %1$s</string>
+    <string name="service_message_video_chat_started">Видеочат начался</string>
+    <string name="service_message_video_chat_ended">Видеочат завершен · %1$s</string>
+    <string name="service_message_video_chat_invited">Пригласил %1$d человек в видеочат.</string>
+    <string name="service_message_video_chat_invited_one_named">Пригласил %1$s в видеочат.</string>
+    <string name="service_message_video_chat_invited_two_named">Пригласили %2$s и %2$s в видеочат.</string>
+    <string name="service_message_video_chat_invited_many_named">Пригласили %3$d, %3$d и ещё %3$d в видеочат.</string>
+    <string name="service_message_poll_option_added">Добавлена ​​опция опроса: %1$s</string>
+    <string name="service_message_poll_option_deleted">Опция опроса удалена: %1$s.</string>
+    <string name="service_message_basic_group_created">Создал группу "%1$s"</string>
+    <string name="service_message_supergroup_created">Создал супергруппу «%1$s».</string>
+    <string name="service_message_chat_title_changed">%2$s изменил название чата на «%2$s».</string>
+    <string name="service_message_chat_photo_changed">%1$s изменил фотографию в чате</string>
+    <string name="service_message_chat_photo_removed">%1$s удалил фото из чата</string>
+    <string name="service_message_chat_owner_left">Владелец чата ушел</string>
+    <string name="service_message_chat_owner_left_with_new_owner">Владелец чата ушел. Новый владелец: %1$s</string>
+    <string name="service_message_chat_owner_changed">Владелец чата сменился</string>
+    <string name="service_message_chat_owner_changed_to">Новый владелец чата: %1$s</string>
+    <string name="service_message_protected_content_enabled">Защищенный контент включен</string>
+    <string name="service_message_protected_content_disabled">Защищенный контент отключен</string>
+    <string name="service_message_protected_content_disable_requested">Запрошено отключение защищенного контента</string>
+    <string name="service_message_protected_content_disable_expired">Срок действия запроса на отключение защищенного контента истек</string>
+    <string name="service_message_members_added">%2$d добавил %2$d новых участников</string>
+    <string name="service_message_member_added_named">%2$s добавил %2$s</string>
+    <string name="service_message_members_added_two_named">%3$s добавил %3$s и %3$s</string>
+    <string name="service_message_members_added_many_named">%4$d добавил еще %4$d, %4$d и %4$d.</string>
+    <string name="service_message_member_joined">%1$s присоединился к чату</string>
+    <string name="service_message_joined_by_link">%1$s присоединился по ссылке-приглашению</string>
+    <string name="service_message_joined_by_request">%1$s присоединился по запросу</string>
+    <string name="service_message_member_removed">%1$s удалил участника</string>
+    <string name="service_message_member_removed_named">%2$s удален %2$s</string>
+    <string name="service_message_member_left_named">%1$s вышел из чата</string>
+    <string name="service_message_chat_upgraded">%1$s повысил статус группы до супергруппы</string>
+    <string name="service_message_group_migrated">Группа была перенесена</string>
+    <string name="service_message_pinned">%1$s закрепил сообщение</string>
+    <string name="service_message_pinned_with_preview">%2$s закреплен: %2$s</string>
+    <string name="service_message_screenshot_taken">%1$s сделал снимок экрана</string>
+    <string name="service_message_background_changed">Фон чата изменен</string>
+    <string name="service_message_background_changed_for_self">Фон чата изменен для вас</string>
+    <string name="service_message_theme_changed">Тема чата изменена</string>
+    <string name="service_message_theme_changed_to">Тема чата изменена на %1$s.</string>
+    <string name="service_message_theme_changed_gift">Изменена тема чата (тема подарка)</string>
+    <string name="service_message_theme_reset">Сброс темы чата</string>
+    <string name="service_message_auto_delete_enabled">Автоудаление установлено на %1$s</string>
+    <string name="service_message_auto_delete_disabled">Автоудаление отключено</string>
+    <string name="service_message_auto_delete_changed_by">%2$s от %2$s</string>
+    <string name="service_message_chat_boost">Чат усилен ×%1$d</string>
+    <string name="service_message_topic_created">%2$s создал тему «%2$s»</string>
+    <string name="service_message_topic_edited">%1$s отредактировал тему</string>
+    <string name="service_message_topic_edited_name">%2$s переименовал тему в «%2$s».</string>
+    <string name="service_message_topic_edited_icon">%1$s изменил значок темы</string>
+    <string name="service_message_topic_edited_icon_removed">%1$s удалил значок темы</string>
+    <string name="service_message_topic_edited_name_and_icon">%2$s изменил название темы на «%2$s» и обновил значок.</string>
+    <string name="service_message_topic_closed">%1$s закрыл тему</string>
+    <string name="service_message_topic_reopened">%1$s вновь открыл тему</string>
+    <string name="service_message_topic_hidden">%1$s скрыл тему</string>
+    <string name="service_message_topic_visible">%1$s сделал тему видимой</string>
+    <string name="service_message_profile_photo_suggested">%1$s предложил фотографию профиля</string>
+    <string name="service_message_birthdate_suggested">%1$s предложил дату рождения</string>
+    <string name="service_message_game_score">Счет игры: %1$d</string>
+    <string name="service_message_managed_bot_created">Управляемый бот создан</string>
+    <string name="service_message_payment_sent">Платеж отправлен: %1$s</string>
+    <string name="service_message_payment_sent_with_invoice">Платеж отправлен для «%2$s»: %2$s.</string>
+    <string name="service_message_payment_sent_recurring">Регулярный платеж отправлен: %1$s</string>
+    <string name="service_message_payment_sent_first_recurring">Отправлен первый регулярный платеж: %1$s.</string>
+    <string name="service_message_payment_received">Платеж получен: %1$s</string>
+    <string name="service_message_payment_received_recurring">Получен регулярный платеж: %1$s</string>
+    <string name="service_message_payment_refunded">Платеж возвращен: %1$s</string>
+    <string name="service_message_payment_refunded_for">Платеж возвращен за %2$s: %2$s</string>
+    <string name="service_message_premium_gifted">Gifted Telegram Premium для %1$s</string>
+    <string name="service_message_premium_gifted_to">Подаренный Telegram Premium для %2$s за %2$s</string>
+    <string name="service_message_premium_gifted_from_to">%3$s подарил Telegram Premium пользователю %3$s за %3$s</string>
+    <string name="service_message_premium_gift_code_created">Создан подарочный код Telegram Premium</string>
+    <string name="service_message_premium_gift_code_created_by">%2$s создал подарочный код Premium (%2$s)</string>
+    <string name="service_message_premium_gift_code_from_giveaway">Создан премиум-код (%1$s)</string>
+    <string name="service_message_premium_gift_code_unclaimed">Невостребованный бесплатный код премиум-класса (%1$s)</string>
+    <string name="service_message_giveaway_created">Раздача создана</string>
+    <string name="service_message_stars_giveaway_created">Розыгрыш звезд создан</string>
+    <string name="service_message_giveaway">Отдавать</string>
+    <string name="service_message_giveaway_with_prize">Розыгрыш: победители %2$s, приз %2$s</string>
+    <string name="service_message_giveaway_completed">Розыгрыш завершен с победителями %1$d</string>
+    <string name="service_message_giveaway_completed_stars">Розыгрыш звезд завершен: %1$d победителей</string>
+    <string name="service_message_giveaway_completed_with_unclaimed">Розыгрыш завершен: %2$d победителей, %2$d невостребованных призов</string>
+    <string name="service_message_giveaway_winners">Объявлены победители розыгрыша: %1$d</string>
+    <string name="service_message_giveaway_winners_in_chat">Объявлены победители розыгрыша: %2$s в %2$s.</string>
+    <string name="service_message_giveaway_winners_refunded">Розыгрыш отменен и возмещен (победителям %1$d)</string>
+    <string name="service_message_stars_gifted">Одаренные %1$d Telegram Stars</string>
+    <string name="service_message_stars_gifted_to">Подарены %1$s Telegram Stars %1$s</string>
+    <string name="service_message_stars_gifted_from_to">%2$s подарил %2$s Telegram Stars пользователю %2$s</string>
+    <string name="service_message_ton_gifted">Одаренная ТОН</string>
+    <string name="service_message_ton_gifted_amount">Одаренный %1$s</string>
+    <string name="service_message_ton_gifted_to">Подарен %1$s %1$s</string>
+    <string name="service_message_ton_gifted_from_to">%2$s подарил %2$s %2$s</string>
+    <string name="service_message_giveaway_prize_stars">Получил %1$d звезд от розыгрыша</string>
+    <string name="service_message_giveaway_prize_stars_in_chat">Получено %2$s звезд от розыгрыша в %2$s.</string>
+    <string name="service_message_giveaway_prize_stars_unclaimed_in_chat">Получено %2$s невостребованных звезд в результате розыгрыша в %2$s.</string>
+    <string name="service_message_gift_received">Подарок получен</string>
+    <string name="service_message_gift_private">Частный подарок получен</string>
+    <string name="service_message_gift_from_auction">Подарок, выигранный на аукционе</string>
+    <string name="service_message_gift_upgraded">Подарок повышен</string>
+    <string name="service_message_gift_upgraded_transferred">Улучшенный подарок передан</string>
+    <string name="service_message_gift_refunded">Подарок возвращен</string>
+    <string name="service_message_gift_purchase_offer">Предложение о покупке подарка получено</string>
+    <string name="service_message_gift_purchase_offer_with_price">Предложение о покупке подарка: %2$s, срок действия истекает %2$s.</string>
+    <string name="service_message_gift_purchase_offer_rejected">Предложение о покупке подарка отклонено</string>
+    <string name="service_message_gift_purchase_offer_rejected_with_price">Предложение о покупке подарка отклонено (%1$s)</string>
+    <string name="service_message_gift_purchase_offer_expired">Срок действия предложения о покупке подарка истек</string>
+    <string name="service_message_gift_purchase_offer_expired_with_price">Срок действия предложения о покупке подарка истек (%1$s)</string>
+    <string name="service_message_paid_messages_refunded">Возвращено %2$d платных сообщений и %2$d звезд.</string>
+    <string name="service_message_paid_message_price_changed">Стоимость платного сообщения изменена на %1$d звезд.</string>
+    <string name="service_message_direct_message_price_changed">Цена прямого сообщения изменена на %1$d звезд.</string>
+    <string name="service_message_direct_messages_disabled">Прямые сообщения отключены</string>
+    <string name="service_message_checklist_tasks_updated">Контрольный список обновлен: %2$d выполнено, %2$d отменено.</string>
+    <string name="service_message_checklist_tasks_added">В контрольный список добавлены задачи %1$d.</string>
+    <string name="service_message_suggested_post_approval_failed">Не удалось утвердить предлагаемую публикацию.</string>
+    <string name="service_message_suggested_post_approval_failed_with_price">Не удалось утвердить предлагаемую публикацию: требуется %1$s</string>
+    <string name="service_message_suggested_post_approved">Предлагаемая публикация одобрена для %1$s</string>
+    <string name="service_message_suggested_post_approved_with_price">Предлагаемая публикация одобрена для %2$s (%2$s)</string>
+    <string name="service_message_suggested_post_declined">Предложенное сообщение отклонено</string>
+    <string name="service_message_suggested_post_declined_with_comment">Предложенное сообщение отклонено: %1$s</string>
+    <string name="service_message_suggested_post_paid">Предложенное сообщение оплачено</string>
+    <string name="service_message_suggested_post_paid_stars">Рекомендуемая публикация выплачена: %1$d звезд.</string>
+    <string name="service_message_suggested_post_paid_ton">Рекомендуемая публикация выплачена: %1$s</string>
+    <string name="service_message_suggested_post_refunded">Возврат средств за предложенную публикацию</string>
+    <string name="service_message_suggested_post_refunded_with_reason">Возврат предложенной публикации: %1$s</string>
+    <string name="service_message_suggested_post_refund_reason_deleted">Сообщение было удалено слишком рано</string>
+    <string name="service_message_suggested_post_refund_reason_payment">Первоначальный платеж был возвращен.</string>
+    <string name="service_message_contact_registered">%1$s присоединился к Telegram</string>
+    <string name="service_message_users_shared">Общие пользователи %1$d с ботом</string>
+    <string name="service_message_users_shared_one_named">Общий пользователь с ботом: %1$s</string>
+    <string name="service_message_users_shared_two_named">Общие пользователи с ботом: %2$s, %2$s</string>
+    <string name="service_message_users_shared_many_named">Общие пользователи с ботом: %3$d, %3$d и %3$d ещё</string>
+    <string name="service_message_chat_shared">Поделился чатом с ботом</string>
+    <string name="service_message_chat_shared_named">Общий чат с ботом: %1$s</string>
+    <string name="service_message_bot_write_access_allowed">Бот теперь может отправлять сообщения</string>
+    <string name="service_message_bot_write_access_connected_website">Бот может отправлять сообщения (подключенный веб-сайт: %1$s)</string>
+    <string name="service_message_bot_write_access_attachment_menu">Бот может отправлять сообщения (добавлен в меню вложений)</string>
+    <string name="service_message_bot_write_access_web_app">Бот может отправлять сообщения (запущено веб-приложение: %1$s)</string>
+    <string name="service_message_bot_write_access_accepted_request">Бот может отправлять сообщения (запрос принят)</string>
+    <string name="service_message_web_app_data_sent">Веб-приложение «%1$s» отправило данные</string>
+    <string name="service_message_web_app_data_received">Веб-приложение «%1$s» вернуло данные.</string>
+    <string name="service_message_web_app_data_received_with_size">Веб-приложение «%2$d» вернуло %2$d символов.</string>
+    <string name="service_message_passport_data_sent">Паспортные данные отправлены</string>
+    <string name="service_message_passport_data_received">Паспортные данные получены</string>
+    <string name="service_message_proximity_alert">Оповещение о приближении: %1$d м</string>
+    <string name="service_message_stars_format">%1$d Звезды</string>
+    <string name="service_message_ton_format">%.2f ТОННЫ</string>
+    <string name="service_message_unknown_price">неизвестная цена</string>
+    <string name="service_message_giveaway_prize_unknown">неизвестный приз</string>
+    <plurals name="service_message_months">
+        <item quantity="one">%1$d месяц</item>
+        <item quantity="other">%1$d месяцев</item>
+    </plurals>
+    <plurals name="service_message_days">
+        <item quantity="one">%1$d день</item>
+        <item quantity="other">%1$d дней</item>
+    </plurals>
+    <plurals name="service_message_hours">
+        <item quantity="one">%1$d час</item>
+        <item quantity="other">%1$d часов</item>
+    </plurals>
+    <plurals name="service_message_minutes">
+        <item quantity="one">%1$d минута</item>
+        <item quantity="other">%1$d минут</item>
+    </plurals>
+    <plurals name="service_message_seconds">
+        <item quantity="one">%1$d секунда</item>
+        <item quantity="other">%1$d секунд</item>
+    </plurals>
 </resources>

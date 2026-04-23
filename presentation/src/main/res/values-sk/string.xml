@@ -4,25 +4,20 @@
     <string name="confirmation_message">Naozaj chcete autorizovať toto zariadenie?</string>
     <string name="confirm_auth_action">Áno, prihlásiť sa</string>
     <string name="cancel_action">Zrušiť</string>
-
     <string name="scan_qr_title">Skenovať QR</string>
     <string name="devices_title">Zariadenia</string>
     <string name="link_device_action">Prepojiť zariadenie</string>
-
     <string name="current_device_section">Toto zariadenie</string>
     <string name="login_requests_section">Žiadosti o prihlásenie</string>
     <string name="active_sessions_section">Aktívne relácie</string>
     <string name="sessions_login_attempt">Pokus o prihlásenie</string>
     <string name="sessions_unconfirmed">Nepotvrdené</string>
     <string name="sessions_terminate_action">Ukončiť reláciu</string>
-
     <string name="cd_navigate_back">Späť</string>
     <string name="cd_close_scanner">Zavrieť skener</string>
     <string name="cd_qr_icon">Ikona QR skenera</string>
-
     <!-- Startup -->
     <string name="startup_connecting">Pripájanie k Telegramu…</string>
-
     <!-- About Screen -->
     <string name="about_title">O aplikácii</string>
     <string name="cd_back">Späť</string>
@@ -50,10 +45,9 @@
     <string name="role_designer">Dizajnér ikon a loga</string>
     <string name="monogram_description">MonoGram je neoficiálny klient Telegramu vytvorený s Material Design 3</string>
     <string name="copyright_text">© 2026 MonoGram</string>
-
     <!-- Updates -->
     <string name="check_for_updates">Skontrolovať aktualizácie</string>
-    <string name="checking_updates">Kontrolujem...</string>
+    <string name="checking_updates">Kontrolujem…</string>
     <string name="update_available_format">Dostupná aktualizácia: %1$s</string>
     <string name="up_to_date">Máte najnovšiu verziu</string>
     <string name="update_ready">Aktualizácia pripravená</string>
@@ -63,13 +57,12 @@
     <string name="update_available_subtitle">Je dostupná nová verzia na stiahnutie</string>
     <string name="latest_version_subtitle">Používate najnovšiu verziu</string>
     <string name="install_update_subtitle">Klepnutím nainštalujete aktualizáciu</string>
-    <string name="downloading_update">Sťahovanie aktualizácie...</string>
+    <string name="downloading_update">Sťahovanie aktualizácie…</string>
     <string name="update_progress_format">%1$d%%</string>
     <string name="whats_new_format">Čo je nové vo verzii %1$s</string>
     <string name="download_update_action">Stiahnuť aktualizáciu</string>
     <string name="cancel_button">Zrušiť</string>
-    <string name="loading_text">Načítavam...</string>
-
+    <string name="loading_text">Načítavam…</string>
     <!-- Auth -->
     <string name="auth_title_phone">Váš telefón</string>
     <string name="auth_title_verification">Overenie</string>
@@ -88,7 +81,7 @@
     <string name="continue_button">Pokračovať</string>
     <string name="select_country_title">Vybrať krajinu</string>
     <string name="unknown_country">Neznáma krajina</string>
-    <string name="search_country_hint">Hľadať krajinu alebo kód...</string>
+    <string name="search_country_hint">Hľadať krajinu alebo kód…</string>
     <string name="verification_delivery_telegram">Kód sme odoslali do aplikácie Telegram na vašom inom zariadení.
     </string>
     <string name="verification_delivery_sms">Kód sme odoslali cez SMS.</string>
@@ -108,14 +101,12 @@
     <string name="paste_action">Vložiť</string>
     <string name="auth_error_title">Chyba overenia</string>
     <string name="dismiss_button">Zamietnuť</string>
-
     <!-- Loading -->
     <string name="loading_please_wait">Chvíľu počkajte</string>
     <string name="loading_taking_too_long">Trvá to príliš dlho?</string>
     <string name="loading_reset_connection">Obnoviť pripojenie</string>
-
     <!-- Chat List -->
-    <string name="forward_to_title">Preposlať do...</string>
+    <string name="forward_to_title">Preposlať do…</string>
     <plurals name="chats_selected_format">
         <item quantity="one">Vybraných %1$d chatov</item>
         <item quantity="other">Vybraných %1$d chatov</item>
@@ -147,7 +138,6 @@
     <string name="no_chats_yet">Zatiaľ žiadne chaty</string>
     <string name="start_new_conversation">Začať novú konverzáciu</string>
     <string name="mini_app_default_name">Mini aplikácia</string>
-
     <!-- Account Menu -->
     <string name="app_name_dev">MonoGram Alpha</string>
     <string name="action_add_account">Pridať účet</string>
@@ -160,7 +150,7 @@
     <string name="menu_settings_subtitle">Konfigurácia aplikácie</string>
     <string name="menu_update_available">Dostupná aktualizácia</string>
     <string name="update_available_subtitle_format">Je dostupná nová verzia %1$s</string>
-    <string name="update_downloading_subtitle_format">Sťahovanie aktualizácie... %1$d%%</string>
+    <string name="update_downloading_subtitle_format">Sťahovanie aktualizácie… %1$d%%</string>
     <string name="update_ready_subtitle">Aktualizácia pripravená na inštaláciu</string>
     <string name="menu_help_feedback">Pomoc a spätná väzba</string>
     <string name="menu_help_feedback_subtitle">FAQ a podpora</string>
@@ -169,9 +159,8 @@
     <string name="unknown_user">Neznámy používateľ</string>
     <string name="no_info">Žiadne informácie</string>
     <string name="cd_show_accounts">Zobraziť účty</string>
-
     <!-- Current Chat -->
-    <string name="search_messages_hint">Hľadať správy...</string>
+    <string name="search_messages_hint">Hľadať správy…</string>
     <string name="action_clear">Vymazať</string>
     <string name="cd_muted">Stlmené</string>
     <string name="cd_verified">Overené</string>
@@ -188,7 +177,6 @@
     <string name="cd_scroll_to_bottom">Prejsť na koniec</string>
     <string name="topic_closed_bar">Táto téma je uzavretá</string>
     <string name="cd_attach">Priložiť</string>
-
     <!-- Current Chat Additions -->
     <string name="delete_message_title">Odstrániť správu?</string>
     <string name="delete_messages_title">Odstrániť %1$d správ?</string>
@@ -196,7 +184,6 @@
     <string name="delete_messages_confirmation">Naozaj chcete odstrániť tieto správy?</string>
     <string name="delete_for_everyone">Odstrániť pre všetkých</string>
     <string name="delete_for_me">Odstrániť pre mňa</string>
-
     <string name="report_title">Prečo to nahlasujete?</string>
     <string name="report_description">Vaše nahlásenie je anonymné. Skontrolujeme históriu chatu, aby sme zaistili
         bezpečnosť.
@@ -228,7 +215,6 @@
     </string>
     <string name="report_reason_other">Iné</string>
     <string name="report_reason_other_description">Niečo iné, čo porušuje naše podmienky</string>
-
     <string name="restrict_user_title">Obmedziť používateľa</string>
     <string name="permission_send_messages">Odosielanie správ</string>
     <string name="permission_send_media">Odosielanie médií</string>
@@ -242,7 +228,6 @@
     <string name="cd_select_date">Vybrať dátum</string>
     <string name="cd_select_time">Vybrať čas</string>
     <string name="action_restrict">Obmedziť</string>
-
     <string name="menu_reply">Odpovedať</string>
     <string name="menu_copy">Kopírovať</string>
     <string name="menu_pin">Pripnúť</string>
@@ -263,7 +248,6 @@
     <string name="info_edited">Upravené</string>
     <string name="info_read">Prečítané</string>
     <string name="info_views">Zobrazenia</string>
-
     <!-- Profile -->
     <string name="unknown_title">Neznáme</string>
     <plurals name="members_count_format">
@@ -346,7 +330,6 @@
         ochrany súkromia. Bot bude mať prístup k základným informáciám vášho profilu.
     </string>
     <string name="accept_and_launch">Prijať a spustiť</string>
-
     <!-- Settings -->
     <string name="qr_code_title">QR kód</string>
     <string name="action_share">Zdieľať</string>
@@ -400,7 +383,6 @@
     <string name="debug_force_sponsor_sync_subtitle">Načítať ID sponzorov z kanála teraz</string>
     <string name="log_out_title">Odhlásiť sa</string>
     <string name="log_out_subtitle">Odpojiť sa od účtu</string>
-
     <!-- Edit Profile -->
     <string name="usernames_title">Používateľské mená</string>
     <string name="retry_after_format">Skúsiť znova za %1$ds</string>
@@ -450,7 +432,6 @@
     <string name="friday_short">P</string>
     <string name="saturday_short">S</string>
     <string name="sunday_short">N</string>
-
     <!-- Privacy and Security -->
     <string name="privacy_security_header">Súkromie a bezpečnosť</string>
     <string name="privacy_section_header">Súkromie</string>
@@ -481,7 +462,7 @@
     <string name="delete_my_account_subtitle">Ak som neaktívny počas %1$s</string>
     <string name="delete_account_now_title">Odstrániť účet teraz</string>
     <string name="delete_account_now_subtitle">Natrvalo odstrániť váš účet a všetky dáta</string>
-    <string name="self_destruct_title">Samozničenie pri neaktivite počas...</string>
+    <string name="self_destruct_title">Samozničenie pri neaktivite počas…</string>
     <string name="delete_account_confirmation_title">Odstrániť účet</string>
     <string name="delete_account_confirmation_message">Naozaj chcete odstrániť váš účet? Táto akcia je trvalá a nedá sa
         vrátiť späť.
@@ -498,7 +479,6 @@
     <string name="ttl_months_format">%1$d mesiacov</string>
     <string name="ttl_days_format">%1$d dní</string>
     <string name="privacy_deletion_reason_user">Používateľ požiadal o odstránenie</string>
-
     <!-- Proxy Settings -->
     <string name="proxy_settings_header">Nastavenia proxy</string>
     <string name="refresh_pings_cd">Obnoviť pingy</string>
@@ -593,14 +573,12 @@
     <string name="test_proxy_button">Otestovať</string>
     <string name="test_proxy_result">Výsledok testu</string>
     <string name="action_delete">Odstrániť</string>
-    <string name="proxy_checking">Kontrolujem...</string>
+    <string name="proxy_checking">Kontrolujem…</string>
     <string name="proxy_offline">Offline</string>
     <string name="proxy_ping_format">%1$d ms</string>
-
     <!-- Settings General -->
     <string name="your_usernames_header">Vaše používateľské mená</string>
     <string name="more_options_cd">Viac možností</string>
-
     <!-- Notifications and Sounds -->
     <string name="notifications_sounds_header">Oznámenia a zvuky</string>
     <string name="message_notifications_header">Oznámenia správ</string>
@@ -649,7 +627,6 @@
     <string name="repeat_hours_format">Každých %1$d hodín</string>
     <string name="push_provider_fcm">Firebase Cloud Messaging</string>
     <string name="push_provider_gms_less">Bez GMS (služba na pozadí)</string>
-
     <!-- Chat Settings -->
     <string name="chat_settings_header">Nastavenia chatu</string>
     <string name="appearance_header">Vzhľad</string>
@@ -724,7 +701,6 @@
     <string name="emoji_style_catmoji">Catmoji</string>
     <string name="emoji_style_noto">Noto</string>
     <string name="emoji_style_system">Systémové</string>
-
     <!-- Data and Storage -->
     <string name="data_storage_title_header">Dáta a úložisko</string>
     <string name="disk_network_usage_header">Spotreba disku a siete</string>
@@ -749,7 +725,6 @@
     <string name="videos_autoplay_subtitle">Automaticky prehrávať videá v chatoch</string>
     <string name="enabled_label">Zapnuté</string>
     <string name="disabled_label">Vypnuté</string>
-
     <!-- Power Saving -->
     <string name="power_saving_header">Úspora energie</string>
     <string name="battery_header">Batéria</string>
@@ -766,7 +741,6 @@
     <string name="keep_alive_power_saving_subtitle">Vypnutím sa zníži spotreba energie, ale môžu sa oneskoriť oznámenia
         na pozadí
     </string>
-
     <!-- Stickers and Emoji -->
     <string name="stickers_emoji_header">Nálepky a emoji</string>
     <string name="stickers_tab">Nálepky</string>
@@ -805,7 +779,6 @@
     <string name="sticker_type_custom_emojis">Vlastné emoji</string>
     <string name="sticker_official">Oficiálne</string>
     <string name="link_copied">Odkaz skopírovaný do schránky</string>
-
     <!-- Network Usage -->
     <string name="network_usage_header">Spotreba siete</string>
     <string name="reset_statistics_cd">Obnoviť štatistiky</string>
@@ -828,7 +801,6 @@
     <string name="wifi_tab">Wi-Fi</string>
     <string name="roaming_tab">Roaming</string>
     <string name="other_tab">Iné</string>
-
     <!-- Storage Usage -->
     <string name="storage_usage_header">Využitie úložiska</string>
     <string name="clear_all_cache_format">Vymazať celú vyrovnávaciu pamäť • %1$s</string>
@@ -857,7 +829,6 @@
     <string name="total_used_label">Celkovo použité</string>
     <string name="files_count_format">%1$d súborov</string>
     <string name="files_count_label">%1$d súborov</string>
-
     <!-- Privacy Setting -->
     <string name="privacy_who_can_add_me">Kto ma môže pridať do %1$s?</string>
     <string name="privacy_who_can_call_me">Kto mi môže volať?</string>
@@ -888,7 +859,6 @@
     <string name="privacy_block_user_cd">Blokovať používateľa</string>
     <string name="privacy_search_users_placeholder">Hľadať používateľov</string>
     <string name="privacy_no_users_found">Žiadni používatelia sa nenašli</string>
-
     <!-- Passcode -->
     <string name="passcode_change_title">Zmeniť kód</string>
     <string name="passcode_set_title">Nastaviť kód</string>
@@ -903,7 +873,6 @@
     <string name="passcode_verify_title">Overiť kód</string>
     <string name="passcode_verify_description">Zadajte aktuálny kód pred jeho zmenou alebo vypnutím.</string>
     <string name="passcode_verify_error">Nesprávny kód.</string>
-
     <!-- AdBlock -->
     <string name="cd_add_keyword">Pridať kľúčové slovo</string>
     <string name="adblock_enable">Povoliť AdBlock</string>
@@ -927,7 +896,6 @@
     <string name="adblock_whitelisted_subtitle">Príspevky z týchto kanálov nebudú filtrované</string>
     <string name="adblock_no_whitelisted">Žiadne kanály nie sú na whiteliste</string>
     <string name="action_remove">Odstrániť</string>
-
     <!-- Core/Common -->
     <string name="last_seen_recently">naposledy aktívny nedávno</string>
     <string name="last_seen_just_now">naposledy aktívny práve teraz</string>
@@ -953,7 +921,6 @@
     <string name="menu_unarchive">Odarchivovať</string>
     <string name="menu_archive">Archivovať</string>
     <string name="menu_remove_set">Odstrániť sadu</string>
-
     <!-- New Chat -->
     <string name="new_message_title">Nová správa</string>
     <string name="add_members_title">Pridať členov</string>
@@ -962,7 +929,7 @@
     <string name="contacts_count_format">%1$d kontaktov</string>
     <string name="members_limit_format">%1$d / 200 000</string>
     <string name="selected_members_count">%1$d vybraných</string>
-    <string name="search_contacts_hint">Hľadať kontakty...</string>
+    <string name="search_contacts_hint">Hľadať kontakty…</string>
     <string name="no_contacts_found">Neboli nájdené žiadne kontakty</string>
     <string name="no_search_results_format">Žiadne výsledky pre „%1$s“</string>
     <string name="sorted_by_last_seen">Zoradené podľa poslednej aktivity</string>
@@ -1011,7 +978,6 @@
     </string>
     <string name="add_photo_cd">Pridať fotografiu</string>
     <string name="change_photo_cd">Zmeniť fotografiu</string>
-
     <!-- Permissions -->
     <string name="permissions_required_title">Vyžadované oprávnenia</string>
     <string name="permissions_required_description">Na poskytnutie najlepšieho zážitku MonoGram potrebuje nasledujúce
@@ -1032,15 +998,12 @@
     <string name="permission_microphone_description">Nahrávať hlasové a video správy</string>
     <string name="permission_location_title">Poloha</string>
     <string name="permission_location_description">Zdieľať polohu a vidieť používateľov v blízkosti</string>
-
     <!-- Selection -->
     <string name="cd_clear_selection">Zrušiť výber</string>
     <string name="action_pin">Pripnúť</string>
-
     <!-- Bot Commands -->
     <string name="bot_commands_title">Príkazy bota</string>
     <string name="bot_commands_subtitle">Vyberte príkaz na odoslanie botovi</string>
-
     <!-- Chat List Preview -->
     <string name="chat_list_preview_title">Zoznam chatov</string>
     <string name="preview_name_konata">Konata Izumi</string>
@@ -1051,34 +1014,29 @@
     <string name="preview_name_kagami">Kagami Hiiragi</string>
     <string name="preview_message_kagami">Nezabudni na domácu úlohu! Je na zajtra ráno a je dosť ťažká.</string>
     <string name="preview_time_kagami">11:20</string>
-
     <!-- Chat Settings Preview -->
     <string name="chat_settings_preview_title">Náhľad</string>
     <string name="preview_msg_sender_me">Ja</string>
     <string name="preview_msg_text_1">Nie som malá, som len skoncentrovaná úžasnosť! 🍫\nTiež som sa rozhodla stať
         profesionálnou spáčkou 😴
     </string>
-    <string name="preview_msg_text_2">To hovoríš vždy, keď nedočiahneš na hornú policu... 🙄\nPozri na toto:</string>
+    <string name="preview_msg_text_2">To hovoríš vždy, keď nedočiahneš na hornú policu… 🙄\nPozri na toto:</string>
     <string name="preview_msg_text_3">Prestaň ma odhaľovať! 😤✨\nPoužijem svoju tajnú zbraň: 💯 čistú lenivosť</string>
     <string name="preview_msg_text_4">Je to super efektívne! 😵‍💫</string>
     <string name="preview_date_today">Dnes</string>
     <string name="preview_name_konata_short">Konata</string>
-
     <string name="subscribers_count_format">%1$d odberateľov</string>
     <string name="thread_title">Vlákno</string>
-
     <!-- Recording UI -->
     <string name="recording_delete">Odstrániť nahrávku</string>
     <string name="recording_slide_to_cancel">&lt; Potiahnutím zrušiť</string>
     <string name="recording_send">Odoslať nahrávku</string>
     <string name="recording_lock">Uzamknúť nahrávanie</string>
     <string name="recording_swipe_up">Potiahnite nahor</string>
-
     <!-- Input Bar -->
     <string name="input_placeholder_caption">Pridať popis…</string>
     <string name="input_placeholder_message">Správa</string>
     <string name="input_error_not_allowed">Odosielanie správ nie je povolené</string>
-
     <!-- Media Types -->
     <string name="media_type_photo">Fotografia</string>
     <string name="media_type_video">Video</string>
@@ -1088,7 +1046,6 @@
     <string name="media_type_gif">GIF</string>
     <string name="media_type_location">Poloha</string>
     <string name="media_type_message">Správa</string>
-
     <!-- Actions -->
     <string name="action_cancel_reply">Zrušiť odpoveď</string>
     <string name="action_edit_message">Upraviť správu</string>
@@ -1139,7 +1096,6 @@
     <string name="fullscreen_editor_blocks">%1$d blokov formátovania</string>
     <string name="fullscreen_editor_hint">Vyberte text a použite bohaté formátovanie ako v Telegrame</string>
     <string name="message_length_counter">%1$d/%2$d</string>
-
     <string name="rich_text_bold">Tučné</string>
     <string name="rich_text_italic">Kurzíva</string>
     <string name="rich_text_underline">Podčiarknuté</string>
@@ -1155,10 +1111,8 @@
     <string name="rich_text_link_hint">URL</string>
     <string name="rich_text_code_language_title">Jazyk kódu</string>
     <string name="rich_text_code_language_hint">Jazyk (napr. kotlin)</string>
-
     <!-- Bot -->
     <string name="bot_commands">Príkazy</string>
-
     <!-- Chat Typing -->
     <string name="typing_typing">píše</string>
     <string name="typing_recording_video">nahráva video</string>
@@ -1189,10 +1143,8 @@
     <string name="storage_other_files">Ostatné súbory</string>
     <string name="storage_other_cache">Ostatné / Vyrovnávacia pamäť</string>
     <string name="storage_chat_format">Chat %d</string>
-
     <!-- Network Mapper -->
     <string name="network_calls">Hovory</string>
-
     <!-- Notification Service -->
     <string name="notification_service_waiting">Čakám na nové správy</string>
     <string name="notification_service_stop">Zastaviť</string>
@@ -1212,7 +1164,6 @@
     <string name="notification_channel_channels_description">Upozornenia z kanálov</string>
     <string name="notification_channel_other_name">Ostatné</string>
     <string name="notification_channel_other_description">Ostatné upozornenia</string>
-
     <!-- Chat Mapper / Media Types -->
     <string name="chat_mapper_photo">Fotografia</string>
     <string name="chat_mapper_video">Video</string>
@@ -1243,7 +1194,6 @@
     <string name="chat_mapper_seen_recently">Naposledy aktívny nedávno</string>
     <string name="chat_mapper_seen_week">Naposledy aktívny tento týždeň</string>
     <string name="chat_mapper_seen_month">Naposledy aktívny tento mesiac</string>
-
     <!-- Pinned Messages -->
     <string name="pinned_messages">Pripnuté správy</string>
     <string name="pinned_message">Pripnutá správa</string>
@@ -1262,7 +1212,6 @@
     <string name="message_type_document">Dokument</string>
     <string name="message_type_poll_format">Anketa: %s</string>
     <string name="message_type_sticker_format">Nálepka %s</string>
-
     <!-- Photo Editor Tools -->
     <string name="photo_editor_tool_view">Zobrazenie</string>
     <string name="photo_editor_tool_crop">Orezať</string>
@@ -1270,7 +1219,6 @@
     <string name="photo_editor_tool_draw">Kresliť</string>
     <string name="photo_editor_tool_text">Text</string>
     <string name="photo_editor_tool_eraser">Guma</string>
-
     <!-- Photo Editor Filters -->
     <string name="photo_editor_filter_original">Originál</string>
     <string name="photo_editor_filter_bw">Č&amp;B</string>
@@ -1280,7 +1228,6 @@
     <string name="photo_editor_filter_warm">Teplý</string>
     <string name="photo_editor_filter_polaroid">Polaroid</string>
     <string name="photo_editor_filter_invert">Invertovať</string>
-
     <!-- Photo Editor Actions -->
     <string name="photo_editor_action_save">Uložiť</string>
     <string name="photo_editor_action_cancel">Zrušiť</string>
@@ -1294,38 +1241,32 @@
     <string name="photo_editor_action_edit_text">Upraviť text</string>
     <string name="photo_editor_action_apply">Použiť</string>
     <string name="photo_editor_action_delete">Odstrániť</string>
-
     <!-- Photo Editor Labels -->
     <string name="photo_editor_label_size">Veľkosť</string>
     <string name="photo_editor_label_zoom">Priblíženie</string>
-    <string name="photo_editor_label_placeholder_text">Napíšte niečo...</string>
+    <string name="photo_editor_label_placeholder_text">Napíšte niečo…</string>
     <string name="photo_editor_label_select_tool">Vyberte nástroj na začatie úprav</string>
-
     <!-- Photo Editor Discard Dialog -->
     <string name="photo_editor_discard_title">Zahodiť zmeny?</string>
     <string name="photo_editor_discard_message">Máte neuložené zmeny. Naozaj ich chcete zahodiť?</string>
     <string name="photo_editor_discard_button">Zahodiť</string>
-
     <!-- Video Editor Common -->
     <string name="video_editor_apply">Použiť</string>
     <string name="video_editor_done">Hotovo</string>
     <string name="video_editor_cancel">Zrušiť</string>
     <string name="video_editor_low">Nízka</string>
-
     <!-- Video Editor Tools -->
     <string name="video_tool_view">Zobrazenie</string>
     <string name="video_tool_trim">Orezať</string>
     <string name="video_tool_filters">Filtre</string>
     <string name="video_tool_text">Text</string>
     <string name="video_tool_compress">Komprimovať</string>
-
     <!-- Video Editor Actions/Controls -->
     <string name="video_action_unmute">Zapnúť zvuk</string>
     <string name="video_action_mute">Stlmiť</string>
     <string name="video_action_add_text">Pridať textový overlay</string>
     <string name="video_quality_label">Kvalita videa</string>
     <string name="video_estimated_bitrate">Odhadovaný bitrate: %1$d kbps</string>
-
     <!-- Video Editor Filters -->
     <string name="video_filter_original">Originál</string>
     <string name="video_filter_bw">Č&amp;B</string>
@@ -1335,20 +1276,17 @@
     <string name="video_filter_warm">Teplý</string>
     <string name="video_filter_polaroid">Polaroid</string>
     <string name="video_filter_invert">Invertovať</string>
-
     <!-- Video Editor Dialogs & Toasts -->
     <string name="video_error_file_not_found">Súbor sa nenašiel</string>
     <string name="video_error_file_missing">Video súbor chýba</string>
     <string name="video_discard_title">Zahodiť zmeny?</string>
     <string name="video_discard_text">Máte neuložené zmeny. Naozaj ich chcete zahodiť?</string>
     <string name="video_discard_confirm">Zahodiť</string>
-
     <!-- Web View General -->
     <string name="webview_loading">Načítavam…</string>
     <string name="webview_default_title">Webové zobrazenie</string>
     <string name="webview_close">Zavrieť</string>
     <string name="webview_more_options">Viac možností</string>
-
     <!-- Web View Options Sheet -->
     <string name="webview_options_title">Možnosti</string>
     <string name="webview_back">Späť</string>
@@ -1365,7 +1303,6 @@
     <string name="webview_desktop_site">Desktopová verzia</string>
     <string name="webview_block_ads">Blokovať reklamy</string>
     <string name="webview_text_size">Veľkosť textu: %1$d%%</string>
-
     <!-- Web View Security/Certificate -->
     <string name="webview_secure">Zabezpečené</string>
     <string name="webview_insecure">Nezabezpečené</string>
@@ -1379,13 +1316,11 @@
     <string name="webview_cert_issued_by">Vydané kým</string>
     <string name="webview_cert_valid_until">Platné do</string>
     <string name="webview_cert_unknown">Neznáme</string>
-
     <!-- Web View Find In Page Bar -->
     <string name="webview_find_placeholder">Hľadať na stránke…</string>
     <string name="webview_find_previous">Predchádzajúce</string>
     <string name="webview_find_next">Nasledujúce</string>
     <string name="webview_find_close">Zavrieť hľadanie</string>
-
     <!-- Profile & Components -->
     <string name="label_discussion">Diskusia</string>
     <string name="label_channel">Kanál</string>
@@ -1417,9 +1352,8 @@
     <string name="bot_verification_subtitle">Overené botom tretej strany</string>
     <string name="opening_hours_closed">Zatvorené</string>
     <string name="label_id">ID</string>
-
     <!-- Statistics Viewer -->
-    <string name="statistics_analyzing">Analyzujem štatistiky...</string>
+    <string name="statistics_analyzing">Analyzujem štatistiky…</string>
     <string name="statistics_overview">Prehľad</string>
     <string name="statistics_members">Členovia</string>
     <string name="statistics_messages">Správy</string>
@@ -1469,7 +1403,7 @@
     <string name="statistics_hourly_revenue">Hodinové príjmy</string>
     <string name="statistics_insights_loaded">Prehľady načítané</string>
     <string name="statistics_zoom_in">Priblížiť</string>
-    <string name="statistics_rendering_chart">Vykresľujem graf...</string>
+    <string name="statistics_rendering_chart">Vykresľujem graf…</string>
     <string name="statistics_no_change">Bez zmeny</string>
     <string name="statistics_vs_previous">oproti predchádzajúcemu</string>
     <string name="statistics_unknown_type">Neznámy typ štatistík</string>
@@ -1478,7 +1412,6 @@
     <string name="profile_statistics_preview_venue_format">Miesto: %1$s</string>
     <string name="profile_statistics_preview_poll_format">Anketa: %1$s</string>
     <string name="profile_statistics_preview_service_message">Servisná správa</string>
-
     <!-- Selection: Viewer Common -->
     <string name="viewer_back">Späť</string>
     <string name="viewer_options">Možnosti</string>
@@ -1488,8 +1421,7 @@
     <string name="viewer_seek_forward_format">+%1$ds</string>
     <string name="viewer_thumbnail_cd">Miniatúra %1$d</string>
     <string name="viewer_page_indicator">%1$d / %2$d</string>
-    <string name="viewer_loading_original">Načítavam pôvodnú verziu...</string>
-
+    <string name="viewer_loading_original">Načítavam pôvodnú verziu…</string>
     <!-- Selection: Viewer Actions -->
     <string name="action_download">Stiahnuť</string>
     <string name="action_download_video">Stiahnuť video</string>
@@ -1505,7 +1437,6 @@
     <string name="action_pause">Pozastaviť</string>
     <string name="action_play">Prehrať</string>
     <string name="action_unlock">Odomknúť</string>
-
     <!-- Selection: Viewer Settings -->
     <string name="settings_title">Nastavenia</string>
     <string name="settings_playback_speed">Rýchlosť prehrávania</string>
@@ -1537,45 +1468,37 @@
     <string name="action_use_low_quality">Použiť nízku kvalitu</string>
     <string name="action_open_in_browser">Otvoriť v prehliadači</string>
     <string name="settings_speed_normal">Normálna</string>
-
     <!-- Selection: Picture-in-Picture -->
     <string name="pip_play">Prehrať</string>
     <string name="pip_pause">Pozastaviť</string>
     <string name="pip_rewind">Pretočiť späť</string>
     <string name="pip_forward">Pretočiť vpred</string>
-
     <!-- Sticker & Emoji Menu -->
     <string name="sticker_menu_tab_stickers">Nálepky</string>
     <string name="sticker_menu_tab_emojis">Emoji</string>
     <string name="sticker_menu_tab_gifs">GIFy</string>
-
     <!-- Stickers View -->
     <string name="stickers_header_recent">Nedávne nálepky</string>
     <string name="stickers_header_all">Nálepky</string>
     <string name="stickers_search_placeholder">Hľadať nálepky</string>
-
     <!-- Emojis View -->
     <string name="emojis_header_recent">Nedávne emoji</string>
     <string name="emojis_header_standard">Štandardné emoji</string>
     <string name="emojis_header_custom">Vlastné emoji</string>
     <string name="emojis_header_all">Emoji</string>
     <string name="emojis_search_placeholder">Hľadať emoji</string>
-
     <!-- GIFs View -->
     <string name="gifs_header_recent_saved">Nedávne a uložené GIFy</string>
     <string name="gifs_no_results">Žiadne GIFy sa nenašli</string>
     <string name="gifs_search_placeholder">Hľadať GIFy</string>
-
     <!-- Common/Accessibility -->
     <string name="common_back">Späť</string>
     <string name="common_clear">Vymazať</string>
     <string name="common_recent">Nedávne</string>
-
     <!-- QR Code -->
     <string name="qr_saved_to_gallery">Uložené do galérie</string>
     <string name="qr_share_title">Zdieľať QR</string>
     <string name="qr_share_error">Chyba pri odosielaní: %1$s</string>
-
     <!-- Chat Edit (ChatEditContent.kt) -->
     <string name="edit_channel">Upraviť kanál</string>
     <string name="edit_group">Upraviť skupinu</string>
@@ -1590,16 +1513,14 @@
     <string name="management">Správa</string>
     <string name="delete_channel">Odstrániť kanál</string>
     <string name="delete_group">Odstrániť skupinu</string>
-
     <!-- Member List (MemberListContent.kt) -->
-    <string name="search_hint">Hľadať...</string>
+    <string name="search_hint">Hľadať…</string>
     <string name="administrators">Správcovia</string>
     <string name="subscribers">Odberatelia</string>
     <string name="members">Členovia</string>
     <string name="blacklist">Čierna listina</string>
     <string name="no_results_found">Žiadne výsledky</string>
     <string name="no_members_yet">Zatiaľ žiadni členovia</string>
-
     <!-- Admin Management (AdminManageContent.kt) -->
     <string name="admin_rights">Práva správcu</string>
     <string name="custom_title">Vlastný titul</string>
@@ -1618,12 +1539,10 @@
     <string name="permission_delete_stories">Odstraňovať príbehy</string>
     <string name="permission_add_new_admins">Pridávať nových správcov</string>
     <string name="permission_remain_anonymous">Zostať anonymný</string>
-
     <!-- Group Permissions (ChatPermissionsContent.kt) -->
     <string name="permissions">Oprávnenia</string>
     <string name="what_can_members_do">Čo môžu členovia tejto skupiny robiť?</string>
     <string name="permission_add_members">Pridávať členov</string>
-
     <!-- Common UI / Content Descriptions -->
     <string name="back">Späť</string>
     <string name="save">Uložiť</string>
@@ -1633,7 +1552,6 @@
     <string name="edit">Upraviť</string>
     <string name="username">Používateľské meno</string>
     <string name="filters">Filtre</string>
-
     <!-- Profile Logs / Recent Actions -->
     <string name="logs_title">Nedávne akcie</string>
     <string name="logs_events_count">Načítaných %d udalostí</string>
@@ -1641,7 +1559,6 @@
     <string name="logs_empty_subtitle">Skúste zmeniť filtre</string>
     <string name="logs_not_implemented">Nie je implementované</string>
     <string name="logs_user_id_copied">ID používateľa skopírované</string>
-
     <!-- Logs Filters -->
     <string name="logs_filter_title">Filtrovať akcie</string>
     <string name="logs_filter_reset">Obnoviť</string>
@@ -1651,7 +1568,6 @@
     <string name="logs_filter_search_placeholder">Hľadať…</string>
     <string name="logs_filter_no_users">Žiadni používatelia sa nenašli</string>
     <string name="logs_filter_no_results">Žiadne výsledky pre „%s"</string>
-
     <!-- Action Types -->
     <string name="logs_action_edits">Úpravy</string>
     <string name="logs_action_deletions">Odstránenia</string>
@@ -1665,7 +1581,6 @@
     <string name="logs_action_settings">Nastavenia</string>
     <string name="logs_action_links">Odkazy</string>
     <string name="logs_action_video">Video</string>
-
     <!-- Action Descriptions -->
     <string name="logs_action_edited">upravil správu</string>
     <string name="logs_action_deleted">odstránil správu</string>
@@ -1686,7 +1601,6 @@
     <string name="logs_action_video_started">spustil videohovor</string>
     <string name="logs_action_video_ended">ukončil videohovor</string>
     <string name="logs_action_unknown">vykonal akciu: %s</string>
-
     <!-- Details and Previews -->
     <string name="logs_original_message">Pôvodná správa:</string>
     <string name="logs_new_message">Nová správa:</string>
@@ -1703,7 +1617,6 @@
     <string name="logs_status_to">Na</string>
     <string name="logs_permissions_changes">Zmeny oprávnení:</string>
     <string name="logs_permissions_current">Aktuálne oprávnenia:</string>
-
     <!-- Permissions / Roles -->
     <string name="logs_perm_messages">Správy</string>
     <string name="logs_perm_media">Médiá</string>
@@ -1713,13 +1626,11 @@
     <string name="logs_perm_invite">Pozvánky</string>
     <string name="logs_perm_pin">Pripnúť</string>
     <string name="logs_perm_info">Informácie</string>
-
     <string name="logs_role_admin">Správca</string>
     <string name="logs_role_owner">Vlastník</string>
     <string name="logs_role_restricted">Obmedzený</string>
     <string name="logs_role_banned">Zablokovaný</string>
     <string name="logs_role_member">Člen</string>
-
     <!-- Media Types -->
     <string name="logs_media_photo">Fotografia</string>
     <string name="logs_media_video">Video</string>
@@ -1734,20 +1645,16 @@
     <string name="logs_media_location">Poloha</string>
     <string name="logs_media_venue">Miesto</string>
     <string name="logs_media_unsupported">Nepodporovaná správa</string>
-
     <!-- Date and Formats -->
     <string name="format_duration">%1$02d:%2$02d</string>
-
     <!-- Views Count -->
     <string name="views_k">%1$.1f tis.</string>
     <string name="views_m">%1$.1f mil.</string>
-
     <!-- Comments -->
     <string name="comment_leave">Napísať komentár</string>
     <string name="comment_count">%1$d komentárov</string>
     <string name="comment_count_k">%1$.1f tis. komentárov</string>
     <string name="comment_count_m">%1$.1f mil. komentárov</string>
-
     <!-- Poll Message -->
     <string name="poll_final_results">Konečné výsledky</string>
     <string name="poll_anonymous">Anonymná</string>
@@ -1767,12 +1674,10 @@
     <string name="cd_more">Viac</string>
     <string name="cd_vote">Hlasovať</string>
     <string name="cd_explanation">Vysvetlenie</string>
-
     <!-- Poll Voters Sheet -->
     <string name="poll_voters_title">Hlasujúci</string>
     <string name="poll_no_voters">Zatiaľ žiadni hlasujúci</string>
     <string name="action_close">Zavrieť</string>
-
     <!-- Reply Content -->
     <string name="reply_content_photo">Fotografia</string>
     <string name="reply_content_video">Video</string>
@@ -1781,7 +1686,6 @@
     <string name="reply_content_video_message">Video správa</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">Správa</string>
-
     <!-- Chat Folders -->
     <string name="folders_title">Priečinky chatov</string>
     <string name="folders_back">Späť</string>
@@ -1806,13 +1710,11 @@
     <string name="folders_included_chats">Zahrnuté chaty</string>
     <string name="folders_search_chats">Hľadať chaty…</string>
     <string name="folders_cancel">Zrušiť</string>
-
     <!-- Premium Screen -->
     <string name="premium_title">Telegram Premium</string>
     <string name="premium_back">Späť</string>
     <string name="premium_subscribe_button">Prihlásiť sa za %s mesačne</string>
     <string name="premium_unlock_features">Odomknúť exkluzívne funkcie</string>
-
     <!-- Premium Features -->
     <string name="premium_feature_doubled_limits_title">Zdvojené limity</string>
     <string name="premium_feature_doubled_limits_description">Až %1$d kanálov, %2$d priečinkov chatov, %3$d pripnutých
@@ -1853,13 +1755,11 @@
     <string name="premium_feature_app_icons_description">Vyberte si ikonu aplikácie Telegram pre plochu zo širokej
         ponuky.
     </string>
-
     <!-- Mini App Menu -->
     <string name="mini_app_menu_reload">Znovu načítať</string>
     <string name="mini_app_menu_copy_link">Kopírovať odkaz</string>
     <string name="mini_app_menu_open_in_browser">Otvoriť v prehliadači</string>
     <string name="mini_app_menu_add_to_home">Pridať na plochu</string>
-
     <!-- Mini App Dialogs -->
     <string name="mini_app_close_confirmation_title">Zavrieť mini aplikáciu?</string>
     <string name="mini_app_close_confirmation_text">Máte neuložené zmeny. Naozaj chcete zavrieť?</string>
@@ -1885,7 +1785,6 @@
         súkromia. Bot bude mať prístup k základným informáciám vášho profilu.
     </string>
     <string name="mini_app_tos_accept">Prijať a spustiť</string>
-
     <!-- Instant View -->
     <string name="instant_view_search_placeholder">Hľadať v článku…</string>
     <string name="instant_view_back">Späť</string>
@@ -1906,13 +1805,11 @@
     <string name="instant_view_collapse">Zbaliť</string>
     <string name="instant_view_expand">Rozbaliť</string>
     <string name="instant_view_map_prefix">Mapa: %1$s, %2$s</string>
-
     <!-- Settings Top -->
     <string name="share_profile_title">Zdieľať profil</string>
     <string name="share_profile_subtitle">Zdieľajte odkaz na váš profil v MonoGrame</string>
     <string name="copy_link_title">Kopírovať odkaz</string>
     <string name="copy_link_subtitle">Kopírovať odkaz na váš profil v MonoGrame do schránky</string>
-
     <!-- Chat Theme Editor -->
     <string name="chat_theme_editor_title">Editor témy</string>
     <string name="chat_theme_editor_palette_mode">Režim palety</string>
@@ -1934,13 +1831,11 @@
     <string name="chat_theme_editor_both">Obe</string>
     <string name="chat_theme_editor_hex">Hex</string>
     <string name="chat_theme_editor_theme_file_name">monogram-theme.json</string>
-
     <string name="chat_theme_editor_theme_file_saved">Súbor témy uložený</string>
     <string name="chat_theme_editor_save_failed">Uloženie zlyhalo</string>
     <string name="chat_theme_editor_theme_loaded">Téma načítaná</string>
     <string name="chat_theme_editor_invalid_file">Neplatný súbor</string>
     <string name="chat_theme_editor_load_failed">Načítanie zlyhalo</string>
-
     <string name="chat_theme_editor_theme_source_title">Zdroj témy</string>
     <string name="chat_theme_editor_theme_source_description">Vyberte práve jeden zdroj farieb aplikácie. Vlastná téma
         používa vaše upraviteľné palety, Monet používa dynamické farby Androidu. AMOLED ovplyvňuje iba tmavé pozadie.
@@ -1957,7 +1852,6 @@
     <string name="chat_theme_editor_amoled_dark_description">Vynútiť čisto čiernu pre tmavé plochy na zníženie žiary a
         úsporu energie na OLED obrazovkách.
     </string>
-
     <string name="chat_theme_editor_preset_themes">Predvolené témy</string>
     <string name="chat_theme_editor_preset_themes_description">Každá predvolba má pripravené svetlé aj tmavé varianty.
         Klepnutím na Svetlá, Tmavá alebo Obe ich okamžite použijete.
@@ -1971,7 +1865,6 @@
     <string name="chat_theme_editor_saturation_format">Sýtosť %1$d%%</string>
     <string name="chat_theme_editor_brightness_format">Jas %1$d%%</string>
     <string name="chat_theme_editor_alpha_format">Priehľadnosť %1$d%%</string>
-
     <string name="chat_theme_editor_role_primary">Primárna</string>
     <string name="chat_theme_editor_role_secondary">Sekundárna</string>
     <string name="chat_theme_editor_role_tertiary">Terciárna</string>
@@ -1982,92 +1875,75 @@
     <string name="chat_theme_editor_role_tertiary_container">Terciárny kontajner</string>
     <string name="chat_theme_editor_role_surface_variant">Variant povrchu</string>
     <string name="chat_theme_editor_role_outline">Obrys</string>
-
     <string name="chat_theme_editor_chip_light_primary">S P</string>
     <string name="chat_theme_editor_chip_light_container">S K</string>
     <string name="chat_theme_editor_chip_light_background">S P</string>
     <string name="chat_theme_editor_chip_dark_primary">T P</string>
     <string name="chat_theme_editor_chip_dark_container">T K</string>
     <string name="chat_theme_editor_chip_dark_background">T P</string>
-
     <string name="chat_theme_editor_accent_blue">Modrá</string>
     <string name="chat_theme_editor_accent_green">Zelená</string>
     <string name="chat_theme_editor_accent_orange">Oranžová</string>
     <string name="chat_theme_editor_accent_rose">Ružová</string>
     <string name="chat_theme_editor_accent_indigo">Indigo</string>
     <string name="chat_theme_editor_accent_cyan">Azúrová</string>
-
     <string name="chat_theme_editor_preset_classic_name">Klasická</string>
     <string name="chat_theme_editor_preset_classic_description">Vyvážená modrá s čitateľnosťou a neutrálnymi plochami.
     </string>
-
     <string name="chat_theme_editor_preset_forest_name">Les</string>
     <string name="chat_theme_editor_preset_forest_description">Prírodné zelené s pokojným kontrastom a jemnými
         kontajnermi.
     </string>
-
     <string name="chat_theme_editor_preset_ocean_name">Oceán</string>
     <string name="chat_theme_editor_preset_ocean_description">Svieži azúrovo-modrý gradient so svetlým a hlbokým tmavým
         režimom.
     </string>
-
     <string name="chat_theme_editor_preset_sunset_name">Západ slnka</string>
     <string name="chat_theme_editor_preset_sunset_description">Teplé oranžové a koralové zvýraznenia s vysokou
         čitateľnosťou.
     </string>
-
     <string name="chat_theme_editor_preset_graphite_name">Grafit</string>
     <string name="chat_theme_editor_preset_graphite_description">Neutrálna sivá základňa s modrosivými zvýrazneniami a
         silnou štruktúrou.
     </string>
-
     <string name="chat_theme_editor_preset_mint_name">Mäta</string>
     <string name="chat_theme_editor_preset_mint_description">Svieža kombinácia mätovej a tyrkysovej s jemnými
         kontajnermi.
     </string>
-
     <string name="chat_theme_editor_preset_ruby_name">Rubín</string>
     <string name="chat_theme_editor_preset_ruby_description">Hlboké červené zvýraznenie s neutrálnymi kontajnermi pre
         silný dôraz na akcie.
     </string>
-
     <string name="chat_theme_editor_preset_lavender_gray_name">Levanduľová sivá</string>
     <string name="chat_theme_editor_preset_lavender_gray_description">Tlmená fialovo-sivá schéma s kontrolovanou
         sýtosťou a čistým kontrastom.
     </string>
-
     <string name="chat_theme_editor_preset_sand_name">Piesok</string>
     <string name="chat_theme_editor_preset_sand_description">Béžová a jantárová paleta pre veľmi jemný vizuálny šum.
     </string>
-
     <string name="chat_theme_editor_preset_arctic_name">Arktická</string>
     <string name="chat_theme_editor_preset_arctic_description">Ľadovo bielo-modrý pocit s vysokou čitateľnosťou a
         ostrými hranicami.
     </string>
-
     <string name="chat_theme_editor_preset_emerald_name">Smaragd</string>
     <string name="chat_theme_editor_preset_emerald_description">Živá zelená paleta s čistými plochami a moderným
         kontrastom.
     </string>
-
     <string name="chat_theme_editor_preset_copper_name">Meď</string>
     <string name="chat_theme_editor_preset_copper_description">Teplá medeno-oranžová téma so zachovanou čitateľnosťou
         textu v oboch režimoch.
     </string>
-
     <string name="chat_theme_editor_preset_sakura_name">Sakura</string>
     <string name="chat_theme_editor_preset_sakura_description">Jemné ružovo-purpurové tóny s mäkkými kontajnermi a
         silnými zvýrazneniami.
     </string>
-
     <string name="chat_theme_editor_preset_nord_name">Nord</string>
     <string name="chat_theme_editor_preset_nord_description">Chladné severské modré s pokojnou a profesionálnou
         vizuálnou rovnováhou.
     </string>
-
     <!-- Circular recorder -->
     <string name="recorder_permissions_required">Vyžadujú sa oprávnenia pre fotoaparát a mikrofón</string>
-    <string name="recorder_processing">Spracovávam...</string>
+    <string name="recorder_processing">Spracovávam…</string>
     <string name="recorder_processing_error">Chyba spracovania: %1$s</string>
     <string name="recorder_close_cd">Zavrieť rekordér</string>
     <string name="recorder_switch_cd">Prepnúť fotoaparát</string>
@@ -2077,7 +1953,6 @@
     <string name="recorder_time_format">Čas: %1$s</string>
     <string name="recorder_zoom_format">Priblíženie: %1$.1fx (rozsah %2$.1fx – %3$.1fx)</string>
     <string name="recorder_cancel">Zrušiť</string>
-
     <string name="clear_history_title">Vymazať históriu?</string>
     <string name="clear_history_confirmation">Naozaj chcete vymazať históriu chatu? Túto akciu nie je možné vrátiť
         späť.
@@ -2170,7 +2045,7 @@
     <string name="editor_ai_style_viking">Viking</string>
     <string name="editor_ai_style_zen">Zen</string>
     <string name="editor_ai_add_emojis">Pridať emoji</string>
-    <string name="editor_ai_loading">Spracovanie...</string>
+    <string name="editor_ai_loading">Spracovanie…</string>
     <string name="editor_ai_error_empty">Zadajte text pre AI</string>
     <string name="editor_ai_error_flood">Príliš veľa AI požiadaviek. Môže byť potrebný Telegram Premium.</string>
     <string name="editor_ai_error_generic">Spracovanie AI zlyhalo</string>
@@ -2182,12 +2057,11 @@
     <string name="auth_code_expired_error">Platnosť overovacieho kódu vypršala</string>
     <string name="auth_password_hash_invalid">Neplatné heslo</string>
     <string name="unexpected_error">Vyskytla sa neočakávaná chyba</string>
-
     <!-- ProxyContent -->
     <string name="proxy_connection_test_button">Spustiť test pripojenia</string>
     <string name="proxy_connection_test_title">Test pripojenia Telegramu</string>
     <string name="proxy_connection_test_subtitle">Kontroluje end-to-end pripojenie cez dátové centrum Telegramu.</string>
-    <string name="proxy_connection_test_running">Prebieha test pripojenia...</string>
+    <string name="proxy_connection_test_running">Prebieha test pripojenia…</string>
     <string name="proxy_connection_test_success">Pripojenie vyzerá dobre. Tento proxy môžete uložiť a zapnúť.</string>
     <string name="proxy_connection_test_hint">Hlavný zoznam zobrazuje iba transportný ping. Tento test je širší, takže hodnoty môžu byť vyššie.</string>
     <string name="proxy_tab_proxy">Proxy</string>
@@ -2295,8 +2169,8 @@
     <string name="notifications_exceptions_channels">Kanály</string>
     <string name="notifications_exceptions_label">Výnimky</string>
     <string name="notifications_exceptions_search">Hľadať</string>
-    <string name="notifications_exceptions_search_placeholder">Hľadať výnimky...</string>
-    <string name="notifications_exceptions_no_results_format">Nenašli sa žiadne výsledky pre &quot;%1$s&quot;</string>
+    <string name="notifications_exceptions_search_placeholder">Hľadať výnimky…</string>
+    <string name="notifications_exceptions_no_results_format">Nenašli sa žiadne výsledky pre "%1$s"</string>
     <string name="notifications_exceptions_chats_header">CHATY</string>
     <string name="notifications_exceptions_hint">Ťuknite na chat, aby ste zmenili jeho nastavenia upozornení alebo odstránili výnimku.</string>
     <string name="notifications_exceptions_empty_title">Žiadne výnimky</string>
@@ -2315,4 +2189,220 @@
     <string name="download_saved_files_with_errors_format">Uložených %1$d súborov do Downloads/MonoGram (%2$d sa nenašlo, %3$d zlyhalo)</string>
     <string name="logs_role_left">Odišiel</string>
     <string name="logs_role_unknown">Neznáme</string>
+    <string name="service_message_unknown_time">Neznámy čas</string>
+    <string name="service_message_unknown_duration">Neznáme trvanie</string>
+    <string name="service_message_unknown_duration_short">00:00</string>
+    <string name="service_message_auto_delete_off">Vypnuté</string>
+    <string name="service_message_money_format">%2$d %2$d</string>
+    <string name="service_message_call_missed">Zmeškaný hovor</string>
+    <string name="service_message_call">Zavolajte</string>
+    <string name="service_message_video_call_missed">Zmeškaný videohovor</string>
+    <string name="service_message_video_call">Videohovor</string>
+    <string name="service_message_call_declined">Odmietnutý hovor</string>
+    <string name="service_message_video_call_declined">Odmietnutý videohovor</string>
+    <string name="service_message_call_disconnected">Hovor bol odpojený</string>
+    <string name="service_message_video_call_disconnected">Videohovor bol odpojený</string>
+    <string name="service_message_call_hung_up">Hovor bol ukončený</string>
+    <string name="service_message_video_call_hung_up">Videohovor bol ukončený</string>
+    <string name="service_message_call_upgraded_to_group">Hovor bol inovovaný na skupinový hovor</string>
+    <string name="service_message_call_ended">Hovor ukončený · %1$s</string>
+    <string name="service_message_video_call_ended">Videohovor sa skončil · %1$s</string>
+    <string name="service_message_group_call">Skupinový hovor</string>
+    <string name="service_message_group_video_call">Skupinový videohovor</string>
+    <string name="service_message_group_call_started">Začal sa skupinový hovor</string>
+    <string name="service_message_group_video_call_started">Začal sa skupinový videohovor</string>
+    <string name="service_message_group_call_missed">Zmeškaný skupinový hovor</string>
+    <string name="service_message_group_video_call_missed">Zmeškaný skupinový videohovor</string>
+    <string name="service_message_group_call_ended">Skupinový hovor ukončený · %1$s</string>
+    <string name="service_message_group_video_call_ended">Skupinový videohovor sa skončil · %1$s</string>
+    <string name="service_message_video_chat_scheduled">Videorozhovor naplánovaný na %1$s</string>
+    <string name="service_message_video_chat_started">Videorozhovor sa začal</string>
+    <string name="service_message_video_chat_ended">Videorozhovor sa skončil · %1$s</string>
+    <string name="service_message_video_chat_invited">Pozval %1$d ľudí na videorozhovor</string>
+    <string name="service_message_video_chat_invited_one_named">Pozvaný %1$s na videorozhovor</string>
+    <string name="service_message_video_chat_invited_two_named">Pozvali %2$s a %2$s na videorozhovor</string>
+    <string name="service_message_video_chat_invited_many_named">Pozvali %3$d, %3$d a %3$d ďalších na videorozhovor</string>
+    <string name="service_message_poll_option_added">Bola pridaná možnosť ankety: %1$s</string>
+    <string name="service_message_poll_option_deleted">Možnosť ankety bola odstránená: %1$s</string>
+    <string name="service_message_basic_group_created">Vytvorila sa skupina „%1$s“</string>
+    <string name="service_message_supergroup_created">Vytvorila superskupinu „%1$s“</string>
+    <string name="service_message_chat_title_changed">%2$s zmenil názov rozhovoru na „%2$s“</string>
+    <string name="service_message_chat_photo_changed">%1$s zmenil fotografiu četu</string>
+    <string name="service_message_chat_photo_removed">%1$s odstránil fotografiu četu</string>
+    <string name="service_message_chat_owner_left">Vlastník chatu odišiel</string>
+    <string name="service_message_chat_owner_left_with_new_owner">Vlastník chatu odišiel. Nový vlastník: %1$s</string>
+    <string name="service_message_chat_owner_changed">Vlastník chatu sa zmenil</string>
+    <string name="service_message_chat_owner_changed_to">Nový vlastník četu: %1$s</string>
+    <string name="service_message_protected_content_enabled">Chránený obsah je povolený</string>
+    <string name="service_message_protected_content_disabled">Chránený obsah je vypnutý</string>
+    <string name="service_message_protected_content_disable_requested">Vyžaduje sa zakázanie chráneného obsahu</string>
+    <string name="service_message_protected_content_disable_expired">Platnosť žiadosti o zakázanie chráneného obsahu vypršala</string>
+    <string name="service_message_members_added">%2$d pridal %2$d nových členov</string>
+    <string name="service_message_member_added_named">%2$s pridané %2$s</string>
+    <string name="service_message_members_added_two_named">%3$s pridal %3$s a %3$s</string>
+    <string name="service_message_members_added_many_named">%4$d pridal %4$d, %4$d a %4$d ďalších</string>
+    <string name="service_message_member_joined">%1$s sa pripojil k rozhovoru</string>
+    <string name="service_message_joined_by_link">%1$s sa pripojil prostredníctvom odkazu na pozvánku</string>
+    <string name="service_message_joined_by_request">%1$s pripojené na žiadosť</string>
+    <string name="service_message_member_removed">%1$s odstránil člena</string>
+    <string name="service_message_member_removed_named">%2$s odstránené %2$s</string>
+    <string name="service_message_member_left_named">%1$s opustil čet</string>
+    <string name="service_message_chat_upgraded">%1$s inovoval skupinu na superskupinu</string>
+    <string name="service_message_group_migrated">Skupina bola migrovaná</string>
+    <string name="service_message_pinned">%1$s pripol správu</string>
+    <string name="service_message_pinned_with_preview">%2$s pripnuté: %2$s</string>
+    <string name="service_message_screenshot_taken">%1$s urobil snímku obrazovky</string>
+    <string name="service_message_background_changed">Pozadie četu sa zmenilo</string>
+    <string name="service_message_background_changed_for_self">Pozadie četu sa pre vás zmenilo</string>
+    <string name="service_message_theme_changed">Téma rozhovoru sa zmenila</string>
+    <string name="service_message_theme_changed_to">Motív četu bol zmenený na %1$s</string>
+    <string name="service_message_theme_changed_gift">Téma četu zmenená (téma darčeka)</string>
+    <string name="service_message_theme_reset">Téma četu bola resetovaná</string>
+    <string name="service_message_auto_delete_enabled">Automatické odstraňovanie nastavené na %1$s</string>
+    <string name="service_message_auto_delete_disabled">Automatické odstraňovanie je zakázané</string>
+    <string name="service_message_auto_delete_changed_by">%2$s od %2$s</string>
+    <string name="service_message_chat_boost">Rozhovor vylepšený ×%1$d</string>
+    <string name="service_message_topic_created">%2$s vytvoril tému „%2$s“</string>
+    <string name="service_message_topic_edited">%1$s upravil tému</string>
+    <string name="service_message_topic_edited_name">%2$s premenoval tému na "%2$s"</string>
+    <string name="service_message_topic_edited_icon">%1$s zmenil ikonu témy</string>
+    <string name="service_message_topic_edited_icon_removed">%1$s odstránil ikonu témy</string>
+    <string name="service_message_topic_edited_name_and_icon">%2$s zmenil názov témy na „%2$s“ a aktualizoval ikonu</string>
+    <string name="service_message_topic_closed">%1$s uzavrel tému</string>
+    <string name="service_message_topic_reopened">%1$s znovu otvoril tému</string>
+    <string name="service_message_topic_hidden">%1$s skryl tému</string>
+    <string name="service_message_topic_visible">%1$s zviditeľnil tému</string>
+    <string name="service_message_profile_photo_suggested">%1$s navrhol profilovú fotografiu</string>
+    <string name="service_message_birthdate_suggested">%1$s navrhol dátum narodenia</string>
+    <string name="service_message_game_score">Skóre hry: %1$d</string>
+    <string name="service_message_managed_bot_created">Bol vytvorený spravovaný robot</string>
+    <string name="service_message_payment_sent">Platba odoslaná: %1$s</string>
+    <string name="service_message_payment_sent_with_invoice">Platba odoslaná za „%2$s“: %2$s</string>
+    <string name="service_message_payment_sent_recurring">Opakovaná platba odoslaná: %1$s</string>
+    <string name="service_message_payment_sent_first_recurring">Prvá opakovaná platba odoslaná: %1$s</string>
+    <string name="service_message_payment_received">Prijatá platba: %1$s</string>
+    <string name="service_message_payment_received_recurring">Prijatá opakovaná platba: %1$s</string>
+    <string name="service_message_payment_refunded">Platba vrátená: %1$s</string>
+    <string name="service_message_payment_refunded_for">Vrátená platba za %2$s: %2$s</string>
+    <string name="service_message_premium_gifted">Darčekový telegram Premium za %1$s</string>
+    <string name="service_message_premium_gifted_to">Darovaný telegram Premium na %2$s za %2$s</string>
+    <string name="service_message_premium_gifted_from_to">%3$s daroval Telegram Premium pre %3$s za %3$s</string>
+    <string name="service_message_premium_gift_code_created">Bol vytvorený darčekový kód Telegram Premium</string>
+    <string name="service_message_premium_gift_code_created_by">%2$s vytvoril prémiový darčekový kód (%2$s)</string>
+    <string name="service_message_premium_gift_code_from_giveaway">Bol vytvorený prémiový darčekový kód (%1$s)</string>
+    <string name="service_message_premium_gift_code_unclaimed">Nenárokovaný darčekový kód Premium (%1$s)</string>
+    <string name="service_message_giveaway_created">Darček vytvorený</string>
+    <string name="service_message_stars_giveaway_created">Bola vytvorená ponuka s hviezdami</string>
+    <string name="service_message_giveaway">Rozdávanie</string>
+    <string name="service_message_giveaway_with_prize">Darček: %2$s víťazi, cena %2$s</string>
+    <string name="service_message_giveaway_completed">Darček bol dokončený s %1$d víťazmi</string>
+    <string name="service_message_giveaway_completed_stars">Hviezdny darček dokončený s %1$d víťazmi</string>
+    <string name="service_message_giveaway_completed_with_unclaimed">Darček dokončený: %2$d víťazi, %2$d nevyzdvihnuté ceny</string>
+    <string name="service_message_giveaway_winners">Vyhlásení víťazi darčekov: %1$d</string>
+    <string name="service_message_giveaway_winners_in_chat">Vyhlásení víťazi darčekov: %2$s v %2$s</string>
+    <string name="service_message_giveaway_winners_refunded">Darček bol zrušený a vrátená platba (%1$d víťazov)</string>
+    <string name="service_message_stars_gifted">Darované hviezdy telegramu %1$d</string>
+    <string name="service_message_stars_gifted_to">Obdarovaný %1$s telegramovými hviezdičkami %1$s</string>
+    <string name="service_message_stars_gifted_from_to">%2$s obdarovaný %2$s Telegram Stars pre %2$s</string>
+    <string name="service_message_ton_gifted">Nadaný TON</string>
+    <string name="service_message_ton_gifted_amount">Nadaný %1$s</string>
+    <string name="service_message_ton_gifted_to">Obdarovaný %1$s až %1$s</string>
+    <string name="service_message_ton_gifted_from_to">%2$s daroval %2$s až %2$s</string>
+    <string name="service_message_giveaway_prize_stars">Získali ste %1$d hviezdičiek z darčeka</string>
+    <string name="service_message_giveaway_prize_stars_in_chat">Získali ste %2$s hviezdičiek z darčekov v %2$s</string>
+    <string name="service_message_giveaway_prize_stars_unclaimed_in_chat">Prijatých %2$s nevyzdvihnutých hviezdičiek z darčekov v %2$s</string>
+    <string name="service_message_gift_received">Darček prijatý</string>
+    <string name="service_message_gift_private">Prijatý súkromný darček</string>
+    <string name="service_message_gift_from_auction">Darček vyhraný v aukcii</string>
+    <string name="service_message_gift_upgraded">Darček upgradovaný</string>
+    <string name="service_message_gift_upgraded_transferred">Prenesený vylepšený darček</string>
+    <string name="service_message_gift_refunded">Darček vrátený</string>
+    <string name="service_message_gift_purchase_offer">Prijatá ponuka na nákup darčekov</string>
+    <string name="service_message_gift_purchase_offer_with_price">Ponuka na nákup darčekov: %2$s, platnosť vyprší %2$s</string>
+    <string name="service_message_gift_purchase_offer_rejected">Ponuka na nákup darčekov bola zamietnutá</string>
+    <string name="service_message_gift_purchase_offer_rejected_with_price">Ponuka na nákup darčekov bola odmietnutá (%1$s)</string>
+    <string name="service_message_gift_purchase_offer_expired">Platnosť ponuky na nákup darčekov vypršala</string>
+    <string name="service_message_gift_purchase_offer_expired_with_price">Platnosť ponuky na nákup darčekov vypršala (%1$s)</string>
+    <string name="service_message_paid_messages_refunded">Refundované %2$d platené správy a %2$d hviezdičiek</string>
+    <string name="service_message_paid_message_price_changed">Cena platenej správy sa zmenila na %1$d hviezdičiek</string>
+    <string name="service_message_direct_message_price_changed">Cena za priame správy sa zmenila na %1$d hviezdičiek</string>
+    <string name="service_message_direct_messages_disabled">Priame správy sú zakázané</string>
+    <string name="service_message_checklist_tasks_updated">Kontrolný zoznam bol aktualizovaný: %2$d hotovo, %2$d nedokončené</string>
+    <string name="service_message_checklist_tasks_added">Do kontrolného zoznamu bolo pridaných %1$d úloh</string>
+    <string name="service_message_suggested_post_approval_failed">Schválenie navrhovaného príspevku zlyhalo</string>
+    <string name="service_message_suggested_post_approval_failed_with_price">Schválenie navrhovaného príspevku zlyhalo: vyžaduje sa %1$s</string>
+    <string name="service_message_suggested_post_approved">Navrhovaný príspevok bol schválený pre %1$s</string>
+    <string name="service_message_suggested_post_approved_with_price">Navrhovaný príspevok schválený pre %2$s (%2$s)</string>
+    <string name="service_message_suggested_post_declined">Navrhovaný príspevok bol odmietnutý</string>
+    <string name="service_message_suggested_post_declined_with_comment">Navrhovaný príspevok bol odmietnutý: %1$s</string>
+    <string name="service_message_suggested_post_paid">Navrhovaný príspevok vyplatený</string>
+    <string name="service_message_suggested_post_paid_stars">Navrhovaný príspevok vyplatený: %1$d hviezdičiek</string>
+    <string name="service_message_suggested_post_paid_ton">Navrhovaný príspevok vyplatený: %1$s</string>
+    <string name="service_message_suggested_post_refunded">Vrátená platba za odporúčaný príspevok</string>
+    <string name="service_message_suggested_post_refunded_with_reason">Vrátená platba za navrhovaný príspevok: %1$s</string>
+    <string name="service_message_suggested_post_refund_reason_deleted">Príspevok bol zmazaný príliš skoro</string>
+    <string name="service_message_suggested_post_refund_reason_payment">Pôvodná platba bola vrátená</string>
+    <string name="service_message_contact_registered">%1$s sa pripojil k telegramu</string>
+    <string name="service_message_users_shared">Zdieľaných používateľov s robotom: %1$d</string>
+    <string name="service_message_users_shared_one_named">Zdieľaný používateľ s robotom: %1$s</string>
+    <string name="service_message_users_shared_two_named">Zdieľaní používatelia s robotom: %2$s, %2$s</string>
+    <string name="service_message_users_shared_many_named">Zdieľaní používatelia s robotom: %3$d, %3$d a %3$d ďalších</string>
+    <string name="service_message_chat_shared">Zdieľal chat s robotom</string>
+    <string name="service_message_chat_shared_named">Zdieľaný čet s robotom: %1$s</string>
+    <string name="service_message_bot_write_access_allowed">Bot teraz môže posielať správy</string>
+    <string name="service_message_bot_write_access_connected_website">Robot môže odosielať správy (pripojená webová lokalita: %1$s)</string>
+    <string name="service_message_bot_write_access_attachment_menu">Bot môže posielať správy (pridané do ponuky príloh)</string>
+    <string name="service_message_bot_write_access_web_app">Robot môže odosielať správy (spustená webová aplikácia: %1$s)</string>
+    <string name="service_message_bot_write_access_accepted_request">Bot môže posielať správy (žiadosť prijatá)</string>
+    <string name="service_message_web_app_data_sent">Webová aplikácia „%1$s“ odoslala údaje</string>
+    <string name="service_message_web_app_data_received">Webová aplikácia „%1$s“ vrátila údaje</string>
+    <string name="service_message_web_app_data_received_with_size">Webová aplikácia „%2$d“ vrátila %2$d znakov</string>
+    <string name="service_message_passport_data_sent">Údaje z pasu boli odoslané</string>
+    <string name="service_message_passport_data_received">Údaje z pasu boli prijaté</string>
+    <string name="service_message_proximity_alert">Upozornenie na blízkosť: %1$d m</string>
+    <string name="service_message_stars_format">%1$d hviezd</string>
+    <string name="service_message_ton_format">%.2f TON</string>
+    <string name="service_message_unknown_price">neznáma cena</string>
+    <string name="service_message_giveaway_prize_unknown">neznáma cena</string>
+    <string name="telemt_dns_section_header">Telemt DNS</string>
+    <string name="telemt_dns_section_subtitle">Nakonfigurujte poskytovateľa DNS-over-HTTPS pre TDLib</string>
+    <string name="telemt_dns_provider_title">Poskytovateľ DNS</string>
+    <string name="telemt_dns_provider_subtitle">Vyberte poskytovateľa DoH pre rozlíšenie domény</string>
+    <string name="telemt_dns_provider_google">Google DNS</string>
+    <string name="telemt_dns_provider_cloudflare">CloudFlare DNS</string>
+    <string name="telemt_dns_provider_custom">Vlastná DoH</string>
+    <string name="telemt_dns_custom_url_title">Vlastná webová adresa DoH</string>
+    <string name="telemt_dns_custom_url_subtitle">Zadajte vlastnú adresu URL servera DNS-over-HTTPS</string>
+    <string name="telemt_dns_custom_headers_title">Vlastné hlavičky</string>
+    <string name="telemt_dns_custom_headers_subtitle">Voliteľné hlavičky pre vlastné DoH (napr. Autorizácia)</string>
+    <string name="telemt_dns_fallback_google">Záložné: Google DNS → CloudFlare DNS</string>
+    <string name="telemt_dns_fallback_cloudflare">Záložné: CloudFlare DNS → Google DNS</string>
+    <string name="telemt_dns_fallback_custom">Vlastné DoH nemá žiadnu rezervu</string>
+    <string name="dns_provider_change_failed">Nepodarilo sa zmeniť poskytovateľa DNS</string>
+    <string name="dns_url_change_failed">Nepodarilo sa zmeniť adresu URL DNS</string>
+    <string name="dns_headers_change_failed">Nepodarilo sa zmeniť hlavičky DNS</string>
+    <string name="message_expired_photo">Platnosť fotky vypršala</string>
+    <string name="message_expired_video">Platnosť videa vypršala</string>
+    <string name="folders_show_all_chats_title">Zobraziť všetky rozhovory</string>
+    <string name="folders_show_all_chats_subtitle">Ponechajte priečinok Všetky rozhovory viditeľný na paneli kariet</string>
+    <plurals name="service_message_months">
+        <item quantity="one">%1$d mesiac</item>
+        <item quantity="other">%1$d mesiacov</item>
+    </plurals>
+    <plurals name="service_message_days">
+        <item quantity="one">%1$d deň</item>
+        <item quantity="other">%1$d dní</item>
+    </plurals>
+    <plurals name="service_message_hours">
+        <item quantity="one">%1$d hodina</item>
+        <item quantity="other">%1$d hodín</item>
+    </plurals>
+    <plurals name="service_message_minutes">
+        <item quantity="one">%1$d minúta</item>
+        <item quantity="other">%1$d minút</item>
+    </plurals>
+    <plurals name="service_message_seconds">
+        <item quantity="one">%1$d sekundy</item>
+        <item quantity="other">%1$d sekúnd</item>
+    </plurals>
 </resources>

@@ -4,25 +4,20 @@
     <string name="confirmation_message">Ви дійсно хочете підтвердити вхід на цьому пристрої?</string>
     <string name="confirm_auth_action">Так, увійти</string>
     <string name="cancel_action">Скасувати</string>
-
     <string name="scan_qr_title">Сканувати QR-код</string>
     <string name="devices_title">Пристрої</string>
     <string name="link_device_action">Підключити пристрій</string>
-
     <string name="current_device_section">Цей пристрій</string>
     <string name="login_requests_section">Запити на вхід</string>
     <string name="active_sessions_section">Активні сеанси</string>
     <string name="sessions_login_attempt">Спроба входу</string>
     <string name="sessions_unconfirmed">Не підтверджено</string>
     <string name="sessions_terminate_action">Завершити сеанс</string>
-
     <string name="cd_navigate_back">Назад</string>
     <string name="cd_close_scanner">Закрити сканер</string>
     <string name="cd_qr_icon">Піктограма QR-сканера</string>
-
     <!-- Startup -->
     <string name="startup_connecting">Підключення до Telegram…</string>
-
     <!-- About Screen -->
     <string name="about_title">Про застосунок</string>
     <string name="cd_back">Назад</string>
@@ -48,7 +43,6 @@
     <string name="role_designer">Дизайнер</string>
     <string name="monogram_description">MonoGram — неофіційний клієнт Telegram на базі Material Design 3</string>
     <string name="copyright_text">© 2026 MonoGram</string>
-
     <!-- Updates -->
     <string name="check_for_updates">Перевірити оновлення</string>
     <string name="checking_updates">Перевірка…</string>
@@ -67,7 +61,6 @@
     <string name="download_update_action">Завантажити оновлення</string>
     <string name="cancel_button">Скасувати</string>
     <string name="loading_text">Завантаження…</string>
-
     <!-- Auth -->
     <string name="auth_title_phone">Ваш телефон</string>
     <string name="auth_title_verification">Перевірка</string>
@@ -105,12 +98,10 @@
     <string name="paste_action">Вставити</string>
     <string name="auth_error_title">Помилка авторизації</string>
     <string name="dismiss_button">Закрити</string>
-
     <!-- Loading -->
     <string name="loading_please_wait">Будь ласка, зачекайте…</string>
     <string name="loading_taking_too_long">Завантаження триває занадто довго?</string>
     <string name="loading_reset_connection">Скинути з\'єднання</string>
-
     <!-- Chat List -->
     <string name="forward_to_title">Переслати…</string>
     <plurals name="chats_selected_format">
@@ -144,7 +135,6 @@
     <string name="no_chats_yet">Чатів поки немає</string>
     <string name="start_new_conversation">Почніть нову розмову</string>
     <string name="mini_app_default_name">Mini App</string>
-
     <!-- Account Menu -->
     <string name="app_name_dev">MonoGram Alpha</string>
     <string name="action_add_account">Додати акаунт</string>
@@ -166,7 +156,6 @@
     <string name="unknown_user">Невідомий користувач</string>
     <string name="no_info">Немає інформації</string>
     <string name="cd_show_accounts">Показати акаунти</string>
-
     <!-- Current Chat -->
     <string name="search_messages_hint">Пошук повідомлень…</string>
     <string name="action_clear">Очистити</string>
@@ -184,7 +173,6 @@
     <string name="cd_scroll_to_bottom">Прокрутити вниз</string>
     <string name="topic_closed_bar">Цю тему закрито</string>
     <string name="cd_attach">Прикріпити</string>
-
     <!-- Current Chat Additions -->
     <string name="delete_message_title">Видалити повідомлення?</string>
     <string name="delete_messages_title">Видалити %1$d повідомлень?</string>
@@ -192,7 +180,6 @@
     <string name="delete_messages_confirmation">Ви впевнені, що хочете видалити ці повідомлення?</string>
     <string name="delete_for_everyone">Видалити у всіх</string>
     <string name="delete_for_me">Видалити у мене</string>
-
     <string name="report_title">Чому Ви скаржитесь на це?</string>
     <string name="report_description">Ваша скарга анонімна. Ми перевіримо історію чату для забезпечення безпеки.</string>
     <string name="report_details_title">Подробиці скарги</string>
@@ -218,7 +205,6 @@
     <string name="report_reason_unrelated_location_description">Контент не має відношення до цього місця</string>
     <string name="report_reason_other">Інше</string>
     <string name="report_reason_other_description">Щось інше, що порушує наші умови</string>
-
     <string name="restrict_user_title">Обмежити користувача</string>
     <string name="permission_send_messages">Надсилання повідомлень</string>
     <string name="permission_send_media">Надсилання медіа</string>
@@ -232,7 +218,6 @@
     <string name="cd_select_date">Вибрати дату</string>
     <string name="cd_select_time">Вибрати час</string>
     <string name="action_restrict">Обмежити</string>
-
     <string name="menu_reply">Відповісти</string>
     <string name="menu_copy">Копіювати</string>
     <string name="menu_pin">Закріпити</string>
@@ -253,7 +238,6 @@
     <string name="info_edited">змінено</string>
     <string name="info_read">прочитано</string>
     <string name="info_views">перегляди</string>
-
     <!-- Profile -->
     <string name="unknown_title">Невідомо</string>
     <plurals name="members_count_format">
@@ -335,7 +319,6 @@
     <string name="close_button">Закрити</string>
     <string name="tos_dialog_description">Запускаючи цей Mini App, Ви погоджуєтесь з Умовами обслуговування та Політикою конфіденційності. Бот зможе отримати доступ до Вашої основної інформації профілю.</string>
     <string name="accept_and_launch">Прийняти та запустити</string>
-
     <!-- Settings -->
     <string name="qr_code_title">QR-код</string>
     <string name="action_share">Поділитися</string>
@@ -386,7 +369,6 @@
     <string name="debug_force_sponsor_sync_subtitle">Завантажити ID спонсорів із каналу зараз</string>
     <string name="log_out_title">Вийти</string>
     <string name="log_out_subtitle">Завершити сеанс</string>
-
     <!-- Edit Profile -->
     <string name="usernames_title">Імена користувача</string>
     <string name="retry_after_format">Повторіть спробу через %1$d с</string>
@@ -430,7 +412,6 @@
     <string name="friday_short">Пт</string>
     <string name="saturday_short">Сб</string>
     <string name="sunday_short">Нд</string>
-
     <!-- Privacy and Security -->
     <string name="privacy_security_header">Конфіденційність</string>
     <string name="privacy_section_header">Приватність</string>
@@ -474,7 +455,6 @@
     <string name="ttl_months_format">%1$d міс.</string>
     <string name="ttl_days_format">%1$d дн.</string>
     <string name="privacy_deletion_reason_user">Видалення за запитом користувача</string>
-
     <!-- Proxy Settings -->
     <string name="proxy_settings_header">Налаштування проксі</string>
     <string name="refresh_pings_cd">Оновити затримку</string>
@@ -569,14 +549,12 @@
     <string name="test_proxy_button">Перевірити</string>
     <string name="test_proxy_result">Результат перевірки</string>
     <string name="action_delete">Видалити</string>
-    <string name="proxy_checking">Перевірка...</string>
+    <string name="proxy_checking">Перевірка…</string>
     <string name="proxy_offline">Офлайн</string>
     <string name="proxy_ping_format">%1$dms</string>
-
     <!-- Settings General -->
     <string name="your_usernames_header">Ваші імена користувача</string>
     <string name="more_options_cd">Додатково</string>
-
     <!-- Notifications and Sounds -->
     <string name="notifications_sounds_header">Сповіщення та звуки</string>
     <string name="message_notifications_header">Сповіщення про повідомлення</string>
@@ -620,7 +598,6 @@
     <string name="repeat_hours_format">Кожні %1$d год.</string>
     <string name="push_provider_fcm">Firebase Cloud Messaging</string>
     <string name="push_provider_gms_less">Без GMS (фонова служба)</string>
-
     <!-- Chat Settings -->
     <string name="chat_settings_header">Налаштування чатів</string>
     <string name="appearance_header">Зовнішній вигляд</string>
@@ -693,7 +670,6 @@
     <string name="emoji_style_catmoji">Catmoji</string>
     <string name="emoji_style_noto">Noto</string>
     <string name="emoji_style_system">Системні</string>
-
     <!-- Data and Storage -->
     <string name="data_storage_title_header">Дані та пам\'ять</string>
     <string name="disk_network_usage_header">Використання пам\'яті та мережі</string>
@@ -718,7 +694,6 @@
     <string name="videos_autoplay_subtitle">Усередині діалогів та груп</string>
     <string name="enabled_label">Увімкнено</string>
     <string name="disabled_label">Вимкнено</string>
-
     <!-- Power Saving -->
     <string name="power_saving_header">Енергоощадність</string>
     <string name="battery_header">Батарея</string>
@@ -733,7 +708,6 @@
     <string name="chat_animations_subtitle">Вимкнути для продовження роботи від акумулятора</string>
     <string name="background_header">Фон</string>
     <string name="keep_alive_power_saving_subtitle">Вимкнення може призвести до затримки сповіщень</string>
-
     <!-- Stickers and Emoji -->
     <string name="stickers_emoji_header">Наліпки та емодзі</string>
     <string name="stickers_tab">Наліпки</string>
@@ -772,7 +746,6 @@
     <string name="sticker_type_custom_emojis">Емодзі</string>
     <string name="sticker_official">Офіційний</string>
     <string name="link_copied">Посилання скопійовано</string>
-
     <!-- Network Usage -->
     <string name="network_usage_header">Використання мережі</string>
     <string name="reset_statistics_cd">Скинути статистику</string>
@@ -791,7 +764,6 @@
     <string name="wifi_tab">Wi-Fi</string>
     <string name="roaming_tab">Роумінг</string>
     <string name="other_tab">Інше</string>
-
     <!-- Storage Usage -->
     <string name="storage_usage_header">Використання сховища</string>
     <string name="clear_all_cache_format">Очистити весь кеш • %1$s</string>
@@ -815,7 +787,6 @@
     <string name="total_used_label">Усього використано</string>
     <string name="files_count_format">Файлів: %1$d</string>
     <string name="files_count_label">Файлів: %1$d</string>
-
     <!-- Privacy Setting -->
     <string name="privacy_who_can_add_me">Хто може додавати мене в групи?</string>
     <string name="privacy_who_can_call_me">Хто може мені телефонувати?</string>
@@ -840,7 +811,6 @@
     <string name="privacy_block_user_cd">Заблокувати</string>
     <string name="privacy_search_users_placeholder">Пошук користувачів</string>
     <string name="privacy_no_users_found">Користувачів не знайдено</string>
-
     <!-- Passcode -->
     <string name="passcode_change_title">Змінити код-пароль</string>
     <string name="passcode_set_title">Встановити код-пароль</string>
@@ -853,7 +823,6 @@
     <string name="passcode_verify_title">Підтвердити код-пароль</string>
     <string name="passcode_verify_description">Перш ніж змінити або вимкнути код-пароль, введіть поточний.</string>
     <string name="passcode_verify_error">Неправильний код-пароль.</string>
-
     <!-- AdBlock -->
     <string name="cd_add_keyword">Додати ключове слово</string>
     <string name="adblock_enable">Увімкнути AdBlock</string>
@@ -875,7 +844,6 @@
     <string name="adblock_whitelisted_subtitle">Дописи в цих каналах не фільтруватимуться</string>
     <string name="adblock_no_whitelisted">Список порожній</string>
     <string name="action_remove">Видалити</string>
-
     <!-- Core/Common -->
     <string name="last_seen_recently">був(ла) нещодавно</string>
     <string name="last_seen_just_now">був(ла) щойно</string>
@@ -901,7 +869,6 @@
     <string name="menu_unarchive">Розархівувати</string>
     <string name="menu_archive">В архів</string>
     <string name="menu_remove_set">Видалити набір</string>
-
     <!-- New Chat -->
     <string name="new_message_title">Нове повідомлення</string>
     <string name="add_members_title">Додати учасників</string>
@@ -956,7 +923,6 @@
     <string name="group_auto_delete_info">Автоматично видаляти нові повідомлення в цій групі через певний час.</string>
     <string name="add_photo_cd">Додати фото</string>
     <string name="change_photo_cd">Змінити фото</string>
-
     <!-- Permissions -->
     <string name="permissions_required_title">Необхідні дозволи</string>
     <string name="permissions_required_description">Для забезпечення найкращого досвіду MonoGram потребує наступних дозволів.</string>
@@ -974,15 +940,12 @@
     <string name="permission_microphone_description">Записуйте голосові та відеоповідомлення</string>
     <string name="permission_location_title">Місцезнаходження</string>
     <string name="permission_location_description">Діліться місцезнаходженням та знаходьте користувачів поруч</string>
-
     <!-- Selection -->
     <string name="cd_clear_selection">Очистити виділення</string>
     <string name="action_pin">Закріпити</string>
-
     <!-- Bot Commands -->
     <string name="bot_commands_title">Команди бота</string>
     <string name="bot_commands_subtitle">Виберіть команду, щоб надіслати боту</string>
-
     <!-- Chat List Preview -->
     <string name="chat_list_preview_title">Список чатів</string>
     <string name="preview_name_konata">Коната Ідзумі</string>
@@ -991,32 +954,27 @@
     <string name="preview_name_kagami">Кагамі Хііраґі</string>
     <string name="preview_message_kagami">Не забудь про домашку! Тобі треба здати її завтра вранці, і вона досить складна.</string>
     <string name="preview_time_kagami">11:20</string>
-
     <!-- Chat Settings Preview -->
     <string name="chat_settings_preview_title">Попередній перегляд</string>
     <string name="preview_msg_sender_me">Я</string>
     <string name="preview_msg_text_1">Я не маленька, я просто концентрована крутість! 🍫\nА ще я вирішила стати професійною сплюхою 😴</string>
-    <string name="preview_msg_text_2">Ти так кажеш кожного разу, коли не можеш дотягнутися до верхньої полиці... 🙄\nГлянь на це: ось</string>
+    <string name="preview_msg_text_2">Ти так кажеш кожного разу, коли не можеш дотягнутися до верхньої полиці… 🙄\nГлянь на це: ось</string>
     <string name="preview_msg_text_3">Досить мене викривати! 😤✨\nЯ просто використаю свою секретну зброю: 💯 чиста лінь</string>
     <string name="preview_msg_text_4">Це надзвичайно ефективно! 😵‍💫</string>
     <string name="preview_date_today">Сьогодні</string>
     <string name="preview_name_konata_short">Коната</string>
-
     <string name="subscribers_count_format">%1$d підписників</string>
     <string name="thread_title">Гілка</string>
-
     <!-- Recording UI -->
     <string name="recording_delete">Видалити запис</string>
     <string name="recording_slide_to_cancel">&lt; Проведіть для скасування</string>
     <string name="recording_send">Надіслати запис</string>
     <string name="recording_lock">Заблокувати запис</string>
     <string name="recording_swipe_up">Проведіть вгору</string>
-
     <!-- Input Bar -->
     <string name="input_placeholder_caption">Додати підпис…</string>
     <string name="input_placeholder_message">Повідомлення</string>
     <string name="input_error_not_allowed">Надсилання повідомлень заборонено</string>
-
     <!-- Media Types -->
     <string name="media_type_photo">Фото</string>
     <string name="media_type_video">Відео</string>
@@ -1026,7 +984,6 @@
     <string name="media_type_gif">GIF</string>
     <string name="media_type_location">Локація</string>
     <string name="media_type_message">Повідомлення</string>
-
     <!-- Actions -->
     <string name="action_cancel_reply">Скасувати відповідь</string>
     <string name="action_edit_message">Редагувати повідомлення</string>
@@ -1072,7 +1029,6 @@
     <string name="gallery_permission_description">Надайте доступ до фото та відео, щоб прикріплювати файли в чаті.
     </string>
     <string name="gallery_permission_grant">Надати доступ</string>
-
     <string name="rich_text_bold">Жирний</string>
     <string name="rich_text_italic">Курсив</string>
     <string name="rich_text_underline">Підкреслений</string>
@@ -1088,15 +1044,12 @@
     <string name="rich_text_link_hint">URL</string>
     <string name="rich_text_code_language_title">Мова коду</string>
     <string name="rich_text_code_language_hint">Мова (наприклад, kotlin)</string>
-
     <string name="fullscreen_editor_meta">%1$d символів • %2$d блоків форматування</string>
     <string name="fullscreen_editor_blocks">%1$d блоків форматування</string>
     <string name="fullscreen_editor_hint">Виділіть текст, щоб застосувати форматування як у Telegram</string>
     <string name="message_length_counter">%1$d/%2$d</string>
-
     <!-- Bot -->
     <string name="bot_commands">Команди</string>
-
     <!-- Chat Typing -->
     <string name="typing_typing">друкує</string>
     <string name="typing_recording_video">записує відео</string>
@@ -1116,7 +1069,6 @@
         <item quantity="many">%d людей друкують</item>
         <item quantity="other">%d людей друкують</item>
     </plurals>
-
     <!-- Storage Mapper -->
     <string name="storage_photos">Фотографії</string>
     <string name="storage_videos">Відео</string>
@@ -1128,10 +1080,8 @@
     <string name="storage_other_files">Інші файли</string>
     <string name="storage_other_cache">Інше / Кеш</string>
     <string name="storage_chat_format">Чат %d</string>
-
     <!-- Network Mapper -->
     <string name="network_calls">Дзвінки</string>
-
     <!-- Notification Service -->
     <string name="notification_service_waiting">Очікування нових повідомлень</string>
     <string name="notification_service_stop">Зупинити</string>
@@ -1151,7 +1101,6 @@
     <string name="notification_channel_channels_description">Сповіщення з каналів</string>
     <string name="notification_channel_other_name">Інше</string>
     <string name="notification_channel_other_description">Інші сповіщення</string>
-
     <!-- Chat Mapper / Media Types -->
     <string name="chat_mapper_photo">Фото</string>
     <string name="chat_mapper_video">Відео</string>
@@ -1182,7 +1131,6 @@
     <string name="chat_mapper_seen_recently">був(ла) нещодавно</string>
     <string name="chat_mapper_seen_week">був(ла) на цьому тижні</string>
     <string name="chat_mapper_seen_month">був(ла) в цьому місяці</string>
-
     <!-- Pinned Messages -->
     <string name="pinned_messages">Закріплені повідомлення</string>
     <string name="pinned_message">Закріплене повідомлення</string>
@@ -1195,14 +1143,12 @@
         <item quantity="many">%d повідомлень</item>
         <item quantity="other">%d повідомлень</item>
     </plurals>
-
     <!-- Message Types -->
     <string name="message_type_video_message">Відеоповідомлення</string>
     <string name="message_type_gif">GIF</string>
     <string name="message_type_document">Документ</string>
     <string name="message_type_poll_format">Опитування: %s</string>
     <string name="message_type_sticker_format">Стікер %s</string>
-
     <!-- Photo Editor Tools -->
     <string name="photo_editor_tool_view">Перегляд</string>
     <string name="photo_editor_tool_crop">Обрізка</string>
@@ -1210,7 +1156,6 @@
     <string name="photo_editor_tool_draw">Малювання</string>
     <string name="photo_editor_tool_text">Текст</string>
     <string name="photo_editor_tool_eraser">Ластик</string>
-
     <!-- Photo Editor Filters -->
     <string name="photo_editor_filter_original">Оригінал</string>
     <string name="photo_editor_filter_bw">Ч/Б</string>
@@ -1220,7 +1165,6 @@
     <string name="photo_editor_filter_warm">Теплий</string>
     <string name="photo_editor_filter_polaroid">Полароїд</string>
     <string name="photo_editor_filter_invert">Інверсія</string>
-
     <!-- Photo Editor Actions -->
     <string name="photo_editor_action_save">Зберегти</string>
     <string name="photo_editor_action_cancel">Скасувати</string>
@@ -1234,38 +1178,32 @@
     <string name="photo_editor_action_edit_text">Змінити текст</string>
     <string name="photo_editor_action_apply">Застосувати</string>
     <string name="photo_editor_action_delete">Видалити</string>
-
     <!-- Photo Editor Labels -->
     <string name="photo_editor_label_size">Розмір</string>
     <string name="photo_editor_label_zoom">Масштаб</string>
-    <string name="photo_editor_label_placeholder_text">Введіть текст...</string>
+    <string name="photo_editor_label_placeholder_text">Введіть текст…</string>
     <string name="photo_editor_label_select_tool">Оберіть інструмент для редагування</string>
-
     <!-- Photo Editor Discard Dialog -->
     <string name="photo_editor_discard_title">Відхилити зміни?</string>
     <string name="photo_editor_discard_message">У вас є незбережені зміни. Ви впевнені, що хочете їх видалити?</string>
     <string name="photo_editor_discard_button">Відхилити</string>
-
     <!-- Video Editor Common -->
     <string name="video_editor_apply">Застосувати</string>
     <string name="video_editor_done">Готово</string>
     <string name="video_editor_cancel">Скасувати</string>
     <string name="video_editor_low">Низька</string>
-
     <!-- Video Editor Tools -->
     <string name="video_tool_view">Перегляд</string>
     <string name="video_tool_trim">Обрізка</string>
     <string name="video_tool_filters">Фільтри</string>
     <string name="video_tool_text">Текст</string>
     <string name="video_tool_compress">Стиснення</string>
-
     <!-- Video Editor Actions/Controls -->
     <string name="video_action_unmute">Увімкнути звук</string>
     <string name="video_action_mute">Вимкнути звук</string>
     <string name="video_action_add_text">Додати текст</string>
     <string name="video_quality_label">Якість відео</string>
     <string name="video_estimated_bitrate">Очікуваний бітрейт: %1$d кбіт/с</string>
-
     <!-- Video Editor Filters -->
     <string name="video_filter_original">Оригінал</string>
     <string name="video_filter_bw">Ч/Б</string>
@@ -1275,20 +1213,17 @@
     <string name="video_filter_warm">Теплий</string>
     <string name="video_filter_polaroid">Полароїд</string>
     <string name="video_filter_invert">Інверсія</string>
-
     <!-- Video Editor Dialogs & Toasts -->
     <string name="video_error_file_not_found">Файл не знайдено</string>
     <string name="video_error_file_missing">Відеофайл відсутній</string>
     <string name="video_discard_title">Відхилити зміни?</string>
     <string name="video_discard_text">Ви маєте незбережені зміни. Ви впевнені, що хочете їх відхилити?</string>
     <string name="video_discard_confirm">Відхилити</string>
-
     <!-- Web View General -->
     <string name="webview_loading">Завантаження…</string>
     <string name="webview_default_title">Веб-перегляд</string>
     <string name="webview_close">Закрити</string>
     <string name="webview_more_options">Більше</string>
-
     <!-- Web View Options Sheet -->
     <string name="webview_options_title">Опції</string>
     <string name="webview_back">Назад</string>
@@ -1305,7 +1240,6 @@
     <string name="webview_desktop_site">Версія для ПК</string>
     <string name="webview_block_ads">Блок реклами</string>
     <string name="webview_text_size">Розмір тексту: %1$d%%</string>
-
     <!-- Web View Security/Certificate -->
     <string name="webview_secure">Безпечно</string>
     <string name="webview_insecure">Небезпечно</string>
@@ -1317,13 +1251,11 @@
     <string name="webview_cert_issued_by">Ким виданий</string>
     <string name="webview_cert_valid_until">Дійсний до</string>
     <string name="webview_cert_unknown">Невідомо</string>
-
     <!-- Web View Find In Page Bar -->
     <string name="webview_find_placeholder">Пошук на сторінці…</string>
     <string name="webview_find_previous">Попер.</string>
     <string name="webview_find_next">Наст.</string>
     <string name="webview_find_close">Закрити пошук</string>
-
     <!-- Profile & Components -->
     <string name="label_discussion">Обговорення</string>
     <string name="label_channel">Канал</string>
@@ -1355,7 +1287,6 @@
     <string name="bot_verification_subtitle">Підтверджено стороннім ботом</string>
     <string name="opening_hours_closed">Зачинено</string>
     <string name="label_id">ID</string>
-
     <!-- Statistics Viewer -->
     <string name="statistics_analyzing">Аналіз статистики…</string>
     <string name="statistics_overview">Огляд</string>
@@ -1416,7 +1347,6 @@
     <string name="profile_statistics_preview_venue_format">Місце: %1$s</string>
     <string name="profile_statistics_preview_poll_format">Опитування: %1$s</string>
     <string name="profile_statistics_preview_service_message">Службове повідомлення</string>
-
     <!-- Selection: Viewer Common -->
     <string name="viewer_back">Назад</string>
     <string name="viewer_options">Опції</string>
@@ -1426,8 +1356,7 @@
     <string name="viewer_seek_forward_format">+%1$ds</string>
     <string name="viewer_thumbnail_cd">Мініатюра %1$d</string>
     <string name="viewer_page_indicator">%1$d із %2$d</string>
-    <string name="viewer_loading_original">Завантажується оригінал...</string>
-
+    <string name="viewer_loading_original">Завантажується оригінал…</string>
     <!-- Selection: Viewer Actions -->
     <string name="action_download">Завантажити</string>
     <string name="action_download_video">Завантажити відео</string>
@@ -1443,7 +1372,6 @@
     <string name="action_pause">Пауза</string>
     <string name="action_play">Відтворити</string>
     <string name="action_unlock">Розблокувати</string>
-
     <!-- Selection: Viewer Settings -->
     <string name="settings_title">Налаштування</string>
     <string name="settings_playback_speed">Швидкість</string>
@@ -1475,45 +1403,37 @@
     <string name="action_use_low_quality">Використати низьку якість</string>
     <string name="action_open_in_browser">Відкрити в браузері</string>
     <string name="settings_speed_normal">Звичайна</string>
-
     <!-- Selection: Picture-in-Picture -->
     <string name="pip_play">Відтворити</string>
     <string name="pip_pause">Пауза</string>
     <string name="pip_rewind">Назад</string>
     <string name="pip_forward">Вперед</string>
-
     <!-- Sticker & Emoji Menu -->
     <string name="sticker_menu_tab_stickers">Стікери</string>
     <string name="sticker_menu_tab_emojis">Емодзі</string>
     <string name="sticker_menu_tab_gifs">GIF</string>
-
     <!-- Stickers View -->
     <string name="stickers_header_recent">Нещодавні стікери</string>
     <string name="stickers_header_all">Стікери</string>
     <string name="stickers_search_placeholder">Пошук стікерів</string>
-
     <!-- Emojis View -->
     <string name="emojis_header_recent">Нещодавні емодзі</string>
     <string name="emojis_header_standard">Стандартні емодзі</string>
     <string name="emojis_header_custom">Авторські емодзі</string>
     <string name="emojis_header_all">Емодзі</string>
     <string name="emojis_search_placeholder">Пошук емодзі</string>
-
     <!-- GIFs View -->
     <string name="gifs_header_recent_saved">Нещодавні та збережені</string>
     <string name="gifs_no_results">GIF не знайдено</string>
     <string name="gifs_search_placeholder">Пошук GIF</string>
-
     <!-- Common/Accessibility -->
     <string name="common_back">Назад</string>
     <string name="common_clear">Очистити</string>
     <string name="common_recent">Нещодавні</string>
-
     <!-- QR Code -->
     <string name="qr_saved_to_gallery">Збережено до галереї</string>
     <string name="qr_share_title">Поділитися QR</string>
     <string name="qr_share_error">Помилка при надсиланні: %1$s</string>
-
     <!-- Chat Edit (ChatEditContent.kt) -->
     <string name="edit_channel">Редагувати канал</string>
     <string name="edit_group">Редагувати групу</string>
@@ -1528,16 +1448,14 @@
     <string name="management">Керування</string>
     <string name="delete_channel">Видалити канал</string>
     <string name="delete_group">Видалити групу</string>
-
     <!-- Member List (MemberListContent.kt) -->
-    <string name="search_hint">Пошук...</string>
+    <string name="search_hint">Пошук…</string>
     <string name="administrators">Адміністратори</string>
     <string name="subscribers">Підписники</string>
     <string name="members">Учасники</string>
     <string name="blacklist">Чорний список</string>
     <string name="no_results_found">Нічого не знайдено</string>
     <string name="no_members_yet">Учасників поки немає</string>
-
     <!-- Admin Management (AdminManageContent.kt) -->
     <string name="admin_rights">Права адміна</string>
     <string name="custom_title">Посада</string>
@@ -1556,12 +1474,10 @@
     <string name="permission_delete_stories">Видалення розповідей</string>
     <string name="permission_add_new_admins">Призначення адміністраторів</string>
     <string name="permission_remain_anonymous">Анонімність</string>
-
     <!-- Group Permissions (ChatPermissionsContent.kt) -->
     <string name="permissions">Дозволи</string>
     <string name="what_can_members_do">Що можуть робити учасники цієї групи?</string>
     <string name="permission_add_members">Додавання учасників</string>
-
     <!-- Common UI / Content Descriptions -->
     <string name="back">Назад</string>
     <string name="save">Зберегти</string>
@@ -1571,7 +1487,6 @@
     <string name="edit">Редагувати</string>
     <string name="username">Ім’я користувача</string>
     <string name="filters">Фільтри</string>
-
     <!-- Profile Logs / Recent Actions -->
     <string name="logs_title">Недавні дії</string>
     <string name="logs_events_count">Завантажено подій: %d</string>
@@ -1579,7 +1494,6 @@
     <string name="logs_empty_subtitle">Спробуйте змінити фільтри</string>
     <string name="logs_not_implemented">Не реалізовано</string>
     <string name="logs_user_id_copied">ID користувача скопійовано</string>
-
     <!-- Logs Filters -->
     <string name="logs_filter_title">Фільтри</string>
     <string name="logs_filter_reset">Скинути</string>
@@ -1589,7 +1503,6 @@
     <string name="logs_filter_search_placeholder">Пошук…</string>
     <string name="logs_filter_no_users">Користувачів не знайдено</string>
     <string name="logs_filter_no_results">Немає результатів за запитом «%s»</string>
-
     <!-- Action Types -->
     <string name="logs_action_edits">Правки</string>
     <string name="logs_action_deletions">Видалення</string>
@@ -1603,7 +1516,6 @@
     <string name="logs_action_settings">Налаштування</string>
     <string name="logs_action_links">Посилання</string>
     <string name="logs_action_video">Відео</string>
-
     <!-- Action Descriptions -->
     <string name="logs_action_edited">відредагував(ла) повідомлення</string>
     <string name="logs_action_deleted">видалив(ла) повідомлення</string>
@@ -1624,7 +1536,6 @@
     <string name="logs_action_video_started">розпочав(ла) відеочат</string>
     <string name="logs_action_video_ended">завершив(ла) відеочат</string>
     <string name="logs_action_unknown">виконав(ла) дію: %s</string>
-
     <!-- Details and Previews -->
     <string name="logs_original_message">Старе повідомлення:</string>
     <string name="logs_new_message">Нове повідомлення:</string>
@@ -1641,7 +1552,6 @@
     <string name="logs_status_to">На</string>
     <string name="logs_permissions_changes">Зміни дозволів:</string>
     <string name="logs_permissions_current">Поточні дозволи:</string>
-
     <!-- Permissions / Roles -->
     <string name="logs_perm_messages">Повідомлення</string>
     <string name="logs_perm_media">Медіа</string>
@@ -1651,13 +1561,11 @@
     <string name="logs_perm_invite">Запрошення</string>
     <string name="logs_perm_pin">Закріплення</string>
     <string name="logs_perm_info">Дані</string>
-
     <string name="logs_role_admin">Адмін</string>
     <string name="logs_role_owner">Власник</string>
     <string name="logs_role_restricted">Обмежений</string>
     <string name="logs_role_banned">Забанений</string>
     <string name="logs_role_member">Учасник</string>
-
     <!-- Media Types -->
     <string name="logs_media_photo">Фото</string>
     <string name="logs_media_video">Відео</string>
@@ -1672,20 +1580,16 @@
     <string name="logs_media_location">Геопозиція</string>
     <string name="logs_media_venue">Місце</string>
     <string name="logs_media_unsupported">Непідтримуване повідомлення</string>
-
     <!-- Date and Formats -->
     <string name="format_duration">%1$02d:%2$02d</string>
-
     <!-- Views Count -->
     <string name="views_k">%1$.1fK</string>
     <string name="views_m">%1$.1fM</string>
-
     <!-- Comments -->
     <string name="comment_leave">Залишити коментар</string>
     <string name="comment_count">%1$d коментарів</string>
     <string name="comment_count_k">%1$.1fK коментарів</string>
     <string name="comment_count_m">%1$.1fM коментарів</string>
-
     <!-- Poll Message -->
     <string name="poll_final_results">Остаточні результати</string>
     <string name="poll_anonymous">Анонімне опитування</string>
@@ -1701,17 +1605,14 @@
         <item quantity="many">%d голосів</item>
         <item quantity="other">%d голосу</item>
     </plurals>
-
     <!-- Accessibility Content Descriptions -->
     <string name="cd_more">Більше</string>
     <string name="cd_vote">Голосувати</string>
     <string name="cd_explanation">Пояснення</string>
-
     <!-- Poll Voters Sheet -->
     <string name="poll_voters_title">Проголосували</string>
     <string name="poll_no_voters">Ще ніхто не проголосував</string>
     <string name="action_close">Закрити</string>
-
     <!-- Reply Content -->
     <string name="reply_content_photo">Фотографія</string>
     <string name="reply_content_video">Відео</string>
@@ -1720,7 +1621,6 @@
     <string name="reply_content_video_message">Відеоповідомлення</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">Повідомлення</string>
-
     <!-- Chat Folders -->
     <string name="folders_title">Папки з чатами</string>
     <string name="folders_back">Назад</string>
@@ -1743,13 +1643,11 @@
     <string name="folders_included_chats">Додані чати</string>
     <string name="folders_search_chats">Пошук чатів…</string>
     <string name="folders_cancel">Скасувати</string>
-
     <!-- Premium Screen -->
     <string name="premium_title">Telegram Premium</string>
     <string name="premium_back">Назад</string>
     <string name="premium_subscribe_button">Підписатися за %s на місяць</string>
     <string name="premium_unlock_features">Розблокуйте ексклюзивні функції</string>
-
     <!-- Premium Features -->
     <string name="premium_feature_doubled_limits_title">Подвоєні ліміти</string>
     <string name="premium_feature_doubled_limits_description">До %1$d каналів, %2$d папок, %3$d закріплень, %4$d публічних посилань та інше.</string>
@@ -1773,13 +1671,11 @@
     <string name="premium_feature_emoji_status_description">Вибирайте з тисяч емодзі, щоб відобразити їх поруч із вашим ім’ям.</string>
     <string name="premium_feature_app_icons_title">Іконки додатка</string>
     <string name="premium_feature_app_icons_description">Виберіть одну з ексклюзивних іконок Telegram для головного екрана.</string>
-
     <!-- Mini App Menu -->
     <string name="mini_app_menu_reload">Оновити</string>
     <string name="mini_app_menu_copy_link">Копіювати посилання</string>
     <string name="mini_app_menu_open_in_browser">Відкрити у браузері</string>
     <string name="mini_app_menu_add_to_home">На головний екран</string>
-
     <!-- Mini App Dialogs -->
     <string name="mini_app_close_confirmation_title">Закрити застосунок?</string>
     <string name="mini_app_close_confirmation_text">У вас є незбережені зміни. Ви впевнені, що хочете закрити мінідодаток?</string>
@@ -1803,7 +1699,6 @@
     <string name="mini_app_tos_title">Умови використання</string>
     <string name="mini_app_tos_text">Запускаючи цей мінідодаток, ви погоджуєтеся з Умовами надання послуг та Політикою конфіденційності. Бот отримає доступ до основної інформації вашого профілю.</string>
     <string name="mini_app_tos_accept">Прийняти та запустити</string>
-
     <!-- Instant View -->
     <string name="instant_view_search_placeholder">Пошук у статті…</string>
     <string name="instant_view_back">Назад</string>
@@ -1824,13 +1719,11 @@
     <string name="instant_view_collapse">Згорнути</string>
     <string name="instant_view_expand">Розгорнути</string>
     <string name="instant_view_map_prefix">Мапа: %1$s, %2$s</string>
-
     <!-- Settings Top -->
     <string name="share_profile_title">Поділитися профілем</string>
     <string name="share_profile_subtitle">Поділитися посиланням на ваш профіль у Monogram</string>
     <string name="copy_link_title">Копіювати посилання</string>
     <string name="copy_link_subtitle">Копіювати посилання на профіль Monogram у буфер обміну</string>
-
     <!-- Chat Theme Editor -->
     <string name="chat_theme_editor_title">Редактор тем</string>
     <string name="chat_theme_editor_palette_mode">Режим палітри</string>
@@ -1850,13 +1743,11 @@
     <string name="chat_theme_editor_both">Обидві</string>
     <string name="chat_theme_editor_hex">Hex</string>
     <string name="chat_theme_editor_theme_file_name">monogram-theme.json</string>
-
     <string name="chat_theme_editor_theme_file_saved">Файл теми збережено</string>
     <string name="chat_theme_editor_save_failed">Помилка збереження</string>
     <string name="chat_theme_editor_theme_loaded">Тему завантажено</string>
     <string name="chat_theme_editor_invalid_file">Некоректний файл</string>
     <string name="chat_theme_editor_load_failed">Помилка завантаження</string>
-
     <string name="chat_theme_editor_theme_source_title">Джерело теми</string>
     <string name="chat_theme_editor_theme_source_description">Виберіть одне джерело кольорів. «Своя тема» використовує ваші палітри, «Monet» — динамічні кольори Android. «AMOLED» впливає лише на темний режим.</string>
     <string name="chat_theme_editor_custom_theme">Своя тема</string>
@@ -1865,7 +1756,6 @@
     <string name="chat_theme_editor_monet_description">Кольори Material You на основі шпалер системи (Android 12+).</string>
     <string name="chat_theme_editor_amoled_dark">AMOLED (чорний)</string>
     <string name="chat_theme_editor_amoled_dark_description">Чистий чорний колір для зменшення світіння та економії заряду на OLED-екранах.</string>
-
     <string name="chat_theme_editor_preset_themes">Готові теми</string>
     <string name="chat_theme_editor_preset_themes_description">Кожен пресет має світлий та темний варіанти. Натисніть «Світла», «Темна» або «Обидві», щоб застосувати їх.</string>
     <string name="chat_theme_editor_manual_colors_title">Ручні кольори (%1$s)</string>
@@ -1877,7 +1767,6 @@
     <string name="chat_theme_editor_saturation_format">Насиченість %1$d%%</string>
     <string name="chat_theme_editor_brightness_format">Яскравість %1$d%%</string>
     <string name="chat_theme_editor_alpha_format">Прозорість %1$d%%</string>
-
     <string name="chat_theme_editor_role_primary">Основний</string>
     <string name="chat_theme_editor_role_secondary">Вторинний</string>
     <string name="chat_theme_editor_role_tertiary">Третинний</string>
@@ -1888,65 +1777,49 @@
     <string name="chat_theme_editor_role_tertiary_container">Контейнер трет.</string>
     <string name="chat_theme_editor_role_surface_variant">Варіант пов.</string>
     <string name="chat_theme_editor_role_outline">Контур</string>
-
     <string name="chat_theme_editor_chip_light_primary">С О</string>
     <string name="chat_theme_editor_chip_light_container">С К</string>
     <string name="chat_theme_editor_chip_light_background">С Ф</string>
     <string name="chat_theme_editor_chip_dark_primary">Т О</string>
     <string name="chat_theme_editor_chip_dark_container">Т К</string>
     <string name="chat_theme_editor_chip_dark_background">Т Ф</string>
-
     <string name="chat_theme_editor_accent_blue">Синій</string>
     <string name="chat_theme_editor_accent_green">Зелений</string>
     <string name="chat_theme_editor_accent_orange">Помаранчевий</string>
     <string name="chat_theme_editor_accent_rose">Рожевий</string>
     <string name="chat_theme_editor_accent_indigo">Індиго</string>
     <string name="chat_theme_editor_accent_cyan">Блакитний</string>
-
     <string name="chat_theme_editor_preset_classic_name">Класика</string>
     <string name="chat_theme_editor_preset_classic_description">Збалансований синій з високою читабельністю та нейтральним фоном.</string>
-
     <string name="chat_theme_editor_preset_forest_name">Ліс</string>
     <string name="chat_theme_editor_preset_forest_description">Натуральні зелені тони зі спокійним контрастом.</string>
-
     <string name="chat_theme_editor_preset_ocean_name">Океан</string>
     <string name="chat_theme_editor_preset_ocean_description">Свіжий синьо-блакитний градієнт з глибоким темним режимом.</string>
-
     <string name="chat_theme_editor_preset_sunset_name">Захід сонця</string>
     <string name="chat_theme_editor_preset_sunset_description">Теплі помаранчеві та коралові акценти з чітким текстом.</string>
-
     <string name="chat_theme_editor_preset_graphite_name">Графіт</string>
     <string name="chat_theme_editor_preset_graphite_description">Нейтральна сіра база з синьо-сірими акцентами. Строгий стиль.</string>
-
     <string name="chat_theme_editor_preset_mint_name">М’ята</string>
     <string name="chat_theme_editor_preset_mint_description">Поєднання м’яти та морської хвилі з м’якими переходами.</string>
-
     <string name="chat_theme_editor_preset_ruby_name">Рубін</string>
     <string name="chat_theme_editor_preset_ruby_description">Глибокі червоні акценти для фокусу на важливих діях.</string>
-
     <string name="chat_theme_editor_preset_lavender_gray_name">Лаванда</string>
     <string name="chat_theme_editor_preset_lavender_gray_description">Приглушений фіолетово-сірий стиль з чистим контрастом.</string>
-
     <string name="chat_theme_editor_preset_sand_name">Пісок</string>
     <string name="chat_theme_editor_preset_sand_description">Бежева та бурштинова палітра для мінімальної напруги очей.</string>
-
     <string name="chat_theme_editor_preset_arctic_name">Арктика</string>
     <string name="chat_theme_editor_preset_arctic_description">Крижаний синьо-білий стиль з дуже чіткими межами.</string>
-
     <string name="chat_theme_editor_preset_emerald_name">Смарагд</string>
     <string name="chat_theme_editor_preset_emerald_description">Яскрава зелена палітра з чистими поверхнями та сучасним контрастом.</string>
-
     <string name="chat_theme_editor_preset_copper_name">Мідь</string>
     <string name="chat_theme_editor_preset_copper_description">Тепла мідно-помаранчева тема з чітким текстом в обох режимах.</string>
-
     <string name="chat_theme_editor_preset_sakura_name">Сакура</string>
     <string name="chat_theme_editor_preset_sakura_description">М’які рожево-пурпурні тони з делікатними контейнерами та виразними акцентами.</string>
-
     <string name="chat_theme_editor_preset_nord_name">Норд</string>
     <string name="chat_theme_editor_preset_nord_description">Прохолодні північні сині відтінки зі спокійним професійним балансом.</string>
     <!-- Circular recorder -->
     <string name="recorder_permissions_required">Потрібні дозволи на камеру та мікрофон</string>
-    <string name="recorder_processing">Обробка...</string>
+    <string name="recorder_processing">Обробка…</string>
     <string name="recorder_processing_error">Помилка обробки: %1$s</string>
     <string name="recorder_close_cd">Закрити запис</string>
     <string name="recorder_switch_cd">Перемкнути камеру</string>
@@ -1956,7 +1829,6 @@
     <string name="recorder_time_format">Час: %1$s</string>
     <string name="recorder_zoom_format">Зум: %1$.1fx (діапазон %2$.1fx - %3$.1fx)</string>
     <string name="recorder_cancel">Скасувати</string>
-
     <string name="clear_history_title">Очистити історію?</string>
     <string name="clear_history_confirmation">Ви впевнені, що хочете очистити історію чату? Цю дію неможливо скасувати.</string>
     <string name="action_clear_history">Очистити історію</string>
@@ -2040,7 +1912,7 @@
     <string name="editor_ai_style_viking">Вікінг</string>
     <string name="editor_ai_style_zen">Дзен</string>
     <string name="editor_ai_add_emojis">Додати емодзі</string>
-    <string name="editor_ai_loading">Обробка...</string>
+    <string name="editor_ai_loading">Обробка…</string>
     <string name="editor_ai_error_empty">Введіть текст для AI</string>
     <string name="editor_ai_error_flood">Занадто багато AI-запитів. Може знадобитися Telegram Premium.</string>
     <string name="editor_ai_error_generic">Не вдалося обробити текст через AI</string>
@@ -2052,12 +1924,11 @@
     <string name="auth_code_expired_error">Термін дії коду підтвердження минув</string>
     <string name="auth_password_hash_invalid">Невірний пароль</string>
     <string name="unexpected_error">Сталася непередбачена помилка</string>
-
     <!-- ProxyContent -->
     <string name="proxy_connection_test_button">Запустити тест підключення</string>
     <string name="proxy_connection_test_title">Тест підключення Telegram</string>
     <string name="proxy_connection_test_subtitle">Перевіряє наскрізне підключення через дата-центр Telegram.</string>
-    <string name="proxy_connection_test_running">Виконується тест підключення...</string>
+    <string name="proxy_connection_test_running">Виконується тест підключення…</string>
     <string name="proxy_connection_test_success">Зʼєднання виглядає добре. Ви можете зберегти та увімкнути цей проксі.</string>
     <string name="proxy_connection_test_hint">Основний список показує лише транспортний пінг. Цей тест ширший, тому значення можуть бути вищими.</string>
     <string name="proxy_tab_proxy">Проксі</string>
@@ -2165,8 +2036,8 @@
     <string name="notifications_exceptions_channels">Канали</string>
     <string name="notifications_exceptions_label">Винятки</string>
     <string name="notifications_exceptions_search">Пошук</string>
-    <string name="notifications_exceptions_search_placeholder">Пошук винятків...</string>
-    <string name="notifications_exceptions_no_results_format">Нічого не знайдено для &quot;%1$s&quot;</string>
+    <string name="notifications_exceptions_search_placeholder">Пошук винятків…</string>
+    <string name="notifications_exceptions_no_results_format">Нічого не знайдено для "%1$s"</string>
     <string name="notifications_exceptions_chats_header">ЧАТИ</string>
     <string name="notifications_exceptions_hint">Натисніть на чат, щоб змінити його налаштування сповіщень або видалити виняток.</string>
     <string name="notifications_exceptions_empty_title">Немає винятків</string>
@@ -2185,4 +2056,220 @@
     <string name="download_saved_files_with_errors_format">Збережено %1$d файлів у Завантаження/MonoGram (%2$d не знайдено, %3$d з помилкою)</string>
     <string name="logs_role_left">Покинув</string>
     <string name="logs_role_unknown">Невідомо</string>
+    <string name="service_message_unknown_time">Невідомий час</string>
+    <string name="service_message_unknown_duration">Невідома тривалість</string>
+    <string name="service_message_unknown_duration_short">00:00</string>
+    <string name="service_message_auto_delete_off">Вимкнено</string>
+    <string name="service_message_money_format">%2$d %2$d</string>
+    <string name="service_message_call_missed">Пропущений дзвінок</string>
+    <string name="service_message_call">Телефонуйте</string>
+    <string name="service_message_video_call_missed">Пропущений відеодзвінок</string>
+    <string name="service_message_video_call">Відеодзвінок</string>
+    <string name="service_message_call_declined">Відхилений дзвінок</string>
+    <string name="service_message_video_call_declined">Відхилений відеодзвінок</string>
+    <string name="service_message_call_disconnected">Дзвінок роз\'єднано</string>
+    <string name="service_message_video_call_disconnected">Відеодзвінок відключено</string>
+    <string name="service_message_call_hung_up">Дзвінок завершено</string>
+    <string name="service_message_video_call_hung_up">Відеодзвінок завершено</string>
+    <string name="service_message_call_upgraded_to_group">Виклик оновлено до групового</string>
+    <string name="service_message_call_ended">Виклик завершено · %1$s</string>
+    <string name="service_message_video_call_ended">Відеодзвінок завершено · %1$s</string>
+    <string name="service_message_group_call">Груповий виклик</string>
+    <string name="service_message_group_video_call">Груповий відеодзвінок</string>
+    <string name="service_message_group_call_started">Розпочато груповий виклик</string>
+    <string name="service_message_group_video_call_started">Розпочато груповий відеодзвінок</string>
+    <string name="service_message_group_call_missed">Пропущений груповий виклик</string>
+    <string name="service_message_group_video_call_missed">Пропущений груповий відеодзвінок</string>
+    <string name="service_message_group_call_ended">Груповий виклик завершено · %1$s</string>
+    <string name="service_message_group_video_call_ended">Груповий відеодзвінок завершено · %1$s</string>
+    <string name="service_message_video_chat_scheduled">Відеочат заплановано на %1$s</string>
+    <string name="service_message_video_chat_started">Розпочато відеочат</string>
+    <string name="service_message_video_chat_ended">Відеочат завершено · %1$s</string>
+    <string name="service_message_video_chat_invited">Запросив %1$d осіб до відеочату</string>
+    <string name="service_message_video_chat_invited_one_named">Запросив %1$s до відеочату</string>
+    <string name="service_message_video_chat_invited_two_named">Запросив %2$s та %2$s до відеочату</string>
+    <string name="service_message_video_chat_invited_many_named">Запросив %3$d, %3$d та ще %3$d до відеочату</string>
+    <string name="service_message_poll_option_added">Доданий варіант опитування: %1$s</string>
+    <string name="service_message_poll_option_deleted">Варіант опитування видалено: %1$s</string>
+    <string name="service_message_basic_group_created">Створив групу "%1$s"</string>
+    <string name="service_message_supergroup_created">Створив супергрупу "%1$s"</string>
+    <string name="service_message_chat_title_changed">%2$s змінив назву чату на "%2$s"</string>
+    <string name="service_message_chat_photo_changed">%1$s змінив фотографію чату</string>
+    <string name="service_message_chat_photo_removed">%1$s видалив фото чату</string>
+    <string name="service_message_chat_owner_left">Власник чату пішов</string>
+    <string name="service_message_chat_owner_left_with_new_owner">Власник чату пішов. Новий власник: %1$s</string>
+    <string name="service_message_chat_owner_changed">Змінився власник чату</string>
+    <string name="service_message_chat_owner_changed_to">Новий власник чату: %1$s</string>
+    <string name="service_message_protected_content_enabled">Захищений вміст увімкнено</string>
+    <string name="service_message_protected_content_disabled">Захищений вміст вимкнено</string>
+    <string name="service_message_protected_content_disable_requested">Запит на вимкнення захищеного вмісту</string>
+    <string name="service_message_protected_content_disable_expired">Термін дії запиту на вимкнення захищеного вмісту минув</string>
+    <string name="service_message_members_added">%2$d додав %2$d нових учасників</string>
+    <string name="service_message_member_added_named">%2$s додав %2$s</string>
+    <string name="service_message_members_added_two_named">%3$s додав %3$s та %3$s</string>
+    <string name="service_message_members_added_many_named">%4$d додав %4$d, %4$d і ще %4$d</string>
+    <string name="service_message_member_joined">%1$s приєднався до чату</string>
+    <string name="service_message_joined_by_link">%1$s приєднався за посиланням для запрошення</string>
+    <string name="service_message_joined_by_request">%1$s приєднався за запитом</string>
+    <string name="service_message_member_removed">%1$s видалив учасника</string>
+    <string name="service_message_member_removed_named">%2$s видалено %2$s</string>
+    <string name="service_message_member_left_named">%1$s залишив чат</string>
+    <string name="service_message_chat_upgraded">%1$s оновив групу до супергрупи</string>
+    <string name="service_message_group_migrated">Групу перенесено</string>
+    <string name="service_message_pinned">%1$s закріпив повідомлення</string>
+    <string name="service_message_pinned_with_preview">%2$s закріплено: %2$s</string>
+    <string name="service_message_screenshot_taken">%1$s зробив знімок екрана</string>
+    <string name="service_message_background_changed">Фон чату змінено</string>
+    <string name="service_message_background_changed_for_self">Фон чату змінено для вас</string>
+    <string name="service_message_theme_changed">Тему чату змінено</string>
+    <string name="service_message_theme_changed_to">Тему чату змінено на %1$s</string>
+    <string name="service_message_theme_changed_gift">Тему чату змінено (тема подарунка)</string>
+    <string name="service_message_theme_reset">Скидання теми чату</string>
+    <string name="service_message_auto_delete_enabled">Для автоматичного видалення встановлено значення %1$s</string>
+    <string name="service_message_auto_delete_disabled">Автоматичне видалення вимкнено</string>
+    <string name="service_message_auto_delete_changed_by">%2$s від %2$s</string>
+    <string name="service_message_chat_boost">Чат посилено ×%1$d</string>
+    <string name="service_message_topic_created">%2$s створив тему "%2$s"</string>
+    <string name="service_message_topic_edited">%1$s редагував тему</string>
+    <string name="service_message_topic_edited_name">%2$s змінив назву теми на "%2$s"</string>
+    <string name="service_message_topic_edited_icon">%1$s змінив піктограму теми</string>
+    <string name="service_message_topic_edited_icon_removed">%1$s видалив піктограму теми</string>
+    <string name="service_message_topic_edited_name_and_icon">%2$s змінив назву теми на "%2$s" та оновив значок</string>
+    <string name="service_message_topic_closed">%1$s закрив тему</string>
+    <string name="service_message_topic_reopened">%1$s знову відкрив тему</string>
+    <string name="service_message_topic_hidden">%1$s приховав тему</string>
+    <string name="service_message_topic_visible">%1$s зробив тему видимою</string>
+    <string name="service_message_profile_photo_suggested">%1$s запропонував фотографію профілю</string>
+    <string name="service_message_birthdate_suggested">%1$s запропонував дату народження</string>
+    <string name="service_message_game_score">Рахунок гри: %1$d</string>
+    <string name="service_message_managed_bot_created">Створено керованого бота</string>
+    <string name="service_message_payment_sent">Платіж надіслано: %1$s</string>
+    <string name="service_message_payment_sent_with_invoice">Платіж надіслано за "%2$s": %2$s</string>
+    <string name="service_message_payment_sent_recurring">Регулярний платіж надіслано: %1$s</string>
+    <string name="service_message_payment_sent_first_recurring">Перший регулярний платіж надіслано: %1$s</string>
+    <string name="service_message_payment_received">Платіж отримано: %1$s</string>
+    <string name="service_message_payment_received_recurring">Отримано регулярний платіж: %1$s</string>
+    <string name="service_message_payment_refunded">Платіж повернуто: %1$s</string>
+    <string name="service_message_payment_refunded_for">Повернено платіж за %2$s: %2$s</string>
+    <string name="service_message_premium_gifted">Подарований Telegram Premium за %1$s</string>
+    <string name="service_message_premium_gifted_to">Подарував Telegram Premium користувачу %2$s за %2$s</string>
+    <string name="service_message_premium_gifted_from_to">%3$s подарував Telegram Premium користувачу %3$s за %3$s</string>
+    <string name="service_message_premium_gift_code_created">Подарунковий код Telegram Premium створено</string>
+    <string name="service_message_premium_gift_code_created_by">%2$s створив подарунковий код Premium (%2$s)</string>
+    <string name="service_message_premium_gift_code_from_giveaway">Створено преміальний код розіграшу (%1$s)</string>
+    <string name="service_message_premium_gift_code_unclaimed">Незатребуваний преміум-код розіграшу (%1$s)</string>
+    <string name="service_message_giveaway_created">Створено роздачу</string>
+    <string name="service_message_stars_giveaway_created">Роздача зірок створена</string>
+    <string name="service_message_giveaway">Роздача подарунків</string>
+    <string name="service_message_giveaway_with_prize">Роздача: %2$s переможців, приз %2$s</string>
+    <string name="service_message_giveaway_completed">Роздача завершена з %1$d переможцями</string>
+    <string name="service_message_giveaway_completed_stars">Роздача зірок завершена з %1$d переможцями</string>
+    <string name="service_message_giveaway_completed_with_unclaimed">Роздача завершена: %2$d переможців, %2$d незатребуваних призів</string>
+    <string name="service_message_giveaway_winners">Оголошено переможців розіграшу: %1$d</string>
+    <string name="service_message_giveaway_winners_in_chat">Оголошено переможців розіграшу: %2$s у %2$s</string>
+    <string name="service_message_giveaway_winners_refunded">Роздачу скасовано та повернуто кошти (%1$d переможців)</string>
+    <string name="service_message_stars_gifted">Подаровано %1$d Telegram Stars</string>
+    <string name="service_message_stars_gifted_to">Подарував %1$s Telegram зірочок %1$s</string>
+    <string name="service_message_stars_gifted_from_to">%2$s подарував %2$s Telegram Stars користувачу %2$s</string>
+    <string name="service_message_ton_gifted">Обдарований TON</string>
+    <string name="service_message_ton_gifted_amount">Обдарований %1$s</string>
+    <string name="service_message_ton_gifted_to">Подаровано %1$s %1$s</string>
+    <string name="service_message_ton_gifted_from_to">%2$s подарував %2$s %2$s</string>
+    <string name="service_message_giveaway_prize_stars">Отримано %1$d зірок від роздачі</string>
+    <string name="service_message_giveaway_prize_stars_in_chat">Отримано %2$s зірок від роздачі в %2$s</string>
+    <string name="service_message_giveaway_prize_stars_unclaimed_in_chat">Отримано %2$s незатребуваних зірок у роздачі в %2$s</string>
+    <string name="service_message_gift_received">Подарунок отримав</string>
+    <string name="service_message_gift_private">Отримав приватний подарунок</string>
+    <string name="service_message_gift_from_auction">Подарунок виграний на аукціоні</string>
+    <string name="service_message_gift_upgraded">Подарунок покращено</string>
+    <string name="service_message_gift_upgraded_transferred">Покращений подарунок передано</string>
+    <string name="service_message_gift_refunded">Подарунок повернуто</string>
+    <string name="service_message_gift_purchase_offer">Отримано пропозицію придбати подарунок</string>
+    <string name="service_message_gift_purchase_offer_with_price">Пропозиція покупки подарунків: %2$s, діє до %2$s</string>
+    <string name="service_message_gift_purchase_offer_rejected">Пропозицію придбати подарунок відхилено</string>
+    <string name="service_message_gift_purchase_offer_rejected_with_price">Пропозицію придбання подарунка відхилено (%1$s)</string>
+    <string name="service_message_gift_purchase_offer_expired">Термін дії пропозиції придбання подарунків закінчився</string>
+    <string name="service_message_gift_purchase_offer_expired_with_price">Термін дії пропозиції придбання подарунків закінчився (%1$s)</string>
+    <string name="service_message_paid_messages_refunded">Повернено %2$d платних повідомлень і %2$d зірок</string>
+    <string name="service_message_paid_message_price_changed">Ціну платного повідомлення змінено на %1$d зірок</string>
+    <string name="service_message_direct_message_price_changed">Ціну прямого повідомлення змінено на %1$d зірок</string>
+    <string name="service_message_direct_messages_disabled">Прямі повідомлення вимкнено</string>
+    <string name="service_message_checklist_tasks_updated">Контрольний список оновлено: виконано %2$d, скасовано %2$d</string>
+    <string name="service_message_checklist_tasks_added">До контрольного списку додано %1$d завдань</string>
+    <string name="service_message_suggested_post_approval_failed">Запропонований допис не схвалено</string>
+    <string name="service_message_suggested_post_approval_failed_with_price">Помилка схвалення запропонованої публікації: потрібно %1$s</string>
+    <string name="service_message_suggested_post_approved">Запропонована публікація схвалена для %1$s</string>
+    <string name="service_message_suggested_post_approved_with_price">Запропонована публікація схвалена для %2$s (%2$s)</string>
+    <string name="service_message_suggested_post_declined">Запропонований допис відхилено</string>
+    <string name="service_message_suggested_post_declined_with_comment">Запропонований допис відхилено: %1$s</string>
+    <string name="service_message_suggested_post_paid">Запропонований пост оплачено</string>
+    <string name="service_message_suggested_post_paid_stars">Оплачено запропоновану публікацію: %1$d зірок</string>
+    <string name="service_message_suggested_post_paid_ton">Оплачено запропоновану публікацію: %1$s</string>
+    <string name="service_message_suggested_post_refunded">Запропонований допис повернено</string>
+    <string name="service_message_suggested_post_refunded_with_reason">Повернено кошти за запропоновану публікацію: %1$s</string>
+    <string name="service_message_suggested_post_refund_reason_deleted">Публікацію видалили занадто рано</string>
+    <string name="service_message_suggested_post_refund_reason_payment">Початковий платіж повернуто</string>
+    <string name="service_message_contact_registered">%1$s приєднався до Telegram</string>
+    <string name="service_message_users_shared">Поділився з ботом %1$d користувачів</string>
+    <string name="service_message_users_shared_one_named">Спільний користувач із ботом: %1$s</string>
+    <string name="service_message_users_shared_two_named">Спільні користувачі з ботом: %2$s, %2$s</string>
+    <string name="service_message_users_shared_many_named">Спільні користувачі з ботом: %3$d, %3$d та ще %3$d</string>
+    <string name="service_message_chat_shared">Поділився чатом з ботом</string>
+    <string name="service_message_chat_shared_named">Спільний чат із ботом: %1$s</string>
+    <string name="service_message_bot_write_access_allowed">Тепер бот може надсилати повідомлення</string>
+    <string name="service_message_bot_write_access_connected_website">Бот може надсилати повідомлення (підключений веб-сайт: %1$s)</string>
+    <string name="service_message_bot_write_access_attachment_menu">Бот може надсилати повідомлення (додано в меню вкладень)</string>
+    <string name="service_message_bot_write_access_web_app">Бот може надсилати повідомлення (запущено веб-додаток: %1$s)</string>
+    <string name="service_message_bot_write_access_accepted_request">Бот може надсилати повідомлення (запит прийнято)</string>
+    <string name="service_message_web_app_data_sent">Веб-програма "%1$s" надіслала дані</string>
+    <string name="service_message_web_app_data_received">Веб-програма "%1$s" повернула дані</string>
+    <string name="service_message_web_app_data_received_with_size">Веб-програма "%2$d" повернула %2$d символів</string>
+    <string name="service_message_passport_data_sent">Паспортні дані відправлені</string>
+    <string name="service_message_passport_data_received">Паспортні дані отримано</string>
+    <string name="service_message_proximity_alert">Сповіщення про близькість: %1$d м</string>
+    <string name="service_message_stars_format">%1$d зірок</string>
+    <string name="service_message_ton_format">%.2f ТОНН</string>
+    <string name="service_message_unknown_price">невідома ціна</string>
+    <string name="service_message_giveaway_prize_unknown">невідомий приз</string>
+    <string name="telemt_dns_section_header">Telemt DNS</string>
+    <string name="telemt_dns_section_subtitle">Налаштуйте постачальника DNS через HTTPS для TDLib</string>
+    <string name="telemt_dns_provider_title">DNS-провайдер</string>
+    <string name="telemt_dns_provider_subtitle">Виберіть постачальника DoH для вирішення домену</string>
+    <string name="telemt_dns_provider_google">Google DNS</string>
+    <string name="telemt_dns_provider_cloudflare">CloudFlare DNS</string>
+    <string name="telemt_dns_provider_custom">Спеціальний DoH</string>
+    <string name="telemt_dns_custom_url_title">Спеціальна URL-адреса DoH</string>
+    <string name="telemt_dns_custom_url_subtitle">Введіть спеціальну URL-адресу сервера DNS-over-HTTPS</string>
+    <string name="telemt_dns_custom_headers_title">Спеціальні заголовки</string>
+    <string name="telemt_dns_custom_headers_subtitle">Додаткові заголовки для спеціального DoH (наприклад, авторизація)</string>
+    <string name="telemt_dns_fallback_google">Запасний варіант: Google DNS → CloudFlare DNS</string>
+    <string name="telemt_dns_fallback_cloudflare">Запасний варіант: CloudFlare DNS → Google DNS</string>
+    <string name="telemt_dns_fallback_custom">Custom DoH не має резервних варіантів</string>
+    <string name="dns_provider_change_failed">Не вдалося змінити постачальника DNS</string>
+    <string name="dns_url_change_failed">Не вдалося змінити URL-адресу DNS</string>
+    <string name="dns_headers_change_failed">Не вдалося змінити заголовки DNS</string>
+    <string name="message_expired_photo">Термін дії фотографії минув</string>
+    <string name="message_expired_video">Термін дії відео минув</string>
+    <string name="folders_show_all_chats_title">Показати всі чати</string>
+    <string name="folders_show_all_chats_subtitle">Зберігайте папку «Усі чати» видимою на панелі вкладок</string>
+    <plurals name="service_message_months">
+        <item quantity="one">%1$d місяць</item>
+        <item quantity="other">%1$d місяців</item>
+    </plurals>
+    <plurals name="service_message_days">
+        <item quantity="one">%1$d день</item>
+        <item quantity="other">%1$d днів</item>
+    </plurals>
+    <plurals name="service_message_hours">
+        <item quantity="one">%1$d година</item>
+        <item quantity="other">%1$d годин</item>
+    </plurals>
+    <plurals name="service_message_minutes">
+        <item quantity="one">%1$d хвилина</item>
+        <item quantity="other">%1$d хвилин</item>
+    </plurals>
+    <plurals name="service_message_seconds">
+        <item quantity="one">%1$d секунда</item>
+        <item quantity="other">%1$d секунд</item>
+    </plurals>
 </resources>

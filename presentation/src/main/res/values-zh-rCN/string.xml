@@ -4,25 +4,20 @@
     <string name="confirmation_message">您确定要授权此设备吗？</string>
     <string name="confirm_auth_action">是，登录</string>
     <string name="cancel_action">取消</string>
-
     <string name="scan_qr_title">扫描二维码</string>
     <string name="devices_title">设备</string>
     <string name="link_device_action">关联设备</string>
-
     <string name="current_device_section">此设备</string>
     <string name="login_requests_section">登录请求</string>
     <string name="active_sessions_section">活跃会话</string>
     <string name="sessions_login_attempt">登录尝试</string>
     <string name="sessions_unconfirmed">未确认</string>
     <string name="sessions_terminate_action">终止会话</string>
-
     <string name="cd_navigate_back">返回</string>
     <string name="cd_close_scanner">关闭扫描器</string>
     <string name="cd_qr_icon">二维码扫描图标</string>
-
     <!-- Startup -->
     <string name="startup_connecting">正在连接 Telegram…</string>
-
     <!-- About Screen -->
     <string name="about_title">关于</string>
     <string name="cd_back">返回</string>
@@ -48,7 +43,6 @@
     <string name="role_designer">设计师</string>
     <string name="monogram_description">MonoGram 是一款基于 Material Design 3 构建的非官方 Telegram 客户端</string>
     <string name="copyright_text">© 2026 MonoGram</string>
-
     <!-- Updates -->
     <string name="check_for_updates">检查更新</string>
     <string name="checking_updates">正在检查…</string>
@@ -67,7 +61,6 @@
     <string name="download_update_action">下载更新</string>
     <string name="cancel_button">取消</string>
     <string name="loading_text">加载中…</string>
-
     <!-- Auth -->
     <string name="auth_title_phone">您的手机</string>
     <string name="auth_title_verification">验证码</string>
@@ -105,12 +98,10 @@
     <string name="paste_action">粘贴</string>
     <string name="auth_error_title">认证错误</string>
     <string name="dismiss_button">关闭</string>
-
     <!-- Loading -->
     <string name="loading_please_wait">请稍候</string>
     <string name="loading_taking_too_long">加载时间过长？</string>
     <string name="loading_reset_connection">重置连接</string>
-
     <!-- Chat List -->
     <string name="forward_to_title">转发至…</string>
     <plurals name="chats_selected_format">
@@ -144,7 +135,6 @@
     <string name="no_chats_yet">暂无会话</string>
     <string name="start_new_conversation">开始新对话</string>
     <string name="mini_app_default_name">小程序</string>
-
     <!-- Account Menu -->
     <string name="app_name_dev">MonoGram Alpha</string>
     <string name="action_add_account">添加账号</string>
@@ -166,7 +156,6 @@
     <string name="unknown_user">未知用户</string>
     <string name="no_info">暂无信息</string>
     <string name="cd_show_accounts">显示账号</string>
-
     <!-- Current Chat -->
     <string name="search_messages_hint">搜索消息…</string>
     <string name="action_clear">清除</string>
@@ -184,7 +173,6 @@
     <string name="cd_scroll_to_bottom">滚动到底部</string>
     <string name="topic_closed_bar">此话题已关闭</string>
     <string name="cd_attach">附件</string>
-
     <!-- Current Chat Additions -->
     <string name="delete_message_title">删除消息？</string>
     <string name="delete_messages_title">删除 %1$d 条消息？</string>
@@ -192,7 +180,6 @@
     <string name="delete_messages_confirmation">确定要删除这些消息吗？</string>
     <string name="delete_for_everyone">为所有人删除</string>
     <string name="delete_for_me">为我删除</string>
-
     <string name="report_title">为什么举报该内容？</string>
     <string name="report_description">您的举报是匿名的。我们将审查聊天记录以确保安全。</string>
     <string name="report_details_title">举报详情</string>
@@ -218,7 +205,6 @@
     <string name="report_reason_unrelated_location_description">与此特定地点无关的内容</string>
     <string name="report_reason_other">其他</string>
     <string name="report_reason_other_description">其他违反我们条款的行为</string>
-
     <string name="restrict_user_title">限制用户</string>
     <string name="permission_send_messages">发送消息</string>
     <string name="permission_send_media">发送媒体</string>
@@ -232,7 +218,6 @@
     <string name="cd_select_date">选择日期</string>
     <string name="cd_select_time">选择时间</string>
     <string name="action_restrict">限制</string>
-
     <string name="menu_reply">回复</string>
     <string name="menu_copy">复制</string>
     <string name="menu_pin">置顶</string>
@@ -253,7 +238,6 @@
     <string name="info_edited">已编辑</string>
     <string name="info_read">已读</string>
     <string name="info_views">浏览次数</string>
-
     <!-- Profile -->
     <string name="unknown_title">未知</string>
     <plurals name="members_count_format">
@@ -332,7 +316,6 @@
     <string name="close_button">关闭</string>
     <string name="tos_dialog_description">通过启动此小程序，您同意其服务条款和隐私政策。此机器人将能够访问您的基本个人资料信息。</string>
     <string name="accept_and_launch">接受并启动</string>
-
     <!-- Settings -->
     <string name="qr_code_title">二维码</string>
     <string name="action_share">分享</string>
@@ -383,7 +366,6 @@
     <string name="debug_force_sponsor_sync_subtitle">立即从频道拉取赞助者 ID</string>
     <string name="log_out_title">退出登录</string>
     <string name="log_out_subtitle">断开账号连接</string>
-
     <!-- Edit Profile -->
     <string name="usernames_title">用户名</string>
     <string name="retry_after_format">%1$d 秒后重试</string>
@@ -427,7 +409,6 @@
     <string name="friday_short">五</string>
     <string name="saturday_short">六</string>
     <string name="sunday_short">日</string>
-
     <!-- Privacy and Security -->
     <string name="privacy_security_header">隐私和安全</string>
     <string name="privacy_section_header">隐私</string>
@@ -471,7 +452,6 @@
     <string name="ttl_months_format">%1$d 个月</string>
     <string name="ttl_days_format">%1$d 天</string>
     <string name="privacy_deletion_reason_user">用户请求注销</string>
-
     <!-- Proxy Settings -->
     <string name="proxy_settings_header">代理设置</string>
     <string name="refresh_pings_cd">刷新延迟</string>
@@ -566,14 +546,12 @@
     <string name="test_proxy_button">测试</string>
     <string name="test_proxy_result">测试结果</string>
     <string name="action_delete">删除</string>
-    <string name="proxy_checking">检查中...</string>
+    <string name="proxy_checking">检查中…</string>
     <string name="proxy_offline">离线</string>
     <string name="proxy_ping_format">%1$dms</string>
-
     <!-- Settings General -->
     <string name="your_usernames_header">您的用户名</string>
     <string name="more_options_cd">更多选项</string>
-
     <!-- Notifications and Sounds -->
     <string name="notifications_sounds_header">通知和声音</string>
     <string name="message_notifications_header">消息通知</string>
@@ -617,7 +595,6 @@
     <string name="repeat_hours_format">每 %1$d 小时</string>
     <string name="push_provider_fcm">Firebase Cloud Messaging</string>
     <string name="push_provider_gms_less">GMS-less (后台服务)</string>
-
     <!-- Chat Settings -->
     <string name="chat_settings_header">会话设置</string>
     <string name="appearance_header">外观</string>
@@ -690,7 +667,6 @@
     <string name="emoji_style_catmoji">Catmoji</string>
     <string name="emoji_style_noto">Noto</string>
     <string name="emoji_style_system">系统默认</string>
-    
     <!-- Data and Storage -->
     <string name="data_storage_title_header">数据和存储</string>
     <string name="disk_network_usage_header">磁盘和网络使用情况</string>
@@ -715,7 +691,6 @@
     <string name="videos_autoplay_subtitle">在聊天中自动播放视频</string>
     <string name="enabled_label">已启用</string>
     <string name="disabled_label">已禁用</string>
-
     <!-- Power Saving -->
     <string name="power_saving_header">省电模式</string>
     <string name="battery_header">电池</string>
@@ -730,7 +705,6 @@
     <string name="chat_animations_subtitle">禁用聊天动画以省电</string>
     <string name="background_header">后台</string>
     <string name="keep_alive_power_saving_subtitle">禁用此项将减少功耗，但可能会延迟后台通知</string>
-
     <!-- Stickers and Emoji -->
     <string name="stickers_emoji_header">表情符号和贴纸</string>
     <string name="stickers_tab">贴纸</string>
@@ -765,7 +739,6 @@
     <string name="sticker_type_custom_emojis">自定义表情</string>
     <string name="sticker_official">官方</string>
     <string name="link_copied">链接已复制到剪贴板</string>
-
     <!-- Network Usage -->
     <string name="network_usage_header">网络使用情况</string>
     <string name="reset_statistics_cd">重置统计数据</string>
@@ -784,7 +757,6 @@
     <string name="wifi_tab">Wi-Fi</string>
     <string name="roaming_tab">漫游</string>
     <string name="other_tab">其他</string>
-
     <!-- Storage Usage -->
     <string name="storage_usage_header">存储使用情况</string>
     <string name="clear_all_cache_format">清除所有缓存 • %1$s</string>
@@ -808,7 +780,6 @@
     <string name="total_used_label">总已用量</string>
     <string name="files_count_format">%1$d 个文件</string>
     <string name="files_count_label">%1$d 个文件</string>
-
     <!-- Privacy Setting -->
     <string name="privacy_who_can_add_me">谁可以将我添加到 %1$s？</string>
     <string name="privacy_who_can_call_me">谁可以给我打电话？</string>
@@ -833,7 +804,6 @@
     <string name="privacy_block_user_cd">屏蔽用户</string>
     <string name="privacy_search_users_placeholder">搜索用户</string>
     <string name="privacy_no_users_found">未找到用户</string>
-
     <!-- Passcode -->
     <string name="passcode_change_title">修改锁屏码</string>
     <string name="passcode_set_title">设置锁屏码</string>
@@ -846,7 +816,6 @@
     <string name="passcode_verify_title">验证锁屏码</string>
     <string name="passcode_verify_description">更改或关闭锁屏码前，请先输入当前锁屏码。</string>
     <string name="passcode_verify_error">锁屏码不正确。</string>
-
     <!-- AdBlock -->
     <string name="cd_add_keyword">添加关键词</string>
     <string name="adblock_enable">启用广告屏蔽</string>
@@ -868,7 +837,6 @@
     <string name="adblock_whitelisted_subtitle">来自这些频道的消息将不会被过滤</string>
     <string name="adblock_no_whitelisted">暂无白名单频道</string>
     <string name="action_remove">移除</string>
-
     <!-- Core/Common -->
     <string name="last_seen_recently">最近上线</string>
     <string name="last_seen_just_now">刚刚上线</string>
@@ -891,7 +859,6 @@
     <string name="menu_unarchive">取消归档</string>
     <string name="menu_archive">归档</string>
     <string name="menu_remove_set">移除贴纸包</string>
-
     <!-- New Chat -->
     <string name="new_message_title">新消息</string>
     <string name="add_members_title">添加成员</string>
@@ -946,7 +913,6 @@
     <string name="group_auto_delete_info">在一定时间后自动删除该群组中发送的新消息。</string>
     <string name="add_photo_cd">添加照片</string>
     <string name="change_photo_cd">更改照片</string>
-
     <!-- Permissions -->
     <string name="permissions_required_title">需要权限</string>
     <string name="permissions_required_description">为了提供最佳体验，MonoGram 需要以下权限。</string>
@@ -964,15 +930,12 @@
     <string name="permission_microphone_description">录制语音和视频消息</string>
     <string name="permission_location_title">位置</string>
     <string name="permission_location_description">共享您的位置并查看附近的用户</string>
-
     <!-- Selection -->
     <string name="cd_clear_selection">清除选择</string>
     <string name="action_pin">置顶</string>
-
     <!-- Bot Commands -->
     <string name="bot_commands_title">机器人指令</string>
     <string name="bot_commands_subtitle">选择要发送给机器人的指令</string>
-
     <!-- Chat List Preview -->
     <string name="chat_list_preview_title">会话列表</string>
     <string name="preview_name_konata">泉此方</string>
@@ -981,7 +944,6 @@
     <string name="preview_name_kagami">柊镜</string>
     <string name="preview_message_kagami">别忘了作业！明天早上就要交了，而且挺难的。</string>
     <string name="preview_time_kagami">11:20</string>
-
     <!-- Chat Settings Preview -->
     <string name="chat_settings_preview_title">预览</string>
     <string name="preview_msg_sender_me">我</string>
@@ -991,22 +953,18 @@
     <string name="preview_msg_text_4">效果拔群！😵‍💫</string>
     <string name="preview_date_today">今天</string>
     <string name="preview_name_konata_short">此方</string>
-
     <string name="subscribers_count_format">%1$d 位订阅者</string>
     <string name="thread_title">回复</string>
-
     <!-- Recording UI -->
     <string name="recording_delete">删除录音</string>
     <string name="recording_slide_to_cancel">&lt; 左滑取消</string>
     <string name="recording_send">发送录音</string>
     <string name="recording_lock">锁定录音</string>
     <string name="recording_swipe_up">向上滑动</string>
-
     <!-- Input Bar -->
     <string name="input_placeholder_caption">添加说明…</string>
     <string name="input_placeholder_message">消息</string>
     <string name="input_error_not_allowed">不允许发送消息</string>
-
     <!-- Media Types -->
     <string name="media_type_photo">照片</string>
     <string name="media_type_video">视频</string>
@@ -1016,7 +974,6 @@
     <string name="media_type_gif">GIF</string>
     <string name="media_type_location">位置</string>
     <string name="media_type_message">消息</string>
-
     <!-- Actions -->
     <string name="action_cancel_reply">取消回复</string>
     <string name="action_edit_message">编辑消息</string>
@@ -1061,7 +1018,6 @@
     <string name="gallery_permission_title">允许访问媒体</string>
     <string name="gallery_permission_description">授予对照片和视频的访问权限，以便在聊天中附加文件。</string>
     <string name="gallery_permission_grant">授予访问权限</string>
-
     <string name="rich_text_bold">加粗</string>
     <string name="rich_text_italic">斜体</string>
     <string name="rich_text_underline">下划线</string>
@@ -1077,15 +1033,12 @@
     <string name="rich_text_link_hint">URL</string>
     <string name="rich_text_code_language_title">代码语言</string>
     <string name="rich_text_code_language_hint">语言（例如 kotlin）</string>
-
     <string name="fullscreen_editor_meta">%1$d 个字符 • %2$d 个格式块</string>
     <string name="fullscreen_editor_blocks">%1$d 个格式块</string>
     <string name="fullscreen_editor_hint">选中文本以应用类似 Telegram 的富文本格式</string>
     <string name="message_length_counter">%1$d/%2$d</string>
-
     <!-- Bot -->
     <string name="bot_commands">指令</string>
-
     <!-- Chat Typing -->
     <string name="typing_typing">正在输入</string>
     <string name="typing_recording_video">正在录制视频</string>
@@ -1103,7 +1056,6 @@
         <item quantity="one">%d 人正在输入</item>
         <item quantity="other">%d 人正在输入</item>
     </plurals>
-
     <!-- Storage Mapper -->
     <string name="storage_photos">照片</string>
     <string name="storage_videos">视频</string>
@@ -1115,10 +1067,8 @@
     <string name="storage_other_files">其他文件</string>
     <string name="storage_other_cache">其他 / 缓存</string>
     <string name="storage_chat_format">会话 %d</string>
-
     <!-- Network Mapper -->
     <string name="network_calls">通话</string>
-
     <!-- Notification Service -->
     <string name="notification_service_waiting">正在等待新消息</string>
     <string name="notification_service_stop">停止</string>
@@ -1138,7 +1088,6 @@
     <string name="notification_channel_channels_description">来自频道的通知</string>
     <string name="notification_channel_other_name">其他</string>
     <string name="notification_channel_other_description">其他通知</string>
-
     <!-- Chat Mapper / Media Types -->
     <string name="chat_mapper_photo">照片</string>
     <string name="chat_mapper_video">视频</string>
@@ -1169,7 +1118,6 @@
     <string name="chat_mapper_seen_recently">最近在线</string>
     <string name="chat_mapper_seen_week">一周内在线</string>
     <string name="chat_mapper_seen_month">一个月内在线</string>
-
     <!-- Pinned Messages -->
     <string name="pinned_messages">置顶消息</string>
     <string name="pinned_message">置顶消息</string>
@@ -1179,14 +1127,12 @@
     <plurals name="pinned_count">
         <item quantity="other">%d 条消息</item>
     </plurals>
-
     <!-- Message Types -->
     <string name="message_type_video_message">视频消息</string>
     <string name="message_type_gif">GIF</string>
     <string name="message_type_document">文档</string>
     <string name="message_type_poll_format">投票：%s</string>
     <string name="message_type_sticker_format">贴纸 %s</string>
-
     <!-- Photo Editor Tools -->
     <string name="photo_editor_tool_view">预览</string>
     <string name="photo_editor_tool_crop">裁剪</string>
@@ -1194,7 +1140,6 @@
     <string name="photo_editor_tool_draw">绘制</string>
     <string name="photo_editor_tool_text">文字</string>
     <string name="photo_editor_tool_eraser">橡皮擦</string>
-
     <!-- Photo Editor Filters -->
     <string name="photo_editor_filter_original">原图</string>
     <string name="photo_editor_filter_bw">黑白</string>
@@ -1204,7 +1149,6 @@
     <string name="photo_editor_filter_warm">暖色</string>
     <string name="photo_editor_filter_polaroid">拍立得</string>
     <string name="photo_editor_filter_invert">反色</string>
-
     <!-- Photo Editor Actions -->
     <string name="photo_editor_action_save">保存</string>
     <string name="photo_editor_action_cancel">取消</string>
@@ -1218,38 +1162,32 @@
     <string name="photo_editor_action_edit_text">编辑文字</string>
     <string name="photo_editor_action_apply">应用</string>
     <string name="photo_editor_action_delete">删除</string>
-
     <!-- Photo Editor Labels -->
     <string name="photo_editor_label_size">大小</string>
     <string name="photo_editor_label_zoom">缩放</string>
-    <string name="photo_editor_label_placeholder_text">输入文字...</string>
+    <string name="photo_editor_label_placeholder_text">输入文字…</string>
     <string name="photo_editor_label_select_tool">选择工具开始编辑</string>
-
     <!-- Photo Editor Discard Dialog -->
     <string name="photo_editor_discard_title">放弃更改？</string>
     <string name="photo_editor_discard_message">更改尚未保存，确定要放弃吗？</string>
     <string name="photo_editor_discard_button">放弃</string>
-
     <!-- Video Editor Common -->
     <string name="video_editor_apply">应用</string>
     <string name="video_editor_done">完成</string>
     <string name="video_editor_cancel">取消</string>
     <string name="video_editor_low">低</string>
-
     <!-- Video Editor Tools -->
     <string name="video_tool_view">预览</string>
     <string name="video_tool_trim">裁剪</string>
     <string name="video_tool_filters">滤镜</string>
     <string name="video_tool_text">文字</string>
     <string name="video_tool_compress">压缩</string>
-
     <!-- Video Editor Actions/Controls -->
     <string name="video_action_unmute">取消静音</string>
     <string name="video_action_mute">静音</string>
     <string name="video_action_add_text">添加文字</string>
     <string name="video_quality_label">视频质量</string>
     <string name="video_estimated_bitrate">预计码率: %1$d kbps</string>
-
     <!-- Video Editor Filters -->
     <string name="video_filter_original">原图</string>
     <string name="video_filter_bw">黑白</string>
@@ -1259,20 +1197,17 @@
     <string name="video_filter_warm">暖色</string>
     <string name="video_filter_polaroid">拍立得</string>
     <string name="video_filter_invert">反色</string>
-
     <!-- Video Editor Dialogs & Toasts -->
     <string name="video_error_file_not_found">未找到文件</string>
     <string name="video_error_file_missing">视频文件丢失</string>
     <string name="video_discard_title">放弃更改？</string>
     <string name="video_discard_text">您有未保存的更改。确定要放弃这些更改吗？</string>
     <string name="video_discard_confirm">放弃</string>
-
     <!-- Web View General -->
     <string name="webview_loading">加载中…</string>
     <string name="webview_default_title">网页视图</string>
     <string name="webview_close">关闭</string>
     <string name="webview_more_options">更多</string>
-
     <!-- Web View Options Sheet -->
     <string name="webview_options_title">选项</string>
     <string name="webview_back">后退</string>
@@ -1289,7 +1224,6 @@
     <string name="webview_desktop_site">桌面版网站</string>
     <string name="webview_block_ads">广告拦截</string>
     <string name="webview_text_size">字体大小: %1$d%%</string>
-
     <!-- Web View Security/Certificate -->
     <string name="webview_secure">安全</string>
     <string name="webview_insecure">不安全</string>
@@ -1301,19 +1235,17 @@
     <string name="webview_cert_issued_by">颁发者</string>
     <string name="webview_cert_valid_until">有效期至</string>
     <string name="webview_cert_unknown">未知</string>
-
     <!-- Web View Find In Page Bar -->
     <string name="webview_find_placeholder">在页面中查找…</string>
     <string name="webview_find_previous">上一个</string>
     <string name="webview_find_next">下一个</string>
     <string name="webview_find_close">关闭查找</string>
-
     <!-- Profile & Components -->
     <string name="label_discussion">讨论</string>
     <string name="label_channel">频道</string>
     <string name="action_open_maps">打开地图</string>
     <string name="action_directions">路线</string>
-    <string name="navigate_with">使用...导航</string>
+    <string name="navigate_with">使用…导航</string>
     <string name="open_with">打开方式</string>
     <string name="browser_other">浏览器 / 其他</string>
     <string name="tab_media">媒体</string>
@@ -1339,9 +1271,8 @@
     <string name="bot_verification_subtitle">由第三方机器人验证</string>
     <string name="opening_hours_closed">已关闭</string>
     <string name="label_id">ID</string>
-
     <!-- Statistics Viewer -->
-    <string name="statistics_analyzing">正在分析统计数据...</string>
+    <string name="statistics_analyzing">正在分析统计数据…</string>
     <string name="statistics_overview">概览</string>
     <string name="statistics_members">成员</string>
     <string name="statistics_messages">消息</string>
@@ -1391,7 +1322,7 @@
     <string name="statistics_hourly_revenue">每小时收益</string>
     <string name="statistics_insights_loaded">数据已加载</string>
     <string name="statistics_zoom_in">放大</string>
-    <string name="statistics_rendering_chart">正在生成图表...</string>
+    <string name="statistics_rendering_chart">正在生成图表…</string>
     <string name="statistics_no_change">无变化</string>
     <string name="statistics_vs_previous"> 与前期相比</string>
     <string name="statistics_unknown_type">未知统计类型</string>
@@ -1400,7 +1331,6 @@
     <string name="profile_statistics_preview_venue_format">地点：%1$s</string>
     <string name="profile_statistics_preview_poll_format">投票：%1$s</string>
     <string name="profile_statistics_preview_service_message">服务消息</string>
-
     <!-- Selection: Viewer Common -->
     <string name="viewer_back">返回</string>
     <string name="viewer_options">选项</string>
@@ -1410,8 +1340,7 @@
     <string name="viewer_seek_forward_format">+%1$ds</string>
     <string name="viewer_thumbnail_cd">缩略图 %1$d</string>
     <string name="viewer_page_indicator">%1$d / %2$d</string>
-    <string name="viewer_loading_original">正在加载原图...</string>
-
+    <string name="viewer_loading_original">正在加载原图…</string>
     <!-- Selection: Viewer Actions -->
     <string name="action_download">下载</string>
     <string name="action_download_video">下载视频</string>
@@ -1427,7 +1356,6 @@
     <string name="action_pause">暂停</string>
     <string name="action_play">播放</string>
     <string name="action_unlock">解锁</string>
-
     <!-- Selection: Viewer Settings -->
     <string name="settings_title">设置</string>
     <string name="settings_playback_speed">播放速度</string>
@@ -1459,45 +1387,37 @@
     <string name="action_use_low_quality">使用低画质</string>
     <string name="action_open_in_browser">在浏览器中打开</string>
     <string name="settings_speed_normal">正常</string>
-
     <!-- Selection: Picture-in-Picture -->
     <string name="pip_play">播放</string>
     <string name="pip_pause">暂停</string>
     <string name="pip_rewind">后退</string>
     <string name="pip_forward">前进</string>
-
     <!-- Sticker & Emoji Menu -->
     <string name="sticker_menu_tab_stickers">贴纸</string>
     <string name="sticker_menu_tab_emojis">表情</string>
     <string name="sticker_menu_tab_gifs">GIF</string>
-
     <!-- Stickers View -->
     <string name="stickers_header_recent">最近贴纸</string>
     <string name="stickers_header_all">贴纸</string>
     <string name="stickers_search_placeholder">搜索贴纸</string>
-
     <!-- Emojis View -->
     <string name="emojis_header_recent">最近表情</string>
     <string name="emojis_header_standard">标准表情</string>
     <string name="emojis_header_custom">自定义表情</string>
     <string name="emojis_header_all">表情</string>
     <string name="emojis_search_placeholder">搜索表情</string>
-
     <!-- GIFs View -->
     <string name="gifs_header_recent_saved">最近与已保存</string>
     <string name="gifs_no_results">未找到 GIF</string>
     <string name="gifs_search_placeholder">搜索 GIF</string>
-
     <!-- Common/Accessibility -->
     <string name="common_back">返回</string>
     <string name="common_clear">清除</string>
     <string name="common_recent">最近</string>
-
     <!-- QR Code -->
     <string name="qr_saved_to_gallery">已保存到相册</string>
     <string name="qr_share_title">分享二维码</string>
     <string name="qr_share_error">发送时出错：%1$s</string>
-
     <!-- Chat Edit (ChatEditContent.kt) -->
     <string name="edit_channel">编辑频道</string>
     <string name="edit_group">编辑群组</string>
@@ -1512,16 +1432,14 @@
     <string name="management">管理</string>
     <string name="delete_channel">删除频道</string>
     <string name="delete_group">删除群组</string>
-
     <!-- Member List (MemberListContent.kt) -->
-    <string name="search_hint">搜索...</string>
+    <string name="search_hint">搜索…</string>
     <string name="administrators">管理员</string>
     <string name="subscribers">订阅者</string>
     <string name="members">成员</string>
     <string name="blacklist">黑名单</string>
     <string name="no_results_found">未找到相关结果</string>
     <string name="no_members_yet">暂无成员</string>
-
     <!-- Admin Management (AdminManageContent.kt) -->
     <string name="admin_rights">管理员权限</string>
     <string name="custom_title">自定义头衔</string>
@@ -1540,12 +1458,10 @@
     <string name="permission_delete_stories">删除故事</string>
     <string name="permission_add_new_admins">添加新管理员</string>
     <string name="permission_remain_anonymous">保持匿名</string>
-
     <!-- Group Permissions (ChatPermissionsContent.kt) -->
     <string name="permissions">权限</string>
     <string name="what_can_members_do">此群组的成员可以做什么？</string>
     <string name="permission_add_members">添加成员</string>
-
     <!-- Common UI / Content Descriptions -->
     <string name="back">返回</string>
     <string name="save">保存</string>
@@ -1555,7 +1471,6 @@
     <string name="edit">编辑</string>
     <string name="username">用户名</string>
     <string name="filters">过滤器</string>
-    
     <!-- Profile Logs / Recent Actions -->
     <string name="logs_title">近期操作</string>
     <string name="logs_events_count">已加载 %d 条记录</string>
@@ -1563,7 +1478,6 @@
     <string name="logs_empty_subtitle">尝试更改过滤器</string>
     <string name="logs_not_implemented">未实现</string>
     <string name="logs_user_id_copied">用户 ID 已复制</string>
-
     <!-- Logs Filters -->
     <string name="logs_filter_title">筛选操作</string>
     <string name="logs_filter_reset">重置</string>
@@ -1573,7 +1487,6 @@
     <string name="logs_filter_search_placeholder">搜索…</string>
     <string name="logs_filter_no_users">未找到用户</string>
     <string name="logs_filter_no_results">未找到关于“%s”的结果</string>
-
     <!-- Action Types -->
     <string name="logs_action_edits">编辑</string>
     <string name="logs_action_deletions">删除</string>
@@ -1587,7 +1500,6 @@
     <string name="logs_action_settings">设置</string>
     <string name="logs_action_links">链接</string>
     <string name="logs_action_video">视频</string>
-
     <!-- Action Descriptions -->
     <string name="logs_action_edited">编辑了消息</string>
     <string name="logs_action_deleted">删删了消息</string>
@@ -1608,7 +1520,6 @@
     <string name="logs_action_video_started">开启了视频聊天</string>
     <string name="logs_action_video_ended">结束了视频聊天</string>
     <string name="logs_action_unknown">执行了操作：%s</string>
-
     <!-- Details and Previews -->
     <string name="logs_original_message">原消息：</string>
     <string name="logs_new_message">新消息：</string>
@@ -1625,7 +1536,6 @@
     <string name="logs_status_to">至</string>
     <string name="logs_permissions_changes">权限更改：</string>
     <string name="logs_permissions_current">当前权限：</string>
-
     <!-- Permissions / Roles -->
     <string name="logs_perm_messages">消息</string>
     <string name="logs_perm_media">媒体</string>
@@ -1635,13 +1545,11 @@
     <string name="logs_perm_invite">邀请</string>
     <string name="logs_perm_pin">置顶</string>
     <string name="logs_perm_info">详情</string>
-
     <string name="logs_role_admin">管理员</string>
     <string name="logs_role_owner">群主</string>
     <string name="logs_role_restricted">受限</string>
     <string name="logs_role_banned">已封禁</string>
     <string name="logs_role_member">成员</string>
-
     <!-- Media Types -->
     <string name="logs_media_photo">照片</string>
     <string name="logs_media_video">视频</string>
@@ -1656,20 +1564,16 @@
     <string name="logs_media_location">位置</string>
     <string name="logs_media_venue">地点</string>
     <string name="logs_media_unsupported">不支持的消息</string>
-
     <!-- Date and Formats -->
     <string name="format_duration">%1$02d:%2$02d</string>
-
     <!-- Views Count -->
     <string name="views_k">%1$.1fK 次观看</string>
     <string name="views_m">%1$.1fM 次观看</string>
-
     <!-- Comments -->
     <string name="comment_leave">发表评论</string>
     <string name="comment_count">%1$d 条评论</string>
     <string name="comment_count_k">%1$.1fK 条评论</string>
     <string name="comment_count_m">%1$.1fM 条评论</string>
-
     <!-- Poll Message -->
     <string name="poll_final_results">最终结果</string>
     <string name="poll_anonymous">匿名投票</string>
@@ -1682,17 +1586,14 @@
     <plurals name="poll_votes_count">
         <item quantity="other">%d 票</item>
     </plurals>
-
     <!-- Accessibility Content Descriptions -->
     <string name="cd_more">更多</string>
     <string name="cd_vote">投票</string>
     <string name="cd_explanation">解释</string>
-
     <!-- Poll Voters Sheet -->
     <string name="poll_voters_title">投票者</string>
     <string name="poll_no_voters">尚无投票者</string>
     <string name="action_close">关闭</string>
-
     <!-- Reply Content -->
     <string name="reply_content_photo">图片</string>
     <string name="reply_content_video">视频</string>
@@ -1701,7 +1602,6 @@
     <string name="reply_content_video_message">视频消息</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">消息</string>
-
     <!-- Chat Folders -->
     <string name="folders_title">聊天分組</string>
     <string name="folders_back">返回</string>
@@ -1724,13 +1624,11 @@
     <string name="folders_included_chats">包含的聊天</string>
     <string name="folders_search_chats">搜索聊天…</string>
     <string name="folders_cancel">取消</string>
-
     <!-- Premium Screen -->
     <string name="premium_title">Telegram Premium</string>
     <string name="premium_back">返回</string>
     <string name="premium_subscribe_button">以每月 %s 订阅</string>
     <string name="premium_unlock_features">解锁专属功能</string>
-
     <!-- Premium Features -->
     <string name="premium_feature_doubled_limits_title">限制翻倍</string>
     <string name="premium_feature_doubled_limits_description">最多可加入 %1$d 个频道，创建 %2$d 个聊天分组，置顶 %3$d 个聊天，%4$d 条公开链接等。</string>
@@ -1754,13 +1652,11 @@
     <string name="premium_feature_emoji_status_description">从数千个表情符号中选择一个显示在您的名字旁边。</string>
     <string name="premium_feature_app_icons_title">Premium 应用图标</string>
     <string name="premium_feature_app_icons_description">可从精选的 Telegram 图标中选择并替换主屏幕图标。</string>
-
     <!-- Mini App Menu -->
     <string name="mini_app_menu_reload">重新加载</string>
     <string name="mini_app_menu_copy_link">复制链接</string>
     <string name="mini_app_menu_open_in_browser">在浏览器中打开</string>
     <string name="mini_app_menu_add_to_home">添加到主屏幕</string>
-
     <!-- Mini App Dialogs -->
     <string name="mini_app_close_confirmation_title">关闭小程序？</string>
     <string name="mini_app_close_confirmation_text">您有未保存的更改。确定要关闭吗？</string>
@@ -1784,7 +1680,6 @@
     <string name="mini_app_tos_title">服务条款</string>
     <string name="mini_app_tos_text">启动此小程序即表示您同意其服务条款和隐私政策。该机器人将能够访问您的基本个人资料信息。</string>
     <string name="mini_app_tos_accept">接受并启动</string>
-
     <!-- Instant View -->
     <string name="instant_view_search_placeholder">在文章中搜索…</string>
     <string name="instant_view_back">返回</string>
@@ -1805,13 +1700,11 @@
     <string name="instant_view_collapse">折叠</string>
     <string name="instant_view_expand">展开</string>
     <string name="instant_view_map_prefix">地图: %1$s, %2$s</string>
-
     <!-- Settings Top -->
     <string name="share_profile_title">分享个人资料</string>
     <string name="share_profile_subtitle">分享您的 Monogram 个人资料链接</string>
     <string name="copy_link_title">复制链接</string>
     <string name="copy_link_subtitle">将您的 Monogram 个人资料链接复制到剪贴板</string>
-
     <!-- Chat Theme Editor -->
     <string name="chat_theme_editor_title">主题编辑器</string>
     <string name="chat_theme_editor_palette_mode">调色板模式</string>
@@ -1831,13 +1724,11 @@
     <string name="chat_theme_editor_both">全部应用</string>
     <string name="chat_theme_editor_hex">Hex</string>
     <string name="chat_theme_editor_theme_file_name">monogram-theme.json</string>
-
     <string name="chat_theme_editor_theme_file_saved">主题文件已保存</string>
     <string name="chat_theme_editor_save_failed">保存失败</string>
     <string name="chat_theme_editor_theme_loaded">主题已加载</string>
     <string name="chat_theme_editor_invalid_file">无效文件</string>
     <string name="chat_theme_editor_load_failed">加载失败</string>
-
     <string name="chat_theme_editor_theme_source_title">主题来源</string>
     <string name="chat_theme_editor_theme_source_description">选择一种应用色彩来源。“自定义”使用可编辑的调色板，“Monet”使用 Android 动态色彩。“AMOLED”仅影响深色背景。</string>
     <string name="chat_theme_editor_custom_theme">自定义主题</string>
@@ -1846,7 +1737,6 @@
     <string name="chat_theme_editor_monet_description">根据壁纸生成的 Material You 色彩 (Android 12+)。</string>
     <string name="chat_theme_editor_amoled_dark">AMOLED 纯黑</string>
     <string name="chat_theme_editor_amoled_dark_description">在深色模式下强制使用纯黑色，以减少屏幕光晕并节省 OLED 屏幕电量。</string>
-
     <string name="chat_theme_editor_preset_themes">预设主题</string>
     <string name="chat_theme_editor_preset_themes_description">每个预设都有浅色和深色版本。点击浅色、深色或全部应用即可生效。</string>
     <string name="chat_theme_editor_manual_colors_title">手动调色 (%1$s)</string>
@@ -1858,7 +1748,6 @@
     <string name="chat_theme_editor_saturation_format">饱和度 %1$d%%</string>
     <string name="chat_theme_editor_brightness_format">亮度 %1$d%%</string>
     <string name="chat_theme_editor_alpha_format">不透明度 %1$d%%</string>
-
     <string name="chat_theme_editor_role_primary">主要</string>
     <string name="chat_theme_editor_role_secondary">次要</string>
     <string name="chat_theme_editor_role_tertiary">第三色</string>
@@ -1869,65 +1758,49 @@
     <string name="chat_theme_editor_role_tertiary_container">第三容器</string>
     <string name="chat_theme_editor_role_surface_variant">表面变体</string>
     <string name="chat_theme_editor_role_outline">轮廓</string>
-
     <string name="chat_theme_editor_chip_light_primary">L P</string>
     <string name="chat_theme_editor_chip_light_container">L C</string>
     <string name="chat_theme_editor_chip_light_background">L BG</string>
     <string name="chat_theme_editor_chip_dark_primary">D P</string>
     <string name="chat_theme_editor_chip_dark_container">D C</string>
     <string name="chat_theme_editor_chip_dark_background">D BG</string>
-
     <string name="chat_theme_editor_accent_blue">蓝色</string>
     <string name="chat_theme_editor_accent_green">绿色</string>
     <string name="chat_theme_editor_accent_orange">橙色</string>
     <string name="chat_theme_editor_accent_rose">玫瑰红</string>
     <string name="chat_theme_editor_accent_indigo">靛蓝色</string>
     <string name="chat_theme_editor_accent_cyan">青色</string>
-
     <string name="chat_theme_editor_preset_classic_name">经典</string>
     <string name="chat_theme_editor_preset_classic_description">均衡的蓝色，具有清晰的易读性和中性的表面色。</string>
-
     <string name="chat_theme_editor_preset_forest_name">森林</string>
     <string name="chat_theme_editor_preset_forest_description">具有冷静对比度和柔和容器色调的自然绿色。</string>
-
     <string name="chat_theme_editor_preset_ocean_name">海洋</string>
     <string name="chat_theme_editor_preset_ocean_description">清爽的青蓝色渐变，包含清新的浅色和深邃的深色模式。</string>
-
     <string name="chat_theme_editor_preset_sunset_name">日落</string>
     <string name="chat_theme_editor_preset_sunset_description">温暖的橙色和珊瑚色调，具有极高的前景色清晰度。</string>
-
     <string name="chat_theme_editor_preset_graphite_name">石墨</string>
     <string name="chat_theme_editor_preset_graphite_description">中性灰阶基调，配以蓝灰色点缀，结构感强。</string>
-
     <string name="chat_theme_editor_preset_mint_name">薄荷</string>
     <string name="chat_theme_editor_preset_mint_description">清新的薄荷色与鸭绿色的组合，容器色调温和。</string>
-
     <string name="chat_theme_editor_preset_ruby_name">红宝石</string>
     <string name="chat_theme_editor_preset_ruby_description">深红色调配以中性容器，强调行动视觉焦点。</string>
-
     <string name="chat_theme_editor_preset_lavender_gray_name">薰衣草灰</string>
     <string name="chat_theme_editor_preset_lavender_gray_description">柔和的紫灰色调，具有受控的饱和度和洁净的对比度。</string>
-
     <string name="chat_theme_editor_preset_sand_name">沙滩</string>
     <string name="chat_theme_editor_preset_sand_description">米色和琥珀色调，专为极柔和的视觉效果而设计。</string>
-
     <string name="chat_theme_editor_preset_arctic_name">极地</string>
     <string name="chat_theme_editor_preset_arctic_description">冰蓝色与白色的观感，具有极佳的可读性和清晰的边界。</string>
-
     <string name="chat_theme_editor_preset_emerald_name">祖母绿</string>
     <string name="chat_theme_editor_preset_emerald_description">鲜明的绿色主题，搭配干净表面与现代对比度。</string>
-
     <string name="chat_theme_editor_preset_copper_name">铜色</string>
     <string name="chat_theme_editor_preset_copper_description">温暖的铜橙色方案，在浅色和深色模式下都保持清晰文本。</string>
-
     <string name="chat_theme_editor_preset_sakura_name">樱花</string>
     <string name="chat_theme_editor_preset_sakura_description">柔和的粉紫色调，容器过渡细腻，重点高亮更明显。</string>
-
     <string name="chat_theme_editor_preset_nord_name">北境</string>
     <string name="chat_theme_editor_preset_nord_description">冷调北欧蓝色风格，整体观感沉稳且专业。</string>
     <!-- Circular recorder -->
     <string name="recorder_permissions_required">需要相机和麦克风权限</string>
-    <string name="recorder_processing">处理中...</string>
+    <string name="recorder_processing">处理中…</string>
     <string name="recorder_processing_error">处理错误: %1$s</string>
     <string name="recorder_close_cd">关闭录制器</string>
     <string name="recorder_switch_cd">切换摄像头</string>
@@ -1937,7 +1810,6 @@
     <string name="recorder_time_format">时长: %1$s</string>
     <string name="recorder_zoom_format">变焦: %1$.1fx (范围 %2$.1fx - %3$.1fx)</string>
     <string name="recorder_cancel">取消</string>
-
     <string name="clear_history_title">清除历史记录？</string>
     <string name="clear_history_confirmation">您确定要清除聊天记录吗？此操作无法撤销。</string>
     <string name="action_clear_history">清除历史记录</string>
@@ -2019,7 +1891,7 @@
     <string name="editor_ai_style_viking">维京</string>
     <string name="editor_ai_style_zen">禅意</string>
     <string name="editor_ai_add_emojis">添加表情</string>
-    <string name="editor_ai_loading">处理中...</string>
+    <string name="editor_ai_loading">处理中…</string>
     <string name="editor_ai_error_empty">请输入要处理的文本</string>
     <string name="editor_ai_error_flood">AI 请求过多，可能需要 Telegram Premium。</string>
     <string name="editor_ai_error_generic">AI 处理失败</string>
@@ -2031,12 +1903,11 @@
     <string name="auth_code_expired_error">验证码已过期</string>
     <string name="auth_password_hash_invalid">密码无效</string>
     <string name="unexpected_error">发生了意外错误</string>
-
     <!-- ProxyContent -->
     <string name="proxy_connection_test_button">运行连接测试</string>
     <string name="proxy_connection_test_title">Telegram 连接测试</string>
     <string name="proxy_connection_test_subtitle">通过 Telegram 数据中心检查端到端连接。</string>
-    <string name="proxy_connection_test_running">正在运行连接测试...</string>
+    <string name="proxy_connection_test_running">正在运行连接测试…</string>
     <string name="proxy_connection_test_success">连接状况良好。你可以保存并启用此代理。</string>
     <string name="proxy_connection_test_hint">主列表仅显示传输层延迟。此测试更全面，因此数值可能更高。</string>
     <string name="proxy_tab_proxy">代理</string>
@@ -2144,7 +2015,7 @@
     <string name="notifications_exceptions_channels">频道</string>
     <string name="notifications_exceptions_label">例外</string>
     <string name="notifications_exceptions_search">搜索</string>
-    <string name="notifications_exceptions_search_placeholder">搜索例外...</string>
+    <string name="notifications_exceptions_search_placeholder">搜索例外…</string>
     <string name="notifications_exceptions_no_results_format">未找到“%1$s”的结果</string>
     <string name="notifications_exceptions_chats_header">聊天</string>
     <string name="notifications_exceptions_hint">点击某个聊天以更改其通知设置或移除该例外。</string>
@@ -2164,4 +2035,220 @@
     <string name="download_saved_files_with_errors_format">已保存 %1$d 个文件到 Downloads/MonoGram（%2$d 个未找到，%3$d 个失败）</string>
     <string name="logs_role_left">离开</string>
     <string name="logs_role_unknown">未知</string>
+    <string name="service_message_unknown_time">未知时间</string>
+    <string name="service_message_unknown_duration">持续时间未知</string>
+    <string name="service_message_unknown_duration_short">00:00</string>
+    <string name="service_message_auto_delete_off">离开</string>
+    <string name="service_message_money_format">%2$d %2$d</string>
+    <string name="service_message_call_missed">未接来电</string>
+    <string name="service_message_call">称呼</string>
+    <string name="service_message_video_call_missed">错过视频通话</string>
+    <string name="service_message_video_call">视频电话</string>
+    <string name="service_message_call_declined">拒绝来电</string>
+    <string name="service_message_video_call_declined">拒绝视频通话</string>
+    <string name="service_message_call_disconnected">通话已断开</string>
+    <string name="service_message_video_call_disconnected">视频通话断线</string>
+    <string name="service_message_call_hung_up">通话结束</string>
+    <string name="service_message_video_call_hung_up">视频通话结束</string>
+    <string name="service_message_call_upgraded_to_group">通话升级为群组通话</string>
+    <string name="service_message_call_ended">通话结束 · %1$s</string>
+    <string name="service_message_video_call_ended">视频通话结束 · %1$s</string>
+    <string name="service_message_group_call">群组通话</string>
+    <string name="service_message_group_video_call">群组视频通话</string>
+    <string name="service_message_group_call_started">群组通话开始</string>
+    <string name="service_message_group_video_call_started">群组视频通话开始</string>
+    <string name="service_message_group_call_missed">未接群组通话</string>
+    <string name="service_message_group_video_call_missed">错过群组视频通话</string>
+    <string name="service_message_group_call_ended">群组通话结束 · %1$s</string>
+    <string name="service_message_group_video_call_ended">群组视频通话结束 · %1$s</string>
+    <string name="service_message_video_chat_scheduled">视频聊天安排在 %1$s</string>
+    <string name="service_message_video_chat_started">视频聊天开始</string>
+    <string name="service_message_video_chat_ended">视频聊天结束 · %1$s</string>
+    <string name="service_message_video_chat_invited">邀请 %1$d 人加入视频聊天</string>
+    <string name="service_message_video_chat_invited_one_named">邀请 %1$s 加入视频聊天</string>
+    <string name="service_message_video_chat_invited_two_named">邀请 %2$s 和 %2$s 参加视频聊天</string>
+    <string name="service_message_video_chat_invited_many_named">邀请 %3$d、%3$d 和 %3$d 更多人参加视频聊天</string>
+    <string name="service_message_poll_option_added">添加了投票选项：%1$s</string>
+    <string name="service_message_poll_option_deleted">投票选项已删除：%1$s</string>
+    <string name="service_message_basic_group_created">创建了组“%1$s”</string>
+    <string name="service_message_supergroup_created">创建了超级组“%1$s”</string>
+    <string name="service_message_chat_title_changed">%2$s 将聊天标题更改为“%2$s”</string>
+    <string name="service_message_chat_photo_changed">%1$s 更改了聊天照片</string>
+    <string name="service_message_chat_photo_removed">%1$s 删除了聊天照片</string>
+    <string name="service_message_chat_owner_left">聊天主人离开了</string>
+    <string name="service_message_chat_owner_left_with_new_owner">聊天的主人离开了。新主人：%1$s</string>
+    <string name="service_message_chat_owner_changed">聊天所有者已更改</string>
+    <string name="service_message_chat_owner_changed_to">新聊天所有者：%1$s</string>
+    <string name="service_message_protected_content_enabled">已启用受保护内容</string>
+    <string name="service_message_protected_content_disabled">受保护内容已禁用</string>
+    <string name="service_message_protected_content_disable_requested">受保护内容禁用请求</string>
+    <string name="service_message_protected_content_disable_expired">受保护内容禁用请求已过期</string>
+    <string name="service_message_members_added">%2$d 添加了 %2$d 新成员</string>
+    <string name="service_message_member_added_named">%2$s 添加了 %2$s</string>
+    <string name="service_message_members_added_two_named">%3$s 添加了 %3$s 和 %3$s</string>
+    <string name="service_message_members_added_many_named">%4$d 添加了 %4$d、%4$d 和 %4$d 更多内容</string>
+    <string name="service_message_member_joined">%1$s 加入聊天</string>
+    <string name="service_message_joined_by_link">%1$s 通过邀请链接加入</string>
+    <string name="service_message_joined_by_request">%1$s 应要求加入</string>
+    <string name="service_message_member_removed">%1$s 删除了一名成员</string>
+    <string name="service_message_member_removed_named">%2$s 已删除 %2$s</string>
+    <string name="service_message_member_left_named">%1$s 离开聊天室</string>
+    <string name="service_message_chat_upgraded">%1$s 将组升级为超级组</string>
+    <string name="service_message_group_migrated">组已迁移</string>
+    <string name="service_message_pinned">%1$s 置顶了一条消息</string>
+    <string name="service_message_pinned_with_preview">%2$s 固定：%2$s</string>
+    <string name="service_message_screenshot_taken">%1$s 截图</string>
+    <string name="service_message_background_changed">聊天背景已更改</string>
+    <string name="service_message_background_changed_for_self">聊天背景已为您更改</string>
+    <string name="service_message_theme_changed">聊天主题已更改</string>
+    <string name="service_message_theme_changed_to">聊天主题更改为 %1$s</string>
+    <string name="service_message_theme_changed_gift">聊天主题已更改（礼物主题）</string>
+    <string name="service_message_theme_reset">聊天主题重置</string>
+    <string name="service_message_auto_delete_enabled">自动删除设置为 %1$s</string>
+    <string name="service_message_auto_delete_disabled">自动删除已禁用</string>
+    <string name="service_message_auto_delete_changed_by">%2$s 由 %2$s 提供</string>
+    <string name="service_message_chat_boost">聊天增强 ×%1$d</string>
+    <string name="service_message_topic_created">%2$s 创建了主题“%2$s”</string>
+    <string name="service_message_topic_edited">%1$s 编辑了主题</string>
+    <string name="service_message_topic_edited_name">%2$s 将主题重命名为“%2$s”</string>
+    <string name="service_message_topic_edited_icon">%1$s 更改了主题图标</string>
+    <string name="service_message_topic_edited_icon_removed">%1$s 删除了主题图标</string>
+    <string name="service_message_topic_edited_name_and_icon">%2$s 将主题名称更改为“%2$s”并更新了图标</string>
+    <string name="service_message_topic_closed">%1$s 关闭主题</string>
+    <string name="service_message_topic_reopened">%1$s 重新开启话题</string>
+    <string name="service_message_topic_hidden">%1$s 隐藏了主题</string>
+    <string name="service_message_topic_visible">%1$s 使主题可见</string>
+    <string name="service_message_profile_photo_suggested">%1$s 建议提供个人资料照片</string>
+    <string name="service_message_birthdate_suggested">%1$s 建议生日</string>
+    <string name="service_message_game_score">游戏得分：%1$d</string>
+    <string name="service_message_managed_bot_created">创建托管机器人</string>
+    <string name="service_message_payment_sent">付款已发送：%1$s</string>
+    <string name="service_message_payment_sent_with_invoice">已发送“%2$s”付款：%2$s</string>
+    <string name="service_message_payment_sent_recurring">定期付款已发送：%1$s</string>
+    <string name="service_message_payment_sent_first_recurring">发送的第一笔定期付款：%1$s</string>
+    <string name="service_message_payment_received">收到付款：%1$s</string>
+    <string name="service_message_payment_received_recurring">收到的定期付款：%1$s</string>
+    <string name="service_message_payment_refunded">付款退款：%1$s</string>
+    <string name="service_message_payment_refunded_for">%2$s 的付款退款：%2$s</string>
+    <string name="service_message_premium_gifted">%1$s 的 Gifted Telegram Premium</string>
+    <string name="service_message_premium_gifted_to">赠送 Telegram Premium 至 %2$s，费用为 %2$s</string>
+    <string name="service_message_premium_gifted_from_to">%3$s 向 %3$s 赠送 Telegram Premium，费用为 %3$s</string>
+    <string name="service_message_premium_gift_code_created">Telegram Premium 礼品代码已创建</string>
+    <string name="service_message_premium_gift_code_created_by">%2$s 创建了高级礼品代码 (%2$s)</string>
+    <string name="service_message_premium_gift_code_from_giveaway">创建高级赠品代码 (%1$s)</string>
+    <string name="service_message_premium_gift_code_unclaimed">无人认领的高级赠品代码 (%1$s)</string>
+    <string name="service_message_giveaway_created">已创建赠品</string>
+    <string name="service_message_stars_giveaway_created">明星赠品已创建</string>
+    <string name="service_message_giveaway">送</string>
+    <string name="service_message_giveaway_with_prize">赠品：%2$s 获奖者，奖品 %2$s</string>
+    <string name="service_message_giveaway_completed">%1$d 获奖者完成赠品</string>
+    <string name="service_message_giveaway_completed_stars">%1$d 获奖者完成明星赠品</string>
+    <string name="service_message_giveaway_completed_with_unclaimed">赠品已完成：%2$d 获奖者，%2$d 无人认领的奖品</string>
+    <string name="service_message_giveaway_winners">赠品获奖者公布：%1$d</string>
+    <string name="service_message_giveaway_winners_in_chat">赠品获奖者公布：%2$s 在 %2$s</string>
+    <string name="service_message_giveaway_winners_refunded">赠品已取消并退款（%1$d 获奖者）</string>
+    <string name="service_message_stars_gifted">天才 %1$d 电报明星</string>
+    <string name="service_message_stars_gifted_to">将 %1$s 电报星星赠送给 %1$s</string>
+    <string name="service_message_stars_gifted_from_to">%2$s 向 %2$s 赠送了 %2$s 电报星星</string>
+    <string name="service_message_ton_gifted">天才TON</string>
+    <string name="service_message_ton_gifted_amount">天才 %1$s</string>
+    <string name="service_message_ton_gifted_to">天赋异禀 %1$s 至 %1$s</string>
+    <string name="service_message_ton_gifted_from_to">%2$s 将 %2$s 赠予 %2$s</string>
+    <string name="service_message_giveaway_prize_stars">从赠品中获得 %1$d 星星</string>
+    <string name="service_message_giveaway_prize_stars_in_chat">在 %2$s 的赠品中获得 %2$s 星星</string>
+    <string name="service_message_giveaway_prize_stars_unclaimed_in_chat">在 %2$s 的赠品中收到 %2$s 颗无人认领的星星</string>
+    <string name="service_message_gift_received">收到礼物</string>
+    <string name="service_message_gift_private">收到私人礼物</string>
+    <string name="service_message_gift_from_auction">拍卖中赢得的礼物</string>
+    <string name="service_message_gift_upgraded">礼物升级</string>
+    <string name="service_message_gift_upgraded_transferred">升级礼物转移</string>
+    <string name="service_message_gift_refunded">礼物已退还</string>
+    <string name="service_message_gift_purchase_offer">收到礼品购买优惠</string>
+    <string name="service_message_gift_purchase_offer_with_price">礼品购买优惠：%2$s，到期 %2$s</string>
+    <string name="service_message_gift_purchase_offer_rejected">礼品购买报价被拒绝</string>
+    <string name="service_message_gift_purchase_offer_rejected_with_price">礼品购买优惠被拒绝 (%1$s)</string>
+    <string name="service_message_gift_purchase_offer_expired">礼品购买优惠已过期</string>
+    <string name="service_message_gift_purchase_offer_expired_with_price">礼品购买优惠已过期 (%1$s)</string>
+    <string name="service_message_paid_messages_refunded">已退款 %2$d 条付费消息和 %2$d 颗星星</string>
+    <string name="service_message_paid_message_price_changed">付费消息价格更改为 %1$d 星星</string>
+    <string name="service_message_direct_message_price_changed">私信价格改为%1$d星星</string>
+    <string name="service_message_direct_messages_disabled">直接消息已禁用</string>
+    <string name="service_message_checklist_tasks_updated">清单已更新：%2$d 已完成，%2$d 已撤消</string>
+    <string name="service_message_checklist_tasks_added">将 %1$d 任务添加到清单中</string>
+    <string name="service_message_suggested_post_approval_failed">建议的帖子批准失败</string>
+    <string name="service_message_suggested_post_approval_failed_with_price">建议的职位批准失败：必填 %1$s</string>
+    <string name="service_message_suggested_post_approved">%1$s 批准的建议职位</string>
+    <string name="service_message_suggested_post_approved_with_price">建议职位已批准 %2$s (%2$s)</string>
+    <string name="service_message_suggested_post_declined">建议的帖子被拒绝</string>
+    <string name="service_message_suggested_post_declined_with_comment">建议的帖子被拒绝：%1$s</string>
+    <string name="service_message_suggested_post_paid">建议的帖子已付款</string>
+    <string name="service_message_suggested_post_paid_stars">建议的帖子已支付：%1$d 星星</string>
+    <string name="service_message_suggested_post_paid_ton">建议的帖子已付款：%1$s</string>
+    <string name="service_message_suggested_post_refunded">建议帖子已退款</string>
+    <string name="service_message_suggested_post_refunded_with_reason">建议退款的帖子：%1$s</string>
+    <string name="service_message_suggested_post_refund_reason_deleted">帖子被删除太早了</string>
+    <string name="service_message_suggested_post_refund_reason_payment">原付款已退还</string>
+    <string name="service_message_contact_registered">%1$s 加入 Telegram</string>
+    <string name="service_message_users_shared">与机器人共享 %1$d 用户</string>
+    <string name="service_message_users_shared_one_named">与机器人共享用户：%1$s</string>
+    <string name="service_message_users_shared_two_named">与机器人共享的用户：%2$s、%2$s</string>
+    <string name="service_message_users_shared_many_named">与机器人共享的用户：%3$d、%3$d 和 %3$d more</string>
+    <string name="service_message_chat_shared">与机器人共享聊天</string>
+    <string name="service_message_chat_shared_named">与机器人共享聊天：%1$s</string>
+    <string name="service_message_bot_write_access_allowed">机器人现在可以发送消息</string>
+    <string name="service_message_bot_write_access_connected_website">机器人可以发送消息（连接的网站：%1$s）</string>
+    <string name="service_message_bot_write_access_attachment_menu">机器人可以发送消息（添加到附件菜单）</string>
+    <string name="service_message_bot_write_access_web_app">机器人可以发送消息（已启动 Web 应用程序：%1$s）</string>
+    <string name="service_message_bot_write_access_accepted_request">机器人可以发送消息（接受请求）</string>
+    <string name="service_message_web_app_data_sent">Web 应用程序“%1$s”发送数据</string>
+    <string name="service_message_web_app_data_received">Web 应用程序“%1$s”返回数据</string>
+    <string name="service_message_web_app_data_received_with_size">Web 应用程序“%2$d”返回 %2$d 字符</string>
+    <string name="service_message_passport_data_sent">护照数据已发送</string>
+    <string name="service_message_passport_data_received">收到护照数据</string>
+    <string name="service_message_proximity_alert">接近警报：%1$d 米</string>
+    <string name="service_message_stars_format">%1$d 星星</string>
+    <string name="service_message_ton_format">%.2f TON</string>
+    <string name="service_message_unknown_price">价格未知</string>
+    <string name="service_message_giveaway_prize_unknown">未知奖品</string>
+    <string name="telemt_dns_section_header">远程DNS</string>
+    <string name="telemt_dns_section_subtitle">为 TDLib 配置 DNS-over-HTTPS 提供商</string>
+    <string name="telemt_dns_provider_title">DNS提供商</string>
+    <string name="telemt_dns_provider_subtitle">选择 DoH 提供商进行域名解析</string>
+    <string name="telemt_dns_provider_google">谷歌域名系统</string>
+    <string name="telemt_dns_provider_cloudflare">CloudFlare DNS</string>
+    <string name="telemt_dns_provider_custom">定制卫生部</string>
+    <string name="telemt_dns_custom_url_title">自定义 DoH URL</string>
+    <string name="telemt_dns_custom_url_subtitle">输入自定义 DNS-over-HTTPS 服务器 URL</string>
+    <string name="telemt_dns_custom_headers_title">自定义标头</string>
+    <string name="telemt_dns_custom_headers_subtitle">自定义 DoH 的可选标头（例如授权）</string>
+    <string name="telemt_dns_fallback_google">后备：Google DNS → CloudFlare DNS</string>
+    <string name="telemt_dns_fallback_cloudflare">后备：CloudFlare DNS → Google DNS</string>
+    <string name="telemt_dns_fallback_custom">定制 DoH 没有后备方案</string>
+    <string name="dns_provider_change_failed">更改 DNS 提供商失败</string>
+    <string name="dns_url_change_failed">更改 DNS URL 失败</string>
+    <string name="dns_headers_change_failed">无法更改 DNS 标头</string>
+    <string name="message_expired_photo">照片已过期</string>
+    <string name="message_expired_video">视频已过期</string>
+    <string name="folders_show_all_chats_title">显示所有聊天记录</string>
+    <string name="folders_show_all_chats_subtitle">使“所有聊天”文件夹在选项卡栏中可见</string>
+    <plurals name="service_message_months">
+        <item quantity="one">%1$d 月</item>
+        <item quantity="other">%1$d 个月</item>
+    </plurals>
+    <plurals name="service_message_days">
+        <item quantity="one">%1$d 天</item>
+        <item quantity="other">%1$d 天</item>
+    </plurals>
+    <plurals name="service_message_hours">
+        <item quantity="one">%1$d 小时</item>
+        <item quantity="other">%1$d 小时</item>
+    </plurals>
+    <plurals name="service_message_minutes">
+        <item quantity="one">%1$d 分钟</item>
+        <item quantity="other">%1$d 分钟</item>
+    </plurals>
+    <plurals name="service_message_seconds">
+        <item quantity="one">%1$d 第二</item>
+        <item quantity="other">%1$d 秒</item>
+    </plurals>
 </resources>

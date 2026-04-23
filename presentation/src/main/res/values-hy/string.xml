@@ -4,24 +4,19 @@
     <string name="confirmation_message">Իսկապե՞ս ցանկանում եք լիազորել այս սարքը:</string>
     <string name="confirm_auth_action">Այո, մուտք գործել</string>
     <string name="cancel_action">Չեղարկել</string>
-
     <string name="scan_qr_title">Սկանավորել QR-ը</string>
     <string name="devices_title">Սարքեր</string>
     <string name="link_device_action">Կցել սարք</string>
-
     <string name="current_device_section">Այս սարքը</string>
     <string name="login_requests_section">Մուտքի հարցումներ</string>
     <string name="active_sessions_section">Ակտիվ սեանսներ</string>
     <string name="sessions_login_attempt">Մուտքի փորձ</string>
     <string name="sessions_unconfirmed">Չհաստատված</string>
     <string name="sessions_terminate_action">Ավարտել սեանսը</string>
-
     <string name="cd_navigate_back">Հետ գնալ</string>
     <string name="cd_close_scanner">Փակել սկաները</string>
     <string name="cd_qr_icon">QR սկաների պատկերակ</string>
-
     <string name="startup_connecting">Միացում Telegram-ին…</string>
-
     <string name="about_title">Ծրագրի մասին</string>
     <string name="cd_back">Հետ</string>
     <string name="app_name_monogram">MonoGram</string>
@@ -46,7 +41,6 @@
     <string name="role_designer">Պատկերակի &amp; լոգոյի դիզայներ</string>
     <string name="monogram_description">MonoGram-ը Telegram-ի ոչ պաշտոնական հաճախորդ է՝ կառուցված Material Design 3 ոճով:</string>
     <string name="copyright_text">© 2026 MonoGram</string>
-
     <string name="check_for_updates">Ստուգել թարմացումները</string>
     <string name="checking_updates">Ստուգվում է…</string>
     <string name="update_available_format">Առկա է թարմացում. %1$s</string>
@@ -64,7 +58,6 @@
     <string name="download_update_action">Ներբեռնել թարմացումը</string>
     <string name="cancel_button">Չեղարկել</string>
     <string name="loading_text">Բեռնվում է…</string>
-
     <string name="auth_title_phone">Ձեր հեռախոսը</string>
     <string name="auth_title_verification">Հաստատում</string>
     <string name="auth_title_password">Գաղտնաբառ</string>
@@ -101,11 +94,9 @@
     <string name="paste_action">Տեղադրել</string>
     <string name="auth_error_title">Մուտքի սխալ</string>
     <string name="dismiss_button">Փակել</string>
-
     <string name="loading_please_wait">Խնդրում ենք սպասել</string>
     <string name="loading_taking_too_long">Շա՞տ երկար տևեց</string>
     <string name="loading_reset_connection">Վերակայել միացումը</string>
-
     <string name="forward_to_title">Վերահասցեագրել…</string>
     <plurals name="chats_selected_format">
         <item quantity="one">Ընտրված է %1$d չատ</item>
@@ -138,7 +129,6 @@
     <string name="no_chats_yet">Դեր չատեր չկան</string>
     <string name="start_new_conversation">Սկսեք նոր զրույց</string>
     <string name="mini_app_default_name">Մինի հավելված</string>
-
     <string name="app_name_dev">MonoGram Alpha</string>
     <string name="action_add_account">Ավելացնել հաշիվ</string>
     <string name="add_account_subtitle">Մուտք գործել այլ հաշիվ</string>
@@ -159,7 +149,6 @@
     <string name="unknown_user">Անհայտ օգտատեր</string>
     <string name="no_info">Տեղեկություն չկա</string>
     <string name="cd_show_accounts">Ցույց տալ հաշիվները</string>
-
     <string name="search_messages_hint">Որոնել հաղորդագրությունները…</string>
     <string name="action_clear">Մաքրել</string>
     <string name="cd_muted">Առանց ձայնի</string>
@@ -177,14 +166,12 @@
     <string name="cd_scroll_to_bottom">Իջնել ներքև</string>
     <string name="topic_closed_bar">Այս թեման փակ է</string>
     <string name="cd_attach">Կցել</string>
-
     <string name="delete_message_title">Ջնջե՞լ հաղորդագրությունը</string>
     <string name="delete_messages_title">Ջնջե՞լ %1$d հաղորդագրությունները</string>
     <string name="delete_message_confirmation">Իսկապե՞ս ցանկանում եք ջնջել այս հաղորդագրությունը:</string>
     <string name="delete_messages_confirmation">Իսկապե՞ս ցանկանում եք ջնջել այս հաղորդագրությունները:</string>
     <string name="delete_for_everyone">Ջնջել բոլորի համար</string>
     <string name="delete_for_me">Ջնջել ինձ համար</string>
-
     <string name="report_title">Ինչու՞ եք բողոքում</string>
     <string name="report_description">Ձեր բողոքը անանուն է: Մենք կվերանայենք չատի պատմությունը՝ անվտանգությունն ապահովելու համար:</string>
     <string name="report_details_title">Բողոքի մանրամասներ</string>
@@ -210,7 +197,6 @@
     <string name="report_reason_unrelated_location_description">Բովանդակություն, որը կապ չունի տվյալ վայրի հետ</string>
     <string name="report_reason_other">Այլ</string>
     <string name="report_reason_other_description">Մեր կանոնները խախտող այլ խնդիր</string>
-
     <string name="restrict_user_title">Սահմանափակել օգտատիրոջը</string>
     <string name="permission_send_messages">Ուղարկել հաղորդագրություններ</string>
     <string name="permission_send_media">Ուղարկել մեդիա</string>
@@ -224,7 +210,6 @@
     <string name="cd_select_date">Ընտրել ամսաթիվը</string>
     <string name="cd_select_time">Ընտրել ժամը</string>
     <string name="action_restrict">Սահմանափակել</string>
-
     <string name="menu_reply">Պատասխանել</string>
     <string name="menu_copy">Պատճենել</string>
     <string name="menu_pin">Ամրացնել</string>
@@ -245,7 +230,6 @@
     <string name="info_edited">Խմբագրված</string>
     <string name="info_read">Կարդացված</string>
     <string name="info_views">Դիտումներ</string>
-
     <string name="unknown_title">Անհայտ</string>
     <plurals name="members_count_format">
         <item quantity="one">%1$d անդամ</item>
@@ -325,7 +309,6 @@
     <string name="tos_dialog_description">Գործարկելով այս մինի հավելվածը՝ Դուք համաձայնում եք Օգտագործման պայմաններին և Գաղտնիության քաղաքականությանը: Բոտը կկարողանա մուտք գործել Ձեր պրոֆիլի հիմնական տվյալներին:
     </string>
     <string name="accept_and_launch">Ընդունել և գործարկել</string>
-
     <string name="qr_code_title">QR կոդ</string>
     <string name="action_share">Տարածել</string>
     <string name="support_monogram_description">MonoGram-ը անվճար և բաց կոդով նախագիծ է: Ձեր աջակցությունը օգնում է մեզ պահպանել այն և զարգացնել նոր հնարավորություններ:
@@ -375,7 +358,6 @@
     <string name="debug_force_sponsor_sync_subtitle">Այժմ ներբեռնել հովանավորների ID-ները ալիքից</string>
     <string name="log_out_title">Դուրս գալ</string>
     <string name="log_out_subtitle">Անջատվել հաշվից</string>
-
     <string name="usernames_title">Օգտանուններ</string>
     <string name="retry_after_format">Կրկին փորձել %1$d վրկ-ից</string>
     <string name="active_usernames_title">Ակտիվ օգտանուններ</string>
@@ -418,7 +400,6 @@
     <string name="friday_short">Ուրբ</string>
     <string name="saturday_short">Շբտ</string>
     <string name="sunday_short">Կիր</string>
-
     <string name="privacy_security_header">Գաղտնիություն և անվտանգություն</string>
     <string name="privacy_section_header">Գաղտնիություն</string>
     <string name="blocked_users_title">Արգելափակված օգտատերեր</string>
@@ -461,7 +442,6 @@
     <string name="ttl_months_format">%1$d ամիս</string>
     <string name="ttl_days_format">%1$d օր</string>
     <string name="privacy_deletion_reason_user">Օգտատիրոջ հարցումով</string>
-
     <string name="proxy_settings_header">Պրոքսիի կարգավորումներ</string>
     <string name="refresh_pings_cd">Թարմացնել պինգերը</string>
     <string name="add_proxy_button">Ավելացնել</string>
@@ -558,10 +538,8 @@
     <string name="proxy_checking">Ստուգվում է…</string>
     <string name="proxy_offline">Անցանց</string>
     <string name="proxy_ping_format">%1$d մվ</string>
-
     <string name="your_usernames_header">Ձեր օգտանունները</string>
     <string name="more_options_cd">Այլ տարբերակներ</string>
-
     <string name="notifications_sounds_header">Ծանուցումներ և ձայներ</string>
     <string name="message_notifications_header">Հաղորդագրությունների ծանուցումներ</string>
     <string name="private_chats_title">Անձնական չատեր</string>
@@ -604,7 +582,6 @@
     <string name="repeat_hours_format">Ամեն %1$d ժամը մեկ</string>
     <string name="push_provider_fcm">Firebase Cloud Messaging</string>
     <string name="push_provider_gms_less">GMS-less (Հետին պլանի ծառայություն)</string>
-
     <string name="chat_settings_header">Չատի կարգավորումներ</string>
     <string name="appearance_header">Արտաքին տեսք</string>
     <string name="message_text_size_title">Տեքստի չափը</string>
@@ -675,7 +652,6 @@
     <string name="emoji_style_catmoji">Catmoji</string>
     <string name="emoji_style_noto">Noto</string>
     <string name="emoji_style_system">Համակարգային</string>
-
     <string name="data_storage_title_header">Տվյալներ և պահոց</string>
     <string name="disk_network_usage_header">Սկավառակի և ցանցի օգտագործում</string>
     <string name="storage_usage_title">Պահոցի օգտագործում</string>
@@ -699,7 +675,6 @@
     <string name="videos_autoplay_subtitle">Ավտոմատ նվագարկել վիդեոները</string>
     <string name="enabled_label">Միացված է</string>
     <string name="disabled_label">Անջատված է</string>
-
     <string name="power_saving_header">Էներգախնայողություն</string>
     <string name="battery_header">Մարտկոց</string>
     <string name="power_saving_mode_title">Էներգախնայողության ռեժիմ</string>
@@ -713,7 +688,6 @@
     <string name="chat_animations_subtitle">Անջատել անիմացիաները՝ մարտկոցը խնայելու համար</string>
     <string name="background_header">Հետին պլան</string>
     <string name="keep_alive_power_saving_subtitle">Անջատումը կխնայի էներգիան, բայց կարող է ուշացնել ծանուցումները</string>
-
     <string name="stickers_emoji_header">Սթիքերներ և էմոջիներ</string>
     <string name="stickers_tab">Սթիքերներ</string>
     <string name="emoji_tab">Էմոջի</string>
@@ -747,7 +721,6 @@
     <string name="sticker_type_custom_emojis">Անհատական էմոջիներ</string>
     <string name="sticker_official">Պաշտոնական</string>
     <string name="link_copied">Հղումը պատճենված է</string>
-
     <string name="network_usage_header">Ցանցի օգտագործում</string>
     <string name="reset_statistics_cd">Վերակայել վիճակագրությունը</string>
     <string name="network_statistics_title">Ցանցի վիճակագրություն</string>
@@ -765,7 +738,6 @@
     <string name="wifi_tab">Wi-Fi</string>
     <string name="roaming_tab">Ռոումինգ</string>
     <string name="other_tab">Այլ</string>
-
     <string name="storage_usage_header">Պահոցի օգտագործում</string>
     <string name="clear_all_cache_format">Մաքրել ամբողջ քեշը • %1$s</string>
     <string name="clear_cache_description">Սա ներառում է նկարները, վիդեոները և այլ ֆայլերը:</string>
@@ -788,7 +760,6 @@
     <string name="total_used_label">Ընդհանուր օգտագործված</string>
     <string name="files_count_format">%1$d ֆայլ</string>
     <string name="files_count_label">%1$d ֆայլ</string>
-
     <string name="privacy_who_can_add_me">Ո՞վ կարող է ինձ ավելացնել %1$s-ում:</string>
     <string name="privacy_who_can_call_me">Ո՞վ կարող է ինձ զանգահարել:</string>
     <string name="privacy_who_can_see_my_last_seen">Ո՞վ կարող է տեսնել իմ վերջին անգամ տեսած լինելը:</string>
@@ -812,7 +783,6 @@
     <string name="privacy_block_user_cd">Արգելափակել օգտատիրոջը</string>
     <string name="privacy_search_users_placeholder">Որոնել օգտատերերին</string>
     <string name="privacy_no_users_found">Օգտատերեր չեն գտնվել</string>
-
     <string name="passcode_change_title">Փոխել գաղտնագիրը</string>
     <string name="passcode_set_title">Սահմանել գաղտնագիր</string>
     <string name="passcode_change_description">Հավելվածը պաշտպանված է գաղտնագրով: Մուտքագրեք նորը՝ այն փոխելու համար:</string>
@@ -824,7 +794,6 @@
     <string name="passcode_verify_title">Հաստատել գաղտնագիրը</string>
     <string name="passcode_verify_description">Մուտքագրեք ընթացիկ գաղտնագիրը՝ փոփոխություն կատարելու համար:</string>
     <string name="passcode_verify_error">Սխալ գաղտնագիր:</string>
-
     <string name="cd_add_keyword">Ավելացնել բանալի բառ</string>
     <string name="adblock_enable">Միացնել AdBlock-ը</string>
     <string name="adblock_whitelisted_channels">Սպիտակ ցուցակի ալիքներ</string>
@@ -845,7 +814,6 @@
     <string name="adblock_whitelisted_subtitle">Այս ալիքների գրառումները չեն ֆիլտրվի</string>
     <string name="adblock_no_whitelisted">Սպիտակ ցուցակում ալիքներ չկան</string>
     <string name="action_remove">Հեռացնել</string>
-
     <string name="last_seen_recently">վերջերս</string>
     <string name="last_seen_just_now">հենց նոր</string>
     <plurals name="last_seen_minutes_ago">
@@ -868,7 +836,6 @@
     <string name="menu_unarchive">Ապաարխիվացնել</string>
     <string name="menu_archive">Արխիվացնել</string>
     <string name="menu_remove_set">Հեռացնել հավաքածուն</string>
-
     <string name="new_message_title">Նոր հաղորդագրություն</string>
     <string name="add_members_title">Ավելացնել անդամներ</string>
     <string name="new_group_title">Նոր խումբ</string>
@@ -922,7 +889,6 @@
     <string name="group_auto_delete_info">Ավտոմատ ջնջել այս խմբում ուղարկված հաղորդագրությունները որոշակի ժամանակ անց:</string>
     <string name="add_photo_cd">Ավելացնել նկար</string>
     <string name="change_photo_cd">Փոխել նկարը</string>
-
     <string name="permissions_required_title">Պահանջվում են թույլտվություններ</string>
     <string name="permissions_required_description">Լիարժեք աշխատանքի համար MonoGram-ին անհրաժեշտ են հետևյալ թույլտվությունները:</string>
     <string name="permission_notifications_title">Ծանուցումներ</string>
@@ -939,13 +905,10 @@
     <string name="permission_microphone_description">Ձայնագրել ձայնային և տեսահաղորդագրություններ</string>
     <string name="permission_location_title">Տեղադրություն</string>
     <string name="permission_location_description">Տարածել Ձեր գտնվելու վայրը և տեսնել մոտակա օգտատերերին</string>
-
     <string name="cd_clear_selection">Մաքրել ընտրությունը</string>
     <string name="action_pin">Ամրացնել</string>
-
     <string name="bot_commands_title">Բոտի հրամաններ</string>
     <string name="bot_commands_subtitle">Ընտրեք հրամանը՝ բոտին ուղարկելու համար</string>
-
     <string name="chat_list_preview_title">Չատերի ցուցակ</string>
     <string name="preview_name_konata">Konata Izumi</string>
     <string name="preview_message_konata">Ես կարճահասակ չեմ, ես ուղղակի խտացված հրաշք եմ: 🍫 Իսկ դեռ որոշել եմ դառնալ քնելու պրոֆեսիոնալ 😴</string>
@@ -953,7 +916,6 @@
     <string name="preview_name_kagami">Kagami Hiiragi</string>
     <string name="preview_message_kagami">Չմոռանաս տնայինի մասին: Վաղը առավոտյան պետք է հանձնենք ու բավականին դժվար է:</string>
     <string name="preview_time_kagami">11:20</string>
-
     <string name="chat_settings_preview_title">Նախադիտում</string>
     <string name="preview_msg_sender_me">Ես</string>
     <string name="preview_msg_text_1">Ես կարճահասակ չեմ, ես ուղղակի խտացված հրաշք եմ: 🍫\nԻսկ դեռ որոշել եմ դառնալ քնելու պրոֆեսիոնալ 😴</string>
@@ -962,20 +924,16 @@
     <string name="preview_msg_text_4">Դա շատ արդյունավետ է: 😵‍💫</string>
     <string name="preview_date_today">Այսօր</string>
     <string name="preview_name_konata_short">Konata</string>
-
     <string name="subscribers_count_format">%1$d բաժանորդ</string>
     <string name="thread_title">Թեմա</string>
-
     <string name="recording_delete">Ջնջել ձայնագրությունը</string>
     <string name="recording_slide_to_cancel">&lt; Սահեցրեք՝ չեղարկելու համար</string>
     <string name="recording_send">Ուղարկել ձայնագրությունը</string>
     <string name="recording_lock">Կողպել ձայնագրությունը</string>
     <string name="recording_swipe_up">Սահեցրեք վերև</string>
-
     <string name="input_placeholder_caption">Ավելացնել նկարագրություն…</string>
     <string name="input_placeholder_message">Հաղորդագրություն</string>
     <string name="input_error_not_allowed">Հաղորդագրություն ուղարկելը թույլատրված չէ</string>
-
     <string name="media_type_photo">Նկար</string>
     <string name="media_type_video">Վիդեո</string>
     <string name="media_type_sticker">Սթիքեր</string>
@@ -984,7 +942,6 @@
     <string name="media_type_gif">GIF</string>
     <string name="media_type_location">Տեղադրություն</string>
     <string name="media_type_message">Հաղորդագրություն</string>
-
     <string name="action_cancel_reply">Չեղարկել պատասխանը</string>
     <string name="action_edit_message">Խմբագրել հաղորդագրությունը</string>
     <string name="action_cancel_edit">Չեղարկել խմբագրումը</string>
@@ -1020,7 +977,6 @@
     <string name="editor_action_copy">Պատճենել</string>
     <string name="editor_action_cut">Կտրել</string>
     <string name="editor_action_paste">Տեղադրել</string>
-
     <string name="rich_text_bold">Թավ</string>
     <string name="rich_text_italic">Շեղ</string>
     <string name="rich_text_underline">Ընդգծված</string>
@@ -1036,9 +992,7 @@
     <string name="rich_text_link_hint">URL</string>
     <string name="rich_text_code_language_title">Կոդի լեզուն</string>
     <string name="rich_text_code_language_hint">Լեզուն (օր.՝ kotlin)</string>
-
     <string name="bot_commands">Հրամաններ</string>
-
     <string name="typing_typing">գրում է</string>
     <string name="typing_recording_video">տեսահաղորդագրություն է ձայնագրում</string>
     <string name="typing_recording_voice">ձայնային հաղորդագրություն է ձայնագրում</string>
@@ -1055,7 +1009,6 @@
         <item quantity="one">%d հոգի գրում է</item>
         <item quantity="other">%d հոգի գրում են</item>
     </plurals>
-
     <string name="storage_photos">Նկարներ</string>
     <string name="storage_videos">Վիդեոներ</string>
     <string name="storage_documents">Փաստաթղթեր</string>
@@ -1066,9 +1019,7 @@
     <string name="storage_other_files">Այլ ֆայլեր</string>
     <string name="storage_other_cache">Այլ / Քեշ</string>
     <string name="storage_chat_format">Չատ %d</string>
-
     <string name="network_calls">Զանգեր</string>
-
     <string name="notification_service_waiting">Նոր հաղորդագրությունների սպասում</string>
     <string name="notification_service_stop">Կանգնեցնել</string>
     <string name="notification_service_channel_name">Հետին պլանի ծառայություն</string>
@@ -1087,7 +1038,6 @@
     <string name="notification_channel_channels_description">Ծանուցումներ ալիքներից</string>
     <string name="notification_channel_other_name">Այլ</string>
     <string name="notification_channel_other_description">Այլ ծանուցումներ</string>
-
     <string name="chat_mapper_photo">Նկար</string>
     <string name="chat_mapper_video">Վիդեո</string>
     <string name="chat_mapper_voice">Ձայնային հաղորդագրություն</string>
@@ -1117,7 +1067,6 @@
     <string name="chat_mapper_seen_recently">Վերջերս</string>
     <string name="chat_mapper_seen_week">Վերջին շաբաթվա ընթացքում</string>
     <string name="chat_mapper_seen_month">Վերջին ամսվա ընթացքում</string>
-
     <string name="pinned_messages">Ամրացված հաղորդագրություններ</string>
     <string name="pinned_message">Ամրացված հաղորդագրություն</string>
     <string name="pinned_show_all">Ցույց տալ բոլոր ամրացվածները</string>
@@ -1127,20 +1076,17 @@
         <item quantity="one">%d հաղորդագրություն</item>
         <item quantity="other">%d հաղորդագրություն</item>
     </plurals>
-
     <string name="message_type_video_message">Տեսահաղորդագրություն</string>
     <string name="message_type_gif">GIF</string>
     <string name="message_type_document">Փաստաթուղթ</string>
     <string name="message_type_poll_format">Հարցում: %s</string>
     <string name="message_type_sticker_format">Սթիքեր %s</string>
-
     <string name="photo_editor_tool_view">Դիտել</string>
     <string name="photo_editor_tool_crop">Կտրել</string>
     <string name="photo_editor_tool_filters">Ֆիլտրեր</string>
     <string name="photo_editor_tool_draw">Նկարել</string>
     <string name="photo_editor_tool_text">Տեքստ</string>
     <string name="photo_editor_tool_eraser">Ռետին</string>
-
     <string name="photo_editor_filter_original">Բնօրինակ</string>
     <string name="photo_editor_filter_bw">Սև ու սպիտակ</string>
     <string name="photo_editor_filter_sepia">Սեպիա</string>
@@ -1149,7 +1095,6 @@
     <string name="photo_editor_filter_warm">Տաք</string>
     <string name="photo_editor_filter_polaroid">Պոլարոիդ</string>
     <string name="photo_editor_filter_invert">Ինվերսիա</string>
-
     <string name="photo_editor_action_save">Պահպանել</string>
     <string name="photo_editor_action_cancel">Չեղարկել</string>
     <string name="photo_editor_action_undo">Հետ տալ</string>
@@ -1162,33 +1107,27 @@
     <string name="photo_editor_action_edit_text">Խմբագրել տեքստը</string>
     <string name="photo_editor_action_apply">Կիրառել</string>
     <string name="photo_editor_action_delete">Ջնջել</string>
-
     <string name="photo_editor_label_size">Չափը</string>
     <string name="photo_editor_label_zoom">Մասշտաբ</string>
     <string name="photo_editor_label_placeholder_text">Գրեք ինչ-որ բան…</string>
     <string name="photo_editor_label_select_tool">Ընտրեք գործիքը՝ խմբագրելու համար</string>
-
     <string name="photo_editor_discard_title">Չեղարկե՞լ փոփոխությունները</string>
     <string name="photo_editor_discard_message">Դուք ունեք չպահպանված փոփոխություններ: Իսկապե՞ս ցանկանում եք չեղարկել:</string>
     <string name="photo_editor_discard_button">Չեղարկել</string>
-
     <string name="video_editor_apply">Կիրառել</string>
     <string name="video_editor_done">Պատրաստ է</string>
     <string name="video_editor_cancel">Չեղարկել</string>
     <string name="video_editor_low">Ցածր</string>
-
     <string name="video_tool_view">Դիտել</string>
     <string name="video_tool_trim">Կտրել</string>
     <string name="video_tool_filters">Ֆիլտրեր</string>
     <string name="video_tool_text">Տեքստ</string>
     <string name="video_tool_compress">Սեղմել</string>
-
     <string name="video_action_unmute">Միացնել ձայնը</string>
     <string name="video_action_mute">Անջատել ձայնը</string>
     <string name="video_action_add_text">Ավելացնել տեքստ</string>
     <string name="video_quality_label">Վիդեոյի որակը</string>
     <string name="video_estimated_bitrate">Մոտավոր բիթրեյթը՝ %1$d կբ/վ</string>
-
     <string name="video_filter_original">Բնօրինակ</string>
     <string name="video_filter_bw">Սև ու սպիտակ</string>
     <string name="video_filter_sepia">Սեպիա</string>
@@ -1197,18 +1136,15 @@
     <string name="video_filter_warm">Տաք</string>
     <string name="video_filter_polaroid">Պոլարոիդ</string>
     <string name="video_filter_invert">Ինվերսիա</string>
-
     <string name="video_error_file_not_found">Ֆայլը չի գտնվել</string>
     <string name="video_error_file_missing">Վիդեո ֆայլը բացակայում է</string>
     <string name="video_discard_title">Չեղարկե՞լ փոփոխությունները</string>
     <string name="video_discard_text">Դուք ունեք չպահպանված փոփոխություններ:</string>
     <string name="video_discard_confirm">Չեղարկել</string>
-
     <string name="webview_loading">Բեռնվում է…</string>
     <string name="webview_default_title">Վեբ դիտում</string>
     <string name="webview_close">Փակել</string>
     <string name="webview_more_options">Ավելի շատ տարբերակներ</string>
-
     <string name="webview_options_title">Տարբերակներ</string>
     <string name="webview_back">Հետ</string>
     <string name="webview_forward">Առաջ</string>
@@ -1224,7 +1160,6 @@
     <string name="webview_desktop_site">Համակարգչային տարբերակ</string>
     <string name="webview_block_ads">Անջատել գովազդը</string>
     <string name="webview_text_size">Տեքստի չափը՝ %1$d%%</string>
-
     <string name="webview_secure">Ապահով</string>
     <string name="webview_insecure">Ոչ ապահով</string>
     <string name="webview_security_info_title">Անվտանգության տվյալներ</string>
@@ -1235,12 +1170,10 @@
     <string name="webview_cert_issued_by">Տրողը</string>
     <string name="webview_cert_valid_until">Վավեր է մինչև</string>
     <string name="webview_cert_unknown">Անհայտ</string>
-
     <string name="webview_find_placeholder">Գտնել էջում…</string>
     <string name="webview_find_previous">Նախորդը</string>
     <string name="webview_find_next">Հաջորդը</string>
     <string name="webview_find_close">Փակել որոնումը</string>
-
     <string name="label_discussion">Քննարկում</string>
     <string name="label_channel">Ալիք</string>
     <string name="action_open_maps">Բացել քարտեզը</string>
@@ -1271,7 +1204,6 @@
     <string name="bot_verification_subtitle">Verified by a third-party bot</string>
     <string name="opening_hours_closed">Փակ է</string>
     <string name="label_id">ID</string>
-
     <string name="statistics_analyzing">Վիճակագրության վերլուծություն…</string>
     <string name="statistics_overview">Ամփոփում</string>
     <string name="statistics_members">Անդամներ</string>
@@ -1331,7 +1263,6 @@
     <string name="profile_statistics_preview_venue_format">Վայր՝ %1$s</string>
     <string name="profile_statistics_preview_poll_format">Հարցում՝ %1$s</string>
     <string name="profile_statistics_preview_service_message">Ծառայողական հաղորդագրություն</string>
-
     <string name="viewer_back">Հետ</string>
     <string name="viewer_options">Տարբերակներ</string>
     <string name="viewer_seek_rewind_cd">10 վայրկյան հետ</string>
@@ -1341,7 +1272,6 @@
     <string name="viewer_thumbnail_cd">Նախադիտում %1$d</string>
     <string name="viewer_page_indicator">%1$d / %2$d</string>
     <string name="viewer_loading_original">Բեռնվում է բնօրինակը…</string>
-
     <string name="action_download">Ներբեռնել</string>
     <string name="action_download_video">Ներբեռնել վիդեոն</string>
     <string name="action_copy_image">Պատճենել նկարը</string>
@@ -1356,7 +1286,6 @@
     <string name="action_pause">Դադար</string>
     <string name="action_play">Նվագարկել</string>
     <string name="action_unlock">Բացել</string>
-
     <string name="settings_title">Կարգավորումներ</string>
     <string name="settings_playback_speed">Նվագարկման արագությունը</string>
     <string name="settings_scale_mode">Մասշտաբի ռեժիմ</string>
@@ -1387,38 +1316,30 @@
     <string name="action_use_low_quality">Օգտագործել ցածր որակ</string>
     <string name="action_open_in_browser">Բացել դիտարկչում</string>
     <string name="settings_speed_normal">Սովորական</string>
-
     <string name="pip_play">Նվագարկել</string>
     <string name="pip_pause">Դադար</string>
     <string name="pip_rewind">Հետ տալ</string>
     <string name="pip_forward">Առաջ տալ</string>
-
     <string name="sticker_menu_tab_stickers">Սթիքերներ</string>
     <string name="sticker_menu_tab_emojis">Էմոջիներ</string>
     <string name="sticker_menu_tab_gifs">GIF-եր</string>
-
     <string name="stickers_header_recent">Վերջին սթիքերները</string>
     <string name="stickers_header_all">Սթիքերներ</string>
     <string name="stickers_search_placeholder">Որոնել սթիքերները</string>
-
     <string name="emojis_header_recent">Վերջին էմոջիները</string>
     <string name="emojis_header_standard">Ստանդարտ էմոջիներ</string>
     <string name="emojis_header_custom">Անհատական էմոջիներ</string>
     <string name="emojis_header_all">Էմոջիներ</string>
     <string name="emojis_search_placeholder">Որոնել էմոջիները</string>
-
     <string name="gifs_header_recent_saved">Վերջին և պահպանված GIF-երը</string>
     <string name="gifs_no_results">GIF-եր չեն գտնվել</string>
     <string name="gifs_search_placeholder">Որոնել GIF-եր</string>
-
     <string name="common_back">Հետ</string>
     <string name="common_clear">Մաքրել</string>
     <string name="common_recent">Վերջինները</string>
-
     <string name="qr_saved_to_gallery">Պահպանված է պատկերասրահում</string>
     <string name="qr_share_title">Տարածել QR-ը</string>
     <string name="qr_share_error">Ուղարկման սխալ՝ %1$s</string>
-
     <string name="edit_channel">Խմբագրել ալիքը</string>
     <string name="edit_group">Խմբագրել խումբը</string>
     <string name="channel_name">Ալիքի անվանումը</string>
@@ -1432,7 +1353,6 @@
     <string name="management">Կառավարում</string>
     <string name="delete_channel">Ջնջել ալիքը</string>
     <string name="delete_group">Ջնջել խումբը</string>
-
     <string name="search_hint">Որոնում…</string>
     <string name="administrators">Ադմինիստրատորներ</string>
     <string name="subscribers">Բաժանորդներ</string>
@@ -1440,7 +1360,6 @@
     <string name="blacklist">Սև ցուցակ</string>
     <string name="no_results_found">Արդյունքներ չկան</string>
     <string name="no_members_yet">Անդամներ դեռ չկան</string>
-
     <string name="admin_rights">Ադմինի իրավունքները</string>
     <string name="custom_title">Անհատական կարգավիճակ</string>
     <string name="custom_title_description">Այս անվանումը տեսանելի կլինի բոլոր անդամներին</string>
@@ -1458,11 +1377,9 @@
     <string name="permission_delete_stories">Ջնջել սթորիները</string>
     <string name="permission_add_new_admins">Ավելացնել նոր ադմիններ</string>
     <string name="permission_remain_anonymous">Մնալ անանուն</string>
-
     <string name="permissions">Թույլտվություններ</string>
     <string name="what_can_members_do">Ի՞նչ կարող են անել անդամները</string>
     <string name="permission_add_members">Ավելացնել անդամներ</string>
-
     <string name="back">Հետ</string>
     <string name="save">Պահպանել</string>
     <string name="clear">Մաքրել</string>
@@ -1471,14 +1388,12 @@
     <string name="edit">Խմբագրել</string>
     <string name="username">Օգտանուն</string>
     <string name="filters">Ֆիլտրեր</string>
-
     <string name="logs_title">Վերջին գործողությունները</string>
     <string name="logs_events_count">Բեռնվել է %d իրադարձություն</string>
     <string name="logs_empty_title">Գործողություններ չեն գտնվել</string>
     <string name="logs_empty_subtitle">Փորձեք փոխել ֆիլտրերը</string>
     <string name="logs_not_implemented">Դեռ հասանելի չէ</string>
     <string name="logs_user_id_copied">Օգտատիրոջ ID-ն պատճենված է</string>
-
     <string name="logs_filter_title">Ֆիլտրել գործողությունները</string>
     <string name="logs_filter_reset">Վերակայել</string>
     <string name="logs_filter_apply">Կիրառել</string>
@@ -1487,7 +1402,6 @@
     <string name="logs_filter_search_placeholder">Որոնում…</string>
     <string name="logs_filter_no_users">Օգտատերեր չեն գտնվել</string>
     <string name="logs_filter_no_results">\"%s\"-ի համար արդյունքներ չկան</string>
-
     <string name="logs_action_edits">Խմբագրումներ</string>
     <string name="logs_action_deletions">Ջնջումներ</string>
     <string name="logs_action_pins">Ամրացումներ</string>
@@ -1500,7 +1414,6 @@
     <string name="logs_action_settings">Կարգավորումներ</string>
     <string name="logs_action_links">Հղումներ</string>
     <string name="logs_action_video">Վիդեո</string>
-
     <string name="logs_action_edited">խմբագրել է հաղորդագրությունը</string>
     <string name="logs_action_deleted">ջնջել է հաղորդագրությունը</string>
     <string name="logs_action_pinned">ամրացրել է հաղորդագրությունը</string>
@@ -1520,7 +1433,6 @@
     <string name="logs_action_video_started">սկսել է տեսաչատ</string>
     <string name="logs_action_video_ended">ավարտել է տեսաչատը</string>
     <string name="logs_action_unknown">կատարել է գործողություն՝ %s</string>
-
     <string name="logs_original_message">Բնօրինակ հաղորդագրություն:</string>
     <string name="logs_new_message">Նոր հաղորդագրություն:</string>
     <string name="logs_deleted_message">Ջնջված հաղորդագրություն:</string>
@@ -1536,7 +1448,6 @@
     <string name="logs_status_to">Մինչև</string>
     <string name="logs_permissions_changes">Թույլտվության փոփոխություններ:</string>
     <string name="logs_permissions_current">Ընթացիկ թույլտվություններ:</string>
-
     <string name="logs_perm_messages">Հաղորդագրություններ</string>
     <string name="logs_perm_media">Մեդիա</string>
     <string name="logs_perm_stickers">Սթիքերներ</string>
@@ -1545,13 +1456,11 @@
     <string name="logs_perm_invite">Հրավիրել</string>
     <string name="logs_perm_pin">Ամրացնել</string>
     <string name="logs_perm_info">Տեղեկություն</string>
-
     <string name="logs_role_admin">Ադմին</string>
     <string name="logs_role_owner">Սեփականատեր</string>
     <string name="logs_role_restricted">Սահմանափակված</string>
     <string name="logs_role_banned">Արգելափակված</string>
     <string name="logs_role_member">Անդամ</string>
-
     <string name="logs_media_photo">Նկար</string>
     <string name="logs_media_video">Վիդեո</string>
     <string name="logs_media_gif">GIF</string>
@@ -1565,17 +1474,13 @@
     <string name="logs_media_location">Տեղադրություն</string>
     <string name="logs_media_venue">Վայր</string>
     <string name="logs_media_unsupported">Չաջակցվող հաղորդագրություն</string>
-
     <string name="format_duration">%1$02d:%2$02d</string>
-
     <string name="views_k">%1$.1fՀ</string>
     <string name="views_m">%1$.1fՄ</string>
-
     <string name="comment_leave">Թողնել մեկնաբանություն</string>
     <string name="comment_count">%1$d մեկնաբանություն</string>
     <string name="comment_count_k">%1$.1fՀ մեկնաբանություն</string>
     <string name="comment_count_m">%1$.1fՄ մեկնաբանություն</string>
-
     <string name="poll_final_results">Վերջնական արդյունքներ</string>
     <string name="poll_anonymous">Անանուն</string>
     <string name="poll_public">Հանրային</string>
@@ -1588,15 +1493,12 @@
         <item quantity="one">%d ձայն</item>
         <item quantity="other">%d ձայն</item>
     </plurals>
-
     <string name="cd_more">Ավելին</string>
     <string name="cd_vote">Քվեարկել</string>
     <string name="cd_explanation">Բացատրություն</string>
-
     <string name="poll_voters_title">Քվեարկողներ</string>
     <string name="poll_no_voters">Քվեարկողներ դեռ չկան</string>
     <string name="action_close">Փակել</string>
-
     <string name="reply_content_photo">Նկար</string>
     <string name="reply_content_video">Վիդեո</string>
     <string name="reply_content_sticker">Սթիքեր</string>
@@ -1604,7 +1506,6 @@
     <string name="reply_content_video_message">Տեսահաղորդագրություն</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">Հաղորդագրություն</string>
-
     <string name="folders_title">Չատի թղթապանակներ</string>
     <string name="folders_back">Հետ</string>
     <string name="folders_new_folder">Նոր թղթապանակ</string>
@@ -1626,12 +1527,10 @@
     <string name="folders_included_chats">Ներառված չատերը</string>
     <string name="folders_search_chats">Որոնել չատերը…</string>
     <string name="folders_cancel">Չեղարկել</string>
-
     <string name="premium_title">Telegram Premium</string>
     <string name="premium_back">Հետ</string>
     <string name="premium_subscribe_button">Բաժանորդագրվել %s/ամիս</string>
     <string name="premium_unlock_features">Բացահայտեք բացառիկ հնարավորություններ</string>
-
     <string name="premium_feature_doubled_limits_title">Կրկնակի սահմանաչափեր</string>
     <string name="premium_feature_doubled_limits_description">Մինչև %1$d ալիք, %2$d թղթապանակ, %3$d ամրացված չատ և այլն:</string>
     <string name="premium_feature_voice_to_text_title">Ձայնի վերածում տեքստի</string>
@@ -1654,12 +1553,10 @@
     <string name="premium_feature_emoji_status_description">Ընտրեք հազարավոր էմոջիներից՝ Ձեր անվան կողքին ցուցադրելու համար:</string>
     <string name="premium_feature_app_icons_title">Premium պատկերակներ</string>
     <string name="premium_feature_app_icons_description">Ընտրեք հավելվածի տարբեր պատկերակներից:</string>
-
     <string name="mini_app_menu_reload">Վերաբեռնել</string>
     <string name="mini_app_menu_copy_link">Պատճենել հղումը</string>
     <string name="mini_app_menu_open_in_browser">Բացել բրաուզերում</string>
     <string name="mini_app_menu_add_to_home">Ավելացնել հիմնական էկրանին</string>
-
     <string name="mini_app_close_confirmation_title">Փակե՞լ մինի հավելվածը</string>
     <string name="mini_app_close_confirmation_text">Դուք ունեք չպահպանված փոփոխություններ: Իսկապե՞ս ցանկանում եք փակել:</string>
     <string name="mini_app_close">Փակել</string>
@@ -1682,7 +1579,6 @@
     <string name="mini_app_tos_title">Օգտագործման պայմաններ</string>
     <string name="mini_app_tos_text">Գործարկելով այս մինի հավելվածը՝ Դուք համաձայնում եք օգտագործման պայմաններին:</string>
     <string name="mini_app_tos_accept">Ընդունել և գործարկել</string>
-
     <string name="instant_view_search_placeholder">Որոնել հոդվածում…</string>
     <string name="instant_view_back">Հետ</string>
     <string name="instant_view_clear">Մաքրել</string>
@@ -1702,12 +1598,10 @@
     <string name="instant_view_collapse">Փոքրացնել</string>
     <string name="instant_view_expand">Մեծացնել</string>
     <string name="instant_view_map_prefix">Քարտեզ՝ %1$s, %2$s</string>
-
     <string name="share_profile_title">Տարածել պրոֆիլը</string>
     <string name="share_profile_subtitle">Տարածել Ձեր Monogram պրոֆիլի հղումը</string>
     <string name="copy_link_title">Պատճենել հղումը</string>
     <string name="copy_link_subtitle">Պատճենել Ձեր Monogram պրոֆիլի հղումը clipboard-ում</string>
-
     <string name="chat_theme_editor_title">Թեմայի խմբագրիչ</string>
     <string name="chat_theme_editor_palette_mode">Ներկապնակի ռեժիմ</string>
     <string name="chat_theme_editor_palette_mode_description">Ընտրեք, թե որ ներկապնակն եք խմբագրում:</string>
@@ -1726,13 +1620,11 @@
     <string name="chat_theme_editor_both">Երկուսն էլ</string>
     <string name="chat_theme_editor_hex">Hex</string>
     <string name="chat_theme_editor_theme_file_name">monogram-theme.json</string>
-
     <string name="chat_theme_editor_theme_file_saved">Թեմայի ֆայլը պահպանված է</string>
     <string name="chat_theme_editor_save_failed">Պահպանումը ձախողվեց</string>
     <string name="chat_theme_editor_theme_loaded">Թեման բեռնված է</string>
     <string name="chat_theme_editor_invalid_file">Անվավեր ֆայլ</string>
     <string name="chat_theme_editor_load_failed">Բեռնումը ձախողվեց</string>
-
     <string name="chat_theme_editor_theme_source_title">Թեմայի աղբյուրը</string>
     <string name="chat_theme_editor_theme_source_description">Ընտրեք հավելվածի գույների աղբյուրը: Custom-ը Ձեր ներկապնակներն են, Monet-ը՝ Android-ի դինամիկ գույները:</string>
     <string name="chat_theme_editor_custom_theme">Անհատական թեմա</string>
@@ -1741,7 +1633,6 @@
     <string name="chat_theme_editor_monet_description">Օգտագործել Material You գույները՝ հիմնված պաստառի վրա (Android 12+):</string>
     <string name="chat_theme_editor_amoled_dark">AMOLED մութ</string>
     <string name="chat_theme_editor_amoled_dark_description">Օգտագործել բացարձակ սև գույն OLED էկրանների համար:</string>
-
     <string name="chat_theme_editor_preset_themes">Նախնական թեմաներ</string>
     <string name="chat_theme_editor_preset_themes_description">Յուրաքանչյուր թեմա ունի լուսավոր և մութ տարբերակներ:</string>
     <string name="chat_theme_editor_manual_colors_title">Գույների ձեռքով ընտրություն (%1$s)</string>
@@ -1753,7 +1644,6 @@
     <string name="chat_theme_editor_saturation_format">Հագեցվածություն %1$d%%</string>
     <string name="chat_theme_editor_brightness_format">Պայծառություն %1$d%%</string>
     <string name="chat_theme_editor_alpha_format">Թափանցիկություն %1$d%%</string>
-
     <string name="chat_theme_editor_role_primary">Հիմնական (Primary)</string>
     <string name="chat_theme_editor_role_secondary">Երկրորդային</string>
     <string name="chat_theme_editor_role_tertiary">Երրորդային</string>
@@ -1764,63 +1654,46 @@
     <string name="chat_theme_editor_role_tertiary_container">Երրորդային կոնտեյներ</string>
     <string name="chat_theme_editor_role_surface_variant">Մակերեսի տարբերակ</string>
     <string name="chat_theme_editor_role_outline">Եզրագիծ</string>
-
     <string name="chat_theme_editor_chip_light_primary">L P</string>
     <string name="chat_theme_editor_chip_light_container">L C</string>
     <string name="chat_theme_editor_chip_light_background">L BG</string>
     <string name="chat_theme_editor_chip_dark_primary">D P</string>
     <string name="chat_theme_editor_chip_dark_container">D C</string>
     <string name="chat_theme_editor_chip_dark_background">D BG</string>
-
     <string name="chat_theme_editor_accent_blue">Կապույտ</string>
     <string name="chat_theme_editor_accent_green">Կանաչ</string>
     <string name="chat_theme_editor_accent_orange">Նարնջագույն</string>
     <string name="chat_theme_editor_accent_rose">Վարդագույն</string>
     <string name="chat_theme_editor_accent_indigo">Ինդիգո</string>
     <string name="chat_theme_editor_accent_cyan">Ցիան</string>
-
     <string name="chat_theme_editor_preset_classic_name">Դասական</string>
     <string name="chat_theme_editor_preset_classic_description">Հավասարակշռված կապույտ՝ հստակ ընթեռնելիությամբ:</string>
-
     <string name="chat_theme_editor_preset_forest_name">Անտառ</string>
     <string name="chat_theme_editor_preset_forest_description">Բնական կանաչ երանգներ՝ հանգիստ հակադրությամբ:</string>
-
     <string name="chat_theme_editor_preset_ocean_name">Օվկիանոս</string>
     <string name="chat_theme_editor_preset_ocean_description">Սառը կապույտ-ցիան գրադիենտներ:</string>
-
     <string name="chat_theme_editor_preset_sunset_name">Մայրամուտ</string>
     <string name="chat_theme_editor_preset_sunset_description">Տաք նարնջագույն և մարջանագույն երանգներ:</string>
-
     <string name="chat_theme_editor_preset_graphite_name">Գրաֆիտ</string>
     <string name="chat_theme_editor_preset_graphite_description">Չեզոք մոխրագույն բազա՝ կապույտ-մոխրագույն շեշտադրումներով:</string>
-
     <string name="chat_theme_editor_preset_mint_name">Անանուխ</string>
     <string name="chat_theme_editor_preset_mint_description">Թարմ անանուխի և փիրուզագույնի համադրություն:</string>
-
     <string name="chat_theme_editor_preset_ruby_name">Ռուբին</string>
     <string name="chat_theme_editor_preset_ruby_description">Մուգ կարմիր շեշտադրումներ:</string>
-
     <string name="chat_theme_editor_preset_lavender_gray_name">Լավանդա-մոխրագույն</string>
     <string name="chat_theme_editor_preset_lavender_gray_description">Մեղմ մանուշակագույն-մոխրագույն գունապնակ:</string>
-
     <string name="chat_theme_editor_preset_sand_name">Ավազ</string>
     <string name="chat_theme_editor_preset_sand_description">Բեժ և սաթագույն երանգներ՝ տեսողության համար հարմարավետ:</string>
-
     <string name="chat_theme_editor_preset_arctic_name">Արկտիկա</string>
     <string name="chat_theme_editor_preset_arctic_description">Սառցե կապույտ և սպիտակ՝ բարձր հստակությամբ:</string>
-
     <string name="chat_theme_editor_preset_emerald_name">Զմրուխտ</string>
     <string name="chat_theme_editor_preset_emerald_description">Վառ կանաչ գունապնակ՝ ժամանակակից հակադրությամբ:</string>
-
     <string name="chat_theme_editor_preset_copper_name">Պղինձ</string>
     <string name="chat_theme_editor_preset_copper_description">Տաք պղնձագույն թեմա:</string>
-
     <string name="chat_theme_editor_preset_sakura_name">Սակուրա</string>
     <string name="chat_theme_editor_preset_sakura_description">Մեղմ վարդագույն երանգներ:</string>
-
     <string name="chat_theme_editor_preset_nord_name">Nord</string>
     <string name="chat_theme_editor_preset_nord_description">Հյուսիսային սառը կապույտներ՝ պրոֆեսիոնալ տեսքով:</string>
-
     <string name="recorder_permissions_required">Տեսախցիկի և միկրոֆոնի թույլտվությունները պարտադիր են</string>
     <string name="recorder_processing">Մշակվում է…</string>
     <string name="recorder_processing_error">Մշակման սխալ՝ %1$s</string>
@@ -1832,7 +1705,6 @@
     <string name="recorder_time_format">Ժամանակ՝ %1$s</string>
     <string name="recorder_zoom_format">Մասշտաբ՝ %1$.1fx (տիրույթ՝ %2$.1fx - %3$.1fx)</string>
     <string name="recorder_cancel">Չեղարկել</string>
-
     <string name="clear_history_title">Մաքրե՞լ պատմությունը</string>
     <string name="clear_history_confirmation">Իսկապե՞ս ցանկանում եք մաքրել չատի պատմությունը: Այս գործողությունը հնարավոր չէ չեղարկել:</string>
     <string name="action_clear_history">Մաքրել պատմությունը</string>
@@ -1868,12 +1740,11 @@
     <string name="folder_tab_edit">Խմբագրել</string>
     <string name="folder_tab_reorder">Վերադասավորել</string>
     <string name="folder_tab_delete">Ջնջել</string>
-
     <!-- ProxyContent -->
     <string name="proxy_connection_test_button">Գործարկել կապի թեստը</string>
     <string name="proxy_connection_test_title">Telegram-ի կապի թեստ</string>
     <string name="proxy_connection_test_subtitle">Ստուգում է վերջից վերջ կապը Telegram-ի տվյալների կենտրոնի միջոցով։</string>
-    <string name="proxy_connection_test_running">Կապի թեստը կատարվում է...</string>
+    <string name="proxy_connection_test_running">Կապի թեստը կատարվում է…</string>
     <string name="proxy_connection_test_success">Կապը լավ է։ Կարող եք պահպանել և միացնել այս proxy-ը։</string>
     <string name="proxy_connection_test_hint">Հիմնական ցանկը ցույց է տալիս միայն տրանսպորտային պինգը։ Այս թեստն ավելի լայն է, ուստի արժեքները կարող են ավելի բարձր լինել։</string>
     <string name="proxy_tab_proxy">Proxy</string>
@@ -2012,7 +1883,7 @@
     <string name="editor_ai_style_viking">Viking</string>
     <string name="editor_ai_style_zen">Zen</string>
     <string name="editor_ai_add_emojis">Add emojis</string>
-    <string name="editor_ai_loading">Processing...</string>
+    <string name="editor_ai_loading">Processing…</string>
     <string name="editor_ai_error_empty">Enter text to use AI</string>
     <string name="editor_ai_error_flood">Too many AI requests. Telegram Premium may be required.</string>
     <string name="editor_ai_error_generic">AI processing failed</string>
@@ -2052,8 +1923,8 @@
     <string name="notifications_exceptions_channels">Ալիքներ</string>
     <string name="notifications_exceptions_label">Բացառություններ</string>
     <string name="notifications_exceptions_search">Որոնել</string>
-    <string name="notifications_exceptions_search_placeholder">Որոնել բացառությունները...</string>
-    <string name="notifications_exceptions_no_results_format">&quot;%1$s&quot;-ի համար արդյունքներ չեն գտնվել</string>
+    <string name="notifications_exceptions_search_placeholder">Որոնել բացառությունները…</string>
+    <string name="notifications_exceptions_no_results_format">"%1$s"-ի համար արդյունքներ չեն գտնվել</string>
     <string name="notifications_exceptions_chats_header">ՉԱՏԵՐ</string>
     <string name="notifications_exceptions_hint">Սեղմեք չատի վրա՝ ծանուցումների կարգավորումները փոխելու կամ բացառությունը հեռացնելու համար։</string>
     <string name="notifications_exceptions_empty_title">Բացառություններ չկան</string>
@@ -2072,4 +1943,220 @@
     <string name="download_saved_files_with_errors_format">Պահված է %1$d ֆայլ Downloads/MonoGram-ում (%2$d-ը չի գտնվել, %3$d-ը ձախողվել է)</string>
     <string name="logs_role_left">Լքել է</string>
     <string name="logs_role_unknown">Անհայտ</string>
+    <string name="service_message_unknown_time">Անհայտ ժամանակ</string>
+    <string name="service_message_unknown_duration">Անհայտ տեւողություն</string>
+    <string name="service_message_unknown_duration_short">00:00</string>
+    <string name="service_message_auto_delete_off">Անջատված</string>
+    <string name="service_message_money_format">%2$d %2$d</string>
+    <string name="service_message_call_missed">Բաց թողնված զանգ</string>
+    <string name="service_message_call">Զանգահարեք</string>
+    <string name="service_message_video_call_missed">Բաց թողնված տեսազանգ</string>
+    <string name="service_message_video_call">Տեսազանգ</string>
+    <string name="service_message_call_declined">Մերժված զանգը</string>
+    <string name="service_message_video_call_declined">Մերժված տեսազանգը</string>
+    <string name="service_message_call_disconnected">Զանգն անջատված է</string>
+    <string name="service_message_video_call_disconnected">Տեսազանգն անջատված է</string>
+    <string name="service_message_call_hung_up">Զանգն ավարտվեց</string>
+    <string name="service_message_video_call_hung_up">Տեսազանգն ավարտվեց</string>
+    <string name="service_message_call_upgraded_to_group">Զանգը վերածվեց խմբային զանգի</string>
+    <string name="service_message_call_ended">Զանգն ավարտվեց · %1$s</string>
+    <string name="service_message_video_call_ended">Տեսազանգն ավարտվեց · %1$s</string>
+    <string name="service_message_group_call">Խմբային զանգ</string>
+    <string name="service_message_group_video_call">Խմբային տեսազանգ</string>
+    <string name="service_message_group_call_started">Խմբային զանգը սկսվեց</string>
+    <string name="service_message_group_video_call_started">Խմբային տեսազանգը սկսվեց</string>
+    <string name="service_message_group_call_missed">Բաց թողնված խմբային զանգ</string>
+    <string name="service_message_group_video_call_missed">Բաց թողնված խմբակային տեսազանգ</string>
+    <string name="service_message_group_call_ended">Խմբային զանգն ավարտվեց · %1$s</string>
+    <string name="service_message_group_video_call_ended">Խմբային տեսազանգն ավարտվեց · %1$s</string>
+    <string name="service_message_video_chat_scheduled">Տեսազրույցը նախատեսված է %1$s-ին</string>
+    <string name="service_message_video_chat_started">Տեսազրույցը սկսվեց</string>
+    <string name="service_message_video_chat_ended">Տեսազրույցն ավարտվեց · %1$s</string>
+    <string name="service_message_video_chat_invited">Հրավիրել է %1$d մարդ տեսազրույցին</string>
+    <string name="service_message_video_chat_invited_one_named">Հրավիրված %1$s-ին տեսազրույցին</string>
+    <string name="service_message_video_chat_invited_two_named">Հրավիրել են %2$s-ին և %2$s-ին տեսազրույցին</string>
+    <string name="service_message_video_chat_invited_many_named">Հրավիրել են %3$d-ին, %3$d-ին և ևս %3$d-ին տեսազրույցին</string>
+    <string name="service_message_poll_option_added">Հարցման տարբերակն ավելացվել է՝ %1$s</string>
+    <string name="service_message_poll_option_deleted">Հարցման տարբերակը հեռացվել է՝ %1$s</string>
+    <string name="service_message_basic_group_created">Ստեղծել է «%1$s» խումբը</string>
+    <string name="service_message_supergroup_created">Ստեղծել է «%1$s» սուպեր խումբը</string>
+    <string name="service_message_chat_title_changed">%2$s փոխեց զրույցի վերնագիրը «%2$s»-ի</string>
+    <string name="service_message_chat_photo_changed">%1$s փոխել է զրույցի լուսանկարը</string>
+    <string name="service_message_chat_photo_removed">%1$s-ը հեռացրել է զրույցի լուսանկարը</string>
+    <string name="service_message_chat_owner_left">Զրույցի սեփականատերը հեռացավ</string>
+    <string name="service_message_chat_owner_left_with_new_owner">Զրույցի սեփականատերը հեռացավ: Նոր սեփականատեր՝ %1$s</string>
+    <string name="service_message_chat_owner_changed">Զրույցի սեփականատերը փոխվել է</string>
+    <string name="service_message_chat_owner_changed_to">Զրույցի նոր սեփականատեր՝ %1$s</string>
+    <string name="service_message_protected_content_enabled">Պաշտպանված բովանդակությունը միացված է</string>
+    <string name="service_message_protected_content_disabled">Պաշտպանված բովանդակությունն անջատված է</string>
+    <string name="service_message_protected_content_disable_requested">Պահանջվում է պաշտպանված բովանդակության անջատում</string>
+    <string name="service_message_protected_content_disable_expired">Պաշտպանված բովանդակության անջատման հարցումը ժամկետանց է</string>
+    <string name="service_message_members_added">%2$d-ն ավելացրել է %2$d նոր անդամներ</string>
+    <string name="service_message_member_added_named">%2$s ավելացրել է %2$s</string>
+    <string name="service_message_members_added_two_named">%3$s ավելացրել է %3$s և %3$s</string>
+    <string name="service_message_members_added_many_named">%4$d-ն ավելացրել է %4$d, %4$d և %4$d ևս</string>
+    <string name="service_message_member_joined">%1$s-ը միացել է զրույցին</string>
+    <string name="service_message_joined_by_link">%1$s-ը միացել է հրավերի հղման միջոցով</string>
+    <string name="service_message_joined_by_request">%1$s-ը միացել է խնդրանքով</string>
+    <string name="service_message_member_removed">%1$s-ը հեռացրել է անդամին</string>
+    <string name="service_message_member_removed_named">%2$s հեռացվել է %2$s</string>
+    <string name="service_message_member_left_named">%1$s-ը լքեց զրույցը</string>
+    <string name="service_message_chat_upgraded">%1$s-ը թարմացրել է խումբը սուպերխմբի</string>
+    <string name="service_message_group_migrated">Խումբը տեղափոխվեց</string>
+    <string name="service_message_pinned">%1$s-ն ամրացրել է հաղորդագրություն</string>
+    <string name="service_message_pinned_with_preview">%2$s ամրացված՝ %2$s</string>
+    <string name="service_message_screenshot_taken">%1$s-ը սքրինշոթ է արել</string>
+    <string name="service_message_background_changed">Զրույցի ֆոնը փոխվել է</string>
+    <string name="service_message_background_changed_for_self">Զրույցի ֆոնը փոխվել է ձեզ համար</string>
+    <string name="service_message_theme_changed">Զրույցի թեման փոխվել է</string>
+    <string name="service_message_theme_changed_to">Զրույցի թեման փոխվել է %1$s-ի</string>
+    <string name="service_message_theme_changed_gift">Զրույցի թեման փոխվել է (նվերի թեմա)</string>
+    <string name="service_message_theme_reset">Զրույցի թեմայի վերակայում</string>
+    <string name="service_message_auto_delete_enabled">Ավտոմատ ջնջումը սահմանվել է %1$s</string>
+    <string name="service_message_auto_delete_disabled">Ավտոմատ ջնջումն անջատված է</string>
+    <string name="service_message_auto_delete_changed_by">%2$s կողմից %2$s</string>
+    <string name="service_message_chat_boost">Զրույցն ուժեղացված է ×%1$d</string>
+    <string name="service_message_topic_created">%2$s ստեղծեց «%2$s» թեման</string>
+    <string name="service_message_topic_edited">%1$s խմբագրել է թեման</string>
+    <string name="service_message_topic_edited_name">%2$s-ը վերանվանեց թեման «%2$s»</string>
+    <string name="service_message_topic_edited_icon">%1$s փոխել է թեմայի պատկերակը</string>
+    <string name="service_message_topic_edited_icon_removed">%1$s հեռացրեց թեմայի պատկերակը</string>
+    <string name="service_message_topic_edited_name_and_icon">%2$s-ը փոխել է թեմայի անունը «%2$s»-ի և թարմացրել պատկերակը</string>
+    <string name="service_message_topic_closed">%1$s փակեց թեման</string>
+    <string name="service_message_topic_reopened">%1$s-ը վերաբացել է թեման</string>
+    <string name="service_message_topic_hidden">%1$s թաքցրել է թեման</string>
+    <string name="service_message_topic_visible">%1$s-ը տեսանելի դարձրեց թեման</string>
+    <string name="service_message_profile_photo_suggested">%1$s-ն առաջարկել է պրոֆիլի լուսանկար</string>
+    <string name="service_message_birthdate_suggested">%1$s-ն առաջարկել է ծննդյան ամսաթիվ</string>
+    <string name="service_message_game_score">Խաղի հաշիվը՝ %1$d</string>
+    <string name="service_message_managed_bot_created">Ստեղծվել է կառավարվող բոտ</string>
+    <string name="service_message_payment_sent">Վճարումն ուղարկվել է՝ %1$s</string>
+    <string name="service_message_payment_sent_with_invoice">Վճարումն ուղարկվել է «%2$s»-ի համար՝ %2$s</string>
+    <string name="service_message_payment_sent_recurring">Ուղարկվել է պարբերական վճարում՝ %1$s</string>
+    <string name="service_message_payment_sent_first_recurring">Առաջին պարբերական վճարումն ուղարկվել է՝ %1$s</string>
+    <string name="service_message_payment_received">Ստացված վճարում՝ %1$s</string>
+    <string name="service_message_payment_received_recurring">Ստացված պարբերական վճարում՝ %1$s</string>
+    <string name="service_message_payment_refunded">Վճարը վերադարձվել է՝ %1$s</string>
+    <string name="service_message_payment_refunded_for">Վճարը վերադարձվել է %2$s-ի համար՝ %2$s</string>
+    <string name="service_message_premium_gifted">Նվիրված Telegram Պրեմիում %1$s-ի համար</string>
+    <string name="service_message_premium_gifted_to">Նվիրված Telegram Premium-ին %2$s-ին %2$s-ի համար</string>
+    <string name="service_message_premium_gifted_from_to">%3$s-ը Telegram Premium-ին նվիրեց %3$s-ին %3$s-ի համար</string>
+    <string name="service_message_premium_gift_code_created">Ստեղծվել է Telegram Premium նվեր կոդը</string>
+    <string name="service_message_premium_gift_code_created_by">%2$s-ը ստեղծել է Պրեմիում նվերի կոդը (%2$s)</string>
+    <string name="service_message_premium_gift_code_from_giveaway">Ստեղծվել է պրեմիում նվերի կոդը (%1$s)</string>
+    <string name="service_message_premium_gift_code_unclaimed">Չպահանջված Պրեմիում նվերի կոդ (%1$s)</string>
+    <string name="service_message_giveaway_created">Ստեղծվել է նվեր</string>
+    <string name="service_message_stars_giveaway_created">Ստեղծվել է աստղերի նվերը</string>
+    <string name="service_message_giveaway">Նվիրաբերություն</string>
+    <string name="service_message_giveaway_with_prize">Նվեր՝ %2$s հաղթողներ, մրցանակ %2$s</string>
+    <string name="service_message_giveaway_completed">Նվերն ավարտվել է %1$d հաղթողներով</string>
+    <string name="service_message_giveaway_completed_stars">Աստղերի նվերն ավարտվեց %1$d հաղթողներով</string>
+    <string name="service_message_giveaway_completed_with_unclaimed">Նվերն ավարտված է՝ %2$d հաղթողներ, %2$d չպահանջված մրցանակներ</string>
+    <string name="service_message_giveaway_winners">Հայտնի են նվերների հաղթողները՝ %1$d</string>
+    <string name="service_message_giveaway_winners_in_chat">Հայտնի են նվերների հաղթողները՝ %2$s %2$s-ում</string>
+    <string name="service_message_giveaway_winners_refunded">Նվերը չեղարկվել և վերադարձվել է (%1$d հաղթողներ)</string>
+    <string name="service_message_stars_gifted">Նվիրված %1$d Telegram աստղեր</string>
+    <string name="service_message_stars_gifted_to">Նվիրել է %1$s Telegram աստղեր %1$s-ին</string>
+    <string name="service_message_stars_gifted_from_to">%2$s-ը նվիրեց %2$s Telegram Stars %2$s-ին</string>
+    <string name="service_message_ton_gifted">Նվիրված TON</string>
+    <string name="service_message_ton_gifted_amount">Նվիրված %1$s</string>
+    <string name="service_message_ton_gifted_to">Նվիրված %1$s %1$s-ին</string>
+    <string name="service_message_ton_gifted_from_to">%2$s-ը նվիրել է %2$s %2$s-ին</string>
+    <string name="service_message_giveaway_prize_stars">Ստացել է %1$d աստղեր նվերից</string>
+    <string name="service_message_giveaway_prize_stars_in_chat">Ստացել է %2$s աստղեր նվերից %2$s-ում</string>
+    <string name="service_message_giveaway_prize_stars_unclaimed_in_chat">Ստացել է %2$s չպահանջված աստղեր %2$s-ի նվերից</string>
+    <string name="service_message_gift_received">Ստացված նվեր</string>
+    <string name="service_message_gift_private">Ստացվեց անձնական նվեր</string>
+    <string name="service_message_gift_from_auction">Աճուրդում շահած նվեր</string>
+    <string name="service_message_gift_upgraded">Նվերը թարմացվեց</string>
+    <string name="service_message_gift_upgraded_transferred">Փոխանցվել է բարելավված նվեր</string>
+    <string name="service_message_gift_refunded">Նվերը վերադարձվել է</string>
+    <string name="service_message_gift_purchase_offer">Նվերների գնման առաջարկ է ստացվել</string>
+    <string name="service_message_gift_purchase_offer_with_price">Նվերների գնման առաջարկ՝ %2$s, ժամկետը լրանում է %2$s</string>
+    <string name="service_message_gift_purchase_offer_rejected">Նվեր գնելու առաջարկը մերժվել է</string>
+    <string name="service_message_gift_purchase_offer_rejected_with_price">Նվերների գնման առաջարկը մերժվել է (%1$s)</string>
+    <string name="service_message_gift_purchase_offer_expired">Նվեր գնելու առաջարկի ժամկետը սպառվել է</string>
+    <string name="service_message_gift_purchase_offer_expired_with_price">Նվերների գնման առաջարկի ժամկետը սպառվել է (%1$s)</string>
+    <string name="service_message_paid_messages_refunded">Վերադարձվել է %2$d վճարովի հաղորդագրություն և %2$d աստղ</string>
+    <string name="service_message_paid_message_price_changed">Վճարովի հաղորդագրության գինը փոխվել է %1$d աստղերի</string>
+    <string name="service_message_direct_message_price_changed">Ուղիղ հաղորդագրության գինը փոխվել է %1$d աստղերի</string>
+    <string name="service_message_direct_messages_disabled">Ուղղակի հաղորդագրություններն անջատված են</string>
+    <string name="service_message_checklist_tasks_updated">Ստուգաթերթը թարմացվել է՝ %2$d կատարված, %2$d հետարկված</string>
+    <string name="service_message_checklist_tasks_added">Ավելացվեց %1$d առաջադրանք ստուգաթերթին</string>
+    <string name="service_message_suggested_post_approval_failed">Առաջարկվող գրառման հաստատումը ձախողվեց</string>
+    <string name="service_message_suggested_post_approval_failed_with_price">Առաջարկվող գրառման հաստատումը ձախողվեց. պահանջվում է %1$s</string>
+    <string name="service_message_suggested_post_approved">Առաջարկվող գրառումը հաստատվել է %1$s-ի համար</string>
+    <string name="service_message_suggested_post_approved_with_price">Առաջարկվող գրառումը հաստատվել է %2$s-ի համար (%2$s)</string>
+    <string name="service_message_suggested_post_declined">Առաջարկվող գրառումը մերժվել է</string>
+    <string name="service_message_suggested_post_declined_with_comment">Առաջարկվող գրառումը մերժվել է՝ %1$s</string>
+    <string name="service_message_suggested_post_paid">Առաջարկվող գրառումը վճարված է</string>
+    <string name="service_message_suggested_post_paid_stars">Առաջարկվող գրառումը վճարված է՝ %1$d Աստղեր</string>
+    <string name="service_message_suggested_post_paid_ton">Առաջարկվող գրառումը վճարված է՝ %1$s</string>
+    <string name="service_message_suggested_post_refunded">Առաջարկվող գրառման գումարը վերադարձվել է</string>
+    <string name="service_message_suggested_post_refunded_with_reason">Առաջարկվող գրառմանը վերադարձվել է՝ %1$s</string>
+    <string name="service_message_suggested_post_refund_reason_deleted">Գրառումը շատ վաղ է ջնջվել</string>
+    <string name="service_message_suggested_post_refund_reason_payment">Սկզբնական վճարումը վերադարձվել է</string>
+    <string name="service_message_contact_registered">%1$s-ը միացել է Telegram-ին</string>
+    <string name="service_message_users_shared">Համօգտագործել է %1$d օգտվողները բոտի հետ</string>
+    <string name="service_message_users_shared_one_named">Համօգտագործվող օգտվող բոտի հետ՝ %1$s</string>
+    <string name="service_message_users_shared_two_named">Համօգտագործվող օգտվողներ բոտի հետ՝ %2$s, %2$s</string>
+    <string name="service_message_users_shared_many_named">Համօգտագործվող օգտվողներ բոտի հետ՝ %3$d, %3$d և %3$d ևս</string>
+    <string name="service_message_chat_shared">Համօգտագործել է զրույց բոտի հետ</string>
+    <string name="service_message_chat_shared_named">Համօգտագործված զրույց բոտի հետ՝ %1$s</string>
+    <string name="service_message_bot_write_access_allowed">Բոտն այժմ կարող է հաղորդագրություններ ուղարկել</string>
+    <string name="service_message_bot_write_access_connected_website">Բոտը կարող է հաղորդագրություններ ուղարկել (միացված կայք՝ %1$s)</string>
+    <string name="service_message_bot_write_access_attachment_menu">Բոտը կարող է ուղարկել հաղորդագրություններ (ավելացված է հավելվածի ցանկում)</string>
+    <string name="service_message_bot_write_access_web_app">Բոտը կարող է հաղորդագրություններ ուղարկել (գործարկված վեբ հավելվածը՝ %1$s)</string>
+    <string name="service_message_bot_write_access_accepted_request">Բոտը կարող է ուղարկել հաղորդագրություններ (խնդրանքն ընդունվում է)</string>
+    <string name="service_message_web_app_data_sent">«%1$s» վեբ հավելվածը ուղարկել է տվյալներ</string>
+    <string name="service_message_web_app_data_received">«%1$s» վեբ հավելվածը վերադարձրեց տվյալները</string>
+    <string name="service_message_web_app_data_received_with_size">«%2$d» վեբ հավելվածը վերադարձրեց %2$d նիշ</string>
+    <string name="service_message_passport_data_sent">Անձնագրային տվյալները ուղարկված են</string>
+    <string name="service_message_passport_data_received">Ստացված անձնագրային տվյալները</string>
+    <string name="service_message_proximity_alert">Զգուշացում մոտիկության մասին՝ %1$d մ</string>
+    <string name="service_message_stars_format">%1$d Աստղեր</string>
+    <string name="service_message_ton_format">%.2f TON</string>
+    <string name="service_message_unknown_price">անհայտ գին</string>
+    <string name="service_message_giveaway_prize_unknown">անհայտ մրցանակ</string>
+    <string name="telemt_dns_section_header">Telemt DNS</string>
+    <string name="telemt_dns_section_subtitle">Կարգավորեք DNS-over-HTTPS մատակարարը TDLib-ի համար</string>
+    <string name="telemt_dns_provider_title">DNS մատակարար</string>
+    <string name="telemt_dns_provider_subtitle">Ընտրեք DoH մատակարարը տիրույթի լուծման համար</string>
+    <string name="telemt_dns_provider_google">Google DNS</string>
+    <string name="telemt_dns_provider_cloudflare">CloudFlare DNS</string>
+    <string name="telemt_dns_provider_custom">Պատվերով DoH</string>
+    <string name="telemt_dns_custom_url_title">Պատվերով DoH URL</string>
+    <string name="telemt_dns_custom_url_subtitle">Մուտքագրեք հատուկ DNS-over-HTTPS սերվերի URL</string>
+    <string name="telemt_dns_custom_headers_title">Պատվերով վերնագրեր</string>
+    <string name="telemt_dns_custom_headers_subtitle">Ընտրովի վերնագրեր հատուկ DoH-ի համար (օրինակ՝ թույլտվություն)</string>
+    <string name="telemt_dns_fallback_google">Հետադարձ՝ Google DNS → CloudFlare DNS</string>
+    <string name="telemt_dns_fallback_cloudflare">Հետադարձ՝ CloudFlare DNS → Google DNS</string>
+    <string name="telemt_dns_fallback_custom">Custom DoH-ը հետադարձ կապ չունի</string>
+    <string name="dns_provider_change_failed">Չհաջողվեց փոխել DNS մատակարարը</string>
+    <string name="dns_url_change_failed">Չհաջողվեց փոխել DNS URL-ը</string>
+    <string name="dns_headers_change_failed">Չհաջողվեց փոխել DNS վերնագրերը</string>
+    <string name="message_expired_photo">Լուսանկարը ժամկետանց է</string>
+    <string name="message_expired_video">Տեսանյութի ժամկետը լրացել է</string>
+    <string name="folders_show_all_chats_title">Ցույց տալ բոլոր զրույցները</string>
+    <string name="folders_show_all_chats_subtitle">Բոլոր զրույցների պանակը տեսանելի պահեք ներդիրների բարում</string>
+    <plurals name="service_message_months">
+        <item quantity="one">%1$d ամիս</item>
+        <item quantity="other">%1$d ամիս</item>
+    </plurals>
+    <plurals name="service_message_days">
+        <item quantity="one">%1$d օր</item>
+        <item quantity="other">%1$d օր</item>
+    </plurals>
+    <plurals name="service_message_hours">
+        <item quantity="one">%1$d ժամ</item>
+        <item quantity="other">%1$d ժամ</item>
+    </plurals>
+    <plurals name="service_message_minutes">
+        <item quantity="one">%1$d րոպե</item>
+        <item quantity="other">%1$d րոպե</item>
+    </plurals>
+    <plurals name="service_message_seconds">
+        <item quantity="one">%1$d վայրկյան</item>
+        <item quantity="other">%1$d վայրկյան</item>
+    </plurals>
 </resources>

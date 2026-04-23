@@ -4,25 +4,20 @@
     <string name="confirmation_message">¿Realmente quieres autorizar este dispositivo?</string>
     <string name="confirm_auth_action">Sí, inicia sesión</string>
     <string name="cancel_action">Cancelar</string>
-
     <string name="scan_qr_title">Escanear QR</string>
     <string name="devices_title">Dispositivos</string>
     <string name="link_device_action">Vincular un dispositivo</string>
-
     <string name="current_device_section">Este dispositivo</string>
     <string name="login_requests_section">Solicitudes de inicio de sesión</string>
     <string name="active_sessions_section">Sesiones activas</string>
     <string name="sessions_login_attempt">Intento de inicio de sesión</string>
     <string name="sessions_unconfirmed">Sin confirmar</string>
     <string name="sessions_terminate_action">Finalizar sesión</string>
-
     <string name="cd_navigate_back">Navegar hacia atrás</string>
     <string name="cd_close_scanner">Cerrar escáner</string>
     <string name="cd_qr_icon">Icono del escáner QR</string>
-
     <!-- Startup -->
     <string name="startup_connecting">Conectando a Telegram…</string>
-
     <!-- About Screen -->
     <string name="about_title">Acerca de</string>
     <string name="cd_back">Atrás</string>
@@ -48,10 +43,9 @@
     <string name="role_designer">Diseñador de Iconos y Logo</string>
     <string name="monogram_description">MonoGram es un cliente de Telegram no oficial creado con Material Design 3</string>
     <string name="copyright_text">© 2026 MonoGram</string>
-
     <!-- Updates -->
     <string name="check_for_updates">Buscar Actualizaciones</string>
-    <string name="checking_updates">Buscando...</string>
+    <string name="checking_updates">Buscando…</string>
     <string name="update_available_format">Actualización Disponible: %1$s</string>
     <string name="up_to_date">Estás actualizado</string>
     <string name="update_ready">Actualización Lista</string>
@@ -61,13 +55,12 @@
     <string name="update_available_subtitle">Nueva versión disponible para descargar</string>
     <string name="latest_version_subtitle">Estás usando la última versión</string>
     <string name="install_update_subtitle">Toca para instalar la actualización</string>
-    <string name="downloading_update">Descargando Actualización...</string>
+    <string name="downloading_update">Descargando Actualización…</string>
     <string name="update_progress_format">%1$d%%</string>
     <string name="whats_new_format">Novedades en %1$s</string>
     <string name="download_update_action">Descargar Actualización</string>
     <string name="cancel_button">Cancelar</string>
-    <string name="loading_text">Cargando...</string>
-
+    <string name="loading_text">Cargando…</string>
     <!-- Auth -->
     <string name="auth_title_phone">Tu Teléfono</string>
     <string name="auth_title_verification">Verificación</string>
@@ -85,7 +78,7 @@
     <string name="phone_number_placeholder">000 00 00</string>
     <string name="continue_button">Continuar</string>
     <string name="select_country_title">Seleccionar País</string>
-    <string name="search_country_hint">Buscar país o código...</string>
+    <string name="search_country_hint">Buscar país o código…</string>
     <string name="verification_delivery_telegram">Hemos enviado el código a la aplicación de Telegram en tu otro dispositivo.
     </string>
     <string name="verification_delivery_sms">Hemos enviado el código por SMS.</string>
@@ -105,14 +98,12 @@
     <string name="paste_action">Pegar</string>
     <string name="auth_error_title">Error de Autenticación</string>
     <string name="dismiss_button">Descartar</string>
-
     <!-- Loading -->
     <string name="loading_please_wait">Por favor, espera un momento</string>
     <string name="loading_taking_too_long">¿Está tardando demasiado?</string>
     <string name="loading_reset_connection">Restablecer Conexión</string>
-
     <!-- Chat List -->
-    <string name="forward_to_title">Reenviar a...</string>
+    <string name="forward_to_title">Reenviar a…</string>
     <plurals name="chats_selected_format">
         <item quantity="one">%1$d chats seleccionados</item>
         <item quantity="other">%1$d chats seleccionados</item>
@@ -144,7 +135,6 @@
     <string name="no_chats_yet">Sin chats aún</string>
     <string name="start_new_conversation">Iniciar una nueva conversación</string>
     <string name="mini_app_default_name">Mini App</string>
-
     <!-- Account Menu -->
     <string name="app_name_dev">MonoGram Alpha</string>
     <string name="action_add_account">Añadir Cuenta</string>
@@ -157,7 +147,7 @@
     <string name="menu_settings_subtitle">Configuración de la aplicación</string>
     <string name="menu_update_available">Actualización Disponible</string>
     <string name="update_available_subtitle_format">Nueva versión %1$s disponible</string>
-    <string name="update_downloading_subtitle_format">Descargando actualización... %1$d%%</string>
+    <string name="update_downloading_subtitle_format">Descargando actualización… %1$d%%</string>
     <string name="update_ready_subtitle">Actualización lista para instalar</string>
     <string name="menu_help_feedback">Ayuda y Comentarios</string>
     <string name="menu_help_feedback_subtitle">Preguntas frecuentes y soporte</string>
@@ -166,9 +156,8 @@
     <string name="unknown_user">Usuario Desconocido</string>
     <string name="no_info">Sin información</string>
     <string name="cd_show_accounts">Mostrar cuentas</string>
-
     <!-- Current Chat -->
-    <string name="search_messages_hint">Buscar mensajes...</string>
+    <string name="search_messages_hint">Buscar mensajes…</string>
     <string name="action_clear">Limpiar</string>
     <string name="cd_muted">Silenciado</string>
     <string name="cd_verified">Verificado</string>
@@ -185,7 +174,6 @@
     <string name="cd_scroll_to_bottom">Desplazarse hacia abajo</string>
     <string name="topic_closed_bar">Este tema está cerrado</string>
     <string name="cd_attach">Adjuntar</string>
-
     <!-- Current Chat Additions -->
     <string name="delete_message_title">¿Eliminar mensaje?</string>
     <string name="delete_messages_title">¿Eliminar %1$d mensajes?</string>
@@ -193,7 +181,6 @@
     <string name="delete_messages_confirmation">¿Estás seguro de que quieres eliminar estos mensajes?</string>
     <string name="delete_for_everyone">Eliminar para todos</string>
     <string name="delete_for_me">Eliminar para mí</string>
-
     <string name="report_title">¿Por qué estás reportando esto?</string>
     <string name="report_description">Tu reporte es anónimo. Revisaremos el historial del chat para garantizar la seguridad.</string>
     <string name="report_details_title">Detalles del reporte</string>
@@ -219,7 +206,6 @@
     <string name="report_reason_unrelated_location_description">Contenido no relevante para este lugar específico</string>
     <string name="report_reason_other">Otro</string>
     <string name="report_reason_other_description">Algo más que viola nuestros términos</string>
-
     <string name="restrict_user_title">Restringir Usuario</string>
     <string name="permission_send_messages">Enviar Mensajes</string>
     <string name="permission_send_media">Enviar Multimedia</string>
@@ -233,7 +219,6 @@
     <string name="cd_select_date">Seleccionar Fecha</string>
     <string name="cd_select_time">Seleccionar Hora</string>
     <string name="action_restrict">Restringir</string>
-
     <string name="menu_reply">Responder</string>
     <string name="menu_copy">Copiar</string>
     <string name="menu_pin">Fijar</string>
@@ -254,8 +239,6 @@
     <string name="info_edited">Editado</string>
     <string name="info_read">Leído</string>
     <string name="info_views">Vistas</string>
-
-
     <!-- Profile -->
     <string name="unknown_title">Desconocido</string>
     <plurals name="members_count_format">
@@ -336,7 +319,6 @@
     <string name="tos_dialog_description">Al lanzar esta Mini App, aceptas los Términos de Servicio y Política de Privacidad. El bot podrá acceder a tu información básica de perfil.
     </string>
     <string name="accept_and_launch">Aceptar y Lanzar</string>
-
     <!-- Settings -->
     <string name="qr_code_title">Código QR</string>
     <string name="action_share">Compartir</string>
@@ -387,8 +369,6 @@
     <string name="debug_force_sponsor_sync_subtitle">Obtener IDs de patrocinador del canal ahora</string>
     <string name="log_out_title">Cerrar Sesión</string>
     <string name="log_out_subtitle">Desconectar de la cuenta</string>
-
-
     <!-- Edit Profile -->
     <string name="usernames_title">Nombres de Usuario</string>
     <string name="retry_after_format">Reintentar en %1$ds</string>
@@ -435,7 +415,6 @@
     <string name="friday_short">V</string>
     <string name="saturday_short">S</string>
     <string name="sunday_short">D</string>
-
     <!-- Privacy and Security -->
     <string name="privacy_security_header">Privacidad y Seguridad</string>
     <string name="privacy_section_header">Privacidad</string>
@@ -464,7 +443,7 @@
     <string name="delete_my_account_subtitle">Si estás inactivo por %1$s</string>
     <string name="delete_account_now_title">Eliminar Cuenta Ahora</string>
     <string name="delete_account_now_subtitle">Elimina permanentemente tu cuenta y todos tus datos</string>
-    <string name="self_destruct_title">Auto-destruirse si está Inactivo Por...</string>
+    <string name="self_destruct_title">Auto-destruirse si está Inactivo Por…</string>
     <string name="delete_account_confirmation_title">Eliminar Cuenta</string>
     <string name="delete_account_confirmation_message">¿Estás seguro de que quieres eliminar tu cuenta? Esta acción es permanente y no se puede deshacer.
     </string>
@@ -480,7 +459,6 @@
     <string name="ttl_months_format">%1$d meses</string>
     <string name="ttl_days_format">%1$d días</string>
     <string name="privacy_deletion_reason_user">El usuario solicitó la eliminación</string>
-
     <!-- Proxy Settings -->
     <string name="proxy_settings_header">Configuración de Proxy</string>
     <string name="refresh_pings_cd">Actualizar Pings</string>
@@ -575,14 +553,12 @@
     <string name="test_proxy_button">Probar</string>
     <string name="test_proxy_result">Resultado de la Prueba</string>
     <string name="action_delete">Eliminar</string>
-    <string name="proxy_checking">Verificando...</string>
+    <string name="proxy_checking">Verificando…</string>
     <string name="proxy_offline">Sin Conexión</string>
     <string name="proxy_ping_format">%1$dms</string>
-
     <!-- Settings General -->
     <string name="your_usernames_header">Tus Nombres de Usuario</string>
     <string name="more_options_cd">Más opciones</string>
-
     <!-- Notifications and Sounds -->
     <string name="notifications_sounds_header">Notificaciones y Sonidos</string>
     <string name="message_notifications_header">Notificaciones de Mensajes</string>
@@ -629,8 +605,6 @@
     <string name="repeat_hours_format">Cada %1$d horas</string>
     <string name="push_provider_fcm">Firebase Cloud Messaging</string>
     <string name="push_provider_gms_less">Sin GMS (Servicio de Fondo)</string>
-
-
     <!-- Chat Settings -->
     <string name="chat_settings_header">Configuración del Chat</string>
     <string name="appearance_header">Apariencia</string>
@@ -705,7 +679,6 @@
     <string name="emoji_style_catmoji">Catmoji</string>
     <string name="emoji_style_noto">Noto</string>
     <string name="emoji_style_system">Sistema</string>
-
     <!-- Data and Storage -->
     <string name="data_storage_title_header">Datos y Almacenamiento</string>
     <string name="disk_network_usage_header">Uso de disco y red</string>
@@ -730,7 +703,6 @@
     <string name="videos_autoplay_subtitle">Reproducir automáticamente videos en chats</string>
     <string name="enabled_label">Habilitado</string>
     <string name="disabled_label">Deshabilitado</string>
-
     <!-- Power Saving -->
     <string name="power_saving_header">Ahorro de Energía</string>
     <string name="battery_header">Batería</string>
@@ -746,8 +718,6 @@
     <string name="background_header">Segundo Plano</string>
     <string name="keep_alive_power_saving_subtitle">Deshabilitar esto reducirá el uso de energía pero puede retrasar notificaciones en segundo plano
     </string>
-
-
     <!-- Stickers and Emoji -->
     <string name="stickers_emoji_header">Stickers y Emoji</string>
     <string name="stickers_tab">Stickers</string>
@@ -782,7 +752,6 @@
     <string name="sticker_type_custom_emojis">Emojis Personalizados</string>
     <string name="sticker_official">Oficial</string>
     <string name="link_copied">Enlace copiado al portapapeles</string>
-
     <!-- Network Usage -->
     <string name="network_usage_header">Uso de Red</string>
     <string name="reset_statistics_cd">Restablecer Estadísticas</string>
@@ -803,7 +772,6 @@
     <string name="wifi_tab">Wi-Fi</string>
     <string name="roaming_tab">Roaming</string>
     <string name="other_tab">Otro</string>
-
     <!-- Storage Usage -->
     <string name="storage_usage_header">Uso de Almacenamiento</string>
     <string name="clear_all_cache_format">Limpiar Todo el Caché • %1$s</string>
@@ -830,7 +798,6 @@
     <string name="total_used_label">Total Usado</string>
     <string name="files_count_format">%1$d archivos</string>
     <string name="files_count_label">%1$d archivos</string>
-
     <!-- Privacy Setting -->
     <string name="privacy_who_can_add_me">¿Quién puede añadirme a %1$s?</string>
     <string name="privacy_who_can_call_me">¿Quién puede llamarme?</string>
@@ -857,7 +824,6 @@
     <string name="privacy_block_user_cd">Bloquear Usuario</string>
     <string name="privacy_search_users_placeholder">Buscar usuarios</string>
     <string name="privacy_no_users_found">No se encontraron usuarios</string>
-
     <!-- Passcode -->
     <string name="passcode_change_title">Cambiar Código de Acceso</string>
     <string name="passcode_set_title">Establecer Código de Acceso</string>
@@ -871,7 +837,6 @@
     <string name="passcode_verify_title">Verificar Código de Acceso</string>
     <string name="passcode_verify_description">Ingresa tu código de acceso actual antes de cambiarlo o desactivarlo.</string>
     <string name="passcode_verify_error">Código de acceso incorrecto.</string>
-
     <!-- AdBlock -->
     <string name="cd_add_keyword">Añadir Palabra Clave</string>
     <string name="adblock_enable">Habilitar AdBlock</string>
@@ -894,7 +859,6 @@
     <string name="adblock_whitelisted_subtitle">Las publicaciones de estos canales no serán filtradas</string>
     <string name="adblock_no_whitelisted">No hay canales en lista blanca</string>
     <string name="action_remove">Eliminar</string>
-
     <!-- Core/Common -->
     <string name="last_seen_recently">visto hace poco</string>
     <string name="last_seen_just_now">visto hace un momento</string>
@@ -918,7 +882,6 @@
     <string name="menu_unarchive">Dearchivar</string>
     <string name="menu_archive">Archivar</string>
     <string name="menu_remove_set">Eliminar pack</string>
-
     <!-- New Chat -->
     <string name="new_message_title">Nuevo Mensaje</string>
     <string name="add_members_title">Añadir Miembros</string>
@@ -927,7 +890,7 @@
     <string name="contacts_count_format">%1$d contactos</string>
     <string name="members_limit_format">%1$d / 200000</string>
     <string name="selected_members_count">%1$d seleccionados</string>
-    <string name="search_contacts_hint">Buscar contactos...</string>
+    <string name="search_contacts_hint">Buscar contactos…</string>
     <string name="no_contacts_found">No se encontraron contactos</string>
     <string name="no_search_results_format">Sin resultados para \"%1$s\"</string>
     <string name="sorted_by_last_seen">Ordenado por última hora vista</string>
@@ -973,7 +936,6 @@
     <string name="group_auto_delete_info">Eliminar automáticamente nuevos mensajes enviados en este grupo después de un período de tiempo.</string>
     <string name="add_photo_cd">Añadir foto</string>
     <string name="change_photo_cd">Cambiar foto</string>
-
     <!-- Permissions -->
     <string name="permissions_required_title">Permisos Requeridos</string>
     <string name="permissions_required_description">Para proporcionar la mejor experiencia, MonoGram necesita los siguientes permisos.</string>
@@ -991,15 +953,12 @@
     <string name="permission_microphone_description">Grabar mensajes de voz y video</string>
     <string name="permission_location_title">Ubicación</string>
     <string name="permission_location_description">Comparte tu ubicación y ve usuarios cercanos</string>
-
     <!-- Selection -->
     <string name="cd_clear_selection">Limpiar selección</string>
     <string name="action_pin">Fijar</string>
-
     <!-- Bot Commands -->
     <string name="bot_commands_title">Comandos del Bot</string>
     <string name="bot_commands_subtitle">Selecciona un comando para enviar al bot</string>
-
     <!-- Chat List Preview -->
     <string name="chat_list_preview_title">Lista de Chat</string>
     <string name="preview_name_konata">Konata Izumi</string>
@@ -1008,32 +967,27 @@
     <string name="preview_name_kagami">Kagami Hiiragi</string>
     <string name="preview_message_kagami">¡No olvides la tarea! Se vence mañana por la mañana y es bastante difícil.</string>
     <string name="preview_time_kagami">11:20</string>
-
     <!-- Chat Settings Preview -->
     <string name="chat_settings_preview_title">Vista Previa</string>
     <string name="preview_msg_sender_me">Yo</string>
     <string name="preview_msg_text_1">¡No soy baja, solo tengo la impresionante concentración! 🍫\nAdemás, he decidido convertirme en una profesional del sueño 😴</string>
-    <string name="preview_msg_text_2">Eso es lo que siempre dices cuando no puedes alcanzar el estante superior... 🙄\nMira esto: esto</string>
+    <string name="preview_msg_text_2">Eso es lo que siempre dices cuando no puedes alcanzar el estante superior… 🙄\nMira esto: esto</string>
     <string name="preview_msg_text_3">¡Deja de exponerme! 😤✨\nSolo usaré mi arma secreta: 💯 pura pereza</string>
     <string name="preview_msg_text_4">¡Es súper efectivo! 😵‍💫</string>
     <string name="preview_date_today">Hoy</string>
     <string name="preview_name_konata_short">Konata</string>
-
     <string name="subscribers_count_format">%1$d suscriptores</string>
     <string name="thread_title">Hilo</string>
-
     <!-- Recording UI -->
     <string name="recording_delete">Eliminar Grabación</string>
     <string name="recording_slide_to_cancel">&lt; Deslizar para cancelar</string>
     <string name="recording_send">Enviar Grabación</string>
     <string name="recording_lock">Bloquear Grabación</string>
     <string name="recording_swipe_up">Deslizar hacia arriba</string>
-
     <!-- Input Bar -->
     <string name="input_placeholder_caption">Añadir un título…</string>
     <string name="input_placeholder_message">Mensaje</string>
     <string name="input_error_not_allowed">No se permite enviar mensajes</string>
-
     <!-- Media Types -->
     <string name="media_type_photo">Foto</string>
     <string name="media_type_video">Video</string>
@@ -1043,7 +997,6 @@
     <string name="media_type_gif">GIF</string>
     <string name="media_type_location">Ubicación</string>
     <string name="media_type_message">Mensaje</string>
-
     <!-- Actions -->
     <string name="action_cancel_reply">Cancelar respuesta</string>
     <string name="action_edit_message">Editar mensaje</string>
@@ -1119,7 +1072,6 @@
     <string name="action_previous">Anterior</string>
     <string name="action_next">Siguiente</string>
     <string name="action_send_as_document">Enviar como documento</string>
-
     <string name="rich_text_bold">Negrita</string>
     <string name="rich_text_italic">Cursiva</string>
     <string name="rich_text_underline">Subrayado</string>
@@ -1135,11 +1087,8 @@
     <string name="rich_text_link_hint">URL</string>
     <string name="rich_text_code_language_title">Lenguaje de código</string>
     <string name="rich_text_code_language_hint">Lenguaje (ej. kotlin)</string>
-
-
     <!-- Bot -->
     <string name="bot_commands">Comandos</string>
-
     <!-- Chat Typing -->
     <string name="typing_typing">está escribiendo</string>
     <string name="typing_recording_video">está grabando vídeo</string>
@@ -1157,7 +1106,6 @@
         <item quantity="one">%d persona está escribiendo</item>
         <item quantity="other">%d personas están escribiendo</item>
     </plurals>
-
     <!-- Storage Mapper -->
     <string name="storage_photos">Fotos</string>
     <string name="storage_videos">Vídeos</string>
@@ -1169,10 +1117,8 @@
     <string name="storage_other_files">Otros archivos</string>
     <string name="storage_other_cache">Otros / Caché</string>
     <string name="storage_chat_format">Chat %d</string>
-
     <!-- Network Mapper -->
     <string name="network_calls">Llamadas</string>
-
     <!-- Notification Service -->
     <string name="notification_service_waiting">Esperando nuevos mensajes</string>
     <string name="notification_service_stop">Detener</string>
@@ -1192,7 +1138,6 @@
     <string name="notification_channel_channels_description">Notificaciones de canales</string>
     <string name="notification_channel_other_name">Otros</string>
     <string name="notification_channel_other_description">Otras notificaciones</string>
-
     <!-- Chat Mapper / Media Types -->
     <string name="chat_mapper_photo">Foto</string>
     <string name="chat_mapper_video">Vídeo</string>
@@ -1223,7 +1168,6 @@
     <string name="chat_mapper_seen_recently">Visto recientemente</string>
     <string name="chat_mapper_seen_week">Visto hace una semana</string>
     <string name="chat_mapper_seen_month">Visto hace un mes</string>
-
     <!-- Pinned Messages -->
     <string name="pinned_messages">Mensajes fijados</string>
     <string name="pinned_message">Mensaje fijado</string>
@@ -1234,14 +1178,12 @@
         <item quantity="one">%d mensaje</item>
         <item quantity="other">%d mensajes</item>
     </plurals>
-
     <!-- Message Types -->
     <string name="message_type_video_message">Mensaje de vídeo</string>
     <string name="message_type_gif">GIF</string>
     <string name="message_type_document">Documento</string>
     <string name="message_type_poll_format">Encuesta: %s</string>
     <string name="message_type_sticker_format">Sticker %s</string>
-
     <!-- Photo Editor Tools -->
     <string name="photo_editor_tool_view">Ver</string>
     <string name="photo_editor_tool_crop">Recortar</string>
@@ -1249,7 +1191,6 @@
     <string name="photo_editor_tool_draw">Dibujar</string>
     <string name="photo_editor_tool_text">Texto</string>
     <string name="photo_editor_tool_eraser">Borrador</string>
-
     <!-- Photo Editor Filters -->
     <string name="photo_editor_filter_original">Original</string>
     <string name="photo_editor_filter_bw">B&amp;N</string>
@@ -1259,7 +1200,6 @@
     <string name="photo_editor_filter_warm">Cálido</string>
     <string name="photo_editor_filter_polaroid">Polaroid</string>
     <string name="photo_editor_filter_invert">Invertir</string>
-
     <!-- Photo Editor Actions -->
     <string name="photo_editor_action_save">Guardar</string>
     <string name="photo_editor_action_cancel">Cancelar</string>
@@ -1273,38 +1213,32 @@
     <string name="photo_editor_action_edit_text">Editar texto</string>
     <string name="photo_editor_action_apply">Aplicar</string>
     <string name="photo_editor_action_delete">Eliminar</string>
-
     <!-- Photo Editor Labels -->
     <string name="photo_editor_label_size">Tamaño</string>
     <string name="photo_editor_label_zoom">Zoom</string>
-    <string name="photo_editor_label_placeholder_text">Escribe algo...</string>
+    <string name="photo_editor_label_placeholder_text">Escribe algo…</string>
     <string name="photo_editor_label_select_tool">Selecciona una herramienta para empezar a editar</string>
-
     <!-- Photo Editor Discard Dialog -->
     <string name="photo_editor_discard_title">¿Descartar cambios?</string>
     <string name="photo_editor_discard_message">Tienes cambios sin guardar. ¿Estás seguro de que quieres descartarlos?</string>
     <string name="photo_editor_discard_button">Descartar</string>
-
     <!-- Video Editor Common -->
     <string name="video_editor_apply">Aplicar</string>
     <string name="video_editor_done">Hecho</string>
     <string name="video_editor_cancel">Cancelar</string>
     <string name="video_editor_low">Bajo</string>
-
     <!-- Video Editor Tools -->
     <string name="video_tool_view">Ver</string>
     <string name="video_tool_trim">Recortar</string>
     <string name="video_tool_filters">Filtros</string>
     <string name="video_tool_text">Texto</string>
     <string name="video_tool_compress">Comprimir</string>
-
     <!-- Video Editor Actions/Controls -->
     <string name="video_action_unmute">Activar sonido</string>
     <string name="video_action_mute">Silenciar</string>
     <string name="video_action_add_text">Añadir overlay de texto</string>
     <string name="video_quality_label">Calidad de vídeo</string>
     <string name="video_estimated_bitrate">Bitrate estimado: %1$d kbps</string>
-
     <!-- Video Editor Filters -->
     <string name="video_filter_original">Original</string>
     <string name="video_filter_bw">B&amp;N</string>
@@ -1314,20 +1248,17 @@
     <string name="video_filter_warm">Cálido</string>
     <string name="video_filter_polaroid">Polaroid</string>
     <string name="video_filter_invert">Invertir</string>
-
     <!-- Video Editor Dialogs & Toasts -->
     <string name="video_error_file_not_found">Archivo no encontrado</string>
     <string name="video_error_file_missing">Archivo de vídeo faltante</string>
     <string name="video_discard_title">¿Descartar cambios?</string>
     <string name="video_discard_text">Tienes cambios sin guardar. ¿Estás seguro de que quieres descartarlos?</string>
     <string name="video_discard_confirm">Descartar</string>
-
     <!-- Web View General -->
     <string name="webview_loading">Cargando…</string>
     <string name="webview_default_title">Vista web</string>
     <string name="webview_close">Cerrar</string>
     <string name="webview_more_options">Más opciones</string>
-
     <!-- Web View Options Sheet -->
     <string name="webview_options_title">Opciones</string>
     <string name="webview_back">Atrás</string>
@@ -1344,7 +1275,6 @@
     <string name="webview_desktop_site">Sitio de escritorio</string>
     <string name="webview_block_ads">Bloquear anuncios</string>
     <string name="webview_text_size">Tamaño de texto: %1$d%%</string>
-
     <!-- Web View Security/Certificate -->
     <string name="webview_secure">Seguro</string>
     <string name="webview_insecure">No seguro</string>
@@ -1356,13 +1286,11 @@
     <string name="webview_cert_issued_by">Emitido por</string>
     <string name="webview_cert_valid_until">Válido hasta</string>
     <string name="webview_cert_unknown">Desconocido</string>
-
     <!-- Web View Find In Page Bar -->
     <string name="webview_find_placeholder">Buscar en la página…</string>
     <string name="webview_find_previous">Anterior</string>
     <string name="webview_find_next">Siguiente</string>
     <string name="webview_find_close">Cerrar búsqueda</string>
-
     <!-- Profile & Components -->
     <string name="label_discussion">Discusión</string>
     <string name="label_channel">Canal</string>
@@ -1394,9 +1322,8 @@
     <string name="bot_verification_subtitle">Verificado por un bot de terceros</string>
     <string name="opening_hours_closed">Cerrado</string>
     <string name="label_id">ID</string>
-
     <!-- Statistics Viewer -->
-    <string name="statistics_analyzing">Analizando estadísticas...</string>
+    <string name="statistics_analyzing">Analizando estadísticas…</string>
     <string name="statistics_overview">Resumen</string>
     <string name="statistics_members">Miembros</string>
     <string name="statistics_messages">Mensajes</string>
@@ -1446,7 +1373,7 @@
     <string name="statistics_hourly_revenue">Ingresos por hora</string>
     <string name="statistics_insights_loaded">Información cargada</string>
     <string name="statistics_zoom_in">Ampliar</string>
-    <string name="statistics_rendering_chart">Renderizando gráfico...</string>
+    <string name="statistics_rendering_chart">Renderizando gráfico…</string>
     <string name="statistics_no_change">Sin cambios</string>
     <string name="statistics_vs_previous"> vs anterior</string>
     <string name="statistics_unknown_type">Tipo de estadística desconocido</string>
@@ -1455,7 +1382,6 @@
     <string name="profile_statistics_preview_venue_format">Lugar: %1$s</string>
     <string name="profile_statistics_preview_poll_format">Encuesta: %1$s</string>
     <string name="profile_statistics_preview_service_message">Mensaje de servicio</string>
-
     <!-- Selection: Viewer Common -->
     <string name="viewer_back">Atrás</string>
     <string name="viewer_options">Opciones</string>
@@ -1465,8 +1391,7 @@
     <string name="viewer_seek_forward_format">+%1$ds</string>
     <string name="viewer_thumbnail_cd">Miniatura %1$d</string>
     <string name="viewer_page_indicator">%1$d / %2$d</string>
-    <string name="viewer_loading_original">Cargando original...</string>
-
+    <string name="viewer_loading_original">Cargando original…</string>
     <!-- Selection: Viewer Actions -->
     <string name="action_download">Descargar</string>
     <string name="action_download_video">Descargar vídeo</string>
@@ -1482,7 +1407,6 @@
     <string name="action_pause">Pausar</string>
     <string name="action_play">Reproducir</string>
     <string name="action_unlock">Desbloquear</string>
-
     <!-- Selection: Viewer Settings -->
     <string name="settings_title">Configuración</string>
     <string name="settings_playback_speed">Velocidad de reproducción</string>
@@ -1514,45 +1438,37 @@
     <string name="action_use_low_quality">Usar calidad baja</string>
     <string name="action_open_in_browser">Abrir en el navegador</string>
     <string name="settings_speed_normal">Normal</string>
-
     <!-- Selection: Picture-in-Picture -->
     <string name="pip_play">Reproducir</string>
     <string name="pip_pause">Pausar</string>
     <string name="pip_rewind">Rebobinar</string>
     <string name="pip_forward">Adelantar</string>
-
     <!-- Sticker & Emoji Menu -->
     <string name="sticker_menu_tab_stickers">Stickers</string>
     <string name="sticker_menu_tab_emojis">Emojis</string>
     <string name="sticker_menu_tab_gifs">GIFs</string>
-
     <!-- Stickers View -->
     <string name="stickers_header_recent">Stickers recientes</string>
     <string name="stickers_header_all">Stickers</string>
     <string name="stickers_search_placeholder">Buscar stickers</string>
-
     <!-- Emojis View -->
     <string name="emojis_header_recent">Emojis recientes</string>
     <string name="emojis_header_standard">Emojis estándar</string>
     <string name="emojis_header_custom">Emojis personalizados</string>
     <string name="emojis_header_all">Emojis</string>
     <string name="emojis_search_placeholder">Buscar emojis</string>
-
     <!-- GIFs View -->
     <string name="gifs_header_recent_saved">GIFs recientes y guardados</string>
     <string name="gifs_no_results">No se encontraron GIFs</string>
     <string name="gifs_search_placeholder">Buscar GIFs</string>
-
     <!-- Common/Accessibility -->
     <string name="common_back">Atrás</string>
     <string name="common_clear">Limpiar</string>
     <string name="common_recent">Reciente</string>
-
     <!-- QR Code -->
     <string name="qr_saved_to_gallery">Guardado en galería</string>
     <string name="qr_share_title">Compartir código QR</string>
     <string name="qr_share_error">Error al enviar: %1$s</string>
-
     <!-- Chat Edit (ChatEditContent.kt) -->
     <string name="edit_channel">Editar canal</string>
     <string name="edit_group">Editar grupo</string>
@@ -1567,16 +1483,14 @@
     <string name="management">Gestión</string>
     <string name="delete_channel">Eliminar canal</string>
     <string name="delete_group">Eliminar grupo</string>
-
     <!-- Member List (MemberListContent.kt) -->
-    <string name="search_hint">Buscar...</string>
+    <string name="search_hint">Buscar…</string>
     <string name="administrators">Administradores</string>
     <string name="subscribers">Suscriptores</string>
     <string name="members">Miembros</string>
     <string name="blacklist">Lista negra</string>
     <string name="no_results_found">No se encontraron resultados</string>
     <string name="no_members_yet">Sin miembros todavía</string>
-
     <!-- Admin Management (AdminManageContent.kt) -->
     <string name="admin_rights">Derechos de administrador</string>
     <string name="custom_title">Título personalizado</string>
@@ -1595,12 +1509,10 @@
     <string name="permission_delete_stories">Eliminar historias</string>
     <string name="permission_add_new_admins">Añadir nuevos administradores</string>
     <string name="permission_remain_anonymous">Permanecer anónimo</string>
-
     <!-- Group Permissions (ChatPermissionsContent.kt) -->
     <string name="permissions">Permisos</string>
     <string name="what_can_members_do">¿Qué pueden hacer los miembros de este grupo?</string>
     <string name="permission_add_members">Añadir miembros</string>
-
     <!-- Common UI / Content Descriptions -->
     <string name="back">Atrás</string>
     <string name="save">Guardar</string>
@@ -1610,7 +1522,6 @@
     <string name="edit">Editar</string>
     <string name="username">Usuario</string>
     <string name="filters">Filtros</string>
-
     <!-- Profile Logs / Recent Actions -->
     <string name="logs_title">Acciones recientes</string>
     <string name="logs_events_count">%d eventos cargados</string>
@@ -1618,7 +1529,6 @@
     <string name="logs_empty_subtitle">Intenta cambiar los filtros</string>
     <string name="logs_not_implemented">No implementado</string>
     <string name="logs_user_id_copied">ID de usuario copiado</string>
-
     <!-- Logs Filters -->
     <string name="logs_filter_title">Filtrar acciones</string>
     <string name="logs_filter_reset">Restablecer</string>
@@ -1628,7 +1538,6 @@
     <string name="logs_filter_search_placeholder">Buscar…</string>
     <string name="logs_filter_no_users">No se encontraron usuarios</string>
     <string name="logs_filter_no_results">Sin resultados para \"%s\"</string>
-
     <!-- Action Types -->
     <string name="logs_action_edits">Ediciones</string>
     <string name="logs_action_deletions">Eliminaciones</string>
@@ -1642,7 +1551,6 @@
     <string name="logs_action_settings">Configuración</string>
     <string name="logs_action_links">Enlaces</string>
     <string name="logs_action_video">Vídeo</string>
-
     <!-- Action Descriptions -->
     <string name="logs_action_edited">editó un mensaje</string>
     <string name="logs_action_deleted">eliminó un mensaje</string>
@@ -1663,7 +1571,6 @@
     <string name="logs_action_video_started">inició una videollamada</string>
     <string name="logs_action_video_ended">terminó la videollamada</string>
     <string name="logs_action_unknown">realizó una acción: %s</string>
-
     <!-- Details and Previews -->
     <string name="logs_original_message">Mensaje original:</string>
     <string name="logs_new_message">Nuevo mensaje:</string>
@@ -1680,7 +1587,6 @@
     <string name="logs_status_to">Hasta</string>
     <string name="logs_permissions_changes">Cambios de permisos:</string>
     <string name="logs_permissions_current">Permisos actuales:</string>
-
     <!-- Permissions / Roles -->
     <string name="logs_perm_messages">Mensajes</string>
     <string name="logs_perm_media">Multimedia</string>
@@ -1690,13 +1596,11 @@
     <string name="logs_perm_invite">Invitación</string>
     <string name="logs_perm_pin">Fijación</string>
     <string name="logs_perm_info">Información</string>
-
     <string name="logs_role_admin">Administrador</string>
     <string name="logs_role_owner">Propietario</string>
     <string name="logs_role_restricted">Restringido</string>
     <string name="logs_role_banned">Baneado</string>
     <string name="logs_role_member">Miembro</string>
-
     <!-- Media Types -->
     <string name="logs_media_photo">Foto</string>
     <string name="logs_media_video">Vídeo</string>
@@ -1711,20 +1615,16 @@
     <string name="logs_media_location">Ubicación</string>
     <string name="logs_media_venue">Lugar</string>
     <string name="logs_media_unsupported">Mensaje no soportado</string>
-
     <!-- Date and Formats -->
     <string name="format_duration">%1$02d:%2$02d</string>
-
     <!-- Views Count -->
     <string name="views_k">%1$.1fK</string>
     <string name="views_m">%1$.1fM</string>
-
     <!-- Comments -->
     <string name="comment_leave">Deja un comentario</string>
     <string name="comment_count">%1$d comentarios</string>
     <string name="comment_count_k">%1$.1fK comentarios</string>
     <string name="comment_count_m">%1$.1fM comentarios</string>
-
     <!-- Poll Message -->
     <string name="poll_final_results">Resultados finales</string>
     <string name="poll_anonymous">Anónima</string>
@@ -1738,17 +1638,14 @@
         <item quantity="one">%d voto</item>
         <item quantity="other">%d votos</item>
     </plurals>
-
     <!-- Accessibility Content Descriptions -->
     <string name="cd_more">Más</string>
     <string name="cd_vote">Votar</string>
     <string name="cd_explanation">Explicación</string>
-
     <!-- Poll Voters Sheet -->
     <string name="poll_voters_title">Votantes de la encuesta</string>
     <string name="poll_no_voters">Sin votantes todavía</string>
     <string name="action_close">Cerrar</string>
-
     <!-- Reply Content -->
     <string name="reply_content_photo">Foto</string>
     <string name="reply_content_video">Vídeo</string>
@@ -1757,7 +1654,6 @@
     <string name="reply_content_video_message">Mensaje de vídeo</string>
     <string name="reply_content_gif">GIF</string>
     <string name="reply_content_message">Mensaje</string>
-
     <!-- Chat Folders -->
     <string name="folders_title">Carpetas de chat</string>
     <string name="folders_back">Atrás</string>
@@ -1780,13 +1676,11 @@
     <string name="folders_included_chats">Chats incluidos</string>
     <string name="folders_search_chats">Buscar chats…</string>
     <string name="folders_cancel">Cancelar</string>
-
     <!-- Premium Screen -->
     <string name="premium_title">Telegram Premium</string>
     <string name="premium_back">Atrás</string>
     <string name="premium_subscribe_button">Suscribirse por %s al mes</string>
     <string name="premium_unlock_features">Desbloquear características exclusivas</string>
-
     <!-- Premium Features -->
     <string name="premium_feature_doubled_limits_title">Límites duplicados</string>
     <string name="premium_feature_doubled_limits_description">Hasta %1$d canales, %2$d carpetas de chat, %3$d fijaciones, %4$d enlaces públicos y más.</string>
@@ -1810,13 +1704,11 @@
     <string name="premium_feature_emoji_status_description">Elige de miles de emojis para mostrar junto a tu nombre.</string>
     <string name="premium_feature_app_icons_title">Iconos de aplicación Premium</string>
     <string name="premium_feature_app_icons_description">Elige de una selección de iconos de aplicación de Telegram para tu pantalla de inicio.</string>
-
     <!-- Mini App Menu -->
     <string name="mini_app_menu_reload">Recargar</string>
     <string name="mini_app_menu_copy_link">Copiar enlace</string>
     <string name="mini_app_menu_open_in_browser">Abrir en navegador</string>
     <string name="mini_app_menu_add_to_home">Añadir a pantalla de inicio</string>
-
     <!-- Mini App Dialogs -->
     <string name="mini_app_close_confirmation_title">¿Cerrar Mini App?</string>
     <string name="mini_app_close_confirmation_text">Tienes cambios sin guardar. ¿Estás seguro de que quieres cerrar?</string>
@@ -1840,7 +1732,6 @@
     <string name="mini_app_tos_title">Términos de servicio</string>
     <string name="mini_app_tos_text">Al lanzar esta Mini App, aceptas los Términos de servicio y la Política de privacidad. El bot podrá acceder a tu información de perfil básica.</string>
     <string name="mini_app_tos_accept">Aceptar y lanzar</string>
-
     <!-- Instant View -->
     <string name="instant_view_search_placeholder">Buscar en el artículo…</string>
     <string name="instant_view_back">Atrás</string>
@@ -1861,13 +1752,11 @@
     <string name="instant_view_collapse">Contraer</string>
     <string name="instant_view_expand">Expandir</string>
     <string name="instant_view_map_prefix">Mapa: %1$s, %2$s</string>
-
     <!-- Settings Top -->
     <string name="share_profile_title">Compartir perfil</string>
     <string name="share_profile_subtitle">Comparte tu enlace de perfil de Monogram</string>
     <string name="copy_link_title">Copiar enlace</string>
     <string name="copy_link_subtitle">Copia tu enlace de perfil de Monogram al portapapeles</string>
-
     <!-- Chat Theme Editor -->
     <string name="chat_theme_editor_title">Editor de temas</string>
     <string name="chat_theme_editor_palette_mode">Modo de paleta</string>
@@ -1887,13 +1776,11 @@
     <string name="chat_theme_editor_both">Ambos</string>
     <string name="chat_theme_editor_hex">Hexadecimal</string>
     <string name="chat_theme_editor_theme_file_name">monogram-theme.json</string>
-
     <string name="chat_theme_editor_theme_file_saved">Archivo de tema guardado</string>
     <string name="chat_theme_editor_save_failed">Guardado fallido</string>
     <string name="chat_theme_editor_theme_loaded">Tema cargado</string>
     <string name="chat_theme_editor_invalid_file">Archivo inválido</string>
     <string name="chat_theme_editor_load_failed">Carga fallida</string>
-
     <string name="chat_theme_editor_theme_source_title">Fuente de tema</string>
     <string name="chat_theme_editor_theme_source_description">Elige exactamente una fuente para tus colores de aplicación. Personalizado usa tus paletas editables, Monet usa color dinámico de Android. AMOLED solo afecta fondos oscuros.</string>
     <string name="chat_theme_editor_custom_theme">Tema personalizado</string>
@@ -1902,7 +1789,6 @@
     <string name="chat_theme_editor_monet_description">Usa colores de Material You generados por el sistema basados en el fondo de pantalla (Android 12+).</string>
     <string name="chat_theme_editor_amoled_dark">AMOLED oscuro</string>
     <string name="chat_theme_editor_amoled_dark_description">Fuerza negro puro para superficies oscuras para reducir el brillo y ahorrar energía en pantallas OLED.</string>
-
     <string name="chat_theme_editor_preset_themes">Temas preestablecidos</string>
     <string name="chat_theme_editor_preset_themes_description">Cada ajuste preestablecido tiene variantes listo claro y oscuro. Toca claro, oscuro o ambos para aplicar al instante.</string>
     <string name="chat_theme_editor_manual_colors_title">Colores manuales (%1$s)</string>
@@ -1914,7 +1800,6 @@
     <string name="chat_theme_editor_saturation_format">Saturación %1$d%%</string>
     <string name="chat_theme_editor_brightness_format">Brillo %1$d%%</string>
     <string name="chat_theme_editor_alpha_format">Alfa %1$d%%</string>
-
     <string name="chat_theme_editor_role_primary">Primario</string>
     <string name="chat_theme_editor_role_secondary">Secundario</string>
     <string name="chat_theme_editor_role_tertiary">Terciario</string>
@@ -1925,66 +1810,49 @@
     <string name="chat_theme_editor_role_tertiary_container">Contenedor terciario</string>
     <string name="chat_theme_editor_role_surface_variant">Variante de superficie</string>
     <string name="chat_theme_editor_role_outline">Contorno</string>
-
     <string name="chat_theme_editor_chip_light_primary">L P</string>
     <string name="chat_theme_editor_chip_light_container">L C</string>
     <string name="chat_theme_editor_chip_light_background">L BG</string>
     <string name="chat_theme_editor_chip_dark_primary">D P</string>
     <string name="chat_theme_editor_chip_dark_container">D C</string>
     <string name="chat_theme_editor_chip_dark_background">D BG</string>
-
     <string name="chat_theme_editor_accent_blue">Azul</string>
     <string name="chat_theme_editor_accent_green">Verde</string>
     <string name="chat_theme_editor_accent_orange">Naranja</string>
     <string name="chat_theme_editor_accent_rose">Rosa</string>
     <string name="chat_theme_editor_accent_indigo">Índigo</string>
     <string name="chat_theme_editor_accent_cyan">Cian</string>
-
     <string name="chat_theme_editor_preset_classic_name">Clásico</string>
     <string name="chat_theme_editor_preset_classic_description">Azul equilibrado con legibilidad clara y superficies neutrales.</string>
-
     <string name="chat_theme_editor_preset_forest_name">Bosque</string>
     <string name="chat_theme_editor_preset_forest_description">Verdes naturales con contraste tranquilo y tonos de contenedor suave.</string>
-
     <string name="chat_theme_editor_preset_ocean_name">Océano</string>
     <string name="chat_theme_editor_preset_ocean_description">Sensación de gradiente cian-azul frío con luz fresca y modo oscuro profundo.</string>
-
     <string name="chat_theme_editor_preset_sunset_name">Atardecer</string>
     <string name="chat_theme_editor_preset_sunset_description">Conjunto de acento naranja cálido y coral con claridad de primer plano alta.</string>
-
     <string name="chat_theme_editor_preset_graphite_name">Grafito</string>
     <string name="chat_theme_editor_preset_graphite_description">Base en escala de grises neutral con acentos azul-gris y estructura fuerte.</string>
-
     <string name="chat_theme_editor_preset_mint_name">Menta</string>
     <string name="chat_theme_editor_preset_mint_description">Combinación fresca de menta y verde azulado con contenedores suaves.</string>
-
     <string name="chat_theme_editor_preset_ruby_name">Rubí</string>
     <string name="chat_theme_editor_preset_ruby_description">Acento rojo profundo con contenedores neutrales para fuerte enfoque de acción.</string>
-
     <string name="chat_theme_editor_preset_lavender_gray_name">Gris lavanda</string>
     <string name="chat_theme_editor_preset_lavender_gray_description">Esquema gris violeta silenciado con saturación controlada y contraste limpio.</string>
-
     <string name="chat_theme_editor_preset_sand_name">Arena</string>
     <string name="chat_theme_editor_preset_sand_description">Paleta beige y ámbar ajustada para ruido visual muy suave.</string>
-
     <string name="chat_theme_editor_preset_arctic_name">Ártico</string>
     <string name="chat_theme_editor_preset_arctic_description">Sensación blanca azul helada con legibilidad alta y límites nítidos.</string>
-
     <string name="chat_theme_editor_preset_emerald_name">Esmeralda</string>
     <string name="chat_theme_editor_preset_emerald_description">Paleta verde vibrante con superficies limpias y contraste moderno.</string>
-
     <string name="chat_theme_editor_preset_copper_name">Cobre</string>
     <string name="chat_theme_editor_preset_copper_description">Tema cobre-naranja cálido que mantiene el texto claro en ambos modos.</string>
-
     <string name="chat_theme_editor_preset_sakura_name">Sakura</string>
     <string name="chat_theme_editor_preset_sakura_description">Tonos rosa-magenta suaves con contenedores suaves y destacados fuertes.</string>
-
     <string name="chat_theme_editor_preset_nord_name">Nord</string>
     <string name="chat_theme_editor_preset_nord_description">Azules nórdicos fríos con equilibrio visual tranquilo y profesional.</string>
-
     <!-- Circular recorder -->
     <string name="recorder_permissions_required">Se requieren permisos de cámara y micrófono</string>
-    <string name="recorder_processing">Procesando...</string>
+    <string name="recorder_processing">Procesando…</string>
     <string name="recorder_processing_error">Error de procesamiento: %1$s</string>
     <string name="recorder_close_cd">Cerrar grabadora</string>
     <string name="recorder_switch_cd">Cambiar cámara</string>
@@ -1994,7 +1862,6 @@
     <string name="recorder_time_format">Tiempo: %1$s</string>
     <string name="recorder_zoom_format">Zoom: %1$.1fx (rango %2$.1fx - %3$.1fx)</string>
     <string name="recorder_cancel">Cancelar</string>
-
     <string name="clear_history_title">¿Limpiar historial?</string>
     <string name="clear_history_confirmation">¿Estás seguro de que quieres limpiar el historial del chat? Esta acción no se puede deshacer.</string>
     <string name="action_clear_history">Limpiar historial</string>
@@ -2034,12 +1901,11 @@
     <string name="auth_code_expired_error">El código de confirmación ha expirado</string>
     <string name="auth_password_hash_invalid">Contraseña inválida</string>
     <string name="unexpected_error">Ocurrió un error inesperado</string>
-
     <!-- ProxyContent -->
     <string name="proxy_connection_test_button">Ejecutar prueba de conexión</string>
     <string name="proxy_connection_test_title">Prueba de conexión de Telegram</string>
     <string name="proxy_connection_test_subtitle">Comprueba la conexión de extremo a extremo a través del centro de datos de Telegram.</string>
-    <string name="proxy_connection_test_running">Ejecutando prueba de conexión...</string>
+    <string name="proxy_connection_test_running">Ejecutando prueba de conexión…</string>
     <string name="proxy_connection_test_success">La conexión se ve bien. Puedes guardar y activar este proxy.</string>
     <string name="proxy_connection_test_hint">La lista principal muestra solo el ping de transporte. Esta prueba es más amplia, por lo que los valores pueden ser mayores.</string>
     <string name="proxy_tab_proxy">Proxy</string>
@@ -2142,7 +2008,7 @@
     <string name="editor_ai_style_viking">Viking</string>
     <string name="editor_ai_style_zen">Zen</string>
     <string name="editor_ai_add_emojis">Add emojis</string>
-    <string name="editor_ai_loading">Processing...</string>
+    <string name="editor_ai_loading">Processing…</string>
     <string name="editor_ai_error_empty">Enter text to use AI</string>
     <string name="editor_ai_error_flood">Too many AI requests. Telegram Premium may be required.</string>
     <string name="editor_ai_error_generic">AI processing failed</string>
@@ -2174,8 +2040,8 @@
     <string name="notifications_exceptions_channels">Canales</string>
     <string name="notifications_exceptions_label">Excepciones</string>
     <string name="notifications_exceptions_search">Buscar</string>
-    <string name="notifications_exceptions_search_placeholder">Buscar excepciones...</string>
-    <string name="notifications_exceptions_no_results_format">No se encontraron resultados para &quot;%1$s&quot;</string>
+    <string name="notifications_exceptions_search_placeholder">Buscar excepciones…</string>
+    <string name="notifications_exceptions_no_results_format">No se encontraron resultados para "%1$s"</string>
     <string name="notifications_exceptions_chats_header">CHATS</string>
     <string name="notifications_exceptions_hint">Toca un chat para cambiar sus ajustes de notificaciones o eliminar la excepción.</string>
     <string name="notifications_exceptions_empty_title">Sin excepciones</string>
@@ -2194,4 +2060,220 @@
     <string name="download_saved_files_with_errors_format">Se guardaron %1$d archivos en Descargas/MonoGram (%2$d no encontrados, %3$d fallidos)</string>
     <string name="logs_role_left">Salió</string>
     <string name="logs_role_unknown">Desconocido</string>
+    <string name="service_message_unknown_time">Hora desconocida</string>
+    <string name="service_message_unknown_duration">Duración desconocida</string>
+    <string name="service_message_unknown_duration_short">00:00</string>
+    <string name="service_message_auto_delete_off">Apagado</string>
+    <string name="service_message_money_format">%2$d %2$d</string>
+    <string name="service_message_call_missed">llamada perdida</string>
+    <string name="service_message_call">Llamar</string>
+    <string name="service_message_video_call_missed">videollamada perdida</string>
+    <string name="service_message_video_call">Videollamada</string>
+    <string name="service_message_call_declined">llamada rechazada</string>
+    <string name="service_message_video_call_declined">Videollamada rechazada</string>
+    <string name="service_message_call_disconnected">Llamada desconectada</string>
+    <string name="service_message_video_call_disconnected">Videollamada desconectada</string>
+    <string name="service_message_call_hung_up">llamada finalizada</string>
+    <string name="service_message_video_call_hung_up">Videollamada finalizada</string>
+    <string name="service_message_call_upgraded_to_group">Llamada actualizada a llamada grupal</string>
+    <string name="service_message_call_ended">Llamada finalizada · %1$s</string>
+    <string name="service_message_video_call_ended">Videollamada finalizada · %1$s</string>
+    <string name="service_message_group_call">llamada grupal</string>
+    <string name="service_message_group_video_call">Videollamada grupal</string>
+    <string name="service_message_group_call_started">Llamada grupal iniciada</string>
+    <string name="service_message_group_video_call_started">Videollamada grupal iniciada</string>
+    <string name="service_message_group_call_missed">Llamada grupal perdida</string>
+    <string name="service_message_group_video_call_missed">Videollamada grupal perdida</string>
+    <string name="service_message_group_call_ended">Llamada grupal finalizada · %1$s</string>
+    <string name="service_message_group_video_call_ended">Videollamada grupal finalizada · %1$s</string>
+    <string name="service_message_video_chat_scheduled">Video chat programado para %1$s</string>
+    <string name="service_message_video_chat_started">Se inició el chat de vídeo</string>
+    <string name="service_message_video_chat_ended">El chat de vídeo finalizó · %1$s</string>
+    <string name="service_message_video_chat_invited">Invitó a %1$d personas al chat de vídeo.</string>
+    <string name="service_message_video_chat_invited_one_named">Invitó a %1$s al video chat.</string>
+    <string name="service_message_video_chat_invited_two_named">Invitó a %2$s y %2$s al video chat.</string>
+    <string name="service_message_video_chat_invited_many_named">Invitó a %3$d, %3$d y %3$d más al video chat.</string>
+    <string name="service_message_poll_option_added">Opción de encuesta agregada: %1$s</string>
+    <string name="service_message_poll_option_deleted">Opción de encuesta eliminada: %1$s</string>
+    <string name="service_message_basic_group_created">Creó el grupo "%1$s"</string>
+    <string name="service_message_supergroup_created">Creó el supergrupo "%1$s"</string>
+    <string name="service_message_chat_title_changed">%2$s cambió el título del chat a "%2$s"</string>
+    <string name="service_message_chat_photo_changed">%1$s cambió la foto del chat</string>
+    <string name="service_message_chat_photo_removed">%1$s eliminó la foto del chat</string>
+    <string name="service_message_chat_owner_left">El dueño del chat se fue</string>
+    <string name="service_message_chat_owner_left_with_new_owner">El dueño del chat se fue. Nuevo propietario: %1$s</string>
+    <string name="service_message_chat_owner_changed">El dueño del chat cambió</string>
+    <string name="service_message_chat_owner_changed_to">Nuevo propietario del chat: %1$s</string>
+    <string name="service_message_protected_content_enabled">Contenido protegido habilitado</string>
+    <string name="service_message_protected_content_disabled">Contenido protegido deshabilitado</string>
+    <string name="service_message_protected_content_disable_requested">Se solicita la desactivación del contenido protegido</string>
+    <string name="service_message_protected_content_disable_expired">La solicitud de desactivación de contenido protegido expiró</string>
+    <string name="service_message_members_added">%2$d agregó %2$d nuevos miembros</string>
+    <string name="service_message_member_added_named">%2$s agregó %2$s</string>
+    <string name="service_message_members_added_two_named">%3$s agregó %3$s y %3$s</string>
+    <string name="service_message_members_added_many_named">%4$d agregó %4$d, %4$d y %4$d más</string>
+    <string name="service_message_member_joined">%1$s se unió al chat</string>
+    <string name="service_message_joined_by_link">%1$s se unió mediante un enlace de invitación</string>
+    <string name="service_message_joined_by_request">%1$s se unió por solicitud</string>
+    <string name="service_message_member_removed">%1$s eliminó a un miembro</string>
+    <string name="service_message_member_removed_named">%2$s eliminado %2$s</string>
+    <string name="service_message_member_left_named">%1$s abandonó el chat</string>
+    <string name="service_message_chat_upgraded">%1$s actualizó el grupo a supergrupo</string>
+    <string name="service_message_group_migrated">El grupo fue migrado</string>
+    <string name="service_message_pinned">%1$s fijó un mensaje</string>
+    <string name="service_message_pinned_with_preview">%2$s fijado: %2$s</string>
+    <string name="service_message_screenshot_taken">%1$s tomó una captura de pantalla</string>
+    <string name="service_message_background_changed">El fondo del chat cambió</string>
+    <string name="service_message_background_changed_for_self">El fondo del chat cambió para ti</string>
+    <string name="service_message_theme_changed">El tema del chat cambió</string>
+    <string name="service_message_theme_changed_to">El tema del chat cambió a %1$s</string>
+    <string name="service_message_theme_changed_gift">El tema del chat cambió (tema de regalo)</string>
+    <string name="service_message_theme_reset">Restablecer tema de chat</string>
+    <string name="service_message_auto_delete_enabled">Eliminación automática establecida en %1$s</string>
+    <string name="service_message_auto_delete_disabled">Eliminación automática deshabilitada</string>
+    <string name="service_message_auto_delete_changed_by">%2$s por %2$s</string>
+    <string name="service_message_chat_boost">Chat impulsado ×%1$d</string>
+    <string name="service_message_topic_created">%2$s creó el tema "%2$s"</string>
+    <string name="service_message_topic_edited">%1$s editó el tema</string>
+    <string name="service_message_topic_edited_name">%2$s cambió el nombre del tema a "%2$s"</string>
+    <string name="service_message_topic_edited_icon">%1$s cambió el ícono del tema</string>
+    <string name="service_message_topic_edited_icon_removed">%1$s eliminó el ícono del tema</string>
+    <string name="service_message_topic_edited_name_and_icon">%2$s cambió el nombre del tema a "%2$s" y actualizó el ícono</string>
+    <string name="service_message_topic_closed">%1$s cerró el tema</string>
+    <string name="service_message_topic_reopened">%1$s reabrió el tema</string>
+    <string name="service_message_topic_hidden">%1$s ocultó el tema</string>
+    <string name="service_message_topic_visible">%1$s hizo visible el tema</string>
+    <string name="service_message_profile_photo_suggested">%1$s sugirió una foto de perfil</string>
+    <string name="service_message_birthdate_suggested">%1$s sugirió una fecha de nacimiento</string>
+    <string name="service_message_game_score">Puntuación del juego: %1$d</string>
+    <string name="service_message_managed_bot_created">Bot administrado creado</string>
+    <string name="service_message_payment_sent">Pago enviado: %1$s</string>
+    <string name="service_message_payment_sent_with_invoice">Pago enviado para "%2$s": %2$s</string>
+    <string name="service_message_payment_sent_recurring">Pago recurrente enviado: %1$s</string>
+    <string name="service_message_payment_sent_first_recurring">Primer pago recurrente enviado: %1$s</string>
+    <string name="service_message_payment_received">Pago recibido: %1$s</string>
+    <string name="service_message_payment_received_recurring">Pago recurrente recibido: %1$s</string>
+    <string name="service_message_payment_refunded">Pago reembolsado: %1$s</string>
+    <string name="service_message_payment_refunded_for">Pago reembolsado por %2$s: %2$s</string>
+    <string name="service_message_premium_gifted">Telegram Premium para superdotados para %1$s</string>
+    <string name="service_message_premium_gifted_to">Telegram Premium para regalar a %2$s para %2$s</string>
+    <string name="service_message_premium_gifted_from_to">%3$s regaló Telegram Premium a %3$s por %3$s</string>
+    <string name="service_message_premium_gift_code_created">Código de regalo de Telegram Premium creado</string>
+    <string name="service_message_premium_gift_code_created_by">%2$s creó un código de regalo Premium (%2$s)</string>
+    <string name="service_message_premium_gift_code_from_giveaway">Código de obsequio premium creado (%1$s)</string>
+    <string name="service_message_premium_gift_code_unclaimed">Código de obsequio Premium no reclamado (%1$s)</string>
+    <string name="service_message_giveaway_created">Sorteo creado</string>
+    <string name="service_message_stars_giveaway_created">Sorteo de estrellas creado</string>
+    <string name="service_message_giveaway">Donar</string>
+    <string name="service_message_giveaway_with_prize">Sorteo: %2$s ganadores, premio %2$s</string>
+    <string name="service_message_giveaway_completed">Sorteo completado con %1$d ganadores</string>
+    <string name="service_message_giveaway_completed_stars">Sorteo de estrellas completado con %1$d ganadores</string>
+    <string name="service_message_giveaway_completed_with_unclaimed">Sorteo completado: %2$d ganadores, %2$d premios no reclamados</string>
+    <string name="service_message_giveaway_winners">Se anunciaron los ganadores del sorteo: %1$d</string>
+    <string name="service_message_giveaway_winners_in_chat">Se anunciaron los ganadores del sorteo: %2$s en %2$s</string>
+    <string name="service_message_giveaway_winners_refunded">Sorteo cancelado y reembolsado (ganadores %1$d)</string>
+    <string name="service_message_stars_gifted">Estrellas de Telegram %1$d dotadas</string>
+    <string name="service_message_stars_gifted_to">Regaló %1$s estrellas de Telegram a %1$s</string>
+    <string name="service_message_stars_gifted_from_to">%2$s regaló %2$s estrellas de Telegram a %2$s</string>
+    <string name="service_message_ton_gifted">TONELADA dotada</string>
+    <string name="service_message_ton_gifted_amount">Dotado %1$s</string>
+    <string name="service_message_ton_gifted_to">Dotado de %1$s a %1$s</string>
+    <string name="service_message_ton_gifted_from_to">%2$s regaló %2$s a %2$s</string>
+    <string name="service_message_giveaway_prize_stars">Recibiste %1$d estrellas del sorteo.</string>
+    <string name="service_message_giveaway_prize_stars_in_chat">Recibiste %2$s estrellas del sorteo en %2$s</string>
+    <string name="service_message_giveaway_prize_stars_unclaimed_in_chat">Recibiste %2$s estrellas no reclamadas del sorteo en %2$s</string>
+    <string name="service_message_gift_received">Regalo recibido</string>
+    <string name="service_message_gift_private">Regalo privado recibido</string>
+    <string name="service_message_gift_from_auction">Regalo ganado en subasta</string>
+    <string name="service_message_gift_upgraded">Regalo actualizado</string>
+    <string name="service_message_gift_upgraded_transferred">Regalo mejorado transferido</string>
+    <string name="service_message_gift_refunded">Regalo reembolsado</string>
+    <string name="service_message_gift_purchase_offer">Oferta de compra de regalo recibida</string>
+    <string name="service_message_gift_purchase_offer_with_price">Oferta de compra de regalo: %2$s, vence el %2$s</string>
+    <string name="service_message_gift_purchase_offer_rejected">Oferta de compra de regalo rechazada</string>
+    <string name="service_message_gift_purchase_offer_rejected_with_price">Oferta de compra de regalo rechazada (%1$s)</string>
+    <string name="service_message_gift_purchase_offer_expired">La oferta de compra de regalo expiró</string>
+    <string name="service_message_gift_purchase_offer_expired_with_price">La oferta de compra de regalo expiró (%1$s)</string>
+    <string name="service_message_paid_messages_refunded">Reembolsos de %2$d mensajes pagos y %2$d estrellas</string>
+    <string name="service_message_paid_message_price_changed">El precio del mensaje pago cambió a %1$d Estrellas</string>
+    <string name="service_message_direct_message_price_changed">El precio de los mensajes directos cambió a %1$d Estrellas</string>
+    <string name="service_message_direct_messages_disabled">Mensajes directos deshabilitados</string>
+    <string name="service_message_checklist_tasks_updated">Lista de verificación actualizada: %2$d hecha, %2$d deshecha</string>
+    <string name="service_message_checklist_tasks_added">Se agregaron %1$d tareas a la lista de verificación</string>
+    <string name="service_message_suggested_post_approval_failed">Error en la aprobación de la publicación sugerida</string>
+    <string name="service_message_suggested_post_approval_failed_with_price">La aprobación de la publicación sugerida falló: requerida %1$s</string>
+    <string name="service_message_suggested_post_approved">Publicación sugerida aprobada para %1$s</string>
+    <string name="service_message_suggested_post_approved_with_price">Publicación sugerida aprobada para %2$s (%2$s)</string>
+    <string name="service_message_suggested_post_declined">Publicación sugerida rechazada</string>
+    <string name="service_message_suggested_post_declined_with_comment">Publicación sugerida rechazada: %1$s</string>
+    <string name="service_message_suggested_post_paid">Publicación sugerida pagada</string>
+    <string name="service_message_suggested_post_paid_stars">Publicación sugerida pagada: %1$d Estrellas</string>
+    <string name="service_message_suggested_post_paid_ton">Publicación sugerida pagada: %1$s</string>
+    <string name="service_message_suggested_post_refunded">Publicación sugerida reembolsada</string>
+    <string name="service_message_suggested_post_refunded_with_reason">Publicación sugerida reembolsada: %1$s</string>
+    <string name="service_message_suggested_post_refund_reason_deleted">La publicación se eliminó demasiado pronto.</string>
+    <string name="service_message_suggested_post_refund_reason_payment">Se reembolsó el pago original</string>
+    <string name="service_message_contact_registered">%1$s se unió a Telegram</string>
+    <string name="service_message_users_shared">Usuarios %1$d compartidos con un bot</string>
+    <string name="service_message_users_shared_one_named">Usuario compartido con bot: %1$s</string>
+    <string name="service_message_users_shared_two_named">Usuarios compartidos con bot: %2$s, %2$s</string>
+    <string name="service_message_users_shared_many_named">Usuarios compartidos con bot: %3$d, %3$d y %3$d más</string>
+    <string name="service_message_chat_shared">Compartió un chat con un bot.</string>
+    <string name="service_message_chat_shared_named">Chat compartido con un bot: %1$s</string>
+    <string name="service_message_bot_write_access_allowed">El bot ahora puede enviar mensajes</string>
+    <string name="service_message_bot_write_access_connected_website">El bot puede enviar mensajes (sitio web conectado: %1$s)</string>
+    <string name="service_message_bot_write_access_attachment_menu">El bot puede enviar mensajes (agregado al menú de archivos adjuntos)</string>
+    <string name="service_message_bot_write_access_web_app">El bot puede enviar mensajes (aplicación web lanzada: %1$s)</string>
+    <string name="service_message_bot_write_access_accepted_request">El bot puede enviar mensajes (solicitud aceptada)</string>
+    <string name="service_message_web_app_data_sent">La aplicación web "%1$s" envió datos</string>
+    <string name="service_message_web_app_data_received">La aplicación web "%1$s" devolvió datos</string>
+    <string name="service_message_web_app_data_received_with_size">La aplicación web "%2$d" devolvió %2$d caracteres</string>
+    <string name="service_message_passport_data_sent">Datos del pasaporte enviados</string>
+    <string name="service_message_passport_data_received">Datos del pasaporte recibidos.</string>
+    <string name="service_message_proximity_alert">Alerta de proximidad: %1$d m</string>
+    <string name="service_message_stars_format">%1$d Estrellas</string>
+    <string name="service_message_ton_format">%.2f TONELADAS</string>
+    <string name="service_message_unknown_price">precio desconocido</string>
+    <string name="service_message_giveaway_prize_unknown">premio desconocido</string>
+    <string name="telemt_dns_section_header">Telemetro DNS</string>
+    <string name="telemt_dns_section_subtitle">Configurar el proveedor DNS sobre HTTPS para TDLib</string>
+    <string name="telemt_dns_provider_title">Proveedor de DNS</string>
+    <string name="telemt_dns_provider_subtitle">Seleccione el proveedor de DoH para la resolución de dominio</string>
+    <string name="telemt_dns_provider_google">DNS de Google</string>
+    <string name="telemt_dns_provider_cloudflare">DNS de nube</string>
+    <string name="telemt_dns_provider_custom">DoH personalizado</string>
+    <string name="telemt_dns_custom_url_title">URL DoH personalizada</string>
+    <string name="telemt_dns_custom_url_subtitle">Ingrese la URL personalizada del servidor DNS sobre HTTPS</string>
+    <string name="telemt_dns_custom_headers_title">Encabezados personalizados</string>
+    <string name="telemt_dns_custom_headers_subtitle">Encabezados opcionales para DoH personalizado (por ejemplo, Autorización)</string>
+    <string name="telemt_dns_fallback_google">Alternativa: DNS de Google → DNS de CloudFlare</string>
+    <string name="telemt_dns_fallback_cloudflare">Alternativa: DNS de CloudFlare → DNS de Google</string>
+    <string name="telemt_dns_fallback_custom">DoH personalizado no tiene respaldo</string>
+    <string name="dns_provider_change_failed">No se pudo cambiar el proveedor de DNS</string>
+    <string name="dns_url_change_failed">No se pudo cambiar la URL de DNS</string>
+    <string name="dns_headers_change_failed">No se pudieron cambiar los encabezados DNS</string>
+    <string name="message_expired_photo">Foto caducada</string>
+    <string name="message_expired_video">Vídeo caducado</string>
+    <string name="folders_show_all_chats_title">Mostrar todos los chats</string>
+    <string name="folders_show_all_chats_subtitle">Mantenga la carpeta Todos los chats visible en la barra de pestañas</string>
+    <plurals name="service_message_months">
+        <item quantity="one">%1$d mes</item>
+        <item quantity="other">%1$d meses</item>
+    </plurals>
+    <plurals name="service_message_days">
+        <item quantity="one">%1$d día</item>
+        <item quantity="other">%1$d días</item>
+    </plurals>
+    <plurals name="service_message_hours">
+        <item quantity="one">%1$d hora</item>
+        <item quantity="other">%1$d horas</item>
+    </plurals>
+    <plurals name="service_message_minutes">
+        <item quantity="one">%1$d minuto</item>
+        <item quantity="other">%1$d minutos</item>
+    </plurals>
+    <plurals name="service_message_seconds">
+        <item quantity="one">%1$d segundo</item>
+        <item quantity="other">%1$d segundos</item>
+    </plurals>
 </resources>

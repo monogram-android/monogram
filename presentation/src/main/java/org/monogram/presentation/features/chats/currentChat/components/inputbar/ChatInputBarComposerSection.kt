@@ -3,6 +3,7 @@ package org.monogram.presentation.features.chats.currentChat.components.inputbar
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -17,9 +18,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Schedule
@@ -84,7 +90,6 @@ fun ChatInputBarComposerSection(
     isStickerMenuVisible: Boolean,
     closeStickerMenuWithoutSlide: Boolean,
     isKeyboardVisible: Boolean,
-    bottomInset: Dp,
     stickerMenuHeight: Dp,
     voiceRecorder: VoiceRecorderState,
     isGifSearchFocused: Boolean,
@@ -152,7 +157,12 @@ fun ChatInputBarComposerSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = bottomInset)
+                .imePadding()
+                .windowInsetsPadding(
+                    if (isStickerMenuVisible) WindowInsets(0, 0, 0, 0)
+                    else WindowInsets.navigationBars
+                )
+                .animateContentSize()
         ) {
             InputPreviewSection(
                 editingMessage = editingMessage,

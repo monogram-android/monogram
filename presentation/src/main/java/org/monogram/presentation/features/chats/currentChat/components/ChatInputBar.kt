@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -200,8 +199,6 @@ fun ChatInputBar(
         val fallbackHeightDp = maxOf(configuration.screenHeightDp.dp * 0.42f, 320.dp)
         maxOf(imeHeightDp, fallbackHeightDp)
     }
-    val navigationBottomInsetPx = WindowInsets.navigationBars.getBottom(density)
-    val bottomInset = with(density) { maxOf(imeBottomPx, navigationBottomInsetPx).toDp() }
 
     LaunchedEffect(isKeyboardVisible, openStickerMenuAfterKeyboardClosed) {
         if (!isKeyboardVisible && openStickerMenuAfterKeyboardClosed) {
@@ -678,7 +675,6 @@ fun ChatInputBar(
                         isStickerMenuVisible = isStickerMenuVisible,
                         closeStickerMenuWithoutSlide = closeStickerMenuWithoutSlide,
                         isKeyboardVisible = isKeyboardVisible,
-                        bottomInset = bottomInset,
                         stickerMenuHeight = stickerMenuHeight,
                         voiceRecorder = voiceRecorder,
                         isGifSearchFocused = isGifSearchFocused,

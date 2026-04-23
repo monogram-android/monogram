@@ -5,10 +5,24 @@ import androidx.compose.animation.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -23,13 +37,18 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import kotlinx.coroutines.delay
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.chatContent.shouldShowDate
 import org.monogram.presentation.features.chats.currentChat.components.FastReplyIndicator
-import org.monogram.presentation.features.chats.currentChat.components.chats.*
+import org.monogram.presentation.features.chats.currentChat.components.chats.AudioMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.DocumentMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.chats.MessageViaBotAttribution
+import org.monogram.presentation.features.chats.currentChat.components.chats.ReplyMarkupView
+import org.monogram.presentation.features.chats.currentChat.components.chats.StickerMessageBubble
 import org.monogram.presentation.features.chats.currentChat.components.fastReplyPointer
 
 @Composable
@@ -72,6 +91,7 @@ fun ChannelMessageBubbleContainer(
     onCommentsClick: (Long) -> Unit = {},
     showComments: Boolean = true,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     onViaBotClick: (String) -> Unit = {},
     canReply: Boolean = true,
     onReplySwipe: (MessageModel) -> Unit = {},
@@ -189,6 +209,7 @@ fun ChannelMessageBubbleContainer(
                                 onCommentsClick = onCommentsClick,
                                 showComments = showComments,
                                 toProfile = toProfile,
+                                onForwardOriginClick = onForwardOriginClick,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -220,6 +241,7 @@ fun ChannelMessageBubbleContainer(
                                 onCommentsClick = onCommentsClick,
                                 showComments = showComments,
                                 toProfile = toProfile,
+                                onForwardOriginClick = onForwardOriginClick,
                                 modifier = Modifier.fillMaxWidth(),
                                 downloadUtils = downloadUtils
                             )
@@ -252,6 +274,7 @@ fun ChannelMessageBubbleContainer(
                                 onCommentsClick = onCommentsClick,
                                 showComments = showComments,
                                 toProfile = toProfile,
+                                onForwardOriginClick = onForwardOriginClick,
                                 modifier = Modifier.fillMaxWidth(),
                                 downloadUtils = downloadUtils,
                                 isAnyViewerOpen = isAnyViewerOpen
@@ -281,6 +304,7 @@ fun ChannelMessageBubbleContainer(
                                     )
                                 },
                                 toProfile = toProfile,
+                                onForwardOriginClick = onForwardOriginClick,
                                 modifier = Modifier.fillMaxWidth(),
                                 onReplyClick = onGoToReply,
                                 onReactionClick = { onReactionClick(msg.id, it) },
@@ -311,6 +335,7 @@ fun ChannelMessageBubbleContainer(
                                     )
                                 },
                                 toProfile = toProfile,
+                                onForwardOriginClick = onForwardOriginClick,
                                 modifier = Modifier.fillMaxWidth(),
                                 onReplyClick = onGoToReply,
                                 onReactionClick = { onReactionClick(msg.id, it) },
@@ -345,6 +370,7 @@ fun ChannelMessageBubbleContainer(
                                 onCommentsClick = onCommentsClick,
                                 showComments = showComments,
                                 toProfile = toProfile,
+                                onForwardOriginClick = onForwardOriginClick,
                                 modifier = Modifier.fillMaxWidth(),
                                 downloadUtils = downloadUtils,
                                 isAnyViewerOpen = isAnyViewerOpen
@@ -367,7 +393,8 @@ fun ChannelMessageBubbleContainer(
                                         bubblePosition + (bubbleSize.toSize() / 2f).toOffset()
                                     )
                                 },
-                                toProfile = toProfile
+                                toProfile = toProfile,
+                                onForwardOriginClick = onForwardOriginClick
                             )
                         }
 
@@ -395,7 +422,8 @@ fun ChannelMessageBubbleContainer(
                                 },
                                 onCommentsClick = onCommentsClick,
                                 showComments = showComments,
-                                toProfile = toProfile
+                                toProfile = toProfile,
+                                onForwardOriginClick = onForwardOriginClick
                             )
                         }
 

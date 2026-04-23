@@ -45,6 +45,7 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
@@ -71,6 +72,7 @@ fun VoiceMessageBubble(
     onReactionClick: (String) -> Unit = {},
     isGroup: Boolean = false,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils
 ) {
@@ -143,7 +145,7 @@ fun VoiceMessageBubble(
 
                 msg.forwardInfo?.let { forward ->
                     Box(modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
-                        ForwardContent(forward, isOutgoing, onForwardClick = toProfile)
+                        ForwardContent(forward, isOutgoing, onForwardClick = onForwardOriginClick)
                     }
                 }
                 msg.replyToMsg?.let { reply ->

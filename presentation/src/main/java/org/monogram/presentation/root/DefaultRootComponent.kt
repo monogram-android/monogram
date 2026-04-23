@@ -539,6 +539,7 @@ class DefaultRootComponent(
                 DefaultChatComponent(
                     context = context,
                     chatId = config.chatId,
+                    navigateToChatMessage = ::navigateToChat,
                     onBack = { navigation.pop() },
                     onProfileClick = { navigation.bringToFront(Config.Profile(config.chatId)) },
                     onForward = { fromChatId, messageIds ->

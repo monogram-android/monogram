@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.ui.Avatar
@@ -73,6 +74,7 @@ fun AlbumMessageBubbleContainer(
     onCommentsClick: (Long) -> Unit = {},
     showComments: Boolean = true,
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     onViaBotClick: (String) -> Unit = {},
     canReply: Boolean = false,
     onReplySwipe: (MessageModel) -> Unit = {},
@@ -255,6 +257,7 @@ fun AlbumMessageBubbleContainer(
                             onCommentsClick = onCommentsClick,
                             showComments = showComments,
                             toProfile = toProfile,
+                            onForwardOriginClick = onForwardOriginClick,
                             modifier = Modifier.fillMaxWidth(),
                             fontSize = fontSize,
                             bubbleRadius = bubbleRadius,
@@ -289,6 +292,7 @@ fun AlbumMessageBubbleContainer(
                             onReplyClick = onGoToReply,
                             onReactionClick = { onReactionClick(lastMsg.id, it) },
                             toProfile = toProfile,
+                            onForwardOriginClick = onForwardOriginClick,
                             modifier = Modifier,
                             fontSize = fontSize,
                             downloadUtils = downloadUtils,

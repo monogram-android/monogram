@@ -52,8 +52,19 @@ data class ForwardInfo(
     val fromId: Long,
     val fromName: String,
     val originChatId: Long? = null,
-    val originMessageId: Long? = null
+    val originMessageId: Long? = null,
+    val originType: ForwardOriginType = ForwardOriginType.UNKNOWN,
+    val avatarPath: String? = null,
+    val personalAvatarPath: String? = null
 )
+
+enum class ForwardOriginType {
+    USER,
+    CHAT,
+    CHANNEL,
+    HIDDEN_USER,
+    UNKNOWN
+}
 
 sealed interface MessageSendingState {
     object Pending : MessageSendingState
@@ -68,7 +79,10 @@ sealed interface MessageContent {
     ) : MessageContent
 
     data class Service(
-        val text: String
+        val text: String,
+        val kind: ServiceKind = ServiceKind.SYSTEM,
+        val subtitle: String? = null,
+        val emphasis: ServiceEmphasis = ServiceEmphasis.NEUTRAL
     ) : MessageContent
 
     data class Photo(
@@ -400,6 +414,24 @@ sealed interface MessageContent {
     ) : MessageContent
 
     object Unsupported : MessageContent
+}
+
+enum class ServiceKind {
+    SYSTEM,
+    MEMBERSHIP,
+    CALL,
+    PAYMENT,
+    FORUM,
+    SECURITY,
+    GIFT,
+    BOT
+}
+
+enum class ServiceEmphasis {
+    NEUTRAL,
+    SUCCESS,
+    WARNING,
+    ERROR
 }
 
 data class WebPage(

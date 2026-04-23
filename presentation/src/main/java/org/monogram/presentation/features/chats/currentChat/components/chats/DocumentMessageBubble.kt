@@ -45,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
@@ -74,6 +75,7 @@ fun DocumentMessageBubble(
     onClick: (Offset) -> Unit = {},
     isGroup: Boolean = false,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils
 ) {
@@ -157,7 +159,7 @@ fun DocumentMessageBubble(
 
                 msg.forwardInfo?.let { forward ->
                     Box(modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
-                        ForwardContent(forward, isOutgoing, onForwardClick = toProfile)
+                        ForwardContent(forward, isOutgoing, onForwardClick = onForwardOriginClick)
                     }
                 }
                 msg.replyToMsg?.let { reply ->
@@ -337,6 +339,7 @@ fun DocumentAlbumBubble(
     onReactionClick: (String) -> Unit,
     isGroup: Boolean = false,
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit,
     modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils
 ) {
@@ -387,7 +390,7 @@ fun DocumentAlbumBubble(
 
                 lastMsg.forwardInfo?.let { forward ->
                     Box(modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
-                        ForwardContent(forward, isOutgoing, onForwardClick = toProfile)
+                        ForwardContent(forward, isOutgoing, onForwardClick = onForwardOriginClick)
                     }
                 }
 
@@ -491,6 +494,7 @@ fun ChannelDocumentAlbumBubble(
     onCommentsClick: (Long) -> Unit,
     showComments: Boolean,
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit,
     modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils
 ) {
@@ -533,7 +537,7 @@ fun ChannelDocumentAlbumBubble(
             ) {
                 lastMsg.forwardInfo?.let { forward ->
                     Box(modifier = Modifier.padding(bottom = 8.dp)) {
-                        ForwardContent(forward, false, onForwardClick = toProfile)
+                        ForwardContent(forward, false, onForwardClick = onForwardOriginClick)
                     }
                 }
                 lastMsg.replyToMsg?.let { reply ->

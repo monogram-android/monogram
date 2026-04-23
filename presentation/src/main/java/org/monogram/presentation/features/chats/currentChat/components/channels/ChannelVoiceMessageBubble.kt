@@ -7,17 +7,27 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.dp
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
-import org.monogram.presentation.features.chats.currentChat.components.chats.*
+import org.monogram.presentation.features.chats.currentChat.components.chats.ForwardContent
+import org.monogram.presentation.features.chats.currentChat.components.chats.MessageMetadata
+import org.monogram.presentation.features.chats.currentChat.components.chats.MessageReactionsView
+import org.monogram.presentation.features.chats.currentChat.components.chats.ReplyContent
+import org.monogram.presentation.features.chats.currentChat.components.chats.VoiceRow
 
 @Composable
 fun ChannelVoiceMessageBubble(
@@ -40,6 +50,7 @@ fun ChannelVoiceMessageBubble(
     onCommentsClick: (Long) -> Unit = {},
     showComments: Boolean = true,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils
 ) {
@@ -102,7 +113,7 @@ fun ChannelVoiceMessageBubble(
             ) {
                 msg.forwardInfo?.let { forward ->
                     Box(modifier = Modifier.padding(bottom = 8.dp)) {
-                        ForwardContent(forward, false, onForwardClick = toProfile)
+                        ForwardContent(forward, false, onForwardClick = onForwardOriginClick)
                     }
                 }
                 msg.replyToMsg?.let { reply ->

@@ -5,6 +5,7 @@ import org.monogram.data.chats.ChatCache
 import org.monogram.data.mapper.SenderNameResolver
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.domain.models.ForwardInfo
+import org.monogram.domain.models.ForwardOriginType
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
@@ -305,12 +306,47 @@ internal class MessagePersistenceMapper(
         val forwardInfo = entity.forwardFromName
             ?.takeIf { it.isNotBlank() }
             ?.let { fromName ->
+                val cachedForwardUser = entity.forwardFromId.takeIf { it > 0L }?.let(cache::getUser)
+                val cachedForwardChat =
+                    if (cachedForwardUser == null && entity.forwardFromId > 0L) {
+                        cache.getChat(entity.forwardFromId)
+                    } else {
+                        null
+                    }
+                val originType = when {
+                    entity.forwardOriginChatId != null && entity.forwardOriginMessageId != null ->
+                        ForwardOriginType.CHANNEL
+
+                    cachedForwardUser != null -> ForwardOriginType.USER
+                    cachedForwardChat != null -> ForwardOriginType.CHAT
+                    entity.forwardFromId == 0L -> ForwardOriginType.HIDDEN_USER
+                    else -> ForwardOriginType.UNKNOWN
+                }
                 ForwardInfo(
                     date = entity.forwardDate.takeIf { it > 0 } ?: entity.date,
                     fromId = entity.forwardFromId,
                     fromName = fromName,
                     originChatId = entity.forwardOriginChatId,
-                    originMessageId = entity.forwardOriginMessageId
+                    originMessageId = entity.forwardOriginMessageId,
+                    originType = originType,
+                    avatarPath = when {
+                        cachedForwardUser != null -> fileHelper.resolveLocalFilePath(
+                            cachedForwardUser.profilePhoto?.small
+                        )
+
+                        cachedForwardChat != null -> fileHelper.resolveLocalFilePath(
+                            cachedForwardChat.photo?.small
+                        )
+
+                        else -> null
+                    },
+                    personalAvatarPath = cachedForwardUser
+                        ?.let { cache.getUserFullInfo(it.id) }
+                        ?.personalPhoto
+                        ?.sizes
+                        ?.firstOrNull()
+                        ?.photo
+                        ?.let(fileHelper::resolveLocalFilePath)
                 )
             }
 

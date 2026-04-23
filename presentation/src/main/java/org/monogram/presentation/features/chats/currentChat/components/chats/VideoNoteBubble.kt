@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.rememberAsyncImagePainter
 import org.koin.compose.koinInject
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
@@ -75,6 +76,7 @@ fun VideoNoteBubble(
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val size = 260.dp
@@ -99,7 +101,11 @@ fun VideoNoteBubble(
                     .widthIn(max = 200.dp)
             ) {
                 Box(modifier = Modifier.padding(8.dp)) {
-                    ForwardContent(forward, isOutgoing = false, onForwardClick = toProfile)
+                    ForwardContent(
+                        forward,
+                        isOutgoing = false,
+                        onForwardClick = onForwardOriginClick
+                    )
                 }
             }
         }

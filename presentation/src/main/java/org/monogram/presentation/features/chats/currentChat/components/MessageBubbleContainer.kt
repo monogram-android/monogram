@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import kotlinx.coroutines.delay
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -102,6 +103,7 @@ fun MessageBubbleContainer(
     shouldReportPosition: Boolean = false,
     onPositionChange: (Long, Offset, IntSize) -> Unit = { _, _, _ -> },
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     onViaBotClick: (String) -> Unit = {},
     canReply: Boolean = true,
     onReplySwipe: (MessageModel) -> Unit = {},
@@ -274,6 +276,7 @@ fun MessageBubbleContainer(
                         onInstantViewClick = onInstantViewClick,
                         onYouTubeClick = onYouTubeClick,
                         toProfile = toProfile,
+                        onForwardOriginClick = onForwardOriginClick,
                         bubblePosition = bubblePosition,
                         bubbleSize = bubbleSize,
                         downloadUtils = downloadUtils,
@@ -364,6 +367,7 @@ private fun MessageContentSelector(
     onInstantViewClick: ((String) -> Unit)?,
     onYouTubeClick: ((String) -> Unit)?,
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit,
     bubblePosition: Offset,
     bubbleSize: IntSize,
     downloadUtils: IDownloadUtils,
@@ -396,7 +400,8 @@ private fun MessageContentSelector(
                     onLongClick = { offset ->
                         onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
                     },
-                    toProfile = toProfile
+                    toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick
                 )
             }
 
@@ -445,6 +450,7 @@ private fun MessageContentSelector(
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick,
                     modifier = Modifier.fillMaxWidth(),
                     downloadUtils = downloadUtils
                 )
@@ -475,6 +481,7 @@ private fun MessageContentSelector(
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick,
                     modifier = Modifier.fillMaxWidth(),
                     downloadUtils = downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen
@@ -526,6 +533,7 @@ private fun MessageContentSelector(
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick,
                     downloadUtils = downloadUtils
                 )
             }
@@ -555,6 +563,7 @@ private fun MessageContentSelector(
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick,
                     downloadUtils = downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen
                 )
@@ -585,6 +594,7 @@ private fun MessageContentSelector(
                     },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
+                    onForwardOriginClick = onForwardOriginClick,
                     downloadUtils = downloadUtils
                 )
             }
@@ -640,6 +650,7 @@ private fun MessageContentSelector(
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick,
                     showReactions = msg.reactions.isNotEmpty()
                 )
             }
@@ -667,7 +678,8 @@ private fun MessageContentSelector(
                     onReactionClick = { onReactionClick(msg.id, it) },
                     onShowVoters = { onShowVoters(msg.id, it) },
                     onClosePoll = { onClosePoll(msg.id) },
-                    toProfile = toProfile
+                    toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick
                 )
             }
 
@@ -692,7 +704,8 @@ private fun MessageContentSelector(
                     },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
-                    toProfile = toProfile
+                    toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick
                 )
             }
 
@@ -717,7 +730,8 @@ private fun MessageContentSelector(
                     },
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
-                    toProfile = toProfile
+                    toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick
                 )
             }
 

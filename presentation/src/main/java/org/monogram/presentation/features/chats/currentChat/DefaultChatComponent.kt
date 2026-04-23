@@ -26,6 +26,8 @@ import org.monogram.domain.managers.DistrManager
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.ChatViewportCacheEntry
+import org.monogram.domain.models.ForwardInfo
+import org.monogram.domain.models.ForwardOriginType
 import org.monogram.domain.models.GifModel
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.KeyboardButtonModel
@@ -75,6 +77,7 @@ class DefaultChatComponent(
     context: AppComponentContext,
     val chatId: Long,
     private val toProfiles: (Long) -> Unit,
+    private val navigateToChatMessage: (Long, Long?) -> Unit,
     private val onBack: () -> Unit,
     private val onProfileClick: () -> Unit,
     private val onForward: (Long, List<Long>) -> Unit,
@@ -501,6 +504,25 @@ class DefaultChatComponent(
     }
 
     override fun toProfile(id: Long) = toProfiles(id)
+    override fun onForwardOriginClick(forwardInfo: ForwardInfo) {
+        when (forwardInfo.originType) {
+            ForwardOriginType.USER -> {
+                if (forwardInfo.fromId != 0L) {
+                    toProfiles(forwardInfo.fromId)
+                }
+            }
+
+            ForwardOriginType.CHANNEL -> {
+                val originChatId = forwardInfo.originChatId
+                val originMessageId = forwardInfo.originMessageId
+                if (originChatId != null && originMessageId != null) {
+                    navigateToChatMessage(originChatId, originMessageId)
+                }
+            }
+
+            else -> Unit
+        }
+    }
     override fun onToggleMessageSelection(messageId: Long) =
         store.accept(ChatStore.Intent.ToggleMessageSelection(messageId))
 

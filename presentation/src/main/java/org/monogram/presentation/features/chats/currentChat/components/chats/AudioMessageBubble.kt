@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
@@ -70,6 +71,7 @@ fun AudioMessageBubble(
     onClick: (Offset) -> Unit = {},
     isGroup: Boolean = false,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils
 ) {
@@ -143,7 +145,7 @@ fun AudioMessageBubble(
 
                 msg.forwardInfo?.let { forward ->
                     Box(modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
-                        ForwardContent(forward, isOutgoing, onForwardClick = toProfile)
+                        ForwardContent(forward, isOutgoing, onForwardClick = onForwardOriginClick)
                     }
                 }
                 msg.replyToMsg?.let { reply ->
@@ -315,6 +317,7 @@ fun AudioAlbumBubble(
     onReactionClick: (String) -> Unit,
     isGroup: Boolean = false,
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit,
     modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils
 ) {
@@ -365,7 +368,7 @@ fun AudioAlbumBubble(
 
                 lastMsg.forwardInfo?.let { forward ->
                     Box(modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
-                        ForwardContent(forward, isOutgoing, onForwardClick = toProfile)
+                        ForwardContent(forward, isOutgoing, onForwardClick = onForwardOriginClick)
                     }
                 }
 
@@ -468,6 +471,7 @@ fun ChannelAudioAlbumBubble(
     onCommentsClick: (Long) -> Unit,
     showComments: Boolean,
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit,
     modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils
 ) {
@@ -510,7 +514,7 @@ fun ChannelAudioAlbumBubble(
             ) {
                 lastMsg.forwardInfo?.let { forward ->
                     Box(modifier = Modifier.padding(bottom = 8.dp)) {
-                        ForwardContent(forward, false, onForwardClick = toProfile)
+                        ForwardContent(forward, false, onForwardClick = onForwardOriginClick)
                     }
                 }
                 lastMsg.replyToMsg?.let { reply ->

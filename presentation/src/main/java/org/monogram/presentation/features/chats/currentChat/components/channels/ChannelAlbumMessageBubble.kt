@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
@@ -84,6 +85,7 @@ fun ChannelAlbumMessageBubble(
     onCommentsClick: (Long) -> Unit = {},
     showComments: Boolean = true,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     isAnyViewerOpen: Boolean = false
 ) {
     if (messages.isEmpty()) return
@@ -112,6 +114,7 @@ fun ChannelAlbumMessageBubble(
             onCommentsClick = onCommentsClick,
             showComments = showComments,
             toProfile = toProfile,
+            onForwardOriginClick = onForwardOriginClick,
             modifier = modifier,
             downloadUtils = downloadUtils
         )
@@ -137,6 +140,7 @@ fun ChannelAlbumMessageBubble(
             onCommentsClick = onCommentsClick,
             showComments = showComments,
             toProfile = toProfile,
+            onForwardOriginClick = onForwardOriginClick,
             modifier = modifier
         )
         return
@@ -204,7 +208,7 @@ fun ChannelAlbumMessageBubble(
             Column {
                 lastMsg.forwardInfo?.let { forward ->
                     Box(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp)) {
-                        ForwardContent(forward, false, onForwardClick = toProfile)
+                        ForwardContent(forward, false, onForwardClick = onForwardOriginClick)
                     }
                 }
                 lastMsg.replyToMsg?.let { reply ->
@@ -332,6 +336,7 @@ fun ChannelDocumentAlbumBubble(
     onCommentsClick: (Long) -> Unit,
     showComments: Boolean,
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit,
     modifier: Modifier = Modifier,
     downloadUtils: IDownloadUtils
 ) {
@@ -374,7 +379,7 @@ fun ChannelDocumentAlbumBubble(
             ) {
                 lastMsg.forwardInfo?.let { forward ->
                     Box(modifier = Modifier.padding(bottom = 8.dp)) {
-                        ForwardContent(forward, false, onForwardClick = toProfile)
+                        ForwardContent(forward, false, onForwardClick = onForwardOriginClick)
                     }
                 }
                 lastMsg.replyToMsg?.let { reply ->
@@ -535,6 +540,7 @@ fun ChannelAudioAlbumBubble(
     onCommentsClick: (Long) -> Unit,
     showComments: Boolean,
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val firstMsg = messages.first()
@@ -576,7 +582,7 @@ fun ChannelAudioAlbumBubble(
             ) {
                 lastMsg.forwardInfo?.let { forward ->
                     Box(modifier = Modifier.padding(bottom = 8.dp)) {
-                        ForwardContent(forward, false, onForwardClick = toProfile)
+                        ForwardContent(forward, false, onForwardClick = onForwardOriginClick)
                     }
                 }
                 lastMsg.replyToMsg?.let { reply ->

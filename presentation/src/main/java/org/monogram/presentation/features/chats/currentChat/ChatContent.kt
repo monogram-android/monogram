@@ -100,6 +100,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.monogram.domain.models.ChatViewportCacheEntry
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.ReplyMarkupModel
@@ -1421,6 +1422,13 @@ fun ChatContent(
                                 }
                             }
 
+                            val onForwardOriginClickStable: (ForwardInfo) -> Unit =
+                                remember(component) {
+                                    { forwardInfo ->
+                                        component.onForwardOriginClick(forwardInfo)
+                                    }
+                                }
+
                             ChatContentList(
                                 showNavPadding = false,
                                 topOverlayPadding = if (
@@ -1446,6 +1454,7 @@ fun ChatContent(
                                 onMessagePositionChange = onMessagePositionChangeStable,
                                 onViaBotClick = onViaBotClickStable,
                                 toProfile = toProfileStable,
+                                onForwardOriginClick = onForwardOriginClickStable,
                                 downloadUtils = component.downloadUtils,
                                 isAnyViewerOpen = isAnyViewerOpen,
                                 bottomContentPadding = if (state.rootMessage != null && (showInputBar || showJoinButton)) 120.dp else 8.dp

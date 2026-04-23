@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.ui.Avatar
@@ -56,6 +57,7 @@ fun ContactMessageBubble(
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     showReactions: Boolean = true
 ) {
     val formattedPhone = remember(content.phoneNumber) {
@@ -114,7 +116,7 @@ fun ContactMessageBubble(
                 }
 
                 msg.forwardInfo?.let { forward ->
-                    ForwardContent(forward, isOutgoing, onForwardClick = toProfile)
+                    ForwardContent(forward, isOutgoing, onForwardClick = onForwardOriginClick)
                 }
                 msg.replyToMsg?.let { reply ->
                     ReplyContent(

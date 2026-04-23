@@ -14,6 +14,7 @@ import org.monogram.data.mapper.message.MessageContentMapper
 import org.monogram.data.mapper.message.MessagePersistenceMapper
 import org.monogram.data.mapper.message.MessageSenderResolver
 import org.monogram.domain.models.ForwardInfo
+import org.monogram.domain.models.ForwardOriginType
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageReactionModel
@@ -167,6 +168,7 @@ class MessageMapper internal constructor(
             context = ContentMappingContext(
                 chatId = msg.chatId,
                 messageId = msg.id,
+                senderId = senderId,
                 senderName = senderName,
                 networkAutoDownload = networkAutoDownload,
                 isActuallyUploading = isActuallyUploading
@@ -274,9 +276,13 @@ class MessageMapper internal constructor(
         var originPeerId = 0L
         var originChatId: Long? = null
         var originMessageId: Long? = null
+        var originType = ForwardOriginType.UNKNOWN
+        var avatarPath: String? = null
+        var personalAvatarPath: String? = null
 
         when (origin) {
             is TdApi.MessageOriginUser -> {
+                originType = ForwardOriginType.USER
                 originPeerId = origin.senderUserId
                 val user = try {
                     withTimeout(500) { userRepository.getUser(originPeerId) }
@@ -285,6 +291,8 @@ class MessageMapper internal constructor(
                 }
 
                 if (user != null) {
+                    avatarPath = user.avatarPath
+                    personalAvatarPath = user.personalAvatarPath
                     val username = user.username?.takeIf { it.isNotBlank() }
                     val baseName = SenderNameResolver.fromPartsOrBlank(user.firstName, user.lastName)
                     originName = if (baseName.isNotBlank()) {
@@ -296,6 +304,7 @@ class MessageMapper internal constructor(
             }
 
             is TdApi.MessageOriginChat -> {
+                originType = ForwardOriginType.CHAT
                 originPeerId = origin.senderChatId
                 val chat = try {
                     withTimeout(500) {
@@ -306,11 +315,13 @@ class MessageMapper internal constructor(
                     null
                 }
                 if (chat != null) {
+                    avatarPath = chat.photo?.small?.local?.path.takeIf(fileHelper::isValidPath)
                     originName = chat.title
                 }
             }
 
             is TdApi.MessageOriginChannel -> {
+                originType = ForwardOriginType.CHANNEL
                 originPeerId = origin.chatId
                 originChatId = origin.chatId
                 originMessageId = origin.messageId
@@ -323,11 +334,13 @@ class MessageMapper internal constructor(
                     null
                 }
                 if (chat != null) {
+                    avatarPath = chat.photo?.small?.local?.path.takeIf(fileHelper::isValidPath)
                     originName = chat.title
                 }
             }
 
             is TdApi.MessageOriginHiddenUser -> {
+                originType = ForwardOriginType.HIDDEN_USER
                 originName = origin.senderName
             }
 
@@ -339,7 +352,10 @@ class MessageMapper internal constructor(
             fromId = originPeerId,
             fromName = originName,
             originChatId = originChatId,
-            originMessageId = originMessageId
+            originMessageId = originMessageId,
+            originType = originType,
+            avatarPath = avatarPath,
+            personalAvatarPath = personalAvatarPath
         )
     }
 

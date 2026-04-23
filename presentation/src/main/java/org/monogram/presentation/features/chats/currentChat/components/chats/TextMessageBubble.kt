@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
@@ -51,6 +52,7 @@ fun TextMessageBubble(
     onLongClick: (Offset) -> Unit = {},
     showReactions: Boolean = true,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val cornerRadius = bubbleRadius.dp
@@ -102,7 +104,7 @@ fun TextMessageBubble(
                 }
 
                 msg.forwardInfo?.let { forward ->
-                    ForwardContent(forward, isOutgoing, onForwardClick = toProfile)
+                    ForwardContent(forward, isOutgoing, onForwardClick = onForwardOriginClick)
                 }
                 msg.replyToMsg?.let { reply ->
                     ReplyContent(

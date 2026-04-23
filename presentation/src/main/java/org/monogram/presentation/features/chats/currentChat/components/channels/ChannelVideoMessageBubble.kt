@@ -52,6 +52,7 @@ import androidx.compose.ui.zIndex
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
@@ -94,6 +95,7 @@ fun ChannelVideoMessageBubble(
     showMetadata: Boolean = true,
     showReactions: Boolean = true,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
@@ -182,7 +184,13 @@ fun ChannelVideoMessageBubble(
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                             .zIndex(1f)
                     ) {
-                        msg.forwardInfo?.let { ForwardContent(it, false, onForwardClick = toProfile) }
+                        msg.forwardInfo?.let {
+                            ForwardContent(
+                                it,
+                                false,
+                                onForwardClick = onForwardOriginClick
+                            )
+                        }
                         msg.replyToMsg?.let { ReplyContent(it, false, onClick = { onReplyClick(it) }) }
                     }
                 }

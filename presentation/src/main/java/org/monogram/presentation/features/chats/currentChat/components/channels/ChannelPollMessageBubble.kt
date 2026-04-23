@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.features.chats.currentChat.components.chats.PollMessageBubble
@@ -29,6 +30,7 @@ fun ChannelPollMessageBubble(
     onCommentsClick: (Long) -> Unit = {},
     showComments: Boolean = true,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -53,6 +55,7 @@ fun ChannelPollMessageBubble(
             onLongClick = onLongClick,
             hasCommentsButton = showComments && msg.canGetMessageThread,
             toProfile = toProfile,
+            onForwardOriginClick = onForwardOriginClick,
             modifier = Modifier.fillMaxWidth()
         )
 

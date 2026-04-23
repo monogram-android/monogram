@@ -77,6 +77,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.TopicModel
@@ -164,6 +165,7 @@ fun ChatContentList(
     onMessagePositionChange: (Offset, IntSize) -> Unit = { _, _ -> },
     onViaBotClick: (String) -> Unit = {},
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit,
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false,
     bottomContentPadding: Dp = 8.dp
@@ -389,6 +391,7 @@ fun ChatContentList(
                     onGoToReply,
                     onViaBotClick,
                     toProfile,
+                    onForwardOriginClick,
                     downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen
                 )
@@ -431,6 +434,7 @@ fun ChatContentList(
                     onMessagePositionChange = onMessagePositionChange,
                     onViaBotClick = onViaBotClick,
                     toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick,
                     isScrolling = isScrolling,
                     isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
                     onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
@@ -489,6 +493,7 @@ fun ChatContentList(
                     onMessagePositionChange = onMessagePositionChange,
                     onViaBotClick = onViaBotClick,
                     toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick,
                     isScrolling = isScrolling,
                     isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
                     onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
@@ -572,6 +577,7 @@ private fun MessageRowItem(
     onMessagePositionChange: (Offset, IntSize) -> Unit,
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit,
     isScrolling: Boolean,
     isEntryAnimationPending: Boolean,
     onEntryAnimationConsumed: (Long) -> Unit,
@@ -688,6 +694,7 @@ private fun MessageRowItem(
                     onMessagePositionChange = onMessagePositionChange,
                     onViaBotClick = onViaBotClick,
                     toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick,
                     downloadUtils = downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen
                 )
@@ -715,6 +722,7 @@ private fun MessageBubbleSwitcher(
     onMessagePositionChange: (Offset, IntSize) -> Unit,
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit,
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
@@ -825,6 +833,7 @@ private fun MessageBubbleSwitcher(
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     onCommentsClick = { component.onCommentsClick(it) },
                     toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick,
                     onViaBotClick = onViaBotClick,
                     canReply = state.canWrite && !isSelectionMode && state.canSendAnything,
                     onReplySwipe = { component.onReplyMessage(it) },
@@ -930,6 +939,7 @@ private fun MessageBubbleSwitcher(
                     shouldReportPosition = sanitizedItem.message.id == selectedMessageId,
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick,
                     onViaBotClick = onViaBotClick,
                     canReply = state.canWrite && !isSelectionMode && (!isTopicClosed || state.isAdmin) && state.canSendAnything,
                     onReplySwipe = { component.onReplyMessage(it) },
@@ -998,6 +1008,7 @@ private fun MessageBubbleSwitcher(
                 onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                 onCommentsClick = { component.onCommentsClick(it) },
                 toProfile = toProfile,
+                onForwardOriginClick = onForwardOriginClick,
                 onViaBotClick = onViaBotClick,
                 canReply = state.canWrite && !isSelectionMode && (!isTopicClosed || state.isAdmin) && state.canSendAnything,
                 onReplySwipe = { component.onReplyMessage(it) },
@@ -1045,6 +1056,7 @@ private fun RootMessageSection(
     onGoToReply: (MessageModel) -> Unit,
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit,
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
@@ -1080,6 +1092,7 @@ private fun RootMessageSection(
                 stickerSize = state.stickerSize,
                 onCommentsClick = {}, showComments = false,
                 toProfile = toProfile,
+                onForwardOriginClick = onForwardOriginClick,
                 onViaBotClick = onViaBotClick,
                 onYouTubeClick = { component.onOpenYouTube(it) },
                 onInstantViewClick = { component.onOpenInstantView(it) },
@@ -1112,6 +1125,7 @@ private fun RootMessageSection(
                 onShowVoters = { id, opt -> component.onShowVoters(id, opt) },
                 onClosePoll = { component.onClosePoll(it) },
                 toProfile = toProfile,
+                onForwardOriginClick = onForwardOriginClick,
                 swipeEnabled = false,
                 onViaBotClick = onViaBotClick,
                 onInstantViewClick = { component.onOpenInstantView(it) },

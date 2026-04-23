@@ -59,6 +59,7 @@ import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.koin.compose.koinInject
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
@@ -103,6 +104,7 @@ fun ChannelGifMessageBubble(
     showMetadata: Boolean = true,
     showReactions: Boolean = true,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     isAnyViewerOpen: Boolean = false
 ) {
     val context = LocalContext.current
@@ -173,7 +175,7 @@ fun ChannelGifMessageBubble(
                             .padding(start = 12.dp, end = 12.dp, top = 8.dp)
                             .zIndex(1f)
                     ) {
-                        ForwardContent(forward, false, onForwardClick = toProfile)
+                        ForwardContent(forward, false, onForwardClick = onForwardOriginClick)
                     }
                 }
                 msg.replyToMsg?.let { reply ->

@@ -8,6 +8,7 @@ import org.monogram.domain.models.BotCommandModel
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.ChatViewportCacheEntry
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.GifModel
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.KeyboardButtonModel
@@ -123,6 +124,7 @@ interface ChatComponent {
     suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int
     suspend fun getMessageViewers(chatId: Long, messageId: Long): List<MessageViewerModel>
     fun toProfile(id: Long)
+    fun onForwardOriginClick(forwardInfo: ForwardInfo)
     fun onToggleMessageSelection(messageId: Long)
     fun onClearSelection()
     fun onClearMessages()

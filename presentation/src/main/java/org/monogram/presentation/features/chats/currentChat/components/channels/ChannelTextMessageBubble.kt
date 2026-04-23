@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.DateFormatManager
@@ -57,6 +58,7 @@ fun ChannelTextMessageBubble(
     showComments: Boolean = true,
     showReactions: Boolean = true,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -92,7 +94,7 @@ fun ChannelTextMessageBubble(
                     .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)
             ) {
                 msg.forwardInfo?.let { forward ->
-                    ForwardContent(forward, false, onForwardClick = toProfile)
+                    ForwardContent(forward, false, onForwardClick = onForwardOriginClick)
                 }
                 msg.replyToMsg?.let { reply ->
                     ReplyContent(

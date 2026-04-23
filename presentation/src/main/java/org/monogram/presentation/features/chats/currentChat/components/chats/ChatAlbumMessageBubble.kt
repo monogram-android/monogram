@@ -27,6 +27,7 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
@@ -58,6 +59,7 @@ fun ChatAlbumMessageBubble(
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     fontSize: Float = 16f,
     letterSpacing: Float = 0f,
     downloadUtils: IDownloadUtils,
@@ -88,6 +90,7 @@ fun ChatAlbumMessageBubble(
             onReactionClick = onReactionClick,
             isGroup = isGroup,
             toProfile = toProfile,
+            onForwardOriginClick = onForwardOriginClick,
             modifier = modifier,
             downloadUtils = downloadUtils
         )
@@ -113,6 +116,7 @@ fun ChatAlbumMessageBubble(
             onReactionClick = onReactionClick,
             isGroup = isGroup,
             toProfile = toProfile,
+            onForwardOriginClick = onForwardOriginClick,
             modifier = modifier,
             downloadUtils = downloadUtils
         )
@@ -188,7 +192,7 @@ fun ChatAlbumMessageBubble(
 
                 lastMsg.forwardInfo?.let { forward ->
                     Box(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp)) {
-                        ForwardContent(forward, isOutgoing, onForwardClick = toProfile)
+                        ForwardContent(forward, isOutgoing, onForwardClick = onForwardOriginClick)
                     }
                 }
 

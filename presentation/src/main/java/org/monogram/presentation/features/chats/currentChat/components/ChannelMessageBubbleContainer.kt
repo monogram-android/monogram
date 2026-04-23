@@ -5,10 +5,22 @@ import androidx.compose.animation.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -20,12 +32,17 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.currentChat.chatContent.shouldShowDate
-import org.monogram.presentation.features.chats.currentChat.components.channels.*
+import org.monogram.presentation.features.chats.currentChat.components.channels.ChannelGifMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.channels.ChannelPhotoMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.channels.ChannelTextMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.channels.ChannelVideoMessageBubble
+import org.monogram.presentation.features.chats.currentChat.components.channels.ChannelVoiceMessageBubble
 import org.monogram.presentation.features.chats.currentChat.components.chats.DocumentMessageBubble
 import org.monogram.presentation.features.chats.currentChat.components.chats.MessageViaBotAttribution
 import org.monogram.presentation.features.chats.currentChat.components.chats.ReplyMarkupView
@@ -61,6 +78,7 @@ fun ChannelMessageBubbleContainer(
     onCommentsClick: (Long) -> Unit = {},
     showComments: Boolean = true,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     onViaBotClick: (String) -> Unit = {},
     downloadUtils: IDownloadUtils
 ) {
@@ -142,6 +160,7 @@ fun ChannelMessageBubbleContainer(
                             onYouTubeClick = onYouTubeClick,
                             onInstantViewClick = onInstantViewClick,
                             toProfile = toProfile,
+                            onForwardOriginClick = onForwardOriginClick,
                             modifier = bubbleModifier.fillMaxWidth()
                         )
                     }
@@ -208,6 +227,7 @@ fun ChannelMessageBubbleContainer(
                             onCommentsClick = onCommentsClick,
                             showComments = showComments,
                             toProfile = toProfile,
+                            onForwardOriginClick = onForwardOriginClick,
                             modifier = bubbleModifier.fillMaxWidth(),
                             downloadUtils = downloadUtils
                         )
@@ -237,6 +257,7 @@ fun ChannelMessageBubbleContainer(
                             modifier = bubbleModifier.fillMaxWidth(),
                             onReplyClick = onGoToReply,
                             onReactionClick = { onReactionClick(msg.id, it) },
+                            onForwardOriginClick = onForwardOriginClick,
                             downloadUtils = downloadUtils
                         )
                     }
@@ -257,6 +278,7 @@ fun ChannelMessageBubbleContainer(
                             onLongClick = { offset -> onReplyClick(bubblePosition, bubbleSize, offset) },
                             onReplyClick = onGoToReply,
                             onReactionClick = { onReactionClick(msg.id, it) },
+                            onForwardOriginClick = onForwardOriginClick,
                             modifier = bubbleModifier.fillMaxWidth(),
                             downloadUtils = downloadUtils
                         )

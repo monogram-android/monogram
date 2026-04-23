@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
+import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendingState
@@ -97,6 +98,7 @@ fun PollMessageBubble(
     onLongClick: (Offset) -> Unit = {},
     hasCommentsButton: Boolean = false,
     toProfile: (Long) -> Unit = {},
+    onForwardOriginClick: (ForwardInfo) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val cornerRadius = bubbleRadius.dp
@@ -155,7 +157,13 @@ fun PollMessageBubble(
                     .padding(12.dp)
                     .animateContentSize()
             ) {
-                msg.forwardInfo?.let { ForwardContent(it, isOutgoing, onForwardClick = toProfile) }
+                msg.forwardInfo?.let {
+                    ForwardContent(
+                        it,
+                        isOutgoing,
+                        onForwardClick = onForwardOriginClick
+                    )
+                }
                 msg.replyToMsg?.let { ReplyContent(it, isOutgoing) { onReplyClick(it) } }
 
                 PollHeroHeader(

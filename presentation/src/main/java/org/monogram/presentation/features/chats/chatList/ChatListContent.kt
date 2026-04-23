@@ -182,19 +182,31 @@ fun ChatListContent(component: ChatListComponent) {
         }
     }
 
+    val showAllChatsFolder by component.appPreferences.showAllChatsFolder.collectAsState()
+    val visibleFolders = remember(foldersState.folders, showAllChatsFolder) {
+        val userFolders = foldersState.folders.filter { it.id >= 0 }
+        if (showAllChatsFolder || userFolders.isEmpty()) {
+            foldersState.folders
+        } else {
+            foldersState.folders.filterNot { it.id == -1 }
+        }
+    }
+
     val pagerState = rememberPagerState(
-        initialPage = foldersState.folders.indexOfFirst { it.id == foldersState.selectedFolderId }.coerceAtLeast(0),
-        pageCount = { foldersState.folders.size }
+        initialPage = visibleFolders.indexOfFirst { it.id == foldersState.selectedFolderId }
+            .coerceAtLeast(0),
+        pageCount = { visibleFolders.size }
     )
 
-    LaunchedEffect(foldersState.selectedFolderId) {
-        val index = foldersState.folders.indexOfFirst { it.id == foldersState.selectedFolderId }.coerceAtLeast(0)
+    LaunchedEffect(foldersState.selectedFolderId, visibleFolders) {
+        val index =
+            visibleFolders.indexOfFirst { it.id == foldersState.selectedFolderId }.coerceAtLeast(0)
         if (pagerState.currentPage != index) pagerState.animateScrollToPage(index)
     }
 
-    LaunchedEffect(pagerState.currentPage) {
-        if (foldersState.folders.isNotEmpty()) {
-            val folderId = foldersState.folders[pagerState.currentPage].id
+    LaunchedEffect(pagerState.currentPage, visibleFolders, foldersState.selectedFolderId) {
+        if (visibleFolders.isNotEmpty() && pagerState.currentPage < visibleFolders.size) {
+            val folderId = visibleFolders[pagerState.currentPage].id
             if (foldersState.selectedFolderId != folderId && foldersState.selectedFolderId != -2) {
                 component.onFolderClicked(folderId)
             }
@@ -202,7 +214,7 @@ fun ChatListContent(component: ChatListComponent) {
     }
 
     val density = LocalDensity.current
-    val tabsHeight = if (foldersState.folders.size > 1) 56.dp else 10.dp
+    val tabsHeight = if (visibleFolders.size > 1) 56.dp else 10.dp
     val archiveItemHeight = 78.dp
     val tabsHeightPx = with(density) { tabsHeight.toPx() }
     val archiveItemHeightPx = with(density) { archiveItemHeight.toPx() }
@@ -216,7 +228,7 @@ fun ChatListContent(component: ChatListComponent) {
     var hasVibrated by remember { mutableStateOf(false) }
     var canRevealArchive by remember { mutableStateOf(true) }
 
-    val currentFolder = foldersState.folders.getOrNull(pagerState.currentPage)
+    val currentFolder = visibleFolders.getOrNull(pagerState.currentPage)
     val isMainFolder = currentFolder?.id == -1
 
     val isArchivePersistent = uiState.isArchivePinned && (uiState.isArchiveAlwaysVisible || isMainFolder)
@@ -652,14 +664,14 @@ fun ChatListContent(component: ChatListComponent) {
                                 }
                             }
 
-                            if (foldersState.folders.size > 1) {
+                            if (visibleFolders.size > 1) {
                                 FolderTabs(
                                     modifier = Modifier,
-                                    folders = foldersState.folders,
+                                    folders = visibleFolders,
                                     pagerState = pagerState,
                                     onTabClick = { index ->
                                         if (pagerState.currentPage == index) {
-                                            val folderId = foldersState.folders[index].id
+                                            val folderId = visibleFolders[index].id
                                             scope.launch {
                                                 scrollStates[folderId]?.animateScrollToItem(0)
                                             }
@@ -1084,8 +1096,8 @@ fun ChatListContent(component: ChatListComponent) {
                     modifier = Modifier.fillMaxSize(),
                     beyondViewportPageCount = 1
                 ) { page ->
-                    val folder = foldersState.folders.getOrNull(page)
-                        ?: foldersState.folders.firstOrNull { it.id == foldersState.selectedFolderId }
+                    val folder = visibleFolders.getOrNull(page)
+                        ?: visibleFolders.firstOrNull { it.id == foldersState.selectedFolderId }
                     val folderId = folder?.id
                     if (folderId == null) {
                         Box(modifier = Modifier.fillMaxSize())

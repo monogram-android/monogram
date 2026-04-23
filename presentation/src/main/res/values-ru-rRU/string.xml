@@ -1752,6 +1752,8 @@
     <string name="folders_save">Сохранить</string>
     <string name="folders_default_section">Стандартные папки</string>
     <string name="folders_custom_section">Личные папки</string>
+    <string name="folders_show_all_chats_title">Показывать «Все чаты»</string>
+    <string name="folders_show_all_chats_subtitle">Оставлять папку «Все чаты» видимой в панели вкладок</string>
     <string name="folders_delete">Удалить</string>
     <string name="folders_header_description">Создавайте папки для разных групп чатов и быстро переключайтесь между ними.</string>
     <string name="folders_empty_title">У Вас нет папок</string>

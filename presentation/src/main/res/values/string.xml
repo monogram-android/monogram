@@ -2154,6 +2154,8 @@
     <string name="folders_save">Save</string>
     <string name="folders_default_section">Default Folders</string>
     <string name="folders_custom_section">Custom Folders</string>
+    <string name="folders_show_all_chats_title">Show All chats</string>
+    <string name="folders_show_all_chats_subtitle">Keep the All chats folder visible in the tab bar</string>
     <string name="folders_delete">Delete</string>
     <string name="folders_header_description">Create folders for different groups of chats and quickly switch between them.</string>
     <string name="folders_empty_title">No custom folders</string>

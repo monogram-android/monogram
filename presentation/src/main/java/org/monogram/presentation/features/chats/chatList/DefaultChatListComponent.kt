@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -246,6 +247,21 @@ class DefaultChatListComponent(
                 _state.update { it.copy(folders = folders) }
             }
             .launchIn(scope)
+
+        combine(
+            chatFolderRepository.foldersFlow,
+            appPreferences.showAllChatsFolder
+        ) { folders, showAllChatsFolder ->
+            resolvePreferredFolderId(
+                folders = folders,
+                currentFolderId = _state.value.selectedFolderId,
+                showAllChatsFolder = showAllChatsFolder
+            )
+        }.onEach { targetFolderId ->
+            if (targetFolderId != _state.value.selectedFolderId) {
+                handleFolderClicked(targetFolderId)
+            }
+        }.launchIn(scope)
 
         chatFolderRepository.folderLoadingFlow
             .onEach { update ->
@@ -684,7 +700,12 @@ class DefaultChatListComponent(
         scope.launch(Dispatchers.IO) {
             chatFolderRepository.deleteFolder(folderId)
             if (_state.value.selectedFolderId == folderId) {
-                handleFolderClicked(-1)
+                val nextFolderId = resolvePreferredFolderId(
+                    folders = _state.value.folders.filterNot { it.id == folderId },
+                    currentFolderId = null,
+                    showAllChatsFolder = appPreferences.showAllChatsFolder.value
+                )
+                handleFolderClicked(nextFolderId)
             }
         }
     }
@@ -792,7 +813,13 @@ class DefaultChatListComponent(
                 true
             }
             state.value.selectedFolderId == -2 -> {
-                handleFolderClicked(-1)
+                handleFolderClicked(
+                    resolvePreferredFolderId(
+                        folders = _state.value.folders,
+                        currentFolderId = null,
+                        showAllChatsFolder = appPreferences.showAllChatsFolder.value
+                    )
+                )
                 true
             }
 
@@ -827,6 +854,28 @@ class DefaultChatListComponent(
             currentSelection + id
         }
         _state.value = _state.value.copy(selectedChatIds = newSelection)
+    }
+
+    private fun resolvePreferredFolderId(
+        folders: List<org.monogram.domain.models.FolderModel>,
+        currentFolderId: Int?,
+        showAllChatsFolder: Boolean
+    ): Int {
+        val userFolders = folders.filter { it.id >= 0 }
+        val allChatsFolder = folders.firstOrNull { it.id == -1 }
+        val visibleFolderIds = if (showAllChatsFolder || userFolders.isEmpty()) {
+            folders.map { it.id }
+        } else {
+            folders.filterNot { it.id == -1 }.map { it.id }
+        }
+
+        return when {
+            currentFolderId == -2 -> -2
+            currentFolderId != null && currentFolderId in visibleFolderIds -> currentFolderId
+            userFolders.isNotEmpty() -> userFolders.first().id
+            allChatsFolder != null -> allChatsFolder.id
+            else -> -1
+        }
     }
 }
 

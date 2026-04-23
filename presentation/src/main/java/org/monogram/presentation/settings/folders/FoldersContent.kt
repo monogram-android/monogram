@@ -10,7 +10,16 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -21,8 +30,29 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FolderSpecial
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,9 +75,12 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import org.monogram.domain.models.FolderModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
+import org.monogram.presentation.core.ui.SettingsSwitchTile
+import org.monogram.presentation.core.util.AppPreferences
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,6 +88,8 @@ import kotlin.math.abs
 fun FoldersContent(component: FoldersComponent) {
     val state by component.state.subscribeAsState()
     val defaultComponent = component as? DefaultFoldersComponent
+    val appPreferences: AppPreferences = koinInject()
+    val showAllChatsFolder by appPreferences.showAllChatsFolder.collectAsState()
 
     Scaffold(
         modifier = Modifier
@@ -110,6 +145,8 @@ fun FoldersContent(component: FoldersComponent) {
                 FolderList(
                     systemFolders = systemFolders,
                     userFolders = userFolders,
+                    showAllChatsFolder = showAllChatsFolder,
+                    onShowAllChatsFolderChange = appPreferences::setShowAllChatsFolder,
                     onFolderClick = component::onFolderClicked,
                     onDeleteClick = component::onDeleteFolder,
                     onReorder = { fromIndex, toIndex ->
@@ -169,6 +206,8 @@ fun FoldersContent(component: FoldersComponent) {
 fun FolderList(
     systemFolders: List<FolderModel>,
     userFolders: List<FolderModel>,
+    showAllChatsFolder: Boolean,
+    onShowAllChatsFolderChange: (Boolean) -> Unit,
     onFolderClick: (Int) -> Unit,
     onDeleteClick: (Int) -> Unit,
     onReorder: (Int, Int) -> Unit
@@ -200,6 +239,20 @@ fun FolderList(
         item {
             FolderHeaderDescription()
             Spacer(Modifier.height(14.dp))
+        }
+
+        if (userFolders.isNotEmpty()) {
+            item {
+                SettingsSwitchTile(
+                    icon = Icons.Rounded.VisibilityOff,
+                    title = stringResource(R.string.folders_show_all_chats_title),
+                    subtitle = stringResource(R.string.folders_show_all_chats_subtitle),
+                    checked = showAllChatsFolder,
+                    iconColor = MaterialTheme.colorScheme.primary,
+                    onCheckedChange = onShowAllChatsFolderChange
+                )
+            }
+            item { Spacer(Modifier.height(14.dp)) }
         }
 
         if (systemFolders.isNotEmpty()) {
@@ -323,10 +376,18 @@ fun FolderList(
                                     val pointerY = initialPointerY + totalDragDistance
 
                                     if (pointerY < topThreshold) {
-                                        val intensity = ((topThreshold - pointerY) / topThreshold).coerceIn(0f, 1f)
+                                        val intensity =
+                                            ((topThreshold - pointerY) / topThreshold).coerceIn(
+                                                0f,
+                                                1f
+                                            )
                                         autoScrollVelocity = -(6f + (18f * intensity))
                                     } else if (pointerY > bottomThreshold) {
-                                        val intensity = ((pointerY - bottomThreshold) / topThreshold).coerceIn(0f, 1f)
+                                        val intensity =
+                                            ((pointerY - bottomThreshold) / topThreshold).coerceIn(
+                                                0f,
+                                                1f
+                                            )
                                         autoScrollVelocity = 6f + (18f * intensity)
                                     } else {
                                         autoScrollVelocity = 0f

@@ -329,6 +329,12 @@ class ChatMapper(
         if (lastMsg == null) return MessagePreviewInfo("", emptyList(), "", "text")
         var entities = emptyList<MessageEntity>()
 
+        val senderId = when (val s = lastMsg.senderId) {
+            is TdApi.MessageSenderUser -> s.userId
+            is TdApi.MessageSenderChat -> s.chatId
+            else -> 0L
+        }
+
         fun captionText(caption: TdApi.FormattedText?): String {
             val text = caption?.text?.trim().orEmpty()
             if (text.isNotEmpty()) {
@@ -392,6 +398,8 @@ class ChatMapper(
             else -> ""
         }.replace("\n", " ")
 
+        entities = applyLoginCodeSpoiler(txt, entities, senderId)
+
         if (entities.any { it.type is MessageEntityType.Spoiler }) {
             txt = maskSpoilerText(txt, entities)
         }
@@ -452,5 +460,33 @@ class ChatMapper(
             dateFormatManager = dateFormatManager,
             isBot = isBot
         )
+    }
+
+    private fun applyLoginCodeSpoiler(
+        text: String,
+        entities: List<MessageEntity>,
+        senderId: Long
+    ): List<MessageEntity> {
+        if (senderId != TELEGRAM_SERVICE_ID && senderId != TELEGRAM_VERIFY_ID) {
+            return entities
+        }
+
+        val match = LOGIN_CODE_PATTERN.find(text) ?: return entities
+        val offset = match.range.first
+        val length = match.value.length
+
+        val alreadyHasSpoiler = entities.any {
+            it.type is MessageEntityType.Spoiler &&
+                    it.offset <= offset &&
+                    (it.offset + it.length) >= (offset + length)
+        }
+
+        return if (alreadyHasSpoiler) entities else entities + MessageEntity(offset, length, MessageEntityType.Spoiler)
+    }
+
+    companion object {
+        private val LOGIN_CODE_PATTERN = Regex("""[\d\-]{5,8}""")
+        private const val TELEGRAM_SERVICE_ID = 777000L
+        private const val TELEGRAM_VERIFY_ID = 42777L
     }
 }

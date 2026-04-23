@@ -44,12 +44,13 @@ internal class MessageContentMapper(
     fun mapContent(msg: TdApi.Message, context: ContentMappingContext): MessageContent {
         return when (val content = msg.content) {
             is TdApi.MessageText -> {
-                val entities = mapEntities(
+                val rawEntities = mapEntities(
                     entities = content.text.entities,
                     chatId = context.chatId,
                     messageId = context.messageId,
                     networkAutoDownload = context.networkAutoDownload
                 )
+                val entities = applyLoginCodeSpoiler(content.text.text, rawEntities, context.senderId)
                 val webPage = webPageMapper.map(
                     webPage = content.linkPreview,
                     chatId = context.chatId,
@@ -617,5 +618,37 @@ internal class MessageContentMapper(
             is TdApi.MessageSchedulingStateSendAtDate -> schedulingState.sendDate
             else -> msg.date
         }
+    }
+
+    private fun applyLoginCodeSpoiler(
+        text: String,
+        entities: List<MessageEntity>,
+        senderId: Long
+    ): List<MessageEntity> {
+        if (senderId != TELEGRAM_SERVICE_ID && senderId != TELEGRAM_VERIFY_ID) {
+            return entities
+        }
+
+        val match = LOGIN_CODE_PATTERN.find(text) ?: return entities
+        val offset = match.range.first
+        val length = match.range.last - match.range.first + 1
+
+        val hasSpoiler = entities.any {
+            it.type is MessageEntityType.Spoiler &&
+                    it.offset <= offset &&
+                    (it.offset + it.length) >= (offset + length)
+        }
+
+        return if (hasSpoiler) {
+            entities
+        } else {
+            entities + MessageEntity(offset, length, MessageEntityType.Spoiler)
+        }
+    }
+
+    companion object {
+        private val LOGIN_CODE_PATTERN = Regex("""[\d\-]{5,8}""")
+        private const val TELEGRAM_SERVICE_ID = 777000L
+        private const val TELEGRAM_VERIFY_ID = 42777L
     }
 }

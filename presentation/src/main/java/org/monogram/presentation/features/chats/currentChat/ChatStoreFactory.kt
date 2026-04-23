@@ -219,7 +219,15 @@ class ChatStoreFactory(
                     if (it.lastSavedViewport == intent.viewport) it else it.copy(lastSavedViewport = intent.viewport)
                 }
                 is Intent.BottomReached -> component._state.update {
-                    if (it.isAtBottom == intent.isAtBottom) it else it.copy(isAtBottom = intent.isAtBottom)
+                    val nextUnreadCount = if (intent.isAtBottom) 0 else it.unreadCount
+                    if (it.isAtBottom == intent.isAtBottom && it.unreadCount == nextUnreadCount) {
+                        it
+                    } else {
+                        it.copy(
+                            isAtBottom = intent.isAtBottom,
+                            unreadCount = nextUnreadCount
+                        )
+                    }
                 }
                 is Intent.HighlightConsumed -> component._state.update { it.copy(highlightedMessageId = null) }
                 is Intent.Typing -> { /* Handle typing */

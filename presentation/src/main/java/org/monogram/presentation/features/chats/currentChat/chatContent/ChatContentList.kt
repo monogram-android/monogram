@@ -733,7 +733,7 @@ private fun MessageBubbleSwitcher(
     when (sanitizedItem) {
         is GroupedMessageItem.Single -> {
             if (sanitizedItem.message.content is MessageContent.Service) {
-                ServiceMessage(text = (sanitizedItem.message.content as MessageContent.Service).text)
+                ServiceMessage(service = sanitizedItem.message.content as MessageContent.Service)
             } else if (isChannel) {
                 ChannelMessageBubbleContainer(
                     msg = sanitizedItem.message,

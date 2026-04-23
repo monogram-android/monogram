@@ -3,6 +3,7 @@ package org.monogram.data.mapper.message
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.chats.ChatCache
 import org.monogram.data.datasource.remote.TdMessageRemoteDataSource
 import org.monogram.data.mapper.CustomEmojiLoader
 import org.monogram.data.mapper.TdFileHelper
@@ -20,6 +21,7 @@ import org.monogram.domain.repository.StringProvider
 internal data class ContentMappingContext(
     val chatId: Long,
     val messageId: Long,
+    val senderId: Long,
     val senderName: String,
     val networkAutoDownload: Boolean,
     val isActuallyUploading: Boolean
@@ -30,9 +32,15 @@ internal class MessageContentMapper(
     private val appPreferences: AppPreferencesProvider,
     private val customEmojiLoader: CustomEmojiLoader,
     private val webPageMapper: WebPageMapper,
+    private val cache: ChatCache,
     private val scope: CoroutineScope,
     private val stringProvider: StringProvider
 ) {
+    private val serviceMessageFormatter = ServiceMessageFormatter(
+        stringProvider = stringProvider,
+        cache = cache
+    )
+
     fun mapContent(msg: TdApi.Message, context: ContentMappingContext): MessageContent {
         return when (val content = msg.content) {
             is TdApi.MessageText -> {
@@ -577,39 +585,8 @@ internal class MessageContentMapper(
             is TdApi.MessageStory -> MessageContent.Text(stringProvider.getString("chat_mapper_story"))
             is TdApi.MessageExpiredPhoto -> MessageContent.Text(stringProvider.getString("message_expired_photo"))
             is TdApi.MessageExpiredVideo -> MessageContent.Text(stringProvider.getString("message_expired_video"))
-
-            is TdApi.MessageChatJoinByLink -> MessageContent.Service("${context.senderName} has joined the group via invite link")
-            is TdApi.MessageChatAddMembers -> MessageContent.Service("${context.senderName} added members")
-            is TdApi.MessageChatDeleteMember -> MessageContent.Service("${context.senderName}  left the chat")
-            is TdApi.MessagePinMessage -> MessageContent.Service("${context.senderName} pinned a message")
-            is TdApi.MessageChatChangeTitle -> MessageContent.Service("${context.senderName} changed group name to \"${content.title}\"")
-            is TdApi.MessageChatChangePhoto -> MessageContent.Service("${context.senderName} changed group photo")
-            is TdApi.MessageChatDeletePhoto -> MessageContent.Service("${context.senderName} removed group photo")
-            is TdApi.MessageScreenshotTaken -> MessageContent.Service("${context.senderName} took a screenshot")
-            is TdApi.MessageContactRegistered -> MessageContent.Service("${context.senderName} joined Telegram!")
-            is TdApi.MessageChatUpgradeTo -> MessageContent.Service("${context.senderName} upgraded to supergroup")
-            is TdApi.MessageChatUpgradeFrom -> MessageContent.Service("group created")
-            is TdApi.MessageBasicGroupChatCreate -> MessageContent.Service("created the group \"${content.title}\"")
-            is TdApi.MessageSupergroupChatCreate -> MessageContent.Service("created the supergroup \"${content.title}\"")
-            is TdApi.MessagePaymentSuccessful -> MessageContent.Service("Payment successful: ${content.currency} ${content.totalAmount}")
-            is TdApi.MessagePaymentSuccessfulBot -> MessageContent.Service("Payment successful")
-            is TdApi.MessagePassportDataSent -> MessageContent.Service("Passport data sent")
-            is TdApi.MessagePassportDataReceived -> MessageContent.Service("Passport data received")
-            is TdApi.MessageProximityAlertTriggered -> MessageContent.Service("is within ${content.distance}m")
-            is TdApi.MessageForumTopicCreated -> MessageContent.Service("${context.senderName} created topic \"${content.name}\"")
-            is TdApi.MessageForumTopicEdited -> MessageContent.Service("${context.senderName} edited topic")
-            is TdApi.MessageForumTopicIsClosedToggled -> MessageContent.Service("${context.senderName} toggled topic closed status")
-            is TdApi.MessageForumTopicIsHiddenToggled -> MessageContent.Service("${context.senderName} toggled topic hidden status")
-            is TdApi.MessageSuggestProfilePhoto -> MessageContent.Service("${context.senderName} suggested a profile photo")
-            is TdApi.MessageCustomServiceAction -> MessageContent.Service(content.text)
-            is TdApi.MessageChatBoost -> MessageContent.Service("Chat boost: ${content.boostCount}")
-            is TdApi.MessageChatSetTheme -> MessageContent.Service("Chat theme changed to ${content.theme}")
-            is TdApi.MessageGameScore -> MessageContent.Service("Game score: ${content.score}")
-            is TdApi.MessageVideoChatScheduled -> MessageContent.Service("Video chat scheduled for ${content.startDate}")
-            is TdApi.MessageVideoChatStarted -> MessageContent.Service("Video chat started")
-            is TdApi.MessageVideoChatEnded -> MessageContent.Service("Video chat ended")
-            is TdApi.MessageChatSetBackground -> MessageContent.Service("Chat background changed")
-            else -> MessageContent.Text("ℹ️ Unsupported message type: ${content.javaClass.simpleName}")
+            else -> serviceMessageFormatter.format(content, context)
+                ?: MessageContent.Text("ℹ️ Unsupported message type: ${content.javaClass.simpleName}")
         }
     }
 

@@ -445,6 +445,7 @@ val dataModule = module {
             appPreferences = get(),
             customEmojiLoader = get(),
             webPageMapper = get(),
+            cache = get(),
             scope = get(),
             stringProvider = get()
         )

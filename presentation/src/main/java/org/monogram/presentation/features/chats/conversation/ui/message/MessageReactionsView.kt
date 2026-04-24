@@ -17,8 +17,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -27,17 +25,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageReactionModel
-import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.ui.Avatar
-import org.monogram.presentation.core.util.AppPreferences
-import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -46,30 +39,9 @@ fun MessageReactionsView(
     reactions: List<MessageReactionModel>,
     onReactionClick: (String) -> Unit,
     modifier: Modifier = Modifier,
-    stickerRepository: StickerRepository = koinInject(),
-    appPreferences: AppPreferences = koinInject()
+    emojiFontFamily: FontFamily = LocalMessageRenderDependencies.current.emojiFontFamily,
+    customEmojiPathsById: Map<Long, String?> = LocalMessageRenderDependencies.current.customEmojiPaths
 ) {
-    val context = LocalContext.current
-    val emojiStyle by appPreferences.emojiStyle.collectAsState()
-    val emojiFontFamily = remember(context, emojiStyle) { getEmojiFontFamily(context, emojiStyle) }
-    val customEmojiStickerSets by stickerRepository.customEmojiStickerSets.collectAsState()
-
-    LaunchedEffect(Unit) {
-        coRunCatching { stickerRepository.loadCustomEmojiStickerSets() }
-    }
-
-    val customEmojiFileIdsById = remember(customEmojiStickerSets) {
-        buildMap {
-            customEmojiStickerSets.forEach { set ->
-                set.stickers.forEach { sticker ->
-                    val customEmojiId = sticker.customEmojiId
-                    if (customEmojiId != null) {
-                        put(customEmojiId, sticker.id)
-                    }
-                }
-            }
-        }
-    }
     if (reactions.isEmpty()) return
 
     FlowRow(
@@ -84,8 +56,7 @@ fun MessageReactionsView(
                     reaction = reaction,
                     onReactionClick = onReactionClick,
                     emojiFontFamily = emojiFontFamily,
-                    stickerRepository = stickerRepository,
-                    customEmojiFileIdsById = customEmojiFileIdsById
+                    customEmojiPathsById = customEmojiPathsById
                 )
             }
         }
@@ -98,8 +69,7 @@ private fun MessageReactionItem(
     reaction: MessageReactionModel,
     onReactionClick: (String) -> Unit,
     emojiFontFamily: FontFamily,
-    stickerRepository: StickerRepository,
-    customEmojiFileIdsById: Map<Long, Long>
+    customEmojiPathsById: Map<Long, String?>
 ) {
     val customEmojiId = reaction.customEmojiId
     val emoji = reaction.emoji
@@ -120,11 +90,8 @@ private fun MessageReactionItem(
         MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    val customEmojiFileId = customEmojiId?.let(customEmojiFileIdsById::get)
-    val customEmojiPath by if (customEmojiFileId != null && reaction.customEmojiPath == null) {
-        stickerRepository.getStickerFile(customEmojiFileId).collectAsState(initial = null)
-    } else {
-        remember { mutableStateOf(reaction.customEmojiPath) }
+    val customEmojiPath = remember(customEmojiId, reaction.customEmojiPath, customEmojiPathsById) {
+        reaction.customEmojiPath ?: customEmojiId?.let(customEmojiPathsById::get)
     }
 
     var showDropdown by remember { mutableStateOf(false) }

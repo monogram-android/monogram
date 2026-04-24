@@ -91,6 +91,10 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
+import org.monogram.presentation.features.chats.conversation.ui.AdvancedCircularRecorderScreen
+import org.monogram.presentation.features.chats.conversation.ui.ChatInputBar
+import org.monogram.presentation.features.chats.conversation.ui.LocalVoicePlaybackController
+import org.monogram.presentation.features.chats.conversation.ui.MessageListShimmer
 import org.monogram.presentation.features.chats.conversation.ui.content.ChatContentBackground
 import org.monogram.presentation.features.chats.conversation.ui.content.ChatContentEffects
 import org.monogram.presentation.features.chats.conversation.ui.content.ChatContentList
@@ -111,10 +115,10 @@ import org.monogram.presentation.features.chats.conversation.ui.content.remember
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatTopBarUiState
 import org.monogram.presentation.features.chats.conversation.ui.content.scrollToMessageIndex
 import org.monogram.presentation.features.chats.conversation.ui.content.withUpdatedTextContent
-import org.monogram.presentation.features.chats.conversation.ui.AdvancedCircularRecorderScreen
-import org.monogram.presentation.features.chats.conversation.ui.ChatInputBar
-import org.monogram.presentation.features.chats.conversation.ui.MessageListShimmer
 import org.monogram.presentation.features.chats.conversation.ui.message.LocalLinkHandler
+import org.monogram.presentation.features.chats.conversation.ui.message.LocalMessageRenderDependencies
+import org.monogram.presentation.features.chats.conversation.ui.message.rememberChatMessageRenderDependencies
+import org.monogram.presentation.features.chats.conversation.ui.rememberVoicePlaybackController
 import java.io.File
 import java.io.FileOutputStream
 
@@ -310,6 +314,15 @@ fun ChatContent(
     )
 
     val permissionState = rememberChatContentPermissionState(state)
+    val messageRenderDependencies by rememberChatMessageRenderDependencies(
+        messages = remember(displayMessages, state.rootMessage) {
+            buildList {
+                addAll(displayMessages)
+                state.rootMessage?.let(::add)
+            }
+        }
+    )
+    val voicePlaybackController = rememberVoicePlaybackController()
     val messageListState = rememberChatMessageListState(
         state = state,
         displayMessages = displayMessages,
@@ -364,7 +377,11 @@ fun ChatContent(
     }
     val topBarUiState = rememberChatTopBarUiState(state)
 
-    CompositionLocalProvider(LocalLinkHandler provides { component.onLinkClick(it) }) {
+    CompositionLocalProvider(
+        LocalLinkHandler provides { component.onLinkClick(it) },
+        LocalMessageRenderDependencies provides messageRenderDependencies,
+        LocalVoicePlaybackController provides voicePlaybackController
+    ) {
         val statusBarHeight = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
         val headerOverlayHeight = statusBarHeight + 16.dp
         Box(

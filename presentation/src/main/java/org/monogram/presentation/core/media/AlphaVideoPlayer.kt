@@ -348,7 +348,7 @@ fun VideoStickerPlayer(
                         }
                         lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
                         exoPlayer.removeListener(playerListener)
-                        exoPlayer.setVideoSurface(null)
+                        exoPlayer.clearVideoSurface()
                         exoPlayer.stop()
                         exoPlayer.clearMediaItems()
                         videoPlayerPool.release(exoPlayer)
@@ -367,8 +367,11 @@ fun VideoStickerPlayer(
                             this.contentScale = contentScale
                             this.configure(type.useAlphaChannel, type.removeBlackBackground)
                             bindSurface { surface ->
-                                if (!isDisposed.get()) {
+                                if (isDisposed.get()) return@bindSurface
+                                if (surface != null && surface.isValid) {
                                     exoPlayer.setVideoSurface(surface)
+                                } else {
+                                    exoPlayer.clearVideoSurface()
                                 }
                             }
                             textureViewRef.value = this
@@ -378,8 +381,11 @@ fun VideoStickerPlayer(
                         view.contentScale = contentScale
                         view.configure(type.useAlphaChannel, type.removeBlackBackground)
                         view.bindSurface { surface ->
-                            if (!isDisposed.get()) {
+                            if (isDisposed.get()) return@bindSurface
+                            if (surface != null && surface.isValid) {
                                 exoPlayer.setVideoSurface(surface)
+                            } else {
+                                exoPlayer.clearVideoSurface()
                             }
                         }
                         textureViewRef.value = view
@@ -687,10 +693,10 @@ class NativeVideoRenderer {
 
 class VideoGLTextureView(context: Context) : TextureView(context), TextureView.SurfaceTextureListener {
     var contentScale: ContentScale = ContentScale.Fit
-    var onSurfaceReady: ((Surface) -> Unit)? = null
+    var onSurfaceReady: ((Surface?) -> Unit)? = null
         set(value) {
             field = value
-            currentSurface?.let { surface -> value?.invoke(surface) }
+            dispatchCurrentSurfaceIfValid()
         }
     private var currentSurface: Surface? = null
 
@@ -711,8 +717,18 @@ class VideoGLTextureView(context: Context) : TextureView(context), TextureView.S
         this.removeBlackBg = removeBlackBg
     }
 
-    fun bindSurface(onReady: (Surface) -> Unit) {
+    fun bindSurface(onReady: (Surface?) -> Unit) {
         onSurfaceReady = onReady
+    }
+
+    private fun dispatchCurrentSurfaceIfValid() {
+        val surface = currentSurface ?: return
+        if (!surface.isValid) {
+            currentSurface = null
+            onSurfaceReady?.invoke(null)
+            return
+        }
+        onSurfaceReady?.invoke(surface)
     }
 
     fun setVideoSize(width: Int, height: Int) {
@@ -765,7 +781,7 @@ class VideoGLTextureView(context: Context) : TextureView(context), TextureView.S
         nativeRenderer = NativeVideoRenderer()
         nativeRenderer?.onSurfaceReady = { surface ->
             currentSurface = surface
-            onSurfaceReady?.invoke(surface)
+            dispatchCurrentSurfaceIfValid()
         }
         nativeRenderer?.init(Surface(st), useAlpha, removeBlackBg)
         nativeRenderer?.setSize(width, height)
@@ -776,9 +792,11 @@ class VideoGLTextureView(context: Context) : TextureView(context), TextureView.S
     }
 
     override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+        onSurfaceReady?.invoke(null)
         currentSurface = null
         nativeRenderer?.release()
         nativeRenderer = null
+        onSurfaceReady = null
         return true
     }
 

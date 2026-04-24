@@ -8,14 +8,10 @@ import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
@@ -27,11 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
-import org.monogram.domain.repository.StickerRepository
-import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 @Immutable
@@ -51,24 +44,16 @@ sealed interface BigEmojiItem {
     data class Custom(val path: String?) : BigEmojiItem
 }
 
-@Composable
 private fun rememberResolvedCustomEmojiPaths(
     entities: List<MessageEntity>,
-    stickerRepository: StickerRepository = koinInject()
+    customEmojiPaths: Map<Long, String?>
 ): List<String?> {
     val emojiEntities =
         entities.filter { it.type is MessageEntityType.CustomEmoji }.sortedBy { it.offset }
 
     return emojiEntities.map { entity ->
         val type = entity.type as MessageEntityType.CustomEmoji
-        key(entity.offset, entity.length, type.emojiId, type.path) {
-            val resolvedPath by if (type.path == null) {
-                stickerRepository.getCustomEmojiFile(type.emojiId).collectAsState(initial = null)
-            } else {
-                remember(type.path) { androidx.compose.runtime.mutableStateOf(type.path) }
-            }
-            resolvedPath
-        }
+        type.path ?: customEmojiPaths[type.emojiId]
     }
 }
 
@@ -77,11 +62,13 @@ fun rememberMessageInlineContent(
     entities: List<MessageEntity>,
     fontSize: Float,
     isBigEmoji: Boolean = false,
-    stickerRepository: StickerRepository = koinInject()
+    customEmojiPaths: Map<Long, String?> = LocalMessageRenderDependencies.current.customEmojiPaths
 ): Map<String, InlineTextContent> {
     val emojiEntities =
         entities.filter { it.type is MessageEntityType.CustomEmoji }.sortedBy { it.offset }
-    val resolvedEmojiPaths = rememberResolvedCustomEmojiPaths(entities, stickerRepository)
+    val resolvedEmojiPaths = remember(entities, customEmojiPaths) {
+        rememberResolvedCustomEmojiPaths(entities, customEmojiPaths)
+    }
 
     return remember(emojiEntities, resolvedEmojiPaths, fontSize, isBigEmoji) {
         val map = mutableMapOf<String, InlineTextContent>()
@@ -109,25 +96,27 @@ fun rememberMessageTextRenderData(
     allowBigEmoji: Boolean = true,
     isOutgoing: Boolean = false,
     revealedSpoilers: List<Int> = emptyList(),
-    appPreferences: AppPreferences = koinInject(),
-    stickerRepository: StickerRepository = koinInject()
+    emojiFontFamily: FontFamily = LocalMessageRenderDependencies.current.emojiFontFamily,
+    customEmojiPaths: Map<Long, String?> = LocalMessageRenderDependencies.current.customEmojiPaths
 ): MessageTextRenderData {
     val bigEmoji = remember(text, entities, allowBigEmoji) {
         allowBigEmoji && isBigEmoji(text, entities)
     }
-    val resolvedEmojiPaths = rememberResolvedCustomEmojiPaths(entities, stickerRepository)
+    val resolvedEmojiPaths = remember(entities, customEmojiPaths) {
+        rememberResolvedCustomEmojiPaths(entities, customEmojiPaths)
+    }
     val annotatedText = buildAnnotatedMessageTextWithEmoji(
         text = text,
         entities = entities,
         isOutgoing = isOutgoing,
         revealedSpoilers = revealedSpoilers,
-        appPreferences = appPreferences
+        emojiFontFamily = emojiFontFamily
     )
     val inlineContent = rememberMessageInlineContent(
         entities = entities,
         fontSize = fontSize,
         isBigEmoji = bigEmoji,
-        stickerRepository = stickerRepository
+        customEmojiPaths = customEmojiPaths
     )
     val bigEmojiItems = remember(text, entities, resolvedEmojiPaths, bigEmoji) {
         if (!bigEmoji) emptyList() else buildBigEmojiItems(text, entities, resolvedEmojiPaths)
@@ -199,12 +188,8 @@ fun BigEmojiContent(
     items: List<BigEmojiItem>,
     sizeDp: Float,
     modifier: Modifier = Modifier,
-    appPreferences: AppPreferences = koinInject()
+    emojiFontFamily: FontFamily = LocalMessageRenderDependencies.current.emojiFontFamily
 ) {
-    val context = LocalContext.current
-    val emojiStyle by appPreferences.emojiStyle.collectAsState()
-    val emojiFontFamily = remember(context, emojiStyle) { getEmojiFontFamily(context, emojiStyle) }
-
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -234,12 +219,8 @@ fun buildAnnotatedMessageTextWithEmoji(
     entities: List<MessageEntity>,
     isOutgoing: Boolean = false,
     revealedSpoilers: List<Int> = emptyList(),
-    appPreferences: AppPreferences = koinInject()
+    emojiFontFamily: FontFamily = LocalMessageRenderDependencies.current.emojiFontFamily
 ): AnnotatedString {
-    val context = LocalContext.current
-    val emojiStyle by appPreferences.emojiStyle.collectAsState()
-    val emojiFontFamily = remember(context, emojiStyle) { getEmojiFontFamily(context, emojiStyle) }
-
     val linkColor = MaterialTheme.colorScheme.primary
     val codeBackgroundColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
     val codeTextColor = MaterialTheme.colorScheme.primary

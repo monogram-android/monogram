@@ -50,7 +50,7 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
-import org.monogram.presentation.features.chats.conversation.ui.rememberVoicePlayer
+import org.monogram.presentation.features.chats.conversation.ui.LocalVoicePlaybackController
 
 @Composable
 fun VoiceMessageBubble(
@@ -194,8 +194,11 @@ fun VoiceRow(
     onCancelDownload: (Int) -> Unit,
     isOutgoing: Boolean
 ) {
-    val playerState = rememberVoicePlayer(content.path)
-    playerState.ProgressUpdater()
+    val voicePlaybackController = LocalVoicePlaybackController.current
+    val playerState = voicePlaybackController.stateFor(
+        messageId = msg.id,
+        fallbackDurationSeconds = content.duration
+    )
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -214,7 +217,7 @@ fun VoiceRow(
                     } else if (content.path == null) {
                         onVoiceClick(msg)
                     } else {
-                        playerState.togglePlayPause()
+                        voicePlaybackController.togglePlayPause(msg.id, content.path)
                     }
                 },
             contentAlignment = Alignment.Center

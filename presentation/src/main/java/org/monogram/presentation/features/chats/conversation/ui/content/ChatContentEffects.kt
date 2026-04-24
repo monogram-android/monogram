@@ -41,6 +41,8 @@ internal fun ChatContentEffects(
     onSearchSenderPickerChanged: (Boolean) -> Unit
 ) {
     val latestUiState = rememberUpdatedState(state)
+    val firstGroupedMessageId = groupedMessages.firstOrNull()?.firstMessageId
+    val lastGroupedMessageId = groupedMessages.lastOrNull()?.firstMessageId
 
     LaunchedEffect(Unit) {
         onVisible()
@@ -83,7 +85,13 @@ internal fun ChatContentEffects(
         }
     }
 
-    LaunchedEffect(state.pendingScrollCommand, isComments) {
+    LaunchedEffect(
+        state.pendingScrollCommand,
+        isComments,
+        groupedMessages.size,
+        firstGroupedMessageId,
+        lastGroupedMessageId
+    ) {
         val command = state.pendingScrollCommand ?: return@LaunchedEffect
 
         val leadingItems = chatContentLeadingItemsCount(
@@ -213,7 +221,9 @@ internal fun ChatContentEffects(
 
     LaunchedEffect(
         scrollState,
-        groupedMessages,
+        groupedMessages.size,
+        firstGroupedMessageId,
+        lastGroupedMessageId,
         isComments,
         state.isLatestLoaded,
         state.isLoadingOlder,
@@ -242,7 +252,9 @@ internal fun ChatContentEffects(
 
     DisposableEffect(
         scrollState,
-        groupedMessages,
+        groupedMessages.size,
+        firstGroupedMessageId,
+        lastGroupedMessageId,
         isComments,
         state.currentTopicId,
         state.isLatestLoaded,
@@ -267,7 +279,7 @@ internal fun ChatContentEffects(
         }
     }
 
-    LaunchedEffect(scrollState, groupedMessages) {
+    LaunchedEffect(scrollState, groupedMessages.size, firstGroupedMessageId, lastGroupedMessageId) {
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
             .map { visibleItems ->
                 val currentState = latestUiState.value

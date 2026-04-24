@@ -23,7 +23,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.generateColorFromHash
-import org.monogram.presentation.features.chats.currentChat.components.AvatarPlayer
+import org.monogram.presentation.core.media.AvatarPlayer
 import java.io.File
 
 @Composable

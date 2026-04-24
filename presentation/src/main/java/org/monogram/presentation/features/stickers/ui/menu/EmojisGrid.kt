@@ -78,8 +78,8 @@ import org.monogram.domain.repository.EmojiRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.AppPreferences
-import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
-import org.monogram.presentation.features.chats.currentChat.components.chats.getEmojiFontFamily
+import org.monogram.presentation.features.chats.conversation.ui.StickerSetSheet
+import org.monogram.presentation.features.chats.conversation.ui.message.getEmojiFontFamily
 import org.monogram.presentation.features.stickers.ui.view.LocalIsScrolling
 import org.monogram.presentation.features.stickers.ui.view.StickerItem
 

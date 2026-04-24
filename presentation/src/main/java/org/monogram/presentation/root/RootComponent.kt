@@ -10,10 +10,10 @@ import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.features.auth.AuthComponent
-import org.monogram.presentation.features.chats.ChatListComponent
-import org.monogram.presentation.features.chats.currentChat.ChatComponent
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
-import org.monogram.presentation.features.chats.newChat.NewChatComponent
+import org.monogram.presentation.features.chats.list.ChatListComponent
+import org.monogram.presentation.features.chats.conversation.ChatComponent
+import org.monogram.presentation.core.media.VideoPlayerPool
+import org.monogram.presentation.features.chats.creation.NewChatComponent
 import org.monogram.presentation.settings.folders.FoldersComponent
 import org.monogram.presentation.features.profile.ProfileComponent
 import org.monogram.presentation.features.profile.admin.AdminManageComponent

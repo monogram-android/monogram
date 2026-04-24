@@ -37,8 +37,8 @@ import org.monogram.app.components.MobileLayout
 import org.monogram.app.components.ProxyConfirmSheet
 import org.monogram.app.components.TabletLayout
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentViewers
-import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
+import org.monogram.presentation.features.chats.conversation.ui.StickerSetSheet
+import org.monogram.presentation.features.chats.conversation.ui.content.ChatContentViewers
 import org.monogram.presentation.features.profile.ProfileViewers
 import org.monogram.presentation.features.stickers.core.toDomain
 import org.monogram.presentation.root.RootComponent

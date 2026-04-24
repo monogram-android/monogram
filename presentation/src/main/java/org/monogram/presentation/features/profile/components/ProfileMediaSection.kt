@@ -45,8 +45,8 @@ import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.rememberShimmerBrush
 import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.getUserStatusText
-import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
-import org.monogram.presentation.features.chats.currentChat.components.VideoType
+import org.monogram.presentation.core.media.VideoStickerPlayer
+import org.monogram.presentation.core.media.VideoType
 import org.monogram.presentation.features.profile.ProfileComponent
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import java.io.File

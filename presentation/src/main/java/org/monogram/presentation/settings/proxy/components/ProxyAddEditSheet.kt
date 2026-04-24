@@ -58,7 +58,7 @@ import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.proxy.MtprotoSecretNormalizer
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
+import org.monogram.presentation.core.ui.SettingsTextField
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 
 @OptIn(ExperimentalMaterial3Api::class)

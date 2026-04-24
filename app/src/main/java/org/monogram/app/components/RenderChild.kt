@@ -2,9 +2,9 @@ package org.monogram.app.components
 
 import androidx.compose.runtime.Composable
 import org.monogram.presentation.features.auth.AuthContent
-import org.monogram.presentation.features.chats.chatList.ChatListContent
-import org.monogram.presentation.features.chats.currentChat.ChatContent
-import org.monogram.presentation.features.chats.newChat.NewChatContent
+import org.monogram.presentation.features.chats.conversation.ChatContent
+import org.monogram.presentation.features.chats.creation.NewChatContent
+import org.monogram.presentation.features.chats.list.ChatListContent
 import org.monogram.presentation.features.profile.ProfileContent
 import org.monogram.presentation.features.profile.admin.AdminManageContent
 import org.monogram.presentation.features.profile.admin.ChatEditContent

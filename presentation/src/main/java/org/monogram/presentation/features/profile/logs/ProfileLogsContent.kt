@@ -28,8 +28,8 @@ import org.monogram.domain.models.MessageSenderModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.features.chats.chatList.components.SectionHeader
-import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
+import org.monogram.presentation.core.ui.SectionHeader
+import org.monogram.presentation.core.ui.SettingsTextField
 import org.monogram.presentation.features.profile.logs.components.DateHeader
 import org.monogram.presentation.features.profile.logs.components.FilterChipCompact
 import org.monogram.presentation.features.profile.logs.components.LogBubble

@@ -22,7 +22,7 @@ import coil3.compose.AsyncImage
 import org.monogram.domain.models.*
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
-import org.monogram.presentation.features.chats.currentChat.components.MessageBubbleContainer
+import org.monogram.presentation.features.chats.conversation.ui.MessageBubbleContainer
 import java.io.File
 
 @Composable

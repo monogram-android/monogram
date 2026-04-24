@@ -58,10 +58,10 @@ import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.features.auth.DefaultAuthComponent
-import org.monogram.presentation.features.chats.chatList.DefaultChatListComponent
-import org.monogram.presentation.features.chats.currentChat.DefaultChatComponent
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
-import org.monogram.presentation.features.chats.newChat.DefaultNewChatComponent
+import org.monogram.presentation.features.chats.list.DefaultChatListComponent
+import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
+import org.monogram.presentation.core.media.VideoPlayerPool
+import org.monogram.presentation.features.chats.creation.DefaultNewChatComponent
 import org.monogram.presentation.features.profile.DefaultProfileComponent
 import org.monogram.presentation.features.profile.admin.DefaultAdminManageComponent
 import org.monogram.presentation.features.profile.admin.DefaultChatEditComponent

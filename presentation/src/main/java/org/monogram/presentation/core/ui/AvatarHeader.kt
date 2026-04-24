@@ -22,7 +22,7 @@ import coil3.request.crossfade
 import coil3.size.Precision
 import coil3.size.Size
 import org.monogram.presentation.core.util.generateColorFromHash
-import org.monogram.presentation.features.chats.currentChat.components.AvatarPlayer
+import org.monogram.presentation.core.media.AvatarPlayer
 import java.io.File
 
 @Composable

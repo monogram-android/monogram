@@ -23,6 +23,8 @@ import org.monogram.domain.repository.CacheProvider
 import org.monogram.domain.repository.EditorSnippetProvider
 import org.monogram.domain.repository.ExternalNavigator
 import org.monogram.domain.repository.MessageDisplayer
+import org.monogram.presentation.core.media.ExoPlayerCache
+import org.monogram.presentation.core.media.VideoPlayerPool
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.BotPreferences
 import org.monogram.presentation.core.util.CachePreferences
@@ -34,8 +36,6 @@ import org.monogram.presentation.core.util.ExternalNavigatorImpl
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.ToastMessageDisplayer
 import org.monogram.presentation.di.uiModule
-import org.monogram.presentation.features.chats.currentChat.components.ExoPlayerCache
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
 import org.monogram.presentation.settings.storage.CacheController
 
 @SuppressLint("WrongConstant")

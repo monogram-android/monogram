@@ -9,10 +9,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun SectionHeader(text: String) {
+fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
-        modifier = Modifier.padding(start = 12.dp, bottom = 8.dp, top = 16.dp),
+        modifier = modifier.padding(start = 12.dp, bottom = 8.dp, top = 16.dp),
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.primary,
         fontWeight = FontWeight.Bold

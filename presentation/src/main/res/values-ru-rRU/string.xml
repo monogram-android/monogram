@@ -158,6 +158,12 @@
     <string name="cd_show_accounts">Показать аккаунты</string>
     <!-- Current Chat -->
     <string name="search_messages_hint">Поиск сообщений…</string>
+    <string name="search_sender_all">Все авторы</string>
+    <string name="search_date_all">Все даты</string>
+    <string name="search_date_from">С</string>
+    <string name="search_date_to">По</string>
+    <string name="search_date_last_7_days">7д</string>
+    <string name="search_date_last_30_days">30д</string>
     <string name="action_clear">Очистить</string>
     <string name="cd_muted">Без звука</string>
     <string name="cd_verified">Подтверждённый аккаунт</string>

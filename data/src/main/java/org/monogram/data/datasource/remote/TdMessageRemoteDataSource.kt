@@ -118,6 +118,8 @@ class TdMessageRemoteDataSource(
     private suspend fun <T : TdApi.Object> safeExecute(function: TdApi.Function<T>): T? {
         return try {
             gateway.execute(function)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e("TdMessageRemote", "Error executing ${function.javaClass.simpleName}", e)
             null
@@ -370,12 +372,20 @@ class TdMessageRemoteDataSource(
         }
     }
 
-    override suspend fun searchChatMessages(chatId: Long, query: String, fromMessageId: Long, limit: Int, filter: TdApi.SearchMessagesFilter, threadId: Long?): TdApi.FoundChatMessages? {
+    override suspend fun searchChatMessages(
+        chatId: Long,
+        query: String,
+        fromMessageId: Long,
+        limit: Int,
+        filter: TdApi.SearchMessagesFilter,
+        threadId: Long?,
+        senderId: Long?
+    ): TdApi.FoundChatMessages? {
         val request = TdApi.SearchChatMessages().apply {
             this.chatId = chatId
-            this.topicId = if (threadId != null) TdApi.MessageTopicForum(threadId.toInt()) else null
+            this.topicId = resolveSearchTopicId(chatId, threadId)
             this.query = query
-            this.senderId = null
+            this.senderId = senderId?.let(TdApi::MessageSenderUser)
             this.fromMessageId = fromMessageId
             this.offset = 0
             this.limit = limit
@@ -384,8 +394,23 @@ class TdMessageRemoteDataSource(
         return safeExecute(request)
     }
 
-    override suspend fun searchMessages(chatId: Long, query: String, fromMessageId: Long, limit: Int, threadId: Long?): SearchChatMessagesResult {
-        val result = searchChatMessages(chatId, query, fromMessageId, limit, TdApi.SearchMessagesFilterEmpty(), threadId)
+    override suspend fun searchMessages(
+        chatId: Long,
+        query: String,
+        fromMessageId: Long,
+        limit: Int,
+        threadId: Long?,
+        senderId: Long?
+    ): SearchChatMessagesResult {
+        val result = searchChatMessages(
+            chatId = chatId,
+            query = query,
+            fromMessageId = fromMessageId,
+            limit = limit,
+            filter = TdApi.SearchMessagesFilterEmpty(),
+            threadId = threadId,
+            senderId = senderId
+        )
         if (result != null) {
             val chat = getChat(chatId)
             val lastReadInbox = chat?.lastReadInboxMessageId ?: 0L
@@ -395,14 +420,34 @@ class TdMessageRemoteDataSource(
                 scope.async {
                     try {
                         withTimeout(5000) { messageMapper.mapMessageToModelSync(msg, lastReadInbox, lastReadOutbox, isChatOpen = true) }
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         Log.e("TdMessageRemote", "Error mapping search message ${msg.id}", e)
                         createFallbackMessage(msg)
                     }
                 }
             }.awaitAll()
-            return SearchChatMessagesResult(models, result.totalCount, result.nextFromMessageId)
+            val nextCursor = result.nextFromMessageId.takeIf { it != 0L }
+                ?: models.lastOrNull()?.id
+                ?: 0L
+            return SearchChatMessagesResult(
+                messages = models,
+                totalCount = result.totalCount,
+                nextFromMessageId = if (models.size < result.totalCount) nextCursor else 0L
+            )
         } else return SearchChatMessagesResult(emptyList(), 0, 0L)
+    }
+
+    private suspend fun resolveSearchTopicId(chatId: Long, threadId: Long?): TdApi.MessageTopic? {
+        if (threadId == null || threadId == 0L) return null
+
+        val chat = getChat(chatId)
+        return if (chat?.viewAsTopics == true) {
+            TdApi.MessageTopicForum(threadId.toInt())
+        } else {
+            TdApi.MessageTopicThread(threadId)
+        }
     }
 
     private suspend fun loadMessages(chatId: Long, fromMessageId: Long, offset: Int, limit: Int, threadId: Long? = null): List<MessageModel> = withContext(dispatcherProvider.io) {
@@ -423,6 +468,8 @@ class TdMessageRemoteDataSource(
             async {
                 try {
                     withTimeout(5000) { messageMapper.mapMessageToModelSync(msg, lastReadInbox, lastReadOutbox, isChatOpen = true) }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.e("TdMessageRemote", "Error mapping message ${msg.id}", e)
                     createFallbackMessage(msg)

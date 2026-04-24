@@ -842,9 +842,17 @@ class MessageRepositoryImpl(
         query: String,
         fromMessageId: Long,
         limit: Int,
-        threadId: Long?
+        threadId: Long?,
+        senderId: Long?
     ): SearchChatMessagesResult = withContext(dispatcherProvider.io) {
-        messageRemoteDataSource.searchMessages(chatId, query, fromMessageId, limit, threadId)
+        messageRemoteDataSource.searchMessages(
+            chatId,
+            query,
+            fromMessageId,
+            limit,
+            threadId,
+            senderId
+        )
     }
 
     override fun updateVisibleRange(chatId: Long, visibleMessageIds: List<Long>, nearbyMessageIds: List<Long>) {

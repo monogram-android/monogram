@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.rounded.PlaylistAddCheck
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Close
@@ -310,6 +311,12 @@ fun ChatTopBar(
                             }
                         },
                         actions = {
+                            IconButton(onClick = onSearchToggle) {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = stringResource(R.string.action_search)
+                                )
+                            }
                             IconButton(onClick = {
                                 onMenu()
                                 showMenu = true

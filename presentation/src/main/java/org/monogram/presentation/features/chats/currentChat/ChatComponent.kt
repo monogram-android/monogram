@@ -174,6 +174,12 @@ interface ChatComponent {
     fun onToggleMute()
     fun onSearchToggle()
     fun onSearchQueryChange(query: String)
+    fun onSearchNextResult()
+    fun onSearchPreviousResult()
+    fun onSearchResultClick(index: Int)
+    fun onLoadMoreSearchResults()
+    fun onSearchSenderChange(user: UserModel?)
+    fun onSearchDateRangeChange(fromEpochSeconds: Int?, toEpochSeconds: Int?)
     fun onClearHistory()
     fun onDeleteChat()
     fun onReport()
@@ -321,6 +327,15 @@ interface ChatComponent {
         val isMuted: Boolean = false,
         val isSearchActive: Boolean = false,
         val searchQuery: String = "",
+        val isSearchingMessages: Boolean = false,
+        val searchResults: List<MessageModel> = emptyList(),
+        val searchResultsTotalCount: Int = 0,
+        val selectedSearchResultIndex: Int = -1,
+        val searchNextFromMessageId: Long = 0L,
+        val searchSender: UserModel? = null,
+        val searchAvailableSenders: List<UserModel> = emptyList(),
+        val searchDateFromEpochSeconds: Int? = null,
+        val searchDateToEpochSeconds: Int? = null,
         val showReportDialog: Boolean = false,
         val isBot: Boolean = false,
         val botCommands: List<BotCommandModel> = emptyList(),

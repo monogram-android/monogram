@@ -47,6 +47,13 @@ import org.monogram.presentation.features.chats.currentChat.impl.handleReportMes
 import org.monogram.presentation.features.chats.currentChat.impl.handleReportReasonSelected
 import org.monogram.presentation.features.chats.currentChat.impl.handleRetractVote
 import org.monogram.presentation.features.chats.currentChat.impl.handleSaveEditedMessage
+import org.monogram.presentation.features.chats.currentChat.impl.handleSearchDateRangeChange
+import org.monogram.presentation.features.chats.currentChat.impl.handleSearchNextResult
+import org.monogram.presentation.features.chats.currentChat.impl.handleSearchPreviousResult
+import org.monogram.presentation.features.chats.currentChat.impl.handleSearchQueryChange
+import org.monogram.presentation.features.chats.currentChat.impl.handleSearchResultClick
+import org.monogram.presentation.features.chats.currentChat.impl.handleSearchSenderChange
+import org.monogram.presentation.features.chats.currentChat.impl.handleSearchToggle
 import org.monogram.presentation.features.chats.currentChat.impl.handleSendAlbum
 import org.monogram.presentation.features.chats.currentChat.impl.handleSendDocument
 import org.monogram.presentation.features.chats.currentChat.impl.handleSendGif
@@ -70,6 +77,7 @@ import org.monogram.presentation.features.chats.currentChat.impl.handleUnpinMess
 import org.monogram.presentation.features.chats.currentChat.impl.handleVideoRecorded
 import org.monogram.presentation.features.chats.currentChat.impl.loadAllPinnedMessages
 import org.monogram.presentation.features.chats.currentChat.impl.loadMoreMessages
+import org.monogram.presentation.features.chats.currentChat.impl.loadMoreSearchResults
 import org.monogram.presentation.features.chats.currentChat.impl.loadNewerMessages
 import org.monogram.presentation.features.chats.currentChat.impl.loadScheduledMessages
 import org.monogram.presentation.features.chats.currentChat.impl.scrollToBottomInternal
@@ -313,15 +321,17 @@ class ChatStoreFactory(
                 is Intent.AddToAdBlockWhitelist -> component.handleAddToAdBlockWhitelist()
                 is Intent.RemoveFromAdBlockWhitelist -> component.handleRemoveFromAdBlockWhitelist()
                 is Intent.ToggleMute -> component.handleToggleMute()
-
-                is Intent.SearchToggle -> component._state.update {
-                    it.copy(
-                        isSearchActive = !it.isSearchActive,
-                        searchQuery = ""
-                    )
-                }
-
-                is Intent.SearchQueryChange -> component._state.update { it.copy(searchQuery = intent.query) }
+                is Intent.SearchToggle -> component.handleSearchToggle()
+                is Intent.SearchQueryChange -> component.handleSearchQueryChange(intent.query)
+                is Intent.SearchNextResult -> component.handleSearchNextResult()
+                is Intent.SearchPreviousResult -> component.handleSearchPreviousResult()
+                is Intent.SearchResultClick -> component.handleSearchResultClick(intent.index)
+                is Intent.LoadMoreSearchResults -> component.loadMoreSearchResults()
+                is Intent.SearchSenderChange -> component.handleSearchSenderChange(intent.user)
+                is Intent.SearchDateRangeChange -> component.handleSearchDateRangeChange(
+                    intent.fromEpochSeconds,
+                    intent.toEpochSeconds
+                )
                 is Intent.ClearHistory -> component.handleClearHistory()
 
                 is Intent.DeleteChat -> component.handleDeleteChat()

@@ -116,6 +116,7 @@ class DefaultChatComponent(
     var draftSaveJob: Job? = null
     private var autoLoadJob: Job? = null
     private var mentionJob: Job? = null
+    internal var searchJob: Job? = null
     internal val reactionUpdateSuppressedUntil = ConcurrentHashMap<Long, Long>()
     internal val remappedMessageIds = ConcurrentHashMap<Long, Long>()
     internal val mediaDownloadRetryCount = ConcurrentHashMap<Int, Int>()
@@ -312,6 +313,7 @@ class DefaultChatComponent(
                 try {
                     allMembers = chatInfoRepository.getChatMembers(chatId, 0, 200, ChatMembersFilter.Recent)
                         .map { it.user }
+                    _state.update { it.copy(searchAvailableSenders = allMembers) }
                 } catch (e: Exception) {
                     Log.e("DefaultChatComponent", "Failed to load members", e)
                 }
@@ -591,6 +593,17 @@ class DefaultChatComponent(
     override fun onSearchToggle() = store.accept(ChatStore.Intent.SearchToggle)
 
     override fun onSearchQueryChange(query: String) = store.accept(ChatStore.Intent.SearchQueryChange(query))
+    override fun onSearchNextResult() = store.accept(ChatStore.Intent.SearchNextResult)
+    override fun onSearchPreviousResult() = store.accept(ChatStore.Intent.SearchPreviousResult)
+    override fun onSearchResultClick(index: Int) =
+        store.accept(ChatStore.Intent.SearchResultClick(index))
+
+    override fun onLoadMoreSearchResults() = store.accept(ChatStore.Intent.LoadMoreSearchResults)
+    override fun onSearchSenderChange(user: UserModel?) =
+        store.accept(ChatStore.Intent.SearchSenderChange(user))
+
+    override fun onSearchDateRangeChange(fromEpochSeconds: Int?, toEpochSeconds: Int?) =
+        store.accept(ChatStore.Intent.SearchDateRangeChange(fromEpochSeconds, toEpochSeconds))
 
     override fun onClearHistory() = store.accept(ChatStore.Intent.ClearHistory)
     override fun onDeleteChat() = store.accept(ChatStore.Intent.DeleteChat)

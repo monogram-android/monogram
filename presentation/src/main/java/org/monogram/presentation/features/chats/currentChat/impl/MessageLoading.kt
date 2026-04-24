@@ -699,6 +699,8 @@ internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
                     animated = true
                 )
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e("DefaultChatComponent", "Failed to scroll to message", e)
         } finally {
@@ -746,6 +748,8 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
                     scrollCommand = ChatScrollCommand.ScrollToBottom(animated = true)
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e("DefaultChatComponent", "Failed to scroll to bottom", e)
         } finally {
@@ -1408,6 +1412,7 @@ internal fun DefaultChatComponent.loadDraft() {
 
 internal fun DefaultChatComponent.handleTopicClick(topicId: Int) {
     val id = if (topicId == 0) null else topicId.toLong()
+    resetSearchState(isSearchActive = false)
     _state.update {
         it.copy(
             currentTopicId = id,
@@ -1428,6 +1433,7 @@ internal fun DefaultChatComponent.handleCommentsClick(messageId: Long) {
     scope.launch {
         val message = _state.value.messages.find { it.id == messageId }
         val threadContext = repositoryMessage.getMessageThreadContext(chatId, messageId)
+        resetSearchState(isSearchActive = false)
         _state.update {
             it.copy(
                 currentTopicId = messageId,

@@ -47,7 +47,15 @@ interface MessageRemoteDataSource {
     suspend fun getMessageThread(chatId: Long, messageId: Long): TdApi.MessageThreadInfo?
     suspend fun getMessages(chatId: Long, fromMessageId: Long, offset: Int, limit: Int, threadId: Long?): TdApi.Messages?
     suspend fun getChatHistory(chatId: Long, fromMessageId: Long, offset: Int, limit: Int): TdApi.Messages?
-    suspend fun searchChatMessages(chatId: Long, query: String, fromMessageId: Long, limit: Int, filter: TdApi.SearchMessagesFilter, threadId: Long?): TdApi.FoundChatMessages?
+    suspend fun searchChatMessages(
+        chatId: Long,
+        query: String,
+        fromMessageId: Long,
+        limit: Int,
+        filter: TdApi.SearchMessagesFilter,
+        threadId: Long?,
+        senderId: Long? = null
+    ): TdApi.FoundChatMessages?
     suspend fun getChatPinnedMessage(chatId: Long): TdApi.Message?
     suspend fun getPollVoters(chatId: Long, messageId: Long, optionId: Int, offset: Int, limit: Int): TdApi.PollVoters?
     suspend fun getMessageViewers(chatId: Long, messageId: Long): TdApi.MessageViewers?
@@ -163,7 +171,8 @@ interface MessageRemoteDataSource {
         query: String,
         fromMessageId: Long,
         limit: Int,
-        threadId: Long?
+        threadId: Long?,
+        senderId: Long? = null
     ): SearchChatMessagesResult
 
     suspend fun getPollVotersModels(

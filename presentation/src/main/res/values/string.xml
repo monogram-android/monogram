@@ -180,6 +180,16 @@
 
     <!-- Current Chat -->
     <string name="search_messages_hint">Search messages...</string>
+    <string name="search_results_loading">Searching...</string>
+    <string name="search_results_position_format">%1$d / %2$d</string>
+    <string name="search_results_show_all">Show all</string>
+    <string name="search_results_hide_all">Hide results</string>
+    <string name="search_sender_all">All senders</string>
+    <string name="search_date_all">All dates</string>
+    <string name="search_date_from">From</string>
+    <string name="search_date_to">To</string>
+    <string name="search_date_last_7_days">7d</string>
+    <string name="search_date_last_30_days">30d</string>
     <string name="action_clear">Clear</string>
     <string name="cd_muted">Muted</string>
     <string name="cd_verified">Verified</string>

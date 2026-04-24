@@ -11,6 +11,7 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.PollDraft
+import org.monogram.domain.models.UserModel
 import java.io.File
 
 interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Label> {
@@ -144,6 +145,13 @@ interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Lab
         object ToggleMute : Intent()
         object SearchToggle : Intent()
         data class SearchQueryChange(val query: String) : Intent()
+        object SearchNextResult : Intent()
+        object SearchPreviousResult : Intent()
+        data class SearchResultClick(val index: Int) : Intent()
+        object LoadMoreSearchResults : Intent()
+        data class SearchSenderChange(val user: UserModel?) : Intent()
+        data class SearchDateRangeChange(val fromEpochSeconds: Int?, val toEpochSeconds: Int?) :
+            Intent()
         object ClearHistory : Intent()
         object DeleteChat : Intent()
         object Report : Intent()

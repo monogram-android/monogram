@@ -87,9 +87,14 @@ import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ui.AlbumMessageBubbleContainer
 import org.monogram.presentation.features.chats.conversation.ui.DateSeparator
+import org.monogram.presentation.features.chats.conversation.ui.MessageAppearanceConfig
 import org.monogram.presentation.features.chats.conversation.ui.MessageBubbleContainer
+import org.monogram.presentation.features.chats.conversation.ui.MessageRowBehaviorConfig
+import org.monogram.presentation.features.chats.conversation.ui.MessageRowUiFlags
+import org.monogram.presentation.features.chats.conversation.ui.MessageSenderGrouping
 import org.monogram.presentation.features.chats.conversation.ui.ServiceMessage
 import org.monogram.presentation.features.chats.conversation.ui.UnreadMessagesSeparator
+import org.monogram.presentation.features.chats.conversation.ui.buildSenderGrouping
 import org.monogram.presentation.features.chats.conversation.ui.channel.ChannelMessageBubbleContainer
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import java.io.File
@@ -171,6 +176,7 @@ fun ChatContentList(
     bottomContentPadding: Dp = 8.dp
 ) {
     val isComments = state.isComments
+    val appearance = state.toAppearanceConfig()
     val isScrolling by remember(scrollState) { derivedStateOf { scrollState.isScrollInProgress } }
     val latestState by rememberUpdatedState(state)
     var lastOlderLoadTriggerUptimeMs by remember { mutableLongStateOf(0L) }
@@ -417,13 +423,22 @@ fun ChatContentList(
 
                 MessageRowItem(
                     item = item,
-                    state = state,
+                    appearance = appearance,
                     component = component,
                     olderMsg = olderMsg,
                     newerMsg = newerMsg,
-                    isSelected = isItemSelected(item, state.selectedMessageIds),
-                    isSelectionMode = state.selectedMessageIds.isNotEmpty(),
-                    selectedMessageId = selectedMessageId,
+                    behavior = state.toBehaviorConfig(
+                        isSelectionMode = state.selectedMessageIds.isNotEmpty(),
+                        isAnyViewerOpen = isAnyViewerOpen
+                    ),
+                    uiFlags = MessageRowUiFlags(
+                        isSelected = isItemSelected(item, state.selectedMessageIds),
+                        isHighlighted = isItemHighlighted(item, state.highlightedMessageId),
+                        showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
+                        unreadCount = state.unreadSeparatorCount,
+                        shouldReportPosition = item.lastMessageId == selectedMessageId
+                    ),
+                    rootMessageId = state.rootMessage?.id,
                     onPhotoClick = onPhotoClick,
                     onPhotoDownload = onPhotoDownload,
                     onVideoClick = onVideoClick,
@@ -435,13 +450,11 @@ fun ChatContentList(
                     onViaBotClick = onViaBotClick,
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick,
+                    isChatAnimationsEnabled = state.isChatAnimationsEnabled,
                     isScrolling = isScrolling,
                     isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
                     onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
-                    downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen,
-                    showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
-                    unreadCount = state.unreadSeparatorCount
+                    downloadUtils = downloadUtils
                 )
             }
         } else {
@@ -476,13 +489,22 @@ fun ChatContentList(
 
                 MessageRowItem(
                     item = item,
-                    state = state,
+                    appearance = appearance,
                     component = component,
                     olderMsg = olderMsg,
                     newerMsg = newerMsg,
-                    isSelected = isItemSelected(item, state.selectedMessageIds),
-                    isSelectionMode = state.selectedMessageIds.isNotEmpty(),
-                    selectedMessageId = selectedMessageId,
+                    behavior = state.toBehaviorConfig(
+                        isSelectionMode = state.selectedMessageIds.isNotEmpty(),
+                        isAnyViewerOpen = isAnyViewerOpen
+                    ),
+                    uiFlags = MessageRowUiFlags(
+                        isSelected = isItemSelected(item, state.selectedMessageIds),
+                        isHighlighted = isItemHighlighted(item, state.highlightedMessageId),
+                        showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
+                        unreadCount = state.unreadSeparatorCount,
+                        shouldReportPosition = item.lastMessageId == selectedMessageId
+                    ),
+                    rootMessageId = state.rootMessage?.id,
                     onPhotoClick = onPhotoClick,
                     onPhotoDownload = onPhotoDownload,
                     onVideoClick = onVideoClick,
@@ -494,13 +516,11 @@ fun ChatContentList(
                     onViaBotClick = onViaBotClick,
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick,
+                    isChatAnimationsEnabled = state.isChatAnimationsEnabled,
                     isScrolling = isScrolling,
                     isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
                     onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
-                    downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen,
-                    showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
-                    unreadCount = state.unreadSeparatorCount
+                    downloadUtils = downloadUtils
                 )
             }
         }
@@ -560,13 +580,13 @@ private fun PagingLoadingIndicator() {
 @Composable
 private fun MessageRowItem(
     item: GroupedMessageItem,
-    state: ChatMessageListUiState,
+    appearance: MessageAppearanceConfig,
     component: ChatComponent,
     olderMsg: MessageModel?,
     newerMsg: MessageModel?,
-    isSelected: Boolean,
-    isSelectionMode: Boolean,
-    selectedMessageId: Long?,
+    behavior: MessageRowBehaviorConfig,
+    uiFlags: MessageRowUiFlags,
+    rootMessageId: Long?,
     onPhotoClick: (MessageModel, List<String>, List<String?>, List<Long>, Int) -> Unit,
     onPhotoDownload: (Int) -> Unit,
     onVideoClick: (MessageModel, String?, String?) -> Unit,
@@ -578,20 +598,18 @@ private fun MessageRowItem(
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit,
+    isChatAnimationsEnabled: Boolean,
     isScrolling: Boolean,
     isEntryAnimationPending: Boolean,
     onEntryAnimationConsumed: (Long) -> Unit,
-    downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false,
-    showUnreadSeparator: Boolean,
-    unreadCount: Int
+    downloadUtils: IDownloadUtils
 ) {
     val mainMsg = remember(item) {
         if (item is GroupedMessageItem.Single) item.message else (item as GroupedMessageItem.Album).messages.last()
     }
 
     val shouldAnimateEntry =
-        state.isChatAnimationsEnabled && isEntryAnimationPending && !isScrolling
+        isChatAnimationsEnabled && isEntryAnimationPending && !isScrolling
 
     val scale = remember(mainMsg.id) {
         Animatable(
@@ -631,10 +649,13 @@ private fun MessageRowItem(
     }
 
     val backgroundColor by animateColorAsState(
-        targetValue = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
+        targetValue = if (uiFlags.isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
         label = "bg"
     )
-    val horizontalPadding by animateDpAsState(if (isSelectionMode) 16.dp else 8.dp, label = "padding")
+    val horizontalPadding by animateDpAsState(
+        if (behavior.isSelectionMode) 16.dp else 8.dp,
+        label = "padding"
+    )
 
     Box(
         modifier = Modifier
@@ -649,7 +670,7 @@ private fun MessageRowItem(
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                enabled = isSelectionMode,
+                enabled = behavior.isSelectionMode,
                 onClick = { component.onToggleMessageSelection(mainMsg.id) }
             )
     ) {
@@ -659,8 +680,15 @@ private fun MessageRowItem(
                 .padding(horizontal = horizontalPadding, vertical = 1.dp),
             verticalAlignment = Alignment.Bottom
         ) {
-            AnimatedVisibility(visible = isSelectionMode, enter = expandHorizontally(), exit = shrinkHorizontally()) {
-                SelectionIndicator(isSelected = isSelected, modifier = Modifier.padding(end = 12.dp, bottom = 4.dp))
+            AnimatedVisibility(
+                visible = behavior.isSelectionMode,
+                enter = expandHorizontally(),
+                exit = shrinkHorizontally()
+            ) {
+                SelectionIndicator(
+                    isSelected = uiFlags.isSelected,
+                    modifier = Modifier.padding(end = 12.dp, bottom = 4.dp)
+                )
             }
 
             Column(modifier = Modifier.weight(1f)) {
@@ -669,21 +697,22 @@ private fun MessageRowItem(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                AnimatedVisibility(visible = showUnreadSeparator && !isScrolling) {
+                AnimatedVisibility(visible = uiFlags.showUnreadSeparator && !isScrolling) {
                     Column {
-                        UnreadMessagesSeparator(unreadCount = unreadCount)
+                        UnreadMessagesSeparator(unreadCount = uiFlags.unreadCount)
                         Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
 
                 MessageBubbleSwitcher(
                     item = item,
-                    state = state,
+                    appearance = appearance,
                     component = component,
                     olderMsg = olderMsg,
                     newerMsg = newerMsg,
-                    isSelectionMode = isSelectionMode,
-                    selectedMessageId = selectedMessageId,
+                    behavior = behavior,
+                    uiFlags = uiFlags,
+                    rootMessageId = rootMessageId,
                     onPhotoClick = onPhotoClick,
                     onPhotoDownload = onPhotoDownload,
                     onVideoClick = onVideoClick,
@@ -695,8 +724,7 @@ private fun MessageRowItem(
                     onViaBotClick = onViaBotClick,
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick,
-                    downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
+                    downloadUtils = downloadUtils
                 )
             }
         }
@@ -706,12 +734,13 @@ private fun MessageRowItem(
 @Composable
 private fun MessageBubbleSwitcher(
     item: GroupedMessageItem,
-    state: ChatMessageListUiState,
+    appearance: MessageAppearanceConfig,
     component: ChatComponent,
     olderMsg: MessageModel?,
     newerMsg: MessageModel?,
-    isSelectionMode: Boolean,
-    selectedMessageId: Long?,
+    behavior: MessageRowBehaviorConfig,
+    uiFlags: MessageRowUiFlags,
+    rootMessageId: Long?,
     onPhotoClick: (MessageModel, List<String>, List<String?>, List<Long>, Int) -> Unit,
     onPhotoDownload: (Int) -> Unit,
     onVideoClick: (MessageModel, String?, String?) -> Unit,
@@ -723,61 +752,66 @@ private fun MessageBubbleSwitcher(
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit,
-    downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false
+    downloadUtils: IDownloadUtils
 ) {
-    val isChannel = state.isChannelFeed
-    val isTopicClosed = state.isCurrentTopicClosed
-    val sanitizedItem = remember(item, state.rootMessage) {
-        item.withSuppressedRootReply(state.rootMessage?.id)
+    val sanitizedItem = remember(item, rootMessageId) {
+        item.withSuppressedRootReply(rootMessageId)
     }
-    val sanitizedOlderMsg = remember(olderMsg, state.rootMessage) {
-        olderMsg?.suppressRootReply(state.rootMessage?.id)
+    val sanitizedOlderMsg = remember(olderMsg, rootMessageId) {
+        olderMsg?.suppressRootReply(rootMessageId)
     }
-    val sanitizedNewerMsg = remember(newerMsg, state.rootMessage) {
-        newerMsg?.suppressRootReply(state.rootMessage?.id)
+    val sanitizedNewerMsg = remember(newerMsg, rootMessageId) {
+        newerMsg?.suppressRootReply(rootMessageId)
+    }
+    val senderGrouping = remember(sanitizedItem, sanitizedOlderMsg, sanitizedNewerMsg) {
+        buildSenderGrouping(
+            item = sanitizedItem,
+            olderMsg = sanitizedOlderMsg,
+            newerMsg = sanitizedNewerMsg
+        )
     }
 
     when (sanitizedItem) {
         is GroupedMessageItem.Single -> {
             if (sanitizedItem.message.content is MessageContent.Service) {
                 ServiceMessage(service = sanitizedItem.message.content as MessageContent.Service)
-            } else if (isChannel) {
+            } else if (behavior.isChannel) {
                 ChannelMessageBubbleContainer(
                     msg = sanitizedItem.message,
-                    olderMsg = sanitizedOlderMsg,
                     newerMsg = sanitizedNewerMsg,
-                    autoplayGifs = state.autoplayGifs,
-                    autoplayVideos = state.autoplayVideos,
-                    autoDownloadFiles = state.autoDownloadFiles,
-                    highlighted = state.highlightedMessageId == sanitizedItem.message.id,
+                    appearance = appearance,
+                    behavior = behavior,
+                    uiFlags = uiFlags,
+                    senderGrouping = senderGrouping,
                     onHighlightConsumed = { component.onHighlightConsumed() },
                     onPhotoClick = {
-                        if (isSelectionMode) component.onToggleMessageSelection(it.id) else handlePhotoClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else handlePhotoClick(
                             it,
                             onPhotoClick
                         )
                     },
                     onDownloadPhoto = onPhotoDownload,
                     onVideoClick = {
-                        if (isSelectionMode) component.onToggleMessageSelection(it.id) else handleVideoClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else handleVideoClick(
                             it,
                             onVideoClick
                         )
                     },
                     onDocumentClick = {
-                        if (isSelectionMode) component.onToggleMessageSelection(it.id) else onDocumentClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else onDocumentClick(
                             it
                         )
                     },
                     onAudioClick = {
-                        if (isSelectionMode) component.onToggleMessageSelection(it.id) else onAudioClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else onAudioClick(
                             it
                         )
                     },
                     onCancelDownload = { component.onCancelDownloadFile(it) },
                     onReplyClick = { pos, size, click ->
-                        if (isSelectionMode) component.onToggleMessageSelection(sanitizedItem.message.id) else onMessageOptionsClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(
+                            sanitizedItem.message.id
+                        ) else onMessageOptionsClick(
                             sanitizedItem.message,
                             pos,
                             size,
@@ -786,7 +820,7 @@ private fun MessageBubbleSwitcher(
                     },
                     onGoToReply = onGoToReply,
                     onReactionClick = { id, r ->
-                        if (isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(
                             id,
                             r
                         )
@@ -799,94 +833,81 @@ private fun MessageBubbleSwitcher(
                         )
                     },
                     onStickerClick = {
-                        if (isSelectionMode) component.onToggleMessageSelection(sanitizedItem.message.id) else component.onStickerClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(
+                            sanitizedItem.message.id
+                        ) else component.onStickerClick(
                             it
                         )
                     },
                     onPollOptionClick = { id, opt ->
-                        if (isSelectionMode) component.onToggleMessageSelection(id) else component.onPollOptionClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(id) else component.onPollOptionClick(
                             id,
                             opt
                         )
                     },
                     onRetractVote = {
-                        if (isSelectionMode) component.onToggleMessageSelection(it) else component.onRetractVote(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it) else component.onRetractVote(
                             it
                         )
                     },
                     onShowVoters = { id, opt ->
-                        if (isSelectionMode) component.onToggleMessageSelection(id) else component.onShowVoters(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(id) else component.onShowVoters(
                             id,
                             opt
                         )
                     },
                     onClosePoll = {
-                        if (isSelectionMode) component.onToggleMessageSelection(it) else component.onClosePoll(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it) else component.onClosePoll(
                             it
                         )
                     },
-                    fontSize = state.fontSize,
-                    letterSpacing = state.letterSpacing,
-                    bubbleRadius = state.bubbleRadius,
-                    stickerSize = state.stickerSize,
-                    shouldReportPosition = sanitizedItem.message.id == selectedMessageId,
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     onCommentsClick = { component.onCommentsClick(it) },
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick,
                     onViaBotClick = onViaBotClick,
-                    canReply = state.canWrite && !isSelectionMode && state.canSendAnything,
                     onReplySwipe = { component.onReplyMessage(it) },
                     onYouTubeClick = { component.onOpenYouTube(it) },
                     onInstantViewClick = { component.onOpenInstantView(it) },
-                    downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
+                    downloadUtils = downloadUtils
                 )
             } else {
                 MessageBubbleContainer(
                     msg = sanitizedItem.message,
-                    olderMsg = sanitizedOlderMsg,
                     newerMsg = sanitizedNewerMsg,
-                    isGroup = state.isGroup || state.currentTopicId != null,
-                    fontSize = state.fontSize,
-                    letterSpacing = state.letterSpacing,
-                    bubbleRadius = state.bubbleRadius,
-                    stSize = state.stickerSize,
-                    autoDownloadMobile = state.autoDownloadMobile,
-                    autoDownloadWifi = state.autoDownloadWifi,
-                    autoDownloadRoaming = state.autoDownloadRoaming,
-                    autoDownloadFiles = state.autoDownloadFiles,
-                    autoplayGifs = state.autoplayGifs,
-                    autoplayVideos = state.autoplayVideos,
-                    showLinkPreviews = state.showLinkPreviews,
-                    highlighted = state.highlightedMessageId == sanitizedItem.message.id,
+                    appearance = appearance,
+                    behavior = behavior,
+                    uiFlags = uiFlags,
+                    senderGrouping = senderGrouping,
                     onHighlightConsumed = { component.onHighlightConsumed() },
                     onPhotoClick = {
-                        if (isSelectionMode) component.onToggleMessageSelection(it.id) else handlePhotoClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else handlePhotoClick(
                             it,
                             onPhotoClick
                         )
                     },
                     onDownloadPhoto = onPhotoDownload,
                     onVideoClick = {
-                        if (isSelectionMode) component.onToggleMessageSelection(it.id) else handleVideoClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else handleVideoClick(
                             it,
                             onVideoClick
                         )
                     },
                     onDocumentClick = {
-                        if (isSelectionMode) component.onToggleMessageSelection(it.id) else onDocumentClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else onDocumentClick(
                             it
                         )
                     },
                     onAudioClick = {
-                        if (isSelectionMode) component.onToggleMessageSelection(it.id) else onAudioClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else onAudioClick(
                             it
                         )
                     },
                     onCancelDownload = { component.onCancelDownloadFile(it) },
                     onReplyClick = { pos, size, click ->
-                        if (isSelectionMode) component.onToggleMessageSelection(sanitizedItem.message.id) else onMessageOptionsClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(
+                            sanitizedItem.message.id
+                        ) else onMessageOptionsClick(
                             sanitizedItem.message,
                             pos,
                             size,
@@ -895,7 +916,7 @@ private fun MessageBubbleSwitcher(
                     },
                     onGoToReply = onGoToReply,
                     onReactionClick = { id, r ->
-                        if (isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(
                             id,
                             r
                         )
@@ -908,44 +929,42 @@ private fun MessageBubbleSwitcher(
                         )
                     },
                     onStickerClick = {
-                        if (isSelectionMode) component.onToggleMessageSelection(sanitizedItem.message.id) else component.onStickerClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(
+                            sanitizedItem.message.id
+                        ) else component.onStickerClick(
                             it
                         )
                     },
                     onPollOptionClick = { id, opt ->
-                        if (isSelectionMode) component.onToggleMessageSelection(id) else component.onPollOptionClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(id) else component.onPollOptionClick(
                             id,
                             opt
                         )
                     },
                     onRetractVote = {
-                        if (isSelectionMode) component.onToggleMessageSelection(it) else component.onRetractVote(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it) else component.onRetractVote(
                             it
                         )
                     },
                     onShowVoters = { id, opt ->
-                        if (isSelectionMode) component.onToggleMessageSelection(id) else component.onShowVoters(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(id) else component.onShowVoters(
                             id,
                             opt
                         )
                     },
                     onClosePoll = {
-                        if (isSelectionMode) component.onToggleMessageSelection(it) else component.onClosePoll(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it) else component.onClosePoll(
                             it
                         )
                     },
                     onInstantViewClick = { component.onOpenInstantView(it) },
                     onYouTubeClick = { component.onOpenYouTube(it) },
-                    shouldReportPosition = sanitizedItem.message.id == selectedMessageId,
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick,
                     onViaBotClick = onViaBotClick,
-                    canReply = state.canWrite && !isSelectionMode && (!isTopicClosed || state.isAdmin) && state.canSendAnything,
                     onReplySwipe = { component.onReplyMessage(it) },
-                    swipeEnabled = !isSelectionMode,
-                    downloadUtils = downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
+                    downloadUtils = downloadUtils
                 )
             }
         }
@@ -953,17 +972,12 @@ private fun MessageBubbleSwitcher(
         is GroupedMessageItem.Album -> {
             AlbumMessageBubbleContainer(
                 messages = sanitizedItem.messages,
-                olderMsg = sanitizedOlderMsg,
-                newerMsg = sanitizedNewerMsg,
-                isGroup = state.isGroup || state.currentTopicId != null,
-                isChannel = isChannel,
-                autoplayGifs = state.autoplayGifs,
-                autoplayVideos = state.autoplayVideos,
-                autoDownloadMobile = state.autoDownloadMobile,
-                autoDownloadWifi = state.autoDownloadWifi,
-                autoDownloadRoaming = state.autoDownloadRoaming,
+                behavior = behavior,
+                appearance = appearance,
+                uiFlags = uiFlags,
+                senderGrouping = senderGrouping,
                 onPhotoClick = {
-                    if (isSelectionMode) component.onToggleMessageSelection(it.id) else handleAlbumPhotoClick(
+                    if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else handleAlbumPhotoClick(
                         it,
                         sanitizedItem.messages,
                         onPhotoClick
@@ -971,7 +985,7 @@ private fun MessageBubbleSwitcher(
                 },
                 onDownloadPhoto = onPhotoDownload,
                 onVideoClick = {
-                    if (isSelectionMode) component.onToggleMessageSelection(it.id) else handleAlbumVideoClick(
+                    if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else handleAlbumVideoClick(
                         it,
                         sanitizedItem.messages,
                         onPhotoClick,
@@ -979,18 +993,18 @@ private fun MessageBubbleSwitcher(
                     )
                 },
                 onDocumentClick = {
-                    if (isSelectionMode) component.onToggleMessageSelection(it.id) else onDocumentClick(
+                    if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else onDocumentClick(
                         it
                     )
                 },
                 onAudioClick = {
-                    if (isSelectionMode) component.onToggleMessageSelection(it.id) else onAudioClick(
+                    if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else onAudioClick(
                         it
                     )
                 },
                 onCancelDownload = { component.onCancelDownloadFile(it) },
                 onReplyClick = { pos, size, click ->
-                    if (isSelectionMode) component.onToggleMessageSelection(sanitizedItem.messages.last().id) else onMessageOptionsClick(
+                    if (behavior.isSelectionMode) component.onToggleMessageSelection(sanitizedItem.messages.last().id) else onMessageOptionsClick(
                         sanitizedItem.messages.last(),
                         pos,
                         size,
@@ -999,22 +1013,18 @@ private fun MessageBubbleSwitcher(
                 },
                 onGoToReply = onGoToReply,
                 onReactionClick = { id, r ->
-                    if (isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(
+                    if (behavior.isSelectionMode) component.onToggleMessageSelection(id) else component.onSendReaction(
                         id,
                         r
                     )
                 },
-                shouldReportPosition = sanitizedItem.messages.last().id == selectedMessageId,
                 onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                 onCommentsClick = { component.onCommentsClick(it) },
                 toProfile = toProfile,
                 onForwardOriginClick = onForwardOriginClick,
                 onViaBotClick = onViaBotClick,
-                canReply = state.canWrite && !isSelectionMode && (!isTopicClosed || state.isAdmin) && state.canSendAnything,
                 onReplySwipe = { component.onReplyMessage(it) },
-                swipeEnabled = !isSelectionMode,
-                downloadUtils = downloadUtils,
-                isAnyViewerOpen = isAnyViewerOpen
+                downloadUtils = downloadUtils
             )
         }
     }
@@ -1061,6 +1071,21 @@ private fun RootMessageSection(
     isAnyViewerOpen: Boolean = false
 ) {
     val root = state.rootMessage ?: return
+    val appearance = state.toAppearanceConfig()
+    val behavior = MessageRowBehaviorConfig(
+        isGroup = state.isGroup,
+        isChannel = state.isChannel,
+        isTopicClosed = state.isCurrentTopicClosed,
+        canReply = false,
+        swipeEnabled = false,
+        isSelectionMode = false,
+        isAnyViewerOpen = isAnyViewerOpen
+    )
+    val rootUiFlags = MessageRowUiFlags()
+    val senderGrouping = MessageSenderGrouping(
+        isSameSenderAbove = false,
+        isSameSenderBelow = false
+    )
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1068,9 +1093,12 @@ private fun RootMessageSection(
     ) {
         if (state.isChannel) {
             ChannelMessageBubbleContainer(
-                msg = root, olderMsg = null, newerMsg = null,
-                autoplayGifs = state.autoplayGifs, autoplayVideos = state.autoplayVideos,
-                autoDownloadFiles = state.autoDownloadFiles,
+                msg = root,
+                newerMsg = null,
+                appearance = appearance,
+                behavior = behavior,
+                uiFlags = rootUiFlags,
+                senderGrouping = senderGrouping,
                 onPhotoClick = { handlePhotoClick(it, onPhotoClick) },
                 onDownloadPhoto = onPhotoDownload,
                 onVideoClick = { handleVideoClick(it, onVideoClick) },
@@ -1086,29 +1114,22 @@ private fun RootMessageSection(
                 onRetractVote = { component.onRetractVote(it) },
                 onShowVoters = { id, opt -> component.onShowVoters(id, opt) },
                 onClosePoll = { component.onClosePoll(it) },
-                fontSize = state.fontSize,
-                letterSpacing = state.letterSpacing,
-                bubbleRadius = state.bubbleRadius,
-                stickerSize = state.stickerSize,
                 onCommentsClick = {}, showComments = false,
                 toProfile = toProfile,
                 onForwardOriginClick = onForwardOriginClick,
                 onViaBotClick = onViaBotClick,
                 onYouTubeClick = { component.onOpenYouTube(it) },
                 onInstantViewClick = { component.onOpenInstantView(it) },
-                downloadUtils = downloadUtils,
-                isAnyViewerOpen = isAnyViewerOpen
+                downloadUtils = downloadUtils
             )
         } else {
             MessageBubbleContainer(
-                msg = root, olderMsg = null, newerMsg = null, isGroup = state.isGroup,
-                fontSize = state.fontSize,
-                letterSpacing = state.letterSpacing,
-                bubbleRadius = state.bubbleRadius,
-                stSize = state.stickerSize,
-                autoDownloadMobile = state.autoDownloadMobile, autoDownloadWifi = state.autoDownloadWifi,
-                autoDownloadRoaming = state.autoDownloadRoaming, autoDownloadFiles = state.autoDownloadFiles,
-                autoplayGifs = state.autoplayGifs, autoplayVideos = state.autoplayVideos,
+                msg = root,
+                newerMsg = null,
+                appearance = appearance,
+                behavior = behavior,
+                uiFlags = rootUiFlags,
+                senderGrouping = senderGrouping,
                 onPhotoClick = { handlePhotoClick(it, onPhotoClick) },
                 onDownloadPhoto = onPhotoDownload,
                 onVideoClick = { handleVideoClick(it, onVideoClick) },
@@ -1126,12 +1147,10 @@ private fun RootMessageSection(
                 onClosePoll = { component.onClosePoll(it) },
                 toProfile = toProfile,
                 onForwardOriginClick = onForwardOriginClick,
-                swipeEnabled = false,
                 onViaBotClick = onViaBotClick,
                 onInstantViewClick = { component.onOpenInstantView(it) },
                 onYouTubeClick = { component.onOpenYouTube(it) },
-                downloadUtils = downloadUtils,
-                isAnyViewerOpen = isAnyViewerOpen
+                downloadUtils = downloadUtils
             )
         }
 
@@ -1157,6 +1176,49 @@ private fun isItemSelected(item: GroupedMessageItem, selectedIds: Set<Long>): Bo
         is GroupedMessageItem.Album -> item.messages.any { selectedIds.contains(it.id) }
     }
 }
+
+private val GroupedMessageItem.lastMessageId: Long
+    get() = when (this) {
+        is GroupedMessageItem.Single -> message.id
+        is GroupedMessageItem.Album -> messages.last().id
+    }
+
+private fun isItemHighlighted(item: GroupedMessageItem, highlightedMessageId: Long?): Boolean {
+    if (highlightedMessageId == null) return false
+    return when (item) {
+        is GroupedMessageItem.Single -> item.message.id == highlightedMessageId
+        is GroupedMessageItem.Album -> item.messages.any { it.id == highlightedMessageId }
+    }
+}
+
+private fun ChatMessageListUiState.toAppearanceConfig(): MessageAppearanceConfig =
+    MessageAppearanceConfig(
+        fontSize = fontSize,
+        letterSpacing = letterSpacing,
+        bubbleRadius = bubbleRadius,
+        stickerSize = stickerSize,
+        showLinkPreviews = showLinkPreviews,
+        autoplayGifs = autoplayGifs,
+        autoplayVideos = autoplayVideos,
+        autoDownloadMobile = autoDownloadMobile,
+        autoDownloadWifi = autoDownloadWifi,
+        autoDownloadRoaming = autoDownloadRoaming,
+        autoDownloadFiles = autoDownloadFiles
+    )
+
+private fun ChatMessageListUiState.toBehaviorConfig(
+    isSelectionMode: Boolean,
+    isAnyViewerOpen: Boolean
+): MessageRowBehaviorConfig =
+    MessageRowBehaviorConfig(
+        isGroup = isGroup || currentTopicId != null,
+        isChannel = isChannelFeed,
+        isTopicClosed = isCurrentTopicClosed,
+        canReply = canWrite && !isSelectionMode && (!isCurrentTopicClosed || isAdmin) && canSendAnything,
+        swipeEnabled = !isSelectionMode,
+        isSelectionMode = isSelectionMode,
+        isAnyViewerOpen = isAnyViewerOpen
+    )
 
 private fun GroupedMessageItem.withSuppressedRootReply(rootMessageId: Long?): GroupedMessageItem {
     return when (this) {

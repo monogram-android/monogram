@@ -19,10 +19,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -42,25 +41,27 @@ import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.IDownloadUtils
-import org.monogram.presentation.features.chats.conversation.ui.content.shouldShowDate
 import org.monogram.presentation.features.chats.conversation.ui.FastReplyIndicator
+import org.monogram.presentation.features.chats.conversation.ui.MessageAppearanceConfig
+import org.monogram.presentation.features.chats.conversation.ui.MessageBubbleLayoutTracker
+import org.monogram.presentation.features.chats.conversation.ui.MessageRowBehaviorConfig
+import org.monogram.presentation.features.chats.conversation.ui.MessageRowUiFlags
+import org.monogram.presentation.features.chats.conversation.ui.MessageSenderGrouping
+import org.monogram.presentation.features.chats.conversation.ui.fastReplyPointer
 import org.monogram.presentation.features.chats.conversation.ui.message.AudioMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.DocumentMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageViaBotAttribution
 import org.monogram.presentation.features.chats.conversation.ui.message.ReplyMarkupView
 import org.monogram.presentation.features.chats.conversation.ui.message.StickerMessageBubble
-import org.monogram.presentation.features.chats.conversation.ui.fastReplyPointer
 
 @Composable
-fun ChannelMessageBubbleContainer(
+internal fun ChannelMessageBubbleContainer(
     msg: MessageModel,
-    olderMsg: MessageModel?,
     newerMsg: MessageModel?,
-    autoplayGifs: Boolean = true,
-    autoplayVideos: Boolean = true,
-    autoDownloadFiles: Boolean = false,
-    showLinkPreviews: Boolean = true,
-    highlighted: Boolean = false,
+    appearance: MessageAppearanceConfig,
+    behavior: MessageRowBehaviorConfig,
+    uiFlags: MessageRowUiFlags = MessageRowUiFlags(),
+    senderGrouping: MessageSenderGrouping,
     onHighlightConsumed: () -> Unit = {},
     onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit = {},
@@ -70,9 +71,6 @@ fun ChannelMessageBubbleContainer(
     onCancelDownload: (Int) -> Unit = {},
     onReplyClick: (Offset, IntSize, Offset) -> Unit,
     onGoToReply: (MessageModel) -> Unit = {},
-    autoDownloadMobile: Boolean = false,
-    autoDownloadWifi: Boolean = false,
-    autoDownloadRoaming: Boolean = false,
     onReactionClick: (Long, String) -> Unit = { _, _ -> },
     onReplyMarkupButtonClick: (Long, InlineKeyboardButtonModel) -> Unit = { _, _ -> },
     onStickerClick: (Long) -> Unit = {},
@@ -82,21 +80,14 @@ fun ChannelMessageBubbleContainer(
     onClosePoll: (Long) -> Unit = {},
     onInstantViewClick: ((String) -> Unit)? = null,
     onYouTubeClick: ((String) -> Unit)? = null,
-    fontSize: Float,
-    letterSpacing: Float,
-    bubbleRadius: Float,
-    stickerSize: Float = 200f,
-    shouldReportPosition: Boolean = false,
     onPositionChange: (Long, Offset, IntSize) -> Unit = { _, _, _ -> },
     onCommentsClick: (Long) -> Unit = {},
     showComments: Boolean = true,
     toProfile: (Long) -> Unit = {},
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
     onViaBotClick: (String) -> Unit = {},
-    canReply: Boolean = true,
     onReplySwipe: (MessageModel) -> Unit = {},
     downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false,
 ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -108,16 +99,13 @@ fun ChannelMessageBubbleContainer(
         (screenWidth * 0.94f).coerceAtMost(500.dp)
     }
 
-    val isSameSenderAbove = olderMsg?.senderId == msg.senderId && !shouldShowDate(msg, olderMsg)
-    val isSameSenderBelow = newerMsg != null && newerMsg.senderId == msg.senderId && !shouldShowDate(newerMsg, msg)
-
-    val topSpacing = if (!isSameSenderAbove) 12.dp else 2.dp
+    val topSpacing = if (!senderGrouping.isSameSenderAbove) 12.dp else 2.dp
 
     val highlightColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
     val animatedColor = remember { Animatable(Color.Transparent) }
 
-    LaunchedEffect(highlighted) {
-        if (highlighted) {
+    LaunchedEffect(uiFlags.isHighlighted) {
+        if (uiFlags.isHighlighted) {
             animatedColor.animateTo(highlightColor, animationSpec = tween(300))
             delay(450)
             animatedColor.animateTo(Color.Transparent, animationSpec = tween(1800))
@@ -125,40 +113,50 @@ fun ChannelMessageBubbleContainer(
         }
     }
 
-    var outerColumnPosition by remember { mutableStateOf(Offset.Zero) }
-    var bubblePosition by remember { mutableStateOf(Offset.Zero) }
-    var bubbleSize by remember { mutableStateOf(IntSize.Zero) }
-
     val dragOffsetX = remember { androidx.compose.animation.core.Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    val layoutTracker = remember { MessageBubbleLayoutTracker() }
+    val onReplyClickState by rememberUpdatedState(onReplyClick)
+    val onPositionChangeState by rememberUpdatedState(onPositionChange)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(animatedColor.value, RoundedCornerShape(12.dp))
-            .onGloballyPositioned { outerColumnPosition = it.positionInWindow() }
+            .onGloballyPositioned { layoutTracker.outerColumnPosition = it.positionInWindow() }
             .padding(top = topSpacing)
             .offset { IntOffset(dragOffsetX.value.toInt(), 0) }
             .fastReplyPointer(
-                canReply = canReply,
+                canReply = behavior.canReply && behavior.swipeEnabled,
                 dragOffsetX = dragOffsetX,
-                scope = rememberCoroutineScope(),
+                scope = coroutineScope,
                 onReplySwipe = { onReplySwipe(msg) },
                 maxWidth = maxWidth.value
             )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { offset ->
-                        val clickPos = outerColumnPosition + offset
-                        val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
+                        val clickPos = layoutTracker.outerColumnPosition + offset
+                        val bubbleRect =
+                            Rect(layoutTracker.bubblePosition, layoutTracker.bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
-                            onReplyClick(bubblePosition, bubbleSize, clickPos)
+                            onReplyClickState(
+                                layoutTracker.bubblePosition,
+                                layoutTracker.bubbleSize,
+                                clickPos
+                            )
                         }
                     },
                     onLongPress = { offset ->
-                        val clickPos = outerColumnPosition + offset
-                        val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
+                        val clickPos = layoutTracker.outerColumnPosition + offset
+                        val bubbleRect =
+                            Rect(layoutTracker.bubblePosition, layoutTracker.bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
-                            onReplyClick(bubblePosition, bubbleSize, clickPos)
+                            onReplyClickState(
+                                layoutTracker.bubblePosition,
+                                layoutTracker.bubbleSize,
+                                clickPos
+                            )
                         }
                     }
                 )
@@ -178,10 +176,14 @@ fun ChannelMessageBubbleContainer(
                         .widthIn(max = maxWidth)
                         .fillMaxWidth()
                         .onGloballyPositioned { coordinates ->
-                            bubblePosition = coordinates.positionInWindow()
-                            bubbleSize = coordinates.size
-                            if (shouldReportPosition) {
-                                onPositionChange(msg.id, bubblePosition, bubbleSize)
+                            layoutTracker.bubblePosition = coordinates.positionInWindow()
+                            layoutTracker.bubbleSize = coordinates.size
+                            if (uiFlags.shouldReportPosition) {
+                                onPositionChangeState(
+                                    msg.id,
+                                    layoutTracker.bubblePosition,
+                                    layoutTracker.bubbleSize
+                                )
                             }
                         }
                 ) {
@@ -190,21 +192,29 @@ fun ChannelMessageBubbleContainer(
                             ChannelTextMessageBubble(
                                 content = content,
                                 msg = msg,
-                                isSameSenderAbove = isSameSenderAbove,
-                                isSameSenderBelow = isSameSenderBelow,
-                                fontSize = fontSize,
-                                letterSpacing = letterSpacing,
-                                bubbleRadius = bubbleRadius,
-                                showLinkPreviews = showLinkPreviews,
+                                isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                                isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                                fontSize = appearance.fontSize,
+                                letterSpacing = appearance.letterSpacing,
+                                bubbleRadius = appearance.bubbleRadius,
+                                showLinkPreviews = appearance.showLinkPreviews,
                                 onReplyClick = onGoToReply,
                                 onReactionClick = { onReactionClick(msg.id, it) },
                                 onInstantViewClick = onInstantViewClick,
                                 onYouTubeClick = onYouTubeClick,
                                 onClick = { offset ->
-                                    onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
+                                    )
                                 },
                                 onLongClick = { offset ->
-                                    onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
+                                    )
                                 },
                                 onCommentsClick = onCommentsClick,
                                 showComments = showComments,
@@ -218,22 +228,22 @@ fun ChannelMessageBubbleContainer(
                             ChannelPhotoMessageBubble(
                                 content = content,
                                 msg = msg,
-                                isSameSenderAbove = isSameSenderAbove,
-                                isSameSenderBelow = isSameSenderBelow,
-                                fontSize = fontSize,
-                                letterSpacing = letterSpacing,
-                                bubbleRadius = bubbleRadius,
-                                autoDownloadMobile = autoDownloadMobile,
-                                autoDownloadWifi = autoDownloadWifi,
-                                autoDownloadRoaming = autoDownloadRoaming,
+                                isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                                isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                                fontSize = appearance.fontSize,
+                                letterSpacing = appearance.letterSpacing,
+                                bubbleRadius = appearance.bubbleRadius,
+                                autoDownloadMobile = appearance.autoDownloadMobile,
+                                autoDownloadWifi = appearance.autoDownloadWifi,
+                                autoDownloadRoaming = appearance.autoDownloadRoaming,
                                 onPhotoClick = onPhotoClick,
                                 onDownloadPhoto = onDownloadPhoto,
                                 onCancelDownload = onCancelDownload,
                                 onLongClick = { offset ->
-                                    onReplyClick(
-                                        bubblePosition,
-                                        bubbleSize,
-                                        bubblePosition + offset
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
                                     )
                                 },
                                 onReplyClick = onGoToReply,
@@ -251,22 +261,22 @@ fun ChannelMessageBubbleContainer(
                             ChannelVideoMessageBubble(
                                 content = content,
                                 msg = msg,
-                                isSameSenderAbove = isSameSenderAbove,
-                                isSameSenderBelow = isSameSenderBelow,
-                                fontSize = fontSize,
-                                letterSpacing = letterSpacing,
-                                bubbleRadius = bubbleRadius,
-                                autoDownloadMobile = autoDownloadMobile,
-                                autoDownloadWifi = autoDownloadWifi,
-                                autoDownloadRoaming = autoDownloadRoaming,
-                                autoplayVideos = autoplayVideos,
+                                isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                                isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                                fontSize = appearance.fontSize,
+                                letterSpacing = appearance.letterSpacing,
+                                bubbleRadius = appearance.bubbleRadius,
+                                autoDownloadMobile = appearance.autoDownloadMobile,
+                                autoDownloadWifi = appearance.autoDownloadWifi,
+                                autoDownloadRoaming = appearance.autoDownloadRoaming,
+                                autoplayVideos = appearance.autoplayVideos,
                                 onVideoClick = onVideoClick,
                                 onCancelDownload = onCancelDownload,
                                 onLongClick = { offset ->
-                                    onReplyClick(
-                                        bubblePosition,
-                                        bubbleSize,
-                                        bubblePosition + offset
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
                                     )
                                 },
                                 onReplyClick = onGoToReply,
@@ -277,7 +287,7 @@ fun ChannelMessageBubbleContainer(
                                 onForwardOriginClick = onForwardOriginClick,
                                 modifier = Modifier.fillMaxWidth(),
                                 downloadUtils = downloadUtils,
-                                isAnyViewerOpen = isAnyViewerOpen
+                                isAnyViewerOpen = behavior.isAnyViewerOpen
                             )
                         }
 
@@ -286,21 +296,21 @@ fun ChannelMessageBubbleContainer(
                                 content = content,
                                 msg = msg,
                                 isOutgoing = false,
-                                isSameSenderAbove = isSameSenderAbove,
-                                isSameSenderBelow = isSameSenderBelow,
-                                fontSize = fontSize,
-                                letterSpacing = letterSpacing,
-                                autoDownloadFiles = autoDownloadFiles,
-                                autoDownloadMobile = autoDownloadMobile,
-                                autoDownloadWifi = autoDownloadWifi,
-                                autoDownloadRoaming = autoDownloadRoaming,
+                                isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                                isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                                fontSize = appearance.fontSize,
+                                letterSpacing = appearance.letterSpacing,
+                                autoDownloadFiles = appearance.autoDownloadFiles,
+                                autoDownloadMobile = appearance.autoDownloadMobile,
+                                autoDownloadWifi = appearance.autoDownloadWifi,
+                                autoDownloadRoaming = appearance.autoDownloadRoaming,
                                 onDocumentClick = onDocumentClick,
                                 onCancelDownload = onCancelDownload,
                                 onLongClick = { offset ->
-                                    onReplyClick(
-                                        bubblePosition,
-                                        bubbleSize,
-                                        bubblePosition + offset
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
                                     )
                                 },
                                 toProfile = toProfile,
@@ -317,21 +327,21 @@ fun ChannelMessageBubbleContainer(
                                 content = content,
                                 msg = msg,
                                 isOutgoing = false,
-                                isSameSenderAbove = isSameSenderAbove,
-                                isSameSenderBelow = isSameSenderBelow,
-                                fontSize = fontSize,
-                                letterSpacing = letterSpacing,
-                                autoDownloadFiles = autoDownloadFiles,
-                                autoDownloadMobile = autoDownloadMobile,
-                                autoDownloadWifi = autoDownloadWifi,
-                                autoDownloadRoaming = autoDownloadRoaming,
+                                isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                                isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                                fontSize = appearance.fontSize,
+                                letterSpacing = appearance.letterSpacing,
+                                autoDownloadFiles = appearance.autoDownloadFiles,
+                                autoDownloadMobile = appearance.autoDownloadMobile,
+                                autoDownloadWifi = appearance.autoDownloadWifi,
+                                autoDownloadRoaming = appearance.autoDownloadRoaming,
                                 onAudioClick = onAudioClick,
                                 onCancelDownload = onCancelDownload,
                                 onLongClick = { offset ->
-                                    onReplyClick(
-                                        bubblePosition,
-                                        bubbleSize,
-                                        bubblePosition + offset
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
                                     )
                                 },
                                 toProfile = toProfile,
@@ -347,22 +357,22 @@ fun ChannelMessageBubbleContainer(
                             ChannelGifMessageBubble(
                                 content = content,
                                 msg = msg,
-                                isSameSenderAbove = isSameSenderAbove,
-                                isSameSenderBelow = isSameSenderBelow,
-                                fontSize = fontSize,
-                                letterSpacing = letterSpacing,
-                                bubbleRadius = bubbleRadius,
-                                autoDownloadMobile = autoDownloadMobile,
-                                autoDownloadWifi = autoDownloadWifi,
-                                autoDownloadRoaming = autoDownloadRoaming,
-                                autoplayGifs = autoplayGifs,
+                                isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                                isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                                fontSize = appearance.fontSize,
+                                letterSpacing = appearance.letterSpacing,
+                                bubbleRadius = appearance.bubbleRadius,
+                                autoDownloadMobile = appearance.autoDownloadMobile,
+                                autoDownloadWifi = appearance.autoDownloadWifi,
+                                autoDownloadRoaming = appearance.autoDownloadRoaming,
+                                autoplayGifs = appearance.autoplayGifs,
                                 onGifClick = onVideoClick,
                                 onCancelDownload = onCancelDownload,
                                 onLongClick = { offset ->
-                                    onReplyClick(
-                                        bubblePosition,
-                                        bubbleSize,
-                                        bubblePosition + offset
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
                                     )
                                 },
                                 onReplyClick = onGoToReply,
@@ -373,7 +383,7 @@ fun ChannelMessageBubbleContainer(
                                 onForwardOriginClick = onForwardOriginClick,
                                 modifier = Modifier.fillMaxWidth(),
                                 downloadUtils = downloadUtils,
-                                isAnyViewerOpen = isAnyViewerOpen
+                                isAnyViewerOpen = behavior.isAnyViewerOpen
                             )
                         }
 
@@ -382,15 +392,15 @@ fun ChannelMessageBubbleContainer(
                                 content = content,
                                 msg = msg,
                                 isOutgoing = false,
-                                stickerSize = stickerSize,
+                                stickerSize = appearance.stickerSize,
                                 onReplyClick = onGoToReply,
                                 onReactionClick = { onReactionClick(msg.id, it) },
                                 onStickerClick = { onStickerClick(content.setId) },
                                 onLongClick = {
-                                    onReplyClick(
-                                        bubblePosition,
-                                        bubbleSize,
-                                        bubblePosition + (bubbleSize.toSize() / 2f).toOffset()
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + (layoutTracker.bubbleSize.toSize() / 2f).toOffset()
                                     )
                                 },
                                 toProfile = toProfile,
@@ -402,11 +412,11 @@ fun ChannelMessageBubbleContainer(
                             ChannelPollMessageBubble(
                                 content = content,
                                 msg = msg,
-                                isSameSenderAbove = isSameSenderAbove,
-                                isSameSenderBelow = isSameSenderBelow,
-                                fontSize = fontSize,
-                                letterSpacing = letterSpacing,
-                                bubbleRadius = bubbleRadius,
+                                isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                                isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                                fontSize = appearance.fontSize,
+                                letterSpacing = appearance.letterSpacing,
+                                bubbleRadius = appearance.bubbleRadius,
                                 onOptionClick = { onPollOptionClick(msg.id, it) },
                                 onRetractVote = { onRetractVote(msg.id) },
                                 onShowVoters = { onShowVoters(msg.id, it) },
@@ -414,10 +424,10 @@ fun ChannelMessageBubbleContainer(
                                 onReplyClick = onGoToReply,
                                 onReactionClick = { onReactionClick(msg.id, it) },
                                 onLongClick = { offset ->
-                                    onReplyClick(
-                                        bubblePosition,
-                                        bubbleSize,
-                                        bubblePosition + offset
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
                                     )
                                 },
                                 onCommentsClick = onCommentsClick,

@@ -1,8 +1,8 @@
 package org.monogram.presentation.features.chats.conversation.ui
 
 import android.content.res.Configuration
-import androidx.compose.animation.Animatable
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -23,10 +23,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -47,7 +46,6 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.IDownloadUtils
-import org.monogram.presentation.features.chats.conversation.ui.content.shouldShowDate
 import org.monogram.presentation.features.chats.conversation.ui.message.AudioMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.ContactMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.DocumentMessageBubble
@@ -65,23 +63,13 @@ import org.monogram.presentation.features.chats.conversation.ui.message.VideoNot
 import org.monogram.presentation.features.chats.conversation.ui.message.VoiceMessageBubble
 
 @Composable
-fun MessageBubbleContainer(
+internal fun MessageBubbleContainer(
     msg: MessageModel,
-    olderMsg: MessageModel?,
     newerMsg: MessageModel?,
-    isGroup: Boolean,
-    fontSize: Float,
-    letterSpacing: Float,
-    bubbleRadius: Float = 12f,
-    stSize: Float = 200f,
-    autoDownloadMobile: Boolean,
-    autoDownloadWifi: Boolean,
-    autoDownloadRoaming: Boolean,
-    autoDownloadFiles: Boolean,
-    autoplayGifs: Boolean,
-    autoplayVideos: Boolean,
-    showLinkPreviews: Boolean = true,
-    highlighted: Boolean = false,
+    appearance: MessageAppearanceConfig,
+    behavior: MessageRowBehaviorConfig,
+    uiFlags: MessageRowUiFlags = MessageRowUiFlags(),
+    senderGrouping: MessageSenderGrouping,
     onHighlightConsumed: () -> Unit = {},
     onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit = {},
@@ -100,16 +88,12 @@ fun MessageBubbleContainer(
     onInstantViewClick: ((String) -> Unit)? = null,
     onYouTubeClick: ((String) -> Unit)? = null,
     onReplyMarkupButtonClick: (Long, InlineKeyboardButtonModel) -> Unit = { _, _ -> },
-    shouldReportPosition: Boolean = false,
     onPositionChange: (Long, Offset, IntSize) -> Unit = { _, _, _ -> },
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
     onViaBotClick: (String) -> Unit = {},
-    canReply: Boolean = true,
     onReplySwipe: (MessageModel) -> Unit = {},
-    swipeEnabled: Boolean = true,
-    downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false
+    downloadUtils: IDownloadUtils
 ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
@@ -124,45 +108,139 @@ fun MessageBubbleContainer(
     }
 
     val isOutgoing = msg.isOutgoing
-    val isSameSenderAbove = remember(
-        olderMsg?.id,
-        olderMsg?.senderId,
-        olderMsg?.senderName,
-        olderMsg?.senderCustomTitle,
-        olderMsg?.date,
-        msg.senderId,
-        msg.senderName,
-        msg.senderCustomTitle,
-        msg.date
-    ) {
-        shouldGroupSenderBlock(
-            current = msg,
-            neighbor = olderMsg,
-            dateBreak = olderMsg?.let { shouldShowDate(msg, it) } ?: true
-        )
+    val topSpacing = if (!senderGrouping.isSameSenderAbove) 8.dp else 2.dp
+    val dragOffsetX = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    val layoutTracker = remember { MessageBubbleLayoutTracker() }
+    val onReplyClickState by rememberUpdatedState(onReplyClick)
+    val onPositionChangeState by rememberUpdatedState(onPositionChange)
+    val onReplySwipeState by rememberUpdatedState(onReplySwipe)
+
+    val onBubbleClick: (Offset) -> Unit = remember(msg.id) {
+        { offset ->
+            onReplyClickState(
+                layoutTracker.bubblePosition,
+                layoutTracker.bubbleSize,
+                layoutTracker.bubblePosition + offset
+            )
+        }
     }
-    val isSameSenderBelow = remember(
-        newerMsg?.id,
-        newerMsg?.senderId,
-        newerMsg?.senderName,
-        newerMsg?.senderCustomTitle,
-        newerMsg?.date,
-        msg.senderId,
-        msg.senderName,
-        msg.senderCustomTitle,
-        msg.date
-    ) {
-        shouldGroupSenderBlock(
-            current = msg,
-            neighbor = newerMsg,
-            dateBreak = newerMsg?.let { shouldShowDate(it, msg) } ?: true
-        )
+    val onBubbleCenterClick: () -> Unit = remember(msg.id) {
+        {
+            onReplyClickState(
+                layoutTracker.bubblePosition,
+                layoutTracker.bubbleSize,
+                layoutTracker.bubblePosition + (layoutTracker.bubbleSize.toSize() / 2f).toOffset()
+            )
+        }
     }
 
-    val topSpacing = if (!isSameSenderAbove) 8.dp else 2.dp
+    MessageHighlightLayer(
+        highlighted = uiFlags.isHighlighted,
+        onHighlightConsumed = onHighlightConsumed
+    ) {
+        MessageBubbleGestureLayer(
+            modifier = Modifier.padding(top = topSpacing),
+            canReply = behavior.canReply,
+            swipeEnabled = behavior.swipeEnabled,
+            dragOffsetX = dragOffsetX,
+            scope = coroutineScope,
+            maxWidth = maxWidth.value,
+            onReplySwipe = { onReplySwipeState(msg) },
+            layoutTracker = layoutTracker,
+            onOutsideBubblePress = { clickPosition ->
+                onReplyClickState(
+                    layoutTracker.bubblePosition,
+                    layoutTracker.bubbleSize,
+                    clickPosition
+                )
+            }
+        ) {
+            MessageBubbleShell(
+                isOutgoing = isOutgoing,
+                avatar = {
+                    MessageAvatar(
+                        avatarPath = msg.senderAvatar,
+                        fallbackPath = msg.senderPersonalAvatar,
+                        senderName = msg.senderName,
+                        senderId = msg.senderId,
+                        isVisible = behavior.isGroup && !isOutgoing && !senderGrouping.isSameSenderBelow,
+                        toProfile = toProfile
+                    )
+                    if (behavior.isGroup && !isOutgoing) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                },
+                content = {
+                    Box(modifier = Modifier.wrapContentSize()) {
+                        MessageBubbleContentHost(
+                            modifier = Modifier
+                                .width(IntrinsicSize.Max)
+                                .widthIn(max = maxWidth)
+                                .onGloballyPositioned { coordinates ->
+                                    layoutTracker.bubblePosition = coordinates.positionInWindow()
+                                    layoutTracker.bubbleSize = coordinates.size
+                                    if (uiFlags.shouldReportPosition) {
+                                        onPositionChangeState(
+                                            msg.id,
+                                            layoutTracker.bubblePosition,
+                                            layoutTracker.bubbleSize
+                                        )
+                                    }
+                                },
+                            msg = msg,
+                            newerMsg = newerMsg,
+                            isOutgoing = isOutgoing,
+                            senderGrouping = senderGrouping,
+                            isGroup = behavior.isGroup,
+                            appearance = appearance,
+                            onPhotoClick = onPhotoClick,
+                            onDownloadPhoto = onDownloadPhoto,
+                            onVideoClick = onVideoClick,
+                            onDocumentClick = onDocumentClick,
+                            onAudioClick = onAudioClick,
+                            onCancelDownload = onCancelDownload,
+                            onBubbleClick = onBubbleClick,
+                            onBubbleLongClick = onBubbleClick,
+                            onBubbleCenterLongClick = onBubbleCenterClick,
+                            onGoToReply = onGoToReply,
+                            onReactionClick = onReactionClick,
+                            onStickerClick = onStickerClick,
+                            onPollOptionClick = onPollOptionClick,
+                            onRetractVote = onRetractVote,
+                            onShowVoters = onShowVoters,
+                            onClosePoll = onClosePoll,
+                            onInstantViewClick = onInstantViewClick,
+                            onYouTubeClick = onYouTubeClick,
+                            onReplyMarkupButtonClick = onReplyMarkupButtonClick,
+                            toProfile = toProfile,
+                            onForwardOriginClick = onForwardOriginClick,
+                            onViaBotClick = onViaBotClick,
+                            downloadUtils = downloadUtils,
+                            isAnyViewerOpen = behavior.isAnyViewerOpen
+                        )
 
+                        FastReplyIndicator(
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            dragOffsetX = dragOffsetX,
+                            isOutgoing = isOutgoing,
+                            maxWidth = maxWidth
+                        )
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MessageHighlightLayer(
+    highlighted: Boolean,
+    onHighlightConsumed: () -> Unit,
+    content: @Composable () -> Unit
+) {
     val highlightColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-    val animatedColor = remember { Animatable(Color.Transparent) }
+    val animatedColor = remember { androidx.compose.animation.Animatable(Color.Transparent) }
 
     LaunchedEffect(highlighted) {
         if (highlighted) {
@@ -173,161 +251,184 @@ fun MessageBubbleContainer(
         }
     }
 
-    var outerColumnPosition by remember { mutableStateOf(Offset.Zero) }
-    var bubblePosition by remember { mutableStateOf(Offset.Zero) }
-    var bubbleSize by remember { mutableStateOf(IntSize.Zero) }
+    Box(
+        modifier = Modifier.background(animatedColor.value, RoundedCornerShape(12.dp))
+    ) {
+        content()
+    }
+}
 
-    val dragOffsetX = remember { Animatable(0f) }
+@Composable
+private fun MessageBubbleGestureLayer(
+    modifier: Modifier = Modifier,
+    canReply: Boolean,
+    swipeEnabled: Boolean,
+    dragOffsetX: Animatable<Float, AnimationVector1D>,
+    scope: kotlinx.coroutines.CoroutineScope,
+    maxWidth: Float,
+    onReplySwipe: () -> Unit,
+    layoutTracker: MessageBubbleLayoutTracker,
+    onOutsideBubblePress: (Offset) -> Unit,
+    content: @Composable () -> Unit
+) {
+    val onOutsideBubblePressState by rememberUpdatedState(onOutsideBubblePress)
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .background(animatedColor.value, RoundedCornerShape(12.dp))
-            .onGloballyPositioned { outerColumnPosition = it.positionInWindow() }
-            .padding(top = topSpacing)
+            .onGloballyPositioned { layoutTracker.outerColumnPosition = it.positionInWindow() }
             .offset { IntOffset(dragOffsetX.value.toInt(), 0) }
             .fastReplyPointer(
-                canReply = canReply,
+                canReply = canReply && swipeEnabled,
                 dragOffsetX = dragOffsetX,
-                scope = rememberCoroutineScope(),
-                onReplySwipe = { onReplySwipe(msg) },
-                maxWidth = maxWidth.value
+                scope = scope,
+                onReplySwipe = onReplySwipe,
+                maxWidth = maxWidth
             )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { offset ->
-                        val clickPos = outerColumnPosition + offset
-                        val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
+                        val clickPos = layoutTracker.outerColumnPosition + offset
+                        val bubbleRect =
+                            Rect(layoutTracker.bubblePosition, layoutTracker.bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
-                            onReplyClick(bubblePosition, bubbleSize, clickPos)
+                            onOutsideBubblePressState(clickPos)
                         }
                     },
                     onLongPress = { offset ->
-                        val clickPos = outerColumnPosition + offset
-                        val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
+                        val clickPos = layoutTracker.outerColumnPosition + offset
+                        val bubbleRect =
+                            Rect(layoutTracker.bubblePosition, layoutTracker.bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
-                            onReplyClick(bubblePosition, bubbleSize, clickPos)
+                            onOutsideBubblePressState(clickPos)
                         }
                     }
                 )
             }
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = if (isOutgoing) Arrangement.End else Arrangement.Start,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            MessageAvatar(
-                msg = msg,
-                isGroup = isGroup,
-                isOutgoing = isOutgoing,
-                isSameSenderBelow = isSameSenderBelow,
-                toProfile = toProfile
-            )
+        content()
+    }
+}
 
-            Box(
-                modifier = Modifier.wrapContentSize()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .width(IntrinsicSize.Max)
-                        .widthIn(max = maxWidth)
-                        .onGloballyPositioned { coordinates ->
-                            bubblePosition = coordinates.positionInWindow()
-                            bubbleSize = coordinates.size
-                            if (shouldReportPosition) {
-                                onPositionChange(msg.id, bubblePosition, bubbleSize)
-                            }
-                        },
-                    horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
-                ) {
-                    MessageContentSelector(
-                        msg = msg,
-                        newerMsg = newerMsg,
-                        isOutgoing = isOutgoing,
-                        isSameSenderAbove = isSameSenderAbove,
-                        isSameSenderBelow = isSameSenderBelow,
-                        isGroup = isGroup,
-                        fontSize = fontSize,
-                        letterSpacing = letterSpacing,
-                        bubbleRadius = bubbleRadius,
-                        stSize = stSize,
-                        autoDownloadMobile = autoDownloadMobile,
-                        autoDownloadWifi = autoDownloadWifi,
-                        autoDownloadRoaming = autoDownloadRoaming,
-                        autoDownloadFiles = autoDownloadFiles,
-                        autoplayGifs = autoplayGifs,
-                        autoplayVideos = autoplayVideos,
-                        showLinkPreviews = showLinkPreviews,
-                        onPhotoClick = onPhotoClick,
-                        onDownloadPhoto = onDownloadPhoto,
-                        onVideoClick = onVideoClick,
-                        onDocumentClick = onDocumentClick,
-                        onAudioClick = onAudioClick,
-                        onCancelDownload = onCancelDownload,
-                        onReplyClick = onReplyClick,
-                        onGoToReply = onGoToReply,
-                        onReactionClick = onReactionClick,
-                        onStickerClick = onStickerClick,
-                        onPollOptionClick = onPollOptionClick,
-                        onRetractVote = onRetractVote,
-                        onShowVoters = onShowVoters,
-                        onClosePoll = onClosePoll,
-                        onInstantViewClick = onInstantViewClick,
-                        onYouTubeClick = onYouTubeClick,
-                        toProfile = toProfile,
-                        onForwardOriginClick = onForwardOriginClick,
-                        bubblePosition = bubblePosition,
-                        bubbleSize = bubbleSize,
-                        downloadUtils = downloadUtils,
-                        isAnyViewerOpen = isAnyViewerOpen
-                    )
+@Composable
+private fun MessageBubbleShell(
+    isOutgoing: Boolean,
+    avatar: @Composable () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isOutgoing) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        avatar()
+        content()
+    }
+}
 
-                    MessageReplyMarkup(
-                        msg = msg,
-                        onReplyMarkupButtonClick = onReplyMarkupButtonClick
-                    )
+@Composable
+private fun MessageBubbleContentHost(
+    modifier: Modifier = Modifier,
+    msg: MessageModel,
+    newerMsg: MessageModel?,
+    isOutgoing: Boolean,
+    senderGrouping: MessageSenderGrouping,
+    isGroup: Boolean,
+    appearance: MessageAppearanceConfig,
+    onPhotoClick: (MessageModel) -> Unit,
+    onDownloadPhoto: (Int) -> Unit,
+    onVideoClick: (MessageModel) -> Unit,
+    onDocumentClick: (MessageModel) -> Unit,
+    onAudioClick: (MessageModel) -> Unit,
+    onCancelDownload: (Int) -> Unit,
+    onBubbleClick: (Offset) -> Unit,
+    onBubbleLongClick: (Offset) -> Unit,
+    onBubbleCenterLongClick: () -> Unit,
+    onGoToReply: (MessageModel) -> Unit,
+    onReactionClick: (Long, String) -> Unit,
+    onStickerClick: (Long) -> Unit,
+    onPollOptionClick: (Long, Int) -> Unit,
+    onRetractVote: (Long) -> Unit,
+    onShowVoters: (Long, Int) -> Unit,
+    onClosePoll: (Long) -> Unit,
+    onInstantViewClick: ((String) -> Unit)?,
+    onYouTubeClick: ((String) -> Unit)?,
+    onReplyMarkupButtonClick: (Long, InlineKeyboardButtonModel) -> Unit,
+    toProfile: (Long) -> Unit,
+    onForwardOriginClick: (ForwardInfo) -> Unit,
+    onViaBotClick: (String) -> Unit,
+    downloadUtils: IDownloadUtils,
+    isAnyViewerOpen: Boolean
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
+    ) {
+        MessageContentSelector(
+            msg = msg,
+            newerMsg = newerMsg,
+            isOutgoing = isOutgoing,
+            senderGrouping = senderGrouping,
+            isGroup = isGroup,
+            appearance = appearance,
+            onPhotoClick = onPhotoClick,
+            onDownloadPhoto = onDownloadPhoto,
+            onVideoClick = onVideoClick,
+            onDocumentClick = onDocumentClick,
+            onAudioClick = onAudioClick,
+            onCancelDownload = onCancelDownload,
+            onBubbleClick = onBubbleClick,
+            onBubbleLongClick = onBubbleLongClick,
+            onBubbleCenterLongClick = onBubbleCenterLongClick,
+            onGoToReply = onGoToReply,
+            onReactionClick = onReactionClick,
+            onStickerClick = onStickerClick,
+            onPollOptionClick = onPollOptionClick,
+            onRetractVote = onRetractVote,
+            onShowVoters = onShowVoters,
+            onClosePoll = onClosePoll,
+            onInstantViewClick = onInstantViewClick,
+            onYouTubeClick = onYouTubeClick,
+            toProfile = toProfile,
+            onForwardOriginClick = onForwardOriginClick,
+            downloadUtils = downloadUtils,
+            isAnyViewerOpen = isAnyViewerOpen
+        )
 
-                    MessageViaBotAttribution(
-                        msg = msg,
-                        isOutgoing = isOutgoing,
-                        onViaBotClick = onViaBotClick,
-                        modifier = Modifier.align(if (isOutgoing) Alignment.End else Alignment.Start)
-                    )
-                }
+        MessageReplyMarkup(
+            msg = msg,
+            onReplyMarkupButtonClick = onReplyMarkupButtonClick
+        )
 
-                FastReplyIndicator(
-                    modifier = Modifier.align(Alignment.CenterEnd),
-                    dragOffsetX = dragOffsetX,
-                    isOutgoing = isOutgoing,
-                    maxWidth = maxWidth
-                )
-            }
-        }
+        MessageViaBotAttribution(
+            msg = msg,
+            isOutgoing = isOutgoing,
+            onViaBotClick = onViaBotClick,
+            modifier = Modifier.align(if (isOutgoing) Alignment.End else Alignment.Start)
+        )
     }
 }
 
 @Composable
 private fun MessageAvatar(
-    msg: MessageModel,
-    isGroup: Boolean,
-    isOutgoing: Boolean,
-    isSameSenderBelow: Boolean,
+    avatarPath: String?,
+    fallbackPath: String?,
+    senderName: String,
+    senderId: Long,
+    isVisible: Boolean,
     toProfile: (Long) -> Unit
 ) {
-    if (isGroup && !isOutgoing) {
-        if (!isSameSenderBelow) {
-            Avatar(
-                path = msg.senderAvatar,
-                fallbackPath = msg.senderPersonalAvatar,
-                name = msg.senderName,
-                size = 40.dp,
-                isLocal = msg.senderAvatar?.contains("local") ?: false,
-                onClick = { toProfile(msg.senderId) })
-        } else {
-            Spacer(modifier = Modifier.width(40.dp))
-        }
-        Spacer(modifier = Modifier.width(8.dp))
+    if (isVisible) {
+        Avatar(
+            path = avatarPath,
+            fallbackPath = fallbackPath,
+            name = senderName,
+            size = 40.dp,
+            isLocal = avatarPath?.contains("local") ?: false,
+            onClick = { toProfile(senderId) }
+        )
+    } else {
+        Spacer(modifier = Modifier.width(40.dp))
     }
 }
 
@@ -336,27 +437,18 @@ private fun MessageContentSelector(
     msg: MessageModel,
     newerMsg: MessageModel?,
     isOutgoing: Boolean,
-    isSameSenderAbove: Boolean,
-    isSameSenderBelow: Boolean,
+    senderGrouping: MessageSenderGrouping,
     isGroup: Boolean,
-    fontSize: Float,
-    letterSpacing: Float,
-    bubbleRadius: Float,
-    stSize: Float,
-    autoDownloadMobile: Boolean,
-    autoDownloadWifi: Boolean,
-    autoDownloadRoaming: Boolean,
-    autoDownloadFiles: Boolean,
-    autoplayGifs: Boolean,
-    autoplayVideos: Boolean,
-    showLinkPreviews: Boolean,
+    appearance: MessageAppearanceConfig,
     onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit,
     onVideoClick: (MessageModel) -> Unit,
     onDocumentClick: (MessageModel) -> Unit,
     onAudioClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
-    onReplyClick: (Offset, IntSize, Offset) -> Unit,
+    onBubbleClick: (Offset) -> Unit,
+    onBubbleLongClick: (Offset) -> Unit,
+    onBubbleCenterLongClick: () -> Unit,
     onGoToReply: (MessageModel) -> Unit,
     onReactionClick: (Long, String) -> Unit,
     onStickerClick: (Long) -> Unit,
@@ -368,8 +460,6 @@ private fun MessageContentSelector(
     onYouTubeClick: ((String) -> Unit)?,
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit,
-    bubblePosition: Offset,
-    bubbleSize: IntSize,
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
@@ -383,23 +473,19 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
-                    bubbleRadius = bubbleRadius,
+                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                    fontSize = appearance.fontSize,
+                    letterSpacing = appearance.letterSpacing,
+                    bubbleRadius = appearance.bubbleRadius,
                     isGroup = isGroup,
-                    showLinkPreviews = showLinkPreviews,
+                    showLinkPreviews = appearance.showLinkPreviews,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     onInstantViewClick = onInstantViewClick,
                     onYouTubeClick = onYouTubeClick,
-                    onClick = { offset ->
-                        onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
-                    },
-                    onLongClick = { offset ->
-                        onReplyClick(bubblePosition, bubbleSize, bubblePosition + offset)
-                    },
+                    onClick = onBubbleClick,
+                    onLongClick = onBubbleLongClick,
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick
                 )
@@ -410,17 +496,11 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
-                    stickerSize = stSize,
+                    stickerSize = appearance.stickerSize,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     onStickerClick = { onStickerClick(it) },
-                    onLongClick = {
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + (bubbleSize.toSize() / 2f).toOffset()
-                        )
-                    }
+                    onLongClick = onBubbleCenterLongClick
                 )
             }
 
@@ -429,24 +509,18 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
+                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                    fontSize = appearance.fontSize,
+                    letterSpacing = appearance.letterSpacing,
                     isGroup = isGroup,
-                    autoDownloadMobile = autoDownloadMobile,
-                    autoDownloadWifi = autoDownloadWifi,
-                    autoDownloadRoaming = autoDownloadRoaming,
+                    autoDownloadMobile = appearance.autoDownloadMobile,
+                    autoDownloadWifi = appearance.autoDownloadWifi,
+                    autoDownloadRoaming = appearance.autoDownloadRoaming,
                     onPhotoClick = onPhotoClick,
                     onDownloadPhoto = onDownloadPhoto,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
@@ -461,23 +535,17 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
-                    autoDownloadMobile = autoDownloadMobile,
-                    autoDownloadWifi = autoDownloadWifi,
-                    autoDownloadRoaming = autoDownloadRoaming,
-                    autoplayVideos = autoplayVideos,
+                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                    fontSize = appearance.fontSize,
+                    letterSpacing = appearance.letterSpacing,
+                    autoDownloadMobile = appearance.autoDownloadMobile,
+                    autoDownloadWifi = appearance.autoDownloadWifi,
+                    autoDownloadRoaming = appearance.autoDownloadRoaming,
+                    autoplayVideos = appearance.autoplayVideos,
                     onVideoClick = onVideoClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
@@ -495,13 +563,7 @@ private fun MessageContentSelector(
                     isOutgoing = isOutgoing,
                     onVideoClick = onVideoClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) }
                 )
@@ -512,24 +574,18 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
+                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                    fontSize = appearance.fontSize,
+                    letterSpacing = appearance.letterSpacing,
                     isGroup = isGroup,
-                    autoDownloadFiles = autoDownloadFiles,
-                    autoDownloadMobile = autoDownloadMobile,
-                    autoDownloadWifi = autoDownloadWifi,
-                    autoDownloadRoaming = autoDownloadRoaming,
+                    autoDownloadFiles = appearance.autoDownloadFiles,
+                    autoDownloadMobile = appearance.autoDownloadMobile,
+                    autoDownloadWifi = appearance.autoDownloadWifi,
+                    autoDownloadRoaming = appearance.autoDownloadRoaming,
                     onVoiceClick = onAudioClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
@@ -543,23 +599,17 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
-                    autoDownloadMobile = autoDownloadMobile,
-                    autoDownloadWifi = autoDownloadWifi,
-                    autoDownloadRoaming = autoDownloadRoaming,
-                    autoplayGifs = autoplayGifs,
+                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                    fontSize = appearance.fontSize,
+                    letterSpacing = appearance.letterSpacing,
+                    autoDownloadMobile = appearance.autoDownloadMobile,
+                    autoDownloadWifi = appearance.autoDownloadWifi,
+                    autoDownloadRoaming = appearance.autoDownloadRoaming,
+                    autoplayGifs = appearance.autoplayGifs,
                     onGifClick = onVideoClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
@@ -574,24 +624,18 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
+                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                    fontSize = appearance.fontSize,
+                    letterSpacing = appearance.letterSpacing,
                     isGroup = isGroup,
-                    autoDownloadFiles = autoDownloadFiles,
-                    autoDownloadMobile = autoDownloadMobile,
-                    autoDownloadWifi = autoDownloadWifi,
-                    autoDownloadRoaming = autoDownloadRoaming,
+                    autoDownloadFiles = appearance.autoDownloadFiles,
+                    autoDownloadMobile = appearance.autoDownloadMobile,
+                    autoDownloadWifi = appearance.autoDownloadWifi,
+                    autoDownloadRoaming = appearance.autoDownloadRoaming,
                     onDocumentClick = onDocumentClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     onForwardOriginClick = onForwardOriginClick,
@@ -604,24 +648,18 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
+                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                    fontSize = appearance.fontSize,
+                    letterSpacing = appearance.letterSpacing,
                     isGroup = isGroup,
-                    autoDownloadFiles = autoDownloadFiles,
-                    autoDownloadMobile = autoDownloadMobile,
-                    autoDownloadWifi = autoDownloadWifi,
-                    autoDownloadRoaming = autoDownloadRoaming,
+                    autoDownloadFiles = appearance.autoDownloadFiles,
+                    autoDownloadMobile = appearance.autoDownloadMobile,
+                    autoDownloadWifi = appearance.autoDownloadWifi,
+                    autoDownloadRoaming = appearance.autoDownloadRoaming,
                     onAudioClick = onAudioClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     downloadUtils = downloadUtils
@@ -633,20 +671,14 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
-                    bubbleRadius = bubbleRadius,
+                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                    fontSize = appearance.fontSize,
+                    letterSpacing = appearance.letterSpacing,
+                    bubbleRadius = appearance.bubbleRadius,
                     isGroup = isGroup,
                     onClick = { onGoToReply(msg) },
-                    onLongClick = {
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + (bubbleSize.toSize() / 2f).toOffset()
-                        )
-                    },
+                    onLongClick = onBubbleCenterLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
@@ -660,20 +692,14 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
-                    bubbleRadius = bubbleRadius,
+                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                    fontSize = appearance.fontSize,
+                    letterSpacing = appearance.letterSpacing,
+                    bubbleRadius = appearance.bubbleRadius,
                     onOptionClick = { onPollOptionClick(msg.id, it) },
                     onRetractVote = { onRetractVote(msg.id) },
-                    onLongClick = { offset ->
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + offset
-                        )
-                    },
+                    onLongClick = onBubbleLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     onShowVoters = { onShowVoters(msg.id, it) },
@@ -688,20 +714,14 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
+                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                    fontSize = appearance.fontSize,
+                    letterSpacing = appearance.letterSpacing,
                     isGroup = isGroup,
-                    bubbleRadius = bubbleRadius,
+                    bubbleRadius = appearance.bubbleRadius,
                     onClick = { onGoToReply(msg) },
-                    onLongClick = {
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + (bubbleSize.toSize() / 2f).toOffset()
-                        )
-                    },
+                    onLongClick = onBubbleCenterLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
@@ -714,20 +734,14 @@ private fun MessageContentSelector(
                     content = content,
                     msg = msg,
                     isOutgoing = isOutgoing,
-                    isSameSenderAbove = isSameSenderAbove,
-                    isSameSenderBelow = isSameSenderBelow,
-                    fontSize = fontSize,
-                    letterSpacing = letterSpacing,
+                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                    fontSize = appearance.fontSize,
+                    letterSpacing = appearance.letterSpacing,
                     isGroup = isGroup,
-                    bubbleRadius = bubbleRadius,
+                    bubbleRadius = appearance.bubbleRadius,
                     onClick = { onGoToReply(msg) },
-                    onLongClick = {
-                        onReplyClick(
-                            bubblePosition,
-                            bubbleSize,
-                            bubblePosition + (bubbleSize.toSize() / 2f).toOffset()
-                        )
-                    },
+                    onLongClick = onBubbleCenterLongClick,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,

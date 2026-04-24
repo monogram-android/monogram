@@ -81,6 +81,95 @@ data class ChatInputBarActions(
     val onSendScheduledNow: (MessageModel) -> Unit = {},
 )
 
+@Immutable
+internal data class ChatInputBarCapabilities(
+    val canWriteText: Boolean,
+    val canSendPhotos: Boolean,
+    val canSendVideos: Boolean,
+    val canSendDocuments: Boolean,
+    val canSendAudios: Boolean,
+    val canOpenAttachSheet: Boolean,
+    val canSendStickers: Boolean,
+    val canSendVoice: Boolean,
+    val canSendVideoNotes: Boolean,
+    val canSendAnything: Boolean
+)
+
+@Immutable
+internal data class ComposerAttachmentState(
+    val pendingMediaPaths: List<String> = emptyList(),
+    val pendingDocumentPaths: List<String> = emptyList(),
+    val scheduledMessagesCount: Int = 0
+)
+
+@Immutable
+internal data class ComposerSuggestionState(
+    val mentionSuggestions: List<UserModel> = emptyList(),
+    val filteredCommands: List<BotCommandModel> = emptyList(),
+    val currentInlineBotUsername: String? = null,
+    val isInlineBotLoading: Boolean = false,
+    val inlineBotResults: InlineBotResultsModel? = null,
+    val replyMarkup: ReplyMarkupModel? = null,
+    val isGifSearchFocused: Boolean = false
+)
+
+@Immutable
+internal data class ComposerBotState(
+    val isBot: Boolean,
+    val botMenuButton: BotMenuButtonModel,
+    val botCommands: List<BotCommandModel>
+)
+
+@Immutable
+internal data class ComposerRowState(
+    val textValue: androidx.compose.ui.text.input.TextFieldValue,
+    val editingMessage: MessageModel? = null,
+    val isStickerMenuVisible: Boolean = false,
+    val closeStickerMenuWithoutSlide: Boolean = false,
+    val isKeyboardVisible: Boolean = false,
+    val stickerMenuHeight: androidx.compose.ui.unit.Dp,
+    val showFullScreenEditor: Boolean = false,
+    val currentMessageLength: Int = 0,
+    val maxMessageLength: Int = 4096,
+    val isOverMessageLimit: Boolean = false,
+    val showSendOptionsSheet: Boolean = false,
+    val isVideoMessageMode: Boolean = false,
+    val isSlowModeActive: Boolean = false,
+    val slowModeRemainingSeconds: Int = 0,
+)
+
+@Immutable
+internal data class InputTextFieldUiState(
+    val textValue: androidx.compose.ui.text.input.TextFieldValue,
+    val isBot: Boolean,
+    val botMenuButton: BotMenuButtonModel,
+    val botCommands: List<BotCommandModel>,
+    val canSendStickers: Boolean,
+    val canWriteText: Boolean,
+    val canShowBotActions: Boolean,
+    val isStickerMenuVisible: Boolean,
+    val canAttachMedia: Boolean,
+    val canPasteMediaFromClipboard: Boolean,
+    val pendingMediaPaths: List<String>,
+    val pendingDocumentPaths: List<String>,
+    val showExpandEditorAction: Boolean,
+)
+
+@Immutable
+internal data class InputBarSendButtonState(
+    val isTextEmpty: Boolean,
+    val isEditing: Boolean,
+    val hasPendingAttachments: Boolean,
+    val isOverCharLimit: Boolean,
+    val canWriteText: Boolean,
+    val canSendAttachments: Boolean,
+    val canSendVoice: Boolean,
+    val canSendVideoNotes: Boolean,
+    val isVideoMessageMode: Boolean,
+    val isSlowModeActive: Boolean,
+    val slowModeRemainingSeconds: Int,
+)
+
 internal enum class InputBarMode {
     Composer,
     SlowMode,

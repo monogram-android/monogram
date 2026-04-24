@@ -7,7 +7,6 @@ import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.content.ReceiveContentListener
 import androidx.compose.foundation.content.contentReceiver
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,13 +27,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.OutlinedTextFieldDefaults.FocusedBorderThickness
-import androidx.compose.material3.OutlinedTextFieldDefaults.UnfocusedBorderThickness
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,7 +61,6 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
@@ -129,9 +125,12 @@ fun InputTextField(
     var showPreLanguageDialog by rememberSaveable { mutableStateOf(false) }
     var preLanguageValue by rememberSaveable { mutableStateOf("") }
     val context = LocalContext.current
+    val currentOnPasteImages by rememberUpdatedState(onPasteImages)
+    val currentOnFocus by rememberUpdatedState(onFocus)
+    val currentOnRichTextValueChange by rememberUpdatedState(onRichTextValueChange)
 
     val emojiSize = 20.sp
-    val inlineContentMap = remember(knownCustomEmojis.size, knownCustomEmojis.hashCode()) {
+    val inlineContentMap = remember(knownCustomEmojis) {
         knownCustomEmojis.map { (id, sticker) ->
             id.toString() to InlineTextContent(
                 Placeholder(emojiSize, emojiSize, PlaceholderVerticalAlign.Center)
@@ -145,68 +144,100 @@ fun InputTextField(
     }
 
     val primaryColor = MaterialTheme.colorScheme.primary
-    val transformedTextState = remember(textValue.annotatedString, knownCustomEmojis, emojiFontFamily, primaryColor) {
-        val text = textValue.annotatedString
-        val emojiAnnotations = text.getStringAnnotations(CUSTOM_EMOJI_TAG, 0, text.length)
-        val mentionAnnotations = text.getStringAnnotations(MENTION_TAG, 0, text.length)
+    val transformedTextState by remember(
+        textValue.annotatedString,
+        knownCustomEmojis,
+        emojiFontFamily,
+        primaryColor
+    ) {
+        derivedStateOf {
+            val text = textValue.annotatedString
+            val emojiAnnotations = text.getStringAnnotations(CUSTOM_EMOJI_TAG, 0, text.length)
+            val mentionAnnotations = text.getStringAnnotations(MENTION_TAG, 0, text.length)
 
-        val builder = AnnotatedString.Builder()
-        var lastIndex = 0
-        val sortedEmojiAnnotations = emojiAnnotations.sortedBy { it.start }
+            val builder = AnnotatedString.Builder()
+            var lastIndex = 0
+            val sortedEmojiAnnotations = emojiAnnotations.sortedBy { it.start }
 
-        for (annotation in sortedEmojiAnnotations) {
-            if (annotation.start < lastIndex) continue
-            if (annotation.start > text.length || annotation.end > text.length) continue
-            builder.append(text.subSequence(lastIndex, annotation.start))
-            val stickerId = annotation.item.toLongOrNull()
-            val originalEmoji = text.substring(annotation.start, annotation.end)
-            if (stickerId != null && knownCustomEmojis.containsKey(stickerId)) {
-                builder.appendInlineContent(stickerId.toString(), originalEmoji)
-            } else {
-                builder.append(originalEmoji)
+            for (annotation in sortedEmojiAnnotations) {
+                if (annotation.start < lastIndex) continue
+                if (annotation.start > text.length || annotation.end > text.length) continue
+                builder.append(text.subSequence(lastIndex, annotation.start))
+                val stickerId = annotation.item.toLongOrNull()
+                val originalEmoji = text.substring(annotation.start, annotation.end)
+                if (stickerId != null && knownCustomEmojis.containsKey(stickerId)) {
+                    builder.appendInlineContent(stickerId.toString(), originalEmoji)
+                } else {
+                    builder.append(originalEmoji)
+                }
+                lastIndex = annotation.end
             }
-            lastIndex = annotation.end
-        }
-        if (lastIndex < text.length) builder.append(text.subSequence(lastIndex, text.length))
+            if (lastIndex < text.length) builder.append(text.subSequence(lastIndex, text.length))
 
-        val result = builder.toAnnotatedString()
-        val finalBuilder = AnnotatedString.Builder(result)
+            val result = builder.toAnnotatedString()
+            val finalBuilder = AnnotatedString.Builder(result)
 
-        // Add emoji style
-        finalBuilder.addEmojiStyle(result.text, emojiFontFamily)
+            finalBuilder.addEmojiStyle(result.text, emojiFontFamily)
 
-        // Add mention highlighting
-        mentionAnnotations.forEach { annotation ->
-            if (annotation.start < annotation.end && annotation.start >= 0 && annotation.end <= result.length) {
-                finalBuilder.addStyle(SpanStyle(color = primaryColor), annotation.start, annotation.end)
+            mentionAnnotations.forEach { annotation ->
+                if (annotation.start < annotation.end && annotation.start >= 0 && annotation.end <= result.length) {
+                    finalBuilder.addStyle(
+                        SpanStyle(color = primaryColor),
+                        annotation.start,
+                        annotation.end
+                    )
+                }
             }
-        }
 
-        text.getStringAnnotations(RICH_ENTITY_TAG, 0, text.length).forEach { annotation ->
-            val style = decodeRichEntity(annotation.item)?.toEditorStyle(primaryColor)
-            if (style != null && annotation.start < annotation.end && annotation.end <= result.length) {
-                finalBuilder.addStyle(style, annotation.start, annotation.end)
+            text.getStringAnnotations(RICH_ENTITY_TAG, 0, text.length).forEach { annotation ->
+                val style = decodeRichEntity(annotation.item)?.toEditorStyle(primaryColor)
+                if (style != null && annotation.start < annotation.end && annotation.end <= result.length) {
+                    finalBuilder.addStyle(style, annotation.start, annotation.end)
+                }
             }
-        }
 
-        // Highlight @username style mentions that are not yet annotated
-        val mentionRegex = Regex("@(\\w+)")
-        mentionRegex.findAll(result.text).forEach { match ->
-            if (mentionAnnotations.none { it.start <= match.range.first && it.end >= match.range.last + 1 }) {
-                finalBuilder.addStyle(SpanStyle(color = primaryColor), match.range.first, match.range.last + 1)
+            val mentionRegex = Regex("@(\\w+)")
+            mentionRegex.findAll(result.text).forEach { match ->
+                if (mentionAnnotations.none { it.start <= match.range.first && it.end >= match.range.last + 1 }) {
+                    finalBuilder.addStyle(
+                        SpanStyle(color = primaryColor),
+                        match.range.first,
+                        match.range.last + 1
+                    )
+                }
             }
-        }
 
-        TransformedText(finalBuilder.toAnnotatedString(), OffsetMapping.Identity)
+            TransformedText(finalBuilder.toAnnotatedString(), OffsetMapping.Identity)
+        }
     }
 
-    val hasCustomEmojis = knownCustomEmojis.isNotEmpty() &&
-            textValue.annotatedString.getStringAnnotations(CUSTOM_EMOJI_TAG, 0, textValue.text.length).isNotEmpty()
-    val hasRichFormatting = textValue.annotatedString
-        .getStringAnnotations(RICH_ENTITY_TAG, 0, textValue.text.length)
-        .isNotEmpty()
-    val shouldUseOverlayText =
-        hasCustomEmojis || emojiFontFamily != FontFamily.Default || textValue.text.contains('@') || hasRichFormatting
+    val hasCustomEmojis by remember(textValue.annotatedString, knownCustomEmojis) {
+        derivedStateOf {
+            knownCustomEmojis.isNotEmpty() &&
+                    textValue.annotatedString.getStringAnnotations(
+                        CUSTOM_EMOJI_TAG,
+                        0,
+                        textValue.text.length
+                    ).isNotEmpty()
+        }
+    }
+    val hasRichFormatting by remember(textValue.annotatedString) {
+        derivedStateOf {
+            textValue.annotatedString
+                .getStringAnnotations(RICH_ENTITY_TAG, 0, textValue.text.length)
+                .isNotEmpty()
+        }
+    }
+    val shouldUseOverlayText by remember(
+        textValue.text,
+        hasCustomEmojis,
+        hasRichFormatting,
+        emojiFontFamily
+    ) {
+        derivedStateOf {
+            hasCustomEmojis || emojiFontFamily != FontFamily.Default || textValue.text.contains('@') || hasRichFormatting
+        }
+    }
 
     val scrollState = rememberScrollState()
     val editorState = rememberTextFieldState(initialText = textValue.text)
@@ -241,6 +272,13 @@ fun InputTextField(
     LaunchedEffect(textValue.text) {
         scrollState.scrollTo(scrollState.maxValue)
     }
+    val placeholderText = remember(pendingMediaPaths, pendingDocumentPaths, context) {
+        if (pendingMediaPaths.isNotEmpty() || pendingDocumentPaths.isNotEmpty()) {
+            context.getString(R.string.input_placeholder_caption)
+        } else {
+            context.getString(R.string.input_placeholder_message)
+        }
+    }
 
     val richTextBold = stringResource(R.string.rich_text_bold)
     val richTextItalic = stringResource(R.string.rich_text_italic)
@@ -252,7 +290,10 @@ fun InputTextField(
     val richTextLink = stringResource(R.string.rich_text_link)
     val richTextClear = stringResource(R.string.rich_text_clear)
     val actionPasteImage = stringResource(R.string.action_paste_image)
-    val receiveContentListener = remember(context, canPasteMediaFromClipboard, onPasteImages) {
+    val clipboardImageUris = remember(context, canPasteMediaFromClipboard) {
+        if (canPasteMediaFromClipboard) extractImageUrisFromClipboard(context) else emptyList()
+    }
+    val receiveContentListener = remember(context, canPasteMediaFromClipboard) {
         ReceiveContentListener { transferableContent ->
             if (!canPasteMediaFromClipboard) return@ReceiveContentListener transferableContent
 
@@ -261,7 +302,7 @@ fun InputTextField(
             if (imageUris.isEmpty()) {
                 transferableContent
             } else {
-                onPasteImages(imageUris)
+                currentOnPasteImages(imageUris)
                 null
             }
         }
@@ -279,7 +320,7 @@ fun InputTextField(
                 val fieldModifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
-                    .onFocusChanged { if (it.isFocused) onFocus() }
+                    .onFocusChanged { if (it.isFocused) currentOnFocus() }
                     .contentReceiver(receiveContentListener)
                     .let { base ->
                         when {
@@ -308,11 +349,10 @@ fun InputTextField(
                                     }
                                     .appendTextContextMenuComponents {
                                         if (canPasteMediaFromClipboard) {
-                                            val imageUris = extractImageUrisFromClipboard(context)
-                                            if (imageUris.isNotEmpty()) {
+                                            if (clipboardImageUris.isNotEmpty()) {
                                                 item(RichMenuActionPasteImage, actionPasteImage) {
                                                     close()
-                                                    onPasteImages(imageUris)
+                                                    currentOnPasteImages(clipboardImageUris)
                                                 }
                                             }
                                         }
@@ -320,7 +360,7 @@ fun InputTextField(
                                         if (hasFormattableSelection(textValue)) {
                                             separator()
                                             item(RichMenuActionBold, richTextBold) {
-                                                onRichTextValueChange(
+                                                currentOnRichTextValueChange(
                                                     toggleRichEntity(
                                                         textValue,
                                                         MessageEntityType.Bold
@@ -329,7 +369,7 @@ fun InputTextField(
                                                 close()
                                             }
                                             item(RichMenuActionItalic, richTextItalic) {
-                                                onRichTextValueChange(
+                                                currentOnRichTextValueChange(
                                                     toggleRichEntity(
                                                         textValue,
                                                         MessageEntityType.Italic
@@ -338,7 +378,7 @@ fun InputTextField(
                                                 close()
                                             }
                                             item(RichMenuActionUnderline, richTextUnderline) {
-                                                onRichTextValueChange(
+                                                currentOnRichTextValueChange(
                                                     toggleRichEntity(
                                                         textValue,
                                                         MessageEntityType.Underline
@@ -347,7 +387,7 @@ fun InputTextField(
                                                 close()
                                             }
                                             item(RichMenuActionStrike, richTextStrike) {
-                                                onRichTextValueChange(
+                                                currentOnRichTextValueChange(
                                                     toggleRichEntity(
                                                         textValue,
                                                         MessageEntityType.Strikethrough
@@ -356,7 +396,7 @@ fun InputTextField(
                                                 close()
                                             }
                                             item(RichMenuActionSpoiler, richTextSpoiler) {
-                                                onRichTextValueChange(
+                                                currentOnRichTextValueChange(
                                                     toggleRichEntity(
                                                         textValue,
                                                         MessageEntityType.Spoiler
@@ -365,7 +405,7 @@ fun InputTextField(
                                                 close()
                                             }
                                             item(RichMenuActionCode, richTextCode) {
-                                                onRichTextValueChange(
+                                                currentOnRichTextValueChange(
                                                     toggleRichEntity(
                                                         textValue,
                                                         MessageEntityType.Code
@@ -403,7 +443,11 @@ fun InputTextField(
                                                 close()
                                             }
                                             item(RichMenuActionClear, richTextClear) {
-                                                onRichTextValueChange(clearRichFormatting(textValue))
+                                                currentOnRichTextValueChange(
+                                                    clearRichFormatting(
+                                                        textValue
+                                                    )
+                                                )
                                                 close()
                                             }
                                         }
@@ -446,10 +490,7 @@ fun InputTextField(
                         ) {
                             if (textValue.text.isEmpty()) {
                                 Text(
-                                    text = if (pendingMediaPaths.isNotEmpty() || pendingDocumentPaths.isNotEmpty())
-                                        stringResource(R.string.input_placeholder_caption)
-                                    else
-                                        stringResource(R.string.input_placeholder_message),
+                                    text = placeholderText,
                                     style = textStyle,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.fillMaxWidth()
@@ -500,7 +541,7 @@ fun InputTextField(
                         onClick = {
                             val normalizedUrl = normalizeUrl(linkValue)
                             if (normalizedUrl != null && !textValue.selection.collapsed) {
-                                onRichTextValueChange(
+                                currentOnRichTextValueChange(
                                     applyRichEntity(
                                         textValue,
                                         MessageEntityType.TextUrl(normalizedUrl),
@@ -538,7 +579,12 @@ fun InputTextField(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            onRichTextValueChange(applyPreEntity(textValue, preLanguageValue))
+                            currentOnRichTextValueChange(
+                                applyPreEntity(
+                                    textValue,
+                                    preLanguageValue
+                                )
+                            )
                             showPreLanguageDialog = false
                         }
                     ) {

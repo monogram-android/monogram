@@ -29,7 +29,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -40,25 +41,15 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import org.monogram.domain.models.BotCommandModel
 import org.monogram.domain.models.BotMenuButtonModel
-import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.StickerModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 
 @Composable
-fun InputTextFieldContainer(
-    textValue: TextFieldValue,
+internal fun InputTextFieldContainer(
+    uiState: InputTextFieldUiState,
     onValueChange: (TextFieldValue) -> Unit,
     onRichTextValueChange: (TextFieldValue) -> Unit = onValueChange,
-    isBot: Boolean,
-    botMenuButton: BotMenuButtonModel,
-    botCommands: List<BotCommandModel>,
-    canSendStickers: Boolean,
-    canWriteText: Boolean,
-    canShowBotActions: Boolean,
-    isStickerMenuVisible: Boolean,
-    editingMessage: MessageModel?,
-    canOpenAttachSheet: Boolean,
     onStickerMenuToggle: () -> Unit,
     onAttachClick: () -> Unit,
     onShowBotCommands: () -> Unit,
@@ -68,12 +59,15 @@ fun InputTextFieldContainer(
     focusRequester: FocusRequester,
     pendingMediaPaths: List<String>,
     pendingDocumentPaths: List<String>,
-    canPasteMediaFromClipboard: Boolean = false,
     onPasteImages: (List<Uri>) -> Unit = {},
     onFocus: () -> Unit = {},
     onOpenFullScreenEditor: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val onAttachClickState by rememberUpdatedState(onAttachClick)
+    val onStickerMenuToggleState by rememberUpdatedState(onStickerMenuToggle)
+    val onOpenFullScreenEditorState by rememberUpdatedState(onOpenFullScreenEditor)
+
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(24.dp),
@@ -82,21 +76,12 @@ fun InputTextFieldContainer(
         val isTablet =
             LocalConfiguration.current.screenWidthDp >= 600 && LocalTabletInterfaceEnabled.current
 
-        val canAttachMedia = remember(
-            editingMessage,
-            pendingMediaPaths,
-            pendingDocumentPaths,
-            canOpenAttachSheet
-        ) {
-            editingMessage == null && pendingMediaPaths.isEmpty() && pendingDocumentPaths.isEmpty() && canOpenAttachSheet
-        }
-
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp)
         ) {
             AnimatedContent(
-                targetState = canAttachMedia,
+                targetState = uiState.canAttachMedia,
                 transitionSpec = {
                     (fadeIn() + scaleIn(initialScale = 0.85f)).togetherWith(
                         fadeOut() + scaleOut(targetScale = 0.85f)
@@ -106,7 +91,7 @@ fun InputTextFieldContainer(
             ) { showAttach ->
                 if (showAttach) {
                     IconButton(
-                        onClick = onAttachClick,
+                        onClick = { onAttachClickState() },
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
@@ -120,47 +105,43 @@ fun InputTextFieldContainer(
                 }
             }
 
-            val showBotActions = remember(isBot, textValue.text, canShowBotActions) {
-                isBot && canShowBotActions && textValue.text.isEmpty()
-            }
-
             InputTextField(
-                textValue = textValue,
+                textValue = uiState.textValue,
                 onValueChange = onValueChange,
                 onRichTextValueChange = onRichTextValueChange,
-                canWriteText = canWriteText,
+                canWriteText = uiState.canWriteText,
                 knownCustomEmojis = knownCustomEmojis,
                 emojiFontFamily = emojiFontFamily,
                 focusRequester = focusRequester,
                 pendingMediaPaths = pendingMediaPaths,
                 pendingDocumentPaths = pendingDocumentPaths,
-                canPasteMediaFromClipboard = canPasteMediaFromClipboard,
+                canPasteMediaFromClipboard = uiState.canPasteMediaFromClipboard,
                 onPasteImages = onPasteImages,
                 onFocus = onFocus,
                 modifier = Modifier.weight(1f)
             )
 
             AnimatedVisibility(
-                visible = showBotActions,
+                visible = uiState.isBot && uiState.canShowBotActions && uiState.textValue.text.isEmpty(),
                 enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
                 exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End)
             ) {
                 BotInputActions(
-                    botMenuButton = botMenuButton,
-                    botCommands = botCommands,
+                    botMenuButton = uiState.botMenuButton,
+                    botCommands = uiState.botCommands,
                     onShowBotCommands = onShowBotCommands,
                     onOpenMiniApp = onOpenMiniApp
                 )
             }
 
-            if (canWriteText) {
+            if (uiState.canWriteText) {
                 AnimatedVisibility(
-                    visible = isTablet || textValue.text.contains('\n') || textValue.text.length > 150,
+                    visible = uiState.showExpandEditorAction || isTablet,
                     enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
                     exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End)
                 ) {
                     IconButton(
-                        onClick = onOpenFullScreenEditor,
+                        onClick = { onOpenFullScreenEditorState() },
                         modifier = Modifier
                             .align(Alignment.CenterVertically)
                             .size(36.dp)
@@ -175,16 +156,16 @@ fun InputTextFieldContainer(
             }
 
             AnimatedVisibility(
-                visible = canSendStickers,
+                visible = uiState.canSendStickers,
                 enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
                 exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End)
             ) {
                 IconButton(
-                    onClick = onStickerMenuToggle,
+                    onClick = { onStickerMenuToggleState() },
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        imageVector = if (isStickerMenuVisible) Icons.Default.Keyboard else Icons.Outlined.EmojiEmotions,
+                        imageVector = if (uiState.isStickerMenuVisible) Icons.Default.Keyboard else Icons.Outlined.EmojiEmotions,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

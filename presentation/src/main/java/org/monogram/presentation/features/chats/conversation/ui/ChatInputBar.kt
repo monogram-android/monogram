@@ -51,11 +51,15 @@ import org.monogram.domain.models.StickerModel
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.features.camera.CameraScreen
-import org.monogram.presentation.features.chats.conversation.ui.message.getEmojiFontFamily
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.ChatInputBarActions
+import org.monogram.presentation.features.chats.conversation.ui.inputbar.ChatInputBarCapabilities
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.ChatInputBarComposerSection
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.ChatInputBarState
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.ClosedTopicBar
+import org.monogram.presentation.features.chats.conversation.ui.inputbar.ComposerAttachmentState
+import org.monogram.presentation.features.chats.conversation.ui.inputbar.ComposerBotState
+import org.monogram.presentation.features.chats.conversation.ui.inputbar.ComposerRowState
+import org.monogram.presentation.features.chats.conversation.ui.inputbar.ComposerSuggestionState
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.FullScreenEditorSheet
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.InputBarMode
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.RestrictedInputBar
@@ -74,6 +78,7 @@ import org.monogram.presentation.features.chats.conversation.ui.inputbar.hasAllP
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.isInlineBotPrefillText
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.parseInlineQueryInput
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.rememberVoiceRecorder
+import org.monogram.presentation.features.chats.conversation.ui.message.getEmojiFontFamily
 import org.monogram.presentation.features.gallery.GalleryScreen
 import org.monogram.presentation.features.gallery.components.PollComposerSheet
 import java.util.Calendar
@@ -149,6 +154,31 @@ fun ChatInputBar(
         derivedStateOf {
             canWriteText || canOpenAttachSheet || canSendStickers || canSendVoice || canSendVideoNotes || canSendPolls
         }
+    }
+    val capabilities = remember(
+        canWriteText,
+        canSendPhotos,
+        canSendVideos,
+        canSendDocuments,
+        canSendAudios,
+        canOpenAttachSheet,
+        canSendStickers,
+        canSendVoice,
+        canSendVideoNotes,
+        canSendAnything
+    ) {
+        ChatInputBarCapabilities(
+            canWriteText = canWriteText,
+            canSendPhotos = canSendPhotos,
+            canSendVideos = canSendVideos,
+            canSendDocuments = canSendDocuments,
+            canSendAudios = canSendAudios,
+            canOpenAttachSheet = canOpenAttachSheet,
+            canSendStickers = canSendStickers,
+            canSendVoice = canSendVoice,
+            canSendVideoNotes = canSendVideoNotes,
+            canSendAnything = canSendAnything
+        )
     }
 
     val context = LocalContext.current
@@ -648,45 +678,49 @@ fun ChatInputBar(
                     InputBarMode.Composer -> ChatInputBarComposerSection(
                         editingMessage = state.editingMessage,
                         replyMessage = state.replyMessage,
-                        pendingMediaPaths = state.pendingMediaPaths,
-                        pendingDocumentPaths = state.pendingDocumentPaths,
-                        mentionSuggestions = state.mentionSuggestions,
-                        filteredCommands = filteredCommands,
-                        currentInlineBotUsername = state.currentInlineBotUsername.takeIf { canSendStickers },
-                        isInlineBotLoading = canSendStickers && state.isInlineBotLoading,
-                        inlineBotResults = state.inlineBotResults.takeIf { canSendStickers },
-                        isBot = state.isBot,
-                        botMenuButton = state.botMenuButton,
-                        botCommands = state.botCommands,
-                        scheduledMessagesCount = state.scheduledMessages.size,
-                        textValue = textValue,
+                        attachments = ComposerAttachmentState(
+                            pendingMediaPaths = state.pendingMediaPaths,
+                            pendingDocumentPaths = state.pendingDocumentPaths,
+                            scheduledMessagesCount = state.scheduledMessages.size
+                        ),
+                        suggestions = ComposerSuggestionState(
+                            mentionSuggestions = state.mentionSuggestions,
+                            filteredCommands = filteredCommands,
+                            currentInlineBotUsername = state.currentInlineBotUsername.takeIf { canSendStickers },
+                            isInlineBotLoading = canSendStickers && state.isInlineBotLoading,
+                            inlineBotResults = state.inlineBotResults.takeIf { canSendStickers },
+                            replyMarkup = state.replyMarkup,
+                            isGifSearchFocused = isGifSearchFocused
+                        ),
+                        botState = ComposerBotState(
+                            isBot = state.isBot,
+                            botMenuButton = state.botMenuButton,
+                            botCommands = state.botCommands
+                        ),
+                        rowState = ComposerRowState(
+                            textValue = textValue,
+                            editingMessage = state.editingMessage,
+                            isStickerMenuVisible = isStickerMenuVisible,
+                            closeStickerMenuWithoutSlide = closeStickerMenuWithoutSlide,
+                            isKeyboardVisible = isKeyboardVisible,
+                            stickerMenuHeight = stickerMenuHeight,
+                            showFullScreenEditor = showFullScreenEditor,
+                            currentMessageLength = currentMessageLength,
+                            maxMessageLength = maxMessageLength,
+                            isOverMessageLimit = isOverMessageLimit,
+                            showSendOptionsSheet = showSendOptionsSheet,
+                            isVideoMessageMode = isVideoMessageMode,
+                            isSlowModeActive = isSlowModeActive,
+                            slowModeRemainingSeconds = slowModeRemainingSeconds
+                        ),
                         onTextValueChange = { textValue = it },
                         knownCustomEmojis = knownCustomEmojis,
                         emojiFontFamily = emojiFontFamily,
                         focusRequester = focusRequester,
-                        canWriteText = canWriteText,
-                        canOpenAttachSheet = canOpenAttachSheet,
+                        capabilities = capabilities,
                         canSendAttachments = canSendPendingAttachments,
-                        canShowBotActions = canWriteText,
                         canPasteMediaFromClipboard = canUseMediaPicker && state.editingMessage == null,
-                        canSendStickers = canSendStickers,
-                        canSendVoice = canSendVoice,
-                        canSendVideoNotes = canSendVideoNotes,
-                        isStickerMenuVisible = isStickerMenuVisible,
-                        closeStickerMenuWithoutSlide = closeStickerMenuWithoutSlide,
-                        isKeyboardVisible = isKeyboardVisible,
-                        stickerMenuHeight = stickerMenuHeight,
                         voiceRecorder = voiceRecorder,
-                        isGifSearchFocused = isGifSearchFocused,
-                        showFullScreenEditor = showFullScreenEditor,
-                        currentMessageLength = currentMessageLength,
-                        maxMessageLength = maxMessageLength,
-                        isOverMessageLimit = isOverMessageLimit,
-                        isVideoMessageMode = isVideoMessageMode,
-                        isSlowModeActive = isSlowModeActive,
-                        slowModeRemainingSeconds = slowModeRemainingSeconds,
-                        replyMarkup = state.replyMarkup,
-                        showSendOptionsSheet = showSendOptionsSheet,
                         stickerRepository = stickerRepository,
                         onCancelEdit = actions.onCancelEdit,
                         onCancelReply = actions.onCancelReply,

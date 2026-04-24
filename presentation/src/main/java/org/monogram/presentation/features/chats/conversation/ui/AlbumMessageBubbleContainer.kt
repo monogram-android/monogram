@@ -18,10 +18,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -39,24 +38,18 @@ import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.IDownloadUtils
-import org.monogram.presentation.features.chats.conversation.ui.content.shouldShowDate
 import org.monogram.presentation.features.chats.conversation.ui.channel.ChannelAlbumMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.ChatAlbumMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageViaBotAttribution
 import org.monogram.presentation.features.chats.conversation.ui.message.ReplyMarkupView
 
 @Composable
-fun AlbumMessageBubbleContainer(
+internal fun AlbumMessageBubbleContainer(
     messages: List<MessageModel>,
-    olderMsg: MessageModel? = null,
-    newerMsg: MessageModel? = null,
-    isGroup: Boolean,
-    isChannel: Boolean = false,
-    autoplayGifs: Boolean = true,
-    autoplayVideos: Boolean = true,
-    autoDownloadMobile: Boolean = false,
-    autoDownloadWifi: Boolean = false,
-    autoDownloadRoaming: Boolean = false,
+    appearance: MessageAppearanceConfig,
+    behavior: MessageRowBehaviorConfig,
+    uiFlags: MessageRowUiFlags = MessageRowUiFlags(),
+    senderGrouping: MessageSenderGrouping,
     onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit = {},
     onVideoClick: (MessageModel) -> Unit = {},
@@ -67,20 +60,14 @@ fun AlbumMessageBubbleContainer(
     onGoToReply: (MessageModel) -> Unit = {},
     onReactionClick: (Long, String) -> Unit = { _, _ -> },
     onReplyMarkupButtonClick: (Long, InlineKeyboardButtonModel) -> Unit = { _, _ -> },
-    fontSize: Float = 16f,
-    bubbleRadius: Float = 16f,
-    shouldReportPosition: Boolean = false,
     onPositionChange: (Long, Offset, IntSize) -> Unit = { _, _, _ -> },
     onCommentsClick: (Long) -> Unit = {},
     showComments: Boolean = true,
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
     onViaBotClick: (String) -> Unit = {},
-    canReply: Boolean = false,
     onReplySwipe: (MessageModel) -> Unit = {},
-    swipeEnabled: Boolean = true,
-    downloadUtils: IDownloadUtils,
-    isAnyViewerOpen: Boolean = false
+    downloadUtils: IDownloadUtils
 ) {
     if (messages.isEmpty()) return
 
@@ -98,9 +85,9 @@ fun AlbumMessageBubbleContainer(
     val screenWidth = configuration.screenWidthDp.dp
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    val maxWidth = remember(isChannel, isLandscape, screenWidth) {
+    val maxWidth = remember(behavior.isChannel, isLandscape, screenWidth) {
         when {
-            isChannel -> if (isLandscape) (screenWidth * 0.7f).coerceAtMost(600.dp) else (screenWidth * 0.94f).coerceAtMost(
+            behavior.isChannel -> if (isLandscape) (screenWidth * 0.7f).coerceAtMost(600.dp) else (screenWidth * 0.94f).coerceAtMost(
                 500.dp
             )
 
@@ -109,76 +96,50 @@ fun AlbumMessageBubbleContainer(
         }
     }
 
-    val isSameSenderAbove = remember(
-        olderMsg?.id,
-        olderMsg?.senderId,
-        olderMsg?.senderName,
-        olderMsg?.senderCustomTitle,
-        olderMsg?.date,
-        firstMsg.senderId,
-        firstMsg.senderName,
-        firstMsg.senderCustomTitle,
-        firstMsg.date
-    ) {
-        shouldGroupSenderBlock(
-            current = firstMsg,
-            neighbor = olderMsg,
-            dateBreak = olderMsg?.let { shouldShowDate(firstMsg, it) } ?: true
-        )
-    }
-    val isSameSenderBelow = remember(
-        newerMsg?.id,
-        newerMsg?.senderId,
-        newerMsg?.senderName,
-        newerMsg?.senderCustomTitle,
-        newerMsg?.date,
-        lastMsg.senderId,
-        lastMsg.senderName,
-        lastMsg.senderCustomTitle,
-        lastMsg.date
-    ) {
-        shouldGroupSenderBlock(
-            current = lastMsg,
-            neighbor = newerMsg,
-            dateBreak = newerMsg?.let { shouldShowDate(it, lastMsg) } ?: true
-        )
-    }
-
-    val topSpacing = if (isChannel && !isSameSenderAbove) 12.dp else 2.dp
-
-    var outerColumnPosition by remember { mutableStateOf(Offset.Zero) }
-    var bubblePosition by remember { mutableStateOf(Offset.Zero) }
-    var bubbleSize by remember { mutableStateOf(IntSize.Zero) }
-
+    val topSpacing = if (behavior.isChannel && !senderGrouping.isSameSenderAbove) 12.dp else 2.dp
     val dragOffsetX = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    val layoutTracker = remember { MessageBubbleLayoutTracker() }
+    val onReplyClickState by rememberUpdatedState(onReplyClick)
+    val onPositionChangeState by rememberUpdatedState(onPositionChange)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .onGloballyPositioned { outerColumnPosition = it.positionInWindow() }
+            .onGloballyPositioned { layoutTracker.outerColumnPosition = it.positionInWindow() }
             .padding(top = topSpacing, bottom = 2.dp)
             .offset { IntOffset(dragOffsetX.value.toInt(), 0) }
             .fastReplyPointer(
-                canReply = canReply,
+                canReply = behavior.canReply && behavior.swipeEnabled,
                 dragOffsetX = dragOffsetX,
-                scope = rememberCoroutineScope(),
+                scope = coroutineScope,
                 onReplySwipe = { onReplySwipe(lastMsg) },
                 maxWidth = maxWidth.value
             )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { offset ->
-                        val clickPos = outerColumnPosition + offset
-                        val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
+                        val clickPos = layoutTracker.outerColumnPosition + offset
+                        val bubbleRect =
+                            Rect(layoutTracker.bubblePosition, layoutTracker.bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
-                            onReplyClick(bubblePosition, bubbleSize, clickPos)
+                            onReplyClickState(
+                                layoutTracker.bubblePosition,
+                                layoutTracker.bubbleSize,
+                                clickPos
+                            )
                         }
                     },
                     onLongPress = { offset ->
-                        val clickPos = outerColumnPosition + offset
-                        val bubbleRect = Rect(bubblePosition, bubbleSize.toSize())
+                        val clickPos = layoutTracker.outerColumnPosition + offset
+                        val bubbleRect =
+                            Rect(layoutTracker.bubblePosition, layoutTracker.bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
-                            onReplyClick(bubblePosition, bubbleSize, clickPos)
+                            onReplyClickState(
+                                layoutTracker.bubblePosition,
+                                layoutTracker.bubbleSize,
+                                clickPos
+                            )
                         }
                     }
                 )
@@ -186,11 +147,11 @@ fun AlbumMessageBubbleContainer(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = if (isChannel) Arrangement.Center else if (isOutgoing) Arrangement.End else Arrangement.Start,
+            horizontalArrangement = if (behavior.isChannel) Arrangement.Center else if (isOutgoing) Arrangement.End else Arrangement.Start,
             verticalAlignment = Alignment.Bottom
         ) {
-            if (isGroup && !isOutgoing && !isChannel) {
-                if (!isSameSenderBelow) {
+            if (behavior.isGroup && !isOutgoing && !behavior.isChannel) {
+                if (!senderGrouping.isSameSenderBelow) {
                     Avatar(
                         path = firstMsg.senderAvatar,
                         fallbackPath = firstMsg.senderPersonalAvatar,
@@ -209,18 +170,22 @@ fun AlbumMessageBubbleContainer(
             ) {
                 Column(
                     modifier = Modifier
-                        .then(if (isChannel) Modifier.padding(horizontal = 8.dp) else Modifier)
+                        .then(if (behavior.isChannel) Modifier.padding(horizontal = 8.dp) else Modifier)
                         .widthIn(max = maxWidth)
-                        .then(if (isChannel) Modifier.fillMaxWidth() else Modifier)
+                        .then(if (behavior.isChannel) Modifier.fillMaxWidth() else Modifier)
                         .onGloballyPositioned { coordinates ->
-                            bubblePosition = coordinates.positionInWindow()
-                            bubbleSize = coordinates.size
-                            if (shouldReportPosition) {
-                                onPositionChange(lastMsg.id, bubblePosition, bubbleSize)
+                            layoutTracker.bubblePosition = coordinates.positionInWindow()
+                            layoutTracker.bubbleSize = coordinates.size
+                            if (uiFlags.shouldReportPosition) {
+                                onPositionChangeState(
+                                    lastMsg.id,
+                                    layoutTracker.bubblePosition,
+                                    layoutTracker.bubbleSize
+                                )
                             }
                         }
                 ) {
-                    if (isGroup && !isOutgoing && !isChannel && !isSameSenderAbove) {
+                    if (behavior.isGroup && !isOutgoing && !behavior.isChannel && !senderGrouping.isSameSenderAbove) {
                         Text(
                             text = firstMsg.senderName,
                             style = MaterialTheme.typography.labelSmall,
@@ -229,16 +194,16 @@ fun AlbumMessageBubbleContainer(
                         )
                     }
 
-                    if (isChannel) {
+                    if (behavior.isChannel) {
                         ChannelAlbumMessageBubble(
                             messages = orderedMessages,
-                            isSameSenderAbove = isSameSenderAbove,
-                            isSameSenderBelow = isSameSenderBelow,
-                            autoplayGifs = autoplayGifs,
-                            autoplayVideos = autoplayVideos,
-                            autoDownloadMobile = autoDownloadMobile,
-                            autoDownloadWifi = autoDownloadWifi,
-                            autoDownloadRoaming = autoDownloadRoaming,
+                            isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                            isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                            autoplayGifs = appearance.autoplayGifs,
+                            autoplayVideos = appearance.autoplayVideos,
+                            autoDownloadMobile = appearance.autoDownloadMobile,
+                            autoDownloadWifi = appearance.autoDownloadWifi,
+                            autoDownloadRoaming = appearance.autoDownloadRoaming,
                             onPhotoClick = onPhotoClick,
                             onDownloadPhoto = onDownloadPhoto,
                             onVideoClick = onVideoClick,
@@ -247,9 +212,9 @@ fun AlbumMessageBubbleContainer(
                             onCancelDownload = onCancelDownload,
                             onLongClick = { offset ->
                                 onReplyClick(
-                                    bubblePosition,
-                                    bubbleSize,
-                                    bubblePosition + offset
+                                    layoutTracker.bubblePosition,
+                                    layoutTracker.bubbleSize,
+                                    layoutTracker.bubblePosition + offset
                                 )
                             },
                             onReplyClick = onGoToReply,
@@ -259,23 +224,23 @@ fun AlbumMessageBubbleContainer(
                             toProfile = toProfile,
                             onForwardOriginClick = onForwardOriginClick,
                             modifier = Modifier.fillMaxWidth(),
-                            fontSize = fontSize,
-                            bubbleRadius = bubbleRadius,
+                            fontSize = appearance.fontSize,
+                            bubbleRadius = appearance.bubbleRadius,
                             downloadUtils = downloadUtils,
-                            isAnyViewerOpen = isAnyViewerOpen
+                            isAnyViewerOpen = behavior.isAnyViewerOpen
                         )
                     } else {
                         ChatAlbumMessageBubble(
                             messages = orderedMessages,
                             isOutgoing = isOutgoing,
-                            isGroup = isGroup,
-                            isSameSenderAbove = isSameSenderAbove,
-                            isSameSenderBelow = isSameSenderBelow,
-                            autoplayGifs = autoplayGifs,
-                            autoplayVideos = autoplayVideos,
-                            autoDownloadMobile = autoDownloadMobile,
-                            autoDownloadWifi = autoDownloadWifi,
-                            autoDownloadRoaming = autoDownloadRoaming,
+                            isGroup = behavior.isGroup,
+                            isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                            isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                            autoplayGifs = appearance.autoplayGifs,
+                            autoplayVideos = appearance.autoplayVideos,
+                            autoDownloadMobile = appearance.autoDownloadMobile,
+                            autoDownloadWifi = appearance.autoDownloadWifi,
+                            autoDownloadRoaming = appearance.autoDownloadRoaming,
                             onPhotoClick = onPhotoClick,
                             onDownloadPhoto = onDownloadPhoto,
                             onVideoClick = onVideoClick,
@@ -284,9 +249,9 @@ fun AlbumMessageBubbleContainer(
                             onCancelDownload = onCancelDownload,
                             onLongClick = { offset ->
                                 onReplyClick(
-                                    bubblePosition,
-                                    bubbleSize,
-                                    bubblePosition + offset
+                                    layoutTracker.bubblePosition,
+                                    layoutTracker.bubbleSize,
+                                    layoutTracker.bubblePosition + offset
                                 )
                             },
                             onReplyClick = onGoToReply,
@@ -294,9 +259,9 @@ fun AlbumMessageBubbleContainer(
                             toProfile = toProfile,
                             onForwardOriginClick = onForwardOriginClick,
                             modifier = Modifier,
-                            fontSize = fontSize,
+                            fontSize = appearance.fontSize,
                             downloadUtils = downloadUtils,
-                            isAnyViewerOpen = isAnyViewerOpen
+                            isAnyViewerOpen = behavior.isAnyViewerOpen
                         )
                     }
 

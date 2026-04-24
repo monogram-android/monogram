@@ -9,12 +9,40 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -32,13 +60,16 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.rememberShimmerBrush
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.features.chats.conversation.ui.AlbumMessageBubbleContainer
+import org.monogram.presentation.features.chats.conversation.ui.DateSeparator
+import org.monogram.presentation.features.chats.conversation.ui.MessageAppearanceConfig
+import org.monogram.presentation.features.chats.conversation.ui.MessageBubbleContainer
+import org.monogram.presentation.features.chats.conversation.ui.MessageRowBehaviorConfig
+import org.monogram.presentation.features.chats.conversation.ui.buildSenderGrouping
+import org.monogram.presentation.features.chats.conversation.ui.channel.ChannelMessageBubbleContainer
 import org.monogram.presentation.features.chats.conversation.ui.content.GroupedMessageItem
 import org.monogram.presentation.features.chats.conversation.ui.content.groupMessagesByAlbum
 import org.monogram.presentation.features.chats.conversation.ui.content.shouldShowDate
-import org.monogram.presentation.features.chats.conversation.ui.AlbumMessageBubbleContainer
-import org.monogram.presentation.features.chats.conversation.ui.ChannelMessageBubbleContainer
-import org.monogram.presentation.features.chats.conversation.ui.DateSeparator
-import org.monogram.presentation.features.chats.conversation.ui.MessageBubbleContainer
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -162,15 +193,15 @@ fun PinnedMessagesListSheet(
                                     return@draggable
                                 }
 
-                                    val shouldDismiss =
-                                        dismissOffsetY > dismissDistanceThresholdPx ||
-                                                velocity > dismissVelocityThresholdPx
+                                val shouldDismiss =
+                                    dismissOffsetY > dismissDistanceThresholdPx ||
+                                            velocity > dismissVelocityThresholdPx
 
-                                    if (shouldDismiss) {
-                                        onDismissRequest()
-                                    } else {
-                                        scope.launch {
-                                            animate(
+                                if (shouldDismiss) {
+                                    onDismissRequest()
+                                } else {
+                                    scope.launch {
+                                        animate(
                                             initialValue = dismissOffsetY,
                                             targetValue = 0f,
                                             animationSpec = spring()
@@ -273,41 +304,73 @@ fun PinnedMessagesListSheet(
                             Box(modifier = Modifier.animateItem()) {
                                 if (isChannel) {
                                     if (item is GroupedMessageItem.Single) {
-                                        ChannelMessageBubbleContainer(
-                                            msg = item.message,
-                                            olderMsg = olderMsg,
-                                            newerMsg = newerMsg,
+                                        val behavior = MessageRowBehaviorConfig(
+                                            isGroup = false,
+                                            isChannel = true,
+                                            isTopicClosed = false,
+                                            canReply = false,
+                                            swipeEnabled = false,
+                                            isSelectionMode = false,
+                                            isAnyViewerOpen = false
+                                        )
+                                        val appearance = MessageAppearanceConfig(
+                                            fontSize = fontSize,
+                                            letterSpacing = letterSpacing,
+                                            bubbleRadius = bubbleRadius,
+                                            stickerSize = stickerSize,
                                             autoplayGifs = autoplayGifs,
                                             autoplayVideos = autoplayVideos,
-                                            autoDownloadFiles = autoDownloadFiles,
+                                            autoDownloadFiles = autoDownloadFiles
+                                        )
+                                        ChannelMessageBubbleContainer(
+                                            msg = item.message,
+                                            newerMsg = newerMsg,
+                                            appearance = appearance,
+                                            behavior = behavior,
+                                            senderGrouping = buildSenderGrouping(
+                                                item,
+                                                olderMsg,
+                                                newerMsg
+                                            ),
                                             onPhotoClick = { onMessageClick(it) },
                                             onVideoClick = { onMessageClick(it) },
                                             onDocumentClick = { onMessageClick(it) },
                                             onReplyClick = { _, _, _ -> onMessageClick(item.message) },
                                             onGoToReply = { onReplyClick(it) },
                                             onReactionClick = onReactionClick,
-                                            fontSize = fontSize,
-                                            letterSpacing = letterSpacing,
-                                            bubbleRadius = bubbleRadius,
-                                            stickerSize = stickerSize,
                                             downloadUtils = downloadUtils
                                         )
                                     } else if (item is GroupedMessageItem.Album) {
                                         AlbumMessageBubbleContainer(
                                             messages = item.messages,
-                                            olderMsg = olderMsg,
-                                            newerMsg = newerMsg,
-                                            isGroup = false,
-                                            isChannel = true,
-                                            autoplayGifs = autoplayGifs,
-                                            autoplayVideos = autoplayVideos,
+                                            appearance = MessageAppearanceConfig(
+                                                fontSize = fontSize,
+                                                letterSpacing = letterSpacing,
+                                                bubbleRadius = bubbleRadius,
+                                                stickerSize = stickerSize,
+                                                autoplayGifs = autoplayGifs,
+                                                autoplayVideos = autoplayVideos
+                                            ),
+                                            behavior = MessageRowBehaviorConfig(
+                                                isGroup = false,
+                                                isChannel = true,
+                                                isTopicClosed = false,
+                                                canReply = false,
+                                                swipeEnabled = false,
+                                                isSelectionMode = false,
+                                                isAnyViewerOpen = false
+                                            ),
+                                            senderGrouping = buildSenderGrouping(
+                                                item,
+                                                olderMsg,
+                                                newerMsg
+                                            ),
                                             onPhotoClick = { onMessageClick(it) },
                                             onVideoClick = { onMessageClick(it) },
                                             onReplyClick = { _, _, _ -> onMessageClick(item.messages.last()) },
                                             onGoToReply = { onReplyClick(it) },
                                             onReactionClick = onReactionClick,
                                             toProfile = {},
-                                            canReply = false,
                                             downloadUtils = downloadUtils
                                         )
                                     }
@@ -315,19 +378,33 @@ fun PinnedMessagesListSheet(
                                     if (item is GroupedMessageItem.Single) {
                                         MessageBubbleContainer(
                                             msg = item.message,
-                                            olderMsg = olderMsg,
                                             newerMsg = newerMsg,
-                                            isGroup = isGroup,
-                                            fontSize = fontSize,
-                                            letterSpacing = letterSpacing,
-                                            bubbleRadius = bubbleRadius,
-                                            stSize = stickerSize,
-                                            autoDownloadMobile = autoDownloadMobile,
-                                            autoDownloadWifi = autoDownloadWifi,
-                                            autoDownloadRoaming = autoDownloadRoaming,
-                                            autoDownloadFiles = autoDownloadFiles,
-                                            autoplayGifs = autoplayGifs,
-                                            autoplayVideos = autoplayVideos,
+                                            appearance = MessageAppearanceConfig(
+                                                fontSize = fontSize,
+                                                letterSpacing = letterSpacing,
+                                                bubbleRadius = bubbleRadius,
+                                                stickerSize = stickerSize,
+                                                autoplayGifs = autoplayGifs,
+                                                autoplayVideos = autoplayVideos,
+                                                autoDownloadMobile = autoDownloadMobile,
+                                                autoDownloadWifi = autoDownloadWifi,
+                                                autoDownloadRoaming = autoDownloadRoaming,
+                                                autoDownloadFiles = autoDownloadFiles
+                                            ),
+                                            behavior = MessageRowBehaviorConfig(
+                                                isGroup = isGroup,
+                                                isChannel = false,
+                                                isTopicClosed = false,
+                                                canReply = false,
+                                                swipeEnabled = false,
+                                                isSelectionMode = false,
+                                                isAnyViewerOpen = false
+                                            ),
+                                            senderGrouping = buildSenderGrouping(
+                                                item,
+                                                olderMsg,
+                                                newerMsg
+                                            ),
                                             onPhotoClick = { onMessageClick(it) },
                                             onVideoClick = { onMessageClick(it) },
                                             onDocumentClick = { onMessageClick(it) },
@@ -335,25 +412,39 @@ fun PinnedMessagesListSheet(
                                             onGoToReply = { onReplyClick(it) },
                                             onReactionClick = onReactionClick,
                                             toProfile = {},
-                                            canReply = false,
                                             downloadUtils = downloadUtils
                                         )
                                     } else if (item is GroupedMessageItem.Album) {
                                         AlbumMessageBubbleContainer(
                                             messages = item.messages,
-                                            olderMsg = olderMsg,
-                                            newerMsg = newerMsg,
-                                            isGroup = isGroup,
-                                            isChannel = false,
-                                            autoplayGifs = autoplayGifs,
-                                            autoplayVideos = autoplayVideos,
+                                            appearance = MessageAppearanceConfig(
+                                                fontSize = fontSize,
+                                                letterSpacing = letterSpacing,
+                                                bubbleRadius = bubbleRadius,
+                                                stickerSize = stickerSize,
+                                                autoplayGifs = autoplayGifs,
+                                                autoplayVideos = autoplayVideos
+                                            ),
+                                            behavior = MessageRowBehaviorConfig(
+                                                isGroup = isGroup,
+                                                isChannel = false,
+                                                isTopicClosed = false,
+                                                canReply = false,
+                                                swipeEnabled = false,
+                                                isSelectionMode = false,
+                                                isAnyViewerOpen = false
+                                            ),
+                                            senderGrouping = buildSenderGrouping(
+                                                item,
+                                                olderMsg,
+                                                newerMsg
+                                            ),
                                             onPhotoClick = { onMessageClick(it) },
                                             onVideoClick = { onMessageClick(it) },
                                             onReplyClick = { _, _, _ -> onMessageClick(item.messages.last()) },
                                             onGoToReply = { onReplyClick(it) },
                                             onReactionClick = onReactionClick,
                                             toProfile = {},
-                                            canReply = false,
                                             downloadUtils = downloadUtils
                                         )
                                     }

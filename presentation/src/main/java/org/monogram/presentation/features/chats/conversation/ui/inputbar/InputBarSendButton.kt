@@ -42,26 +42,13 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun InputBarSendButton(
-    textValue: TextFieldValue,
-    editingMessage: MessageModel?,
-    pendingMediaPaths: List<String>,
-    pendingDocumentPaths: List<String>,
-    isOverCharLimit: Boolean,
-    canWriteText: Boolean,
-    canSendAttachments: Boolean,
-    canSendVoice: Boolean,
-    canSendVideoNotes: Boolean,
-    isVideoMessageMode: Boolean,
-    isSlowModeActive: Boolean,
-    slowModeRemainingSeconds: Int,
+internal fun InputBarSendButton(
+    state: InputBarSendButtonState,
     onSendWithOptions: (MessageSendOptions) -> Unit,
     onShowSendOptionsMenu: () -> Unit,
     onCameraClick: () -> Unit,
@@ -71,26 +58,25 @@ fun InputBarSendButton(
     onVoiceLock: () -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
-    val isTextEmpty = textValue.text.isBlank()
-    val hasPendingAttachments = pendingMediaPaths.isNotEmpty() || pendingDocumentPaths.isNotEmpty()
-    val canSendContent = canWriteText || (hasPendingAttachments && canSendAttachments)
-    val isSlowModeBlocked = isSlowModeActive && editingMessage == null
+    val canSendContent =
+        state.canWriteText || (state.hasPendingAttachments && state.canSendAttachments)
+    val isSlowModeBlocked = state.isSlowModeActive && !state.isEditing
     val isSendEnabled =
-        (!isTextEmpty || editingMessage != null || hasPendingAttachments) &&
+        (!state.isTextEmpty || state.isEditing || state.hasPendingAttachments) &&
                 canSendContent &&
-                !isOverCharLimit &&
+                !state.isOverCharLimit &&
                 !isSlowModeBlocked
 
     var isVoiceRecordingActive by remember { mutableStateOf(false) }
     val effectiveVideoMode = when {
-        !canSendVideoNotes -> false
-        !canSendVoice -> true
-        else -> isVideoMessageMode
+        !state.canSendVideoNotes -> false
+        !state.canSendVoice -> true
+        else -> state.isVideoMessageMode
     }
-    val canUseRecording = canSendVoice || canSendVideoNotes
-    val canToggleRecordingMode = canSendVoice && canSendVideoNotes
+    val canUseRecording = state.canSendVoice || state.canSendVideoNotes
+    val canToggleRecordingMode = state.canSendVoice && state.canSendVideoNotes
     val isRecordingMode =
-        isTextEmpty && editingMessage == null && !hasPendingAttachments && canUseRecording && !isSlowModeBlocked
+        state.isTextEmpty && !state.isEditing && !state.hasPendingAttachments && canUseRecording && !isSlowModeBlocked
 
     val backgroundColor by animateColorAsState(
         targetValue = if (isSendEnabled || isVoiceRecordingActive || isSlowModeBlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
@@ -103,18 +89,18 @@ fun InputBarSendButton(
         label = "ContentColor"
     )
 
-    if (canWriteText || canSendVoice || canSendVideoNotes || (hasPendingAttachments && canSendAttachments)) {
+    if (state.canWriteText || state.canSendVoice || state.canSendVideoNotes || (state.hasPendingAttachments && state.canSendAttachments)) {
         val sendIcon = when {
-            hasPendingAttachments -> Icons.AutoMirrored.Filled.Send
-            editingMessage != null -> Icons.Default.Check
-            !isTextEmpty -> Icons.AutoMirrored.Filled.Send
+            state.hasPendingAttachments -> Icons.AutoMirrored.Filled.Send
+            state.isEditing -> Icons.Default.Check
+            !state.isTextEmpty -> Icons.AutoMirrored.Filled.Send
             effectiveVideoMode -> Icons.Default.Videocam
             else -> Icons.Outlined.Mic
         }
-        val canShowOptions = editingMessage == null &&
-                (!isTextEmpty || (hasPendingAttachments && canSendAttachments)) &&
-                (canWriteText || (hasPendingAttachments && canSendAttachments)) &&
-                !isOverCharLimit &&
+        val canShowOptions = !state.isEditing &&
+                (!state.isTextEmpty || (state.hasPendingAttachments && state.canSendAttachments)) &&
+                (state.canWriteText || (state.hasPendingAttachments && state.canSendAttachments)) &&
+                !state.isOverCharLimit &&
                 !isSlowModeBlocked
 
         Box(
@@ -210,7 +196,7 @@ fun InputBarSendButton(
         ) {
             if (isSlowModeBlocked) {
                 Text(
-                    text = formatSlowModeCountdown(slowModeRemainingSeconds),
+                    text = formatSlowModeCountdown(state.slowModeRemainingSeconds),
                     style = MaterialTheme.typography.labelSmall,
                     color = contentColor
                 )

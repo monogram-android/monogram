@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,11 +60,15 @@ import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
+import org.monogram.presentation.core.media.VideoStickerPlayer
+import org.monogram.presentation.core.media.VideoType
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppression
-import org.monogram.presentation.core.media.VideoStickerPlayer
-import org.monogram.presentation.core.media.VideoType
+
+private class VideoBubbleLayoutTracker {
+    var videoPosition: Offset = Offset.Zero
+}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -147,14 +152,18 @@ fun VideoMessageBubble(
         bottomStart = bottomStart
     )
 
-    var videoPosition by remember { mutableStateOf(Offset.Zero) }
+    val layoutTracker = remember { VideoBubbleLayoutTracker() }
     var isMuted by remember { mutableStateOf(true) }
-    var currentPositionSeconds by remember { mutableIntStateOf(0) }
     var isVisible by remember { mutableStateOf(false) }
     val resources = LocalResources.current
     val screenHeightPx = remember { resources.displayMetrics.heightPixels }
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
     var isMediaSpoilerRevealed by remember { mutableStateOf(!content.hasSpoiler) }
+    val currentPositionSecondsState = remember(msg.id, content.fileId) { mutableIntStateOf(0) }
+    val currentPositionSeconds = currentPositionSecondsState.intValue
+    val onLongClickState by rememberUpdatedState(onLongClick)
+    val onVideoClickState by rememberUpdatedState(onVideoClick)
+    val onCancelDownloadState by rememberUpdatedState(onCancelDownload)
 
     Column(
         modifier = modifier.onGloballyPositioned {
@@ -208,7 +217,9 @@ fun VideoMessageBubble(
                         .heightIn(min = 160.dp, max = 360.dp)
                         .aspectRatio(ratio)
                         .clipToBounds()
-                        .onGloballyPositioned { videoPosition = it.positionInWindow() }
+                        .onGloballyPositioned {
+                            layoutTracker.videoPosition = it.positionInWindow()
+                        }
 
                 ) {
                     if (hasPath || content.supportsStreaming) {
@@ -224,30 +235,21 @@ fun VideoMessageBubble(
                                     reportProgress = true,
                                     onProgressUpdate = { pos ->
                                         val seconds = (pos / 1000).toInt()
-                                        if (seconds != currentPositionSeconds) {
-                                            currentPositionSeconds = seconds
+                                        if (seconds != currentPositionSecondsState.intValue) {
+                                            currentPositionSecondsState.intValue = seconds
                                         }
                                     },
                                     fileId = content.fileId,
                                     thumbnailData = content.minithumbnail
                                 )
 
-                                Box(
+                                VideoMuteToggle(
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .padding(8.dp)
-                                        .size(30.dp)
-                                        .background(Color.Black.copy(alpha = 0.45f), CircleShape)
-                                        .clickable { isMuted = !isMuted },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                                        contentDescription = stringResource(R.string.cd_toggle_sound),
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
+                                        .padding(8.dp),
+                                    isMuted = isMuted,
+                                    onToggle = { isMuted = !isMuted }
+                                )
                             } else {
                                 if (hasPath) {
                                     Image(
@@ -304,119 +306,60 @@ fun VideoMessageBubble(
                                 }
                             }
                     } else {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            MediaLoadingBackground(
-                                previewData = content.minithumbnail,
-                                contentScale = ContentScale.Crop,
-                                previewBlur = 14.dp
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.25f))
-                            )
-
-                            MediaLoadingAction(
-                                isDownloading = content.isDownloading,
-                                progress = content.downloadProgress,
-                                idleIcon = if (content.supportsStreaming) Icons.Rounded.Stream else Icons.Default.Download,
-                                idleContentDescription = if (content.supportsStreaming) {
-                                    stringResource(R.string.cd_stream)
-                                } else {
-                                    stringResource(R.string.cd_download)
-                                },
-                                onCancelClick = {
-                                    isAutoDownloadSuppressed = true
-                                    AutoDownloadSuppression.suppress(content.fileId)
-                                    onCancelDownload(content.fileId)
-                                },
-                                onIdleClick = {
-                                    isAutoDownloadSuppressed = false
-                                    AutoDownloadSuppression.clear(content.fileId)
-                                    onVideoClick(msg)
-                                }
-                            )
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .pointerInput(
-                                content.isDownloading,
-                                content.fileId,
-                                isMediaSpoilerRevealed,
-                                stablePath,
-                                content.supportsStreaming
-                            ) {
-                                detectTapGestures(
-                                    onTap = {
-                                        if (!isMediaSpoilerRevealed) {
-                                            isMediaSpoilerRevealed = true
-                                        } else if (content.isDownloading) {
-                                            isAutoDownloadSuppressed = true
-                                            AutoDownloadSuppression.suppress(content.fileId)
-                                            onCancelDownload(content.fileId)
-                                        } else {
-                                            isAutoDownloadSuppressed = false
-                                            AutoDownloadSuppression.clear(content.fileId)
-                                            onVideoClick(msg)
-                                        }
-                                    },
-                                    onLongPress = { offset -> onLongClick(videoPosition + offset) }
-                                )
-                            }
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(8.dp)
-                            .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = if ((hasPath || content.supportsStreaming) && autoplayVideos) {
-                                "${formatDuration(currentPositionSeconds)} / ${formatDuration(content.duration)}"
-                            } else {
-                                formatDuration(content.duration)
+                        VideoLoadingLayer(
+                            content = content,
+                            onCancelDownload = {
+                                isAutoDownloadSuppressed = true
+                                AutoDownloadSuppression.suppress(content.fileId)
+                                onCancelDownloadState(content.fileId)
                             },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White
+                            onStartDownload = {
+                                isAutoDownloadSuppressed = false
+                                AutoDownloadSuppression.clear(content.fileId)
+                                onVideoClickState(msg)
+                            }
                         )
                     }
 
-                    if (content.isUploading) {
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .background(Color.Black.copy(alpha = 0.5f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (content.uploadProgress > 0f) {
-                                CircularWavyProgressIndicator(
-                                    progress = { content.uploadProgress },
-                                    color = Color.White,
-                                    trackColor = Color.White.copy(alpha = 0.3f)
-                                )
-                            } else {
-                                LoadingIndicator(
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
+                    VideoInteractionOverlay(
+                        modifier = Modifier.matchParentSize(),
+                        content = content,
+                        isMediaSpoilerRevealed = isMediaSpoilerRevealed,
+                        videoPosition = { layoutTracker.videoPosition },
+                        onRevealSpoiler = { isMediaSpoilerRevealed = true },
+                        onCancelDownload = {
+                            isAutoDownloadSuppressed = true
+                            AutoDownloadSuppression.suppress(content.fileId)
+                            onCancelDownloadState(content.fileId)
+                        },
+                        onOpenVideo = {
+                            isAutoDownloadSuppressed = false
+                            AutoDownloadSuppression.clear(content.fileId)
+                            onVideoClickState(msg)
+                        },
+                        onLongClick = { anchor -> onLongClickState(anchor) }
+                    )
 
-                    SpoilerWrapper(isRevealed = isMediaSpoilerRevealed) {
-                        Box(modifier = Modifier.fillMaxSize())
-                    }
+                    VideoPlaybackBadge(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp),
+                        durationSeconds = content.duration,
+                        currentPositionSeconds = currentPositionSeconds,
+                        showCurrentProgress = (hasPath || content.supportsStreaming) && autoplayVideos
+                    )
+
+                    VideoUploadOverlay(
+                        isUploading = content.isUploading,
+                        uploadProgress = content.uploadProgress
+                    )
+
+                    VideoSpoilerOverlay(
+                        isRevealed = isMediaSpoilerRevealed
+                    )
 
                     if (content.caption.isEmpty() && showMetadata) {
-                        Box(
+                        VideoMetadataBadge(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(6.dp)
@@ -424,10 +367,10 @@ fun VideoMessageBubble(
                                     Color.Black.copy(alpha = 0.45f),
                                     RoundedCornerShape(12.dp)
                                 )
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            MessageMetadata(msg, isOutgoing, Color.White)
-                        }
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                            msg = msg,
+                            isOutgoing = isOutgoing
+                        )
                     }
                 }
 
@@ -477,8 +420,8 @@ fun VideoMessageBubble(
                                         revealedSpoilers.add(index)
                                     }
                                 },
-                                onClick = { offset -> onLongClick(videoPosition + offset) },
-                                onLongClick = { offset -> onLongClick(videoPosition + offset) }
+                                onClick = { offset -> onLongClickState(layoutTracker.videoPosition + offset) },
+                                onLongClick = { offset -> onLongClickState(layoutTracker.videoPosition + offset) }
                             )
                         }
                         if (showMetadata) {
@@ -498,5 +441,171 @@ fun VideoMessageBubble(
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun VideoMuteToggle(
+    modifier: Modifier = Modifier,
+    isMuted: Boolean,
+    onToggle: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(30.dp)
+            .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+            .clickable(onClick = onToggle),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+            contentDescription = stringResource(R.string.cd_toggle_sound),
+            tint = Color.White,
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun VideoLoadingLayer(
+    content: MessageContent.Video,
+    onCancelDownload: () -> Unit,
+    onStartDownload: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        MediaLoadingBackground(
+            previewData = content.minithumbnail,
+            contentScale = ContentScale.Crop,
+            previewBlur = 14.dp
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.25f))
+        )
+
+        MediaLoadingAction(
+            isDownloading = content.isDownloading,
+            progress = content.downloadProgress,
+            idleIcon = if (content.supportsStreaming) Icons.Rounded.Stream else Icons.Default.Download,
+            idleContentDescription = if (content.supportsStreaming) {
+                stringResource(R.string.cd_stream)
+            } else {
+                stringResource(R.string.cd_download)
+            },
+            onCancelClick = onCancelDownload,
+            onIdleClick = onStartDownload
+        )
+    }
+}
+
+@Composable
+private fun VideoInteractionOverlay(
+    modifier: Modifier = Modifier,
+    content: MessageContent.Video,
+    isMediaSpoilerRevealed: Boolean,
+    videoPosition: () -> Offset,
+    onRevealSpoiler: () -> Unit,
+    onCancelDownload: () -> Unit,
+    onOpenVideo: () -> Unit,
+    onLongClick: (Offset) -> Unit
+) {
+    Box(
+        modifier = modifier.pointerInput(
+            content.isDownloading,
+            content.fileId,
+            isMediaSpoilerRevealed,
+            content.supportsStreaming
+        ) {
+            detectTapGestures(
+                onTap = {
+                    if (!isMediaSpoilerRevealed) {
+                        onRevealSpoiler()
+                    } else if (content.isDownloading) {
+                        onCancelDownload()
+                    } else {
+                        onOpenVideo()
+                    }
+                },
+                onLongPress = { offset -> onLongClick(videoPosition() + offset) }
+            )
+        }
+    )
+}
+
+@Composable
+private fun VideoPlaybackBadge(
+    modifier: Modifier = Modifier,
+    durationSeconds: Int,
+    currentPositionSeconds: Int,
+    showCurrentProgress: Boolean
+) {
+    Box(
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text = if (showCurrentProgress) {
+                "${formatDuration(currentPositionSeconds)} / ${formatDuration(durationSeconds)}"
+            } else {
+                formatDuration(durationSeconds)
+            },
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun VideoUploadOverlay(
+    isUploading: Boolean,
+    uploadProgress: Float
+) {
+    if (!isUploading) return
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (uploadProgress > 0f) {
+            CircularWavyProgressIndicator(
+                progress = { uploadProgress },
+                color = Color.White,
+                trackColor = Color.White.copy(alpha = 0.3f)
+            )
+        } else {
+            LoadingIndicator(
+                color = Color.White
+            )
+        }
+    }
+}
+
+@Composable
+private fun VideoSpoilerOverlay(
+    isRevealed: Boolean
+) {
+    SpoilerWrapper(isRevealed = isRevealed) {
+        Box(modifier = Modifier.fillMaxSize())
+    }
+}
+
+@Composable
+private fun VideoMetadataBadge(
+    modifier: Modifier = Modifier,
+    msg: MessageModel,
+    isOutgoing: Boolean
+) {
+    Box(modifier = modifier) {
+        MessageMetadata(msg, isOutgoing, Color.White)
     }
 }

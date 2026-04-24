@@ -1,7 +1,5 @@
 package org.monogram.presentation.features.chats.currentChat
 
-import android.app.DatePickerDialog
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,38 +18,25 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.animateScrollBy
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -62,12 +47,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -78,7 +60,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -97,67 +78,45 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.zIndex
 import androidx.window.core.layout.WindowWidthSizeClass
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
-import org.monogram.domain.models.ChatViewportCacheEntry
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
-import org.monogram.domain.models.ReplyMarkupModel
-import org.monogram.domain.models.UserModel
 import org.monogram.presentation.R
-import org.monogram.presentation.core.ui.AvatarForChat
-import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentBackground
+import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentEffects
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentList
+import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentOverlays
+import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentSearchOverlay
 import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentTopBar
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatContentTopBarUiState
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatMessageListUiState
-import org.monogram.presentation.features.chats.currentChat.chatContent.ChatMessageOptionsMenu
 import org.monogram.presentation.features.chats.currentChat.chatContent.GroupedMessageItem
-import org.monogram.presentation.features.chats.currentChat.chatContent.ReportChatDialog
-import org.monogram.presentation.features.chats.currentChat.chatContent.RestrictUserSheet
 import org.monogram.presentation.features.chats.currentChat.chatContent.chatContentLeadingItemsCount
+import org.monogram.presentation.features.chats.currentChat.chatContent.extractTextContent
 import org.monogram.presentation.features.chats.currentChat.chatContent.groupMessagesByAlbum
 import org.monogram.presentation.features.chats.currentChat.chatContent.groupedIndexToLazyIndex
-import org.monogram.presentation.features.chats.currentChat.chatContent.lazyIndexToGroupedIndex
+import org.monogram.presentation.features.chats.currentChat.chatContent.rememberChatChromeState
+import org.monogram.presentation.features.chats.currentChat.chatContent.rememberChatContentPermissionState
+import org.monogram.presentation.features.chats.currentChat.chatContent.rememberChatInputBarActions
+import org.monogram.presentation.features.chats.currentChat.chatContent.rememberChatInputBarState
+import org.monogram.presentation.features.chats.currentChat.chatContent.rememberChatMessageListState
+import org.monogram.presentation.features.chats.currentChat.chatContent.rememberChatSearchUiState
+import org.monogram.presentation.features.chats.currentChat.chatContent.rememberChatTopBarUiState
+import org.monogram.presentation.features.chats.currentChat.chatContent.scrollToMessageIndex
+import org.monogram.presentation.features.chats.currentChat.chatContent.withUpdatedTextContent
 import org.monogram.presentation.features.chats.currentChat.components.AdvancedCircularRecorderScreen
 import org.monogram.presentation.features.chats.currentChat.components.ChatInputBar
 import org.monogram.presentation.features.chats.currentChat.components.MessageListShimmer
-import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
-import org.monogram.presentation.features.chats.currentChat.components.chats.BotCommandsSheet
 import org.monogram.presentation.features.chats.currentChat.components.chats.LocalLinkHandler
-import org.monogram.presentation.features.chats.currentChat.components.chats.PollVotersSheet
-import org.monogram.presentation.features.chats.currentChat.components.inputbar.ChatInputBarActions
-import org.monogram.presentation.features.chats.currentChat.components.inputbar.ChatInputBarState
-import org.monogram.presentation.features.chats.currentChat.components.pins.PinnedMessagesListSheet
-import org.monogram.presentation.features.chats.currentChat.editor.photo.PhotoEditorScreen
-import org.monogram.presentation.features.chats.currentChat.editor.video.VideoEditorScreen
 import java.io.File
 import java.io.FileOutputStream
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -235,7 +194,6 @@ fun ChatContent(
     val groupedMessages by remember {
         derivedStateOf { groupMessagesByAlbum(displayMessages) }
     }
-    val latestUiState = rememberUpdatedState(state)
     val groupedMessageIndexById by remember(groupedMessages) {
         derivedStateOf {
             buildMap {
@@ -279,35 +237,7 @@ fun ChatContent(
         mutableStateOf(false)
     }
     val isDragged by scrollState.interactionSource.collectIsDraggedAsState()
-    val canLoadMoreSearchResults by remember(
-        state.searchNextFromMessageId,
-        state.searchResults.size,
-        state.searchResultsTotalCount
-    ) {
-        derivedStateOf {
-            state.searchResults.size < state.searchResultsTotalCount ||
-                    state.searchNextFromMessageId != 0L
-        }
-    }
-    val searchSenderCandidates by remember(state.searchAvailableSenders, state.otherUser) {
-        derivedStateOf {
-            buildList {
-                addAll(state.searchAvailableSenders)
-                state.otherUser?.let(::add)
-            }.distinctBy(UserModel::id)
-        }
-    }
-    val hasSearchFiltersApplied by remember(
-        state.searchSender,
-        state.searchDateFromEpochSeconds,
-        state.searchDateToEpochSeconds
-    ) {
-        derivedStateOf {
-            state.searchSender != null ||
-                    state.searchDateFromEpochSeconds != null ||
-                    state.searchDateToEpochSeconds != null
-        }
-    }
+    val searchUiState = rememberChatSearchUiState(state)
 
     val isAnyViewerOpen = state.fullScreenImages != null ||
             state.fullScreenVideoPath != null ||
@@ -346,330 +276,6 @@ fun ChatContent(
         }
     })
 
-    LaunchedEffect(Unit) {
-        isVisible = true
-        if (state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null) {
-            component.onDismissVideo()
-        }
-    }
-
-    LaunchedEffect(state.messages) {
-        if (transformedMessageTexts.isEmpty() && originalMessageTexts.isEmpty()) return@LaunchedEffect
-        val ids = state.messages.map { it.id }.toSet()
-        transformedMessageTexts.keys.toList().forEach { id ->
-            if (id !in ids) {
-                transformedMessageTexts.remove(id)
-                originalMessageTexts.remove(id)
-            }
-        }
-    }
-
-    // Initial Loading Delay logic
-    LaunchedEffect(
-        state.isLoading,
-        state.messages.isEmpty(),
-        state.viewAsTopics,
-        state.currentTopicId,
-        state.isLoadingTopics,
-        state.rootMessage
-    ) {
-        val isActuallyLoading = if (state.viewAsTopics && state.currentTopicId == null) {
-            state.isLoadingTopics && state.topics.isEmpty()
-        } else if (state.currentTopicId != null) {
-            state.isLoading && state.messages.isEmpty() && state.rootMessage == null
-        } else {
-            state.isLoading && state.messages.isEmpty()
-        }
-        if (isActuallyLoading) {
-            if (state.isChatAnimationsEnabled) delay(200)
-            showInitialLoading = true
-        } else {
-            showInitialLoading = false
-        }
-    }
-
-    // Unified command-based scrolling: restore, jump, bottom.
-    LaunchedEffect(state.pendingScrollCommand, isComments) {
-        val command = state.pendingScrollCommand ?: return@LaunchedEffect
-
-        val leadingItems = chatContentLeadingItemsCount(
-            isComments = isComments,
-            showNavPadding = false,
-            isLoadingOlder = state.isLoadingOlder,
-            isLoadingNewer = state.isLoadingNewer,
-            isAtBottom = state.isAtBottom,
-            hasMessages = groupedMessages.isNotEmpty()
-        )
-
-        when (command) {
-            is ChatScrollCommand.RestoreViewport -> {
-                if (command.atBottom || command.anchorMessageId == null) {
-                    scrollState.scrollToChatBottomStaged(
-                        isComments = isComments,
-                        animated = false
-                    )
-                } else {
-                    val groupedIndex = groupedMessageIndexById[command.anchorMessageId]
-                        ?: awaitGroupedIndex(
-                            messageId = command.anchorMessageId,
-                            groupedMessageIndexByIdProvider = { groupedMessageIndexById }
-                        )
-                        ?: -1
-                    if (groupedIndex >= 0) {
-                        val targetIndex = groupedIndexToLazyIndex(groupedIndex, leadingItems)
-                        scrollState.restoreViewportAtIndex(
-                            targetIndex = targetIndex,
-                            anchorOffsetPx = command.anchorOffsetPx
-                        )
-                    } else {
-                        scrollState.scrollToChatBottomStaged(
-                            isComments = isComments,
-                            animated = false
-                        )
-                    }
-                }
-                component.onScrollCommandConsumed()
-            }
-
-            is ChatScrollCommand.JumpToMessage -> {
-                val groupedIndex = groupedMessageIndexById[command.messageId]
-                    ?: awaitGroupedIndex(
-                        messageId = command.messageId,
-                        groupedMessageIndexByIdProvider = { groupedMessageIndexById }
-                    )
-                    ?: -1
-                if (groupedIndex >= 0) {
-                    val targetIndex = groupedIndexToLazyIndex(groupedIndex, leadingItems)
-                    scrollState.scrollToMessageIndex(
-                        index = targetIndex,
-                        align = command.align,
-                        animated = command.animated && state.isChatAnimationsEnabled,
-                        staged = true
-                    )
-                }
-                component.onScrollCommandConsumed()
-            }
-
-            is ChatScrollCommand.ScrollToBottom -> {
-                scrollState.scrollToChatBottomStaged(
-                    isComments = isComments,
-                    animated = command.animated && state.isChatAnimationsEnabled
-                )
-                component.onScrollCommandConsumed()
-            }
-
-            is ChatScrollCommand.ScrollToStart -> {
-                scrollState.scrollToChatStartStaged(
-                    animated = command.animated && state.isChatAnimationsEnabled
-                )
-                component.onScrollCommandConsumed()
-            }
-        }
-    }
-
-    // Unified bottom-status + bottom-button controller with hysteresis/debounce for smoothness.
-    LaunchedEffect(
-        scrollState,
-        isComments,
-        isForumList,
-        showInitialLoading,
-        isDragged
-    ) {
-        var lastReportedBottomState: Boolean? = null
-        snapshotFlow {
-            BottomVisibilitySnapshot(
-                isAtBottom = scrollState.isAtBottom(
-                    isComments = isComments,
-                    isLatestLoaded = state.isLatestLoaded
-                ),
-                isNearBottom = scrollState.isNearBottom(
-                    isComments = isComments
-                ),
-                unreadCount = state.unreadCount
-            )
-        }
-            .distinctUntilChanged()
-            .collectLatest { snapshot ->
-                if (lastReportedBottomState != snapshot.isAtBottom) {
-                    component.onBottomReached(snapshot.isAtBottom)
-                    lastReportedBottomState = snapshot.isAtBottom
-                }
-
-                if (snapshot.isNearBottom) {
-                    hasUserScrolledAwayFromBottom = false
-                } else if (isDragged) {
-                    hasUserScrolledAwayFromBottom = true
-                }
-
-                val shouldShow = !isForumList &&
-                        !showInitialLoading &&
-                        (snapshot.unreadCount > 0 || (hasUserScrolledAwayFromBottom && !snapshot.isNearBottom))
-
-                if (shouldShow) {
-                    showScrollToBottomButton = true
-                } else {
-                    delay(120)
-                    val keepVisible = snapshot.unreadCount > 0 ||
-                            (hasUserScrolledAwayFromBottom && !snapshot.isNearBottom)
-                    if (!keepVisible) {
-                        showScrollToBottomButton = false
-                    }
-                }
-            }
-    }
-
-    // Save full viewport (anchor + pixel offset) for precise restore after reopen.
-    LaunchedEffect(
-        scrollState,
-        groupedMessages,
-        isComments,
-        state.isLatestLoaded,
-        state.isLoadingOlder,
-        state.isLoadingNewer,
-        state.isAtBottom
-    ) {
-        snapshotFlow {
-            buildViewportSnapshot(
-                scrollState = scrollState,
-                groupedMessages = groupedMessages,
-                isComments = isComments,
-                isLatestLoaded = state.isLatestLoaded,
-                isLoadingOlder = state.isLoadingOlder,
-                isLoadingNewer = state.isLoadingNewer,
-                isAtBottom = state.isAtBottom,
-                showNavPadding = false
-            )
-        }
-            .filterNotNull()
-            .distinctUntilChanged()
-            .debounce(120)
-            .collect { viewport ->
-                component.updateViewport(viewport)
-            }
-    }
-
-    DisposableEffect(
-        scrollState,
-        groupedMessages,
-        isComments,
-        state.currentTopicId,
-        state.isLatestLoaded,
-        state.isLoadingOlder,
-        state.isLoadingNewer,
-        state.isAtBottom
-    ) {
-        onDispose {
-            val viewport = buildViewportSnapshot(
-                scrollState = scrollState,
-                groupedMessages = groupedMessages,
-                isComments = isComments,
-                isLatestLoaded = state.isLatestLoaded,
-                isLoadingOlder = state.isLoadingOlder,
-                isLoadingNewer = state.isLoadingNewer,
-                isAtBottom = state.isAtBottom,
-                showNavPadding = false
-            )
-            if (viewport != null) {
-                component.updateViewport(viewport)
-            }
-        }
-    }
-
-    // Performance: Update visible range for repository
-    LaunchedEffect(scrollState, groupedMessages) {
-        snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
-            .map { visibleItems ->
-                val currentState = latestUiState.value
-                val leadingItemsCount = chatContentLeadingItemsCount(
-                    isComments = currentState.rootMessage != null,
-                    showNavPadding = false,
-                    isLoadingOlder = currentState.isLoadingOlder,
-                    isLoadingNewer = currentState.isLoadingNewer,
-                    isAtBottom = currentState.isAtBottom,
-                    hasMessages = groupedMessages.isNotEmpty()
-                )
-                val visibleIds = LinkedHashSet<Long>()
-                val nearbyIds = LinkedHashSet<Long>()
-                if (visibleItems.isNotEmpty()) {
-                    val minIndex = visibleItems.minOf { it.index }
-                    val maxIndex = visibleItems.maxOf { it.index }
-
-                    visibleItems.forEach { item ->
-                        val groupedIndex = lazyIndexToGroupedIndex(item.index, leadingItemsCount)
-                        groupedMessages.getOrNull(groupedIndex)?.let { grouped ->
-                            when (grouped) {
-                                is GroupedMessageItem.Single -> visibleIds.add(grouped.message.id)
-                                is GroupedMessageItem.Album -> grouped.messages.forEach { message ->
-                                    visibleIds.add(message.id)
-                                }
-                            }
-                        }
-                    }
-
-                    val nearbyStart = (minIndex - 5).coerceAtLeast(0)
-                    val nearbyEnd = maxIndex + 5
-                    for (index in nearbyStart..nearbyEnd) {
-                        if (index in minIndex..maxIndex) continue
-                        val groupedIndex = lazyIndexToGroupedIndex(index, leadingItemsCount)
-                        groupedMessages.getOrNull(groupedIndex)?.let { grouped ->
-                            when (grouped) {
-                                is GroupedMessageItem.Single -> nearbyIds.add(grouped.message.id)
-                                is GroupedMessageItem.Album -> grouped.messages.forEach { message ->
-                                    nearbyIds.add(message.id)
-                                }
-                            }
-                        }
-                    }
-                }
-                val visibleIdList = visibleIds.toList()
-                visibleIdList to nearbyIds.filterNot(visibleIds::contains)
-            }
-            .distinctUntilChanged()
-            .debounce(100)
-            .collect { (visibleIds, nearbyIds) ->
-                (component as? DefaultChatComponent)?.let {
-                    it.repositoryMessage.updateVisibleRange(it.chatId, visibleIds, nearbyIds)
-                }
-            }
-    }
-
-    // Auto-scroll to bottom when new messages arrive and we are already at the bottom
-    val messageCount = groupedMessages.size
-    LaunchedEffect(messageCount, state.isLatestLoaded) {
-        if (isComments) return@LaunchedEffect
-
-        val isAtBottomNow = scrollState.isAtBottom(
-            isComments = isComments,
-            isLatestLoaded = state.isLatestLoaded
-        )
-        if ((state.isAtBottom || isAtBottomNow) &&
-            !state.isLoading &&
-            !state.isLoadingOlder &&
-            !state.isLoadingNewer &&
-            !scrollState.isScrollInProgress
-        ) {
-            scrollState.scrollToChatBottomStaged(
-                isComments = isComments,
-                animated = state.isChatAnimationsEnabled
-            )
-        }
-    }
-
-    // Scroll Management
-    LaunchedEffect(isDragged) {
-        if (isDragged) {
-            focusManager.clearFocus()
-            keyboardController?.hide()
-        }
-    }
-
-    LaunchedEffect(state.showBotCommands, isRecordingVideo) {
-        if (state.showBotCommands || isRecordingVideo) {
-            focusManager.clearFocus(force = true)
-            keyboardController?.hide()
-        }
-    }
-
     // Pick Media Result
     val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
         val albumPaths = mutableListOf<String>()
@@ -691,7 +297,6 @@ fun ChatContent(
         if (albumPaths.isNotEmpty()) pendingDocumentPaths = emptyList()
     }
 
-
     val shouldAnimateContentEntrance = state.isChatAnimationsEnabled && isOverlay
     val contentAlpha by animateFloatAsState(
         targetValue = if (isVisible || !shouldAnimateContentEntrance) 1f else 0f,
@@ -704,314 +309,60 @@ fun ChatContent(
         label = "ContentOffset"
     )
 
-    val canWriteText by remember(state.isAdmin, state.permissions.canSendBasicMessages) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendBasicMessages }
-    }
-    val canSendPhotos by remember(state.isAdmin, state.permissions.canSendPhotos) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendPhotos }
-    }
-    val canSendVideos by remember(state.isAdmin, state.permissions.canSendVideos) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendVideos }
-    }
-    val canSendDocuments by remember(state.isAdmin, state.permissions.canSendDocuments) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendDocuments }
-    }
-    val canSendAudios by remember(state.isAdmin, state.permissions.canSendAudios) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendAudios }
-    }
-    val canUseMediaPicker by remember(canSendPhotos, canSendVideos) {
-        derivedStateOf { canSendPhotos || canSendVideos }
-    }
-    val canUseDocumentPicker by remember(canSendDocuments, canSendAudios) {
-        derivedStateOf { canSendDocuments || canSendAudios }
-    }
-    val canSendPolls by remember(state.isAdmin, state.permissions.canSendPolls) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendPolls }
-    }
-    val canOpenAttachSheet by remember(
-        canUseMediaPicker,
-        canUseDocumentPicker,
-        canSendPolls,
-        state.attachMenuBots
-    ) {
-        derivedStateOf { canUseMediaPicker || canUseDocumentPicker || canSendPolls || state.attachMenuBots.isNotEmpty() }
-    }
-    val canSendStickers by remember(state.isAdmin, state.permissions.canSendOtherMessages) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendOtherMessages }
-    }
-    val canSendVoice by remember(state.isAdmin, state.permissions.canSendVoiceNotes) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendVoiceNotes }
-    }
-    val canSendVideoNotes by remember(state.isAdmin, state.permissions.canSendVideoNotes) {
-        derivedStateOf { state.isAdmin || state.permissions.canSendVideoNotes }
-    }
-    val canSendAnything by remember(
-        canWriteText,
-        canOpenAttachSheet,
-        canSendStickers,
-        canSendVoice,
-        canSendVideoNotes,
-        canSendPolls
-    ) {
-        derivedStateOf {
-            canWriteText || canOpenAttachSheet || canSendStickers || canSendVoice || canSendVideoNotes || canSendPolls
-        }
-    }
-
-    val messageListState = remember(
-        state.chatId,
-        state.currentTopicId,
-        displayMessages,
-        state.selectedMessageIds,
-        state.unreadSeparatorCount,
-        state.unreadSeparatorLastReadInboxMessageId,
-        state.viewAsTopics,
-        state.topics,
-        state.rootMessage,
-        state.isLoading,
-        state.isLoadingOlder,
-        state.isLoadingNewer,
-        state.isAtBottom,
-        state.isLatestLoaded,
-        state.isOldestLoaded,
-        state.isGroup,
-        state.isChannel,
-        state.isAdmin,
-        state.canWrite,
-        canSendAnything,
-        state.highlightedMessageId,
-        state.fontSize,
-        state.letterSpacing,
-        state.bubbleRadius,
-        state.stickerSize,
-        state.autoDownloadMobile,
-        state.autoDownloadWifi,
-        state.autoDownloadRoaming,
-        state.autoDownloadFiles,
-        state.autoplayGifs,
-        state.autoplayVideos,
-        state.showLinkPreviews,
-        state.isChatAnimationsEnabled,
-        showInitialLoading,
-        state.pendingScrollCommand
-    ) {
-        ChatMessageListUiState(
-            chatId = state.chatId,
-            currentTopicId = state.currentTopicId,
-            messages = displayMessages,
-            selectedMessageIds = state.selectedMessageIds,
-            unreadSeparatorCount = state.unreadSeparatorCount,
-            unreadSeparatorLastReadInboxMessageId = state.unreadSeparatorLastReadInboxMessageId,
-            viewAsTopics = state.viewAsTopics,
-            topics = state.topics,
-            rootMessage = state.rootMessage,
-            isLoading = state.isLoading,
-            isLoadingOlder = state.isLoadingOlder,
-            isLoadingNewer = state.isLoadingNewer,
-            isAtBottom = state.isAtBottom,
-            isLatestLoaded = state.isLatestLoaded,
-            isOldestLoaded = state.isOldestLoaded,
-            isGroup = state.isGroup,
-            isChannel = state.isChannel,
-            isAdmin = state.isAdmin,
-            canWrite = state.canWrite,
-            canSendAnything = canSendAnything,
-            highlightedMessageId = state.highlightedMessageId,
-            fontSize = state.fontSize,
-            letterSpacing = state.letterSpacing,
-            bubbleRadius = state.bubbleRadius,
-            stickerSize = state.stickerSize,
-            autoDownloadMobile = state.autoDownloadMobile,
-            autoDownloadWifi = state.autoDownloadWifi,
-            autoDownloadRoaming = state.autoDownloadRoaming,
-            autoDownloadFiles = state.autoDownloadFiles,
-            autoplayGifs = state.autoplayGifs,
-            autoplayVideos = state.autoplayVideos,
-            showLinkPreviews = state.showLinkPreviews,
-            isChatAnimationsEnabled = state.isChatAnimationsEnabled,
-            suppressEntryAnimations = showInitialLoading || state.pendingScrollCommand != null
-        )
-    }
-
-    val showInputBar by remember(
-        state.isChannel,
-        state.isGroup,
-        state.canWrite,
-        state.isCurrentUserRestricted,
-        state.currentTopicId,
-        state.selectedMessageIds,
-        state.viewAsTopics,
-        state.isSearchActive,
-        isRecordingVideo
-    ) {
-        derivedStateOf {
-            (state.canWrite || state.isCurrentUserRestricted) &&
-                    !isRecordingVideo &&
-                    !state.isSearchActive &&
-                    state.selectedMessageIds.isEmpty() &&
-                    (!state.viewAsTopics || state.currentTopicId != null)
-        }
-    }
-
-    val showJoinButton by remember(
-        showInputBar,
-        state.isMember,
-        state.isChannel,
-        state.isGroup,
-        state.canWrite,
-        state.isCurrentUserRestricted,
-        state.selectedMessageIds,
-        state.viewAsTopics,
-        state.currentTopicId,
-        state.isSearchActive,
-        isRecordingVideo
-    ) {
-        derivedStateOf {
-            !showInputBar &&
-                    !state.isSearchActive &&
-                    !state.isMember &&
-                    (state.isChannel || state.isGroup) &&
-                    !state.canWrite &&
-                    !state.isCurrentUserRestricted &&
-                    !isRecordingVideo &&
-                    state.selectedMessageIds.isEmpty() &&
-                    (!state.viewAsTopics || state.currentTopicId != null)
-        }
-    }
+    val permissionState = rememberChatContentPermissionState(state)
+    val messageListState = rememberChatMessageListState(
+        state = state,
+        displayMessages = displayMessages,
+        canSendAnything = permissionState.canSendAnything,
+        showInitialLoading = showInitialLoading
+    )
+    val chromeState = rememberChatChromeState(
+        state = state,
+        isRecordingVideo = isRecordingVideo,
+        editingPhotoPath = editingPhotoPath,
+        editingVideoPath = editingVideoPath,
+        selectedMessageId = selectedMessageId
+    )
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var renderPinnedMessagesList by rememberSaveable { mutableStateOf(state.showPinnedMessagesList) }
     var pendingPinnedSheetAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
-    LaunchedEffect(state.showPinnedMessagesList) {
-        if (state.showPinnedMessagesList) {
-            renderPinnedMessagesList = true
-        }
-    }
-
-    LaunchedEffect(state.isSearchActive) {
-        if (state.isSearchActive) {
-            showSearchFilters = false
-            showSearchSenderPicker = false
-            if (state.showPinnedMessagesList) {
-                component.onDismissPinnedMessages()
-            }
-        }
-    }
+    ChatContentEffects(
+        component = component,
+        state = state,
+        scrollState = scrollState,
+        groupedMessages = groupedMessages,
+        groupedMessageIndexById = groupedMessageIndexById,
+        isComments = isComments,
+        isForumList = isForumList,
+        isDragged = isDragged,
+        isRecordingVideo = isRecordingVideo,
+        showInitialLoading = showInitialLoading,
+        hasUserScrolledAwayFromBottom = hasUserScrolledAwayFromBottom,
+        transformedMessageTexts = transformedMessageTexts,
+        originalMessageTexts = originalMessageTexts,
+        onVisible = {
+            isVisible = true
+        },
+        onShowInitialLoadingChanged = { showInitialLoading = it },
+        onHasUserScrolledAwayFromBottomChanged = { hasUserScrolledAwayFromBottom = it },
+        onShowScrollToBottomButtonChanged = { showScrollToBottomButton = it },
+        onHideKeyboardAndClearFocus = { force ->
+            focusManager.clearFocus(force = force)
+            keyboardController?.hide()
+        },
+        onRenderPinnedMessagesListChanged = { renderPinnedMessagesList = it },
+        onSearchFiltersChanged = { showSearchFilters = it },
+        onSearchSenderPickerChanged = { showSearchSenderPicker = it }
+    )
 
     val requestPinnedMessagesListDismiss = {
         if (state.showPinnedMessagesList) {
             component.onDismissPinnedMessages()
         }
     }
-
-    val isCustomBackHandlingEnabled by remember(
-        editingPhotoPath,
-        editingVideoPath,
-        selectedMessageId,
-        state.selectedMessageIds,
-        state.currentTopicId,
-        state.showBotCommands,
-        state.restrictUserId,
-        state.showPinnedMessagesList,
-        state.fullScreenImages,
-        state.fullScreenVideoPath,
-        state.fullScreenVideoMessageId,
-        state.miniAppUrl,
-        state.webViewUrl,
-        state.instantViewUrl,
-        state.youtubeUrl,
-        state.isSearchActive
-    ) {
-        derivedStateOf {
-            editingPhotoPath != null ||
-                    editingVideoPath != null ||
-                    selectedMessageId != null ||
-                    state.selectedMessageIds.isNotEmpty() ||
-                    state.currentTopicId != null ||
-                    state.showBotCommands ||
-                    state.restrictUserId != null ||
-                    state.showPinnedMessagesList ||
-                    state.fullScreenImages != null ||
-                    state.fullScreenVideoPath != null ||
-                    state.fullScreenVideoMessageId != null ||
-                    state.miniAppUrl != null ||
-                    state.webViewUrl != null ||
-                    state.instantViewUrl != null ||
-                    state.youtubeUrl != null ||
-                    state.isSearchActive
-        }
-    }
-    val selectedCount = state.selectedMessageIds.size
-    val selectedMessageIdSet by remember(state.selectedMessageIds) {
-        derivedStateOf { state.selectedMessageIds.toHashSet() }
-    }
-    val canRevokeSelected by remember(state.messages, selectedMessageIdSet) {
-        derivedStateOf {
-            if (selectedMessageIdSet.isEmpty()) {
-                false
-            } else {
-                state.messages.any { it.id in selectedMessageIdSet && it.canBeDeletedForAllUsers }
-            }
-        }
-    }
-    val topBarUiState = remember(
-        state.currentTopicId,
-        state.rootMessage,
-        state.isGroup,
-        state.isChannel,
-        state.isAdmin,
-        state.permissions,
-        state.otherUser,
-        state.currentUser,
-        state.typingAction,
-        state.memberCount,
-        state.onlineCount,
-        state.topics,
-        state.chatTitle,
-        state.chatAvatar,
-        state.chatPersonalAvatar,
-        state.chatEmojiStatus,
-        state.isOnline,
-        state.isVerified,
-        state.isSponsor,
-        state.isWhitelistedInAdBlock,
-        state.isInstalledFromGooglePlay,
-        state.isMuted,
-        state.isSearchActive,
-        state.searchQuery,
-        state.pinnedMessage,
-        state.pinnedMessageCount
-    ) {
-        ChatContentTopBarUiState(
-            currentTopicId = state.currentTopicId,
-            rootMessage = state.rootMessage,
-            isGroup = state.isGroup,
-            isChannel = state.isChannel,
-            isAdmin = state.isAdmin,
-            permissions = state.permissions,
-            otherUser = state.otherUser,
-            currentUser = state.currentUser,
-            typingAction = state.typingAction,
-            memberCount = state.memberCount,
-            onlineCount = state.onlineCount,
-            topics = state.topics,
-            chatTitle = state.chatTitle,
-            chatAvatar = state.chatAvatar,
-            chatPersonalAvatar = state.chatPersonalAvatar,
-            chatEmojiStatus = state.chatEmojiStatus,
-            isOnline = state.isOnline,
-            isVerified = state.isVerified,
-            isSponsor = state.isSponsor,
-            isWhitelistedInAdBlock = state.isWhitelistedInAdBlock,
-            isInstalledFromGooglePlay = state.isInstalledFromGooglePlay,
-            isMuted = state.isMuted,
-            isSearchActive = state.isSearchActive,
-            searchQuery = state.searchQuery,
-            pinnedMessage = if (state.isSearchActive) null else state.pinnedMessage,
-            pinnedMessageCount = if (state.isSearchActive) 0 else state.pinnedMessageCount
-        )
-    }
+    val topBarUiState = rememberChatTopBarUiState(state)
 
     CompositionLocalProvider(LocalLinkHandler provides { component.onLinkClick(it) }) {
         val statusBarHeight = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
@@ -1067,8 +418,8 @@ fun ChatContent(
                             ) {
                                 ChatContentTopBar(
                                     topBarState = topBarUiState,
-                                    selectedCount = selectedCount,
-                                    canRevokeSelected = canRevokeSelected,
+                                    selectedCount = chromeState.selectedCount,
+                                    canRevokeSelected = chromeState.canRevokeSelected,
                                     component = component,
                                     contentAlpha = contentAlpha,
                                     onBack = {
@@ -1091,196 +442,46 @@ fun ChatContent(
                         }
                     },
                     bottomBar = {
-                        if (showInputBar) {
-                            val inputBarState =
-                                remember(state, pendingMediaPaths, pendingDocumentPaths) {
-                                ChatInputBarState(
-                                    replyMessage = state.replyMessage,
-                                    editingMessage = state.editingMessage,
-                                    draftText = state.draftText,
-                                    pendingMediaPaths = pendingMediaPaths,
-                                    pendingDocumentPaths = pendingDocumentPaths,
-                                    isClosed = state.topics.find { it.id.toLong() == state.currentTopicId }?.isClosed
-                                        ?: false,
-                                    permissions = state.effectiveInputPermissions
-                                        ?: state.permissions,
-                                    slowModeDelay = state.slowModeDelay,
-                                    slowModeDelayExpiresIn = state.slowModeDelayExpiresIn,
-                                    isCurrentUserRestricted = state.isCurrentUserRestricted,
-                                    restrictedUntilDate = state.restrictedUntilDate,
-                                    isAdmin = state.isAdmin,
-                                    isChannel = state.isChannel,
-                                    isBot = state.isBot,
-                                    botCommands = state.botCommands,
-                                    botMenuButton = state.botMenuButton,
-                                    replyMarkup = state.messages.firstOrNull { it.replyMarkup is ReplyMarkupModel.ShowKeyboard }?.replyMarkup,
-                                    mentionSuggestions = state.mentionSuggestions,
-                                    inlineBotResults = state.inlineBotResults,
-                                    currentInlineBotUsername = state.currentInlineBotUsername,
-                                    currentInlineQuery = state.currentInlineQuery,
-                                    isInlineBotLoading = state.isInlineBotLoading,
-                                    attachBots = state.attachMenuBots,
-                                    scheduledMessages = state.scheduledMessages,
-                                    isPremiumUser = state.currentUser?.isPremium == true,
-                                    isSecretChat = state.isSecretChat
-                                )
-                            }
+                        if (chromeState.showInputBar) {
+                            val inputBarState = rememberChatInputBarState(
+                                state = state,
+                                pendingMediaPaths = pendingMediaPaths,
+                                pendingDocumentPaths = pendingDocumentPaths
+                            )
 
-                            val inputBarActions =
-                                remember(component, pendingMediaPaths, pendingDocumentPaths) {
-                                ChatInputBarActions(
-                                    onSend = { text, entities, options ->
-                                        component.onSendMessage(
-                                            text,
-                                            entities,
-                                            options
+                            val inputBarActions = rememberChatInputBarActions(
+                                component = component,
+                                state = state,
+                                pendingMediaPaths = pendingMediaPaths,
+                                pendingDocumentPaths = pendingDocumentPaths,
+                                onPickMedia = {
+                                    pickMedia.launch(
+                                        PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageAndVideo
                                         )
-                                    },
-                                    onStickerClick = { component.onSendSticker(it) },
-                                    onGifClick = { component.onSendGif(it) },
-                                    onAttachClick = {
-                                        pickMedia.launch(
-                                            PickVisualMediaRequest(
-                                                ActivityResultContracts.PickVisualMedia.ImageAndVideo
-                                            )
-                                        )
-                                    },
-                                    onCameraClick = {
-                                        keyboardController?.hide()
-                                        focusManager.clearFocus(force = true)
-                                        isRecordingVideo = true
-                                    },
-                                    onSendVoice = { path, duration, waveform ->
-                                        component.onSendVoice(path, duration, waveform)
-                                    },
-                                    onCancelReply = { component.onCancelReply() },
-                                    onCancelEdit = { component.onCancelEdit() },
-                                    onSaveEdit = { t, e -> component.onSaveEditedMessage(t, e) },
-                                    onDraftChange = { component.onDraftChange(it) },
-                                    onTyping = { component.onTyping() },
-                                    onCancelMedia = { pendingMediaPaths = emptyList() },
-                                    onSendMedia = { paths, caption, captionEntities, options ->
-                                        if (options.sendAsDocument) {
-                                            if (paths.size > 1) {
-                                                component.onSendAlbum(
-                                                    paths,
-                                                    caption,
-                                                    captionEntities,
-                                                    options
-                                                )
-                                            } else {
-                                                paths.firstOrNull()?.let {
-                                                    component.onSendDocument(
-                                                        it,
-                                                        caption,
-                                                        captionEntities,
-                                                        options
-                                                    )
-                                                }
-                                            }
-                                        } else if (paths.size > 1) {
-                                            component.onSendAlbum(
-                                                paths,
-                                                caption,
-                                                captionEntities,
-                                                options
-                                            )
-                                        } else {
-                                            paths.firstOrNull()?.let {
-                                                if (it.endsWith(".mp4")) component.onSendVideo(
-                                                    it,
-                                                    caption,
-                                                    captionEntities,
-                                                    options
-                                                )
-                                                else component.onSendPhoto(
-                                                    it,
-                                                    caption,
-                                                    captionEntities,
-                                                    options
-                                                )
-                                            }
-                                        }
-                                        pendingMediaPaths = emptyList()
-                                        pendingDocumentPaths = emptyList()
-                                    },
-                                    onSendDocuments = { paths, caption, captionEntities, options ->
-                                        paths.forEachIndexed { index, path ->
-                                            component.onSendDocument(
-                                                path,
-                                                caption = if (index == 0) caption else "",
-                                                captionEntities = if (index == 0) captionEntities else emptyList(),
-                                                sendOptions = options
-                                            )
-                                        }
-                                        pendingDocumentPaths = emptyList()
-                                        pendingMediaPaths = emptyList()
-                                    },
-                                    onMediaOrderChange = {
-                                        pendingMediaPaths = it
-                                        if (it.isNotEmpty()) {
-                                            pendingDocumentPaths = emptyList()
-                                        }
-                                    },
-                                    onDocumentOrderChange = {
-                                        pendingDocumentPaths = it
-                                        if (it.isNotEmpty()) {
-                                            pendingMediaPaths = emptyList()
-                                        }
-                                    },
-                                    onMediaClick = { path ->
-                                        if (path.endsWith(".mp4")) {
-                                            editingVideoPath = path
-                                        } else {
-                                            editingPhotoPath = path
-                                        }
-                                    },
-                                    onShowBotCommands = {
-                                        keyboardController?.hide()
-                                        focusManager.clearFocus(force = true)
-                                        component.onShowBotCommands()
-                                    },
-                                    onReplyMarkupButtonClick = {
-                                        component.onReplyMarkupButtonClick(
-                                            0,
-                                            it,
-                                            if (state.isBot) state.chatId else 0L
-                                        )
-                                    },
-                                    onOpenMiniApp = { url, name ->
-                                        component.onOpenMiniApp(
-                                            url,
-                                            name,
-                                            if (state.isBot) state.chatId else 0L
-                                        )
-                                    },
-                                    onMentionQueryChange = { component.onMentionQueryChange(it) },
-                                    onInlineQueryChange = { bot, query ->
-                                        component.onInlineQueryChange(bot, query)
-                                    },
-                                    onLoadMoreInlineResults = { offset ->
-                                        component.onLoadMoreInlineResults(offset)
-                                    },
-                                    onSendInlineResult = { resultId -> component.onSendInlineResult(resultId) },
-                                    onInlineSwitchPm = { botUsername, parameter ->
-                                        val encodedParameter = URLEncoder.encode(
-                                            parameter,
-                                            StandardCharsets.UTF_8.name()
-                                        )
-                                        component.onLinkClick("https://t.me/$botUsername?start=$encodedParameter")
-                                    },
-                                    onAttachBotClick = { bot ->
-                                        component.onOpenAttachBot(bot.botUserId, bot.name)
-                                    },
-                                    onSendPoll = { poll ->
-                                        component.onSendPoll(poll)
-                                    },
-                                    onRefreshScheduledMessages = { component.onRefreshScheduledMessages() },
-                                    onEditScheduledMessage = { message -> component.onEditMessage(message) },
-                                    onDeleteScheduledMessage = { message -> component.onDeleteMessage(message) },
-                                    onSendScheduledNow = { message -> component.onSendScheduledNow(message) }
-                                )
-                            }
+                                    )
+                                },
+                                onHideKeyboardAndClearFocus = {
+                                    keyboardController?.hide()
+                                    focusManager.clearFocus(force = true)
+                                },
+                                onStartRecordingVideo = {
+                                    isRecordingVideo = true
+                                },
+                                onSetPendingMediaPaths = { paths ->
+                                    pendingMediaPaths = paths
+                                },
+                                onSetPendingDocumentPaths = { paths ->
+                                    pendingDocumentPaths = paths
+                                },
+                                onEditMediaPath = { path ->
+                                    if (path.endsWith(".mp4")) {
+                                        editingVideoPath = path
+                                    } else {
+                                        editingPhotoPath = path
+                                    }
+                                }
+                            )
 
                             ChatInputBar(
                                 state = inputBarState,
@@ -1288,7 +489,7 @@ fun ChatContent(
                                 appPreferences = component.appPreferences,
                                 stickerRepository = component.stickerRepository
                             )
-                        } else if (showJoinButton) {
+                        } else if (chromeState.showJoinButton) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1316,7 +517,7 @@ fun ChatContent(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(bottom = if (!state.canWrite && !showJoinButton) 0.dp else padding.calculateBottomPadding())
+                            .padding(bottom = if (!state.canWrite && !chromeState.showJoinButton) 0.dp else padding.calculateBottomPadding())
                             .consumeWindowInsets(padding)
                             .onGloballyPositioned { coordinates ->
                                 contentRect = Rect(
@@ -1549,213 +750,57 @@ fun ChatContent(
                                 onForwardOriginClick = onForwardOriginClickStable,
                                 downloadUtils = component.downloadUtils,
                                 isAnyViewerOpen = isAnyViewerOpen,
-                                bottomContentPadding = if (state.rootMessage != null && (showInputBar || showJoinButton)) 120.dp else 8.dp
+                                bottomContentPadding = if (state.rootMessage != null && (chromeState.showInputBar || chromeState.showJoinButton)) 120.dp else 8.dp
                             )
 
                             AnimatedVisibility(
                                 visible = state.isSearchActive,
-                                enter = fadeIn(animationSpec = tween(220)) +
-                                        slideInVertically(
-                                            animationSpec = tween(280),
-                                            initialOffsetY = { it / 3 }
-                                        ) +
-                                        scaleIn(
-                                            animationSpec = tween(220),
-                                            initialScale = 0.96f
-                                        ),
-                                exit = fadeOut(animationSpec = tween(160)) +
-                                        slideOutVertically(
-                                            animationSpec = tween(180),
-                                            targetOffsetY = { it / 4 }
-                                        ),
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
                                     .padding(horizontal = 12.dp, vertical = 16.dp)
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .windowInsetsPadding(WindowInsets.navigationBars),
-                                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    AnimatedVisibility(
-                                        visible = showAllSearchResults && state.searchResults.isNotEmpty(),
-                                        enter = fadeIn(animationSpec = tween(180)) +
-                                                slideInVertically(
-                                                    animationSpec = tween(240),
-                                                    initialOffsetY = { it / 8 }
-                                                ),
-                                        exit = fadeOut(animationSpec = tween(140)) +
-                                                slideOutVertically(
-                                                    animationSpec = tween(180),
-                                                    targetOffsetY = { it / 10 }
-                                                )
-                                    ) {
-                                        SearchResultsListOverlay(
-                                            query = state.searchQuery,
-                                            results = state.searchResults,
-                                            selectedIndex = state.selectedSearchResultIndex,
-                                            isSearching = state.isSearchingMessages,
-                                            canLoadMore = canLoadMoreSearchResults,
-                                            onLoadMore = component::onLoadMoreSearchResults,
-                                            onResultClick = { index ->
-                                                showAllSearchResults = false
-                                                component.onSearchResultClick(index)
-                                            }
-                                        )
-                                    }
-
-                                    AnimatedVisibility(
-                                        visible = showSearchFilters && showSearchSenderPicker,
-                                        enter = fadeIn(animationSpec = tween(180)) +
-                                                slideInVertically(
-                                                    animationSpec = tween(220),
-                                                    initialOffsetY = { it / 6 }
-                                                ) +
-                                                scaleIn(
-                                                    animationSpec = tween(200),
-                                                    initialScale = 0.98f
-                                                ),
-                                        exit = fadeOut(animationSpec = tween(140)) +
-                                                slideOutVertically(
-                                                    animationSpec = tween(160),
-                                                    targetOffsetY = { it / 8 }
-                                                )
-                                    ) {
-                                        SearchSenderPickerOverlay(
-                                            selectedSenderId = state.searchSender?.id,
-                                            senders = searchSenderCandidates,
-                                            onSelectSender = { user ->
-                                                showSearchSenderPicker = false
-                                                component.onSearchSenderChange(user)
-                                            }
-                                        )
-                                    }
-
-                                    AnimatedVisibility(
-                                        visible = showSearchFilters,
-                                        enter = fadeIn(animationSpec = tween(180)) +
-                                                slideInVertically(
-                                                    animationSpec = tween(220),
-                                                    initialOffsetY = { it / 6 }
-                                                ) +
-                                                scaleIn(
-                                                    animationSpec = tween(200),
-                                                    initialScale = 0.98f
-                                                ),
-                                        exit = fadeOut(animationSpec = tween(140)) +
-                                                slideOutVertically(
-                                                    animationSpec = tween(160),
-                                                    targetOffsetY = { it / 8 }
-                                                )
-                                    ) {
-                                        SearchFilterTray(
-                                            selectedSender = state.searchSender,
-                                            fromEpochSeconds = state.searchDateFromEpochSeconds,
-                                            toEpochSeconds = state.searchDateToEpochSeconds,
-                                            onToggleSenderPicker = {
-                                                showSearchSenderPicker = !showSearchSenderPicker
-                                            },
-                                            onApplyToday = {
-                                                val now = LocalDate.now()
-                                                component.onSearchDateRangeChange(
-                                                    now.atStartOfDay(ZoneId.systemDefault())
-                                                        .toEpochSecond().toInt(),
-                                                    now.plusDays(1)
-                                                        .atStartOfDay(ZoneId.systemDefault())
-                                                        .toEpochSecond().toInt() - 1
-                                                )
-                                            },
-                                            onApplyLastDays = { days ->
-                                                val now = LocalDate.now()
-                                                val from = now.minusDays((days - 1).toLong())
-                                                component.onSearchDateRangeChange(
-                                                    from.atStartOfDay(ZoneId.systemDefault())
-                                                        .toEpochSecond().toInt(),
-                                                    now.plusDays(1)
-                                                        .atStartOfDay(ZoneId.systemDefault())
-                                                        .toEpochSecond().toInt() - 1
-                                                )
-                                            },
-                                            onResetDateRange = {
-                                                component.onSearchDateRangeChange(null, null)
-                                            },
-                                            onPickFromDate = {
-                                                showSearchDatePicker(
-                                                    context = context,
-                                                    initialEpochSeconds = state.searchDateFromEpochSeconds,
-                                                    onDateSelected = { date ->
-                                                        val nextFrom =
-                                                            toStartOfDayEpochSeconds(date)
-                                                        val nextTo = state.searchDateToEpochSeconds
-                                                            ?.let(::epochSecondsToLocalDate)
-                                                            ?.let { currentTo ->
-                                                                if (currentTo.isBefore(date)) {
-                                                                    toEndOfDayEpochSeconds(date)
-                                                                } else {
-                                                                    toEndOfDayEpochSeconds(currentTo)
-                                                                }
-                                                            }
-                                                        component.onSearchDateRangeChange(
-                                                            nextFrom,
-                                                            nextTo
-                                                        )
-                                                    }
-                                                )
-                                            },
-                                            onPickToDate = {
-                                                showSearchDatePicker(
-                                                    context = context,
-                                                    initialEpochSeconds = state.searchDateToEpochSeconds,
-                                                    onDateSelected = { date ->
-                                                        val nextTo = toEndOfDayEpochSeconds(date)
-                                                        val nextFrom =
-                                                            state.searchDateFromEpochSeconds
-                                                                ?.let(::epochSecondsToLocalDate)
-                                                                ?.let { currentFrom ->
-                                                                    if (currentFrom.isAfter(date)) {
-                                                                        toStartOfDayEpochSeconds(
-                                                                            date
-                                                                        )
-                                                                    } else {
-                                                                        toStartOfDayEpochSeconds(
-                                                                            currentFrom
-                                                                        )
-                                                                    }
-                                                                }
-                                                        component.onSearchDateRangeChange(
-                                                            nextFrom,
-                                                            nextTo
-                                                        )
-                                                    }
-                                                )
-                                            }
-                                        )
-                                    }
-
-                                    SearchNavigationPanel(
-                                        query = state.searchQuery,
-                                        results = state.searchResults,
-                                        totalCount = state.searchResultsTotalCount,
-                                        selectedIndex = state.selectedSearchResultIndex,
-                                        isSearching = state.isSearchingMessages,
-                                        showAllResults = showAllSearchResults,
-                                        filtersExpanded = showSearchFilters,
-                                        hasFiltersApplied = hasSearchFiltersApplied,
-                                        onPrevious = component::onSearchPreviousResult,
-                                        onNext = component::onSearchNextResult,
-                                        onToggleShowAll = {
-                                            showAllSearchResults = !showAllSearchResults
-                                        },
-                                        onToggleFilters = {
-                                            val nextExpanded = !showSearchFilters
-                                            showSearchFilters = nextExpanded
-                                            if (!nextExpanded) {
-                                                showSearchSenderPicker = false
-                                            }
+                                ChatContentSearchOverlay(
+                                    context = context,
+                                    query = state.searchQuery,
+                                    results = state.searchResults,
+                                    totalCount = state.searchResultsTotalCount,
+                                    selectedIndex = state.selectedSearchResultIndex,
+                                    isSearching = state.isSearchingMessages,
+                                    canLoadMore = searchUiState.canLoadMoreSearchResults,
+                                    showAllResults = showAllSearchResults,
+                                    showSearchFilters = showSearchFilters,
+                                    showSearchSenderPicker = showSearchSenderPicker,
+                                    hasFiltersApplied = searchUiState.hasSearchFiltersApplied,
+                                    selectedSender = state.searchSender,
+                                    searchSenderCandidates = searchUiState.searchSenderCandidates,
+                                    fromEpochSeconds = state.searchDateFromEpochSeconds,
+                                    toEpochSeconds = state.searchDateToEpochSeconds,
+                                    onLoadMore = component::onLoadMoreSearchResults,
+                                    onResultClick = { index ->
+                                        showAllSearchResults = false
+                                        component.onSearchResultClick(index)
+                                    },
+                                    onPrevious = component::onSearchPreviousResult,
+                                    onNext = component::onSearchNextResult,
+                                    onToggleShowAll = {
+                                        showAllSearchResults = !showAllSearchResults
+                                    },
+                                    onToggleFilters = {
+                                        val nextExpanded = !showSearchFilters
+                                        showSearchFilters = nextExpanded
+                                        if (!nextExpanded) {
+                                            showSearchSenderPicker = false
                                         }
-                                    )
-                                }
+                                    },
+                                    onToggleSenderPicker = {
+                                        showSearchSenderPicker = !showSearchSenderPicker
+                                    },
+                                    onSelectSender = { user ->
+                                        showSearchSenderPicker = false
+                                        component.onSearchSenderChange(user)
+                                    },
+                                    onApplyDateRange = component::onSearchDateRangeChange
+                                )
                             }
 
                             AnimatedVisibility(
@@ -1868,1083 +913,100 @@ fun ChatContent(
                     }
                 }
             }
-
-
-            // Modals & Overlays
-            if (renderPinnedMessagesList) {
-                PinnedMessagesListSheet(
-                    isVisible = state.showPinnedMessagesList,
-                    allPinnedMessages = state.allPinnedMessages,
-                    pinnedMessageCount = state.pinnedMessageCount,
-                    isLoadingPinnedMessages = state.isLoadingPinnedMessages,
-                    isGroup = state.isGroup,
-                    isChannel = state.isChannel,
-                    fontSize = state.fontSize,
-                    letterSpacing = state.letterSpacing,
-                    bubbleRadius = state.bubbleRadius,
-                    stickerSize = state.stickerSize,
-                    autoDownloadMobile = state.autoDownloadMobile,
-                    autoDownloadWifi = state.autoDownloadWifi,
-                    autoDownloadRoaming = state.autoDownloadRoaming,
-                    autoDownloadFiles = state.autoDownloadFiles,
-                    autoplayGifs = state.autoplayGifs,
-                    autoplayVideos = state.autoplayVideos,
-                    onDismissRequest = requestPinnedMessagesListDismiss,
-                    onHidden = {
-                        renderPinnedMessagesList = false
-                        pendingPinnedSheetAction?.invoke()
-                        pendingPinnedSheetAction = null
-                    },
-                    onMessageClick = {
-                        pendingPinnedSheetAction = { scrollToMessageState.value(it) }
-                        requestPinnedMessagesListDismiss()
-                    },
-                    onUnpin = { component.onUnpinMessage(it) },
-                    onReplyClick = {
-                        pendingPinnedSheetAction = { scrollToMessageState.value(it) }
-                        requestPinnedMessagesListDismiss()
-                    },
-                    onReactionClick = { id, r -> component.onSendReaction(id, r) },
-                    downloadUtils = component.downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
-                )
-            }
-
-            state.selectedStickerSet?.let { stickerSet ->
-                StickerSetSheet(
-                    stickerSet = stickerSet,
-                    onDismiss = { component.onDismissStickerSet() },
-                    onStickerClick = { _, path -> component.onSendSticker(path) }
-                )
-            }
-
-            if (state.showPollVoters) {
-                PollVotersSheet(
-                    voters = state.pollVoters,
-                    isLoading = state.isPollVotersLoading,
-                    onUserClick = {
-                        component.onDismissVoters()
-                        component.toProfile(it)
-                    },
-                    onDismiss = { component.onDismissVoters() }
-                )
-            }
-
-            if (state.showBotCommands) {
-                BotCommandsSheet(
-                    commands = state.botCommands,
-                    onCommandClick = { component.onBotCommandClick(it) },
-                    onDismiss = { component.onDismissBotCommands() }
-                )
-            }
-
-            /*ChatContentViewers(
+            ChatContentOverlays(
                 state = state,
                 component = component,
-                localClipboard = localClipboard
-            )*/
-
-            selectedMessage?.let { msg ->
-                ChatMessageOptionsMenu(
-                    state = state,
-                    component = component,
-                    selectedMessage = msg,
-                    menuOffset = menuOffset,
-                    menuMessageSize = menuMessageSize,
-                    clickOffset = clickOffset,
-                    contentRect = contentRect,
-                    groupedMessages = groupedMessages,
-                    downloadUtils = component.downloadUtils,
-                    localClipboard = localClipboard,
-                    canRestoreOriginalText = originalMessageTexts.containsKey(msg.id),
-                    onApplyTransformedText = { newText ->
-                        val originalText = msg.extractTextContent()
-                        if (!originalText.isNullOrBlank() && !originalMessageTexts.containsKey(msg.id)) {
-                            originalMessageTexts[msg.id] = originalText
-                        }
-                        transformedMessageTexts[msg.id] = newText
-                    },
-                    onRestoreOriginalText = {
-                        if (!originalMessageTexts.containsKey(msg.id)) {
-                            return@ChatMessageOptionsMenu
-                        }
-                        transformedMessageTexts.remove(msg.id)
-                        originalMessageTexts.remove(msg.id)
-                    },
-                    onBlockRequest = { userId ->
-                        pendingBlockUserId = userId
-                    },
-                    onDismiss = { selectedMessageId = null }
-                )
-            }
-
-            pendingBlockUserId?.let { userId ->
-                ConfirmationSheet(
-                    icon = Icons.Rounded.Block,
-                    title = stringResource(R.string.block_user_title),
-                    description = stringResource(R.string.block_user_confirmation),
-                    confirmText = stringResource(R.string.action_block),
-                    onConfirm = {
-                        component.onBlockUser(userId)
-                        pendingBlockUserId = null
-                    },
-                    onDismiss = { pendingBlockUserId = null }
-                )
-            }
-
-            if (state.showReportDialog) {
-                ReportChatDialog(
-                    onDismiss = { component.onDismissReportDialog() },
-                    onReasonSelected = { component.onReportReasonSelected(it) }
-                )
-            }
-
-            if (state.restrictUserId != null) {
-                RestrictUserSheet(
-                    onDismiss = { component.onDismissRestrictDialog() },
-                    onConfirm = { permissions, untilDate -> component.onConfirmRestrict(permissions, untilDate) }
-                )
-            }
-
-            editingPhotoPath?.let { path ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .zIndex(20f)
-                ) {
-                    PhotoEditorScreen(
-                        imagePath = path,
-                        onClose = { editingPhotoPath = null },
-                        onSave = { newPath ->
-                            val newList = pendingMediaPaths.toMutableList()
-                            val index = newList.indexOf(path)
-                            if (index != -1) {
-                                newList[index] = newPath
-                                pendingMediaPaths = newList
-                            }
-                            editingPhotoPath = null
-                        }
-                    )
-                }
-            }
-
-            editingVideoPath?.let { path ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .zIndex(20f)
-                ) {
-                    VideoEditorScreen(
-                        videoPath = path,
-                        onClose = { editingVideoPath = null },
-                        onSave = { newPath ->
-                            val newList = pendingMediaPaths.toMutableList()
-                            val index = newList.indexOf(path)
-                            if (index != -1) {
-                                newList[index] = newPath
-                                pendingMediaPaths = newList
-                            }
-                            editingVideoPath = null
-                        }
-                    )
-                }
-            }
-
-            BackHandler(enabled = isCustomBackHandlingEnabled) {
-                if (editingPhotoPath != null) editingPhotoPath = null
-                else if (editingVideoPath != null) editingVideoPath = null
-                else if (state.selectedMessageIds.isNotEmpty()) component.onClearSelection()
-                else if (selectedMessageId != null) selectedMessageId = null
-                else if (state.showBotCommands) component.onDismissBotCommands()
-                else if (state.restrictUserId != null) component.onDismissRestrictDialog()
-                else if (state.showPinnedMessagesList && !isAnyViewerOpen) requestPinnedMessagesListDismiss()
-                else if (state.fullScreenImages != null) component.onDismissImages()
-                else if (state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null) component.onDismissVideo()
-                else if (state.instantViewUrl != null) component.onDismissInstantView()
-                else if (state.youtubeUrl != null) component.onDismissYouTube()
-                else if (state.miniAppUrl != null) component.onDismissMiniApp()
-                else if (state.webViewUrl != null) component.onDismissWebView()
-                else if (state.isSearchActive) component.onSearchToggle()
-                else if (state.currentTopicId != null) component.onTopicClick(0)
-            }
-        }
-    }
-}
-
-private fun MessageModel.extractTextContent(): String? {
-    return when (val c = content) {
-        is MessageContent.Text -> c.text
-        is MessageContent.Photo -> c.caption
-        is MessageContent.Video -> c.caption
-        is MessageContent.Gif -> c.caption
-        is MessageContent.Document -> c.caption
-        is MessageContent.Audio -> c.caption
-        else -> null
-    }
-}
-
-@Composable
-private fun SearchNavigationPanel(
-    query: String,
-    results: List<MessageModel>,
-    totalCount: Int,
-    selectedIndex: Int,
-    isSearching: Boolean,
-    showAllResults: Boolean,
-    filtersExpanded: Boolean,
-    hasFiltersApplied: Boolean,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-    onToggleShowAll: () -> Unit,
-    onToggleFilters: () -> Unit
-) {
-    val hasResults = results.isNotEmpty()
-    val selectedPosition = (selectedIndex + 1).takeIf { selectedIndex in results.indices } ?: 0
-    val listIconRotation by animateFloatAsState(
-        targetValue = if (showAllResults) 90f else 0f,
-        animationSpec = tween(220),
-        label = "SearchListRotation"
-    )
-    val statusText = when {
-        isSearching -> stringResource(R.string.search_results_loading)
-        query.isBlank() -> stringResource(R.string.no_results_found)
-        else -> stringResource(R.string.no_search_results_format, query)
-    }
-    val counterText = stringResource(
-        R.string.search_results_position_format,
-        selectedPosition,
-        totalCount.coerceAtLeast(results.size)
-    )
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        tonalElevation = 10.dp,
-        shadowElevation = 14.dp,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (!hasResults) {
-                AnimatedContent(
-                    targetState = statusText,
-                    transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
-                    label = "SearchStatusText"
-                ) { text ->
-                    Text(
-                        text = text,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    onClick = onToggleFilters,
-                    shape = CircleShape,
-                    color = if (hasFiltersApplied || filtersExpanded) {
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f)
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)
-                    },
-                    tonalElevation = 2.dp
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = null,
-                            tint = if (hasFiltersApplied || filtersExpanded) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-                    }
-                }
-
-                Surface(
-                    onClick = onToggleShowAll,
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
-                    tonalElevation = 2.dp
-                ) {
-                    Box(
-                        modifier = Modifier.padding(9.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.List,
-                            contentDescription = null,
-                            tint = if (showAllResults) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.graphicsLayer {
-                                rotationZ = listIconRotation
-                            }
-                        )
-                    }
-                }
-
-                Surface(
-                    onClick = onPrevious,
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
-                    tonalElevation = 2.dp
-                ) {
-                    Box(
-                        modifier = Modifier.padding(9.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-
-                Surface(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f),
-                    tonalElevation = 2.dp
-                ) {
-                    AnimatedContent(
-                        targetState = counterText,
-                        transitionSpec = {
-                            (fadeIn(tween(180)) + slideInVertically { it / 3 }) togetherWith
-                                    (fadeOut(tween(120)) + slideOutVertically { -it / 3 })
-                        },
-                        label = "SearchCounter"
-                    ) { animatedCounter ->
-                        Text(
-                            text = animatedCounter,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-                            maxLines = 1
-                        )
-                    }
-                }
-
-                Surface(
-                    onClick = onNext,
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
-                    tonalElevation = 2.dp
-                ) {
-                    Box(
-                        modifier = Modifier.padding(9.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowUp,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchFilterTray(
-    selectedSender: UserModel?,
-    fromEpochSeconds: Int?,
-    toEpochSeconds: Int?,
-    onToggleSenderPicker: () -> Unit,
-    onApplyToday: () -> Unit,
-    onApplyLastDays: (Int) -> Unit,
-    onResetDateRange: () -> Unit,
-    onPickFromDate: () -> Unit,
-    onPickToDate: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        tonalElevation = 10.dp,
-        shadowElevation = 14.dp,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            SearchSenderChip(
-                selectedSender = selectedSender,
-                onClick = onToggleSenderPicker
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                SearchMiniChip(
-                    label = stringResource(R.string.search_date_all),
-                    isActive = fromEpochSeconds == null && toEpochSeconds == null,
-                    modifier = Modifier.weight(1f),
-                    onClick = onResetDateRange
-                )
-                SearchMiniChip(
-                    label = stringResource(R.string.preview_date_today),
-                    isActive = isTodayRange(fromEpochSeconds, toEpochSeconds),
-                    modifier = Modifier.weight(1f),
-                    onClick = onApplyToday
-                )
-                SearchMiniChip(
-                    label = stringResource(R.string.search_date_last_7_days),
-                    isActive = matchesLastDaysRange(fromEpochSeconds, toEpochSeconds, 7),
-                    modifier = Modifier.weight(1f),
-                    onClick = { onApplyLastDays(7) }
-                )
-                SearchMiniChip(
-                    label = stringResource(R.string.search_date_last_30_days),
-                    isActive = matchesLastDaysRange(fromEpochSeconds, toEpochSeconds, 30),
-                    modifier = Modifier.weight(1f),
-                    onClick = { onApplyLastDays(30) }
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                SearchRangeChip(
-                    modifier = Modifier.weight(1f),
-                    label = stringResource(R.string.search_date_from),
-                    value = fromEpochSeconds?.let(::formatSearchDate),
-                    onClick = onPickFromDate
-                )
-                SearchRangeChip(
-                    modifier = Modifier.weight(1f),
-                    label = stringResource(R.string.search_date_to),
-                    value = toEpochSeconds?.let(::formatSearchDate),
-                    onClick = onPickToDate
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchSenderPickerOverlay(
-    selectedSenderId: Long?,
-    senders: List<UserModel>,
-    onSelectSender: (UserModel?) -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        tonalElevation = 10.dp,
-        shadowElevation = 12.dp,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.985f)
-    ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 280.dp)
-                .padding(horizontal = 4.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            item("all_senders") {
-                SearchSenderRow(
-                    title = stringResource(R.string.search_sender_all),
-                    subtitle = stringResource(R.string.search_section_messages),
-                    avatarPath = null,
-                    isSelected = selectedSenderId == null,
-                    onClick = { onSelectSender(null) }
-                )
-            }
-
-            itemsIndexed(senders, key = { _, user -> user.id }) { _, user ->
-                SearchSenderRow(
-                    title = formatSearchSenderLabel(user),
-                    subtitle = user.username?.takeIf { it.isNotBlank() }?.let { "@$it" },
-                    avatarPath = user.avatarPath,
-                    isSelected = selectedSenderId == user.id,
-                    onClick = { onSelectSender(user) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchSenderRow(
-    title: String,
-    subtitle: String?,
-    avatarPath: String?,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 6.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        color = if (isSelected) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
-        },
-        tonalElevation = if (isSelected) 2.dp else 0.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AvatarForChat(
-                path = avatarPath,
-                name = title,
-                size = 32.dp
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                subtitle?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
-}
-
-private fun formatSearchSenderLabel(user: UserModel): String {
-    return listOfNotNull(
-        user.firstName.takeIf { it.isNotBlank() },
-        user.lastName?.takeIf { it.isNotBlank() }
-    ).joinToString(" ").ifBlank {
-        user.username?.takeIf { it.isNotBlank() } ?: user.id.toString()
-    }
-}
-
-@Composable
-private fun SearchSenderChip(
-    selectedSender: UserModel?,
-    onClick: () -> Unit
-) {
-    val label = selectedSender?.let(::formatSearchSenderLabel)
-        ?: stringResource(R.string.search_sender_all)
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f),
-        tonalElevation = 1.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AvatarForChat(
-                path = selectedSender?.avatarPath,
-                name = label,
-                size = 30.dp
-            )
-            Text(
-                text = label,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-private fun SearchMiniChip(
-    label: String,
-    isActive: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        color = if (isActive) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
-        },
-        tonalElevation = if (isActive) 2.dp else 0.dp
-    ) {
-        Box(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = if (isActive) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                localClipboard = localClipboard,
+                groupedMessages = groupedMessages,
+                isAnyViewerOpen = isAnyViewerOpen,
+                renderPinnedMessagesList = renderPinnedMessagesList,
+                requestPinnedMessagesListDismiss = requestPinnedMessagesListDismiss,
+                onPinnedSheetHidden = {
+                    renderPinnedMessagesList = false
+                    pendingPinnedSheetAction?.invoke()
+                    pendingPinnedSheetAction = null
                 },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-private fun SearchRangeChip(
-    label: String,
-    value: String?,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
-        tonalElevation = 0.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
-            )
-            Text(
-                text = value ?: stringResource(R.string.cd_select_date),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-private fun isTodayRange(fromEpochSeconds: Int?, toEpochSeconds: Int?): Boolean {
-    val today = LocalDate.now()
-    return fromEpochSeconds?.let(::epochSecondsToLocalDate) == today &&
-            toEpochSeconds?.let(::epochSecondsToLocalDate) == today
-}
-
-private fun matchesLastDaysRange(fromEpochSeconds: Int?, toEpochSeconds: Int?, days: Int): Boolean {
-    val today = LocalDate.now()
-    return fromEpochSeconds?.let(::epochSecondsToLocalDate) == today.minusDays((days - 1).toLong()) &&
-            toEpochSeconds?.let(::epochSecondsToLocalDate) == today
-}
-
-private fun showSearchDatePicker(
-    context: android.content.Context,
-    initialEpochSeconds: Int?,
-    onDateSelected: (LocalDate) -> Unit
-) {
-    val initialDate = initialEpochSeconds?.let(::epochSecondsToLocalDate) ?: LocalDate.now()
-    DatePickerDialog(
-        context,
-        { _, year, month, dayOfMonth ->
-            onDateSelected(LocalDate.of(year, month + 1, dayOfMonth))
-        },
-        initialDate.year,
-        initialDate.monthValue - 1,
-        initialDate.dayOfMonth
-    ).show()
-}
-
-private fun epochSecondsToLocalDate(epochSeconds: Int): LocalDate {
-    return Instant.ofEpochSecond(epochSeconds.toLong())
-        .atZone(ZoneId.systemDefault())
-        .toLocalDate()
-}
-
-private fun toStartOfDayEpochSeconds(date: LocalDate): Int {
-    return date.atStartOfDay(ZoneId.systemDefault()).toEpochSecond().toInt()
-}
-
-private fun toEndOfDayEpochSeconds(date: LocalDate): Int {
-    return date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toEpochSecond().toInt() - 1
-}
-
-private fun formatSearchDate(epochSeconds: Int): String {
-    return epochSecondsToLocalDate(epochSeconds).format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-}
-
-@Composable
-private fun SearchResultsListOverlay(
-    query: String,
-    results: List<MessageModel>,
-    selectedIndex: Int,
-    isSearching: Boolean,
-    canLoadMore: Boolean,
-    onLoadMore: () -> Unit,
-    onResultClick: (Int) -> Unit
-) {
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(listState, results.size, canLoadMore, isSearching) {
-        if (!canLoadMore || isSearching) return@LaunchedEffect
-
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-            .filterNotNull()
-            .distinctUntilChanged()
-            .collectLatest { lastVisibleIndex ->
-                if (lastVisibleIndex >= results.lastIndex - 4) {
-                    onLoadMore()
-                }
-            }
-    }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        tonalElevation = 10.dp,
-        shadowElevation = 12.dp,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.985f)
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 340.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                itemsIndexed(results, key = { _, message -> message.id }) { index, message ->
-                    val preview = message.extractTextContent()
-                        ?.replace('\n', ' ')
-                        ?.trim()
-                        ?.takeIf { it.isNotBlank() }
-                        ?: message.senderName.ifBlank { query }
-                    val sender = message.senderName.ifBlank {
-                        stringResource(R.string.search_section_messages)
+                onPinnedMessageClick = {
+                    pendingPinnedSheetAction = { scrollToMessageState.value(it) }
+                    requestPinnedMessagesListDismiss()
+                },
+                selectedMessage = selectedMessage,
+                menuOffset = menuOffset,
+                menuMessageSize = menuMessageSize,
+                clickOffset = clickOffset,
+                contentRect = contentRect,
+                canRestoreOriginalText = selectedMessage?.let { msg ->
+                    originalMessageTexts.containsKey(msg.id)
+                } == true,
+                onApplyTransformedText = { newText ->
+                    val msg = selectedMessage ?: return@ChatContentOverlays
+                    val originalText = msg.extractTextContent()
+                    if (!originalText.isNullOrBlank() && !originalMessageTexts.containsKey(msg.id)) {
+                        originalMessageTexts[msg.id] = originalText
                     }
-                    val isSelected = index == selectedIndex
-
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onResultClick(index) },
-                        shape = RoundedCornerShape(18.dp),
-                        color = if (isSelected) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)
-                        },
-                        tonalElevation = if (isSelected) 2.dp else 0.dp
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Text(
-                                text = sender,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = preview,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 2
-                            )
-                        }
+                    transformedMessageTexts[msg.id] = newText
+                },
+                onRestoreOriginalText = {
+                    val msg = selectedMessage ?: return@ChatContentOverlays
+                    if (!originalMessageTexts.containsKey(msg.id)) {
+                        return@ChatContentOverlays
                     }
+                    transformedMessageTexts.remove(msg.id)
+                    originalMessageTexts.remove(msg.id)
+                },
+                onDismissMessageOptions = { selectedMessageId = null },
+                pendingBlockUserId = pendingBlockUserId,
+                onRequestBlockUser = { userId ->
+                    pendingBlockUserId = userId
+                },
+                onConfirmBlockUser = { userId ->
+                    component.onBlockUser(userId)
+                    pendingBlockUserId = null
+                },
+                onDismissBlockUser = { pendingBlockUserId = null },
+                editingPhotoPath = editingPhotoPath,
+                onClosePhotoEditor = { editingPhotoPath = null },
+                onSavePhotoEditor = { newPath ->
+                    val path = editingPhotoPath ?: return@ChatContentOverlays
+                    val newList = pendingMediaPaths.toMutableList()
+                    val index = newList.indexOf(path)
+                    if (index != -1) {
+                        newList[index] = newPath
+                        pendingMediaPaths = newList
+                    }
+                    editingPhotoPath = null
+                },
+                editingVideoPath = editingVideoPath,
+                onCloseVideoEditor = { editingVideoPath = null },
+                onSaveVideoEditor = { newPath ->
+                    val path = editingVideoPath ?: return@ChatContentOverlays
+                    val newList = pendingMediaPaths.toMutableList()
+                    val index = newList.indexOf(path)
+                    if (index != -1) {
+                        newList[index] = newPath
+                        pendingMediaPaths = newList
+                    }
+                    editingVideoPath = null
+                },
+                isCustomBackHandlingEnabled = chromeState.isCustomBackHandlingEnabled,
+                onBack = {
+                    if (editingPhotoPath != null) editingPhotoPath = null
+                    else if (editingVideoPath != null) editingVideoPath = null
+                    else if (state.selectedMessageIds.isNotEmpty()) component.onClearSelection()
+                    else if (selectedMessageId != null) selectedMessageId = null
+                    else if (state.showBotCommands) component.onDismissBotCommands()
+                    else if (state.restrictUserId != null) component.onDismissRestrictDialog()
+                    else if (state.showPinnedMessagesList && !isAnyViewerOpen) requestPinnedMessagesListDismiss()
+                    else if (state.fullScreenImages != null) component.onDismissImages()
+                    else if (state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null) component.onDismissVideo()
+                    else if (state.instantViewUrl != null) component.onDismissInstantView()
+                    else if (state.youtubeUrl != null) component.onDismissYouTube()
+                    else if (state.miniAppUrl != null) component.onDismissMiniApp()
+                    else if (state.webViewUrl != null) component.onDismissWebView()
+                    else if (state.isSearchActive) component.onSearchToggle()
+                    else if (state.currentTopicId != null) component.onTopicClick(0)
                 }
-            }
-
-            if (canLoadMore || isSearching) {
-                TextButton(
-                    onClick = onLoadMore,
-                    enabled = !isSearching,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                ) {
-                    Text(
-                        text = if (isSearching) {
-                            stringResource(R.string.search_results_loading)
-                        } else {
-                            stringResource(R.string.action_show_more)
-                        }
-                    )
-                }
-            }
+            )
         }
     }
-}
-
-private fun MessageModel.withUpdatedTextContent(newText: String): MessageModel {
-    val updatedContent = when (val c = content) {
-        is MessageContent.Text -> c.copy(text = newText, entities = emptyList(), webPage = null)
-        is MessageContent.Photo -> c.copy(caption = newText, entities = emptyList())
-        is MessageContent.Video -> c.copy(caption = newText, entities = emptyList())
-        is MessageContent.Gif -> c.copy(caption = newText, entities = emptyList())
-        is MessageContent.Document -> c.copy(caption = newText, entities = emptyList())
-        is MessageContent.Audio -> c.copy(caption = newText, entities = emptyList())
-        else -> return this
-    }
-    return copy(content = updatedContent)
-}
-
-private suspend fun LazyListState.scrollToMessageIndex(
-    index: Int,
-    align: ScrollAlign,
-    animated: Boolean,
-    staged: Boolean
-) {
-    val total = layoutInfo.totalItemsCount
-    if (total <= 0) return
-
-    val boundedIndex = index.coerceIn(0, total - 1)
-    val distance = abs(firstVisibleItemIndex - boundedIndex)
-
-    if (staged && distance > 20) {
-        val coarseIndex = when {
-            boundedIndex > firstVisibleItemIndex -> (boundedIndex - 10).coerceAtLeast(0)
-            boundedIndex < firstVisibleItemIndex -> (boundedIndex + 10).coerceAtMost(total - 1)
-            else -> boundedIndex
-        }
-        scrollToItem(coarseIndex)
-    }
-
-    scrollToItem(boundedIndex)
-
-    val itemInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == boundedIndex } ?: return
-    val viewportStart = layoutInfo.viewportStartOffset
-    val viewportEnd = layoutInfo.viewportEndOffset
-    val viewportCenter = (viewportStart + viewportEnd) / 2
-
-    val targetPosition = when (align) {
-        ScrollAlign.Start -> viewportStart
-        ScrollAlign.Center -> viewportCenter - (itemInfo.size / 2)
-        ScrollAlign.End -> viewportEnd - itemInfo.size
-    }
-    val delta = (itemInfo.offset - targetPosition).toFloat()
-
-    if (abs(delta) > 1f) {
-        if (animated) {
-            animateScrollBy(delta)
-        } else {
-            scrollBy(delta)
-        }
-    }
-}
-
-private data class BottomVisibilitySnapshot(
-    val isAtBottom: Boolean,
-    val isNearBottom: Boolean,
-    val unreadCount: Int
-)
-
-private fun LazyListState.isAtBottom(
-    isComments: Boolean,
-    isLatestLoaded: Boolean
-): Boolean {
-    if (!isLatestLoaded) return false
-
-    val info = layoutInfo
-    val visible = info.visibleItemsInfo
-    if (visible.isEmpty()) return true
-
-    return if (isComments) {
-        val lastVisible = visible.last()
-        lastVisible.index >= info.totalItemsCount - 1 &&
-                abs((info.viewportEndOffset - (lastVisible.offset + lastVisible.size)).toFloat()) <= 40f
-    } else {
-        val firstVisible = visible.first()
-        firstVisible.index == 0 &&
-                abs((firstVisible.offset - info.viewportStartOffset).toFloat()) <= 40f
-    }
-}
-
-private fun LazyListState.isNearBottom(isComments: Boolean): Boolean {
-    val info = layoutInfo
-    val visible = info.visibleItemsInfo
-    if (visible.isEmpty()) return true
-
-    return if (isComments) {
-        val lastVisible = visible.last()
-        val distance = abs((info.viewportEndOffset - (lastVisible.offset + lastVisible.size)).toFloat())
-        lastVisible.index >= info.totalItemsCount - 2 && distance <= 240f
-    } else {
-        val firstVisible = visible.first()
-        val distance = abs((firstVisible.offset - info.viewportStartOffset).toFloat())
-        firstVisible.index <= 1 && distance <= 240f
-    }
-}
-
-private suspend fun LazyListState.scrollToChatBottomStaged(
-    isComments: Boolean,
-    animated: Boolean
-) {
-    val total = layoutInfo.totalItemsCount
-    if (total <= 0) return
-
-    val targetIndex = if (isComments) total - 1 else 0
-    val distance = abs(firstVisibleItemIndex - targetIndex)
-
-    if (distance > 24) {
-        val coarse = if (isComments) {
-            (targetIndex - 8).coerceAtLeast(0)
-        } else {
-            (targetIndex + 8).coerceAtMost(total - 1)
-        }
-        scrollToItem(coarse)
-    }
-
-    if (animated) {
-        animateScrollToItem(targetIndex)
-    } else {
-        scrollToItem(targetIndex)
-    }
-
-    val targetInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
-    if (targetInfo != null) {
-        val delta = if (isComments) {
-            ((targetInfo.offset + targetInfo.size) - layoutInfo.viewportEndOffset).toFloat()
-        } else {
-            (targetInfo.offset - layoutInfo.viewportStartOffset).toFloat()
-        }
-        if (abs(delta) > 1f) {
-            scrollBy(delta)
-        }
-    }
-
-    scrollToItem(targetIndex)
-}
-
-private suspend fun LazyListState.scrollToChatStartStaged(
-    animated: Boolean
-) {
-    val total = layoutInfo.totalItemsCount
-    if (total <= 0) return
-
-    if (animated) {
-        animateScrollToItem(0)
-    } else {
-        scrollToItem(0)
-    }
-
-    val targetInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == 0 }
-    if (targetInfo != null) {
-        val delta = (targetInfo.offset - layoutInfo.viewportStartOffset).toFloat()
-        if (abs(delta) > 1f) {
-            scrollBy(delta)
-        }
-    }
-
-    scrollToItem(0)
-}
-
-private suspend fun awaitGroupedIndex(
-    messageId: Long,
-    groupedMessageIndexByIdProvider: () -> Map<Long, Int>,
-    timeoutMs: Long = 1200L
-): Int? {
-    return withTimeoutOrNull(timeoutMs) {
-        snapshotFlow { groupedMessageIndexByIdProvider()[messageId] }
-            .filterNotNull()
-            .first()
-    }
-}
-
-private suspend fun LazyListState.restoreViewportAtIndex(
-    targetIndex: Int,
-    anchorOffsetPx: Int
-) {
-    val total = layoutInfo.totalItemsCount
-    if (total <= 0) return
-    val boundedIndex = targetIndex.coerceIn(0, total - 1)
-
-    scrollToItem(boundedIndex)
-    val itemInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == boundedIndex } ?: return
-    val viewportStart = layoutInfo.viewportStartOffset
-    val desiredOffset = viewportStart + anchorOffsetPx
-    val delta = (itemInfo.offset - desiredOffset).toFloat()
-
-    if (abs(delta) > 1f) {
-        scrollBy(delta)
-    }
-}
-
-private fun buildViewportSnapshot(
-    scrollState: LazyListState,
-    groupedMessages: List<GroupedMessageItem>,
-    isComments: Boolean,
-    isLatestLoaded: Boolean,
-    isLoadingOlder: Boolean,
-    isLoadingNewer: Boolean,
-    isAtBottom: Boolean,
-    showNavPadding: Boolean
-): ChatViewportCacheEntry? {
-    if (groupedMessages.isEmpty()) {
-        return ChatViewportCacheEntry(atBottom = true)
-    }
-
-    val atBottomNow = scrollState.isAtBottom(
-        isComments = isComments,
-        isLatestLoaded = isLatestLoaded
-    )
-    if (atBottomNow) {
-        return ChatViewportCacheEntry(atBottom = true)
-    }
-
-    val leadingItems = chatContentLeadingItemsCount(
-        isComments = isComments,
-        showNavPadding = showNavPadding,
-        isLoadingOlder = isLoadingOlder,
-        isLoadingNewer = isLoadingNewer,
-        isAtBottom = isAtBottom,
-        hasMessages = groupedMessages.isNotEmpty()
-    )
-    val info = scrollState.layoutInfo
-    val anchorItem = info.visibleItemsInfo.firstOrNull { itemInfo ->
-        val groupedIndex = lazyIndexToGroupedIndex(itemInfo.index, leadingItems)
-        groupedIndex in groupedMessages.indices
-    } ?: return null
-
-    val groupedIndex = lazyIndexToGroupedIndex(anchorItem.index, leadingItems)
-    val anchorMessageId = groupedMessages.getOrNull(groupedIndex)?.firstMessageId ?: return null
-
-    return ChatViewportCacheEntry(
-        anchorMessageId = anchorMessageId,
-        anchorOffsetPx = anchorItem.offset - info.viewportStartOffset,
-        atBottom = false
-    )
 }

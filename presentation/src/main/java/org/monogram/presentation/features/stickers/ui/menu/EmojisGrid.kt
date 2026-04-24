@@ -101,6 +101,7 @@ fun EmojisGrid(
     var debouncedSearchQuery by remember { mutableStateOf("") }
     var isSearchFocused by remember { mutableStateOf(false) }
     var previewStickerSet by remember { mutableStateOf<StickerSetModel?>(null) }
+    var initialSectionApplied by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val gridState = rememberLazyGridState()
 
@@ -202,6 +203,46 @@ fun EmojisGrid(
             visibleStandardEmojis.filter { it.contains(debouncedSearchQuery) }
         } else {
             emptyList()
+        }
+    }
+    val firstVisibleItemIndex = gridState.firstVisibleItemIndex
+
+    LaunchedEffect(
+        filteredRecentEmojis,
+        visibleStandardEmojis,
+        customEmojiSets,
+        searchQuery,
+        firstVisibleItemIndex
+    ) {
+        if (initialSectionApplied || searchQuery.isNotEmpty()) return@LaunchedEffect
+
+        when {
+            filteredRecentEmojis.isNotEmpty() -> {
+                selectedSetId = -1L
+                gridState.scrollToItem(0)
+                initialSectionApplied = true
+            }
+
+            visibleStandardEmojis.isNotEmpty() -> {
+                if (firstVisibleItemIndex > 0) {
+                    selectedSetId = -2L
+                    initialSectionApplied = true
+                }
+            }
+
+            customEmojiSets.isNotEmpty() -> {
+                if (firstVisibleItemIndex > 0) {
+                    selectedSetId = customEmojiSets.first().id
+                    initialSectionApplied = true
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(filteredRecentEmojis, searchQuery, firstVisibleItemIndex) {
+        if (searchQuery.isNotEmpty()) return@LaunchedEffect
+        if (filteredRecentEmojis.isNotEmpty() && firstVisibleItemIndex == 0 && selectedSetId != -1L) {
+            selectedSetId = -1L
         }
     }
 

@@ -90,6 +90,8 @@ fun StickersView(
     var searchQuery by remember { mutableStateOf("") }
     var debouncedSearchQuery by remember { mutableStateOf("") }
     var isSearchFocused by remember { mutableStateOf(false) }
+    var initialSectionApplied by remember { mutableStateOf(false) }
+    var recentStickersLoaded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val gridState = rememberLazyGridState()
 
@@ -100,6 +102,7 @@ fun StickersView(
     LaunchedEffect(Unit) {
         stickerRepository.loadInstalledStickerSets()
         recentStickers = stickerRepository.getRecentStickers()
+        recentStickersLoaded = true
     }
 
     LaunchedEffect(searchQuery) {
@@ -123,6 +126,32 @@ fun StickersView(
         }
     }
 
+    val firstVisibleItemIndex by remember { derivedStateOf { gridState.firstVisibleItemIndex } }
+
+    LaunchedEffect(recentStickersLoaded, recentStickers, stickerSets, searchQuery) {
+        if (initialSectionApplied || searchQuery.isNotEmpty() || !recentStickersLoaded) return@LaunchedEffect
+
+        when {
+            recentStickers.isNotEmpty() -> {
+                selectedSetId = -1L
+                gridState.scrollToItem(0)
+                initialSectionApplied = true
+            }
+
+            stickerSets.isNotEmpty() -> {
+                selectedSetId = stickerSets.first().id
+                initialSectionApplied = true
+            }
+        }
+    }
+
+    LaunchedEffect(recentStickers, searchQuery, firstVisibleItemIndex) {
+        if (searchQuery.isNotEmpty()) return@LaunchedEffect
+        if (recentStickers.isNotEmpty() && firstVisibleItemIndex == 0 && selectedSetId != -1L) {
+            selectedSetId = -1L
+        }
+    }
+
     val localSearchResults by remember(searchQuery, stickerSets) {
         derivedStateOf {
             buildLocalStickerFallback(
@@ -136,7 +165,6 @@ fun StickersView(
                     (searchResultsStickers.isEmpty() && searchResultsSets.isEmpty())
             )
 
-    val firstVisibleItemIndex by remember { derivedStateOf { gridState.firstVisibleItemIndex } }
     LaunchedEffect(firstVisibleItemIndex, stickerSets, recentStickers, searchQuery) {
         if (searchQuery.isNotEmpty() || !gridState.isScrollInProgress) return@LaunchedEffect
 

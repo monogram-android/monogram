@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -13,17 +14,19 @@ import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.zIndex
+import androidx.window.core.layout.WindowWidthSizeClass
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ConfirmationSheet
+import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.chats.conversation.ChatComponent
+import org.monogram.presentation.features.chats.conversation.editor.photo.PhotoEditorScreen
+import org.monogram.presentation.features.chats.conversation.editor.video.VideoEditorScreen
 import org.monogram.presentation.features.chats.conversation.ui.StickerSetSheet
 import org.monogram.presentation.features.chats.conversation.ui.message.BotCommandsSheet
 import org.monogram.presentation.features.chats.conversation.ui.message.PollVotersSheet
 import org.monogram.presentation.features.chats.conversation.ui.pins.PinnedMessagesListSheet
-import org.monogram.presentation.features.chats.conversation.editor.photo.PhotoEditorScreen
-import org.monogram.presentation.features.chats.conversation.editor.video.VideoEditorScreen
 
 @Composable
 internal fun ChatContentOverlays(
@@ -58,6 +61,11 @@ internal fun ChatContentOverlays(
     isCustomBackHandlingEnabled: Boolean,
     onBack: () -> Unit
 ) {
+    val adaptiveInfo = currentWindowAdaptiveInfo()
+    val isTabletInterfaceEnabled = LocalTabletInterfaceEnabled.current
+    val isTablet =
+        adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED &&
+                isTabletInterfaceEnabled
     if (renderPinnedMessagesList) {
         PinnedMessagesListSheet(
             isVisible = state.showPinnedMessagesList,
@@ -117,11 +125,16 @@ internal fun ChatContentOverlays(
         )
     }
 
-    ChatContentViewers(
-        state = state,
-        component = component,
-        localClipboard = localClipboard
-    )
+    if (!isTablet) {
+        InstantViewOverlay(state, component)
+        YouTubeOverlay(state, component, localClipboard)
+        MiniAppOverlay(state, component)
+        WebViewOverlay(state, component)
+        ImagesOverlay(state, component, localClipboard)
+        VideoOverlay(state, component, localClipboard)
+        InvoiceOverlay(state, component)
+        MiniAppTOSOverlay(state, component)
+    }
 
     selectedMessage?.let { msg ->
         ChatMessageOptionsMenu(

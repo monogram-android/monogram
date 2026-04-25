@@ -1,19 +1,16 @@
 package org.monogram.presentation.features.viewers
 
-import android.util.Log
 import androidx.activity.compose.BackHandler
-import androidx.annotation.OptIn
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PageSize
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -28,11 +25,115 @@ import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.launch
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.getMimeType
-import org.monogram.presentation.features.viewers.components.*
+import org.monogram.presentation.features.viewers.components.DismissRootState
+import org.monogram.presentation.features.viewers.components.ZoomState
+import org.monogram.presentation.features.viewers.components.findActivity
+import org.monogram.presentation.features.viewers.components.rememberDismissRootState
+import org.monogram.presentation.features.viewers.components.rememberZoomState
 
-private const val TAG = "MediaViewer"
+internal data class FullscreenViewerHostState(
+    val rootState: DismissRootState,
+    val zoomState: ZoomState,
+    val screenHeightPx: Float,
+    val dismissDistancePx: Float,
+    val dismissVelocityThreshold: Float
+)
 
-@OptIn(ExperimentalFoundationApi::class, UnstableApi::class)
+@Composable
+internal fun rememberFullscreenViewerHostState(): FullscreenViewerHostState {
+    val rootState = rememberDismissRootState()
+    val zoomState = rememberZoomState()
+    val containerSize = LocalWindowInfo.current.containerSize
+    val density = LocalDensity.current
+
+    return remember(rootState, zoomState, containerSize, density) {
+        FullscreenViewerHostState(
+            rootState = rootState,
+            zoomState = zoomState,
+            screenHeightPx = containerSize.height.toFloat(),
+            dismissDistancePx = with(density) { 160.dp.toPx() },
+            dismissVelocityThreshold = with(density) { 1000.dp.toPx() }
+        )
+    }
+}
+
+@Composable
+internal fun FullscreenViewerHost(
+    onDismiss: () -> Unit,
+    showControls: Boolean,
+    showSettingsMenu: Boolean = false,
+    isInPictureInPicture: Boolean = false,
+    onCloseSettingsMenu: (() -> Unit)? = null,
+    hostState: FullscreenViewerHostState = rememberFullscreenViewerHostState(),
+    content: @Composable FullscreenViewerHostState.() -> Unit
+) {
+    val context = LocalContext.current
+    val currentOnCloseSettingsMenu = onCloseSettingsMenu
+
+    LaunchedEffect(Unit) {
+        launch {
+            hostState.rootState.scale.animateTo(
+                1f,
+                spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium)
+            )
+        }
+        launch {
+            hostState.rootState.backgroundAlpha.animateTo(1f, tween(150))
+        }
+    }
+
+    LaunchedEffect(showControls, isInPictureInPicture) {
+        if (!showControls) {
+            currentOnCloseSettingsMenu?.invoke()
+        }
+
+        context.findActivity()?.let {
+            val insetsController = WindowCompat.getInsetsController(it.window, it.window.decorView)
+            insetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+            if (showControls && !isInPictureInPicture) {
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            } else {
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    DisposableEffect(context) {
+        onDispose {
+            context.findActivity()?.let {
+                WindowCompat.getInsetsController(it.window, it.window.decorView)
+                    .show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    BackHandler {
+        if (showSettingsMenu) {
+            currentOnCloseSettingsMenu?.invoke()
+        } else if (isInPictureInPicture) {
+            context.findActivity()?.finishAndRemoveTask()
+        } else {
+            onDismiss()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = hostState.rootState.backgroundAlpha.value))
+            .graphicsLayer {
+                translationY = hostState.rootState.offsetY.value
+                scaleX = hostState.rootState.scale.value
+                scaleY = hostState.rootState.scale.value
+            }
+    ) {
+        hostState.content()
+    }
+}
+
+@OptIn(UnstableApi::class)
 @Composable
 fun MediaViewer(
     mediaItems: List<String>,
@@ -60,186 +161,55 @@ fun MediaViewer(
 ) {
     require(mediaItems.isNotEmpty()) { "mediaItems can't be empty" }
 
-    val scope = rememberCoroutineScope()
-    val pagerState = rememberPagerState(
-        initialPage = startIndex,
-        pageCount = { mediaItems.size }
+    val resolvedIndex = startIndex.coerceIn(0, mediaItems.lastIndex.coerceAtLeast(0))
+    val currentPath = mediaItems[resolvedIndex]
+    val currentMimeType = getMimeType(currentPath)
+    val shouldRenderSingleVideo =
+        mediaItems.size == 1 && ((isAlwaysVideo && currentPath.isNotBlank()) || isVideoPath(
+            currentPath,
+            currentMimeType
+        ))
+
+    if (shouldRenderSingleVideo) {
+        VideoViewer(
+            path = currentPath,
+            onDismiss = onDismiss,
+            onForward = onForward,
+            onDelete = onDelete,
+            onCopyLink = onCopyLink,
+            onCopyText = onCopyText,
+            onSaveGif = onSaveGif,
+            caption = captions.getOrNull(resolvedIndex),
+            fileId = fileIds.getOrNull(resolvedIndex) ?: 0,
+            supportsStreaming = supportsStreaming,
+            downloadUtils = downloadUtils,
+            isGesturesEnabled = isGesturesEnabled,
+            isDoubleTapSeekEnabled = isDoubleTapSeekEnabled,
+            seekDuration = seekDuration,
+            isZoomEnabled = isZoomEnabled
+        )
+        return
+    }
+
+    ImageViewer(
+        images = mediaItems,
+        startIndex = resolvedIndex,
+        onDismiss = onDismiss,
+        autoDownload = autoDownload,
+        onPageChanged = onPageChanged,
+        onForward = onForward,
+        onDelete = onDelete,
+        onCopyLink = onCopyLink,
+        onCopyText = onCopyText,
+        captions = captions,
+        imageDownloadingStates = imageDownloadingStates,
+        imageDownloadProgressStates = imageDownloadProgressStates,
+        downloadUtils = downloadUtils,
+        showImageNumber = showImageNumber
     )
-
-    val rootState = rememberDismissRootState()
-    val zoomState = rememberZoomState()
-
-    var showControls by remember { mutableStateOf(true) }
-    var showSettingsMenu by remember { mutableStateOf(false) }
-    var currentVideoInPipMode by remember { mutableStateOf(false) }
-
-    val context = LocalContext.current
-
-    val containerSize = LocalWindowInfo.current.containerSize
-    val density = LocalDensity.current
-    val screenHeightPx = containerSize.height.toFloat()
-    val dismissDistancePx = with(density) { 160.dp.toPx() }
-    val dismissVelocityThreshold = with(density) { 1000.dp.toPx() }
-
-    LaunchedEffect(Unit) {
-        Log.d(TAG, "Opened with ${mediaItems.size} items, startIndex=$startIndex")
-        launch {
-            rootState.scale.animateTo(1f, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium))
-        }
-        launch {
-            rootState.backgroundAlpha.animateTo(1f, tween(150))
-        }
-    }
-
-    LaunchedEffect(pagerState.currentPage) {
-        Log.d(TAG, "Page changed to ${pagerState.currentPage}")
-        onPageChanged?.invoke(pagerState.currentPage)
-        zoomState.resetInstant(scope)
-        rootState.resetInstant(scope)
-        showSettingsMenu = false
-        currentVideoInPipMode = false
-    }
-
-    LaunchedEffect(showControls, currentVideoInPipMode) {
-        if (!showControls) {
-            showSettingsMenu = false
-        }
-
-        val activity = context.findActivity()
-        activity?.let {
-            val insetsController = WindowCompat.getInsetsController(it.window, it.window.decorView)
-            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-
-            if (showControls && !currentVideoInPipMode) {
-                insetsController.show(WindowInsetsCompat.Type.systemBars())
-            } else {
-                insetsController.hide(WindowInsetsCompat.Type.systemBars())
-            }
-        }
-    }
-
-    DisposableEffect(context) {
-        onDispose {
-            context.findActivity()?.let {
-                WindowCompat.getInsetsController(it.window, it.window.decorView)
-                    .show(WindowInsetsCompat.Type.systemBars())
-            }
-        }
-    }
-
-    BackHandler {
-        Log.d(TAG, "BackHandler: showSettingsMenu=$showSettingsMenu, currentVideoInPipMode=$currentVideoInPipMode")
-        if (showSettingsMenu) {
-            showSettingsMenu = false
-        } else {
-            if (currentVideoInPipMode) {
-                context.findActivity()?.finishAndRemoveTask()
-            } else {
-                onDismiss()
-            }
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = rootState.backgroundAlpha.value))
-            .graphicsLayer {
-                translationY = rootState.offsetY.value
-                scaleX = rootState.scale.value
-                scaleY = rootState.scale.value
-            }
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            key = { page -> "media_page_${page}" },
-            pageSize = PageSize.Fill,
-            pageSpacing = 0.dp,
-            beyondViewportPageCount = 0,
-            userScrollEnabled = zoomState.scale.value == 1f && rootState.offsetY.value == 0f
-        ) { page ->
-            val path = mediaItems.getOrNull(page) ?: return@HorizontalPager
-            val mimeType = getMimeType(path)
-            val isVideo = (isAlwaysVideo && path.isNotBlank()) || isVideoPath(path, mimeType)
-
-            if (isVideo) {
-                VideoPage(
-                    path = path,
-                    fileId = fileIds.getOrNull(page) ?: 0,
-                    caption = captions.getOrNull(page),
-                    supportsStreaming = supportsStreaming,
-                    downloadUtils = downloadUtils,
-                    onDismiss = onDismiss,
-                    showControls = showControls,
-                    onToggleControls = { showControls = !showControls },
-                    onForward = onForward,
-                    onDelete = onDelete,
-                    onCopyLink = onCopyLink,
-                    onCopyText = onCopyText,
-                    onSaveGif = onSaveGif,
-                    showSettingsMenu = showSettingsMenu,
-                    onToggleSettings = { showSettingsMenu = !showSettingsMenu },
-                    isGesturesEnabled = isGesturesEnabled,
-                    isDoubleTapSeekEnabled = isDoubleTapSeekEnabled,
-                    seekDuration = seekDuration,
-                    isZoomEnabled = isZoomEnabled,
-                    isActive = pagerState.currentPage == page,
-                    onCurrentVideoPipModeChanged = { inPip ->
-                        if (pagerState.currentPage == page) {
-                            currentVideoInPipMode = inPip
-                        }
-                    },
-                    zoomState = zoomState,
-                    rootState = rootState,
-                    screenHeightPx = screenHeightPx,
-                    dismissDistancePx = dismissDistancePx,
-                    dismissVelocityThreshold = dismissVelocityThreshold
-                )
-            } else {
-                ImagePage(
-                    path = path,
-                    isDownloading = imageDownloadingStates.getOrNull(page) == true,
-                    downloadProgress = imageDownloadProgressStates.getOrNull(page) ?: 0f,
-                    zoomState = zoomState,
-                    rootState = rootState,
-                    screenHeightPx = screenHeightPx,
-                    dismissDistancePx = dismissDistancePx,
-                    dismissVelocityThreshold = dismissVelocityThreshold,
-                    onDismiss = onDismiss,
-                    showControls = showControls,
-                    onToggleControls = { showControls = !showControls },
-                    pageIndex = page,
-                    pagerIndex = pagerState.currentPage
-                )
-            }
-        }
-
-        val currentPath = mediaItems.getOrNull(pagerState.currentPage) ?: ""
-        val currentMimeType = getMimeType(currentPath)
-        val isCurrentVideo = (isAlwaysVideo && currentPath.isNotBlank()) || isVideoPath(currentPath, currentMimeType)
-
-        if (!isCurrentVideo) {
-            ImageOverlay(
-                showControls = showControls,
-                rootState = rootState,
-                pagerState = pagerState,
-                mediaItems = mediaItems,
-                captions = captions,
-                showImageNumber = showImageNumber,
-                onDismiss = onDismiss,
-                showSettingsMenu = showSettingsMenu,
-                onToggleSettings = { showSettingsMenu = !showSettingsMenu },
-                downloadUtils = downloadUtils,
-                onForward = onForward,
-                onDelete = onDelete,
-                onCopyLink = onCopyLink,
-                onCopyText = onCopyText
-            )
-        }
-    }
 }
 
-private fun isVideoPath(path: String, mimeType: String?): Boolean {
+internal fun isVideoPath(path: String, mimeType: String?): Boolean {
     if (path.isBlank()) return false
     if (mimeType?.startsWith("image/") == true) return false
 

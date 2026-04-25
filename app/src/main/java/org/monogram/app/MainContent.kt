@@ -172,12 +172,14 @@ fun MainContent(
 
         when (activeChild) {
             is RootComponent.Child.ChatDetailChild -> {
-                val chatState by activeChild.component.state.collectAsState()
-                ChatContentViewers(
-                    state = chatState,
-                    component = activeChild.component,
-                    localClipboard = localClipboard
-                )
+                if (isExpanded && isTabletInterfaceEnabled) {
+                    val chatState by activeChild.component.state.collectAsState()
+                    ChatContentViewers(
+                        state = chatState,
+                        component = activeChild.component,
+                        localClipboard = localClipboard
+                    )
+                }
             }
             is RootComponent.Child.ProfileChild -> {
                 val profileState by activeChild.component.state.subscribeAsState()

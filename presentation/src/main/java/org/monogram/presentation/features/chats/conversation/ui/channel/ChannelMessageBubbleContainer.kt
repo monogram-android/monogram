@@ -1,9 +1,6 @@
 package org.monogram.presentation.features.chats.conversation.ui.channel
 
 import android.content.res.Configuration
-import androidx.compose.animation.Animatable
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,10 +11,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -26,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -35,7 +28,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
-import kotlinx.coroutines.delay
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.MessageContent
@@ -62,7 +54,6 @@ internal fun ChannelMessageBubbleContainer(
     behavior: MessageRowBehaviorConfig,
     uiFlags: MessageRowUiFlags = MessageRowUiFlags(),
     senderGrouping: MessageSenderGrouping,
-    onHighlightConsumed: () -> Unit = {},
     onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit = {},
     onVideoClick: (MessageModel) -> Unit = {},
@@ -101,18 +92,6 @@ internal fun ChannelMessageBubbleContainer(
 
     val topSpacing = if (!senderGrouping.isSameSenderAbove) 12.dp else 2.dp
 
-    val highlightColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-    val animatedColor = remember { Animatable(Color.Transparent) }
-
-    LaunchedEffect(uiFlags.isHighlighted) {
-        if (uiFlags.isHighlighted) {
-            animatedColor.animateTo(highlightColor, animationSpec = tween(300))
-            delay(450)
-            animatedColor.animateTo(Color.Transparent, animationSpec = tween(1800))
-            onHighlightConsumed()
-        }
-    }
-
     val dragOffsetX = remember { androidx.compose.animation.core.Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
     val layoutTracker = remember { MessageBubbleLayoutTracker() }
@@ -122,7 +101,6 @@ internal fun ChannelMessageBubbleContainer(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(animatedColor.value, RoundedCornerShape(12.dp))
             .onGloballyPositioned { layoutTracker.outerColumnPosition = it.positionInWindow() }
             .padding(top = topSpacing)
             .offset { IntOffset(dragOffsetX.value.toInt(), 0) }

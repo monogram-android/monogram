@@ -30,6 +30,12 @@ sealed interface ChatScrollCommand {
     ) : ChatScrollCommand
 }
 
+@Immutable
+data class MessageHighlightRequest(
+    val messageId: Long,
+    val token: Long
+)
+
 enum class ScrollAlign {
     Start,
     Center,

@@ -56,7 +56,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -84,7 +83,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.zIndex
 import androidx.window.core.layout.WindowWidthSizeClass
-import kotlinx.coroutines.launch
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -102,10 +100,8 @@ import org.monogram.presentation.features.chats.conversation.ui.content.ChatCont
 import org.monogram.presentation.features.chats.conversation.ui.content.ChatContentSearchOverlay
 import org.monogram.presentation.features.chats.conversation.ui.content.ChatContentTopBar
 import org.monogram.presentation.features.chats.conversation.ui.content.GroupedMessageItem
-import org.monogram.presentation.features.chats.conversation.ui.content.chatContentLeadingItemsCount
 import org.monogram.presentation.features.chats.conversation.ui.content.extractTextContent
 import org.monogram.presentation.features.chats.conversation.ui.content.groupMessagesByAlbum
-import org.monogram.presentation.features.chats.conversation.ui.content.groupedIndexToLazyIndex
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatChromeState
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatContentPermissionState
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatInputBarActions
@@ -113,7 +109,6 @@ import org.monogram.presentation.features.chats.conversation.ui.content.remember
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatMessageListState
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatSearchUiState
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatTopBarUiState
-import org.monogram.presentation.features.chats.conversation.ui.content.scrollToMessageIndex
 import org.monogram.presentation.features.chats.conversation.ui.content.withUpdatedTextContent
 import org.monogram.presentation.features.chats.conversation.ui.message.LocalLinkHandler
 import org.monogram.presentation.features.chats.conversation.ui.message.LocalMessageRenderDependencies
@@ -135,7 +130,6 @@ fun ChatContent(
     val localClipboard = LocalClipboard.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    val coroutineScope = rememberCoroutineScope()
 
     val adaptiveInfo = currentWindowAdaptiveInfo()
     val isTabletInterfaceEnabled = LocalTabletInterfaceEnabled.current
@@ -253,32 +247,6 @@ fun ChatContent(
             editingPhotoPath != null ||
             editingVideoPath != null ||
             isRecordingVideo
-
-    val scrollToMessageState = rememberUpdatedState(newValue = { msg: MessageModel ->
-        val index = groupedMessageIndexById[msg.id] ?: -1
-        if (index != -1) {
-            coroutineScope.launch {
-                val leadingItems = chatContentLeadingItemsCount(
-                    isComments = isComments,
-                    showNavPadding = false,
-                    isLoadingOlder = state.isLoadingOlder,
-                    isLoadingNewer = state.isLoadingNewer,
-                    isAtBottom = state.isAtBottom,
-                    hasMessages = groupedMessages.isNotEmpty()
-                )
-                val targetIndex = groupedIndexToLazyIndex(index, leadingItems)
-
-                scrollState.scrollToMessageIndex(
-                    index = targetIndex,
-                    align = ScrollAlign.Center,
-                    animated = state.isChatAnimationsEnabled,
-                    staged = true
-                )
-            }
-        } else {
-            component.onPinnedMessageClick(msg)
-        }
-    })
 
     // Pick Media Result
     val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
@@ -451,7 +419,7 @@ fun ChatContent(
                                         keyboardController?.hide()
                                         focusManager.clearFocus(force = true)
                                     },
-                                    onPinnedMessageClick = { msg -> scrollToMessageState.value(msg) },
+                                    onPinnedMessageClick = { msg -> component.scrollToMessage(msg.id) },
                                     showBack = !isTablet
                                 )
 
@@ -705,9 +673,9 @@ fun ChatContent(
                                     }
                                 }
 
-                            val onGoToReplyStable: (MessageModel) -> Unit = remember(scrollToMessageState) {
+                            val onGoToReplyStable: (MessageModel) -> Unit = remember(component) {
                                 { msg: MessageModel ->
-                                    scrollToMessageState.value(msg)
+                                    component.scrollToMessage(msg.id)
                                 }
                             }
 
@@ -944,7 +912,7 @@ fun ChatContent(
                     pendingPinnedSheetAction = null
                 },
                 onPinnedMessageClick = {
-                    pendingPinnedSheetAction = { scrollToMessageState.value(it) }
+                    pendingPinnedSheetAction = { component.scrollToMessage(it.id) }
                     requestPinnedMessagesListDismiss()
                 },
                 selectedMessage = selectedMessage,

@@ -7,10 +7,12 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -64,6 +66,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -85,6 +88,7 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.conversation.ChatComponent
+import org.monogram.presentation.features.chats.conversation.MessageHighlightRequest
 import org.monogram.presentation.features.chats.conversation.ui.AlbumMessageBubbleContainer
 import org.monogram.presentation.features.chats.conversation.ui.DateSeparator
 import org.monogram.presentation.features.chats.conversation.ui.MessageAppearanceConfig
@@ -121,7 +125,7 @@ data class ChatMessageListUiState(
     val isAdmin: Boolean,
     val canWrite: Boolean,
     val canSendAnything: Boolean,
-    val highlightedMessageId: Long?,
+    val highlightRequest: MessageHighlightRequest?,
     val fontSize: Float,
     val letterSpacing: Float,
     val bubbleRadius: Float,
@@ -232,6 +236,30 @@ fun ChatContentList(
         state.unreadSeparatorLastReadInboxMessageId,
         state.unreadSeparatorCount
     ) { mutableStateOf(false) }
+    val visibleGroupedMessageIds by remember(
+        scrollState,
+        groupedMessages,
+        isComments,
+        showNavPadding,
+        state.isLoadingOlder,
+        state.isLoadingNewer,
+        state.isAtBottom
+    ) {
+        derivedStateOf {
+            val leadingItems = chatContentLeadingItemsCount(
+                isComments = isComments,
+                showNavPadding = showNavPadding,
+                isLoadingOlder = state.isLoadingOlder,
+                isLoadingNewer = state.isLoadingNewer,
+                isAtBottom = state.isAtBottom,
+                hasMessages = groupedMessages.isNotEmpty()
+            )
+            scrollState.layoutInfo.visibleItemsInfo.mapNotNull { visibleItem ->
+                val groupedIndex = lazyIndexToGroupedIndex(visibleItem.index, leadingItems)
+                groupedMessages.getOrNull(groupedIndex)?.firstMessageId
+            }.toSet()
+        }
+    }
 
     LaunchedEffect(groupedMessageIds, state.suppressEntryAnimations) {
         val currentIds = groupedMessageIds.toSet()
@@ -438,11 +466,12 @@ fun ChatContentList(
                     ),
                     uiFlags = MessageRowUiFlags(
                         isSelected = isItemSelected(item, state.selectedMessageIds),
-                        isHighlighted = isItemHighlighted(item, state.highlightedMessageId),
                         showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
                         unreadCount = state.unreadSeparatorCount,
                         shouldReportPosition = item.lastMessageId == selectedMessageId
                     ),
+                    highlightRequest = highlightRequestForItem(item, state.highlightRequest),
+                    isTargetVisibleInViewport = item.firstMessageId in visibleGroupedMessageIds,
                     rootMessageId = state.rootMessage?.id,
                     onPhotoClick = onPhotoClick,
                     onPhotoDownload = onPhotoDownload,
@@ -504,11 +533,12 @@ fun ChatContentList(
                     ),
                     uiFlags = MessageRowUiFlags(
                         isSelected = isItemSelected(item, state.selectedMessageIds),
-                        isHighlighted = isItemHighlighted(item, state.highlightedMessageId),
                         showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
                         unreadCount = state.unreadSeparatorCount,
                         shouldReportPosition = item.lastMessageId == selectedMessageId
                     ),
+                    highlightRequest = highlightRequestForItem(item, state.highlightRequest),
+                    isTargetVisibleInViewport = item.firstMessageId in visibleGroupedMessageIds,
                     rootMessageId = state.rootMessage?.id,
                     onPhotoClick = onPhotoClick,
                     onPhotoDownload = onPhotoDownload,
@@ -591,6 +621,8 @@ private fun MessageRowItem(
     newerMsg: MessageModel?,
     behavior: MessageRowBehaviorConfig,
     uiFlags: MessageRowUiFlags,
+    highlightRequest: MessageHighlightRequest?,
+    isTargetVisibleInViewport: Boolean,
     rootMessageId: Long?,
     onPhotoClick: (MessageModel, List<String>, List<String?>, List<Long>, Int) -> Unit,
     onPhotoDownload: (Int) -> Unit,
@@ -612,7 +644,6 @@ private fun MessageRowItem(
     val mainMsg = remember(item) {
         if (item is GroupedMessageItem.Single) item.message else (item as GroupedMessageItem.Album).messages.last()
     }
-
     val shouldAnimateEntry =
         isChatAnimationsEnabled && isEntryAnimationPending && !isScrolling
 
@@ -631,6 +662,12 @@ private fun MessageRowItem(
             if (shouldAnimateEntry) 10f else 0f
         )
     }
+    val rowShape = remember { RoundedCornerShape(18.dp) }
+    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val highlightAccent = if (isDarkTheme) Color(0xFFFFD54F) else Color(0xFFFFB300)
+    val highlightBackground = remember { androidx.compose.animation.Animatable(Color.Transparent) }
+    val highlightBorderAlpha = remember { Animatable(0f) }
+    val highlightScale = remember { Animatable(1f) }
 
     LaunchedEffect(mainMsg.id) {
         component.onMessageVisible(mainMsg.id)
@@ -653,9 +690,49 @@ private fun MessageRowItem(
         }
     }
 
+    LaunchedEffect(highlightRequest, isTargetVisibleInViewport) {
+        highlightRequest ?: return@LaunchedEffect
+        if (!isTargetVisibleInViewport) return@LaunchedEffect
+
+        highlightBackground.stop()
+        highlightBorderAlpha.stop()
+        highlightScale.stop()
+
+        highlightBackground.snapTo(Color.Transparent)
+        highlightBorderAlpha.snapTo(0f)
+        highlightScale.snapTo(1f)
+
+        highlightBackground.animateTo(
+            highlightAccent.copy(alpha = if (isDarkTheme) 0.20f else 0.16f),
+            animationSpec = tween(220)
+        )
+        launch { highlightBorderAlpha.animateTo(1f, animationSpec = tween(180)) }
+        launch { highlightScale.animateTo(1.012f, animationSpec = tween(220)) }
+        component.onHighlightConsumed()
+
+        kotlinx.coroutines.delay(950)
+
+        launch { highlightScale.animateTo(1f, animationSpec = tween(260)) }
+        launch { highlightBorderAlpha.animateTo(0f, animationSpec = tween(1800)) }
+        highlightBackground.animateTo(Color.Transparent, animationSpec = tween(2200))
+    }
+
     val backgroundColor by animateColorAsState(
-        targetValue = if (uiFlags.isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
+        targetValue = when {
+            uiFlags.isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+            else -> highlightBackground.value
+        },
+        animationSpec = tween(durationMillis = 220),
         label = "bg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (highlightBorderAlpha.value > 0f) {
+            highlightAccent.copy(alpha = 0.95f * highlightBorderAlpha.value)
+        } else {
+            Color.Transparent
+        },
+        animationSpec = tween(durationMillis = 220),
+        label = "highlightBorder"
     )
     val horizontalPadding by animateDpAsState(
         if (behavior.isSelectionMode) 16.dp else 8.dp,
@@ -666,12 +743,13 @@ private fun MessageRowItem(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                scaleX = scale.value
-                scaleY = scale.value
+                scaleX = scale.value * highlightScale.value
+                scaleY = scale.value * highlightScale.value
                 alpha = itemAlpha.value
                 translationY = offsetY.value
             }
-            .background(backgroundColor)
+            .background(backgroundColor, rowShape)
+            .border(width = 1.5.dp, color = borderColor, shape = rowShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -788,7 +866,6 @@ private fun MessageBubbleSwitcher(
                     behavior = behavior,
                     uiFlags = uiFlags,
                     senderGrouping = senderGrouping,
-                    onHighlightConsumed = { component.onHighlightConsumed() },
                     onPhotoClick = {
                         if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else handlePhotoClick(
                             it,
@@ -884,7 +961,6 @@ private fun MessageBubbleSwitcher(
                     behavior = behavior,
                     uiFlags = uiFlags,
                     senderGrouping = senderGrouping,
-                    onHighlightConsumed = { component.onHighlightConsumed() },
                     onPhotoClick = {
                         if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else handlePhotoClick(
                             it,
@@ -1188,13 +1264,23 @@ private val GroupedMessageItem.lastMessageId: Long
         is GroupedMessageItem.Album -> messages.last().id
     }
 
-private fun isItemHighlighted(item: GroupedMessageItem, highlightedMessageId: Long?): Boolean {
-    if (highlightedMessageId == null) return false
-    return when (item) {
-        is GroupedMessageItem.Single -> item.message.id == highlightedMessageId
-        is GroupedMessageItem.Album -> item.messages.any { it.id == highlightedMessageId }
+private fun highlightRequestForItem(
+    item: GroupedMessageItem,
+    highlightRequest: MessageHighlightRequest?
+): MessageHighlightRequest? {
+    val request = highlightRequest ?: return null
+    val isMatch = when (item) {
+        is GroupedMessageItem.Single -> item.message.id == request.messageId
+        is GroupedMessageItem.Album -> item.messages.any { it.id == request.messageId }
     }
+    return request.takeIf { isMatch }
 }
+
+private val GroupedMessageItem.firstMessageId: Long
+    get() = when (this) {
+        is GroupedMessageItem.Single -> message.id
+        is GroupedMessageItem.Album -> messages.first().id
+    }
 
 private fun ChatMessageListUiState.toAppearanceConfig(): MessageAppearanceConfig =
     MessageAppearanceConfig(

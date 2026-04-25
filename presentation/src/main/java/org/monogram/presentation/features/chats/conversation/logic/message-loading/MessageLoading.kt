@@ -399,7 +399,8 @@ internal suspend fun DefaultChatComponent.loadComments(
             },
             isLatestLoaded = true,
             isOldestLoaded = reachedOldest,
-            scrollToMessageId = null
+            scrollToMessageId = null,
+            highlightRequest = null
         )
     }
     updateMessages(messages, replace = true)
@@ -426,7 +427,8 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
                 isAtBottom = true,
                 isLatestLoaded = false,
                 isOldestLoaded = false,
-                scrollToMessageId = null
+                scrollToMessageId = null,
+                highlightRequest = null
             )
         }
         updateMessages(cachedMessages, replace = true)
@@ -450,7 +452,8 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
             isAtBottom = true,
             isLatestLoaded = !isRemoteSameAsCachedPreview,
             isOldestLoaded = isOldestLoaded,
-            scrollToMessageId = null
+            scrollToMessageId = null,
+            highlightRequest = null
         )
     }
     val shouldReplaceCachedPreview = !hasCachedPreview || messages.isNotEmpty()
@@ -487,7 +490,7 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
                 isLatestLoaded = false,
                 isOldestLoaded = false,
                 scrollToMessageId = null,
-                highlightedMessageId = if (shouldHighlight) messageId else null
+                highlightRequest = null
             )
         }
         updateMessages(messages, replace = true)
@@ -512,6 +515,39 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
                 scrollCommand = ChatScrollCommand.ScrollToBottom(animated = false)
             )
         }
+    }
+}
+
+internal fun DefaultChatComponent.requestMessageHighlight(messageId: Long) {
+    _state.update { currentState ->
+        val nextToken = currentState.highlightRequestToken + 1L
+        currentState.copy(
+            highlightRequest = org.monogram.presentation.features.chats.conversation.MessageHighlightRequest(
+                messageId = messageId,
+                token = nextToken
+            ),
+            highlightRequestToken = nextToken
+        )
+    }
+}
+
+private fun DefaultChatComponent.queueJumpToLoadedMessage(
+    messageId: Long,
+    highlight: Boolean,
+    align: ScrollAlign = ScrollAlign.Center,
+    animated: Boolean = true
+) {
+    _state.update {
+        it.copy(
+            isAtBottom = false,
+            pendingScrollCommand = ChatScrollCommand.JumpToMessage(
+                messageId = messageId,
+                highlight = highlight,
+                align = align,
+                animated = animated
+            ),
+            highlightRequest = null
+        )
     }
 }
 
@@ -676,6 +712,17 @@ internal fun DefaultChatComponent.loadNewerMessages() {
 }
 
 internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
+    val currentState = _state.value
+    if (currentState.messages.any { it.id == messageId }) {
+        queueJumpToLoadedMessage(
+            messageId = messageId,
+            highlight = true,
+            align = ScrollAlign.Center,
+            animated = true
+        )
+        return
+    }
+
     cancelAllLoadingJobs()
     messageLoadingJob = scope.launch {
         _state.update {
@@ -683,7 +730,8 @@ internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
                 isLoading = true,
                 isOldestLoaded = false,
                 isLatestLoaded = false,
-                pendingScrollCommand = null
+                pendingScrollCommand = null,
+                highlightRequest = null
             )
         }
         try {

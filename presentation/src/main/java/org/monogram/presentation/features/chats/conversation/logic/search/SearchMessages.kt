@@ -6,9 +6,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.UserModel
-import org.monogram.presentation.features.chats.conversation.ChatScrollCommand
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
-import org.monogram.presentation.features.chats.conversation.ScrollAlign
 
 private const val SEARCH_DEBOUNCE_MS = 250L
 private const val SEARCH_PAGE_SIZE = 20
@@ -438,21 +436,5 @@ private fun List<MessageModel>.filterByDateRange(
 
 private fun DefaultChatComponent.scrollToSearchResult(index: Int, results: List<MessageModel>) {
     val message = results.getOrNull(index) ?: return
-    val state = _state.value
-    val isAlreadyLoaded = state.messages.any { it.id == message.id }
-    if (isAlreadyLoaded) {
-        _state.update {
-            it.copy(
-                highlightedMessageId = message.id,
-                pendingScrollCommand = ChatScrollCommand.JumpToMessage(
-                    messageId = message.id,
-                    highlight = true,
-                    align = ScrollAlign.Center,
-                    animated = true
-                )
-            )
-        }
-    } else {
-        scrollToMessage(message.id)
-    }
+    scrollToMessage(message.id)
 }

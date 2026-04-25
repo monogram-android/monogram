@@ -6,9 +6,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.MessageModel
-import org.monogram.presentation.features.chats.conversation.ChatScrollCommand
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
-import org.monogram.presentation.features.chats.conversation.ScrollAlign
 
 
 internal fun DefaultChatComponent.loadPinnedMessage() {
@@ -128,37 +126,5 @@ internal fun DefaultChatComponent.handlePinnedMessageClick(message: MessageModel
 }
 
 private fun DefaultChatComponent.jumpToMessage(message: MessageModel) {
-    if (_state.value.isLoading) return
-
-    scope.launch {
-        _state.update { it.copy(isLoading = true) }
-        try {
-            val threadId = activeThreadId()
-            val messages =
-                repositoryMessage.getMessagesAround(activeThreadChatId(), message.id, 50, threadId)
-            if (messages.isNotEmpty()) {
-                updateMessages(messages, replace = true)
-                lastLoadedOlderId = 0L
-                lastLoadedNewerId = 0L
-                _state.update {
-                    it.copy(
-                        pendingScrollCommand = ChatScrollCommand.JumpToMessage(
-                            messageId = message.id,
-                            highlight = true,
-                            align = ScrollAlign.Center,
-                            animated = true
-                        ),
-                        highlightedMessageId = message.id,
-                        isAtBottom = false,
-                        isLatestLoaded = false,
-                        isOldestLoaded = false
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("DefaultChatComponent", "Error jumping to message", e)
-        } finally {
-            _state.update { it.copy(isLoading = false) }
-        }
-    }
+    scrollToMessage(message.id)
 }

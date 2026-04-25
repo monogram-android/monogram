@@ -19,6 +19,19 @@ internal data class BottomVisibilitySnapshot(
     val unreadCount: Int
 )
 
+@Immutable
+internal data class ScrollTargetLayoutInfo(
+    val index: Int,
+    val offset: Int,
+    val size: Int
+)
+
+@Immutable
+internal data class ScrollToMessagePlan(
+    val coarseIndex: Int?,
+    val shouldAnimateToIndex: Boolean
+)
+
 internal suspend fun LazyListState.scrollToMessageIndex(
     index: Int,
     align: ScrollAlign,
@@ -29,38 +42,49 @@ internal suspend fun LazyListState.scrollToMessageIndex(
     if (total <= 0) return
 
     val boundedIndex = index.coerceIn(0, total - 1)
-    val distance = abs(firstVisibleItemIndex - boundedIndex)
+    val initialTarget = layoutInfo.visibleItemsInfo.firstOrNull { it.index == boundedIndex }
 
-    if (staged && distance > 20) {
-        val coarseIndex = when {
-            boundedIndex > firstVisibleItemIndex -> (boundedIndex - 10).coerceAtLeast(0)
-            boundedIndex < firstVisibleItemIndex -> (boundedIndex + 10).coerceAtMost(total - 1)
-            else -> boundedIndex
-        }
+    if (initialTarget != null) {
+        alignVisibleMessage(
+            itemInfo = ScrollTargetLayoutInfo(
+                index = initialTarget.index,
+                offset = initialTarget.offset,
+                size = initialTarget.size
+            ),
+            align = align,
+            animated = animated
+        )
+        return
+    }
+
+    val plan = buildScrollToMessagePlan(
+        currentFirstVisibleIndex = firstVisibleItemIndex,
+        targetIndex = boundedIndex,
+        totalItemsCount = total,
+        targetAlreadyVisible = false,
+        staged = staged
+    )
+
+    plan.coarseIndex?.let { coarseIndex ->
         scrollToItem(coarseIndex)
     }
 
-    scrollToItem(boundedIndex)
+    if (plan.shouldAnimateToIndex && animated) {
+        animateScrollToItem(boundedIndex)
+    } else {
+        scrollToItem(boundedIndex)
+    }
 
     val itemInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == boundedIndex } ?: return
-    val viewportStart = layoutInfo.viewportStartOffset
-    val viewportEnd = layoutInfo.viewportEndOffset
-    val viewportCenter = (viewportStart + viewportEnd) / 2
-
-    val targetPosition = when (align) {
-        ScrollAlign.Start -> viewportStart
-        ScrollAlign.Center -> viewportCenter - (itemInfo.size / 2)
-        ScrollAlign.End -> viewportEnd - itemInfo.size
-    }
-    val delta = (itemInfo.offset - targetPosition).toFloat()
-
-    if (abs(delta) > 1f) {
-        if (animated) {
-            animateScrollBy(delta)
-        } else {
-            scrollBy(delta)
-        }
-    }
+    alignVisibleMessage(
+        itemInfo = ScrollTargetLayoutInfo(
+            index = itemInfo.index,
+            offset = itemInfo.offset,
+            size = itemInfo.size
+        ),
+        align = align,
+        animated = animated
+    )
 }
 
 internal fun LazyListState.isAtBottom(
@@ -98,6 +122,28 @@ internal fun LazyListState.isNearBottom(isComments: Boolean): Boolean {
         val firstVisible = visible.first()
         val distance = abs((firstVisible.offset - info.viewportStartOffset).toFloat())
         firstVisible.index <= 1 && distance <= 240f
+    }
+}
+
+private suspend fun LazyListState.alignVisibleMessage(
+    itemInfo: ScrollTargetLayoutInfo,
+    align: ScrollAlign,
+    animated: Boolean
+) {
+    val delta = calculateAlignmentDelta(
+        viewportStart = layoutInfo.viewportStartOffset,
+        viewportEnd = layoutInfo.viewportEndOffset,
+        itemOffset = itemInfo.offset,
+        itemSize = itemInfo.size,
+        align = align
+    )
+
+    if (abs(delta) <= 1f) return
+
+    if (animated) {
+        animateScrollBy(delta)
+    } else {
+        scrollBy(delta)
     }
 }
 
@@ -193,6 +239,61 @@ internal suspend fun LazyListState.restoreViewportAtIndex(
     if (abs(delta) > 1f) {
         scrollBy(delta)
     }
+}
+
+internal fun buildScrollToMessagePlan(
+    currentFirstVisibleIndex: Int,
+    targetIndex: Int,
+    totalItemsCount: Int,
+    targetAlreadyVisible: Boolean,
+    staged: Boolean
+): ScrollToMessagePlan {
+    if (totalItemsCount <= 0) {
+        return ScrollToMessagePlan(coarseIndex = null, shouldAnimateToIndex = false)
+    }
+
+    if (targetAlreadyVisible) {
+        return ScrollToMessagePlan(coarseIndex = null, shouldAnimateToIndex = false)
+    }
+
+    val boundedTargetIndex = targetIndex.coerceIn(0, totalItemsCount - 1)
+    val distance = abs(currentFirstVisibleIndex - boundedTargetIndex)
+    val coarseIndex = if (staged && distance > 20) {
+        when {
+            boundedTargetIndex > currentFirstVisibleIndex -> (boundedTargetIndex - 10).coerceAtLeast(
+                0
+            )
+
+            boundedTargetIndex < currentFirstVisibleIndex -> (boundedTargetIndex + 10).coerceAtMost(
+                totalItemsCount - 1
+            )
+
+            else -> boundedTargetIndex
+        }
+    } else {
+        null
+    }
+
+    return ScrollToMessagePlan(
+        coarseIndex = coarseIndex,
+        shouldAnimateToIndex = distance > 0
+    )
+}
+
+internal fun calculateAlignmentDelta(
+    viewportStart: Int,
+    viewportEnd: Int,
+    itemOffset: Int,
+    itemSize: Int,
+    align: ScrollAlign
+): Float {
+    val viewportCenter = (viewportStart + viewportEnd) / 2
+    val targetPosition = when (align) {
+        ScrollAlign.Start -> viewportStart
+        ScrollAlign.Center -> viewportCenter - (itemSize / 2)
+        ScrollAlign.End -> viewportEnd - itemSize
+    }
+    return (itemOffset - targetPosition).toFloat()
 }
 
 internal fun buildViewportSnapshot(

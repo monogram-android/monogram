@@ -153,7 +153,6 @@ class DefaultChatComponent(
             autoplayVideos = appPreferences.autoplayVideos.value,
             isWhitelistedInAdBlock = appPreferences.adBlockWhitelistedChannels.value.contains(chatId),
             scrollToMessageId = initialMessageId,
-            highlightedMessageId = initialMessageId,
             lastScrollPosition = cacheProvider.getChatScrollPosition(chatId),
             lastSavedViewport = cacheProvider.getChatViewport(chatId, null),
             isInstalledFromGooglePlay = distrManager.isInstalledFromGooglePlay(),

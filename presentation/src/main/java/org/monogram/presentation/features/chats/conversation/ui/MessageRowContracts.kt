@@ -33,7 +33,6 @@ internal data class MessageRowBehaviorConfig(
 @Immutable
 internal data class MessageRowUiFlags(
     val isSelected: Boolean = false,
-    val isHighlighted: Boolean = false,
     val showUnreadSeparator: Boolean = false,
     val unreadCount: Int = 0,
     val shouldReportPosition: Boolean = false

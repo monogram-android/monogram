@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.map
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ChatScrollCommand
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
+import org.monogram.presentation.features.chats.conversation.logic.requestMessageHighlight
 
 @Composable
 internal fun ChatContentEffects(
@@ -148,6 +149,9 @@ internal fun ChatContentEffects(
                         animated = command.animated && state.isChatAnimationsEnabled,
                         staged = true
                     )
+                    if (command.highlight) {
+                        (component as? DefaultChatComponent)?.requestMessageHighlight(command.messageId)
+                    }
                 }
                 component.onScrollCommandConsumed()
             }

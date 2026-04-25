@@ -3,8 +3,6 @@ package org.monogram.presentation.features.chats.conversation.ui
 import android.content.res.Configuration
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,10 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -30,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -39,7 +33,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
-import kotlinx.coroutines.delay
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.MessageContent
@@ -70,7 +63,6 @@ internal fun MessageBubbleContainer(
     behavior: MessageRowBehaviorConfig,
     uiFlags: MessageRowUiFlags = MessageRowUiFlags(),
     senderGrouping: MessageSenderGrouping,
-    onHighlightConsumed: () -> Unit = {},
     onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit = {},
     onVideoClick: (MessageModel) -> Unit = {},
@@ -135,126 +127,96 @@ internal fun MessageBubbleContainer(
         }
     }
 
-    MessageHighlightLayer(
-        highlighted = uiFlags.isHighlighted,
-        onHighlightConsumed = onHighlightConsumed
-    ) {
-        MessageBubbleGestureLayer(
-            modifier = Modifier.padding(top = topSpacing),
-            canReply = behavior.canReply,
-            swipeEnabled = behavior.swipeEnabled,
-            dragOffsetX = dragOffsetX,
-            scope = coroutineScope,
-            maxWidth = maxWidth.value,
-            onReplySwipe = { onReplySwipeState(msg) },
-            layoutTracker = layoutTracker,
-            onOutsideBubblePress = { clickPosition ->
-                onReplyClickState(
-                    layoutTracker.bubblePosition,
-                    layoutTracker.bubbleSize,
-                    clickPosition
-                )
-            }
-        ) {
-            MessageBubbleShell(
-                isOutgoing = isOutgoing,
-                avatar = {
-                    MessageAvatar(
-                        avatarPath = msg.senderAvatar,
-                        fallbackPath = msg.senderPersonalAvatar,
-                        senderName = msg.senderName,
-                        senderId = msg.senderId,
-                        isVisible = behavior.isGroup && !isOutgoing && !senderGrouping.isSameSenderBelow,
-                        toProfile = toProfile
-                    )
-                    if (behavior.isGroup && !isOutgoing) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                },
-                content = {
-                    Box(modifier = Modifier.wrapContentSize()) {
-                        MessageBubbleContentHost(
-                            modifier = Modifier
-                                .width(IntrinsicSize.Max)
-                                .widthIn(max = maxWidth)
-                                .onGloballyPositioned { coordinates ->
-                                    layoutTracker.bubblePosition = coordinates.positionInWindow()
-                                    layoutTracker.bubbleSize = coordinates.size
-                                    if (uiFlags.shouldReportPosition) {
-                                        onPositionChangeState(
-                                            msg.id,
-                                            layoutTracker.bubblePosition,
-                                            layoutTracker.bubbleSize
-                                        )
-                                    }
-                                },
-                            msg = msg,
-                            newerMsg = newerMsg,
-                            isOutgoing = isOutgoing,
-                            senderGrouping = senderGrouping,
-                            isGroup = behavior.isGroup,
-                            appearance = appearance,
-                            onPhotoClick = onPhotoClick,
-                            onDownloadPhoto = onDownloadPhoto,
-                            onVideoClick = onVideoClick,
-                            onDocumentClick = onDocumentClick,
-                            onAudioClick = onAudioClick,
-                            onCancelDownload = onCancelDownload,
-                            onBubbleClick = onBubbleClick,
-                            onBubbleLongClick = onBubbleClick,
-                            onBubbleCenterLongClick = onBubbleCenterClick,
-                            onGoToReply = onGoToReply,
-                            onReactionClick = onReactionClick,
-                            onStickerClick = onStickerClick,
-                            onPollOptionClick = onPollOptionClick,
-                            onRetractVote = onRetractVote,
-                            onShowVoters = onShowVoters,
-                            onClosePoll = onClosePoll,
-                            onInstantViewClick = onInstantViewClick,
-                            onYouTubeClick = onYouTubeClick,
-                            onReplyMarkupButtonClick = onReplyMarkupButtonClick,
-                            toProfile = toProfile,
-                            onForwardOriginClick = onForwardOriginClick,
-                            onViaBotClick = onViaBotClick,
-                            downloadUtils = downloadUtils,
-                            isAnyViewerOpen = behavior.isAnyViewerOpen
-                        )
-
-                        FastReplyIndicator(
-                            modifier = Modifier.align(Alignment.CenterEnd),
-                            dragOffsetX = dragOffsetX,
-                            isOutgoing = isOutgoing,
-                            maxWidth = maxWidth
-                        )
-                    }
-                }
+    MessageBubbleGestureLayer(
+        modifier = Modifier.padding(top = topSpacing),
+        canReply = behavior.canReply,
+        swipeEnabled = behavior.swipeEnabled,
+        dragOffsetX = dragOffsetX,
+        scope = coroutineScope,
+        maxWidth = maxWidth.value,
+        onReplySwipe = { onReplySwipeState(msg) },
+        layoutTracker = layoutTracker,
+        onOutsideBubblePress = { clickPosition ->
+            onReplyClickState(
+                layoutTracker.bubblePosition,
+                layoutTracker.bubbleSize,
+                clickPosition
             )
         }
-    }
-}
-
-@Composable
-private fun MessageHighlightLayer(
-    highlighted: Boolean,
-    onHighlightConsumed: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    val highlightColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-    val animatedColor = remember { androidx.compose.animation.Animatable(Color.Transparent) }
-
-    LaunchedEffect(highlighted) {
-        if (highlighted) {
-            animatedColor.animateTo(highlightColor, animationSpec = tween(300))
-            delay(450)
-            animatedColor.animateTo(Color.Transparent, animationSpec = tween(1800))
-            onHighlightConsumed()
-        }
-    }
-
-    Box(
-        modifier = Modifier.background(animatedColor.value, RoundedCornerShape(12.dp))
     ) {
-        content()
+        MessageBubbleShell(
+            isOutgoing = isOutgoing,
+            avatar = {
+                MessageAvatar(
+                    avatarPath = msg.senderAvatar,
+                    fallbackPath = msg.senderPersonalAvatar,
+                    senderName = msg.senderName,
+                    senderId = msg.senderId,
+                    isVisible = behavior.isGroup && !isOutgoing && !senderGrouping.isSameSenderBelow,
+                    toProfile = toProfile
+                )
+                if (behavior.isGroup && !isOutgoing) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+            },
+            content = {
+                Box(modifier = Modifier.wrapContentSize()) {
+                    MessageBubbleContentHost(
+                        modifier = Modifier
+                            .width(IntrinsicSize.Max)
+                            .widthIn(max = maxWidth)
+                            .onGloballyPositioned { coordinates ->
+                                layoutTracker.bubblePosition = coordinates.positionInWindow()
+                                layoutTracker.bubbleSize = coordinates.size
+                                if (uiFlags.shouldReportPosition) {
+                                    onPositionChangeState(
+                                        msg.id,
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize
+                                    )
+                                }
+                            },
+                        msg = msg,
+                        newerMsg = newerMsg,
+                        isOutgoing = isOutgoing,
+                        senderGrouping = senderGrouping,
+                        isGroup = behavior.isGroup,
+                        appearance = appearance,
+                        onPhotoClick = onPhotoClick,
+                        onDownloadPhoto = onDownloadPhoto,
+                        onVideoClick = onVideoClick,
+                        onDocumentClick = onDocumentClick,
+                        onAudioClick = onAudioClick,
+                        onCancelDownload = onCancelDownload,
+                        onBubbleClick = onBubbleClick,
+                        onBubbleLongClick = onBubbleClick,
+                        onBubbleCenterLongClick = onBubbleCenterClick,
+                        onGoToReply = onGoToReply,
+                        onReactionClick = onReactionClick,
+                        onStickerClick = onStickerClick,
+                        onPollOptionClick = onPollOptionClick,
+                        onRetractVote = onRetractVote,
+                        onShowVoters = onShowVoters,
+                        onClosePoll = onClosePoll,
+                        onInstantViewClick = onInstantViewClick,
+                        onYouTubeClick = onYouTubeClick,
+                        onReplyMarkupButtonClick = onReplyMarkupButtonClick,
+                        toProfile = toProfile,
+                        onForwardOriginClick = onForwardOriginClick,
+                        onViaBotClick = onViaBotClick,
+                        downloadUtils = downloadUtils,
+                        isAnyViewerOpen = behavior.isAnyViewerOpen
+                    )
+
+                    FastReplyIndicator(
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        dragOffsetX = dragOffsetX,
+                        isOutgoing = isOutgoing,
+                        maxWidth = maxWidth
+                    )
+                }
+            }
+        )
     }
 }
 

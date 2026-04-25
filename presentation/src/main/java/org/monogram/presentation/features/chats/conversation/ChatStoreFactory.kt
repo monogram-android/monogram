@@ -237,7 +237,7 @@ class ChatStoreFactory(
                         )
                     }
                 }
-                is Intent.HighlightConsumed -> component._state.update { it.copy(highlightedMessageId = null) }
+                is Intent.HighlightConsumed -> component._state.update { it.copy(highlightRequest = null) }
                 is Intent.Typing -> { /* Handle typing */
                 }
 

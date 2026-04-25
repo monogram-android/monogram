@@ -54,13 +54,13 @@ internal fun DefaultChatComponent.handleSendSticker(stickerId: String) {
         val replyId = currentState.replyMessage?.id
         val threadId = currentState.effectiveThreadId()
         val targetChatId = currentState.effectiveThreadChatId(chatId)
+        onCancelReply()
         repositoryMessage.sendSticker(
             targetChatId,
             stickerId,
             replyToMsgId = replyId,
             threadId = threadId
         )
-        onCancelReply()
         if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }

@@ -46,9 +46,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.webapp.PageBlockCaption
 import org.monogram.domain.models.webapp.RichText
-import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
-import org.monogram.presentation.features.chats.currentChat.components.VideoType
-import org.monogram.presentation.features.chats.currentChat.components.chats.normalizeUrl
+import org.monogram.presentation.core.media.VideoStickerPlayer
+import org.monogram.presentation.core.media.VideoType
+import org.monogram.presentation.features.chats.conversation.ui.message.normalizeUrl
 import org.monogram.presentation.features.stickers.ui.view.shimmerEffect
 
 @Composable

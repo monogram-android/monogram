@@ -2,7 +2,7 @@ package org.monogram.presentation.settings.storage
 
 import android.content.Context
 import coil3.imageLoader
-import org.monogram.presentation.features.chats.currentChat.components.ExoPlayerCache
+import org.monogram.presentation.core.media.ExoPlayerCache
 import java.io.File
 
 class CacheController(val context: Context, val exoPlayerCache: ExoPlayerCache) {

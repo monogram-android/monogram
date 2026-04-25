@@ -68,8 +68,8 @@ import org.koin.compose.koinInject
 import org.monogram.domain.models.GifModel
 import org.monogram.domain.repository.GifRepository
 import org.monogram.presentation.R
-import org.monogram.presentation.features.chats.currentChat.components.VideoStickerPlayer
-import org.monogram.presentation.features.chats.currentChat.components.VideoType
+import org.monogram.presentation.core.media.VideoStickerPlayer
+import org.monogram.presentation.core.media.VideoType
 import org.monogram.presentation.features.stickers.ui.view.shimmerEffect
 
 @androidx.annotation.OptIn(UnstableApi::class)

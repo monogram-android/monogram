@@ -103,6 +103,7 @@ fun ImagePage(
     pagerIndex: Int
 ) {
     val scope = rememberCoroutineScope()
+
     Box(
         modifier = Modifier
             .fillMaxSize()

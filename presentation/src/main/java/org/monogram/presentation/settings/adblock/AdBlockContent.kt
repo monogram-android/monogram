@@ -28,7 +28,7 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.domain.models.ChatModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
-import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
+import org.monogram.presentation.core.ui.SettingsTextField
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.SettingsTile

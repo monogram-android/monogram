@@ -139,7 +139,7 @@ import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.SettingsTile
 import org.monogram.presentation.core.util.EmojiStyle
 import org.monogram.presentation.core.util.NightMode
-import org.monogram.presentation.features.chats.currentChat.components.chats.getEmojiFontFamily
+import org.monogram.presentation.features.chats.conversation.ui.message.getEmojiFontFamily
 import org.monogram.presentation.settings.chatSettings.components.ChatListPreview
 import org.monogram.presentation.settings.chatSettings.components.ChatSettingsPreview
 import org.monogram.presentation.settings.chatSettings.components.WallpaperItem

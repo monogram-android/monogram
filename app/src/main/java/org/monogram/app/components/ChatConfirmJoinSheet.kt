@@ -15,7 +15,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.monogram.app.R
-import org.monogram.presentation.features.chats.chatList.components.AvatarTopAppBar
+import org.monogram.presentation.features.chats.list.components.AvatarTopAppBar
 import org.monogram.presentation.root.RootComponent
 
 @OptIn(ExperimentalMaterial3Api::class)

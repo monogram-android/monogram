@@ -1,10 +1,18 @@
 package org.monogram.presentation.features.viewers
 
-import android.util.Log
+import androidx.annotation.OptIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.media3.common.util.UnstableApi
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.features.viewers.components.VideoPage
 
+@OptIn(UnstableApi::class)
 @Composable
 fun VideoViewer(
     path: String,
@@ -36,29 +44,55 @@ fun VideoViewer(
         return
     }
 
-    Log.d("VideoViewer", "Composing VideoViewer for path=$effectivePath, fileId=$fileId")
+    val scope = rememberCoroutineScope()
+    val hostState = rememberFullscreenViewerHostState()
 
-    val mediaItems = remember(effectivePath) { listOf(effectivePath) }
-    val captions = remember(caption) { listOf(caption) }
-    val fileIds = remember(fileId) { listOf(fileId) }
+    var showControls by remember { mutableStateOf(true) }
+    var showSettingsMenu by remember { mutableStateOf(false) }
+    var currentVideoInPipMode by remember { mutableStateOf(false) }
 
-    MediaViewer(
-        mediaItems = mediaItems,
-        startIndex = 0,
+    LaunchedEffect(effectivePath, fileId, supportsStreaming) {
+        hostState.zoomState.resetInstant(scope)
+        hostState.rootState.resetInstant(scope)
+        showSettingsMenu = false
+        currentVideoInPipMode = false
+    }
+
+    FullscreenViewerHost(
         onDismiss = onDismiss,
-        onForward = onForward,
-        onDelete = onDelete,
-        onCopyLink = onCopyLink,
-        onCopyText = onCopyText,
-        onSaveGif = onSaveGif,
-        captions = captions,
-        fileIds = fileIds,
-        supportsStreaming = supportsStreaming,
-        downloadUtils = downloadUtils,
-        isGesturesEnabled = isGesturesEnabled,
-        isDoubleTapSeekEnabled = isDoubleTapSeekEnabled,
-        seekDuration = seekDuration,
-        isZoomEnabled = isZoomEnabled,
-        isAlwaysVideo = true
-    )
+        showControls = showControls,
+        showSettingsMenu = showSettingsMenu,
+        isInPictureInPicture = currentVideoInPipMode,
+        onCloseSettingsMenu = { showSettingsMenu = false },
+        hostState = hostState
+    ) {
+        VideoPage(
+            path = effectivePath,
+            fileId = fileId,
+            caption = caption,
+            supportsStreaming = supportsStreaming,
+            downloadUtils = downloadUtils,
+            onDismiss = onDismiss,
+            showControls = showControls,
+            onToggleControls = { showControls = !showControls },
+            onForward = onForward,
+            onDelete = onDelete,
+            onCopyLink = onCopyLink,
+            onCopyText = onCopyText,
+            onSaveGif = onSaveGif,
+            showSettingsMenu = showSettingsMenu,
+            onToggleSettings = { showSettingsMenu = !showSettingsMenu },
+            isGesturesEnabled = isGesturesEnabled,
+            isDoubleTapSeekEnabled = isDoubleTapSeekEnabled,
+            seekDuration = seekDuration,
+            isZoomEnabled = isZoomEnabled,
+            isActive = true,
+            onCurrentVideoPipModeChanged = { currentVideoInPipMode = it },
+            zoomState = zoomState,
+            rootState = rootState,
+            screenHeightPx = screenHeightPx,
+            dismissDistancePx = dismissDistancePx,
+            dismissVelocityThreshold = dismissVelocityThreshold
+        )
+    }
 }

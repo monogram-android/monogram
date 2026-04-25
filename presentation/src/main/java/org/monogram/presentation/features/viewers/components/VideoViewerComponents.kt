@@ -294,7 +294,6 @@ fun VideoPage(
         exoPlayer.addListener(listener)
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
-            Log.d(TAG, "Disposing ExoPlayer for $path")
             lifecycleOwner.lifecycle.removeObserver(observer)
             exoPlayer.removeListener(listener)
             exoPlayer.release()

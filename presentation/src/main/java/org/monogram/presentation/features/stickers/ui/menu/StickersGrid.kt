@@ -70,7 +70,7 @@ import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
-import org.monogram.presentation.features.chats.currentChat.components.StickerSetSheet
+import org.monogram.presentation.features.chats.conversation.ui.StickerSetSheet
 import org.monogram.presentation.features.stickers.ui.view.LocalIsScrolling
 import org.monogram.presentation.features.stickers.ui.view.StickerItem
 import org.monogram.presentation.features.stickers.ui.view.StickerSkeleton

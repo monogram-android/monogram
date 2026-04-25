@@ -1,6 +1,13 @@
 package org.monogram.presentation.settings.chatSettings.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -19,10 +26,19 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import org.monogram.domain.models.*
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.models.MessageEntityType
+import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageReactionModel
+import org.monogram.domain.models.WallpaperModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
-import org.monogram.presentation.features.chats.currentChat.components.MessageBubbleContainer
+import org.monogram.presentation.features.chats.conversation.ui.MessageAppearanceConfig
+import org.monogram.presentation.features.chats.conversation.ui.MessageBubbleContainer
+import org.monogram.presentation.features.chats.conversation.ui.MessageRowBehaviorConfig
+import org.monogram.presentation.features.chats.conversation.ui.buildSenderGrouping
+import org.monogram.presentation.features.chats.conversation.ui.content.GroupedMessageItem
 import java.io.File
 
 @Composable
@@ -217,18 +233,33 @@ fun ChatSettingsPreview(
 
                     MessageBubbleContainer(
                         msg = msg,
-                        olderMsg = olderMsg,
                         newerMsg = newerMsg,
-                        isGroup = true,
-                        fontSize = fontSize,
-                        letterSpacing = letterSpacing,
-                        bubbleRadius = bubbleRadius,
-                        autoDownloadMobile = true,
-                        autoDownloadWifi = true,
-                        autoDownloadRoaming = false,
-                        autoDownloadFiles = false,
-                        autoplayGifs = true,
-                        autoplayVideos = true,
+                        appearance = MessageAppearanceConfig(
+                            fontSize = fontSize,
+                            letterSpacing = letterSpacing,
+                            bubbleRadius = bubbleRadius,
+                            stickerSize = 200f,
+                            autoDownloadMobile = true,
+                            autoDownloadWifi = true,
+                            autoDownloadRoaming = false,
+                            autoDownloadFiles = false,
+                            autoplayGifs = true,
+                            autoplayVideos = true
+                        ),
+                        behavior = MessageRowBehaviorConfig(
+                            isGroup = true,
+                            isChannel = false,
+                            isTopicClosed = false,
+                            canReply = false,
+                            swipeEnabled = false,
+                            isSelectionMode = false,
+                            isAnyViewerOpen = false
+                        ),
+                        senderGrouping = buildSenderGrouping(
+                            item = GroupedMessageItem.Single(msg),
+                            olderMsg = olderMsg,
+                            newerMsg = newerMsg
+                        ),
                         onPhotoClick = onPhotoClick,
                         onReplyClick = onReplyClick,
                         toProfile = toProfile,

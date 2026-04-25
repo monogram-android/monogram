@@ -30,9 +30,9 @@ import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
-import org.monogram.presentation.features.chats.currentChat.components.chats.MessageText
-import org.monogram.presentation.features.chats.currentChat.components.chats.buildAnnotatedMessageTextWithEmoji
-import org.monogram.presentation.features.chats.currentChat.components.chats.rememberMessageInlineContent
+import org.monogram.presentation.features.chats.conversation.ui.message.MessageText
+import org.monogram.presentation.features.chats.conversation.ui.message.buildAnnotatedMessageTextWithEmoji
+import org.monogram.presentation.features.chats.conversation.ui.message.rememberMessageInlineContent
 import org.monogram.presentation.features.profile.logs.ProfileLogsComponent
 import java.io.File
 

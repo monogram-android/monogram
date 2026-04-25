@@ -22,7 +22,7 @@ import org.monogram.domain.repository.PushProvider
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.LocalVideoPlayerPool
 import org.monogram.presentation.core.util.NightMode
-import org.monogram.presentation.features.chats.currentChat.components.chats.LocalLinkHandler
+import org.monogram.presentation.features.chats.conversation.ui.message.LocalLinkHandler
 import org.monogram.presentation.root.DefaultAppComponentContext
 import org.monogram.presentation.root.DefaultRootComponent
 import org.monogram.presentation.root.RootComponent

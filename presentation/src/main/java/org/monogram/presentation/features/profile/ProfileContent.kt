@@ -74,7 +74,7 @@ import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.core.util.getUserStatusText
-import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
+import org.monogram.presentation.core.ui.SettingsTextField
 import org.monogram.presentation.features.profile.components.LocationViewer
 import org.monogram.presentation.features.profile.components.ProfileHeaderTransformed
 import org.monogram.presentation.features.profile.components.ProfileInfoSection

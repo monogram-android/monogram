@@ -115,7 +115,7 @@ import org.monogram.domain.models.StatisticsType
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.coRunCatching
-import org.monogram.presentation.features.chats.chatList.components.SectionHeader
+import org.monogram.presentation.core.ui.SectionHeader
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

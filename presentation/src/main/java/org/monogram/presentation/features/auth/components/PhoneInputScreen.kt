@@ -102,7 +102,7 @@ import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.util.Country
 import org.monogram.presentation.core.util.CountryManager
-import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
+import org.monogram.presentation.core.ui.SettingsTextField
 import java.util.Locale
 
 enum class ActiveField {

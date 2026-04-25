@@ -109,11 +109,11 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.SettingsTile
-import org.monogram.presentation.features.chats.chatList.components.SectionHeader
-import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
-import org.monogram.presentation.features.chats.currentChat.components.inputbar.ScheduleDatePickerDialog
-import org.monogram.presentation.features.chats.currentChat.components.inputbar.ScheduleTimePickerDialog
-import org.monogram.presentation.features.chats.currentChat.components.inputbar.buildScheduledDateEpochSeconds
+import org.monogram.presentation.core.ui.SectionHeader
+import org.monogram.presentation.core.ui.SettingsTextField
+import org.monogram.presentation.features.chats.conversation.ui.inputbar.ScheduleDatePickerDialog
+import org.monogram.presentation.features.chats.conversation.ui.inputbar.ScheduleTimePickerDialog
+import org.monogram.presentation.features.chats.conversation.ui.inputbar.buildScheduledDateEpochSeconds
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date

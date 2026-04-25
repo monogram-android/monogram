@@ -50,8 +50,8 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.util.FileUtils
-import org.monogram.presentation.features.chats.chatList.components.SectionHeader
-import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
+import org.monogram.presentation.core.ui.SectionHeader
+import org.monogram.presentation.core.ui.SettingsTextField
 import java.util.*
 
 private const val MAP_STYLE = "https://tiles.openfreemap.org/styles/bright"

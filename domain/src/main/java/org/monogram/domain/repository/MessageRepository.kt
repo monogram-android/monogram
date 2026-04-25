@@ -184,7 +184,8 @@ interface MessageRepository :
         query: String,
         fromMessageId: Long = 0,
         limit: Int = 50,
-        threadId: Long? = null
+        threadId: Long? = null,
+        senderId: Long? = null
     ): SearchChatMessagesResult
 
     fun updateVisibleRange(chatId: Long, visibleMessageIds: List<Long>, nearbyMessageIds: List<Long>)

@@ -145,7 +145,7 @@ import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
-import org.monogram.presentation.features.chats.currentChat.components.chats.normalizeUrl
+import org.monogram.presentation.features.chats.conversation.ui.message.normalizeUrl
 import org.monogram.presentation.features.instantview.components.AsyncImageWithDownload
 import org.monogram.presentation.features.instantview.components.AsyncVideoWithDownload
 import org.monogram.presentation.features.instantview.components.LocalFileRepository

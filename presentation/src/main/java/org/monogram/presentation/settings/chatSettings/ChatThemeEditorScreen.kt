@@ -36,7 +36,7 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.util.NightMode
 import org.monogram.presentation.core.util.coRunCatching
-import org.monogram.presentation.features.chats.chatList.components.SettingsTextField
+import org.monogram.presentation.core.ui.SettingsTextField
 import java.util.*
 
 private enum class PaletteMode { LIGHT, DARK }

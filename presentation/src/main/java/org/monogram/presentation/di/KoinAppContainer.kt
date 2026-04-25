@@ -58,8 +58,8 @@ import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.domain.repository.WebAppRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
-import org.monogram.presentation.features.chats.currentChat.components.ExoPlayerCache
-import org.monogram.presentation.features.chats.currentChat.components.VideoPlayerPool
+import org.monogram.presentation.core.media.ExoPlayerCache
+import org.monogram.presentation.core.media.VideoPlayerPool
 import org.monogram.presentation.settings.storage.CacheController
 
 class KoinAppContainer(koin: Koin) : AppContainer {

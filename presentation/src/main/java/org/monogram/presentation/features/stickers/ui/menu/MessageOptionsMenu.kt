@@ -136,8 +136,8 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.DateFormatManager
-import org.monogram.presentation.features.chats.currentChat.chatContent.DeleteMessagesSheet
-import org.monogram.presentation.features.chats.currentChat.components.chats.getEmojiFontFamily
+import org.monogram.presentation.features.chats.conversation.ui.content.DeleteMessagesSheet
+import org.monogram.presentation.features.chats.conversation.ui.message.getEmojiFontFamily
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import java.text.SimpleDateFormat
 import java.util.Date

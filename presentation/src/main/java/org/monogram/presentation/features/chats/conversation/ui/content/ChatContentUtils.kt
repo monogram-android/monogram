@@ -3,7 +3,8 @@ package org.monogram.presentation.features.chats.conversation.ui.content
 import androidx.compose.runtime.Immutable
 import org.monogram.domain.models.MessageModel
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 @Immutable
 sealed class GroupedMessageItem {
@@ -80,13 +81,8 @@ fun findFirstUnreadBoundary(
 }
 
 fun shouldShowDate(current: MessageModel, older: MessageModel?): Boolean {
-    val currentTimestamp = System.currentTimeMillis()
     val msgTimestamp = current.date.toLong() * 1000
     val fmt = SimpleDateFormat("yyyyDDD", Locale.US)
-
-    if (fmt.format(Date(currentTimestamp)) == fmt.format(Date(msgTimestamp))) {
-        return false
-    }
 
     if (older == null) return true
     return !fmt.format(Date(msgTimestamp)).equals(fmt.format(Date(older.date.toLong() * 1000)))

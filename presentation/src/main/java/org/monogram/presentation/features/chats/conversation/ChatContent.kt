@@ -711,7 +711,8 @@ fun ChatContent(
                                 showNavPadding = false,
                                 topOverlayPadding = if (
                                     (state.viewAsTopics && state.currentTopicId == null) ||
-                                    state.rootMessage != null
+                                    state.rootMessage != null ||
+                                    topOverlayHeight > 0.dp
                                 ) {
                                     topOverlayHeight
                                 } else {

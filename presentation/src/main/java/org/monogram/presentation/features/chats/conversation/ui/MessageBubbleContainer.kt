@@ -147,15 +147,15 @@ internal fun MessageBubbleContainer(
         MessageBubbleShell(
             isOutgoing = isOutgoing,
             avatar = {
-                MessageAvatar(
-                    avatarPath = msg.senderAvatar,
-                    fallbackPath = msg.senderPersonalAvatar,
-                    senderName = msg.senderName,
-                    senderId = msg.senderId,
-                    isVisible = behavior.isGroup && !isOutgoing && !senderGrouping.isSameSenderBelow,
-                    toProfile = toProfile
-                )
                 if (behavior.isGroup && !isOutgoing) {
+                    MessageAvatar(
+                        avatarPath = msg.senderAvatar,
+                        fallbackPath = msg.senderPersonalAvatar,
+                        senderName = msg.senderName,
+                        senderId = msg.senderId,
+                        isVisible = !senderGrouping.isSameSenderBelow,
+                        toProfile = toProfile
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
             },

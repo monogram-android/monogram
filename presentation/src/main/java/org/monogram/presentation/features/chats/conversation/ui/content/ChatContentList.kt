@@ -9,7 +9,11 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,10 +31,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -67,15 +73,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -100,6 +109,7 @@ import org.monogram.presentation.features.chats.conversation.ui.ServiceMessage
 import org.monogram.presentation.features.chats.conversation.ui.UnreadMessagesSeparator
 import org.monogram.presentation.features.chats.conversation.ui.buildSenderGrouping
 import org.monogram.presentation.features.chats.conversation.ui.channel.ChannelMessageBubbleContainer
+import org.monogram.presentation.features.chats.conversation.ui.formatChatDayLabel
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import java.io.File
 
@@ -181,6 +191,7 @@ fun ChatContentList(
 ) {
     val isComments = state.isComments
     val appearance = state.toAppearanceConfig()
+    val density = LocalDensity.current
     val isScrolling by remember(scrollState) { derivedStateOf { scrollState.isScrollInProgress } }
     val latestState by rememberUpdatedState(state)
     var lastOlderLoadTriggerUptimeMs by remember { mutableLongStateOf(0L) }
@@ -258,6 +269,44 @@ fun ChatContentList(
                 val groupedIndex = lazyIndexToGroupedIndex(visibleItem.index, leadingItems)
                 groupedMessages.getOrNull(groupedIndex)?.firstMessageId
             }.toSet()
+        }
+    }
+    val visibleDayLabel by remember(
+        scrollState,
+        groupedMessages,
+        isComments,
+        showNavPadding,
+        density,
+        topOverlayPadding,
+        state.isLoadingOlder,
+        state.isLoadingNewer,
+        state.isAtBottom
+    ) {
+        derivedStateOf {
+            if (!scrollState.isScrollInProgress || groupedMessages.isEmpty()) {
+                return@derivedStateOf null
+            }
+
+            val layoutInfo = scrollState.layoutInfo
+            val leadingItems = chatContentLeadingItemsCount(
+                isComments = isComments,
+                showNavPadding = showNavPadding,
+                isLoadingOlder = state.isLoadingOlder,
+                isLoadingNewer = state.isLoadingNewer,
+                isAtBottom = state.isAtBottom,
+                hasMessages = groupedMessages.isNotEmpty()
+            )
+            val viewportTopOffset = with(density) {
+                layoutInfo.viewportStartOffset + topOverlayPadding.roundToPx()
+            }
+            val anchor = layoutInfo.visibleItemsInfo
+                .topAnchoredGroupedItem(
+                    groupedMessages = groupedMessages,
+                    leadingItemsCount = leadingItems,
+                    viewportTopOffset = viewportTopOffset
+                )
+                ?: return@derivedStateOf null
+            formatChatDayLabel(anchor.mainTimestamp())
         }
     }
 
@@ -393,190 +442,254 @@ fun ChatContentList(
         return
     }
 
-    LazyColumn(
-        state = scrollState,
-        modifier = modifier
-            .fillMaxSize()
-            .semantics { contentDescription = "ChatMessages" },
-        reverseLayout = !isComments,
-        contentPadding = PaddingValues(
-            top = if (isComments) topOverlayPadding + 8.dp else 8.dp,
-            bottom = bottomContentPadding
-        )
-    ) {
-        if (isComments && state.isLoadingOlder && groupedMessages.isNotEmpty()) {
-            item(key = "loading_older_top") {
-                PagingLoadingIndicator()
-            }
-        }
-
-        if (!isComments && state.isLoadingNewer && !state.isAtBottom && groupedMessages.isNotEmpty()) {
-            item(key = "loading_newer_bottom") {
-                PagingLoadingIndicator()
-            }
-        }
-
-        if (isComments) {
-            item(key = "root_header") {
-                RootMessageSection(
-                    state,
-                    component,
-                    onPhotoClick,
-                    onPhotoDownload,
-                    onVideoClick,
-                    onDocumentClick,
-                    onAudioClick,
-                    onMessageOptionsClick,
-                    onGoToReply,
-                    onViaBotClick,
-                    toProfile,
-                    onForwardOriginClick,
-                    downloadUtils,
-                    isAnyViewerOpen = isAnyViewerOpen
-                )
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            state = scrollState,
+            modifier = Modifier
+                .fillMaxSize()
+                .semantics { contentDescription = "ChatMessages" },
+            reverseLayout = !isComments,
+            contentPadding = PaddingValues(
+                top = topOverlayPadding + 8.dp,
+                bottom = bottomContentPadding
+            )
+        ) {
+            if (isComments && state.isLoadingOlder && groupedMessages.isNotEmpty()) {
+                item(key = "loading_older_top") {
+                    PagingLoadingIndicator()
+                }
             }
 
-            itemsIndexed(
-                items = groupedMessages,
-                key = { _, item ->
-                    when (item) {
-                        is GroupedMessageItem.Single -> "msg_${item.message.id}"
-                        is GroupedMessageItem.Album -> "album_${item.albumId}"
+            if (!isComments && state.isLoadingNewer && !state.isAtBottom && groupedMessages.isNotEmpty()) {
+                item(key = "loading_newer_bottom") {
+                    PagingLoadingIndicator()
+                }
+            }
+
+            if (isComments) {
+                item(key = "root_header") {
+                    RootMessageSection(
+                        state,
+                        component,
+                        onPhotoClick,
+                        onPhotoDownload,
+                        onVideoClick,
+                        onDocumentClick,
+                        onAudioClick,
+                        onMessageOptionsClick,
+                        onGoToReply,
+                        onViaBotClick,
+                        toProfile,
+                        onForwardOriginClick,
+                        downloadUtils,
+                        isAnyViewerOpen = isAnyViewerOpen
+                    )
+                }
+
+                itemsIndexed(
+                    items = groupedMessages,
+                    key = { _, item ->
+                        when (item) {
+                            is GroupedMessageItem.Single -> "msg_${item.message.id}"
+                            is GroupedMessageItem.Album -> "album_${item.albumId}"
+                        }
+                    },
+                    contentType = { _, item ->
+                        when (item) {
+                            is GroupedMessageItem.Single -> "single"
+                            is GroupedMessageItem.Album -> "album"
+                        }
                     }
-                },
-                contentType = { _, item ->
-                    when (item) {
-                        is GroupedMessageItem.Single -> "single"
-                        is GroupedMessageItem.Album -> "album"
+                ) { index, item ->
+                    val olderMsg = remember(groupedMessages, index) {
+                        getMessageAt(
+                            groupedMessages,
+                            index - 1
+                        )
+                    }
+                    val newerMsg = remember(groupedMessages, index) {
+                        getMessageAt(
+                            groupedMessages,
+                            index + 1
+                        )
+                    }
+
+                    MessageRowItem(
+                        item = item,
+                        appearance = appearance,
+                        component = component,
+                        olderMsg = olderMsg,
+                        newerMsg = newerMsg,
+                        behavior = state.toBehaviorConfig(
+                            isSelectionMode = state.selectedMessageIds.isNotEmpty(),
+                            isAnyViewerOpen = isAnyViewerOpen
+                        ),
+                        uiFlags = MessageRowUiFlags(
+                            isSelected = isItemSelected(item, state.selectedMessageIds),
+                            showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
+                            unreadCount = state.unreadSeparatorCount,
+                            shouldReportPosition = item.lastMessageId == selectedMessageId
+                        ),
+                        highlightRequest = highlightRequestForItem(item, state.highlightRequest),
+                        isTargetVisibleInViewport = item.firstMessageId in visibleGroupedMessageIds,
+                        rootMessageId = state.rootMessage?.id,
+                        onPhotoClick = onPhotoClick,
+                        onPhotoDownload = onPhotoDownload,
+                        onVideoClick = onVideoClick,
+                        onDocumentClick = onDocumentClick,
+                        onAudioClick = onAudioClick,
+                        onMessageOptionsClick = onMessageOptionsClick,
+                        onGoToReply = onGoToReply,
+                        onMessagePositionChange = onMessagePositionChange,
+                        onViaBotClick = onViaBotClick,
+                        toProfile = toProfile,
+                        onForwardOriginClick = onForwardOriginClick,
+                        isChatAnimationsEnabled = state.isChatAnimationsEnabled,
+                        isScrolling = isScrolling,
+                        isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
+                        onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
+                        downloadUtils = downloadUtils
+                    )
+                }
+            } else {
+                if (showNavPadding) {
+                    item {
+                        Spacer(
+                            modifier = Modifier.height(
+                                WindowInsets.navigationBars
+                                    .asPaddingValues()
+                                    .calculateBottomPadding()
+                            )
+                        )
                     }
                 }
-            ) { index, item ->
-                val olderMsg = remember(groupedMessages, index) { getMessageAt(groupedMessages, index - 1) }
-                val newerMsg = remember(groupedMessages, index) { getMessageAt(groupedMessages, index + 1) }
-
-                MessageRowItem(
-                    item = item,
-                    appearance = appearance,
-                    component = component,
-                    olderMsg = olderMsg,
-                    newerMsg = newerMsg,
-                    behavior = state.toBehaviorConfig(
-                        isSelectionMode = state.selectedMessageIds.isNotEmpty(),
-                        isAnyViewerOpen = isAnyViewerOpen
-                    ),
-                    uiFlags = MessageRowUiFlags(
-                        isSelected = isItemSelected(item, state.selectedMessageIds),
-                        showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
-                        unreadCount = state.unreadSeparatorCount,
-                        shouldReportPosition = item.lastMessageId == selectedMessageId
-                    ),
-                    highlightRequest = highlightRequestForItem(item, state.highlightRequest),
-                    isTargetVisibleInViewport = item.firstMessageId in visibleGroupedMessageIds,
-                    rootMessageId = state.rootMessage?.id,
-                    onPhotoClick = onPhotoClick,
-                    onPhotoDownload = onPhotoDownload,
-                    onVideoClick = onVideoClick,
-                    onDocumentClick = onDocumentClick,
-                    onAudioClick = onAudioClick,
-                    onMessageOptionsClick = onMessageOptionsClick,
-                    onGoToReply = onGoToReply,
-                    onMessagePositionChange = onMessagePositionChange,
-                    onViaBotClick = onViaBotClick,
-                    toProfile = toProfile,
-                    onForwardOriginClick = onForwardOriginClick,
-                    isChatAnimationsEnabled = state.isChatAnimationsEnabled,
-                    isScrolling = isScrolling,
-                    isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
-                    onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
-                    downloadUtils = downloadUtils
-                )
-            }
-        } else {
-            if (showNavPadding) {
-                item {
-                    Spacer(
-                        modifier = Modifier.height(
-                            WindowInsets.navigationBars
-                                .asPaddingValues()
-                                .calculateBottomPadding()
+                itemsIndexed(
+                    items = groupedMessages,
+                    key = { _, item ->
+                        when (item) {
+                            is GroupedMessageItem.Single -> "msg_${item.message.id}"
+                            is GroupedMessageItem.Album -> "album_${item.albumId}"
+                        }
+                    },
+                    contentType = { _, item ->
+                        when (item) {
+                            is GroupedMessageItem.Single -> "single"
+                            is GroupedMessageItem.Album -> "album"
+                        }
+                    }
+                ) { index, item ->
+                    val olderMsg = remember(groupedMessages, index) {
+                        getMessageAt(
+                            groupedMessages,
+                            index + 1
                         )
+                    }
+                    val newerMsg = remember(groupedMessages, index) {
+                        getMessageAt(
+                            groupedMessages,
+                            index - 1
+                        )
+                    }
+
+                    MessageRowItem(
+                        item = item,
+                        appearance = appearance,
+                        component = component,
+                        olderMsg = olderMsg,
+                        newerMsg = newerMsg,
+                        behavior = state.toBehaviorConfig(
+                            isSelectionMode = state.selectedMessageIds.isNotEmpty(),
+                            isAnyViewerOpen = isAnyViewerOpen
+                        ),
+                        uiFlags = MessageRowUiFlags(
+                            isSelected = isItemSelected(item, state.selectedMessageIds),
+                            showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
+                            unreadCount = state.unreadSeparatorCount,
+                            shouldReportPosition = item.lastMessageId == selectedMessageId
+                        ),
+                        highlightRequest = highlightRequestForItem(item, state.highlightRequest),
+                        isTargetVisibleInViewport = item.firstMessageId in visibleGroupedMessageIds,
+                        rootMessageId = state.rootMessage?.id,
+                        onPhotoClick = onPhotoClick,
+                        onPhotoDownload = onPhotoDownload,
+                        onVideoClick = onVideoClick,
+                        onDocumentClick = onDocumentClick,
+                        onAudioClick = onAudioClick,
+                        onMessageOptionsClick = onMessageOptionsClick,
+                        onGoToReply = onGoToReply,
+                        onMessagePositionChange = onMessagePositionChange,
+                        onViaBotClick = onViaBotClick,
+                        toProfile = toProfile,
+                        onForwardOriginClick = onForwardOriginClick,
+                        isChatAnimationsEnabled = state.isChatAnimationsEnabled,
+                        isScrolling = isScrolling,
+                        isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
+                        onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
+                        downloadUtils = downloadUtils
                     )
                 }
             }
-            itemsIndexed(
-                items = groupedMessages,
-                key = { _, item ->
-                    when (item) {
-                        is GroupedMessageItem.Single -> "msg_${item.message.id}"
-                        is GroupedMessageItem.Album -> "album_${item.albumId}"
-                    }
-                },
-                contentType = { _, item ->
-                    when (item) {
-                        is GroupedMessageItem.Single -> "single"
-                        is GroupedMessageItem.Album -> "album"
-                    }
+
+            if (isComments && state.isLoadingNewer && groupedMessages.isNotEmpty()) {
+                item(key = "loading_newer_bottom") {
+                    PagingLoadingIndicator()
                 }
-            ) { index, item ->
-                val olderMsg = remember(groupedMessages, index) { getMessageAt(groupedMessages, index + 1) }
-                val newerMsg = remember(groupedMessages, index) { getMessageAt(groupedMessages, index - 1) }
+            }
 
-                MessageRowItem(
-                    item = item,
-                    appearance = appearance,
-                    component = component,
-                    olderMsg = olderMsg,
-                    newerMsg = newerMsg,
-                    behavior = state.toBehaviorConfig(
-                        isSelectionMode = state.selectedMessageIds.isNotEmpty(),
-                        isAnyViewerOpen = isAnyViewerOpen
+            if (!isComments && state.isLoadingOlder && groupedMessages.isNotEmpty()) {
+                item(key = "loading_older_top") {
+                    PagingLoadingIndicator()
+                }
+            }
+
+            if (state.isLoading && groupedMessages.isNotEmpty() && !state.isLoadingOlder && !state.isLoadingNewer) {
+                item(key = "loading_indicator") {
+                    PagingLoadingIndicator()
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = visibleDayLabel != null,
+            enter = fadeIn(animationSpec = tween(durationMillis = 140)) +
+                    slideInVertically(
+                        animationSpec = tween(durationMillis = 180),
+                        initialOffsetY = { -it / 2 }
                     ),
-                    uiFlags = MessageRowUiFlags(
-                        isSelected = isItemSelected(item, state.selectedMessageIds),
-                        showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
-                        unreadCount = state.unreadSeparatorCount,
-                        shouldReportPosition = item.lastMessageId == selectedMessageId
+            exit = fadeOut(animationSpec = tween(durationMillis = 180)) +
+                    slideOutVertically(
+                        animationSpec = tween(durationMillis = 180),
+                        targetOffsetY = { -it / 3 }
                     ),
-                    highlightRequest = highlightRequestForItem(item, state.highlightRequest),
-                    isTargetVisibleInViewport = item.firstMessageId in visibleGroupedMessageIds,
-                    rootMessageId = state.rootMessage?.id,
-                    onPhotoClick = onPhotoClick,
-                    onPhotoDownload = onPhotoDownload,
-                    onVideoClick = onVideoClick,
-                    onDocumentClick = onDocumentClick,
-                    onAudioClick = onAudioClick,
-                    onMessageOptionsClick = onMessageOptionsClick,
-                    onGoToReply = onGoToReply,
-                    onMessagePositionChange = onMessagePositionChange,
-                    onViaBotClick = onViaBotClick,
-                    toProfile = toProfile,
-                    onForwardOriginClick = onForwardOriginClick,
-                    isChatAnimationsEnabled = state.isChatAnimationsEnabled,
-                    isScrolling = isScrolling,
-                    isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
-                    onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
-                    downloadUtils = downloadUtils
-                )
-            }
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(1f)
+                .offset {
+                    IntOffset(
+                        x = 0,
+                        y = (topOverlayPadding + 12.dp).roundToPx()
+                    )
+                }
+        ) {
+            ScrollDateOverlay(label = visibleDayLabel.orEmpty())
         }
+    }
+}
 
-        if (isComments && state.isLoadingNewer && groupedMessages.isNotEmpty()) {
-            item(key = "loading_newer_bottom") {
-                PagingLoadingIndicator()
-            }
-        }
-
-        if (!isComments && state.isLoadingOlder && groupedMessages.isNotEmpty()) {
-            item(key = "loading_older_top") {
-                PagingLoadingIndicator()
-            }
-        }
-
-        if (state.isLoading && groupedMessages.isNotEmpty() && !state.isLoadingOlder && !state.isLoadingNewer) {
-            item(key = "loading_indicator") {
-                PagingLoadingIndicator()
-            }
-        }
+@Composable
+private fun ScrollDateOverlay(label: String) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.68f),
+        tonalElevation = 2.dp
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+        )
     }
 }
 
@@ -1482,6 +1595,35 @@ private fun MessageModel.mediaCaption(): String? {
         is MessageContent.Gif -> content.caption
         else -> null
     }
+}
+
+private fun GroupedMessageItem.mainTimestamp(): Int {
+    return when (this) {
+        is GroupedMessageItem.Single -> message.date
+        is GroupedMessageItem.Album -> messages.last().date
+    }
+}
+
+private fun List<LazyListItemInfo>.topAnchoredGroupedItem(
+    groupedMessages: List<GroupedMessageItem>,
+    leadingItemsCount: Int,
+    viewportTopOffset: Int
+): GroupedMessageItem? {
+    return this
+        .sortedBy(LazyListItemInfo::offset)
+        .mapNotNull { itemInfo ->
+            val groupedIndex = lazyIndexToGroupedIndex(itemInfo.index, leadingItemsCount)
+            groupedMessages.getOrNull(groupedIndex)?.let { groupedItem ->
+                itemInfo to groupedItem
+            }
+        }
+        .minByOrNull { (itemInfo, _) ->
+            val distanceToTop = itemInfo.offset - viewportTopOffset
+            if (distanceToTop >= 0) distanceToTop else Int.MAX_VALUE / 2 + kotlin.math.abs(
+                distanceToTop
+            )
+        }
+        ?.second
 }
 
 

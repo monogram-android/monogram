@@ -213,17 +213,22 @@ fun ChatContentList(
             }
         }
     }
+    val unreadBoundaryGroupId = remember(unreadBoundaryIndex, groupedMessages) {
+        unreadBoundaryIndex
+            ?.takeIf { it in groupedMessages.indices }
+            ?.let { groupedMessages[it].firstMessageId }
+    }
     var hasUnreadSeparatorBeenVisible by rememberSaveable(
         state.chatId,
         state.currentTopicId,
-        unreadBoundaryIndex,
+        unreadBoundaryGroupId,
         state.unreadSeparatorLastReadInboxMessageId,
         state.unreadSeparatorCount
     ) { mutableStateOf(false) }
     var hasUnreadSeparatorDismissed by rememberSaveable(
         state.chatId,
         state.currentTopicId,
-        unreadBoundaryIndex,
+        unreadBoundaryGroupId,
         state.unreadSeparatorLastReadInboxMessageId,
         state.unreadSeparatorCount
     ) { mutableStateOf(false) }
@@ -697,7 +702,7 @@ private fun MessageRowItem(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                AnimatedVisibility(visible = uiFlags.showUnreadSeparator && !isScrolling) {
+                AnimatedVisibility(visible = uiFlags.showUnreadSeparator) {
                     Column {
                         UnreadMessagesSeparator(unreadCount = uiFlags.unreadCount)
                         Spacer(modifier = Modifier.height(16.dp))

@@ -1,6 +1,7 @@
 package org.monogram.app
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.EaseInBack
 import androidx.compose.animation.core.EaseOutBack
 import androidx.compose.animation.core.animateFloatAsState
@@ -36,6 +37,7 @@ import org.monogram.app.components.LockScreen
 import org.monogram.app.components.MobileLayout
 import org.monogram.app.components.ProxyConfirmSheet
 import org.monogram.app.components.TabletLayout
+import org.monogram.presentation.core.util.LocalSharedTransitionScope
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.chats.conversation.ui.StickerSetSheet
 import org.monogram.presentation.features.chats.conversation.ui.content.ChatContentViewers
@@ -91,105 +93,113 @@ fun MainContent(
     }
 
     CompositionLocalProvider(LocalTabletInterfaceEnabled provides isTabletInterfaceEnabled) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-        val contentScale by animateFloatAsState(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 300),
-            label = "ContentScale"
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = contentScale
-                    scaleY = contentScale
-                },
-        ) {
-            if (isExpanded &&
-                isTabletInterfaceEnabled &&
-                activeChild !is RootComponent.Child.AuthChild &&
-                activeChild !is RootComponent.Child.StartupChild
+        SharedTransitionLayout {
+            CompositionLocalProvider(
+                LocalSharedTransitionScope provides this@SharedTransitionLayout
             ) {
-                TabletLayout(childStack, windowLayoutInfo)
-            } else {
-                MobileLayout(root)
-            }
-        }
-
-        val stickerPreviewState by root.stickerSetToPreview.collectAsState()
-        stickerPreviewState.stickerSet?.let { set ->
-            StickerSetSheet(
-                stickerSet = set.toDomain(),
-                onDismiss = root::dismissStickerPreview,
-                onStickerClick = { _, _ -> }
-            )
-        }
-
-        if (activeChild !is RootComponent.Child.AuthChild &&
-            activeChild !is RootComponent.Child.StartupChild
-        ) {
-            ProxyConfirmSheet(root)
-            ChatConfirmJoinSheet(root)
-        }
-
-        if (!isStartupActive && startupOverlayComponent != null) {
-            AnimatedVisibility(
-                visible = startupOverlayVisible,
-                enter = fadeIn(tween(80)),
-                exit = fadeOut(tween(260)),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(50f)
-            ) {
-                StartupContent(
-                    component = startupOverlayComponent!!,
-                    animateIn = false
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = isLocked,
-            enter = fadeIn(tween(400)) + scaleIn(
-                animationSpec = tween(400, easing = EaseOutBack),
-                initialScale = 0.9f
-            ),
-            exit = fadeOut(tween(400)) + scaleOut(
-                animationSpec = tween(400, easing = EaseInBack),
-                targetScale = 0.9f
-            ),
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(1000f)
-        ) {
-            LockScreen(root)
-        }
-
-        when (activeChild) {
-            is RootComponent.Child.ChatDetailChild -> {
-                if (isExpanded && isTabletInterfaceEnabled) {
-                    val chatState by activeChild.component.state.collectAsState()
-                    ChatContentViewers(
-                        state = chatState,
-                        component = activeChild.component,
-                        localClipboard = localClipboard
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
+                    val contentScale by animateFloatAsState(
+                        targetValue = 1f,
+                        animationSpec = tween(durationMillis = 300),
+                        label = "ContentScale"
                     )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = contentScale
+                                scaleY = contentScale
+                            },
+                    ) {
+                        if (isExpanded &&
+                            isTabletInterfaceEnabled &&
+                            activeChild !is RootComponent.Child.AuthChild &&
+                            activeChild !is RootComponent.Child.StartupChild
+                        ) {
+                            TabletLayout(childStack, windowLayoutInfo)
+                        } else {
+                            MobileLayout(root)
+                        }
+                    }
+
+                    val stickerPreviewState by root.stickerSetToPreview.collectAsState()
+                    stickerPreviewState.stickerSet?.let { set ->
+                        StickerSetSheet(
+                            stickerSet = set.toDomain(),
+                            onDismiss = root::dismissStickerPreview,
+                            onStickerClick = { _, _ -> }
+                        )
+                    }
+
+                    if (activeChild !is RootComponent.Child.AuthChild &&
+                        activeChild !is RootComponent.Child.StartupChild
+                    ) {
+                        ProxyConfirmSheet(root)
+                        ChatConfirmJoinSheet(root)
+                    }
+
+                    if (!isStartupActive && startupOverlayComponent != null) {
+                        AnimatedVisibility(
+                            visible = startupOverlayVisible,
+                            enter = fadeIn(tween(80)),
+                            exit = fadeOut(tween(260)),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .zIndex(50f)
+                        ) {
+                            StartupContent(
+                                component = startupOverlayComponent!!,
+                                animateIn = false
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = isLocked,
+                        enter = fadeIn(tween(400)) + scaleIn(
+                            animationSpec = tween(400, easing = EaseOutBack),
+                            initialScale = 0.9f
+                        ),
+                        exit = fadeOut(tween(400)) + scaleOut(
+                            animationSpec = tween(400, easing = EaseInBack),
+                            targetScale = 0.9f
+                        ),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .zIndex(1000f)
+                    ) {
+                        LockScreen(root)
+                    }
+
+                    when (activeChild) {
+                        is RootComponent.Child.ChatDetailChild -> {
+                            if (isExpanded && isTabletInterfaceEnabled) {
+                                val chatState by activeChild.component.state.collectAsState()
+                                ChatContentViewers(
+                                    state = chatState,
+                                    component = activeChild.component,
+                                    localClipboard = localClipboard
+                                )
+                            }
+                        }
+
+                        is RootComponent.Child.ProfileChild -> {
+                            val profileState by activeChild.component.state.subscribeAsState()
+                            ProfileViewers(
+                                state = profileState,
+                                component = activeChild.component
+                            )
+                        }
+
+                        else -> {}
+                    }
                 }
             }
-            is RootComponent.Child.ProfileChild -> {
-                val profileState by activeChild.component.state.subscribeAsState()
-                ProfileViewers(
-                    state = profileState,
-                    component = activeChild.component
-                )
-            }
-            else -> {}
-        }
         }
     }
 }

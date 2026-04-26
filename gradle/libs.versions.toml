@@ -110,6 +110,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 # Decompose
 decompose = { module = "com.arkivanov.decompose:decompose", version.ref = "decompose" }
 decompose-compose = { module = "com.arkivanov.decompose:extensions-compose", version.ref = "decompose" }
+decompose-compose-experimental = { module = "com.arkivanov.decompose:extensions-compose-experimental", version.ref = "decompose" }
 
 # MVIKotlin
 mvikotlin = { module = "com.arkivanov.mvikotlin:mvikotlin", version.ref = "mvikotlin" }
@@ -182,7 +183,8 @@ coil = [
 ]
 decompose = [
     "decompose",
-    "decompose-compose"
+    "decompose-compose",
+    "decompose-compose-experimental"
 ]
 mvikotlin = [
     "mvikotlin",

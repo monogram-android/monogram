@@ -24,6 +24,7 @@ import coil3.request.ImageRequest
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.generateColorFromHash
 import org.monogram.presentation.core.media.AvatarPlayer
+import org.monogram.presentation.core.util.sharedElementAuto
 import java.io.File
 
 @Composable
@@ -127,6 +128,7 @@ fun AvatarForChat(
 ) {
     val context = LocalContext.current
     val combinedModifier = modifier
+        .sharedElementAuto("avatar_${path}")
         .size(size)
         .clip(CircleShape)
 

@@ -22,6 +22,10 @@ import org.monogram.app.R
 import org.monogram.presentation.root.RootComponent
 import android.os.Build
 import android.view.RoundedCorner
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import org.monogram.presentation.core.util.LocalAnimatedVisibilityScope
 
 @Composable
 fun TabletLayout(
@@ -115,7 +119,9 @@ fun TabletLayout(
                 .background(MaterialTheme.colorScheme.surface),
         ) {
             if (listChild != null) {
-                RenderChild(listChild)
+                AnimatedPane {
+                    RenderChild(listChild)
+                }
             }
         }
 
@@ -130,9 +136,10 @@ fun TabletLayout(
                 .background(MaterialTheme.colorScheme.surface),
         ) {
             val isListOnly = activeChild == listChild
-
             if (!isListOnly) {
-                RenderChild(activeChild)
+                AnimatedPane {
+                    RenderChild(activeChild)
+                }
             } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -152,7 +159,23 @@ fun TabletLayout(
         }
     }
 }
-
+@Composable
+fun AnimatedPane(
+    visible: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = EnterTransition.None,
+        exit = ExitTransition.None,
+    ) {
+        CompositionLocalProvider(
+            LocalAnimatedVisibilityScope provides this
+        ) {
+            content()
+        }
+    }
+}
 private fun isSettingsSelected(stack: ChildStack<*, RootComponent.Child>): Boolean {
     return when (stack.active.instance) {
         is RootComponent.Child.SettingsChild,

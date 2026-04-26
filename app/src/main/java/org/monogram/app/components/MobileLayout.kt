@@ -15,14 +15,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
 import com.arkivanov.decompose.ExperimentalDecomposeApi
-import com.arkivanov.decompose.extensions.compose.stack.Children
-import com.arkivanov.decompose.extensions.compose.stack.animation.fade
-import com.arkivanov.decompose.extensions.compose.stack.animation.plus
-import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.predictiveBackAnimation
-import com.arkivanov.decompose.extensions.compose.stack.animation.slide
-import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
+import com.arkivanov.decompose.extensions.compose.experimental.stack.ChildStack
+import com.arkivanov.decompose.extensions.compose.experimental.stack.animation.PredictiveBackParams
+import com.arkivanov.decompose.extensions.compose.experimental.stack.animation.fade
+import com.arkivanov.decompose.extensions.compose.experimental.stack.animation.plus
+import com.arkivanov.decompose.extensions.compose.experimental.stack.animation.slide
+import com.arkivanov.decompose.extensions.compose.experimental.stack.animation.stackAnimation
+import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.materialPredictiveBackAnimatable
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import kotlinx.coroutines.launch
+import org.monogram.presentation.core.util.LocalAnimatedVisibilityScope
 import org.monogram.presentation.root.RootComponent
 
 @OptIn(ExperimentalDecomposeApi::class)
@@ -116,16 +118,27 @@ fun MobileLayout(root: RootComponent) {
                 shadowElevation = if (dragOffsetX.value > 0) 20f else 0f
             },
     ) {
-        Children(
+        ChildStack(
             stack = root.childStack,
-            animation = predictiveBackAnimation(
-                backHandler = root.backHandler,
-                onBack = root::onBack,
-                fallbackAnimation = if (!swipeBackInProgress) stackAnimation(slide() + fade()) else null,
+            animation = stackAnimation(
+                animator = if (!swipeBackInProgress) slide() + fade() else null,
+                predictiveBackParams = { _ ->
+                    PredictiveBackParams(
+                        backHandler = root.backHandler,
+                        onBack = root::onBack,
+                        animatable = { initialBackEvent ->
+                            materialPredictiveBackAnimatable(initialBackEvent)
+                        }
+                    )
+                }
             ),
         ) { child ->
-            key(child.key) {
-                RenderChild(child.instance, isOverlay = false)
+            CompositionLocalProvider(
+                LocalAnimatedVisibilityScope provides this
+            ) {
+                key(child.key) {
+                    RenderChild(child.instance, isOverlay = false)
+                }
             }
         }
     }

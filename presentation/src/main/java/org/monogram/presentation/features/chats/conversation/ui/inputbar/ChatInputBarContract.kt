@@ -1,6 +1,8 @@
 package org.monogram.presentation.features.chats.conversation.ui.inputbar
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.Dp
 import org.monogram.domain.models.AttachMenuBotModel
 import org.monogram.domain.models.BotCommandModel
 import org.monogram.domain.models.BotMenuButtonModel
@@ -122,12 +124,13 @@ internal data class ComposerBotState(
 
 @Immutable
 internal data class ComposerRowState(
-    val textValue: androidx.compose.ui.text.input.TextFieldValue,
+    val textValue: TextFieldValue,
     val editingMessage: MessageModel? = null,
     val isStickerMenuVisible: Boolean = false,
     val closeStickerMenuWithoutSlide: Boolean = false,
     val isKeyboardVisible: Boolean = false,
-    val stickerMenuHeight: androidx.compose.ui.unit.Dp,
+    val bottomInset: Dp,
+    val stickerMenuHeight: Dp,
     val showFullScreenEditor: Boolean = false,
     val currentMessageLength: Int = 0,
     val maxMessageLength: Int = 4096,
@@ -140,7 +143,7 @@ internal data class ComposerRowState(
 
 @Immutable
 internal data class InputTextFieldUiState(
-    val textValue: androidx.compose.ui.text.input.TextFieldValue,
+    val textValue: TextFieldValue,
     val isBot: Boolean,
     val botMenuButton: BotMenuButtonModel,
     val botCommands: List<BotCommandModel>,

@@ -170,6 +170,7 @@ fun ChatAlbumMessageBubble(
     }
 
     val lastMsg = uniqueMessages.last()
+    val firstMsg = uniqueMessages.first()
     val formattedTime = remember(lastMsg.date) { formatTime(lastMsg.date, timeFormat) }
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
@@ -282,7 +283,7 @@ fun ChatAlbumMessageBubble(
         }
 
         MessageReactionsView(
-            reactions = lastMsg.reactions,
+            reactions = firstMsg.reactions,
             onReactionClick = onReactionClick,
             modifier = Modifier.padding(horizontal = 4.dp)
         )

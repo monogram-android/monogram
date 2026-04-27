@@ -343,6 +343,7 @@ fun AudioAlbumBubble(
     val timeColor = contentColor.copy(alpha = 0.7f)
 
     val lastMsg = messages.last()
+    val firstMsg = messages.first()
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
 
@@ -444,7 +445,7 @@ fun AudioAlbumBubble(
         }
 
         MessageReactionsView(
-            reactions = lastMsg.reactions,
+            reactions = firstMsg.reactions,
             onReactionClick = onReactionClick,
             modifier = Modifier.padding(horizontal = 4.dp)
         )

@@ -307,7 +307,7 @@ fun ChannelAlbumMessageBubble(
         }
 
         MessageReactionsView(
-            reactions = lastMsg.reactions,
+            reactions = firstMsg.reactions,
             onReactionClick = onReactionClick,
             modifier = Modifier
                 .padding(top = 2.dp)
@@ -513,7 +513,7 @@ fun ChannelDocumentAlbumBubble(
         }
 
         MessageReactionsView(
-            reactions = lastMsg.reactions,
+            reactions = firstMsg.reactions,
             onReactionClick = onReactionClick,
             modifier = Modifier.padding(top = 2.dp)
         )

@@ -14,13 +14,18 @@ import kotlin.math.log10
 
 @Composable
 fun rememberVoiceRecorder(
-    onRecordingFinished: (String, Int, ByteArray) -> Unit
+    onRecordingFinished: (String, Int, ByteArray) -> Unit,
+    onPermissionDenied: () -> Unit = {}
 ): VoiceRecorderState {
     val context = LocalContext.current
     val state = remember { VoiceRecorderState(context) }
 
     LaunchedEffect(onRecordingFinished) {
         state.onRecordingFinished = onRecordingFinished
+    }
+
+    LaunchedEffect(onPermissionDenied) {
+        state.onPermissionDenied = onPermissionDenied
     }
 
     DisposableEffect(Unit) {
@@ -55,6 +60,7 @@ class VoiceRecorderState(private val context: Context) {
     private var startTime = 0L
 
     var onRecordingFinished: ((String, Int, ByteArray) -> Unit)? = null
+    var onPermissionDenied: (() -> Unit)? = null
 
     @Suppress("DEPRECATION")
     fun startRecording() {
@@ -65,7 +71,7 @@ class VoiceRecorderState(private val context: Context) {
                 Manifest.permission.RECORD_AUDIO
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            // TODO: Request permission
+            onPermissionDenied?.invoke()
             return
         }
 

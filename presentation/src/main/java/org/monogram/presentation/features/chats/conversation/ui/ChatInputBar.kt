@@ -311,11 +311,16 @@ fun ChatInputBar(
         }
     }
 
-    val voiceRecorder = rememberVoiceRecorder { path, duration, waveform ->
-        if (!canSendVoice || isSlowModeActive) return@rememberVoiceRecorder
-        actions.onSendVoice(path, duration, waveform)
-        activateSlowModeCooldown()
-    }
+    val voiceRecorder = rememberVoiceRecorder(
+        onRecordingFinished = { path, duration, waveform ->
+            if (!canSendVoice || isSlowModeActive) return@rememberVoiceRecorder
+            actions.onSendVoice(path, duration, waveform)
+            activateSlowModeCooldown()
+        },
+        onPermissionDenied = {
+            microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    )
     val maxMessageLength by remember(
         state.pendingMediaPaths,
         state.pendingDocumentPaths,
@@ -614,6 +619,9 @@ fun ChatInputBar(
         hasCameraPermission.value = granted
         if (granted) showCamera = true
     }
+    val microphonePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
     val documentsPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
@@ -1093,4 +1101,5 @@ fun ChatInputBar(
             }
         )
     }
+
 }

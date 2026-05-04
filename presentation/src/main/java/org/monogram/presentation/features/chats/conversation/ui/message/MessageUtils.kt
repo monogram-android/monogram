@@ -55,6 +55,7 @@ import org.monogram.presentation.features.chats.conversation.ui.channel.formatVi
 import java.io.File
 import java.text.BreakIterator
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlin.math.log10
@@ -66,6 +67,17 @@ val LocalLinkHandler = staticCompositionLocalOf<(String) -> Unit> {
 
 fun formatTime(ts: Int, timeFormat: String): String =
     SimpleDateFormat(timeFormat, Locale.getDefault()).format(Date(ts.toLong() * 1000))
+
+fun formatForwardDate(ts: Int, timeFormat: String): String {
+    val date = Date(ts.toLong() * 1000)
+    val locale = Locale.getDefault()
+    val cal = Calendar.getInstance(locale).apply { time = date }
+    val now = Calendar.getInstance(locale)
+    val datePattern = if (cal.get(Calendar.YEAR) == now.get(Calendar.YEAR)) "d MMM" else "d MMM yyyy"
+    val datePart = SimpleDateFormat(datePattern, locale).format(date)
+    val timePart = SimpleDateFormat(timeFormat, locale).format(date)
+    return "$datePart, $timePart"
+}
 
 fun formatDuration(seconds: Int): String {
     val m = seconds / 60

@@ -33,6 +33,7 @@ import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.ForwardOriginType
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.util.DateFormatManager
+import org.monogram.presentation.features.chats.conversation.ui.isTodayTimestamp
 
 @Composable
 fun ForwardContent(
@@ -132,9 +133,16 @@ fun ForwardContent(
                 )
 
                 if (forwardInfo.date > 0) {
+                    val forwardDateText = remember(forwardInfo.date, timeFormat) {
+                        if (isTodayTimestamp(forwardInfo.date)) {
+                            formatTime(forwardInfo.date, timeFormat)
+                        } else {
+                            formatForwardDate(forwardInfo.date, timeFormat)
+                        }
+                    }
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = formatTime(forwardInfo.date, timeFormat),
+                        text = forwardDateText,
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                         color = contentColor.copy(alpha = 0.56f),
                         maxLines = 1

@@ -225,15 +225,13 @@ class DefaultNewChatComponent(
 
         when (currentState.step) {
             NewChatComponent.Step.GROUP_MEMBERS -> {
-                if (currentState.selectedUserIds.isNotEmpty()) {
-                    _state.update {
-                        it.copy(
-                            step = NewChatComponent.Step.GROUP_INFO,
-                            searchQuery = "",
-                            searchResults = emptyList(),
-                            validationError = null
-                        )
-                    }
+                _state.update {
+                    it.copy(
+                        step = NewChatComponent.Step.GROUP_INFO,
+                        searchQuery = "",
+                        searchResults = emptyList(),
+                        validationError = null
+                    )
                 }
             }
 

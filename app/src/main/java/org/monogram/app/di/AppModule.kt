@@ -40,7 +40,7 @@ import org.monogram.presentation.settings.storage.CacheController
 
 @SuppressLint("WrongConstant")
 val appModule = module {
-    includes(uiModule, dataModule)
+    includes(uiModule, dataModule, runtimeOverrideModule)
 
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
 
@@ -69,7 +69,7 @@ val appModule = module {
     }
     factory<DomainManager> { DomainManagerImpl(androidContext(), get<ExternalNavigator>().packageName) }
     factory<AssetsManager> { AssetsManagerImpl(androidContext()) }
-    factory<DistrManager> { DistrManagerImpl(androidContext()) }
+    factory<DistrManager> { DistrManagerImpl(androidContext(), get()) }
     factory<MessageDisplayer> { ToastMessageDisplayer(androidContext()) }
     factory<ExternalNavigator> { ExternalNavigatorImpl(androidContext()) }
     factory<IDownloadUtils> { DownloadUtils(androidContext(), get()) }

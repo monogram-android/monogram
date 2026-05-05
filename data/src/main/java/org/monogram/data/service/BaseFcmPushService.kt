@@ -1,9 +1,8 @@
 package org.monogram.data.service
 
+import android.content.Context
 import android.os.PowerManager
 import android.util.Log
-import com.google.firebase.messaging.FirebaseMessagingService
-import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,19 +11,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import org.drinkless.tdlib.TdApi
 import org.json.JSONObject
-import org.koin.android.ext.android.inject
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.PushProvider
 
-class FcmPushService : FirebaseMessagingService() {
-    private val gateway: TelegramGateway by inject()
-    private val appPreferences: AppPreferencesProvider by inject()
+class BaseFcmPushService(
+    private val context: Context,
+    private val gateway: TelegramGateway,
+    private val appPreferences: AppPreferencesProvider
+) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    override fun onNewToken(token: String) {
-        super.onNewToken(token)
-        Log.d("FcmPushService", "New FCM token: $token")
+    protected fun handleNewToken(token: String) {
+        Log.d(TAG, "New FCM token: $token")
         if (appPreferences.pushProvider.value == PushProvider.FCM) {
             scope.launch {
                 registerToken(token)
@@ -32,26 +31,22 @@ class FcmPushService : FirebaseMessagingService() {
         }
     }
 
-    override fun onMessageReceived(message: RemoteMessage) {
-        super.onMessageReceived(message)
-        Log.d("FcmPushService", "FCM message received: ${message.data}")
+    protected fun handleMessage(data: Map<String, String>) {
+        Log.d(TAG, "FCM message received: $data")
 
         if (appPreferences.pushProvider.value != PushProvider.FCM) return
-
-        val data = message.data
         if (data.isEmpty()) return
 
-        val powerManager = getSystemService(POWER_SERVICE) as? PowerManager ?: return
+        val powerManager =
+            context.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
         val wakeLock =
             powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "monogram:FcmPushService")
-                .apply {
-                    setReferenceCounted(false)
-                }
+                .apply { setReferenceCounted(false) }
 
         try {
             val json = JSONObject()
-            for ((k, v) in data) {
-                json.put(k, v)
+            for ((key, value) in data) {
+                json.put(key, value)
             }
             val jsonPayload = json.toString()
             if (jsonPayload.isBlank()) return
@@ -62,10 +57,10 @@ class FcmPushService : FirebaseMessagingService() {
                     withTimeout(8_000L) {
                         gateway.execute(TdApi.ProcessPushNotification(jsonPayload))
                     }
-                    Log.d("FcmPushService", "ProcessPushNotification success")
+                    Log.d(TAG, "ProcessPushNotification success")
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
-                    Log.e("FcmPushService", "Error processing push", e)
+                    Log.e(TAG, "Error processing push", e)
                 } finally {
                     if (wakeLock.isHeld) {
                         wakeLock.release()
@@ -73,16 +68,15 @@ class FcmPushService : FirebaseMessagingService() {
                 }
             }
         } catch (e: Exception) {
-            Log.e("FcmPushService", "Error preparing push payload", e)
+            Log.e(TAG, "Error preparing push payload", e)
             if (wakeLock.isHeld) {
                 wakeLock.release()
             }
         }
     }
 
-    override fun onDeletedMessages() {
-        super.onDeletedMessages()
-        Log.d("FcmPushService", "FCM messages deleted")
+    protected fun handleDeletedMessages() {
+        Log.d(TAG, "FCM messages deleted")
     }
 
     private suspend fun registerToken(token: String) {
@@ -95,10 +89,14 @@ class FcmPushService : FirebaseMessagingService() {
                     longArrayOf()
                 )
             )
-            Log.d("FcmPushService", "RegisterDevice result: $result")
+            Log.d(TAG, "RegisterDevice result: $result")
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Log.e("FcmPushService", "RegisterDevice failed", e)
+            Log.e(TAG, "RegisterDevice failed", e)
         }
+    }
+
+    private companion object {
+        const val TAG = "FcmPushService"
     }
 }

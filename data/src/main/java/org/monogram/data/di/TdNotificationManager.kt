@@ -28,13 +28,11 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.app.RemoteInput
 import androidx.core.graphics.createBitmap
-import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
@@ -45,6 +43,7 @@ import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.notifications.NotificationMuteDecision
 import org.monogram.data.notifications.NotificationMuteResolver
 import org.monogram.data.notifications.NotificationScopeState
+import org.monogram.data.push.FcmRuntime
 import org.monogram.data.push.UnifiedPushManager
 import org.monogram.data.service.NotificationDismissReceiver
 import org.monogram.data.service.NotificationReadReceiver
@@ -54,8 +53,8 @@ import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository.TdNotificationScope
 import org.monogram.domain.repository.PushProvider
 import org.monogram.domain.repository.StringProvider
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.min
 
 class TdNotificationManager(
@@ -66,6 +65,7 @@ class TdNotificationManager(
     private val notificationSettingDao: NotificationSettingDao,
     private val fileQueue: FileDownloadQueue,
     private val stringProvider: StringProvider,
+    private val fcmRuntime: FcmRuntime,
     private val unifiedPushManager: UnifiedPushManager,
     private val muteResolver: NotificationMuteResolver
 ) {
@@ -264,8 +264,16 @@ class TdNotificationManager(
         when (appPreferences.pushProvider.value) {
             PushProvider.FCM -> {
                 coRunCatching {
+                    if (!fcmRuntime.isSupported) {
+                        Log.w(TAG, "FCM runtime is not available in this build")
+                        return@coRunCatching
+                    }
                     unifiedPushManager.unregister()
-                    val token = FirebaseMessaging.getInstance().token.await()
+                    val token = fcmRuntime.fetchToken()
+                    if (token.isNullOrBlank()) {
+                        Log.w(TAG, "FCM token is not available")
+                        return@coRunCatching
+                    }
                     gateway.execute(
                         TdApi.RegisterDevice(
                             TdApi.DeviceTokenFirebaseCloudMessaging(token, true),

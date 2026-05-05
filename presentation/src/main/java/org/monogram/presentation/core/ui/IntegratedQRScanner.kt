@@ -1,8 +1,9 @@
 package org.monogram.presentation.core.ui
 
+import android.annotation.SuppressLint
 import androidx.camera.core.CameraSelector
-import androidx.camera.mlkit.vision.MlKitAnalyzer
-import androidx.camera.view.CameraController
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Box
@@ -15,7 +16,12 @@ import androidx.compose.material.icons.rounded.FlashOff
 import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,10 +31,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.google.mlkit.vision.barcode.BarcodeScannerOptions
-import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.zxing.BinaryBitmap
+import com.google.zxing.MultiFormatReader
+import com.google.zxing.NotFoundException
+import com.google.zxing.PlanarYUVLuminanceSource
+import com.google.zxing.common.HybridBinarizer
+import com.google.zxing.qrcode.QRCodeReader
 import org.monogram.presentation.R
+import java.nio.ByteBuffer
 
 @Composable
 fun IntegratedQRScanner(
@@ -47,23 +57,12 @@ fun IntegratedQRScanner(
     var torchEnabled by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        val barcodeScanner = BarcodeScanning.getClient(
-            BarcodeScannerOptions.Builder()
-                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                .build()
-        )
         val executor = ContextCompat.getMainExecutor(context)
 
         cameraController.setImageAnalysisAnalyzer(
             executor,
-            MlKitAnalyzer(
-                listOf(barcodeScanner),
-                CameraController.COORDINATE_SYSTEM_VIEW_REFERENCED,
-                executor
-            ) { result ->
-                val barcode = result.getValue(barcodeScanner)?.firstOrNull()
-                val code = barcode?.rawValue
-                if (!code.isNullOrEmpty() && code != lastScannedCode) {
+            ZxingQrAnalyzer { code ->
+                if (code != lastScannedCode) {
                     lastScannedCode = code
                     onCodeDetected(code)
                 }
@@ -114,4 +113,57 @@ fun IntegratedQRScanner(
             )
         }
     }
+}
+
+private class ZxingQrAnalyzer(
+    private val onCodeDetected: (String) -> Unit
+) : ImageAnalysis.Analyzer {
+    private val reader = QRCodeReader()
+    private val fallbackReader = MultiFormatReader()
+
+    @SuppressLint("UnsafeOptInUsageError")
+    override fun analyze(image: ImageProxy) {
+        val plane = image.planes.firstOrNull()
+        if (plane == null) {
+            image.close()
+            return
+        }
+
+        val bytes = plane.buffer.toByteArray()
+        val source = PlanarYUVLuminanceSource(
+            bytes,
+            image.width,
+            image.height,
+            0,
+            0,
+            image.width,
+            image.height,
+            false
+        )
+
+        val bitmap = BinaryBitmap(HybridBinarizer(source))
+        val text = decode(bitmap)
+        if (!text.isNullOrBlank()) {
+            onCodeDetected(text)
+        }
+        image.close()
+    }
+
+    private fun decode(bitmap: BinaryBitmap): String? {
+        return try {
+            reader.decode(bitmap).text
+        } catch (_: NotFoundException) {
+            runCatching { fallbackReader.decode(bitmap).text }.getOrNull()
+        } catch (_: Exception) {
+            null
+        } finally {
+            reader.reset()
+            fallbackReader.reset()
+        }
+    }
+}
+
+private fun ByteBuffer.toByteArray(): ByteArray {
+    rewind()
+    return ByteArray(remaining()).also { get(it) }
 }

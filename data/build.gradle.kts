@@ -27,7 +27,7 @@ android {
         buildConfigField("boolean", "ENABLE_TDLIB_DEBUG", "false")
     }
 
-    flavorDimensions += "tdlib"
+    flavorDimensions += listOf("tdlib", "runtime")
 
     productFlavors {
         create("official") {
@@ -35,6 +35,12 @@ android {
         }
         create("telemt") {
             dimension = "tdlib"
+        }
+        create("firebase") {
+            dimension = "runtime"
+        }
+        create("libre") {
+            dimension = "runtime"
         }
     }
 
@@ -82,12 +88,12 @@ dependencies {
     implementation(project(":domain"))
     implementation(libs.koin.android)
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.media3.datasource)
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.messaging)
     implementation(libs.unifiedpush.connector)
+    add("firebaseImplementation", platform(libs.firebase.bom))
+    add("firebaseImplementation", libs.firebase.messaging)
+    add("firebaseImplementation", libs.kotlinx.coroutines.play.services)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

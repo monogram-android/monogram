@@ -22,13 +22,13 @@ extra.set("localProperties", localProperties)
 tasks.register("assembleOfficialReleaseTdlibApks") {
     group = "build"
     description = "Assembles release APKs with the official TDLib prebuilts."
-    dependsOn(":app:assembleOfficialRelease")
+    dependsOn(":app:assembleOfficialFirebaseRelease")
 }
 
 tasks.register("assembleTelemtReleaseTdlibApks") {
     group = "build"
     description = "Assembles release APKs with the Telemt TDLib prebuilts."
-    dependsOn(":app:assembleTelemtRelease")
+    dependsOn(":app:assembleTelemtFirebaseRelease")
 }
 
 tasks.register("assembleAllReleaseTdlibApks") {
@@ -43,13 +43,13 @@ tasks.register("assembleAllReleaseTdlibApks") {
 tasks.register("assembleOfficialDebugTdlibApks") {
     group = "build"
     description = "Assembles debug APKs with the official TDLib prebuilts."
-    dependsOn(":app:assembleOfficialDebug")
+    dependsOn(":app:assembleOfficialFirebaseDebug")
 }
 
 tasks.register("assembleTelemtDebugTdlibApks") {
     group = "build"
     description = "Assembles debug APKs with the Telemt TDLib prebuilts."
-    dependsOn(":app:assembleTelemtDebug")
+    dependsOn(":app:assembleTelemtFirebaseDebug")
 }
 
 tasks.register("assembleAllDebugTdlibApks") {

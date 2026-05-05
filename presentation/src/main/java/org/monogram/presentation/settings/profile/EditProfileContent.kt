@@ -3,22 +3,87 @@
 package org.monogram.presentation.settings.profile
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.os.Bundle
+import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AlternateEmail
+import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.Cake
+import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PersonOutline
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,14 +98,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
 import com.maplibre.compose.MapView
 import com.maplibre.compose.camera.CameraState
 import com.maplibre.compose.camera.MapViewCamera
 import com.maplibre.compose.rememberSaveableMapViewCamera
 import com.maplibre.compose.symbols.Symbol
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMapOptions
 import org.monogram.domain.models.BirthdateModel
@@ -49,10 +114,13 @@ import org.monogram.domain.models.BusinessOpeningHoursModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.core.util.FileUtils
 import org.monogram.presentation.core.ui.SectionHeader
 import org.monogram.presentation.core.ui.SettingsTextField
-import java.util.*
+import org.monogram.presentation.core.util.FileUtils
+import java.util.Calendar
+import java.util.Collections
+import java.util.TimeZone
+import kotlin.coroutines.resume
 
 private const val MAP_STYLE = "https://tiles.openfreemap.org/styles/bright"
 
@@ -61,6 +129,7 @@ private const val MAP_STYLE = "https://tiles.openfreemap.org/styles/bright"
 fun EditProfileContent(component: EditProfileComponent) {
     val state by component.state.subscribeAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -474,7 +543,8 @@ fun EditProfileContent(component: EditProfileComponent) {
                                 .clip(CircleShape)
                                 .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable {
-                                    selectedDays = if (isSelected) selectedDays - dayNum else selectedDays + dayNum
+                                    selectedDays =
+                                        if (isSelected) selectedDays - dayNum else selectedDays + dayNum
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -590,21 +660,19 @@ fun EditProfileContent(component: EditProfileComponent) {
                 )
             )
 
-            val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
             val permissionLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestMultiplePermissions()
             ) { permissions ->
                 if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
                     permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
                 ) {
-                    fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-                        .addOnSuccessListener { location ->
-                            location?.let {
-                                selectedLatitude = it.latitude
-                                selectedLongitude = it.longitude
-                                component.onReverseGeocode(it.latitude, it.longitude)
-                            }
+                    scope.launch {
+                        context.getCurrentLocationCompat()?.let {
+                            selectedLatitude = it.latitude
+                            selectedLongitude = it.longitude
+                            component.onReverseGeocode(it.latitude, it.longitude)
                         }
+                    }
                 }
             }
 
@@ -627,19 +695,23 @@ fun EditProfileContent(component: EditProfileComponent) {
                         },
                         actions = {
                             IconButton(onClick = {
-                                if (ContextCompat.checkSelfPermission(
+                                if (
+                                    ContextCompat.checkSelfPermission(
                                         context,
                                         Manifest.permission.ACCESS_FINE_LOCATION
+                                    ) == PackageManager.PERMISSION_GRANTED ||
+                                    ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
                                     ) == PackageManager.PERMISSION_GRANTED
                                 ) {
-                                    fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-                                        .addOnSuccessListener { location ->
-                                            location?.let {
-                                                selectedLatitude = it.latitude
-                                                selectedLongitude = it.longitude
-                                                component.onReverseGeocode(it.latitude, it.longitude)
-                                            }
+                                    scope.launch {
+                                        context.getCurrentLocationCompat()?.let {
+                                            selectedLatitude = it.latitude
+                                            selectedLongitude = it.longitude
+                                            component.onReverseGeocode(it.latitude, it.longitude)
                                         }
+                                    }
                                 } else {
                                     permissionLauncher.launch(
                                         arrayOf(
@@ -1091,3 +1163,85 @@ fun EditProfileContent(component: EditProfileComponent) {
         }
     }
 }
+
+@SuppressLint("MissingPermission")
+private suspend fun Context.getCurrentLocationCompat(): Location? =
+    suspendCancellableCoroutine { cont ->
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+        if (locationManager == null) {
+            cont.resume(null)
+            return@suspendCancellableCoroutine
+        }
+
+        val hasFine = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasFine && !hasCoarse) {
+            cont.resume(null)
+            return@suspendCancellableCoroutine
+        }
+
+        val providers = locationManager.getProviders(true)
+        var bestLocation: Location? = null
+        for (provider in providers) {
+            if (provider == LocationManager.GPS_PROVIDER && !hasFine) continue
+            if (provider == LocationManager.NETWORK_PROVIDER && !hasFine && !hasCoarse) continue
+
+            val location =
+                runCatching { locationManager.getLastKnownLocation(provider) }.getOrNull()
+            if (location != null && (bestLocation == null || location.time > bestLocation.time)) {
+                bestLocation = location
+            }
+        }
+
+        if (bestLocation != null && System.currentTimeMillis() - bestLocation.time < 60_000L) {
+            cont.resume(bestLocation)
+            return@suspendCancellableCoroutine
+        }
+
+        val provider = when {
+            hasFine && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
+            (hasFine || hasCoarse) && locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
+            else -> null
+        }
+
+        if (provider == null) {
+            cont.resume(bestLocation)
+            return@suspendCancellableCoroutine
+        }
+
+        val listener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                if (cont.isActive) {
+                    cont.resume(location)
+                }
+                locationManager.removeUpdates(this)
+            }
+
+            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+            override fun onProviderEnabled(provider: String) = Unit
+            override fun onProviderDisabled(provider: String) {
+                if (cont.isActive) {
+                    cont.resume(bestLocation)
+                }
+            }
+        }
+
+        runCatching {
+            locationManager.requestSingleUpdate(provider, listener, Looper.getMainLooper())
+        }.onFailure {
+            if (cont.isActive) {
+                cont.resume(bestLocation)
+            }
+        }
+
+        cont.invokeOnCancellation {
+            locationManager.removeUpdates(listener)
+        }
+    }

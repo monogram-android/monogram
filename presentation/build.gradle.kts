@@ -22,7 +22,7 @@ android {
         }
     }
 
-    flavorDimensions += "tdlib"
+    flavorDimensions += listOf("tdlib", "runtime")
 
     productFlavors {
         create("official") {
@@ -32,6 +32,12 @@ android {
         create("telemt") {
             dimension = "tdlib"
             buildConfigField("boolean", "ENABLE_TELEMT_DNS", "true")
+        }
+        create("firebase") {
+            dimension = "runtime"
+        }
+        create("libre") {
+            dimension = "runtime"
         }
     }
 
@@ -82,13 +88,11 @@ dependencies {
     implementation(libs.bundles.koin)
 
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.play.services.mlkit.barcode.scanning)
     implementation(libs.zxing.core)
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.security.crypto)
     implementation(libs.maplibre.compose)
     implementation(libs.play.services.oss.licenses)
-    implementation(libs.play.services.location)
     implementation(libs.unifiedpush.connector)
 
     implementation(libs.androidx.compose.ui.tooling.preview)

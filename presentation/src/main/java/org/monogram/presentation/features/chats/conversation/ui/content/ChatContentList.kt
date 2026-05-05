@@ -73,6 +73,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -191,6 +192,7 @@ fun ChatContentList(
 ) {
     val isComments = state.isComments
     val appearance = state.toAppearanceConfig()
+    val context = LocalContext.current
     val density = LocalDensity.current
     val isScrolling by remember(scrollState) { derivedStateOf { scrollState.isScrollInProgress } }
     val latestState by rememberUpdatedState(state)
@@ -306,7 +308,7 @@ fun ChatContentList(
                     viewportTopOffset = viewportTopOffset
                 )
                 ?: return@derivedStateOf null
-            formatChatDayLabel(anchor.mainTimestamp())
+            formatChatDayLabel(anchor.mainTimestamp(), context)
         }
     }
 

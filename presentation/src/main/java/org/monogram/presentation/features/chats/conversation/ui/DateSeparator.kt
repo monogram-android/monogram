@@ -10,11 +10,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun DateSeparator(timestamp: Int) {
-    val text = formatChatDayLabel(timestamp)
+    val context = LocalContext.current
+    val text = formatChatDayLabel(timestamp, context)
     Box(
         modifier = Modifier
             .fillMaxWidth()

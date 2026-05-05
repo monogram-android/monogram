@@ -102,6 +102,9 @@ RELEASE_KEY_PASSWORD=your_key_password
 
 ### 3. 푸시 알림 설정
 
+이 단계는 `firebase` 빌드 variants에 필요합니다. `libre` variants만 빌드할 계획이라면
+건너뛰어도 됩니다.
+
 1. [Firebase Console](https://console.firebase.google.com)에 로그인합니다.
 2. 새 프로젝트를 생성합니다.
 3. Firebase에 Android 앱 두 개를 추가합니다:
@@ -178,26 +181,40 @@ sudo apt-get install build-essential git curl wget php perl gperf unzip zip defa
 
 Android Studio에서는 다음 variants를 사용하세요:
 
-- `officialDebug`
-- `officialRelease`
-- `telemtDebug`
-- `telemtRelease`
+- `officialFirebaseDebug`
+- `officialFirebaseRelease`
+- `officialLibreDebug`
+- `officialLibreRelease`
+- `telemtFirebaseDebug`
+- `telemtFirebaseRelease`
+- `telemtLibreDebug`
+- `telemtLibreRelease`
+
+Variant 이름:
+
+- `official` / `telemt`는 TDLib 소스를 선택합니다
+- `firebase`는 FCM / Firebase 기반 푸시를 활성화합니다
+- `libre`는 Firebase 의존성 없이 빌드합니다
 
 유용한 Gradle 작업:
 
 ```bash
-./gradlew assembleOfficialReleaseTdlibApks
-./gradlew assembleTelemtReleaseTdlibApks
-./gradlew assembleAllReleaseTdlibApks
-./gradlew assembleOfficialDebugTdlibApks
-./gradlew assembleTelemtDebugTdlibApks
-./gradlew assembleAllDebugTdlibApks
+./gradlew :app:assembleOfficialFirebaseRelease
+./gradlew :app:assembleTelemtFirebaseRelease
+./gradlew :app:assembleOfficialFirebaseDebug
+./gradlew :app:assembleTelemtFirebaseDebug
+./gradlew :app:assembleOfficialLibreRelease
+./gradlew :app:assembleTelemtLibreRelease
+./gradlew :app:assembleOfficialLibreDebug
+./gradlew :app:assembleTelemtLibreDebug
 ```
 
 APK 이름:
 
-- 일반 TDLib: `monogram-arm64-v8a-<version>-release.apk`
-- Telemt TDLib: `monogram-telemt-arm64-v8a-<version>-release.apk`
+- official Firebase: `monogram-arm64-v8a-<version>-release.apk`
+- official libre: `monogram-libre-arm64-v8a-<version>-release.apk`
+- Telemt Firebase: `monogram-telemt-arm64-v8a-<version>-release.apk`
+- Telemt libre: `monogram-telemt-libre-arm64-v8a-<version>-release.apk`
 
 ---
 

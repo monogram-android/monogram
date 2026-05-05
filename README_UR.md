@@ -103,6 +103,9 @@ RELEASE_KEY_PASSWORD=your_key_password
 
 ### 3. پش نوٹیفکیشنز کنفیگر کریں
 
+یہ مرحلہ `firebase` build variants کے لیے ضروری ہے۔ اگر آپ صرف `libre` variants بنانا چاہتے ہیں
+تو اسے چھوڑ سکتے ہیں۔
+
 1. [Firebase console](https://console.firebase.google.com) پر لاگ ان کریں۔
 2. ایک نیا پروجیکٹ بنائیں۔
 3. Firebase میں دو Android apps شامل کریں:
@@ -180,26 +183,40 @@ sudo apt-get install build-essential git curl wget php perl gperf unzip zip defa
 
 Android Studio میں یہ variants استعمال کریں:
 
-- `officialDebug`
-- `officialRelease`
-- `telemtDebug`
-- `telemtRelease`
+- `officialFirebaseDebug`
+- `officialFirebaseRelease`
+- `officialLibreDebug`
+- `officialLibreRelease`
+- `telemtFirebaseDebug`
+- `telemtFirebaseRelease`
+- `telemtLibreDebug`
+- `telemtLibreRelease`
+
+Variant naming:
+
+- `official` / `telemt` TDLib source منتخب کرتا ہے
+- `firebase` FCM / Firebase push کو فعال کرتا ہے
+- `libre` Firebase dependencies کے بغیر build کرتا ہے
 
 کارآمد Gradle tasks:
 
 ```bash
-./gradlew assembleOfficialReleaseTdlibApks
-./gradlew assembleTelemtReleaseTdlibApks
-./gradlew assembleAllReleaseTdlibApks
-./gradlew assembleOfficialDebugTdlibApks
-./gradlew assembleTelemtDebugTdlibApks
-./gradlew assembleAllDebugTdlibApks
+./gradlew :app:assembleOfficialFirebaseRelease
+./gradlew :app:assembleTelemtFirebaseRelease
+./gradlew :app:assembleOfficialFirebaseDebug
+./gradlew :app:assembleTelemtFirebaseDebug
+./gradlew :app:assembleOfficialLibreRelease
+./gradlew :app:assembleTelemtLibreRelease
+./gradlew :app:assembleOfficialLibreDebug
+./gradlew :app:assembleTelemtLibreDebug
 ```
 
 APK نام:
 
-- عام TDLib: `monogram-arm64-v8a-<version>-release.apk`
-- Telemt TDLib: `monogram-telemt-arm64-v8a-<version>-release.apk`
+- official Firebase: `monogram-arm64-v8a-<version>-release.apk`
+- official libre: `monogram-libre-arm64-v8a-<version>-release.apk`
+- Telemt Firebase: `monogram-telemt-arm64-v8a-<version>-release.apk`
+- Telemt libre: `monogram-telemt-libre-arm64-v8a-<version>-release.apk`
 
 ---
 

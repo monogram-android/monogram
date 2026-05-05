@@ -103,6 +103,10 @@ RELEASE_KEY_PASSWORD=your_key_password
 
 ### 3. Configure Push Notifications
 
+This step is required for `firebase` build variants. You can skip it if you only plan to build
+`libre`
+variants.
+
 1. Log in to the [Firebase console](https://console.firebase.google.com).
 2. Create a new project.
 3. Add two Firebase Android apps:
@@ -180,26 +184,40 @@ interactively.
 
 Use these variants in Android Studio:
 
-- `officialDebug`
-- `officialRelease`
-- `telemtDebug`
-- `telemtRelease`
+- `officialFirebaseDebug`
+- `officialFirebaseRelease`
+- `officialLibreDebug`
+- `officialLibreRelease`
+- `telemtFirebaseDebug`
+- `telemtFirebaseRelease`
+- `telemtLibreDebug`
+- `telemtLibreRelease`
+
+Variant naming:
+
+- `official` / `telemt` selects the TDLib source
+- `firebase` enables FCM / Firebase-backed push setup
+- `libre` builds without Firebase dependencies
 
 Useful Gradle tasks:
 
 ```bash
-./gradlew assembleOfficialReleaseTdlibApks
-./gradlew assembleTelemtReleaseTdlibApks
-./gradlew assembleAllReleaseTdlibApks
-./gradlew assembleOfficialDebugTdlibApks
-./gradlew assembleTelemtDebugTdlibApks
-./gradlew assembleAllDebugTdlibApks
+./gradlew :app:assembleOfficialFirebaseRelease
+./gradlew :app:assembleTelemtFirebaseRelease
+./gradlew :app:assembleOfficialFirebaseDebug
+./gradlew :app:assembleTelemtFirebaseDebug
+./gradlew :app:assembleOfficialLibreRelease
+./gradlew :app:assembleTelemtLibreRelease
+./gradlew :app:assembleOfficialLibreDebug
+./gradlew :app:assembleTelemtLibreDebug
 ```
 
 APK names:
 
-- regular TDLib: `monogram-arm64-v8a-<version>-release.apk`
-- Telemt TDLib: `monogram-telemt-arm64-v8a-<version>-release.apk`
+- official Firebase: `monogram-arm64-v8a-<version>-release.apk`
+- official libre: `monogram-libre-arm64-v8a-<version>-release.apk`
+- Telemt Firebase: `monogram-telemt-arm64-v8a-<version>-release.apk`
+- Telemt libre: `monogram-telemt-libre-arm64-v8a-<version>-release.apk`
 
 ---
 

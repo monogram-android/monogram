@@ -100,6 +100,10 @@ RELEASE_KEY_PASSWORD=your_key_password
 ```
 ### 3. Anlık Bildirimleri (Push Notifications) Yapılandırın
 
+Bu adım `firebase` derleme varyantları için gereklidir. Yalnızca `libre` varyantlarını
+derleyecekseniz,
+bunu atlayabilirsiniz.
+
 1. [Firebase konsolunda](https://console.firebase.google.com) oturum açın.
 2. Yeni bir proje oluşturun.
 3. İki Firebase Android uygulaması ekleyin:
@@ -177,26 +181,40 @@ Argümansız çalıştırırsanız, script size seçim sorar.
 
 Android Studio'da şu variantları kullanın:
 
-- `officialDebug`
-- `officialRelease`
-- `telemtDebug`
-- `telemtRelease`
+- `officialFirebaseDebug`
+- `officialFirebaseRelease`
+- `officialLibreDebug`
+- `officialLibreRelease`
+- `telemtFirebaseDebug`
+- `telemtFirebaseRelease`
+- `telemtLibreDebug`
+- `telemtLibreRelease`
+
+Variant adlandırması:
+
+- `official` / `telemt` TDLib kaynağını seçer
+- `firebase` FCM / Firebase tabanlı push'u etkinleştirir
+- `libre` Firebase bağımlılıkları olmadan derler
 
 Kullanışlı Gradle görevleri:
 
 ```bash
-./gradlew assembleOfficialReleaseTdlibApks
-./gradlew assembleTelemtReleaseTdlibApks
-./gradlew assembleAllReleaseTdlibApks
-./gradlew assembleOfficialDebugTdlibApks
-./gradlew assembleTelemtDebugTdlibApks
-./gradlew assembleAllDebugTdlibApks
+./gradlew :app:assembleOfficialFirebaseRelease
+./gradlew :app:assembleTelemtFirebaseRelease
+./gradlew :app:assembleOfficialFirebaseDebug
+./gradlew :app:assembleTelemtFirebaseDebug
+./gradlew :app:assembleOfficialLibreRelease
+./gradlew :app:assembleTelemtLibreRelease
+./gradlew :app:assembleOfficialLibreDebug
+./gradlew :app:assembleTelemtLibreDebug
 ```
 
 APK adları:
 
-- normal TDLib: `monogram-arm64-v8a-<version>-release.apk`
-- Telemt TDLib: `monogram-telemt-arm64-v8a-<version>-release.apk`
+- official Firebase: `monogram-arm64-v8a-<version>-release.apk`
+- official libre: `monogram-libre-arm64-v8a-<version>-release.apk`
+- Telemt Firebase: `monogram-telemt-arm64-v8a-<version>-release.apk`
+- Telemt libre: `monogram-telemt-libre-arm64-v8a-<version>-release.apk`
 
 ---
 

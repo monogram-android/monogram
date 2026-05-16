@@ -1463,7 +1463,7 @@ Mã capacity mới nhất là ABIO và ABIP thì hiệu năng đã cao hơn khá
     <string name="notification_channel_private_name">Trò chuyện riêng tư</string>
     <string name="notification_channel_private_description">Thông báo từ các cuộc trò chuyện riêng tư</string>
     <string name="notification_channel_groups_name">Động</string>
-    <string name="notification_channel_groups_description">Thông báo từ các nhóm</string>
+    <string name="notification_channel_groups_description">Thông báo từ các động</string>
     <string name="notification_channel_channels_name">Kênh</string>
     <string name="notification_channel_channels_description">Thông báo từ các kênh</string>
     <string name="notification_channel_other_name">Khác</string>
@@ -1756,7 +1756,7 @@ Mã capacity mới nhất là ABIO và ABIP thì hiệu năng đã cao hơn khá
     <string name="action_pause">Tạm dừng</string>
     <string name="action_play">Xem</string>
     <string name="notifications_exceptions_private_chats">Trò chuyện riêng</string>
-    <string name="notifications_exceptions_groups">Nhóm</string>
+    <string name="notifications_exceptions_groups">động</string>
     <string name="notifications_exceptions_channels">Kênh</string>
     <string name="notifications_exceptions_label">Ngoại lệ</string>
     <string name="notifications_exceptions_search">Tìm kiếm</string>
@@ -1848,168 +1848,168 @@ Mã capacity mới nhất là ABIO và ABIP thì hiệu năng đã cao hơn khá
     <string name="common_recent">Gần đây</string>
 
     <!-- QR Code -->
-    <string name="qr_saved_to_gallery">Saved to Gallery</string>
-    <string name="qr_share_title">Share QR</string>
-    <string name="qr_share_error">Error while sending: %1$s</string>
+    <string name="qr_saved_to_gallery">Đã lưu vào bộ sưu tập</string>
+    <string name="qr_share_title">Chia sẻ QR</string>
+    <string name="qr_share_error">Đã có lỗi khi tương tác: %1$s</string>
 
     <!-- Chat Edit (ChatEditContent.kt) -->
-    <string name="edit_channel">Edit Channel</string>
-    <string name="edit_group">Edit Group</string>
-    <string name="channel_name">Channel Name</string>
-    <string name="group_name">Group Name</string>
-    <string name="description">Description</string>
-    <string name="settings">Settings</string>
-    <string name="public_channel">Public Channel</string>
-    <string name="public_group">Public Group</string>
-    <string name="auto_translate">Auto-Translate</string>
-    <string name="topics">Topics</string>
-    <string name="management">Management</string>
-    <string name="delete_channel">Delete Channel</string>
-    <string name="delete_group">Delete Group</string>
+    <string name="edit_channel">Sửa kênh</string>
+    <string name="edit_group">Sửa động</string>
+    <string name="channel_name">Tên kênh</string>
+    <string name="group_name">Tên động</string>
+    <string name="description">Tiểu sử</string>
+    <string name="settings">Cài đặt</string>
+    <string name="public_channel">Kênh công khai</string>
+    <string name="public_group">Động công khai</string>
+    <string name="auto_translate">Tự động dịch</string>
+    <string name="topics">Nhánh</string>
+    <string name="management">Quản lý</string>
+    <string name="delete_channel">Xóa kênh</string>
+    <string name="delete_group">Xóa động</string>
 
     <!-- Member List (MemberListContent.kt) -->
-    <string name="search_hint">Search...</string>
-    <string name="administrators">Administrators</string>
-    <string name="subscribers">Subscribers</string>
-    <string name="members">Members</string>
-    <string name="blacklist">Blacklist</string>
-    <string name="no_results_found">No results found</string>
-    <string name="no_members_yet">No members yet</string>
+    <string name="search_hint">tìm...</string>
+    <string name="administrators">Quản trị viên</string>
+    <string name="subscribers">Người theo dõi</string>
+    <string name="members">Người</string>
+    <string name="blacklist">Người nhưng bị cút</string>
+    <string name="no_results_found">Chịu</string>
+    <string name="no_members_yet">Không có ai cả</string>
 
     <!-- Admin Management (AdminManageContent.kt) -->
-    <string name="admin_rights">Admin Rights</string>
-    <string name="custom_title">Custom Title</string>
-    <string name="custom_title_description">This title will be visible to all members in the chat</string>
-    <string name="what_can_this_admin_do">What can this admin do?</string>
-    <string name="permission_manage_chat">Manage Chat</string>
-    <string name="permission_post_messages">Post Messages</string>
-    <string name="permission_edit_messages">Edit Messages</string>
-    <string name="permission_delete_messages">Delete Messages</string>
-    <string name="permission_restrict_members">Restrict Members</string>
-    <string name="permission_invite_users">Invite Users</string>
-    <string name="permission_manage_topics">Manage Topics</string>
-    <string name="permission_manage_video_chats">Manage Video Chats</string>
-    <string name="permission_post_stories">Post Stories</string>
-    <string name="permission_edit_stories">Edit Stories</string>
-    <string name="permission_delete_stories">Delete Stories</string>
-    <string name="permission_add_new_admins">Add New Admins</string>
-    <string name="permission_remain_anonymous">Remain Anonymous</string>
+    <string name="admin_rights">Nhân quyền của quản trị viên</string>
+    <string name="custom_title">Tên phụ</string>
+    <string name="custom_title_description">Tên phụ này hiện thị với tất cả mọi thành viên trong động này</string>
+    <string name="what_can_this_admin_do">Admin này có gì hot?</string>
+    <string name="permission_manage_chat">Quản lý động</string>
+    <string name="permission_post_messages">Nói</string>
+    <string name="permission_edit_messages">Nói xong sửa</string>
+    <string name="permission_delete_messages">Xóa tin nhắn</string>
+    <string name="permission_restrict_members">Cắt nhân quyền người dùng</string>
+    <string name="permission_invite_users">Mời vào động</string>
+    <string name="permission_manage_topics">Quản lý nhánh</string>
+    <string name="permission_manage_video_chats">Quản lý cuộc gọi động</string>
+    <string name="permission_post_stories">Đang tin</string>
+    <string name="permission_edit_stories">Sửa tin</string>
+    <string name="permission_delete_stories">Xóa tin</string>
+    <string name="permission_add_new_admins">Thêm admin</string>
+    <string name="permission_remain_anonymous">Ẩn danh</string>
 
     <!-- Group Permissions (ChatPermissionsContent.kt) -->
-    <string name="permissions">Permissions</string>
-    <string name="what_can_members_do">What can members of this group do?</string>
-    <string name="permission_add_members">Add Members</string>
+    <string name="permissions">Quyền</string>
+    <string name="what_can_members_do">Người này có gì hot?</string>
+    <string name="permission_add_members">Thêm người</string>
 
     <!-- Common UI / Content Descriptions -->
-    <string name="back">Back</string>
-    <string name="save">Save</string>
-    <string name="clear">Clear</string>
-    <string name="search">Search</string>
-    <string name="add">Add</string>
-    <string name="edit">Edit</string>
-    <string name="username">Username</string>
-    <string name="filters">Filters</string>
+    <string name="back">Về</string>
+    <string name="save">Lưu</string>
+    <string name="clear">Dọn</string>
+    <string name="search">Tìm kiếm</string>
+    <string name="add">Thêm</string>
+    <string name="edit">Sửa</string>
+    <string name="username">Tên người dùng</string>
+    <string name="filters">Bộ lọc</string>
 
     <!-- Profile Logs / Recent Actions -->
-    <string name="logs_title">Recent Actions</string>
-    <string name="logs_events_count">%d events loaded</string>
-    <string name="logs_empty_title">No recent actions found</string>
-    <string name="logs_empty_subtitle">Try changing filters</string>
-    <string name="logs_not_implemented">Not implemented</string>
-    <string name="logs_user_id_copied">User ID copied</string>
+    <string name="logs_title">Hành động gần đây</string>
+    <string name="logs_events_count">%d sự kiện đã được nhập</string>
+    <string name="logs_empty_title">Không có hành động nào gần đây</string>
+    <string name="logs_empty_subtitle">Thử thay đổi bộ lọc xem</string>
+    <string name="logs_not_implemented">Chưa nhúng</string>
+    <string name="logs_user_id_copied">Đã copy ID người dùng</string>
 
     <!-- Logs Filters -->
-    <string name="logs_filter_title">Filter Actions</string>
-    <string name="logs_filter_reset">Reset</string>
-    <string name="logs_filter_apply">Apply</string>
-    <string name="logs_filter_section_types">Action Types</string>
-    <string name="logs_filter_section_users">By Users</string>
-    <string name="logs_filter_search_placeholder">Search…</string>
-    <string name="logs_filter_no_users">No users found</string>
-    <string name="logs_filter_no_results">No results for \"%s\"</string>
+    <string name="logs_filter_title">Bộ lọc hành động</string>
+    <string name="logs_filter_reset">Thôi</string>
+    <string name="logs_filter_apply">Áp dụng</string>
+    <string name="logs_filter_section_types">Kiểu hành động</string>
+    <string name="logs_filter_section_users">Bởi ai</string>
+    <string name="logs_filter_search_placeholder">Tìm kiếm…</string>
+    <string name="logs_filter_no_users">Không thấy ai</string>
+    <string name="logs_filter_no_results">Không thấy \"%s\"</string>
 
     <!-- Action Types -->
-    <string name="logs_action_edits">Edits</string>
-    <string name="logs_action_deletions">Deletions</string>
-    <string name="logs_action_pins">Pins</string>
-    <string name="logs_action_joins">Joins</string>
-    <string name="logs_action_leaves">Leaves</string>
-    <string name="logs_action_invites">Invites</string>
-    <string name="logs_action_promotions">Promotions</string>
-    <string name="logs_action_restrictions">Restrictions</string>
-    <string name="logs_action_info">Info</string>
-    <string name="logs_action_settings">Settings</string>
-    <string name="logs_action_links">Links</string>
+    <string name="logs_action_edits">Sửa</string>
+    <string name="logs_action_deletions">Xóa</string>
+    <string name="logs_action_pins">Ghim</string>
+    <string name="logs_action_joins">Nhập</string>
+    <string name="logs_action_leaves">Lượn</string>
+    <string name="logs_action_invites">Thêm</string>
+    <string name="logs_action_promotions">Quảng cáo</string>
+    <string name="logs_action_restrictions">Cắt giảm nhân quyền</string>
+    <string name="logs_action_info">Thông tin</string>
+    <string name="logs_action_settings">Cài đặt</string>
+    <string name="logs_action_links">Liên kết</string>
     <string name="logs_action_video">Video</string>
 
     <!-- Action Descriptions -->
-    <string name="logs_action_edited">edited a message</string>
-    <string name="logs_action_deleted">deleted a message</string>
-    <string name="logs_action_pinned">pinned a message</string>
-    <string name="logs_action_unpinned">unpinned a message</string>
-    <string name="logs_action_joined">joined the chat</string>
-    <string name="logs_action_left">left the chat</string>
-    <string name="logs_action_invited">invited %s</string>
-    <string name="logs_action_permissions_changed">changed permissions for %s</string>
-    <string name="logs_action_restrictions_changed">changed restrictions for %s</string>
-    <string name="logs_action_title_changed">changed chat title to \"%s\"</string>
-    <string name="logs_action_description_changed">changed chat description</string>
-    <string name="logs_action_username_changed">changed username to @%s</string>
-    <string name="logs_action_photo_changed">changed chat photo</string>
-    <string name="logs_action_link_edited">edited invite link</string>
-    <string name="logs_action_link_revoked">revoked invite link</string>
-    <string name="logs_action_link_deleted">deleted invite link</string>
-    <string name="logs_action_video_started">started a video chat</string>
-    <string name="logs_action_video_ended">ended video chat</string>
-    <string name="logs_action_unknown">performed an action: %s</string>
+    <string name="logs_action_edited">đã thay đổi tin nhắn</string>
+    <string name="logs_action_deleted">đã xóa tin nhắn</string>
+    <string name="logs_action_pinned">đã ghim tin nhắn</string>
+    <string name="logs_action_unpinned">đã hủy ghim tin nhắn</string>
+    <string name="logs_action_joined">vào động</string>
+    <string name="logs_action_left">đã lượn khỏi</string>
+    <string name="logs_action_invited">mời %s</string>
+    <string name="logs_action_permissions_changed">đã thay đổi nhân quyền cho %s</string>
+    <string name="logs_action_restrictions_changed">đã cắt giảm nhân quyền cho %s</string>
+    <string name="logs_action_title_changed">đã thay đổi tiêu đề động thành \"%s\"</string>
+    <string name="logs_action_description_changed">đã thay đổi mô tả động</string>
+    <string name="logs_action_username_changed">đã thay đổi tag name động thành @%s</string>
+    <string name="logs_action_photo_changed">đã thay đổi ảnh động</string>
+    <string name="logs_action_link_edited">đã thay đổi liên kết</string>
+    <string name="logs_action_link_revoked">đã đốt liên kết</string>
+    <string name="logs_action_link_deleted">đã phân hủy liên kết</string>
+    <string name="logs_action_video_started">đã tạo cuộc gọi động</string>
+    <string name="logs_action_video_ended">đã thôi cuộc gọi động</string>
+    <string name="logs_action_unknown">đã: %s</string>
 
     <!-- Details and Previews -->
-    <string name="logs_original_message">Original message:</string>
-    <string name="logs_new_message">New message:</string>
-    <string name="logs_deleted_message">Deleted message:</string>
-    <string name="logs_pinned_message">Pinned message:</string>
-    <string name="logs_unpinned_message">Unpinned message:</string>
-    <string name="logs_restricted_until">Until: %s</string>
-    <string name="logs_restricted_permanently">Restricted permanently</string>
-    <string name="logs_photo_old">Old</string>
-    <string name="logs_photo_new">New</string>
-    <string name="logs_photo_old_desc">Old chat photo</string>
-    <string name="logs_photo_new_desc">New chat photo</string>
-    <string name="logs_status_from">From</string>
-    <string name="logs_status_to">To</string>
-    <string name="logs_permissions_changes">Permission changes:</string>
-    <string name="logs_permissions_current">Current permissions:</string>
+    <string name="logs_original_message">Tin nhắn gốc:</string>
+    <string name="logs_new_message">Tin nhắn mới:</string>
+    <string name="logs_deleted_message">Tin nhắn đã xóa:</string>
+    <string name="logs_pinned_message">Tin nhắn đã ghim:</string>
+    <string name="logs_unpinned_message">Tin nhắn đã bỏ ghim:</string>
+    <string name="logs_restricted_until">Đến: %s</string>
+    <string name="logs_restricted_permanently">Bị mất nhân quyền vĩnh viễn</string>
+    <string name="logs_photo_old">Cũ</string>
+    <string name="logs_photo_new">Mới</string>
+    <string name="logs_photo_old_desc">Ảnh trò chuyện cũ</string>
+    <string name="logs_photo_new_desc">Ảnh trò chuyện mới</string>
+    <string name="logs_status_from">Từ</string>
+    <string name="logs_status_to">Đến</string>
+    <string name="logs_permissions_changes">Thay đổi nhân quyền:</string>
+    <string name="logs_permissions_current">Nhân quyền hiện tại:</string>
 
     <!-- Permissions / Roles -->
-    <string name="logs_perm_messages">Messages</string>
-    <string name="logs_perm_media">Media</string>
-    <string name="logs_perm_stickers">Stickers</string>
-    <string name="logs_perm_links">Links</string>
-    <string name="logs_perm_polls">Polls</string>
-    <string name="logs_perm_invite">Invite</string>
-    <string name="logs_perm_pin">Pin</string>
-    <string name="logs_perm_info">Info</string>
+    <string name="logs_perm_messages">Tin nhắn</string>
+    <string name="logs_perm_media">Phương tiện</string>
+    <string name="logs_perm_stickers">Nhãn dán</string>
+    <string name="logs_perm_links">Liên kết</string>
+    <string name="logs_perm_polls">Biểu quyết</string>
+    <string name="logs_perm_invite">Nhập</string>
+    <string name="logs_perm_pin">Ghim</string>
+    <string name="logs_perm_info">THông tin</string>
 
-    <string name="logs_role_admin">Admin</string>
-    <string name="logs_role_owner">Owner</string>
-    <string name="logs_role_restricted">Restricted</string>
-    <string name="logs_role_banned">Banned</string>
-    <string name="logs_role_member">Member</string>
+    <string name="logs_role_admin">Bố</string>
+    <string name="logs_role_owner">Bố của Bố</string>
+    <string name="logs_role_restricted">Mất nhân quyền</string>
+    <string name="logs_role_banned">Chịu chết</string>
+    <string name="logs_role_member">Người dùng</string>
 
     <!-- Media Types -->
-    <string name="logs_media_photo">Photo</string>
+    <string name="logs_media_photo">Ảnh</string>
     <string name="logs_media_video">Video</string>
     <string name="logs_media_gif">GIF</string>
-    <string name="logs_media_sticker">Sticker</string>
-    <string name="logs_media_document">Document</string>
-    <string name="logs_media_audio">Audio</string>
-    <string name="logs_media_voice">Voice message</string>
-    <string name="logs_media_video_note">Video message</string>
-    <string name="logs_media_contact">Contact</string>
-    <string name="logs_media_poll">Poll</string>
-    <string name="logs_media_location">Location</string>
-    <string name="logs_media_venue">Venue</string>
-    <string name="logs_media_unsupported">Unsupported message</string>
+    <string name="logs_media_sticker">Nhãn dán</string>
+    <string name="logs_media_document">Tài liệu</string>
+    <string name="logs_media_audio">Âm thanh</string>
+    <string name="logs_media_voice">Tin nhắn thoại</string>
+    <string name="logs_media_video_note">Tin nhắn video</string>
+    <string name="logs_media_contact">Liên hệ</string>
+    <string name="logs_media_poll">Bình chọn</string>
+    <string name="logs_media_location">Vị trí</string>
+    <string name="logs_media_venue">Địa điểm</string>
+    <string name="logs_media_unsupported">Không đọc được</string>
 
     <!-- Date and Formats -->
     <string name="format_duration">%1$02d:%2$02d</string>
@@ -2019,339 +2019,327 @@ Mã capacity mới nhất là ABIO và ABIP thì hiệu năng đã cao hơn khá
     <string name="views_m">%1$.1fM</string>
 
     <!-- Comments -->
-    <string name="comment_leave">Leave a comment</string>
-    <string name="comment_count">%1$d comments</string>
-    <string name="comment_count_k">%1$.1fK comments</string>
-    <string name="comment_count_m">%1$.1fM comments</string>
+    <string name="comment_leave">Nói gì đi</string>
+    <string name="comment_count">%1$d bình luận</string>
+    <string name="comment_count_k">%1$.1fK bình luận</string>
+    <string name="comment_count_m">%1$.1fM bình luận</string>
 
     <!-- Poll Message -->
-    <string name="poll_final_results">Final Results</string>
-    <string name="poll_anonymous">Anonymous</string>
-    <string name="poll_public">Public</string>
-    <string name="poll_type_quiz">Quiz</string>
-    <string name="poll_type_poll">Poll</string>
-    <string name="poll_multiple_choice"> • Multiple Choice</string>
-    <string name="poll_retract_vote">Retract Vote</string>
-    <string name="poll_close_poll">Close Poll</string>
-    <string name="poll_meta_results_hidden_until_close">Results hidden until poll closes</string>
-    <string name="poll_meta_revoting_enabled">Revoting enabled</string>
-    <string name="poll_meta_shuffle_enabled">Options are shuffled</string>
-    <string name="poll_meta_open_period">Open period: %1$d</string>
-    <string name="poll_meta_closes_at">Closes at %1$s</string>
-    <string name="poll_meta_time_left">Time left: %1$s</string>
+    <string name="poll_final_results">Kết quả chung cuộc</string>
+    <string name="poll_anonymous">Ẩn danh</string>
+    <string name="poll_public">Công khai</string>
+    <string name="poll_type_quiz">Câu hỏi</string>
+    <string name="poll_type_poll">Biểu quyết</string>
+    <string name="poll_multiple_choice"> • Nhiều đáp án</string>
+    <string name="poll_retract_vote">Rút lại bình chọn</string>
+    <string name="poll_close_poll">Đóng bình chọn</string>
+    <string name="poll_meta_results_hidden_until_close">Kết quả bị ẩn cho đến khi đóng bình chọn</string>
+    <string name="poll_meta_revoting_enabled">Cho phép bình chọn lại</string>
+    <string name="poll_meta_shuffle_enabled">Các tùy chọn được xáo trộn</string>
+    <string name="poll_meta_open_period">Thời gian mở: %1$d</string>
+    <string name="poll_meta_closes_at">Đóng lúc %1$s</string>
+    <string name="poll_meta_time_left">Thời gian còn lại: %1$s</string>
     <plurals name="poll_votes_count">
-        <item quantity="one">%d vote</item>
-        <item quantity="other">%d votes</item>
-Invalid game code
-Quick links
-Worksheets
-Teacher resources
-Accessibility & Inclusion
-© 2026 Quizizz Inc. (DBA Wayground)
-apple store
-google store
-
-    </plurals>
+        <item quantity="one">%d lượt bình chọn</item>
+        <item quantity="other">%d lượt bình chọn</item>
+     </plurals>
 
     <!-- Accessibility Content Descriptions -->
-    <string name="cd_more">More</string>
-    <string name="cd_vote">Vote</string>
-    <string name="cd_explanation">Explanation</string>
+    <string name="cd_more">Thêm</string>
+    <string name="cd_vote">chọn</string>
+    <string name="cd_explanation">Giải thích</string>
 
     <!-- Poll Voters Sheet -->
-    <string name="poll_voters_title">Poll Voters</string>
-    <string name="poll_no_voters">No voters yet</string>
-    <string name="action_close">Close</string>
+    <string name="poll_voters_title">Người bình chọn</string>
+    <string name="poll_no_voters">Chưa có người bình chọn</string>
+    <string name="action_close">Đóng</string>
 
     <!-- Reply Content -->
-    <string name="reply_content_photo">Photo</string>
+    <string name="reply_content_photo">Ảnh</string>
     <string name="reply_content_video">Video</string>
-    <string name="reply_content_sticker">Sticker</string>
-    <string name="reply_content_voice_message">Voice message</string>
-    <string name="reply_content_video_message">Video message</string>
+    <string name="reply_content_sticker">Nhãn dán</string>
+    <string name="reply_content_voice_message">Bản ghi âm</string>
+    <string name="reply_content_video_message">Bản video</string>
     <string name="reply_content_gif">GIF</string>
-    <string name="reply_content_message">Message</string>
-    <string name="message_expired_photo">Photo expired</string>
-    <string name="message_expired_video">Video expired</string>
+    <string name="reply_content_message">Tin nhắn</string>
+    <string name="message_expired_photo">Ảnh đã bị nấu</string>
+    <string name="message_expired_video">Video đã bị nấu</string>
 
     <!-- Chat Folders -->
-    <string name="folders_title">Chat Folders</string>
-    <string name="folders_back">Back</string>
-    <string name="folders_new_folder">New Folder</string>
-    <string name="folders_create">Create</string>
-    <string name="folders_edit_folder">Edit Folder</string>
-    <string name="folders_save">Save</string>
-    <string name="folders_default_section">Default Folders</string>
-    <string name="folders_custom_section">Custom Folders</string>
-    <string name="folders_show_all_chats_title">Show All chats</string>
-    <string name="folders_show_all_chats_subtitle">Keep the All chats folder visible in the tab bar</string>
-    <string name="folders_delete">Delete</string>
-    <string name="folders_header_description">Create folders for different groups of chats and quickly switch between them.</string>
-    <string name="folders_empty_title">No custom folders</string>
-    <string name="folders_empty_subtitle">Tap the + button to create one</string>
-    <string name="folders_system_all_chats">All chats</string>
-    <string name="folders_user_chats_count">%1$d chats</string>
-    <string name="folders_move_up">Move Up</string>
-    <string name="folders_move_down">Move Down</string>
-    <string name="folders_name_placeholder">Folder Name</string>
-    <string name="folders_choose_icon">Choose Icon</string>
-    <string name="folders_included_chats">Included Chats</string>
-    <string name="folders_search_chats">Search chats…</string>
-    <string name="folders_cancel">Cancel</string>
+    <string name="folders_title">Thư mục trò chuyện</string>
+    <string name="folders_back">Quay lại</string>
+    <string name="folders_new_folder">Thư mục mới</string>
+    <string name="folders_create">Tạo</string>
+    <string name="folders_edit_folder">Chỉnh sửa thư mục</string>
+    <string name="folders_save">Lưu</string>
+    <string name="folders_default_section">Thư mục mặc định</string>
+    <string name="folders_custom_section">Thư mục tùy chỉnh</string>
+    <string name="folders_show_all_chats_title">Hiển thị tất cả trò chuyện</string>
+    <string name="folders_show_all_chats_subtitle">Giữ thư mục tất cả trò chuyện hiển thị trên thanh tab</string>
+    <string name="folders_delete">Xóa</string>
+    <string name="folders_header_description">Tạo thư mục cho các động trò chuyện khác nhau và chuyển đổi nhanh chóng giữa chúng.</string>
+    <string name="folders_empty_title">Không có thư mục tùy chỉnh</string>
+    <string name="folders_empty_subtitle">Nhấn vào nút + để tạo thư mục mới</string>
+    <string name="folders_system_all_chats">Tất cả trò chuyện</string>
+    <string name="folders_user_chats_count">%1$d trò chuyện</string>
+    <string name="folders_move_up">Di chuyển lên</string>
+    <string name="folders_move_down">Di chuyển xuống</string>
+    <string name="folders_name_placeholder">Tên thư mục</string>
+    <string name="folders_choose_icon">Chọn biểu tượng</string>
+    <string name="folders_included_chats">Trò chuyện được thêm vào</string>
+    <string name="folders_search_chats">Tìm kiếm trò chuyện…</string>
+    <string name="folders_cancel">Hủy</string>
 
     <!-- Premium Screen -->
     <string name="premium_title">Telegram Premium</string>
-    <string name="premium_back">Back</string>
-    <string name="premium_subscribe_button">Subscribe for %s per month</string>
-    <string name="premium_unlock_features">Unlock exclusive features</string>
+    <string name="premium_back">Quay về</string>
+    <string name="premium_subscribe_button">Đăng kí với %s hàng tháng</string>
+    <string name="premium_unlock_features">Mở khóa những tính năng vốn cả lài</string>
 
     <!-- Premium Features -->
-    <string name="premium_feature_doubled_limits_title">Doubled Limits</string>
-    <string name="premium_feature_doubled_limits_description">Up to %1$d channels, %2$d chat folders, %3$d pins, %4$d public links and more.</string>
-    <string name="premium_feature_voice_to_text_title">Voice-to-Text Conversion</string>
-    <string name="premium_feature_voice_to_text_description">Read the transcript of any voice message by tapping the button next to it.</string>
-    <string name="premium_feature_faster_download_title">Faster Download Speed</string>
-    <string name="premium_feature_faster_download_description">No more limits on the speed with which media and documents are downloaded.</string>
-    <string name="premium_feature_translation_title">Real-Time Translation</string>
-    <string name="premium_feature_translation_description">Translate entire chats in real time with a single tap.</string>
-    <string name="premium_feature_animated_emoji_title">Animated Emojis</string>
-    <string name="premium_feature_animated_emoji_description">Include animated emojis from hundreds of packs in your messages.</string>
-    <string name="premium_feature_chat_management_title">Advanced Chat Management</string>
-    <string name="premium_feature_chat_management_description">Tools to set default folder, auto-archive and hide new chats from non-contacts.</string>
-    <string name="premium_feature_no_ads_title">No Ads</string>
-    <string name="premium_feature_no_ads_description">Public chanơnels sometimes show ads, but they will no longer appear for you.</string>
-    <string name="premium_feature_infinite_reactions_title">Infinite Reactions</string>
-    <string name="premium_feature_infinite_reactions_description">React with thousands of emojis — using up to 3 per message.</string>
-    <string name="premium_feature_badge_title">Premium Badge</string>
-    <string name="premium_feature_badge_description">A special badge next to your name showing that you subscribe to Telegram Premium.</string>
-    <string name="premium_feature_emoji_status_title">Emoji Statuses</string>
-    <string name="premium_feature_emoji_status_description">Choose from thousands of emojis to show next to your name.</string>
-    <string name="premium_feature_app_icons_title">Premium App Icons</string>
-    <string name="premium_feature_app_icons_description">Choose from a selection of Telegram app icons for your home screen.</string>
+    <string name="premium_feature_doubled_limits_title">Gấp đôi giới hạn</string>
+    <string name="premium_feature_doubled_limits_description">Lên đến %1$d kênh, %2$d thư mục trò chuyện, %3$d ghim, %4$d liên kết công khai và hơn thế nữa.</string>
+    <string name="premium_feature_voice_to_text_title">Chuyển giọng nói thành văn bản</string>
+    <string name="premium_feature_voice_to_text_description">Đọc bản ghi của bất kỳ tin nhắn thoại nào bằng cách nhấn vào nút bên cạnh.</string>
+    <string name="premium_feature_faster_download_title">Tốc độ tải xuống nhanh hơn (chắc thế)</string>
+    <string name="premium_feature_faster_download_description">Không còn giới hạn về tốc độ tải xuống phương tiện và tài liệu.</string>
+    <string name="premium_feature_translation_title">Dịch theo thời gian thực</string>
+    <string name="premium_feature_translation_description">Dịch toàn bộ cuộc trò chuyện theo thời gian thực chỉ bằng một lần nhấn.</string>
+    <string name="premium_feature_animated_emoji_title">Emoji động</string>
+    <string name="premium_feature_animated_emoji_description">Thêm các emoji động từ hàng trăm gói khác nhau vào tin nhắn của bạn.</string>
+    <string name="premium_feature_chat_management_title">Quản lý trò chuyện nâng cao</string>
+    <string name="premium_feature_chat_management_description">Các công cụ để đặt thư mục mặc định, tự động lưu trữ và ẩn các cuộc trò chuyện mới từ những người không có trong danh bạ.</string>
+    <string name="premium_feature_no_ads_title">Không có quảng cáo</string>
+    <string name="premium_feature_no_ads_description">Ẩn các quảng cáo trên các kênh công khai (chắc thế).</string>
+    <string name="premium_feature_infinite_reactions_title">Phản ứng vô hạn</string>
+    <string name="premium_feature_infinite_reactions_description">Phản ứng bằng nhiều emoji — sử dụng tối đa 3 emoji cho mỗi tin nhắn.</string>
+    <string name="premium_feature_badge_title">Huy hiệu đẳng cấp</string>
+    <string name="premium_feature_badge_description">Một huy hiệu đặc biệt bên cạnh tên bạn để cho biết bạn đã đăng ký Telegram Premium.</string>
+    <string name="premium_feature_emoji_status_title">Trạng thái Emoji</string>
+    <string name="premium_feature_emoji_status_description">Chọn từ hàng ngàn emoji để hiển thị bên cạnh tên của bạn.</string>
+    <string name="premium_feature_app_icons_title">Biểu tượng ứng dụng đẳng cấp</string>
+    <string name="premium_feature_app_icons_description">Chọn từ bộ sưu tập các biểu tượng ứng dụng Telegram cho màn hình chính của bạn.</string>
 
     <!-- Mini App Menu -->
-    <string name="mini_app_menu_reload">Reload</string>
-    <string name="mini_app_menu_copy_link">Copy link</string>
-    <string name="mini_app_menu_open_in_browser">Open in browser</string>
-    <string name="mini_app_menu_add_to_home">Add to Home Screen</string>
+    <string name="mini_app_menu_reload">Tải lại</string>
+    <string name="mini_app_menu_copy_link">Sao chép liên kết</string>
+    <string name="mini_app_menu_open_in_browser">Mở trong trình duyệt</string>
+    <string name="mini_app_menu_add_to_home">Thêm vào màn hình chính</string>
 
     <!-- Mini App Dialogs -->
-    <string name="mini_app_close_confirmation_title">Close Mini App?</string>
-    <string name="mini_app_close_confirmation_text">You have unsaved changes. Are you sure you want to close?</string>
-    <string name="mini_app_close">Close</string>
-    <string name="mini_app_cancel">Cancel</string>
-    <string name="mini_app_permission_request">Permission Request</string>
-    <string name="mini_app_allow">Allow</string>
-    <string name="mini_app_deny">Deny</string>
-    <string name="mini_app_permission_biometry">Biometry</string>
-    <string name="mini_app_share_contact_title">Share Contact</string>
-    <string name="mini_app_share_contact_message">Allow %1$s to access your phone number?</string>
-    <string name="mini_app_allow_messages_title">Allow Messages</string>
-    <string name="mini_app_allow_messages_message">Allow %1$s to send you messages?</string>
-    <string name="mini_app_download_file_title">Download File</string>
-    <string name="mini_app_download_file_message_generic">Download this file?</string>
-    <string name="mini_app_download_file_message_named">Download %1$s?</string>
-    <string name="mini_app_biometric_auth_title">Biometric Authentication</string>
-    <string name="mini_app_biometric_auth_subtitle">Authenticate to continue</string>
-    <string name="mini_app_request_location_access_message">Allow this bot to access your location?</string>
-    <string name="mini_app_bot_permissions">Bot Permissions</string>
-    <string name="mini_app_tos_title">Terms of Service</string>
-    <string name="mini_app_tos_text">By launching this Mini App, you agree to the Terms of Service and Privacy Policy. The bot will be able to access your basic profile information.</string>
-    <string name="mini_app_tos_accept">Accept and Launch</string>
+    <string name="mini_app_close_confirmation_title">Đóng Mini App?</string>
+    <string name="mini_app_close_confirmation_text">Bạn có các thay đổi chưa được lưu. Bạn có chắc chắn muốn đóng không?</string>
+    <string name="mini_app_close">Đóng</string>
+    <string name="mini_app_cancel">Hủy</string>
+    <string name="mini_app_permission_request">Yêu cầu cấp nhân quyền</string>
+    <string name="mini_app_allow">Cho phép</string>
+    <string name="mini_app_deny">Từ chối</string>
+    <string name="mini_app_permission_biometry">Sinh trắc học</string>
+    <string name="mini_app_share_contact_title">Chia sẻ liên hệ</string>
+    <string name="mini_app_share_contact_message">Cho phép %1$s đánh giá số điện thoại của bạn?</string>
+    <string name="mini_app_allow_messages_title">Cho phép tin nhắn</string>
+    <string name="mini_app_allow_messages_message">Cho phép %1$s hữu duyên tin nhắn cho bạn?</string>
+    <string name="mini_app_download_file_title">Tải tệp xuống</string>
+    <string name="mini_app_download_file_message_generic">Tải tệp này xuống?</string>
+    <string name="mini_app_download_file_message_named">Tải %1$s xuống?</string>
+    <string name="mini_app_biometric_auth_title">Xác thực sinh trắc học</string>
+    <string name="mini_app_biometric_auth_subtitle">Xác thực để tiếp tục</string>
+    <string name="mini_app_request_location_access_message">Cho phép bot này đến vị trí của bạn?</string>
+    <string name="mini_app_bot_permissions">Nhân quyền của bot</string>
+    <string name="mini_app_tos_title">Điều khoản Dịch vụ</string>
+    <string name="mini_app_tos_text">Bằng cách khởi chạy Mini App này, bạn đồng ý với Điều khoản Dịch vụ và Chính sách Quyền riêng tư. Bot sẽ có thể truy cập thông tin hồ sơ cơ bản của bạn.</string>
+    <string name="mini_app_tos_accept">Chấp nhận và Khởi chạy</string>
 
     <!-- Instant View -->
-    <string name="instant_view_search_placeholder">Search in article…</string>
-    <string name="instant_view_back">Back</string>
-    <string name="instant_view_clear">Clear</string>
-    <string name="instant_view_title">Instant View</string>
-    <string name="instant_view_more">More</string>
-    <string name="instant_view_views_count">%d views</string>
-    <string name="instant_view_copy_link">Copy Link</string>
-    <string name="instant_view_open_in_browser">Open in Browser</string>
-    <string name="instant_view_search">Search</string>
-    <string name="instant_view_text_size">Text Size</string>
-    <string name="instant_view_play_video">Play Video</string>
-    <string name="instant_view_play_animation">Play Animation</string>
-    <string name="instant_view_audio">Audio</string>
-    <string name="instant_view_unknown_artist">Unknown Artist</string>
-    <string name="instant_view_play">Play</string>
-    <string name="instant_view_open">Open</string>
-    <string name="instant_view_collapse">Collapse</string>
-    <string name="instant_view_expand">Expand</string>
-    <string name="instant_view_map_prefix">Map: %1$s, %2$s</string>
-
+    <string name="instant_view_search_placeholder">Tìm kiếm trong bài viết…</string>
+    <string name="instant_view_back">Quay lại</string>
+    <string name="instant_view_clear">Xóa</string>
+    <string name="instant_view_title">Xem nhanh</string>
+    <string name="instant_view_more">Thêm</string>
+    <string name="instant_view_views_count">%d lượt xem</string>
+    <string name="instant_view_copy_link">Sao chép liên kết</string>
+    <string name="instant_view_open_in_browser">Mở trong trình duyệt</string>
+    <string name="instant_view_search">Tìm kiếm</string>
+    <string name="instant_view_text_size">Cỡ chữ</string>
+    <string name="instant_view_play_video">Phát video</string>
+    <string name="instant_view_play_animation">Phát ảnh động</string>
+    <string name="instant_view_audio">Âm thanh</string>
+    <string name="instant_view_unknown_artist">Nghệ sĩ không xác định</string>
+    <string name="instant_view_play">Phát</string>
+    <string name="instant_view_open">Mở</string>
+    <string name="instant_view_collapse">Thu gọn</string>
+    <string name="instant_view_expand">Mở rộng</string>
+    <string name="instant_view_map_prefix">Bản đồ: %1$s, %2$s</string>
     <!-- Settings Top -->
-    <string name="share_profile_title">Share Profile</string>
-    <string name="share_profile_subtitle">Share your Monogram profile link</string>
-    <string name="copy_link_title">Copy Link</string>
-    <string name="copy_link_subtitle">Copy your Monogram profile link to clipboard</string>
+    <string name="share_profile_title">Chia sẻ hồ sơ</string>
+    <string name="share_profile_subtitle">Chia sẻ liên kết hồ sơ monogram của bạn</string>
+    <string name="copy_link_title">Sao chép liên kết</string>
+    <string name="copy_link_subtitle">Sao chép liên kết đến monogram của bạn vào bảng nhớ tạm</string>
 
     <!-- Chat Theme Editor -->
-    <string name="chat_theme_editor_title">Theme Editor</string>
-    <string name="chat_theme_editor_palette_mode">Palette Mode</string>
-    <string name="chat_theme_editor_palette_mode_description">Choose which palette you are editing. The editor opens on the palette currently active in the app.</string>
-    <string name="chat_theme_editor_light">Light</string>
-    <string name="chat_theme_editor_dark">Dark</string>
-    <string name="chat_theme_editor_editing_palette">Editing: %1$s palette</string>
-    <string name="chat_theme_editor_active_palette">Currently active in app: %1$s</string>
-    <string name="chat_theme_editor_accent">Accent</string>
-    <string name="chat_theme_editor_accent_description">Accent updates only the %1$s palette.</string>
-    <string name="chat_theme_editor_hex_accent">Hex accent</string>
-    <string name="chat_theme_editor_apply">Apply</string>
-    <string name="chat_theme_editor_cancel">Cancel</string>
-    <string name="chat_theme_editor_pick">Pick</string>
-    <string name="chat_theme_editor_save">Save</string>
-    <string name="chat_theme_editor_load">Load</string>
-    <string name="chat_theme_editor_both">Both</string>
+    <string name="chat_theme_editor_title">Trình chỉnh sửa chủ đề</string>
+    <string name="chat_theme_editor_palette_mode">Chế độ bảng màu</string>
+    <string name="chat_theme_editor_palette_mode_description">Chọn bảng màu bạn đang chỉnh sửa. Trình chỉnh sửa sẽ mở trên bảng màu hiện đang hoạt động trong ứng dụng.</string>
+    <string name="chat_theme_editor_light">Sáng</string>
+    <string name="chat_theme_editor_dark">Tối</string>
+    <string name="chat_theme_editor_editing_palette">Đang chỉnh sửa: Bảng màu %1$s</string>
+    <string name="chat_theme_editor_active_palette">Hiện đang hoạt động trong ứng dụng: %1$s</string>
+    <string name="chat_theme_editor_accent">Màu nhấn</string>
+    <string name="chat_theme_editor_accent_description">Màu nhấn chỉ cập nhật bảng màu %1$s.</string>
+    <string name="chat_theme_editor_hex_accent">Màu nhấn Hex</string>
+    <string name="chat_theme_editor_apply">Áp dụng</string>
+    <string name="chat_theme_editor_cancel">Hủy</string>
+    <string name="chat_theme_editor_pick">Chọn</string>
+    <string name="chat_theme_editor_save">Lưu</string>
+    <string name="chat_theme_editor_load">Tải</string>
+    <string name="chat_theme_editor_both">Cả hai</string>
     <string name="chat_theme_editor_hex">Hex</string>
     <string name="chat_theme_editor_theme_file_name">monogram-theme.json</string>
 
-    <string name="chat_theme_editor_theme_file_saved">Theme file saved</string>
-    <string name="chat_theme_editor_save_failed">Save failed</string>
-    <string name="chat_theme_editor_theme_loaded">Theme loaded</string>
-    <string name="chat_theme_editor_invalid_file">Invalid file</string>
-    <string name="chat_theme_editor_load_failed">Load failed</string>
+    <string name="chat_theme_editor_theme_file_saved">Đã lưu tệp chủ đề</string>
+    <string name="chat_theme_editor_save_failed">Lưu thất bại</string>
+    <string name="chat_theme_editor_theme_loaded">Đã tải chủ đề</string>
+    <string name="chat_theme_editor_invalid_file">Tệp không hợp lệ</string>
+    <string name="chat_theme_editor_load_failed">Tải thất bại</string>
 
-    <string name="chat_theme_editor_theme_source_title">Theme Source</string>
-    <string name="chat_theme_editor_theme_source_description">Choose exactly one source for your app colors. Custom uses your editable palettes, Monet uses Android dynamic color. AMOLED only affects dark backgrounds.</string>
-    <string name="chat_theme_editor_custom_theme">Custom theme</string>
-    <string name="chat_theme_editor_custom_theme_description">Use your own Light/Dark palettes, accents, presets, and manual role colors.</string>
+    <string name="chat_theme_editor_theme_source_title">Nguồn chủ đề</string>
+    <string name="chat_theme_editor_theme_source_description">Chọn chính xác một nguồn cho màu sắc ứng dụng của bạn. Tùy chỉnh sử dụng các bảng màu có thể chỉnh sửa của bạn, Monet sử dụng màu động của Android. AMOLED chỉ ảnh hưởng đến hình nền tối.</string>
+    <string name="chat_theme_editor_custom_theme">Chủ đề tùy chỉnh</string>
+    <string name="chat_theme_editor_custom_theme_description">Sử dụng bảng màu Sáng/Tối, màu nhấn, cài đặt sẵn và màu vai trò thủ công của riêng bạn.</string>
     <string name="chat_theme_editor_monet">Monet</string>
-    <string name="chat_theme_editor_monet_description">Use system-generated Material You colors based on wallpaper (Android 12+).</string>
-    <string name="chat_theme_editor_amoled_dark">AMOLED dark</string>
-    <string name="chat_theme_editor_amoled_dark_description">Force pure black for dark surfaces to reduce glow and save power on OLED screens.</string>
+    <string name="chat_theme_editor_monet_description">Sử dụng màu Material You do hệ thống tạo dựa trên hình nền (Android 12+).</string>
+    <string name="chat_theme_editor_amoled_dark">Tối AMOLED</string>
+    <string name="chat_theme_editor_amoled_dark_description">Bắt buộc dùng màu đen tuyền cho các bề mặt tối để giảm độ chói và tiết kiệm pin trên màn hình OLED.</string>
 
-    <string name="chat_theme_editor_preset_themes">Preset Themes</string>
-    <string name="chat_theme_editor_preset_themes_description">Each preset has ready Light and Dark variants. Tap Light, Dark, or Both to apply instantly.</string>
-    <string name="chat_theme_editor_manual_colors_title">Manual Colors (%1$s)</string>
-    <string name="chat_theme_editor_preview_title">%1$s preview</string>
-    <string name="chat_theme_editor_preview_summary_text">Summary text</string>
-    <string name="chat_theme_editor_preview_action">Action</string>
-    <string name="chat_theme_editor_pick_title">Pick %1$s</string>
-    <string name="chat_theme_editor_hue_format">Hue %1$d°</string>
-    <string name="chat_theme_editor_saturation_format">Saturation %1$d%%</string>
-    <string name="chat_theme_editor_brightness_format">Brightness %1$d%%</string>
-    <string name="chat_theme_editor_alpha_format">Alpha %1$d%%</string>
+    <string name="chat_theme_editor_preset_themes">Các chủ đề cài đặt sẵn</string>
+    <string name="chat_theme_editor_preset_themes_description">Mỗi cài đặt sẵn đều có các biến thể Sáng và Tối. Nhấn vào Sáng, Tối hoặc Cả hai để áp dụng ngay lập tức.</string>
+    <string name="chat_theme_editor_manual_colors_title">Màu thủ công (%1$s)</string>
+    <string name="chat_theme_editor_preview_title">Bản xem trước %1$s</string>
+    <string name="chat_theme_editor_preview_summary_text">Văn bản tóm tắt</string>
+    <string name="chat_theme_editor_preview_action">Hành động</string>
+    <string name="chat_theme_editor_pick_title">Chọn %1$s</string>
+    <string name="chat_theme_editor_hue_format">Sắc độ %1$d°</string>
+    <string name="chat_theme_editor_saturation_format">Độ bão hòa %1$d%%</string>
+    <string name="chat_theme_editor_brightness_format">Độ sáng %1$d%%</string>
+    <string name="chat_theme_editor_alpha_format">Độ mờ (Alpha) %1$d%%</string>
 
-    <string name="chat_theme_editor_role_primary">Primary</string>
-    <string name="chat_theme_editor_role_secondary">Secondary</string>
-    <string name="chat_theme_editor_role_tertiary">Tertiary</string>
-    <string name="chat_theme_editor_role_background">Background</string>
-    <string name="chat_theme_editor_role_surface">Surface</string>
-    <string name="chat_theme_editor_role_primary_container">Primary Container</string>
-    <string name="chat_theme_editor_role_secondary_container">Secondary Container</string>
-    <string name="chat_theme_editor_role_tertiary_container">Tertiary Container</string>
-    <string name="chat_theme_editor_role_surface_variant">Surface Variant</string>
-    <string name="chat_theme_editor_role_outline">Outline</string>
+    <string name="chat_theme_editor_role_primary">Chính</string>
+    <string name="chat_theme_editor_role_secondary">Phụ</string>
+    <string name="chat_theme_editor_role_tertiary">Bổ trợ</string>
+    <string name="chat_theme_editor_role_background">Nền</string>
+    <string name="chat_theme_editor_role_surface">Bề mặt</string>
+    <string name="chat_theme_editor_role_primary_container">Vùng chứa chính</string>
+    <string name="chat_theme_editor_role_secondary_container">Vùng chứa phụ</string>
+    <string name="chat_theme_editor_role_tertiary_container">Vùng chứa bổ trợ</string>
+    <string name="chat_theme_editor_role_surface_variant">Biến thể bề mặt</string>
+    <string name="chat_theme_editor_role_outline">Viền</string>
 
-    <string name="chat_theme_editor_chip_light_primary">L P</string>
-    <string name="chat_theme_editor_chip_light_container">L C</string>
-    <string name="chat_theme_editor_chip_light_background">L BG</string>
-    <string name="chat_theme_editor_chip_dark_primary">D P</string>
-    <string name="chat_theme_editor_chip_dark_container">D C</string>
-    <string name="chat_theme_editor_chip_dark_background">D BG</string>
+    <string name="chat_theme_editor_chip_light_primary">Sáng C</string>
+    <string name="chat_theme_editor_chip_light_container">Sáng VC</string>
+    <string name="chat_theme_editor_chip_light_background">Sáng N</string>
+    <string name="chat_theme_editor_chip_dark_primary">Tối C</string>
+    <string name="chat_theme_editor_chip_dark_container">Tối VC</string>
+    <string name="chat_theme_editor_chip_dark_background">Tối N</string>
 
-    <string name="chat_theme_editor_accent_blue">Blue</string>
-    <string name="chat_theme_editor_accent_green">Green</string>
-    <string name="chat_theme_editor_accent_orange">Orange</string>
-    <string name="chat_theme_editor_accent_rose">Rose</string>
-    <string name="chat_theme_editor_accent_indigo">Indigo</string>
-    <string name="chat_theme_editor_accent_cyan">Cyan</string>
+    <string name="chat_theme_editor_accent_blue">Xanh lam</string>
+    <string name="chat_theme_editor_accent_green">Xanh lục</string>
+    <string name="chat_theme_editor_accent_orange">Cam</string>
+    <string name="chat_theme_editor_accent_rose">Hồng</string>
+    <string name="chat_theme_editor_accent_indigo">Chàm</string>
+    <string name="chat_theme_editor_accent_cyan">Xanh lơ</string>
 
-    <string name="chat_theme_editor_preset_classic_name">Classic</string>
-    <string name="chat_theme_editor_preset_classic_description">Balanced blue with clear readability and neutral surfaces.</string>
+    <string name="chat_theme_editor_preset_classic_name">Cổ điển</string>
+    <string name="chat_theme_editor_preset_classic_description">Sắc xanh lam cân bằng với độ rõ nét cao và các bề mặt trung tính, đậm đà tôn trọng cổ điểm.</string>
 
-    <string name="chat_theme_editor_preset_forest_name">Forest</string>
-    <string name="chat_theme_editor_preset_forest_description">Natural greens with calm contrast and soft container tones.</string>
+    <string name="chat_theme_editor_preset_forest_name">Rừng cây</string>
+    <string name="chat_theme_editor_preset_forest_description">Sắc xanh lục tự nhiên với độ tương phản êm dịu và tông màu vùng chứa mềm mại, rất dân tộc.</string>
 
-    <string name="chat_theme_editor_preset_ocean_name">Ocean</string>
-    <string name="chat_theme_editor_preset_ocean_description">Cool cyan-blue gradient feeling with fresh light and deep dark mode.</string>
+    <string name="chat_theme_editor_preset_ocean_name">Đại dương</string>
+    <string name="chat_theme_editor_preset_ocean_description">Cảm giác chuyển sắc xanh lơ - xanh lam mát mẻ với chế độ sáng tươi mới và chế độ tối sâu thẳm.</string>
 
-    <string name="chat_theme_editor_preset_sunset_name">Sunset</string>
-    <string name="chat_theme_editor_preset_sunset_description">Warm orange and coral accent set with high foreground clarity.</string>
+    <string name="chat_theme_editor_preset_sunset_name">Hoàng hôn</string>
+    <string name="chat_theme_editor_preset_sunset_description">Bộ màu nhấn san hô và cam ấm áp với độ rõ nét cao ở tiền cảnh.</string>
 
-    <string name="chat_theme_editor_preset_graphite_name">Graphite</string>
-    <string name="chat_theme_editor_preset_graphite_description">Neutral grayscale base with blue-gray accents and strong structure.</string>
+    <string name="chat_theme_editor_preset_graphite_name">Than chì</string>
+    <string name="chat_theme_editor_preset_graphite_description">Nền xám trung tính với các điểm nhấn màu xanh xám và cấu trúc mạnh mẽ.</string>
 
-    <string name="chat_theme_editor_preset_mint_name">Mint</string>
-    <string name="chat_theme_editor_preset_mint_description">Fresh mint and teal combination with gentle containers.</string>
+    <string name="chat_theme_editor_preset_mint_name">Bạc hà</string>
+    <string name="chat_theme_editor_preset_mint_description">Sự kết hợp tươi mát giữa màu bạc hà và xanh mòng két với các vùng chứa êm dịu.</string>
 
     <string name="chat_theme_editor_preset_ruby_name">Ruby</string>
-    <string name="chat_theme_editor_preset_ruby_description">Deep red accent with neutral containers for strong action focus.</string>
+    <string name="chat_theme_editor_preset_ruby_description">Màu nhấn đỏ đậm với các vùng chứa trung tính giúp tập trung mạnh vào hành động.</string>
 
-    <string name="chat_theme_editor_preset_lavender_gray_name">Lavender Gray</string>
-    <string name="chat_theme_editor_preset_lavender_gray_description">Muted violet-gray scheme with controlled saturation and clean contrast.</string>
+    <string name="chat_theme_editor_preset_lavender_gray_name">Xám oải hương</string>
+    <string name="chat_theme_editor_preset_lavender_gray_description">Bảng màu xám tím nhạt với độ bão hòa được kiểm soát và độ tương phản gọn gàng.</string>
 
-    <string name="chat_theme_editor_preset_sand_name">Sand</string>
-    <string name="chat_theme_editor_preset_sand_description">Beige and amber palette tuned for very soft visual noise.</string>
+    <string name="chat_theme_editor_preset_sand_name">Cát</string>
+    <string name="chat_theme_editor_preset_sand_description">Bảng màu be và hổ phách được tinh chỉnh để làm dịu mắt tối đa.</string>
 
-    <string name="chat_theme_editor_preset_arctic_name">Arctic</string>
-    <string name="chat_theme_editor_preset_arctic_description">Icy blue-white feel with high legibility and crisp boundaries.</string>
+    <string name="chat_theme_editor_preset_arctic_name">Bắc cực</string>
+    <string name="chat_theme_editor_preset_arctic_description">Cảm giác trắng - xanh lam băng giá với khả năng dễ đọc cao và các ranh giới sắc nét.</string>
 
-    <string name="chat_theme_editor_preset_emerald_name">Emerald</string>
-    <string name="chat_theme_editor_preset_emerald_description">Vibrant green palette with clean surfaces and modern contrast.</string>
+    <string name="chat_theme_editor_preset_emerald_name">Ngọc lục bảo</string>
+    <string name="chat_theme_editor_preset_emerald_description">Bảng màu xanh lục rực rỡ với các bề mặt rõ ràng và độ tương phản hiện đại.</string>
 
-    <string name="chat_theme_editor_preset_copper_name">Copper</string>
-    <string name="chat_theme_editor_preset_copper_description">Warm copper-orange theme that keeps text clear in both modes.</string>
+    <string name="chat_theme_editor_preset_copper_name">Đồng</string>
+    <string name="chat_theme_editor_preset_copper_description">Chủ đề cam - đồng ấm áp giúp giữ cho văn bản rõ ràng ở cả hai chế độ.</string>
 
-    <string name="chat_theme_editor_preset_sakura_name">Sakura</string>
-    <string name="chat_theme_editor_preset_sakura_description">Soft pink-magenta tones with gentle containers and strong highlights.</string>
+    <string name="chat_theme_editor_preset_sakura_name">Hoa anh đào</string>
+    <string name="chat_theme_editor_preset_sakura_description">Tông màu hồng - đỏ tươi mềm mại với các vùng chứa êm dịu và các điểm nổi bật mạnh mẽ.</string>
 
     <string name="chat_theme_editor_preset_nord_name">Nord</string>
-    <string name="chat_theme_editor_preset_nord_description">Cool northern blues with a calm, professional visual balance.</string>
+    <string name="chat_theme_editor_preset_nord_description">Tông xanh phương Bắc mát mẻ mang lại sự cân bằng thị giác êm dịu và chuyên nghiệp.</string>
     <!-- Circular recorder -->
-    <string name="recorder_permissions_required">Camera and microphone permissions are required</string>
-    <string name="recorder_processing">Processing...</string>
-    <string name="recorder_processing_error">Processing error: %1$s</string>
-    <string name="recorder_close_cd">Close recorder</string>
-    <string name="recorder_switch_cd">Switch camera</string>
-    <string name="recorder_done_cd">Finish recording</string>
-    <string name="recorder_rec_label">REC</string>
-    <string name="recorder_ready_label">READY</string>
-    <string name="recorder_time_format">Time: %1$s</string>
-    <string name="recorder_zoom_format">Zoom: %1$.1fx (range %2$.1fx - %3$.1fx)</string>
-    <string name="recorder_cancel">Cancel</string>
+    <string name="recorder_permissions_required">Yêu cầu quyền truy cập máy ảnh và micrô</string>
+    <string name="recorder_processing">Đang xử lý...</string>
+    <string name="recorder_processing_error">Lỗi xử lý: %1$s</string>
+    <string name="recorder_close_cd">Đóng trình ghi</string>
+    <string name="recorder_switch_cd">Đổi camera</string>
+    <string name="recorder_done_cd">Kết thúc ghi</string>
+    <string name="recorder_rec_label">GHI</string>
+    <string name="recorder_ready_label">SẴN SÀNG</string>
+    <string name="recorder_time_format">Thời gian: %1$s</string>
+    <string name="recorder_zoom_format">Thu phóng: %1$.1fx (phạm vi %2$.1fx - %3$.1fx)</string>
+    <string name="recorder_cancel">Hủy</string>
 
-    <string name="clear_history_title">Clear History?</string>
-    <string name="clear_history_confirmation">Are you sure you want to clear chat history? This action cannot be undone.</string>
-    <string name="action_clear_history">Clear History</string>
-    <string name="delete_chat_title">Delete Chat?</string>
-    <string name="delete_chat_confirmation">Are you sure you want to delete this chat? This action cannot be undone.</string>
-    <string name="action_delete_chat">Delete Chat</string>
-    <string name="leave_chat_title">Leave Chat?</string>
-    <string name="leave_chat_confirmation">Are you sure you want to leave this chat?</string>
-    <string name="action_leave">Leave</string>
-    <string name="delete_channel_title">Delete Channel?</string>
-    <string name="delete_group_title">Delete Group?</string>
-    <string name="delete_channel_confirmation">Are you sure you want to delete this channel? All messages and media will be lost.</string>
-    <string name="delete_group_confirmation">Are you sure you want to delete this group? All messages and media will be lost.</string>
-    <string name="delete_chats_title">Delete %1$d chats?</string>
-    <string name="delete_chats_confirmation">Are you sure you want to delete the selected chats?</string>
-    <string name="action_delete_chats">Delete Chats</string>
-    <string name="block_user_title">Block User?</string>
-    <string name="block_user_confirmation">Are you sure you want to block this user? This user will not be able to send you messages.</string>
-    <string name="action_block">Block</string>
-    <string name="unblock_user_title">Unblock User?</string>
-    <string name="unblock_user_confirmation">Are you sure you want to unblock this user? They will be able to send you
-        messages again.
-    </string>
-    <string name="unpin_message_title">Unpin message?</string>
-    <string name="unpin_message_confirmation">Are you sure you want to unpin this message?</string>
-    <string name="action_unpin">Unpin</string>
-    <string name="clear_recent_stickers_confirmation">Are you sure you want to clear recent stickers?</string>
-    <string name="action_clear_recent_stickers">Clear Stickers</string>
-    <string name="clear_recent_emojis_confirmation">Are you sure you want to clear recent emojis?</string>
-    <string name="action_clear_recent_emojis">Clear Emojis</string>
-    <string name="action_add_contact">Add to contacts</string>
-    <string name="action_remove_contact">Remove from contacts</string>
-    <string name="action_mark_as_read">Mark as read</string>
-    <string name="action_mark_as_unread">Mark as unread</string>
-    <string name="folder_tab_edit">Edit</string>
-    <string name="folder_tab_reorder">Reorder</string>
-    <string name="folder_tab_delete">Delete</string>
-    <string name="auth_phone_code_invalid_error">Invalid confirmation code</string>
-    <string name="auth_code_expired_error">Confirmation code expired</string>
-    <string name="auth_password_hash_invalid">Invalid password</string>
-    <string name="unexpected_error">An unexpected error occurred</string>
-    <string name="unread_messages">%1$d unread messages</string>
+    <string name="clear_history_title">Xóa lịch sử?</string>
+    <string name="clear_history_confirmation">Bạn có chắc chắn muốn xóa lịch sử trò chuyện không? Hành động này không thể hoàn tác.</string>
+    <string name="action_clear_history">Xóa lịch sử</string>
+    <string name="delete_chat_title">Xóa trò chuyện?</string>
+    <string name="delete_chat_confirmation">Bạn có chắc chắn muốn xóa cuộc trò chuyện này không? Hành động này không thể hoàn tác.</string>
+    <string name="action_delete_chat">Xóa trò chuyện</string>
+    <string name="leave_chat_title">Rời khỏi trò chuyện?</string>
+    <string name="leave_chat_confirmation">Bạn có chắc chắn muốn rời khỏi cuộc trò chuyện này không?</string>
+    <string name="action_leave">Rời khỏi</string>
+    <string name="delete_channel_title">Xóa kênh?</string>
+    <string name="delete_group_title">Xóa động?</string>
+    <string name="delete_channel_confirmation">Bạn có chắc chắn muốn xóa kênh này không? Tất cả tin nhắn và phương tiện sẽ bị mất.</string>
+    <string name="delete_group_confirmation">Bạn có chắc chắn muốn xóa động này không? Tất cả tin nhắn và phương tiện sẽ bị mất.</string>
+    <string name="delete_chats_title">Xóa %1$d trò chuyện?</string>
+    <string name="delete_chats_confirmation">Bạn có chắc chắn muốn xóa các cuộc trò chuyện đã chọn không?</string>
+    <string name="action_delete_chats">Xóa trò chuyện</string>
+    <string name="block_user_title">Chặn người dùng?</string>
+    <string name="block_user_confirmation">Bạn có chắc chắn muốn chặn người dùng này không? Người dùng này sẽ không thể gửi tin nhắn cho bạn.</string>
+    <string name="action_block">Chặn</string>
+    <string name="unblock_user_title">Bỏ chặn người dùng?</string>
+    <string name="unblock_user_confirmation">Bạn có chắc chắn muốn bỏ chặn người dùng này không (mạnh đấy) ? Họ sẽ có thể gửi tin nhắn lại cho bạn.</string>
+    <string name="unpin_message_title">Bỏ ghim tin nhắn?</string>
+    <string name="unpin_message_confirmation">Bạn có chắc chắn muốn bỏ ghim tin nhắn này không?</string>
+    <string name="action_unpin">Bỏ ghim</string>
+    <string name="clear_recent_stickers_confirmation">Bạn có chắc chắn muốn xóa các nhãn dán gần đây không?</string>
+    <string name="action_clear_recent_stickers">Xóa nhãn dán</string>
+    <string name="clear_recent_emojis_confirmation">Bạn có chắc chắn muốn xóa các biểu tượng cảm xúc gần đây không?</string>
+    <string name="action_clear_recent_emojis">Xóa biểu tượng cảm xúc</string>
+    <string name="action_add_contact">Thêm vào danh bạ</string>
+    <string name="action_remove_contact">Xóa khỏi danh bạ</string>
+    <string name="action_mark_as_read">Đánh dấu là đã đọc</string>
+    <string name="action_mark_as_unread">Đánh dấu là chưa đọc</string>
+    <string name="folder_tab_edit">Chỉnh sửa</string>
+    <string name="folder_tab_reorder">Sắp xếp lại</string>
+    <string name="folder_tab_delete">Xóa</string>
+    <string name="auth_phone_code_invalid_error">Mã xác nhận không hợp lệ</string>
+    <string name="auth_code_expired_error">Mã xác nhận đã hết hạn</string>
+    <string name="auth_password_hash_invalid">Mật khẩu không hợp lệ</string>
+    <string name="unexpected_error">Đã xảy ra lỗi không mong muốn</string>
+    <string name="unread_messages">%1$d tin nhắn chưa đọc</string>
 </resources>

@@ -64,7 +64,7 @@ fun AvatarHeader(
         fallbackPath = fallbackPath?.takeIf { it.isNotBlank() } ?: cachedFallbackPath
     )
 
-    Box(modifier = combinedModifier) {
+    Box(modifier = combinedModifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
         val avatarFile = resolvedPath?.let { File(it) }
 
         if (avatarFile != null && avatarFile.exists()) {

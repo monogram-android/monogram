@@ -585,10 +585,9 @@ fun SettingsContent(component: SettingsComponent) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = dynamicContainerColorTopBar,
-                    scrolledContainerColor = Color.Transparent,
-
-                    )
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent
+                )
             )
         }
     ) { padding ->

@@ -22,7 +22,7 @@ class BaseFcmPushService(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    protected fun handleNewToken(token: String) {
+    fun handleNewToken(token: String) {
         Log.d(TAG, "New FCM token: $token")
         if (appPreferences.pushProvider.value == PushProvider.FCM) {
             scope.launch {
@@ -31,7 +31,7 @@ class BaseFcmPushService(
         }
     }
 
-    protected fun handleMessage(data: Map<String, String>) {
+    fun handleMessage(data: Map<String, String>) {
         Log.d(TAG, "FCM message received: $data")
 
         if (appPreferences.pushProvider.value != PushProvider.FCM) return
@@ -75,7 +75,7 @@ class BaseFcmPushService(
         }
     }
 
-    protected fun handleDeletedMessages() {
+    fun handleDeletedMessages() {
         Log.d(TAG, "FCM messages deleted")
     }
 

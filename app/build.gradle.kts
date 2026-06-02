@@ -2,6 +2,7 @@ import com.android.build.api.artifact.SingleArtifact
 import com.android.build.api.variant.FilterConfiguration
 import com.android.build.api.variant.impl.VariantOutputImpl
 import com.google.android.gms.oss.licenses.plugin.DependencyTask
+import org.gradle.api.GradleException
 import java.util.Properties
 
 plugins {
@@ -11,9 +12,18 @@ plugins {
     alias(libs.plugins.androidx.baselineprofile)
 }
 
-apply(plugin = "com.google.gms.google-services")
-
 val localProperties = rootProject.extra["localProperties"] as Properties
+val googleServicesFile = layout.projectDirectory.file("google-services.json").asFile
+val requestedTasks = gradle.startParameter.taskNames
+val requestsFirebaseVariant = requestedTasks.any { it.contains("Firebase", ignoreCase = true) }
+
+if (googleServicesFile.exists()) {
+    apply(plugin = "com.google.gms.google-services")
+} else if (requestsFirebaseVariant) {
+    throw GradleException(
+        "Firebase build requested, but app/google-services.json is missing."
+    )
+}
 
 val releaseStoreFile = localProperties.getProperty("RELEASE_STORE_FILE")?.takeIf { it.isNotBlank() }
 val releaseStorePassword =

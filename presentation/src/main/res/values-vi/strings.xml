@@ -317,7 +317,7 @@
     <string name="service_message_protected_content_disabled">Đã tắt bảo vệ nội dung</string>
     <string name="service_message_protected_content_disable_requested">Yêu cầu vô hiệu hoá bảo vệ nội dung đã gửi</string>
     <string name="service_message_protected_content_disable_expired">Yêu cầu vô hiệu hoá bảo vệ nội dung đã hết hạn</string>
-    <string name="service_message_members_added">%1$s đã thêm %2$d người/string>
+    <string name="service_message_members_added">%1$s đã thêm %2$d người</string>
     <string name="service_message_member_added_named">%1$s đã thêm %2$s</string>
     <string name="service_message_members_added_two_named">%1$s đã thêm %2$s và %3$s</string>
     <string name="service_message_members_added_many_named">%1$s đã thêm %2$s, %3$s và %4$d và hơn nữa</string>
@@ -1206,11 +1206,8 @@
     <!-- Chat Settings Preview -->
     <string name="chat_settings_preview_title">Xem trước</string>
     <string name="preview_msg_sender_me">Tôi</string>
-    <string name="preview_msg_text_1">I-Radio: có 2 điểm nghẽn là kết nối CPRI tới khối capacity (nghèo thì 2.5G, giàu thì 10G) và cấu hình Tx/Rx. Bần thì 2T2R để nghe gọi chứ lướt data thì ko nổi, bình thường thì 4T4R. Giàu thì giờ có 8T8R hoặc Massive MIMO luôn rồi.
--Anten: dùng anten 1 sector = 1 radio ko thể gánh tải nhiều được như trên. Phải chia nhỏ để trị. Bài bản thì dùng 2 beam, 3 beam, thậm chí giờ có loại 6 beam. Mỗi beam gắn 1 hay nhiều con radio multi band 4T4R là ngon nghẻ ngay. Hoặc chơi lớn Massive MIMO FDD gắn 3 cái tương tự 3 beam. Cũng quay về vấn đề "đầu tiên":D
-</string>
-    <string name="preview_msg_text_2">-Khối capacity: lấy ví dụ là mã ABIA thông dụng chạy 4G thì vừa có giới hạn phần cứng băng thông L1 chỉ có 1.8/0.9Gbps (DL/UL) lẫn giới hạn số lượng kết nối RRC cỡ ~5000 (LTE CA cũng ăn vào số lượng này, ví dụ fen nào xài đt có 2xCA thì sẽ chiếm 2 slot, 3xCA thì 3 slot, ULCA cũng ăn thêm nữa....). Thực tế cũng sẽ thấp hơn vì yếu tố phần mềm, license tính năng.......Mỗi khối capacity gắn dc nhiều Radio.
-Mã capacity mới nhất là ABIO và ABIP thì hiệu năng đã cao hơn khá nhiều, nhưng còn ít triển khai vì quá mới và đắt.</string>
+    <string name="preview_msg_text_1"> Com canh gi chua nguoi xau</string>
+    <string name="preview_msg_text_2">Xau ma bo m</string>
     <string name="preview_msg_text_3">stfu</string>
     <string name="preview_msg_text_4">363636363636363636</string>
     <string name="preview_date_today">Hôm này</string>
@@ -1420,7 +1417,7 @@ Mã capacity mới nhất là ABIO và ABIP thì hiệu năng đã cao hơn khá
     <string name="typing_typing">đang thở</string>
     <string name="typing_recording_video">đang quay clip nóng</string>
     <string name="typing_recording_voice">đang moni talk</string>
-    <string name="typing_uploading_photo">đang gửi ảnh nóng/string>
+    <string name="typing_uploading_photo">đang gửi ảnh nóng</string>
     <string name="typing_uploading_video">đang quay vid nóng cực căng</string>
     <string name="typing_uploading_document">đang gửi file lạnh</string>
     <string name="typing_choosing_sticker">is đánh giá nhân tướng học</string>

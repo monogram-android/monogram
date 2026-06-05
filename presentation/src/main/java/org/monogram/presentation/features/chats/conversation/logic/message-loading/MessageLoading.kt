@@ -108,7 +108,8 @@ private fun reactionsSemanticEqual(
         val previous = currentByReaction[reaction.emoji to reaction.customEmojiId] ?: return@all false
         previous.count == reaction.count &&
                 previous.isChosen == reaction.isChosen &&
-                previous.customEmojiPath == reaction.customEmojiPath
+                previous.customEmojiPath == reaction.customEmojiPath &&
+                previous.recentSenders == reaction.recentSenders
     }
 }
 

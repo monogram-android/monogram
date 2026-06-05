@@ -1387,6 +1387,7 @@ class TdMessageRemoteDataSource(
             }
             is TdApi.UpdateMessageReaction -> {
                 cache.removeMessage(update.chatId, update.messageId)
+                refreshMessageDebounced(update.chatId, update.messageId)
             }
             is TdApi.UpdateMessageReactions -> {
                 cache.removeMessage(update.chatId, update.messageId)

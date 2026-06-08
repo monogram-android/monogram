@@ -1195,23 +1195,23 @@
     <string name="bot_commands_subtitle">Chọn lệnh để gửi đến bot</string>
 
     <!-- Chat List Preview -->
-    <string name="chat_list_preview_title">Danh sách chay</string>
-    <string name="preview_name_konata">Layconcudaingoangcuataonhetvaomommay</string>
-    <string name="preview_message_konata">Tôi cao bằng độ mixi</string>
-    <string name="preview_time_konata">18:36</string>
-    <string name="preview_name_kagami">Dungnemtaovaotronggoctuongtaogoidaylalovaidt</string>
-    <string name="preview_message_kagami">Tuyển gay sll.</string>
-    <string name="preview_time_kagami">11:36</string>
+    <string name="chat_list_preview_title">Chat List</string>
+    <string name="preview_name_konata">Konata Izumi</string>
+    <string name="preview_message_konata">I\'m not short, I\'m just concentrated awesome! 🍫 Also, I\'ve decided to become a professional sleeper 😴</string>
+    <string name="preview_time_konata">12:45</string>
+    <string name="preview_name_kagami">Kagami Hiiragi</string>
+    <string name="preview_message_kagami">Don\'t forget about the homework! It\'s due tomorrow morning and it\'s quite difficult.</string>
+    <string name="preview_time_kagami">11:20</string>
 
     <!-- Chat Settings Preview -->
-    <string name="chat_settings_preview_title">Xem trước</string>
-    <string name="preview_msg_sender_me">Tôi</string>
-    <string name="preview_msg_text_1"> Com canh gi chua nguoi xau</string>
-    <string name="preview_msg_text_2">Xau ma bo m</string>
-    <string name="preview_msg_text_3">stfu</string>
-    <string name="preview_msg_text_4">363636363636363636</string>
-    <string name="preview_date_today">Hôm này</string>
-    <string name="preview_name_konata_short">Layconcudaingoangcuataonhetvaomommay</string>
+    <string name="chat_settings_preview_title">Preview</string>
+    <string name="preview_msg_sender_me">Me</string>
+    <string name="preview_msg_text_1">I\'m not short, I\'m just concentrated awesome! 🍫\nAlso, I\'ve decided to become a professional sleeper 😴</string>
+    <string name="preview_msg_text_2">That\'s what you say every time you can\'t reach the top shelf... 🙄\nCheck this out: this</string>
+    <string name="preview_msg_text_3">Stop exposing me! 😤✨\nI\'ll just use my secret weapon: 💯 pure laziness</string>
+    <string name="preview_msg_text_4">It\'s super effective! 😵‍💫</string>
+    <string name="preview_date_today">Today</string>
+    <string name="preview_name_konata_short">Konata</string>
 
     <string name="subscribers_count_format">%1$d người theo dõi</string>
     <string name="thread_title">Bài đăng</string>

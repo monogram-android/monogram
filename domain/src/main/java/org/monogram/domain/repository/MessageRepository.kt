@@ -116,24 +116,6 @@ interface MessageRepository :
 
     suspend fun getCachedMessages(chatId: Long, limit: Int): List<MessageModel>
 
-    suspend fun getCachedMessagesOlder(
-        chatId: Long,
-        fromMessageId: Long,
-        limit: Int
-    ): List<MessageModel>
-
-    suspend fun getCachedMessagesNewer(
-        chatId: Long,
-        fromMessageId: Long,
-        limit: Int
-    ): List<MessageModel>
-
-    suspend fun getCachedMessagesAround(
-        chatId: Long,
-        messageId: Long,
-        limit: Int
-    ): List<MessageModel>
-
     suspend fun getMessagesNewer(
         chatId: Long,
         fromMessageId: Long,

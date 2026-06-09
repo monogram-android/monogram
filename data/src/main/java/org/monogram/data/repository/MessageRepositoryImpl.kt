@@ -545,44 +545,6 @@ class MessageRepositoryImpl(
             mapLocalMessages(local)
         }
 
-    override suspend fun getCachedMessagesOlder(
-        chatId: Long,
-        fromMessageId: Long,
-        limit: Int
-    ): List<MessageModel> =
-        withContext(dispatcherProvider.io) {
-            val local = chatLocalDataSource.getMessagesOlder(chatId, fromMessageId, limit)
-            mapLocalMessages(local)
-        }
-
-    override suspend fun getCachedMessagesNewer(
-        chatId: Long,
-        fromMessageId: Long,
-        limit: Int
-    ): List<MessageModel> =
-        withContext(dispatcherProvider.io) {
-            val local = chatLocalDataSource.getMessagesNewer(chatId, fromMessageId, limit)
-            mapLocalMessages(local)
-        }
-
-    override suspend fun getCachedMessagesAround(
-        chatId: Long,
-        messageId: Long,
-        limit: Int
-    ): List<MessageModel> =
-        withContext(dispatcherProvider.io) {
-            val halfLimit = (limit / 2).coerceAtLeast(1)
-            val anchor = chatLocalDataSource.getMessage(chatId, messageId)
-            val older = chatLocalDataSource.getMessagesOlder(chatId, messageId, halfLimit)
-            val newer = chatLocalDataSource.getMessagesNewer(chatId, messageId, halfLimit)
-            val local = buildList {
-                addAll(newer)
-                if (anchor != null) add(anchor)
-                addAll(older)
-            }.distinctBy { it.id }
-            mapLocalMessages(local)
-        }
-
     override suspend fun getMessagesNewer(
         chatId: Long,
         fromMessageId: Long,

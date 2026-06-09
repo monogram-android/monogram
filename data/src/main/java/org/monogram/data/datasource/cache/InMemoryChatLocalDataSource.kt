@@ -88,10 +88,6 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
             .take(limit)
     }
 
-    override suspend fun getMessage(chatId: Long, messageId: Long): MessageEntity? {
-        return messages[chatId]?.value?.get(messageId)
-    }
-
     override suspend fun getLatestMessages(chatId: Long, limit: Int): List<MessageEntity> {
         val chatMessages = messages[chatId]?.value?.values ?: return emptyList()
         return chatMessages.sortedByDescending { it.date }.take(limit)

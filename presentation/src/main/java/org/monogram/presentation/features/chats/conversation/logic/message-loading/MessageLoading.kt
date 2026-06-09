@@ -3,6 +3,7 @@ package org.monogram.presentation.features.chats.conversation.logic
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -273,7 +274,7 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
     messageLoadingJob = scope.launch {
         _state.update {
             it.copy(
-                isLoading = it.messages.isEmpty(),
+                isLoading = true,
                 isOldestLoaded = false,
                 isLatestLoaded = false,
                 pendingScrollCommand = null
@@ -294,16 +295,13 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
             val firstUnreadId =
                 unreadSeparatorLastReadInboxMessageId.takeIf { unreadSeparatorCount > 0 }
                     ?.let { lastRead ->
-                        repositoryMessage.getCachedMessagesNewer(targetChatId, lastRead, 1)
-                            .firstOrNull()?.id
-                            ?: repositoryMessage.getMessagesNewer(
-                                targetChatId,
-                                lastRead,
-                                1,
-                                threadId
-                            )
-                                .firstOrNull()?.id
+                        if (unreadSeparatorCount > 0) {
+                            repositoryMessage.getMessagesNewer(targetChatId, lastRead, 1, threadId)
+                        .firstOrNull()?.id
                         ?: lastRead.takeIf { it > 0L }
+                } else {
+                    null
+                }
             }
 
             if (isComments && threadId != null) {
@@ -394,54 +392,25 @@ internal suspend fun DefaultChatComponent.loadComments(
 ) {
     lastLoadedOlderId = 0L
     lastLoadedNewerId = 0L
-    val cachedMessages = repositoryMessage.getCachedMessages(targetChatId, PAGE_SIZE)
-    if (cachedMessages.isNotEmpty()) {
-        _state.update {
-            it.copy(
-                isLoading = false,
-                isAtBottom = when (scrollCommand) {
-                    is ChatScrollCommand.ScrollToBottom -> true
-                    is ChatScrollCommand.RestoreViewport -> scrollCommand.atBottom
-                    else -> false
-                },
-                isLatestLoaded = true,
-                isOldestLoaded = false,
-                scrollToMessageId = null,
-                highlightRequest = null
-            )
-        }
-        updateMessages(cachedMessages, replace = true)
-        refreshCachedSenderProfiles(cachedMessages)
-        if (scrollCommand != null) {
-            _state.update { it.copy(pendingScrollCommand = scrollCommand) }
-        }
-    }
-
     val olderPage = repositoryMessage.getMessagesOlder(targetChatId, 0L, PAGE_SIZE, threadId)
     val messages = olderPage.messages
     val reachedOldest = olderPage.reachedOldest
-    val isRemoteSameAsCached = cachedMessages.isNotEmpty() &&
-            messages.size == cachedMessages.size &&
-            messages.zip(cachedMessages).all { (remote, cached) -> remote.id == cached.id }
 
     _state.update {
         it.copy(
-            isLoading = false,
             isAtBottom = when (scrollCommand) {
                 is ChatScrollCommand.ScrollToBottom -> true
                 is ChatScrollCommand.RestoreViewport -> scrollCommand.atBottom
                 else -> false
             },
             isLatestLoaded = true,
-            isOldestLoaded = if (isRemoteSameAsCached) false else reachedOldest,
+            isOldestLoaded = reachedOldest,
             scrollToMessageId = null,
             highlightRequest = null
         )
     }
-    if (!isRemoteSameAsCached) {
-        updateMessages(messages, replace = cachedMessages.isEmpty() || messages.isNotEmpty())
-        refreshCachedSenderProfiles(messages)
-    }
+    updateMessages(messages, replace = true)
+    refreshCachedSenderProfiles(messages)
     if (scrollCommand != null) {
         _state.update { it.copy(pendingScrollCommand = scrollCommand) }
     }
@@ -461,7 +430,6 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
         hasCachedPreview = true
         _state.update {
             it.copy(
-                isLoading = false,
                 isAtBottom = true,
                 isLatestLoaded = false,
                 isOldestLoaded = false,
@@ -488,7 +456,6 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
     if (!isRemoteSameAsCachedPreview) {
         _state.update {
             it.copy(
-                isLoading = false,
                 isAtBottom = true,
                 isLatestLoaded = true,
                 isOldestLoaded = isOldestLoaded,
@@ -502,7 +469,6 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
     } else {
         _state.update {
             it.copy(
-                isLoading = false,
                 isAtBottom = true,
                 isLatestLoaded = true,
                 isOldestLoaded = false,
@@ -514,17 +480,9 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
     if (scrollCommand != null) {
         _state.update { it.copy(pendingScrollCommand = scrollCommand) }
     }
-    if (hasCachedPreview && cachedMessages.size < PAGE_SIZE && !isOldestLoaded) {
-        scope.launch {
-            val anchorId = cachedMessages.lastOrNull { it.id > 0L }?.id ?: return@launch
-            val olderPage =
-                repositoryMessage.getMessagesOlder(targetChatId, anchorId, PAGE_SIZE, threadId)
-            if (olderPage.messages.isNotEmpty()) {
-                updateMessages(olderPage.messages)
-                refreshCachedSenderProfiles(olderPage.messages)
-            }
-            _state.update { it.copy(isOldestLoaded = olderPage.reachedOldest) }
-        }
+    if (!isRemoteSameAsCachedPreview && !isOldestLoaded) {
+        delay(100)
+        loadMoreMessages()
     }
 }
 
@@ -542,33 +500,10 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
 ) {
     lastLoadedOlderId = 0L
     lastLoadedNewerId = 0L
-    val cachedMessages = repositoryMessage.getCachedMessagesAround(chatId, messageId, PAGE_SIZE)
-    if (cachedMessages.isNotEmpty()) {
-        _state.update {
-            it.copy(
-                isLoading = false,
-                isAtBottom = false,
-                isLatestLoaded = false,
-                isOldestLoaded = false,
-                scrollToMessageId = null,
-                highlightRequest = null
-            )
-        }
-        updateMessages(cachedMessages, replace = true)
-        refreshCachedSenderProfiles(cachedMessages)
-        if (scrollCommand != null) {
-            _state.update { it.copy(pendingScrollCommand = scrollCommand) }
-        }
-    }
-
     val messages = repositoryMessage.getMessagesAround(chatId, messageId, PAGE_SIZE, threadId)
     if (messages.isNotEmpty()) {
-        val isRemoteSameAsCached = cachedMessages.isNotEmpty() &&
-                messages.size == cachedMessages.size &&
-                messages.zip(cachedMessages).all { (remote, cached) -> remote.id == cached.id }
         _state.update {
             it.copy(
-                isLoading = false,
                 isAtBottom = false,
                 isLatestLoaded = false,
                 isOldestLoaded = false,
@@ -576,14 +511,15 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
                 highlightRequest = null
             )
         }
-        if (!isRemoteSameAsCached) {
-            updateMessages(messages, replace = cachedMessages.isEmpty())
-            refreshCachedSenderProfiles(messages)
-        }
+        updateMessages(messages, replace = true)
+        refreshCachedSenderProfiles(messages)
         if (scrollCommand != null) {
             _state.update { it.copy(pendingScrollCommand = scrollCommand) }
         }
-    } else if (cachedMessages.isEmpty()) {
+        delay(100)
+        loadMoreMessages()
+        loadNewerMessages()
+    } else {
         if (_state.value.rootMessage != null && threadId != null) {
             loadComments(
                 targetChatId = chatId,
@@ -654,6 +590,7 @@ internal fun DefaultChatComponent.loadMoreMessages() {
     }
 
     loadMoreJob = scope.launch {
+        _state.update { it.copy(isLoadingOlder = true) }
         try {
             val currentState = _state.value
             val isComments = currentState.rootMessage != null
@@ -677,49 +614,52 @@ internal fun DefaultChatComponent.loadMoreMessages() {
                 return@launch
             }
 
-            val cachedOlderMessages =
-                repositoryMessage.getCachedMessagesOlder(targetChatId, anchorId, PAGE_SIZE)
-            if (cachedOlderMessages.isNotEmpty()) {
-                updateMessages(cachedOlderMessages)
-                refreshCachedSenderProfiles(cachedOlderMessages)
-                lastLoadedOlderId = cachedOlderMessages
+            var currentAnchorId = anchorId
+            var isOldestLoaded = false
+            var attempts = 0
+
+            while (!isOldestLoaded && attempts < 5) {
+                attempts++
+
+                val beforeSize = _state.value.messages.size
+                val olderPage = repositoryMessage.getMessagesOlder(
+                    targetChatId,
+                    currentAnchorId,
+                    PAGE_SIZE,
+                    threadId
+                )
+                val olderMessages = olderPage.messages
+
+                val nextOlderAnchorId = olderMessages
                     .asSequence()
                     .map { it.id }
-                    .filter { it in 1 until anchorId }
-                    .minOrNull() ?: anchorId
+                    .filter { it in 1 until currentAnchorId }
+                    .minOrNull() ?: currentAnchorId
+
+                val hasOlderProgress = nextOlderAnchorId < currentAnchorId
+
+                if (olderMessages.isNotEmpty()) {
+                    updateMessages(olderMessages)
+                    refreshCachedSenderProfiles(olderMessages)
+                }
+
+                val afterSize = _state.value.messages.size
+                val listGrew = afterSize > beforeSize
+
+                isOldestLoaded = olderPage.reachedOldest || (olderPage.isRemote && !hasOlderProgress)
+
+                if (hasOlderProgress) {
+                    lastLoadedOlderId = nextOlderAnchorId
+                    currentAnchorId = nextOlderAnchorId
+                }
+
+                if (!olderPage.isRemote && olderMessages.isEmpty()) {
+                    break
+                }
+
+                if (isOldestLoaded || listGrew) break
             }
 
-            if (cachedOlderMessages.size >= PAGE_SIZE) {
-                _state.update { it.copy(isOldestLoaded = false) }
-                return@launch
-            }
-
-            _state.update { it.copy(isLoadingOlder = true) }
-            val remoteAnchorId = lastLoadedOlderId.takeIf { it > 0L } ?: anchorId
-            val beforeIds = _state.value.messages.mapTo(HashSet()) { it.id }
-            val olderPage = repositoryMessage.getMessagesOlder(
-                targetChatId,
-                remoteAnchorId,
-                PAGE_SIZE,
-                threadId
-            )
-            val olderMessages = olderPage.messages
-            val hasNewIds = olderMessages.any { it.id !in beforeIds }
-            val nextOlderAnchorId = olderMessages
-                .asSequence()
-                .map { it.id }
-                .filter { it in 1 until remoteAnchorId }
-                .minOrNull() ?: remoteAnchorId
-            val hasOlderProgress = nextOlderAnchorId < remoteAnchorId
-            if (olderMessages.isNotEmpty() && hasNewIds) {
-                updateMessages(olderMessages)
-                refreshCachedSenderProfiles(olderMessages)
-            }
-            if (hasOlderProgress) {
-                lastLoadedOlderId = nextOlderAnchorId
-            }
-            val isOldestLoaded =
-                olderPage.reachedOldest || (olderPage.isRemote && !hasOlderProgress)
             _state.update { it.copy(isOldestLoaded = isOldestLoaded) }
         } catch (e: Exception) {
             Log.e("DefaultChatComponent", "Failed to load more messages", e)
@@ -747,6 +687,7 @@ internal fun DefaultChatComponent.loadNewerMessages() {
     }
 
     loadNewerJob = scope.launch {
+        _state.update { it.copy(isLoadingNewer = true) }
         try {
             val currentState = _state.value
             val currentMessages = currentState.messages
@@ -766,27 +707,12 @@ internal fun DefaultChatComponent.loadNewerMessages() {
                 return@launch
             }
 
-            val cachedNewerMessages =
-                repositoryMessage.getCachedMessagesNewer(targetChatId, anchorId, PAGE_SIZE)
-            if (cachedNewerMessages.isNotEmpty()) {
-                updateMessages(cachedNewerMessages)
-                refreshCachedSenderProfiles(cachedNewerMessages)
-                lastLoadedNewerId = anchorId
-            }
-
-            if (cachedNewerMessages.size >= PAGE_SIZE) {
-                _state.update { it.copy(isLatestLoaded = false) }
-                return@launch
-            }
-
-            _state.update { it.copy(isLoadingNewer = true) }
-            val beforeIds = _state.value.messages.mapTo(HashSet()) { it.id }
             val newerMessages =
                 repositoryMessage.getMessagesNewer(targetChatId, anchorId, PAGE_SIZE, threadId)
             val isLatestLoaded =
-                newerMessages.size < PAGE_SIZE || (newerMessages.isNotEmpty() && newerMessages.all { msg -> msg.id in beforeIds })
+                newerMessages.size < PAGE_SIZE || (newerMessages.isNotEmpty() && newerMessages.all { msg -> currentMessages.any { it.id == msg.id } })
 
-            if (newerMessages.isNotEmpty() && newerMessages.any { it.id !in beforeIds }) {
+            if (newerMessages.isNotEmpty()) {
                 updateMessages(newerMessages)
                 refreshCachedSenderProfiles(newerMessages)
                 lastLoadedNewerId = anchorId

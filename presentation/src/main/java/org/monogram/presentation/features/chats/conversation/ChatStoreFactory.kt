@@ -163,9 +163,16 @@ class ChatStoreFactory(
 
                 is Intent.CancelReply -> component._state.update { it.copy(replyMessage = null) }
                 is Intent.VideoRecorded -> component.handleVideoRecorded(intent.file)
-                is Intent.ForwardMessage -> publish(Label.Forward(component.chatId, listOf(intent.message.id)))
+                is Intent.ForwardMessage -> publish(
+                    Label.Forward(
+                        component.chatId,
+                        component.messageIdsWithAlbumSiblings(listOf(intent.message.id))
+                    )
+                )
                 is Intent.ForwardSelectedMessages -> {
-                    val selectedIds = component._state.value.selectedMessageIds.toList()
+                    val selectedIds = component.messageIdsWithAlbumSiblings(
+                        component._state.value.selectedMessageIds.toList()
+                    )
                     if (selectedIds.isNotEmpty()) {
                         publish(Label.Forward(component.chatId, selectedIds))
                         component.handleClearSelection()
@@ -387,6 +394,29 @@ class ChatStoreFactory(
                 is Intent.SendInlineResult -> component.handleSendInlineResult(intent.resultId)
             }
         }
+    }
+
+    private fun DefaultChatComponent.messageIdsWithAlbumSiblings(messageIds: List<Long>): List<Long> {
+        if (messageIds.isEmpty()) return emptyList()
+
+        val selectedIds = messageIds.toHashSet()
+        val selectedAlbumIds = _state.value.messages
+            .asSequence()
+            .filter { it.id in selectedIds && it.mediaAlbumId != 0L }
+            .map { it.mediaAlbumId }
+            .toHashSet()
+
+        if (selectedAlbumIds.isEmpty()) {
+            return messageIds.distinct().sorted()
+        }
+
+        return _state.value.messages
+            .asSequence()
+            .filter { it.id in selectedIds || it.mediaAlbumId in selectedAlbumIds }
+            .map { it.id }
+            .distinct()
+            .sorted()
+            .toList()
     }
 
     private object ReducerImpl : Reducer<ChatComponent.State, Message> {

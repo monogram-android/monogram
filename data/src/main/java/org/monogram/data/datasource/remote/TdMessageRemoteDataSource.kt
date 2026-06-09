@@ -864,14 +864,25 @@ class TdMessageRemoteDataSource(
         return result
     }
 
-    override suspend fun sendVideoNote(chatId: Long, videoPath: String, duration: Int, length: Int): TdApi.Message? {
+    override suspend fun sendVideoNote(
+        chatId: Long,
+        videoPath: String,
+        duration: Int,
+        length: Int,
+        replyToMsgId: Long?,
+        threadId: Long?
+    ): TdApi.Message? {
         val content = TdApi.InputMessageVideoNote().apply {
             this.videoNote = TdApi.InputFileLocal(videoPath)
             this.duration = duration
             this.length = length
         }
+        val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
+        val topicId = resolveTopicId(chatId, threadId)
         val req = TdApi.SendMessage().apply {
             this.chatId = chatId
+            this.topicId = topicId
+            this.replyTo = replyTo
             this.inputMessageContent = content
         }
         val response = safeExecute(req)
@@ -883,15 +894,21 @@ class TdMessageRemoteDataSource(
         chatId: Long,
         voicePath: String,
         duration: Int,
-        waveform: ByteArray
+        waveform: ByteArray,
+        replyToMsgId: Long?,
+        threadId: Long?
     ): TdApi.Message? {
         val content = TdApi.InputMessageVoiceNote().apply {
             this.voiceNote = TdApi.InputFileLocal(voicePath)
             this.duration = duration
             this.waveform = waveform
         }
+        val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
+        val topicId = resolveTopicId(chatId, threadId)
         val req = TdApi.SendMessage().apply {
             this.chatId = chatId
+            this.topicId = topicId
+            this.replyTo = replyTo
             this.inputMessageContent = content
         }
         val response = safeExecute(req)

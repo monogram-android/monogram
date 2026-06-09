@@ -133,8 +133,23 @@ interface MessageRemoteDataSource {
         threadId: Long?,
         sendOptions: MessageSendOptions
     ): TdApi.Messages?
-    suspend fun sendVideoNote(chatId: Long, videoPath: String, duration: Int, length: Int): TdApi.Message?
-    suspend fun sendVoiceNote(chatId: Long, voicePath: String, duration: Int, waveform: ByteArray): TdApi.Message?
+    suspend fun sendVideoNote(
+        chatId: Long,
+        videoPath: String,
+        duration: Int,
+        length: Int,
+        replyToMsgId: Long?,
+        threadId: Long?
+    ): TdApi.Message?
+
+    suspend fun sendVoiceNote(
+        chatId: Long,
+        voicePath: String,
+        duration: Int,
+        waveform: ByteArray,
+        replyToMsgId: Long?,
+        threadId: Long?
+    ): TdApi.Message?
     suspend fun forwardMessages(
         toChatId: Long,
         fromChatId: Long,

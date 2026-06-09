@@ -89,8 +89,23 @@ interface MessageRepository :
     suspend fun openChat(chatId: Long)
     suspend fun closeChat(chatId: Long)
 
-    suspend fun sendVideoNote(chatId: Long, videoPath: String, duration: Int, length: Int)
-    suspend fun sendVoiceNote(chatId: Long, voicePath: String, duration: Int, waveform: ByteArray)
+    suspend fun sendVideoNote(
+        chatId: Long,
+        videoPath: String,
+        duration: Int,
+        length: Int,
+        replyToMsgId: Long? = null,
+        threadId: Long? = null
+    )
+
+    suspend fun sendVoiceNote(
+        chatId: Long,
+        voicePath: String,
+        duration: Int,
+        waveform: ByteArray,
+        replyToMsgId: Long? = null,
+        threadId: Long? = null
+    )
 
     suspend fun getMessagesOlder(
         chatId: Long,

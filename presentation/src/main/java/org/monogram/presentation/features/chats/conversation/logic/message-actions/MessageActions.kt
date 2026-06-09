@@ -359,15 +359,27 @@ internal fun DefaultChatComponent.handleSendAlbum(
 internal fun DefaultChatComponent.handleVideoRecorded(file: File) {
     scope.launch(Dispatchers.IO) {
         try {
+            val currentState = _state.value
+            val replyId = currentState.replyMessage?.id
+            val threadId = currentState.effectiveThreadId()
+            val targetChatId = currentState.effectiveThreadChatId(chatId)
             val retriever = MediaMetadataRetriever()
             retriever.setDataSource(file.absolutePath)
             val timeString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
             val durationMs = timeString?.toLongOrNull() ?: 0L
             val durationSec = (durationMs / 1000).toInt()
             retriever.release()
-            repositoryMessage.sendVideoNote(chatId, file.absolutePath, durationSec, 384)
+            repositoryMessage.sendVideoNote(
+                targetChatId,
+                file.absolutePath,
+                durationSec,
+                384,
+                replyToMsgId = replyId,
+                threadId = threadId
+            )
             withContext(Dispatchers.Main) {
-                if (shouldAutoScrollAfterSend(_state.value.isAtBottom)) {
+                onCancelReply()
+                if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
                     onScrollToBottom()
                 }
             }
@@ -379,8 +391,20 @@ internal fun DefaultChatComponent.handleVideoRecorded(file: File) {
 
 internal fun DefaultChatComponent.handleSendVoice(path: String, duration: Int, waveform: ByteArray) {
     scope.launch {
-        repositoryMessage.sendVoiceNote(chatId, path, duration, waveform)
-        if (shouldAutoScrollAfterSend(_state.value.isAtBottom)) {
+        val currentState = _state.value
+        val replyId = currentState.replyMessage?.id
+        val threadId = currentState.effectiveThreadId()
+        val targetChatId = currentState.effectiveThreadChatId(chatId)
+        repositoryMessage.sendVoiceNote(
+            targetChatId,
+            path,
+            duration,
+            waveform,
+            replyToMsgId = replyId,
+            threadId = threadId
+        )
+        onCancelReply()
+        if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }
     }

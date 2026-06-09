@@ -429,12 +429,26 @@ class MessageRepositoryImpl(
         )
     }
 
-    override suspend fun sendVideoNote(chatId: Long, videoPath: String, duration: Int, length: Int) {
-        messageRemoteDataSource.sendVideoNote(chatId, videoPath, duration, length)
+    override suspend fun sendVideoNote(
+        chatId: Long,
+        videoPath: String,
+        duration: Int,
+        length: Int,
+        replyToMsgId: Long?,
+        threadId: Long?
+    ) {
+        messageRemoteDataSource.sendVideoNote(chatId, videoPath, duration, length, replyToMsgId, threadId)
     }
 
-    override suspend fun sendVoiceNote(chatId: Long, voicePath: String, duration: Int, waveform: ByteArray) {
-        messageRemoteDataSource.sendVoiceNote(chatId, voicePath, duration, waveform)
+    override suspend fun sendVoiceNote(
+        chatId: Long,
+        voicePath: String,
+        duration: Int,
+        waveform: ByteArray,
+        replyToMsgId: Long?,
+        threadId: Long?
+    ) {
+        messageRemoteDataSource.sendVoiceNote(chatId, voicePath, duration, waveform, replyToMsgId, threadId)
     }
 
     override suspend fun forwardMessage(

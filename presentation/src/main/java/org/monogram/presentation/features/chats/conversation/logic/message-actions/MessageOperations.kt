@@ -16,7 +16,19 @@ internal fun DefaultChatComponent.handleMessageVisible(messageId: Long) {
     scope.launch {
         val visibleMessage = _state.value.messages.firstOrNull { it.id == messageId }
         val targetChatId = visibleMessage?.chatId ?: activeThreadChatId()
-        repositoryMessage.markAsRead(targetChatId, messageId)
+        val visibleMessageIds = if (visibleMessage != null && visibleMessage.mediaAlbumId != 0L) {
+            _state.value.messages
+                .asSequence()
+                .filter { it.chatId == visibleMessage.chatId && it.mediaAlbumId == visibleMessage.mediaAlbumId }
+                .map(MessageModel::id)
+                .distinct()
+                .sorted()
+                .toList()
+                .ifEmpty { listOf(messageId) }
+        } else {
+            listOf(messageId)
+        }
+        visibleMessageIds.forEach { repositoryMessage.markAsRead(targetChatId, it) }
         if (_state.value.unreadCount > 0) {
             repositoryMessage.markAllMentionsAsRead(targetChatId)
             repositoryMessage.markAllReactionsAsRead(targetChatId)

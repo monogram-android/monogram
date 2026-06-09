@@ -5,10 +5,13 @@ import kotlinx.coroutines.flow.StateFlow
 import org.monogram.domain.models.AttachMenuBotModel
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.FolderModel
+import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.TopicModel
 import org.monogram.domain.models.UpdateState
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ConnectionStatus
+import org.monogram.domain.repository.ForwardTarget
 import org.monogram.presentation.core.util.AppPreferences
 
 interface ChatListComponent {
@@ -46,7 +49,16 @@ interface ChatListComponent {
     fun onClearHistorySelected(revoke: Boolean)
     fun onReportSelected(reason: String)
     fun onArchivePinToggle()
-    fun onConfirmForwarding()
+    fun onConfirmForwarding(
+        sendCopy: Boolean = false,
+        removeCaption: Boolean = false,
+        commentText: String = "",
+        commentEntities: List<MessageEntity> = emptyList()
+    )
+
+    fun onForwardTopicSelected(chatId: Long, topicId: Int?)
+    fun onDismissForwardTopicPicker()
+    fun onRemoveForwardTarget(target: ForwardTarget)
     fun onNewChatClicked()
     fun onProxySettingsClicked()
     fun onEditFoldersClicked()
@@ -75,6 +87,11 @@ interface ChatListComponent {
         val currentUser: UserModel? = null,
         val isLoadingByFolder: Map<Int, Boolean> = emptyMap(),
         val selectedChatIds: Set<Long> = emptySet(),
+        val selectedForwardTargets: List<ForwardTarget> = emptyList(),
+        val forwardTopicPickerChatId: Long? = null,
+        val forwardTopicPickerChatTitle: String = "",
+        val forwardTopics: List<TopicModel> = emptyList(),
+        val isLoadingForwardTopics: Boolean = false,
         val activeChatId: Long? = null,
         val isSearchActive: Boolean = false,
         val searchQuery: String = "",
@@ -152,8 +169,14 @@ interface ChatListComponent {
     @Immutable
     data class SelectionState(
         val selectedChatIds: Set<Long> = emptySet(),
+        val selectedForwardTargets: List<ForwardTarget> = emptyList(),
         val activeChatId: Long? = null,
         val selectedChats: List<ChatModel> = emptyList(),
+        val selectedForwardChats: List<ChatModel> = emptyList(),
+        val forwardTopicPickerChatId: Long? = null,
+        val forwardTopicPickerChatTitle: String = "",
+        val forwardTopics: List<TopicModel> = emptyList(),
+        val isLoadingForwardTopics: Boolean = false,
         val allPinned: Boolean = false,
         val allMuted: Boolean = false,
         val canMarkUnread: Boolean = false,

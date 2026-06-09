@@ -104,6 +104,14 @@
     <string name="loading_reset_connection">Сбросить соединение</string>
     <!-- Chat List -->
     <string name="forward_to_title">Переслать…</string>
+    <string name="forward_main_chat">Основной чат</string>
+    <string name="forward_main_chat_subtitle">Отправить без выбора топика</string>
+    <string name="forward_topic_picker_subtitle">Выберите, где появятся пересланные сообщения</string>
+    <string name="forward_confirm_title">Переслать сообщения</string>
+    <string name="forward_recipients_count">Получателей: %1$d</string>
+    <string name="forward_comment_hint">Добавить комментарий</string>
+    <string name="forward_without_author">Без автора</string>
+    <string name="forward_without_caption">Без подписи</string>
     <plurals name="chats_selected_format">
         <item quantity="one">Выбрано чатов: %1$d</item>
         <item quantity="other">Выбрано чатов: %1$d</item>

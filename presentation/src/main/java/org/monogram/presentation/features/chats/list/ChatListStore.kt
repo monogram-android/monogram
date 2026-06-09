@@ -1,6 +1,9 @@
 package org.monogram.presentation.features.chats.list
 
 import com.arkivanov.mvikotlin.core.store.Store
+import org.monogram.domain.models.MessageEntity
+import org.monogram.domain.repository.ForwardRequest
+import org.monogram.domain.repository.ForwardTarget
 
 interface ChatListStore : Store<ChatListStore.Intent, ChatListComponent.State, ChatListStore.Label> {
 
@@ -30,7 +33,16 @@ interface ChatListStore : Store<ChatListStore.Intent, ChatListComponent.State, C
         data class ClearHistorySelected(val revoke: Boolean) : Intent()
         data class ReportSelected(val reason: String) : Intent()
         object ArchivePinToggle : Intent()
-        object ConfirmForwarding : Intent()
+        data class ConfirmForwarding(
+            val sendCopy: Boolean,
+            val removeCaption: Boolean,
+            val commentText: String,
+            val commentEntities: List<MessageEntity>
+        ) : Intent()
+
+        data class ForwardTopicSelected(val chatId: Long, val topicId: Int?) : Intent()
+        object DismissForwardTopicPicker : Intent()
+        data class RemoveForwardTarget(val target: ForwardTarget) : Intent()
         object NewChatClicked : Intent()
         object ProxySettingsClicked : Intent()
         object EditFoldersClicked : Intent()
@@ -53,7 +65,7 @@ interface ChatListStore : Store<ChatListStore.Intent, ChatListComponent.State, C
         object OpenSettings : Label()
         object OpenProxySettings : Label()
         object OpenNewChat : Label()
-        data class ConfirmForward(val selectedChatIds: Set<Long>) : Label()
+        data class ConfirmForward(val request: ForwardRequest) : Label()
         data class EditFolders(val folderId: Int? = null) : Label()
     }
 }

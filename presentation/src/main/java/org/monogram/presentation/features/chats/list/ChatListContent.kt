@@ -20,6 +20,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,18 +67,25 @@ import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Report
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Unarchive
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
@@ -106,10 +114,10 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -129,8 +137,10 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.FolderModel
+import org.monogram.domain.models.TopicModel
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ConnectionStatus
+import org.monogram.domain.repository.ForwardTarget
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
@@ -176,11 +186,21 @@ fun ChatListContent(component: ChatListComponent) {
     var showDeleteChatsSheet by remember { mutableStateOf(false) }
     var showLeaveChatSheet by remember { mutableStateOf(false) }
     var showClearHistorySheet by remember { mutableStateOf(false) }
+    var forwardCommentText by remember { mutableStateOf("") }
+    var forwardSendCopy by remember { mutableStateOf(false) }
+    var forwardRemoveCaption by remember { mutableStateOf(false) }
+    var isForwardPanelCollapsed by remember { mutableStateOf(false) }
     var statusAnchorBounds by remember { mutableStateOf<Rect?>(null) }
     val statusMenuTransitionState = remember { MutableTransitionState(false) }
 
     LaunchedEffect(showStatusMenu) {
         statusMenuTransitionState.targetState = showStatusMenu
+    }
+
+    LaunchedEffect(uiState.isForwarding, selectionState.selectedForwardTargets.isEmpty()) {
+        if (!uiState.isForwarding || selectionState.selectedForwardTargets.isEmpty()) {
+            isForwardPanelCollapsed = false
+        }
     }
 
     val isPermissionRequested by component.appPreferences.isPermissionRequested.collectAsState()
@@ -194,6 +214,8 @@ fun ChatListContent(component: ChatListComponent) {
     val isCustomBackHandlingEnabled =
         searchState.isSearchActive ||
                 selectionState.selectedChatIds.isNotEmpty() ||
+                selectionState.selectedForwardTargets.isNotEmpty() ||
+                selectionState.forwardTopicPickerChatId != null ||
                 foldersState.selectedFolderId == -2 ||
                 uiState.isForwarding ||
                 uiState.instantViewUrl != null ||
@@ -533,6 +555,9 @@ fun ChatListContent(component: ChatListComponent) {
 
     val onChatClicked = remember(component) { { id: Long -> component.onChatClicked(id) } }
     val onChatLongClicked = remember(component) { { id: Long -> component.onChatLongClicked(id) } }
+    val selectedForwardChatIds = remember(selectionState.selectedForwardTargets) {
+        selectionState.selectedForwardTargets.map { it.chatId }.toSet()
+    }
     val statusMenuScrimAlpha by animateFloatAsState(
         targetValue = if (statusMenuTransitionState.targetState) 0.18f else 0f,
         animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
@@ -583,11 +608,7 @@ fun ChatListContent(component: ChatListComponent) {
                         }
 
                         ChatListTopBarMode.Forwarding -> {
-                            ForwardingModeTopBar(
-                                selectedCount = selectionState.selectedChatIds.size,
-                                onBackClick = component::handleBack,
-                                onConfirmClick = component::onConfirmForwarding
-                            )
+                            ForwardingModeTopBar(onBackClick = component::handleBack)
                         }
 
                         ChatListTopBarMode.Archive -> {
@@ -743,19 +764,6 @@ fun ChatListContent(component: ChatListComponent) {
                     )
                 }
 
-                AnimatedVisibility(
-                    visible = uiState.isForwarding && selectionState.selectedChatIds.isNotEmpty(),
-                    enter = scaleIn() + fadeIn(),
-                    exit = scaleOut() + fadeOut()
-                ) {
-                    FloatingActionButton(
-                        onClick = { component.onConfirmForwarding() },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ) {
-                        Icon(Icons.AutoMirrored.Rounded.Send, stringResource(R.string.action_send))
-                    }
-                }
             }
         }
     ) { padding ->
@@ -771,6 +779,8 @@ fun ChatListContent(component: ChatListComponent) {
                 foldersState = foldersState,
                 chatsState = chatsState,
                 selectionState = selectionState,
+                selectedForwardChatIds = selectedForwardChatIds,
+                isForwarding = uiState.isForwarding,
                 searchState = searchState,
                 visibleFolders = visibleFolders,
                 pagerState = pagerState,
@@ -786,6 +796,40 @@ fun ChatListContent(component: ChatListComponent) {
             )
         }
     }
+
+    ForwardTopicPickerSheet(
+        chatId = selectionState.forwardTopicPickerChatId,
+        title = selectionState.forwardTopicPickerChatTitle,
+        topics = selectionState.forwardTopics,
+        isLoading = selectionState.isLoadingForwardTopics,
+        onTopicSelected = component::onForwardTopicSelected,
+        onDismiss = component::onDismissForwardTopicPicker
+    )
+
+    ForwardConfirmationPanel(
+        visible = uiState.isForwarding && selectionState.selectedForwardTargets.isNotEmpty(),
+        targets = selectionState.selectedForwardTargets,
+        selectedChats = selectionState.selectedForwardChats,
+        commentText = forwardCommentText,
+        onCommentTextChange = { forwardCommentText = it },
+        sendCopy = forwardSendCopy,
+        onSendCopyChange = {
+            forwardSendCopy = it
+            if (!it) forwardRemoveCaption = false
+        },
+        removeCaption = forwardRemoveCaption,
+        onRemoveCaptionChange = { forwardRemoveCaption = it },
+        onRemoveTarget = component::onRemoveForwardTarget,
+        isCollapsed = isForwardPanelCollapsed,
+        onCollapsedChange = { isForwardPanelCollapsed = it },
+        onSend = {
+            component.onConfirmForwarding(
+                sendCopy = forwardSendCopy,
+                removeCaption = forwardRemoveCaption,
+                commentText = forwardCommentText
+            )
+        }
+    )
 
     if (statusMenuTransitionState.currentState || statusMenuTransitionState.targetState) {
         BoxWithConstraints(
@@ -1158,6 +1202,8 @@ private fun ChatListBody(
     foldersState: ChatListComponent.FoldersState,
     chatsState: ChatListComponent.ChatsState,
     selectionState: ChatListComponent.SelectionState,
+    selectedForwardChatIds: Set<Long>,
+    isForwarding: Boolean,
     searchState: ChatListComponent.SearchState,
     visibleFolders: List<FolderModel>,
     pagerState: PagerState,
@@ -1178,6 +1224,8 @@ private fun ChatListBody(
                 foldersState = foldersState,
                 chatsState = chatsState,
                 selectionState = selectionState,
+                selectedForwardChatIds = selectedForwardChatIds,
+                isForwarding = isForwarding,
                 searchState = searchState,
                 firstFolderTransitionCompleted = firstFolderTransitionCompleted,
                 scrollStates = scrollStates,
@@ -1194,6 +1242,8 @@ private fun ChatListBody(
                 component = component,
                 foldersState = foldersState,
                 selectionState = selectionState,
+                selectedForwardChatIds = selectedForwardChatIds,
+                isForwarding = isForwarding,
                 visibleFolders = visibleFolders,
                 pagerState = pagerState,
                 firstFolderTransitionCompleted = firstFolderTransitionCompleted,
@@ -1217,6 +1267,8 @@ private fun SearchOrArchiveContent(
     foldersState: ChatListComponent.FoldersState,
     chatsState: ChatListComponent.ChatsState,
     selectionState: ChatListComponent.SelectionState,
+    selectedForwardChatIds: Set<Long>,
+    isForwarding: Boolean,
     searchState: ChatListComponent.SearchState,
     firstFolderTransitionCompleted: MutableMap<Int, Boolean>,
     scrollStates: MutableMap<Int, LazyListState>,
@@ -1422,7 +1474,9 @@ private fun SearchOrArchiveContent(
                         ChatListChatRow(
                             chat = chat,
                             currentUserId = currentUserId,
-                            isSelected = selectionState.selectedChatIds.contains(chat.id),
+                            isSelected = if (isForwarding) selectedForwardChatIds.contains(chat.id) else selectionState.selectedChatIds.contains(
+                                chat.id
+                            ),
                             isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
                             emojiFontFamily = emojiFontFamily,
                             messageLines = messageLines,
@@ -1444,7 +1498,9 @@ private fun SearchOrArchiveContent(
                         ChatListChatRow(
                             chat = chat,
                             currentUserId = currentUserId,
-                            isSelected = selectionState.selectedChatIds.contains(chat.id),
+                            isSelected = if (isForwarding) selectedForwardChatIds.contains(chat.id) else selectionState.selectedChatIds.contains(
+                                chat.id
+                            ),
                             isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
                             emojiFontFamily = emojiFontFamily,
                             messageLines = messageLines,
@@ -1493,7 +1549,9 @@ private fun SearchOrArchiveContent(
                     ChatListChatRow(
                         chat = chat,
                         currentUserId = currentUserId,
-                        isSelected = selectionState.selectedChatIds.contains(chat.id),
+                        isSelected = if (isForwarding) selectedForwardChatIds.contains(chat.id) else selectionState.selectedChatIds.contains(
+                            chat.id
+                        ),
                         isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
                         emojiFontFamily = emojiFontFamily,
                         messageLines = messageLines,
@@ -1529,6 +1587,8 @@ private fun FolderPagerContent(
     component: ChatListComponent,
     foldersState: ChatListComponent.FoldersState,
     selectionState: ChatListComponent.SelectionState,
+    selectedForwardChatIds: Set<Long>,
+    isForwarding: Boolean,
     visibleFolders: List<FolderModel>,
     pagerState: PagerState,
     firstFolderTransitionCompleted: MutableMap<Int, Boolean>,
@@ -1562,6 +1622,8 @@ private fun FolderPagerContent(
             hasFolderLoadState = foldersState.isLoadingByFolder.containsKey(folderId),
             restoredPosition = foldersState.scrollPositions[folderId],
             selectionState = selectionState,
+            selectedForwardChatIds = selectedForwardChatIds,
+            isForwarding = isForwarding,
             shouldAnimateFirstFolderTransition = firstFolderTransitionCompleted[folderId] != true,
             scrollStates = scrollStates,
             onMarkFirstTransitionComplete = { firstFolderTransitionCompleted[folderId] = true },
@@ -1586,6 +1648,8 @@ private fun FolderPageContent(
     hasFolderLoadState: Boolean,
     restoredPosition: Pair<Int, Int>?,
     selectionState: ChatListComponent.SelectionState,
+    selectedForwardChatIds: Set<Long>,
+    isForwarding: Boolean,
     shouldAnimateFirstFolderTransition: Boolean,
     scrollStates: MutableMap<Int, LazyListState>,
     onMarkFirstTransitionComplete: () -> Unit,
@@ -1687,7 +1751,9 @@ private fun FolderPageContent(
                         ChatListChatRow(
                             chat = chat,
                             currentUserId = currentUserId,
-                            isSelected = selectionState.selectedChatIds.contains(chat.id),
+                            isSelected = if (isForwarding) selectedForwardChatIds.contains(chat.id) else selectionState.selectedChatIds.contains(
+                                chat.id
+                            ),
                             isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
                             emojiFontFamily = emojiFontFamily,
                             messageLines = messageLines,
@@ -1850,51 +1916,479 @@ private fun SelectionModeTopBar(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ForwardingModeTopBar(
-    selectedCount: Int,
-    onBackClick: () -> Unit,
-    onConfirmClick: () -> Unit
+    onBackClick: () -> Unit
 ) {
     TopAppBar(
         title = {
-            Column {
-                Text(
-                    stringResource(R.string.forward_to_title),
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                if (selectedCount > 0) {
-                    Text(
-                        text = pluralStringResource(
-                            R.plurals.chats_selected_format,
-                            selectedCount,
-                            selectedCount
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
+            Text(
+                stringResource(R.string.forward_to_title),
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium
+            )
         },
         navigationIcon = {
             IconButton(onClick = onBackClick) {
                 Icon(Icons.Rounded.Close, stringResource(R.string.cancel_button))
             }
         },
-        actions = {
-            if (selectedCount > 0) {
-                IconButton(onClick = onConfirmClick) {
-                    Icon(
-                        Icons.AutoMirrored.Rounded.Send,
-                        stringResource(R.string.action_send),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ForwardTopicPickerSheet(
+    chatId: Long?,
+    title: String,
+    topics: List<TopicModel>,
+    isLoading: Boolean,
+    onTopicSelected: (Long, Int?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    if (chatId == null) return
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 28.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = stringResource(R.string.forward_topic_picker_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(18.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow
+            ) {
+                Column {
+                    ForwardTopicRow(
+                        title = stringResource(R.string.forward_main_chat),
+                        subtitle = stringResource(R.string.forward_main_chat_subtitle),
+                        onClick = { onTopicSelected(chatId, null) }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 68.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                    )
+                    if (isLoading) {
+                        Text(
+                            text = stringResource(R.string.loading_text),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        topics.forEachIndexed { index, topic ->
+                            ForwardTopicRow(
+                                title = topic.name,
+                                subtitle = topic.lastMessageText.takeIf { it.isNotBlank() },
+                                onClick = { onTopicSelected(chatId, topic.id) }
+                            )
+                            if (index != topics.lastIndex) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 68.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ForwardTopicRow(
+    title: String,
+    subtitle: String?,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Surface(
+            modifier = Modifier.size(40.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = "#",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ForwardConfirmationPanel(
+    visible: Boolean,
+    targets: List<ForwardTarget>,
+    selectedChats: List<ChatModel>,
+    commentText: String,
+    onCommentTextChange: (String) -> Unit,
+    sendCopy: Boolean,
+    onSendCopyChange: (Boolean) -> Unit,
+    removeCaption: Boolean,
+    onRemoveCaptionChange: (Boolean) -> Unit,
+    onRemoveTarget: (ForwardTarget) -> Unit,
+    isCollapsed: Boolean,
+    onCollapsedChange: (Boolean) -> Unit,
+    onSend: () -> Unit
+) {
+    fun Modifier.forwardPanelSwipe(): Modifier = pointerInput(isCollapsed) {
+        var totalDrag = 0f
+        detectVerticalDragGestures(
+            onDragStart = { totalDrag = 0f },
+            onVerticalDrag = { change, dragAmount ->
+                change.consume()
+                totalDrag += dragAmount
+            },
+            onDragEnd = {
+                when {
+                    totalDrag > 72f -> onCollapsedChange(true)
+                    totalDrag < -72f -> onCollapsedChange(false)
+                }
+                totalDrag = 0f
+            },
+            onDragCancel = { totalDrag = 0f }
+        )
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        modifier = Modifier.fillMaxSize(),
+        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                color = MaterialTheme.colorScheme.background,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                tonalElevation = 6.dp,
+                shadowElevation = 12.dp
+            ) {
+                AnimatedContent(
+                    targetState = isCollapsed,
+                    label = "ForwardPanelCollapseAnimation",
+                    transitionSpec = {
+                        if (targetState) {
+                            slideInVertically { it / 2 } + fadeIn() togetherWith
+                                    slideOutVertically { -it / 4 } + fadeOut()
+                        } else {
+                            slideInVertically { -it / 4 } + fadeIn() togetherWith
+                                    slideOutVertically { it / 2 } + fadeOut()
+                        }
+                    }
+                ) { collapsed ->
+                    if (collapsed) {
+                        ForwardCollapsedPanel(
+                            targetsCount = targets.size,
+                            onExpand = { onCollapsedChange(false) },
+                            onSend = onSend,
+                            modifier = Modifier.forwardPanelSwipe()
+                        )
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .windowInsetsPadding(WindowInsets.navigationBars)
+                                .forwardPanelSwipe()
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 8.dp, bottom = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            BottomSheetDefaults.DragHandle(
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.forward_confirm_title),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = stringResource(
+                                            R.string.forward_recipients_count,
+                                            targets.size
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLow
+                            ) {
+                                LazyRow(
+                                    modifier = Modifier.padding(
+                                        horizontal = 12.dp,
+                                        vertical = 12.dp
+                                    ),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    itemsIndexed(
+                                        targets,
+                                        key = { index, target -> "${target.chatId}_${target.forumTopicId}_$index" }) { _, target ->
+                                        ForwardRecipientPill(
+                                            target = target,
+                                            selectedChats = selectedChats,
+                                            onRemove = { onRemoveTarget(target) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLow
+                            ) {
+                                TextField(
+                                    value = commentText,
+                                    onValueChange = onCommentTextChange,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    placeholder = { Text(stringResource(R.string.forward_comment_hint)) },
+                                    maxLines = 3,
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent,
+                                        disabledContainerColor = Color.Transparent,
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent,
+                                        disabledIndicatorColor = Color.Transparent
+                                    )
+                                )
+                            }
+
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(24.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLow
+                            ) {
+                                Column {
+                                    ForwardOptionRow(
+                                        title = stringResource(R.string.forward_without_author),
+                                        checked = sendCopy,
+                                        enabled = true,
+                                        onCheckedChange = onSendCopyChange
+                                    )
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(start = 16.dp),
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                                    )
+                                    ForwardOptionRow(
+                                        title = stringResource(R.string.forward_without_caption),
+                                        checked = removeCaption,
+                                        enabled = sendCopy,
+                                        onCheckedChange = onRemoveCaptionChange
+                                    )
+                                }
+                            }
+
+                            Button(
+                                onClick = onSend,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(ButtonDefaults.MediumContainerHeight),
+                                shapes = org.monogram.presentation.core.ui.ExpressiveDefaults.buttonShapesFor(
+                                    ButtonDefaults.MediumContainerHeight
+                                )
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Rounded.Send,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(R.string.action_send),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ForwardCollapsedPanel(
+    targetsCount: Int,
+    onExpand: () -> Unit,
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .clickable(onClick = onExpand)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        BottomSheetDefaults.DragHandle()
+        Text(
+            text = stringResource(R.string.forward_recipients_count, targetsCount),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Button(
+            onClick = onSend,
+            modifier = Modifier.height(40.dp),
+            shapes = org.monogram.presentation.core.ui.ExpressiveDefaults.buttonShapesFor(
+                ButtonDefaults.MediumContainerHeight
+            )
+        ) {
+            Icon(
+                Icons.AutoMirrored.Rounded.Send,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.action_send))
+        }
+    }
+}
+
+@Composable
+private fun ForwardRecipientPill(
+    target: ForwardTarget,
+    selectedChats: List<ChatModel>,
+    onRemove: () -> Unit
+) {
+    val chatTitle = selectedChats.firstOrNull { it.id == target.chatId }?.title
+        ?: target.chatId.toString()
+    val label = if (target.forumTopicId != null) {
+        "$chatTitle #${target.forumTopicId}"
+    } else {
+        chatTitle
+    }
+
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier
+            .height(40.dp)
+            .clickable(onClick = onRemove)
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Icon(
+                imageVector = Icons.Rounded.Close,
+                contentDescription = stringResource(R.string.cd_close),
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ForwardOptionRow(
+    title: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -121,6 +121,14 @@
 
     <!-- Chat List -->
     <string name="forward_to_title">Forward to...</string>
+    <string name="forward_main_chat">Main chat</string>
+    <string name="forward_main_chat_subtitle">Send without choosing a topic</string>
+    <string name="forward_topic_picker_subtitle">Choose where forwarded messages will appear</string>
+    <string name="forward_confirm_title">Forward messages</string>
+    <string name="forward_recipients_count">%1$d recipients</string>
+    <string name="forward_comment_hint">Add a comment</string>
+    <string name="forward_without_author">Without author</string>
+    <string name="forward_without_caption">Without caption</string>
     <plurals name="chats_selected_format">
         <item quantity="one">%1$d chats selected</item>
         <item quantity="other">%1$d chats selected</item>

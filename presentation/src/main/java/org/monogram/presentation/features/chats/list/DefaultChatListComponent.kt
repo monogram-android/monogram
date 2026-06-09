@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatType
+import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.UpdateState
 import org.monogram.domain.repository.AttachMenuBotRepository
 import org.monogram.domain.repository.BotRepository
@@ -28,6 +29,10 @@ import org.monogram.domain.repository.ChatFolderRepository
 import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.ChatOperationsRepository
 import org.monogram.domain.repository.ChatSearchRepository
+import org.monogram.domain.repository.ForumTopicsRepository
+import org.monogram.domain.repository.ForwardOptions
+import org.monogram.domain.repository.ForwardRequest
+import org.monogram.domain.repository.ForwardTarget
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
@@ -43,7 +48,9 @@ class DefaultChatListComponent(
     private val onProfileSelect: (Long) -> Unit,
     private val onSettingsClick: () -> Unit,
     private val onProxySettingsClick: () -> Unit,
-    private val onConfirmForward: (Set<Long>) -> Unit = {},
+    private val onConfirmForward: (ForwardRequest) -> Unit = {},
+    private val forwardingFromChatId: Long? = null,
+    private val forwardingMessageIds: List<Long> = emptyList(),
     internal val isForwarding: Boolean = false,
     private val onNewChatClick: () -> Unit = {},
     private val onEditFoldersClick: () -> Unit = {},
@@ -55,6 +62,8 @@ class DefaultChatListComponent(
     private val chatFolderRepository: ChatFolderRepository = container.repositories.chatFolderRepository
     private val chatSearchRepository: ChatSearchRepository = container.repositories.chatSearchRepository
     private val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
+    private val forumTopicsRepository: ForumTopicsRepository =
+        container.repositories.forumTopicsRepository
     private val repositoryUser: UserRepository = container.repositories.userRepository
     private val userProfileEditRepository: UserProfileEditRepository = container.repositories.userProfileEditRepository
     private val botRepository: BotRepository = container.repositories.botRepository
@@ -127,6 +136,8 @@ class DefaultChatListComponent(
 
     private fun ChatListComponent.State.toSelectionState(): ChatListComponent.SelectionState {
         val selectedChats = resolveSelectedChats(selectedChatIds)
+        val selectedForwardChats =
+            resolveSelectedChats(selectedForwardTargets.map { it.chatId }.toSet())
         val capabilities = computeSelectionCapabilities(selectedChatIds, selectedChats)
         val allPinned = selectedChats.isNotEmpty() && selectedChats.all { it.isPinned }
         val allMuted = selectedChats.isNotEmpty() && selectedChats.all { it.isMuted }
@@ -134,8 +145,14 @@ class DefaultChatListComponent(
 
         return ChatListComponent.SelectionState(
             selectedChatIds = selectedChatIds,
+            selectedForwardTargets = selectedForwardTargets,
             activeChatId = activeChatId,
             selectedChats = selectedChats,
+            selectedForwardChats = selectedForwardChats,
+            forwardTopicPickerChatId = forwardTopicPickerChatId,
+            forwardTopicPickerChatTitle = forwardTopicPickerChatTitle,
+            forwardTopics = forwardTopics,
+            isLoadingForwardTopics = isLoadingForwardTopics,
             allPinned = allPinned,
             allMuted = allMuted,
             canMarkUnread = canMarkUnread,
@@ -372,7 +389,7 @@ class DefaultChatListComponent(
                     ChatListStore.Label.OpenSettings -> onSettingsClick()
                     ChatListStore.Label.OpenProxySettings -> onProxySettingsClick()
                     ChatListStore.Label.OpenNewChat -> onNewChatClick()
-                    is ChatListStore.Label.ConfirmForward -> onConfirmForward(label.selectedChatIds)
+                    is ChatListStore.Label.ConfirmForward -> onConfirmForward(label.request)
                     is ChatListStore.Label.EditFolders -> onEditFoldersClick()
                 }
             }
@@ -440,7 +457,7 @@ class DefaultChatListComponent(
 
     internal fun handleChatClicked(id: Long): ChatListStore.Label.OpenChat? {
         if (_state.value.isForwarding) {
-            toggleSelection(id)
+            toggleForwardTarget(id)
             return null
         } else if (_state.value.selectedChatIds.isNotEmpty()) {
             toggleSelection(id)
@@ -457,7 +474,7 @@ class DefaultChatListComponent(
 
     internal fun handleMessageClicked(chatId: Long, messageId: Long): ChatListStore.Label.OpenChat? {
         if (_state.value.isForwarding) {
-            toggleSelection(chatId)
+            toggleForwardTarget(chatId)
             return null
         } else if (_state.value.selectedChatIds.isNotEmpty()) {
             toggleSelection(chatId)
@@ -744,11 +761,83 @@ class DefaultChatListComponent(
         chatOperationsRepository.setArchivePinned(!_state.value.isArchivePinned)
     }
 
-    override fun onConfirmForwarding() = store.accept(ChatListStore.Intent.ConfirmForwarding)
+    override fun onConfirmForwarding(
+        sendCopy: Boolean,
+        removeCaption: Boolean,
+        commentText: String,
+        commentEntities: List<MessageEntity>
+    ) = store.accept(
+        ChatListStore.Intent.ConfirmForwarding(
+            sendCopy = sendCopy,
+            removeCaption = removeCaption,
+            commentText = commentText,
+            commentEntities = commentEntities
+        )
+    )
 
-    internal fun handleConfirmForwarding(): ChatListStore.Label.ConfirmForward? {
-        val selectedChatIds = _state.value.selectedChatIds
-        return selectedChatIds.takeIf { it.isNotEmpty() }?.let(ChatListStore.Label::ConfirmForward)
+    internal fun handleConfirmForwarding(
+        sendCopy: Boolean,
+        removeCaption: Boolean,
+        commentText: String,
+        commentEntities: List<MessageEntity>
+    ): ChatListStore.Label.ConfirmForward? {
+        val fromChatId = forwardingFromChatId ?: return null
+        val messageIds = forwardingMessageIds.takeIf { it.isNotEmpty() } ?: return null
+        val targets = _state.value.selectedForwardTargets.takeIf { it.isNotEmpty() } ?: return null
+        val request = ForwardRequest(
+            fromChatId = fromChatId,
+            messageIds = messageIds,
+            targets = targets,
+            options = ForwardOptions(
+                sendCopy = sendCopy,
+                removeCaption = removeCaption && sendCopy,
+                commentText = commentText,
+                commentEntities = commentEntities
+            )
+        )
+        return ChatListStore.Label.ConfirmForward(request)
+    }
+
+    override fun onForwardTopicSelected(chatId: Long, topicId: Int?) =
+        store.accept(ChatListStore.Intent.ForwardTopicSelected(chatId, topicId))
+
+    internal fun handleForwardTopicSelected(chatId: Long, topicId: Int?) {
+        val target = ForwardTarget(chatId = chatId, forumTopicId = topicId)
+        _state.update { state ->
+            val withoutSameTarget = state.selectedForwardTargets.filterNot {
+                it.chatId == target.chatId && it.forumTopicId == target.forumTopicId
+            }
+            state.copy(
+                selectedForwardTargets = withoutSameTarget + target,
+                forwardTopicPickerChatId = null,
+                forwardTopicPickerChatTitle = "",
+                forwardTopics = emptyList(),
+                isLoadingForwardTopics = false
+            )
+        }
+    }
+
+    override fun onDismissForwardTopicPicker() =
+        store.accept(ChatListStore.Intent.DismissForwardTopicPicker)
+
+    internal fun handleDismissForwardTopicPicker() {
+        _state.update {
+            it.copy(
+                forwardTopicPickerChatId = null,
+                forwardTopicPickerChatTitle = "",
+                forwardTopics = emptyList(),
+                isLoadingForwardTopics = false
+            )
+        }
+    }
+
+    override fun onRemoveForwardTarget(target: ForwardTarget) =
+        store.accept(ChatListStore.Intent.RemoveForwardTarget(target))
+
+    internal fun handleRemoveForwardTarget(target: ForwardTarget) {
+        _state.update {
+            it.copy(selectedForwardTargets = it.selectedForwardTargets.filterNot { selected -> selected == target })
+        }
     }
 
     override fun onNewChatClicked() = store.accept(ChatListStore.Intent.NewChatClicked)
@@ -873,6 +962,16 @@ class DefaultChatListComponent(
                 handleSearchToggle()
                 true
             }
+
+            state.value.forwardTopicPickerChatId != null -> {
+                handleDismissForwardTopicPicker()
+                true
+            }
+
+            state.value.selectedForwardTargets.isNotEmpty() -> {
+                _state.update { it.copy(selectedForwardTargets = emptyList()) }
+                true
+            }
             state.value.selectedChatIds.isNotEmpty() -> {
                 handleClearSelection()
                 true
@@ -919,6 +1018,49 @@ class DefaultChatListComponent(
             currentSelection + id
         }
         _state.value = _state.value.copy(selectedChatIds = newSelection)
+    }
+
+    private fun toggleForwardTarget(id: Long) {
+        val chat = _state.value.resolveSelectedChats(setOf(id)).firstOrNull()
+        if (chat?.viewAsTopics == true) {
+            openForwardTopicPicker(chat)
+            return
+        }
+
+        val target = ForwardTarget(chatId = id)
+        val currentTargets = _state.value.selectedForwardTargets
+        val newTargets = if (currentTargets.contains(target)) {
+            currentTargets - target
+        } else {
+            currentTargets + target
+        }
+        _state.update { it.copy(selectedForwardTargets = newTargets) }
+    }
+
+    private fun openForwardTopicPicker(chat: ChatModel) {
+        _state.update {
+            it.copy(
+                forwardTopicPickerChatId = chat.id,
+                forwardTopicPickerChatTitle = chat.title,
+                forwardTopics = emptyList(),
+                isLoadingForwardTopics = true
+            )
+        }
+        scope.launch(Dispatchers.IO) {
+            val topics = coRunCatching {
+                forumTopicsRepository.getForumTopics(chat.id, limit = 100)
+            }.getOrElse { emptyList() }
+            _state.update { state ->
+                if (state.forwardTopicPickerChatId != chat.id) {
+                    state
+                } else {
+                    state.copy(
+                        forwardTopics = topics,
+                        isLoadingForwardTopics = false
+                    )
+                }
+            }
+        }
     }
 
     private fun resolvePreferredFolderId(

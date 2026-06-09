@@ -52,6 +52,7 @@ import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
 import org.monogram.domain.repository.FixedTextResult
 import org.monogram.domain.repository.FormattedTextResult
+import org.monogram.domain.repository.ForwardRequest
 import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.MessageThreadContext
@@ -443,12 +444,26 @@ class MessageRepositoryImpl(
         sendCopy: Boolean
     ) {
         messageRemoteDataSource.forwardMessages(
-            toChatId,
-            fromChatId,
-            longArrayOf(messageId),
-            false,
-            sendCopy
+            toChatId = toChatId,
+            fromChatId = fromChatId,
+            messageIds = longArrayOf(messageId),
+            forumTopicId = null,
+            removeCaption = false,
+            sendCopy = sendCopy
         )
+    }
+
+    override suspend fun forwardMessages(request: ForwardRequest) {
+        request.targets.forEach { target ->
+            messageRemoteDataSource.forwardMessages(
+                toChatId = target.chatId,
+                fromChatId = request.fromChatId,
+                messageIds = request.messageIds.toLongArray(),
+                forumTopicId = target.forumTopicId,
+                removeCaption = request.options.removeCaption,
+                sendCopy = request.options.sendCopy
+            )
+        }
     }
 
     override suspend fun deleteMessage(chatId: Long, messageIds: List<Long>, revoke: Boolean) {

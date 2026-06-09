@@ -899,15 +899,23 @@ class TdMessageRemoteDataSource(
         return response
     }
 
-    override suspend fun forwardMessages(toChatId: Long, fromChatId: Long, messageIds: LongArray, removeCaption: Boolean, sendCopy: Boolean): TdApi.Messages? {
+    override suspend fun forwardMessages(
+        toChatId: Long,
+        fromChatId: Long,
+        messageIds: LongArray,
+        forumTopicId: Int?,
+        removeCaption: Boolean,
+        sendCopy: Boolean
+    ): TdApi.Messages? {
         val options = TdApi.MessageSendOptions().apply {
             this.disableNotification = false
             this.fromBackground = false
         }
         val req = TdApi.ForwardMessages().apply {
             this.chatId = toChatId
+            this.topicId = forumTopicId?.let { TdApi.MessageTopicForum(it) }
             this.fromChatId = fromChatId
-            this.messageIds = messageIds
+            this.messageIds = messageIds.sortedArray()
             this.options = options
             this.removeCaption = removeCaption
             this.sendCopy = sendCopy

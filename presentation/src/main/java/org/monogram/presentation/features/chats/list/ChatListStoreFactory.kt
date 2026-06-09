@@ -48,7 +48,20 @@ class ChatListStoreFactory(
                 is Intent.ClearHistorySelected -> component.handleClearHistorySelected(intent.revoke)
                 is Intent.ReportSelected -> component.handleReportSelected(intent.reason)
                 Intent.ArchivePinToggle -> component.handleArchivePinToggle()
-                Intent.ConfirmForwarding -> component.handleConfirmForwarding()?.let(::publish)
+                is Intent.ConfirmForwarding -> component.handleConfirmForwarding(
+                    sendCopy = intent.sendCopy,
+                    removeCaption = intent.removeCaption,
+                    commentText = intent.commentText,
+                    commentEntities = intent.commentEntities
+                )?.let(::publish)
+
+                is Intent.ForwardTopicSelected -> component.handleForwardTopicSelected(
+                    intent.chatId,
+                    intent.topicId
+                )
+
+                Intent.DismissForwardTopicPicker -> component.handleDismissForwardTopicPicker()
+                is Intent.RemoveForwardTarget -> component.handleRemoveForwardTarget(intent.target)
                 Intent.NewChatClicked -> publish(Label.OpenNewChat)
                 Intent.ProxySettingsClicked -> publish(Label.OpenProxySettings)
                 Intent.EditFoldersClicked -> publish(Label.EditFolders())

@@ -53,15 +53,15 @@ import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StorageRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserRepository
+import org.monogram.presentation.core.media.VideoPlayerPool
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.features.auth.DefaultAuthComponent
-import org.monogram.presentation.features.chats.list.DefaultChatListComponent
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
-import org.monogram.presentation.core.media.VideoPlayerPool
 import org.monogram.presentation.features.chats.creation.DefaultNewChatComponent
+import org.monogram.presentation.features.chats.list.DefaultChatListComponent
 import org.monogram.presentation.features.profile.DefaultProfileComponent
 import org.monogram.presentation.features.profile.admin.DefaultAdminManageComponent
 import org.monogram.presentation.features.profile.admin.DefaultChatEditComponent
@@ -507,17 +507,27 @@ class DefaultRootComponent(
                     onConfirmForward = { targetChatIds ->
                         if (config.forwardingMessageIds != null) {
                             scope.launch {
-                                targetChatIds.forEach { targetChatId ->
-                                    config.forwardingMessageIds.forEach { msgId ->
-                                        messageRepository.forwardMessage(targetChatId, config.fromChatId ?: 0L, msgId)
+                                messageRepository.forwardMessages(targetChatIds)
+                                val commentText = targetChatIds.options.commentText.trim()
+                                if (commentText.isNotEmpty()) {
+                                    targetChatIds.targets.forEach { target ->
+                                        messageRepository.sendMessage(
+                                            chatId = target.chatId,
+                                            text = commentText,
+                                            replyToMsgId = null,
+                                            entities = targetChatIds.options.commentEntities,
+                                            threadId = target.forumTopicId?.toLong()
+                                        )
                                     }
                                 }
                             }
                             navigation.pop()
-                            if (targetChatIds.size == 1) navigateToChat(targetChatIds.first())
+                            if (targetChatIds.targets.size == 1) navigateToChat(targetChatIds.targets.first().chatId)
                         }
                     },
                     isForwarding = config.forwardingMessageIds != null,
+                    forwardingFromChatId = config.fromChatId,
+                    forwardingMessageIds = config.forwardingMessageIds.orEmpty(),
                     onNewChatClick = { navigation.bringToFront(Config.NewChat) },
                     onEditFoldersClick = { navigation.bringToFront(Config.Folders) },
                     activeChatId = activeChatId

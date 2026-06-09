@@ -1,6 +1,7 @@
 package org.monogram.app.components
 
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -28,14 +29,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.util.fastFirstOrNull
+import androidx.compose.ui.zIndex
+import com.arkivanov.decompose.Child
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.extensions.compose.stack.Children
-import com.arkivanov.decompose.extensions.compose.stack.animation.fade
-import com.arkivanov.decompose.extensions.compose.stack.animation.plus
-import com.arkivanov.decompose.extensions.compose.stack.animation.predictiveback.predictiveBackAnimation
-import com.arkivanov.decompose.extensions.compose.stack.animation.slide
-import com.arkivanov.decompose.extensions.compose.stack.animation.stackAnimation
+import com.arkivanov.decompose.extensions.compose.stack.animation.StackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import com.arkivanov.decompose.router.stack.ChildStack
 import kotlinx.coroutines.launch
 import org.monogram.presentation.root.RootComponent
 import kotlin.math.abs
@@ -46,14 +46,33 @@ fun MobileLayout(root: RootComponent) {
     val stack by root.childStack.subscribeAsState()
     val isDragToBackEnabled by root.appPreferences.isDragToBackEnabled.collectAsState()
     val coroutineScope = rememberCoroutineScope()
-    val previous = stack.items.dropLast(1).lastOrNull()?.instance
+    val activeEntry = stack.active
+    val previousEntry = stack.items.dropLast(1).lastOrNull()
+    val stackKeysAreUnique = stack.items.map { it.key }.toSet().size == stack.items.size
+    val canRenderSwipePreview =
+        stackKeysAreUnique &&
+                previousEntry != null &&
+                previousEntry.key != activeEntry.key &&
+                previousEntry.instance !== activeEntry.instance
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
     var isCompletingSwipeBack by remember { mutableStateOf(false) }
     var widthPx by remember { mutableFloatStateOf(0f) }
     var isSwipeBackBlocked by remember { mutableStateOf(false) }
     val canUseDragToBack =
-        isDragToBackEnabled && isSwipeBackSupported(stack.active.instance) && !isSwipeBackBlocked
+        isDragToBackEnabled &&
+                previousEntry != null &&
+                stackKeysAreUnique &&
+                isSwipeBackSupported(activeEntry.instance) &&
+                !isSwipeBackBlocked
     val dragProgress = if (widthPx > 0f) (dragOffsetX / widthPx).coerceIn(0f, 1f) else 0f
+
+    LaunchedEffect(activeEntry.key, stackKeysAreUnique) {
+        isSwipeBackBlocked = false
+        if (!stackKeysAreUnique) {
+            dragOffsetX = 0f
+            isCompletingSwipeBack = false
+        }
+    }
 
     LaunchedEffect(canUseDragToBack) {
         if (!canUseDragToBack && dragOffsetX > 0f) {
@@ -62,7 +81,7 @@ fun MobileLayout(root: RootComponent) {
         }
     }
 
-    if (dragOffsetX > 0f && previous != null) {
+    if (dragOffsetX > 0f && canRenderSwipePreview) {
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
@@ -71,7 +90,12 @@ fun MobileLayout(root: RootComponent) {
                         translationX = ((dragProgress - 1f) * widthPx * 0.08f)
                     },
             ) {
-                RenderChild(previous)
+                key("swipe-preview:${previousEntry.key}") {
+                    RenderChild(
+                        child = previousEntry.instance,
+                        isOverlay = true,
+                    )
+                }
             }
             Box(
                 modifier = Modifier
@@ -93,7 +117,7 @@ fun MobileLayout(root: RootComponent) {
             }
             .then(
                 if (canUseDragToBack) {
-                    Modifier.pointerInput(canUseDragToBack) {
+                    Modifier.pointerInput(canUseDragToBack, activeEntry.key) {
                         awaitEachGesture {
                             if (size.width == 0) return@awaitEachGesture
 
@@ -170,6 +194,11 @@ fun MobileLayout(root: RootComponent) {
                                         continue
                                     }
 
+                                    if (!canRenderSwipePreview) {
+                                        dragOffsetX = 0f
+                                        break
+                                    }
+
                                     isDragging = true
                                 }
 
@@ -203,11 +232,9 @@ fun MobileLayout(root: RootComponent) {
             },
     ) {
         Children(
-            stack = root.childStack,
-            animation = predictiveBackAnimation(
-                backHandler = root.backHandler,
-                onBack = root::onBack,
-                fallbackAnimation = if (!isCompletingSwipeBack) stackAnimation(slide() + fade()) else null,
+            stack = stack,
+            animation = safeStackAnimation(
+                enabled = dragOffsetX == 0f && !isCompletingSwipeBack,
             ),
         ) { child ->
             key(child.key) {
@@ -255,3 +282,118 @@ private fun isSwipeBackSupported(child: RootComponent.Child): Boolean =
 
         else -> false
     }
+
+private fun <C : Any, T : Any> activeOnlyStackAnimation(): StackAnimation<C, T> =
+    StackAnimation { stack, modifier, content ->
+        Box(modifier = modifier) {
+            content(stack.active)
+        }
+    }
+
+@Composable
+private fun <C : Any, T : Any> safeStackAnimation(enabled: Boolean): StackAnimation<C, T> {
+    if (!enabled) {
+        return activeOnlyStackAnimation()
+    }
+
+    return StackAnimation { stack, modifier, content ->
+        var previousStack by remember { mutableStateOf<ChildStack<C, T>?>(null) }
+        var transition by remember { mutableStateOf<StackTransition<C, T>?>(null) }
+        val oldStack = previousStack
+
+        if (oldStack == null) {
+            previousStack = stack
+        } else if (oldStack.active.key != stack.active.key) {
+            val oldActive = oldStack.active
+            val newActive = stack.active
+            transition =
+                if (oldActive.key != newActive.key) {
+                    StackTransition(
+                        oldActive = oldActive,
+                        newActive = newActive,
+                        isPop = stack.items.size < oldStack.items.size,
+                    )
+                } else {
+                    null
+                }
+            previousStack = stack
+        }
+
+        val currentTransition = transition
+        val animationProgress by animateFloatAsState(
+            targetValue = if (currentTransition == null) 1f else 0f,
+            animationSpec = tween(durationMillis = 220),
+            label = "MobileStackAnimation",
+            finishedListener = {
+                transition = null
+            },
+        )
+
+        Box(modifier = modifier) {
+            if (
+                currentTransition != null &&
+                currentTransition.oldActive.key != currentTransition.newActive.key
+            ) {
+                StackAnimatedChild(
+                    child = currentTransition.oldActive,
+                    progress = animationProgress,
+                    isPop = currentTransition.isPop,
+                    isOutgoing = true,
+                    content = content,
+                )
+                StackAnimatedChild(
+                    child = currentTransition.newActive,
+                    progress = animationProgress,
+                    isPop = currentTransition.isPop,
+                    isOutgoing = false,
+                    content = content,
+                )
+            } else {
+                content(stack.active)
+            }
+        }
+    }
+}
+
+@Composable
+private fun <C : Any, T : Any> StackAnimatedChild(
+    child: Child.Created<C, T>,
+    progress: Float,
+    isPop: Boolean,
+    isOutgoing: Boolean,
+    content: @Composable (child: Child.Created<C, T>) -> Unit,
+) {
+    val direction = if (isPop) -1f else 1f
+    val translationFactor =
+        if (isOutgoing) {
+            -direction * 0.08f * (1f - progress)
+        } else {
+            direction * progress
+        }
+    val alpha =
+        if (isOutgoing) {
+            1f - 0.18f * (1f - progress)
+        } else {
+            1f
+        }
+
+    key("stack-animation:${child.key}:${if (isOutgoing) "out" else "in"}") {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(if (isOutgoing) 0f else 1f)
+                .graphicsLayer {
+                    translationX = size.width * translationFactor
+                    this.alpha = alpha
+                },
+        ) {
+            content(child)
+        }
+    }
+}
+
+private data class StackTransition<C : Any, T : Any>(
+    val oldActive: Child.Created<C, T>,
+    val newActive: Child.Created<C, T>,
+    val isPop: Boolean,
+)

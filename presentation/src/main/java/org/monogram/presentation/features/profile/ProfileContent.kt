@@ -122,10 +122,15 @@ fun ProfileContent(component: ProfileComponent) {
 
 
     val unknownTitle = stringResource(R.string.unknown_title)
-    val title = remember(user, chat, unknownTitle) {
-        chat?.title ?: listOfNotNull(user?.firstName, user?.lastName)
-            .joinToString(" ")
-            .ifBlank { unknownTitle }
+    val deletedAccountTitle = stringResource(R.string.deleted_account)
+    val title = remember(user, chat, unknownTitle, deletedAccountTitle) {
+        if (user?.type == UserTypeEnum.DELETED) {
+            deletedAccountTitle
+        } else {
+            chat?.title?.takeIf { it.isNotBlank() } ?: listOfNotNull(user?.firstName, user?.lastName)
+                .joinToString(" ")
+                .ifBlank { unknownTitle }
+        }
     }
 
     val membersOnlineCountFormat = stringResource(R.string.members_online_count_format)

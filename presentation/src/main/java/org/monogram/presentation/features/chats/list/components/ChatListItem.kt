@@ -229,6 +229,7 @@ private fun ChatListItemHeader(
     val timeFormat = dateFormatManager.getHourMinuteFormat()
     val chatTime = chat.lastMessageDate.toDate().toShortRelativeDate(timeFormat)
     val savedMessagesTitle = stringResource(R.string.menu_saved_messages)
+    val deletedAccountTitle = stringResource(R.string.deleted_account)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -246,14 +247,14 @@ private fun ChatListItemHeader(
                 Spacer(Modifier.width(4.dp))
             }
             Text(
-                text = if (isSavedMessages) savedMessagesTitle else chat.title,
+                text = if (isSavedMessages) savedMessagesTitle else chat.title.ifBlank { deletedAccountTitle },
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.semantics {
-                    contentDescription = if (isSavedMessages) savedMessagesTitle else chat.title
+                    contentDescription = if (isSavedMessages) savedMessagesTitle else chat.title.ifBlank { deletedAccountTitle }
                 }
             )
 

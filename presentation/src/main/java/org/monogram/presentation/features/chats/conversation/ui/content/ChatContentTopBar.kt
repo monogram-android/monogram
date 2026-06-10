@@ -321,11 +321,12 @@ fun ChatContentTopBar(
                 }
 
                 val threadTitle = stringResource(R.string.thread_title)
-                val title = remember(currentTopic, topBarState.rootMessage, topBarState.chatTitle, threadTitle) {
+                val deletedAccountTitle = stringResource(R.string.deleted_account)
+                val title = remember(currentTopic, topBarState.rootMessage, topBarState.chatTitle, threadTitle, deletedAccountTitle) {
                     when {
                         currentTopic != null -> currentTopic.name
                         topBarState.rootMessage != null -> threadTitle
-                        else -> topBarState.chatTitle
+                        else -> topBarState.chatTitle.ifBlank { deletedAccountTitle }
                     }
                 }
                 val topicEmojiPath = currentTopic?.iconCustomEmojiPath

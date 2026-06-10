@@ -2456,4 +2456,5 @@
     <string name="auth_password_hash_invalid">Invalid password</string>
     <string name="unexpected_error">An unexpected error occurred</string>
     <string name="unread_messages">%1$d unread messages</string>
+    <string name="deleted_account">Deleted Account</string>
 </resources>

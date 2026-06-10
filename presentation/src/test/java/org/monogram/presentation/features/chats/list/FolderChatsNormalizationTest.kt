@@ -27,5 +27,5 @@ class FolderChatsNormalizationTest {
     }
 
     private fun chat(id: Long, order: Long = id): ChatModel =
-        ChatModel(id = id, title = "chat $id", order = order)
+        ChatModel(id = id, title = "chat $id", order = order, unreadCount = 0)
 }

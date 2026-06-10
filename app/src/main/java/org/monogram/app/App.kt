@@ -12,6 +12,7 @@ import org.koin.core.context.startKoin
 import org.maplibre.android.MapLibre
 import org.maplibre.android.WellKnownTileServer
 import org.monogram.app.di.appModule
+import org.monogram.data.infra.AppForegroundTracker
 import org.monogram.data.infra.DataMemoryPressureHandler
 import org.monogram.domain.managers.DistrManager
 import org.monogram.domain.repository.AppPreferencesProvider
@@ -75,6 +76,7 @@ class App : Application(), SingletonImageLoader.Factory {
             modules(appModule)
         }.koin
         container = KoinAppContainer(koin)
+        koin.get<AppForegroundTracker>().start()
     }
 
     private fun initMapLibre() {

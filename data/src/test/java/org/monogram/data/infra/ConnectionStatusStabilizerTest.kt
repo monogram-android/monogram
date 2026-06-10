@@ -13,7 +13,7 @@ class ConnectionStatusStabilizerTest {
         val result = stabilizer.onStatus(
             rawStatus = ConnectionStatus.Updating,
             nowMs = 1_000L,
-            hasActiveNetwork = true
+            hasUsableNetwork = true
         )
 
         assertNull(result.status)
@@ -40,7 +40,7 @@ class ConnectionStatusStabilizerTest {
         val result = stabilizer.onStatus(
             rawStatus = ConnectionStatus.WaitingForNetwork,
             nowMs = 1_000L,
-            hasActiveNetwork = true
+            hasUsableNetwork = true
         )
 
         assertEquals(ConnectionStatus.WaitingForNetwork, result.status)
@@ -53,7 +53,7 @@ class ConnectionStatusStabilizerTest {
         val result = stabilizer.onStatus(
             rawStatus = ConnectionStatus.ConnectingToProxy,
             nowMs = 1_000L,
-            hasActiveNetwork = true
+            hasUsableNetwork = true
         )
 
         assertEquals(ConnectionStatus.ConnectingToProxy, result.status)
@@ -66,7 +66,7 @@ class ConnectionStatusStabilizerTest {
         val result = stabilizer.onStatus(
             rawStatus = ConnectionStatus.Updating,
             nowMs = 1_000L,
-            hasActiveNetwork = true
+            hasUsableNetwork = true
         )
 
         assertEquals(ConnectionStatus.Updating, result.status)
@@ -79,7 +79,7 @@ class ConnectionStatusStabilizerTest {
         val result = stabilizer.onStatus(
             rawStatus = ConnectionStatus.Connecting,
             nowMs = 1_000L,
-            hasActiveNetwork = false
+            hasUsableNetwork = false
         )
 
         assertEquals(ConnectionStatus.WaitingForNetwork, result.status)

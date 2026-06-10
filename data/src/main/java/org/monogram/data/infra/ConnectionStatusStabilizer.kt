@@ -14,9 +14,9 @@ internal class ConnectionStatusStabilizer(
     fun onStatus(
         rawStatus: ConnectionStatus,
         nowMs: Long,
-        hasActiveNetwork: Boolean
+        hasUsableNetwork: Boolean
     ): StabilizedStatus {
-        val status = if (!hasActiveNetwork && rawStatus is ConnectionStatus.Connecting) {
+        val status = if (!hasUsableNetwork) {
             ConnectionStatus.WaitingForNetwork
         } else {
             rawStatus

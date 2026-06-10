@@ -61,6 +61,7 @@ import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.gateway.UpdateDispatcherImpl
 import org.monogram.data.infra.AndroidStringProvider
 import org.monogram.data.infra.ConnectionManager
+import org.monogram.data.infra.ConnectivityNetworkSnapshotProvider
 import org.monogram.data.infra.DataMemoryDiagnostics
 import org.monogram.data.infra.DataMemoryPressureHandler
 import org.monogram.data.infra.DefaultDispatcherProvider
@@ -68,6 +69,7 @@ import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.infra.FileMessageRegistry
 import org.monogram.data.infra.FileObserverHub
 import org.monogram.data.infra.FileUpdateHandler
+import org.monogram.data.infra.NetworkSnapshotProvider
 import org.monogram.data.infra.OfflineWarmup
 import org.monogram.data.infra.SponsorSyncManager
 import org.monogram.data.infra.TdLibParametersProvider
@@ -391,6 +393,11 @@ val dataModule = module {
             connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
         )
     }
+    single<NetworkSnapshotProvider> {
+        ConnectivityNetworkSnapshotProvider(
+            connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        )
+    }
 
     factory<ProxyRemoteDataSource> {
         TdProxyRemoteDataSource(
@@ -497,7 +504,8 @@ val dataModule = module {
             updates = get(),
             appPreferences = get(),
             dispatchers = get(),
-            connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
+            networkSnapshotProvider = get(),
+            appForegroundTracker = get(),
             scope = get()
         )
     }

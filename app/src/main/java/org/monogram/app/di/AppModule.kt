@@ -10,8 +10,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
+import org.monogram.app.AppLifecycleForegroundTracker
 import org.monogram.core.Logger
 import org.monogram.data.di.dataModule
+import org.monogram.data.infra.AppForegroundTracker
 import org.monogram.domain.managers.AssetsManager
 import org.monogram.domain.managers.ClipManager
 import org.monogram.domain.managers.DistrManager
@@ -43,6 +45,7 @@ val appModule = module {
     includes(uiModule, dataModule, runtimeOverrideModule)
 
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+    single<AppForegroundTracker> { AppLifecycleForegroundTracker() }
 
     single<AppPreferencesProvider> { AppPreferences(androidContext(), get()) }
     single { get<AppPreferencesProvider>() as AppPreferences }

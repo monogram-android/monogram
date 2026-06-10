@@ -1,20 +1,19 @@
 package org.monogram.data.infra
 
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
-import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -46,76 +45,138 @@ class ConnectionManager(
     private val updates: UpdateDispatcher,
     private val appPreferences: AppPreferencesProvider,
     private val dispatchers: DispatcherProvider,
-    private val connectivityManager: ConnectivityManager,
+    private val networkSnapshotProvider: NetworkSnapshotProvider,
+    private val appForegroundTracker: AppForegroundTracker,
     private val scope: CoroutineScope
 ) {
     private val tag = "ConnectionManager"
 
     private val _connectionStateFlow = MutableStateFlow<ConnectionStatus>(ConnectionStatus.Connecting)
-    val connectionStateFlow = _connectionStateFlow.asStateFlow()
+    val connectionStateFlow: StateFlow<ConnectionStatus> = _connectionStateFlow.asStateFlow()
 
-    private var retryJob: Job? = null
+    internal val presenceOnlineFlow: StateFlow<Boolean> get() = presenceCoordinator.presenceFlow
+
+    private val statusStabilizer = ConnectionStatusStabilizer(ConnectionStatus.Connecting)
+    private val authorizationReady = MutableStateFlow(false)
+    private val reconnectMutex = Mutex()
+    private val proxyApplyMutex = Mutex()
+
     private var pendingStatusJob: Job? = null
     private var proxyModeWatcherJob: Job? = null
     private var autoBestJob: Job? = null
     private var watchdogJob: Job? = null
-    private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    private var reconnectAttempts = 0
-    private var lastRetryAtMs = 0L
-    private var lastStateChangeAtMs = System.currentTimeMillis()
-    private var pendingStatusDueAtMs: Long? = null
-    private val proxyRuleMutex = Mutex()
-    private val statusStabilizer = ConnectionStatusStabilizer(ConnectionStatus.Connecting)
+    private var retryJob: Job? = null
 
-    private val minRetryIntervalMs = 1_200L
-    private val maxRetryDelayMs = 60_000L
+    private var pendingStatusDueAtMs: Long? = null
+    private var lastStateChangeAtMs = System.currentTimeMillis()
+    private var reconnectAttempts = 0
+    private var failureStreak = 0
+    private var lastEffectiveNetworkType: ProxyNetworkType? = null
+    private var lastObservedNetworkSnapshot = networkSnapshotProvider.snapshot.value
+
+    private val reconnectRequests = Channel<ReconnectRequest>(
+        capacity = 32,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    private val presenceCoordinator = PresenceCoordinator(
+        proxyRemoteSource = proxyRemoteSource,
+        authorizationReady = authorizationReady,
+        appForegroundTracker = appForegroundTracker,
+        networkSnapshotProvider = networkSnapshotProvider,
+        dispatchers = dispatchers,
+        scope = scope
+    )
 
     init {
-        scope.launch {
-            updates.connectionState.collect { update -> handleConnectionState(update.state, "update") }
-        }
+        appForegroundTracker.start()
+        startReconnectProcessor()
+        observeAuthorization()
+        observeConnectionState()
+        observeNetworkSnapshots()
+        startProxyManagement()
+        startWatchdog()
 
-        scope.launch {
+        requestReconnect("bootstrap", syncAfter = true)
+    }
+
+    fun retryConnection() {
+        requestReconnect("manual_retry", syncAfter = true)
+    }
+
+    private fun observeAuthorization() {
+        scope.launch(dispatchers.default) {
             updates.authorizationState.collect { update ->
-                if (update.authorizationState is TdApi.AuthorizationStateReady) {
-                    runReconnectAttempt("auth_ready", force = true)
-                    syncConnectionStateFromTdlib("auth_ready")
+                val isReady = update.authorizationState is TdApi.AuthorizationStateReady
+                authorizationReady.value = isReady
+
+                if (isReady) {
+                    requestReconnect("auth_ready", syncAfter = true)
+                } else {
+                    failureStreak = 0
                 }
             }
         }
+    }
 
-        registerNetworkCallback()
-        startWatchdog()
-        startProxyManagement()
-
+    private fun observeConnectionState() {
         scope.launch(dispatchers.default) {
-            runReconnectAttempt("bootstrap", force = true)
-            syncConnectionStateFromTdlib("bootstrap")
+            updates.connectionState.collect { update ->
+                handleConnectionState(update.state, "update")
+            }
+        }
+    }
+
+    private fun observeNetworkSnapshots() {
+        scope.launch(dispatchers.default) {
+            networkSnapshotProvider.snapshot.collect { snapshot ->
+                val previous = lastObservedNetworkSnapshot
+                lastObservedNetworkSnapshot = snapshot
+
+                val typeChanged = previous.type != snapshot.type
+                val networkChanged = previous.networkId != snapshot.networkId
+                val usableBecameAvailable = !previous.isUsable && snapshot.isUsable
+                val usableLost = previous.isUsable && !snapshot.isUsable
+
+                if (usableLost) {
+                    handleConnectionState(
+                        TdApi.ConnectionStateWaitingForNetwork(),
+                        "network_unusable"
+                    )
+                }
+
+                if (typeChanged) {
+                    applyProxyForReason("network_type_changed", force = true)
+                }
+
+                if (usableBecameAvailable || networkChanged || usableLost) {
+                    requestReconnect(
+                        reason = when {
+                            usableBecameAvailable -> "network_usable"
+                            usableLost -> "network_lost"
+                            else -> "network_changed"
+                        },
+                        syncAfter = true
+                    )
+                }
+            }
         }
     }
 
     private fun handleConnectionState(state: TdApi.ConnectionState, source: String) {
-        val status = when (state) {
-            is TdApi.ConnectionStateReady -> ConnectionStatus.Connected
-            is TdApi.ConnectionStateConnecting -> ConnectionStatus.Connecting
-            is TdApi.ConnectionStateUpdating -> ConnectionStatus.Updating
-            is TdApi.ConnectionStateWaitingForNetwork -> ConnectionStatus.WaitingForNetwork
-            is TdApi.ConnectionStateConnectingToProxy -> ConnectionStatus.ConnectingToProxy
-            else -> ConnectionStatus.Connecting
-        }
-
+        val rawStatus = state.toConnectionStatus()
         val now = System.currentTimeMillis()
         val stabilized = statusStabilizer.onStatus(
-            rawStatus = status,
+            rawStatus = rawStatus,
             nowMs = now,
-            hasActiveNetwork = hasActiveNetwork()
+            hasUsableNetwork = lastObservedNetworkSnapshot.isUsable
         )
         val publishedStatus = stabilized.status
+
         if (publishedStatus == null) {
             schedulePendingStatus(stabilized.pendingDueAtMs, source)
             Log.d(
                 tag,
-                "Connection state transient: ${_connectionStateFlow.value} -> $status ($source)"
+                "Connection state transient: ${_connectionStateFlow.value} -> $rawStatus ($source)"
             )
             return
         }
@@ -124,6 +185,35 @@ class ConnectionManager(
         pendingStatusJob = null
         pendingStatusDueAtMs = null
         publishConnectionStatus(publishedStatus, source, now)
+    }
+
+    private fun publishConnectionStatus(status: ConnectionStatus, source: String, now: Long) {
+        val previous = _connectionStateFlow.value
+        if (previous != status) {
+            lastStateChangeAtMs = now
+            Log.d(tag, "Connection state changed: $previous -> $status ($source)")
+        }
+
+        _connectionStateFlow.value = status
+
+        when (status) {
+            is ConnectionStatus.Connected -> {
+                reconnectAttempts = 0
+                failureStreak = 0
+                retryJob?.cancel()
+                retryJob = null
+            }
+
+            is ConnectionStatus.WaitingForNetwork -> {
+                startRetryLoop()
+            }
+
+            is ConnectionStatus.Connecting,
+            is ConnectionStatus.Updating,
+            is ConnectionStatus.ConnectingToProxy -> {
+                startRetryLoop()
+            }
+        }
     }
 
     private fun schedulePendingStatus(dueAtMs: Long?, source: String) {
@@ -141,86 +231,99 @@ class ConnectionManager(
         }
     }
 
-    private fun publishConnectionStatus(status: ConnectionStatus, source: String, now: Long) {
-        val previous = _connectionStateFlow.value
-        if (previous != status) {
-            lastStateChangeAtMs = now
-            Log.d(tag, "Connection state changed: $previous -> $status ($source)")
-        }
-
-        _connectionStateFlow.value = status
-
-        when (status) {
-            is ConnectionStatus.Connected -> {
-                reconnectAttempts = 0
-                retryJob?.cancel()
-                retryJob = null
-            }
-
-            is ConnectionStatus.Connecting,
-            is ConnectionStatus.Updating,
-            is ConnectionStatus.WaitingForNetwork,
-            is ConnectionStatus.ConnectingToProxy -> startRetryLoop()
-        }
-    }
-
-    fun retryConnection() {
-        scope.launch(dispatchers.default) {
-            runReconnectAttempt("manual", force = true)
-            syncConnectionStateFromTdlib("manual")
-        }
-    }
-
     private fun startRetryLoop() {
         if (retryJob?.isActive == true) return
+
         retryJob = scope.launch(dispatchers.default) {
-            runReconnectAttempt("state_change", force = true)
-            syncConnectionStateFromTdlib("state_change")
+            while (isActive) {
+                if (_connectionStateFlow.value is ConnectionStatus.Connected) {
+                    delay(1_000L)
+                    continue
+                }
 
-            while (isActive && _connectionStateFlow.value !is ConnectionStatus.Connected) {
+                if (!lastObservedNetworkSnapshot.isUsable) {
+                    delay(5_000L)
+                    continue
+                }
+
                 delay(calculateRetryDelayMs(_connectionStateFlow.value, reconnectAttempts))
-                if (!isActive || _connectionStateFlow.value is ConnectionStatus.Connected) break
+                if (!isActive) break
 
-                runReconnectAttempt("scheduled")
-                syncConnectionStateFromTdlib("scheduled")
+                requestReconnect("scheduled_retry", syncAfter = true)
             }
         }
     }
 
-    private suspend fun runReconnectAttempt(reason: String, force: Boolean = false) {
-        val now = System.currentTimeMillis()
-        if (!force && now - lastRetryAtMs < minRetryIntervalMs) return
-        lastRetryAtMs = now
-        reconnectAttempts++
+    private fun startReconnectProcessor() {
+        scope.launch(dispatchers.default) {
+            while (isActive) {
+                val initial = reconnectRequests.receive()
+                val batch = mutableListOf(initial)
+                delay(RECONNECT_COALESCE_WINDOW_MS)
+                while (true) {
+                    val next = reconnectRequests.tryReceive().getOrNull() ?: break
+                    batch += next
+                }
 
-        Log.d(
-            tag,
-            "Reconnect attempt #$reconnectAttempts ($reason), state=${_connectionStateFlow.value}"
+                val merged = batch.reduce { acc, request -> acc.merge(request) }
+                performReconnect(merged)
+            }
+        }
+    }
+
+    private fun requestReconnect(reason: String, syncAfter: Boolean = false) {
+        reconnectRequests.trySend(
+            ReconnectRequest(
+                reason = reason,
+                syncAfter = syncAfter
+            )
         )
-
-        val networkTypeUpdated = coRunCatching {
-            withContext(dispatchers.io) {
-                chatRemoteSource.setNetworkType()
-            }
-        }.getOrElse { error ->
-            Log.e(tag, "Reconnect attempt failed", error)
-            false
-        }
-
-        if (!networkTypeUpdated) {
-            Log.w(tag, "Reconnect attempt did not update network type")
-        }
-
-        coRunCatching {
-            withContext(dispatchers.io) {
-                proxyRemoteSource.setOption("online", TdApi.OptionValueBoolean(true))
-            }
-        }
-
-        maybeAdjustProxyOnFailures(force = force || !networkTypeUpdated)
     }
 
-    private suspend fun syncConnectionStateFromTdlib(reason: String) {
+    private suspend fun performReconnect(request: ReconnectRequest) {
+        reconnectMutex.withLock {
+            if (!authorizationReady.value && request.reason != "bootstrap") return
+
+            reconnectAttempts++
+            Log.d(
+                tag,
+                "Reconnect attempt #$reconnectAttempts (${request.reason}), state=${_connectionStateFlow.value}"
+            )
+
+            val networkTypeUpdated = coRunCatching {
+                withContext(dispatchers.io) {
+                    chatRemoteSource.setNetworkType()
+                }
+            }.getOrElse { error ->
+                Log.e(tag, "Reconnect attempt failed", error)
+                false
+            }
+
+            if (!networkTypeUpdated) {
+                Log.w(tag, "Reconnect attempt did not update network type")
+            }
+
+            val currentState = if (request.syncAfter) {
+                syncConnectionStateFromTdlib(request.reason)
+            } else {
+                null
+            }
+
+            if (!lastObservedNetworkSnapshot.isUsable) {
+                return
+            }
+
+            if (!networkTypeUpdated || currentState !is TdApi.ConnectionStateReady) {
+                failureStreak++
+            } else {
+                failureStreak = 0
+            }
+
+            maybeAdjustProxyOnFailures(request.reason)
+        }
+    }
+
+    private suspend fun syncConnectionStateFromTdlib(reason: String): TdApi.ConnectionState? {
         val state = withTimeoutOrNull(4_000L) {
             withContext(dispatchers.io) {
                 chatRemoteSource.getConnectionState()
@@ -228,62 +331,71 @@ class ConnectionManager(
         }
 
         if (state == null) {
-            if (!hasActiveNetwork()) {
-                handleConnectionState(TdApi.ConnectionStateWaitingForNetwork(), "probe:$reason:fallback")
+            if (!lastObservedNetworkSnapshot.isUsable) {
+                handleConnectionState(
+                    TdApi.ConnectionStateWaitingForNetwork(),
+                    "probe:$reason:fallback"
+                )
             }
-            return
+            return null
         }
 
         handleConnectionState(state, "probe:$reason")
+        return state
     }
 
-    private suspend fun maybeAdjustProxyOnFailures(force: Boolean = false) {
+    private suspend fun maybeAdjustProxyOnFailures(reason: String) {
         val isAutoBestEnabled = appPreferences.isAutoBestProxyEnabled.value
         if (!isAutoBestEnabled) return
 
-        if (!force) {
-            if (reconnectAttempts < 4) return
-            if (reconnectAttempts % 3 != 0) return
-        }
+        if (failureStreak < FAILURE_THRESHOLD_FOR_PROXY_REAPPLY) return
+        if (failureStreak % FAILURE_THRESHOLD_FOR_PROXY_REAPPLY != 0) return
 
-        applyNetworkProxyRuleSafely("reconnect_failures")
-    }
-
-    private fun calculateRetryDelayMs(status: ConnectionStatus, attempts: Int): Long {
-        val base = when (status) {
-            is ConnectionStatus.WaitingForNetwork -> 2_500L
-            is ConnectionStatus.ConnectingToProxy -> 3_500L
-            is ConnectionStatus.Updating -> 2_000L
-            is ConnectionStatus.Connecting -> 1_500L
-            is ConnectionStatus.Connected -> 1_000L
-        }
-        val backoff = (base * (1L shl attempts.coerceAtMost(5))).coerceAtMost(maxRetryDelayMs)
-        val jitter = Random.nextLong(200L, 1_200L)
-        return backoff + jitter
+        applyProxyForReason("reconnect_failures:$reason", force = true)
     }
 
     private fun startProxyManagement() {
         proxyModeWatcherJob?.cancel()
-        proxyModeWatcherJob = scope.launch {
+        proxyModeWatcherJob = scope.launch(dispatchers.default) {
             syncEnabledProxyPreferenceFromTdlib("startup_sync")
 
-            appPreferences.enabledProxyId.value?.let { proxyId ->
-                if (!enableProxy(proxyId, getCurrentNetworkType(), "startup_restore")) {
-                    appPreferences.setEnabledProxyId(null)
+            proxyApplyMutex.withLock {
+                appPreferences.enabledProxyId.value?.let { proxyId ->
+                    if (!enableProxy(proxyId, currentEffectiveNetworkType(), "startup_restore")) {
+                        appPreferences.setEnabledProxyId(null)
+                    }
+                }
+
+                applyProxyForReasonLocked(
+                    "startup",
+                    force = true,
+                    networkType = currentEffectiveNetworkType()
+                )
+            }
+
+            launch {
+                appPreferences.proxyNetworkRules.drop(1).collect {
+                    applyProxyForReason("rules_changed", force = true)
                 }
             }
 
-            applyNetworkProxyRuleSafely("startup")
-
             launch {
-                appPreferences.proxyNetworkRules.collect {
-                    applyNetworkProxyRuleSafely("rules_changed")
+                appPreferences.proxyUnavailableFallback.drop(1).collect {
+                    applyProxyForReason("fallback_changed", force = true)
                 }
             }
 
             launch {
-                appPreferences.proxyUnavailableFallback.collect {
-                    applyNetworkProxyRuleSafely("fallback_changed")
+                combine(
+                    appPreferences.isAutoBestProxyEnabled,
+                    appPreferences.proxyAutoCheckIntervalMinutes
+                ) { autoBest, intervalMinutes ->
+                    autoBest to intervalMinutes
+                }.collect { (autoBest, _) ->
+                    autoBestJob?.cancel()
+                    if (autoBest) {
+                        autoBestJob = launchAutoBestLoop()
+                    }
                 }
             }
 
@@ -303,19 +415,98 @@ class ConnectionManager(
                     }
                 }
             }
+        }
+    }
 
-            launch {
-                appPreferences.isAutoBestProxyEnabled
-                    .combine(appPreferences.proxyAutoCheckIntervalMinutes) { autoBest, intervalMinutes ->
-                        autoBest to intervalMinutes
-                    }
-                    .collect { (autoBest, _) ->
-                    autoBestJob?.cancel()
+    private fun launchAutoBestLoop(): Job = scope.launch(dispatchers.default) {
+        while (isActive) {
+            applyProxyForReason("auto_best_loop", force = true)
+            val intervalMinutes = appPreferences.proxyAutoCheckIntervalMinutes.value
+                .coerceIn(
+                    MIN_SMART_SWITCH_CHECK_INTERVAL_MINUTES,
+                    MAX_SMART_SWITCH_CHECK_INTERVAL_MINUTES
+                )
+            delay(intervalMinutes * 60_000L)
+        }
+    }
 
-                    if (autoBest) {
-                        autoBestJob = launchAutoBestLoop()
-                    }
+    private suspend fun applyProxyForReason(
+        reason: String,
+        force: Boolean = false,
+        networkType: ProxyNetworkType = currentEffectiveNetworkType()
+    ) {
+        proxyApplyMutex.withLock {
+            applyProxyForReasonLocked(reason, force, networkType)
+        }
+    }
+
+    private suspend fun applyProxyForReasonLocked(
+        reason: String,
+        force: Boolean,
+        networkType: ProxyNetworkType
+    ) {
+        if (!force && lastEffectiveNetworkType == networkType) {
+            return
+        }
+
+        val applied = applyNetworkProxyRuleSafely(reason, networkType)
+        if (applied) {
+            lastEffectiveNetworkType = networkType
+        }
+    }
+
+    private suspend fun applyNetworkProxyRuleSafely(
+        reason: String,
+        networkType: ProxyNetworkType = currentEffectiveNetworkType()
+    ): Boolean {
+        return coRunCatching {
+            applyNetworkProxyRule(reason, networkType)
+        }.onFailure { error ->
+            if (error.isExpectedProxyFailure()) {
+                Log.w(tag, "Proxy rule apply failed ($reason): ${error.message}")
+            } else {
+                Log.e(tag, "Error applying proxy rule ($reason)", error)
+            }
+        }.isSuccess
+    }
+
+    private suspend fun applyNetworkProxyRule(reason: String, networkType: ProxyNetworkType) {
+        val rule = appPreferences.proxyNetworkRules.value[networkType]
+            ?: ProxyNetworkRule(defaultProxyNetworkMode(networkType))
+
+        when (rule.mode) {
+            ProxyNetworkMode.DIRECT -> {
+                disableProxyIfNeeded("$reason:direct")
+            }
+
+            ProxyNetworkMode.BEST_PROXY -> {
+                selectBestProxy(networkType, "$reason:best")
+            }
+
+            ProxyNetworkMode.LAST_USED -> {
+                val target = rule.lastUsedProxyId
+                if (target != null && enableProxy(
+                        target,
+                        networkType,
+                        "$reason:last_used"
+                    )
+                ) {
+                    return
                 }
+                handleUnavailableFallback(networkType, "$reason:last_used")
+            }
+
+            ProxyNetworkMode.SPECIFIC_PROXY -> {
+                val target = rule.specificProxyId
+                if (target != null && enableProxy(
+                        target,
+                        networkType,
+                        "$reason:specific"
+                    )
+                ) {
+                    return
+                }
+                handleUnavailableFallback(networkType, "$reason:specific")
             }
         }
     }
@@ -339,69 +530,6 @@ class ConnectionManager(
                     Log.e(tag, "Failed to sync enabled proxy id ($reason)", error)
                 }
             }
-    }
-
-    private fun launchAutoBestLoop(): Job = scope.launch(dispatchers.default) {
-        while (isActive) {
-            applyNetworkProxyRuleSafely("auto_best_loop")
-            val intervalMinutes = appPreferences.proxyAutoCheckIntervalMinutes.value
-                .coerceIn(
-                    MIN_SMART_SWITCH_CHECK_INTERVAL_MINUTES,
-                    MAX_SMART_SWITCH_CHECK_INTERVAL_MINUTES
-                )
-            delay(intervalMinutes * 60_000L)
-        }
-    }
-
-    private suspend fun applyNetworkProxyRuleSafely(reason: String) {
-        coRunCatching { applyNetworkProxyRule(reason) }
-            .onFailure { error ->
-                if (error.isExpectedProxyFailure()) {
-                    Log.w(tag, "Proxy rule apply failed ($reason): ${error.message}")
-                } else {
-                    Log.e(tag, "Error applying proxy rule ($reason)", error)
-                }
-            }
-    }
-
-    private suspend fun applyNetworkProxyRule(reason: String) {
-        proxyRuleMutex.withLock {
-            val networkType = getCurrentNetworkType()
-            val rule = appPreferences.proxyNetworkRules.value[networkType]
-                ?: ProxyNetworkRule(defaultProxyNetworkMode(networkType))
-
-            when (rule.mode) {
-                ProxyNetworkMode.DIRECT -> {
-                    disableProxyIfNeeded("$reason:direct")
-                }
-
-                ProxyNetworkMode.BEST_PROXY -> {
-                    selectBestProxy(networkType, "$reason:best")
-                }
-
-                ProxyNetworkMode.LAST_USED -> {
-                    val target = rule.lastUsedProxyId
-                    if (target != null && enableProxy(
-                            target,
-                            networkType,
-                            "$reason:last_used"
-                        )
-                    ) return
-                    handleUnavailableFallback(networkType, "$reason:last_used")
-                }
-
-                ProxyNetworkMode.SPECIFIC_PROXY -> {
-                    val target = rule.specificProxyId
-                    if (target != null && enableProxy(
-                            target,
-                            networkType,
-                            "$reason:specific"
-                        )
-                    ) return
-                    handleUnavailableFallback(networkType, "$reason:specific")
-                }
-            }
-        }
     }
 
     private suspend fun handleUnavailableFallback(networkType: ProxyNetworkType, reason: String) {
@@ -532,86 +660,55 @@ class ConnectionManager(
                 if (_connectionStateFlow.value is ConnectionStatus.Connected) continue
 
                 val stuckForMs = System.currentTimeMillis() - lastStateChangeAtMs
+                if (!lastObservedNetworkSnapshot.isUsable) continue
                 if (stuckForMs >= 20_000L) {
-                    runReconnectAttempt("watchdog", force = true)
-                    syncConnectionStateFromTdlib("watchdog")
+                    requestReconnect("watchdog", syncAfter = true)
                 }
 
                 if (stuckForMs >= 120_000L) {
-                    maybeAdjustProxyOnFailures(force = true)
+                    applyProxyForReason("watchdog_proxy_fallback", force = true)
                 }
             }
         }
     }
 
-    private fun registerNetworkCallback() {
-        if (networkCallback != null) return
+    private fun currentEffectiveNetworkType(): ProxyNetworkType = lastObservedNetworkSnapshot.type
 
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                onNetworkChanged("available")
-            }
-
-            override fun onLost(network: Network) {
-                onNetworkChanged("lost")
-            }
-        }
-
-        val registered = coRunCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                connectivityManager.registerDefaultNetworkCallback(callback)
-            } else {
-                connectivityManager.registerNetworkCallback(NetworkRequest.Builder().build(), callback)
-            }
-            true
-        }.getOrElse {
-            Log.w(tag, "Failed to register network callback", it)
-            false
-        }
-
-        if (registered) {
-            networkCallback = callback
-        }
+    private fun TdApi.ConnectionState.toConnectionStatus(): ConnectionStatus = when (this) {
+        is TdApi.ConnectionStateReady -> ConnectionStatus.Connected
+        is TdApi.ConnectionStateConnecting -> ConnectionStatus.Connecting
+        is TdApi.ConnectionStateUpdating -> ConnectionStatus.Updating
+        is TdApi.ConnectionStateWaitingForNetwork -> ConnectionStatus.WaitingForNetwork
+        is TdApi.ConnectionStateConnectingToProxy -> ConnectionStatus.ConnectingToProxy
+        else -> ConnectionStatus.Connecting
     }
 
-    private fun onNetworkChanged(reason: String) {
-        scope.launch(dispatchers.default) {
-            applyNetworkProxyRuleSafely("network_$reason")
-            runReconnectAttempt("network_$reason", force = true)
-            syncConnectionStateFromTdlib("network_$reason")
+    private fun calculateRetryDelayMs(status: ConnectionStatus, attempts: Int): Long {
+        val base = when (status) {
+            is ConnectionStatus.WaitingForNetwork -> 2_500L
+            is ConnectionStatus.ConnectingToProxy -> 3_500L
+            is ConnectionStatus.Updating -> 2_000L
+            is ConnectionStatus.Connecting -> 1_500L
+            is ConnectionStatus.Connected -> 1_000L
         }
+        val backoff = (base * (1L shl attempts.coerceAtMost(5))).coerceAtMost(MAX_RETRY_DELAY_MS)
+        val jitter = Random.nextLong(200L, 1_200L)
+        return backoff + jitter
     }
 
-    private fun getCurrentNetworkType(): ProxyNetworkType {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val active = connectivityManager.activeNetwork ?: return ProxyNetworkType.OTHER
-            val capabilities =
-                connectivityManager.getNetworkCapabilities(active) ?: return ProxyNetworkType.OTHER
-            when {
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> ProxyNetworkType.VPN
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> ProxyNetworkType.WIFI
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> ProxyNetworkType.MOBILE
-                else -> ProxyNetworkType.OTHER
-            }
-        } else {
-            @Suppress("DEPRECATION")
-            when (connectivityManager.activeNetworkInfo?.type) {
-                ConnectivityManager.TYPE_VPN -> ProxyNetworkType.VPN
-                ConnectivityManager.TYPE_WIFI -> ProxyNetworkType.WIFI
-                ConnectivityManager.TYPE_MOBILE -> ProxyNetworkType.MOBILE
-                else -> ProxyNetworkType.OTHER
-            }
-        }
+    private data class ReconnectRequest(
+        val reason: String,
+        val syncAfter: Boolean
+    ) {
+        fun merge(other: ReconnectRequest): ReconnectRequest = ReconnectRequest(
+            reason = "$reason,${other.reason}",
+            syncAfter = syncAfter || other.syncAfter
+        )
     }
 
-    private fun hasActiveNetwork(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val active = connectivityManager.activeNetwork ?: return false
-            val capabilities = connectivityManager.getNetworkCapabilities(active) ?: return false
-            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-        } else {
-            @Suppress("DEPRECATION")
-            connectivityManager.activeNetworkInfo?.isConnected == true
-        }
+    companion object {
+        private const val MAX_RETRY_DELAY_MS = 60_000L
+        private const val RECONNECT_COALESCE_WINDOW_MS = 350L
+        private const val FAILURE_THRESHOLD_FOR_PROXY_REAPPLY = 3
     }
 }

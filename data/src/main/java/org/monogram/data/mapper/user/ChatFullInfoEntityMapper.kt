@@ -1,6 +1,7 @@
 package org.monogram.data.mapper.user
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.buildTdChatPermissions
 import org.monogram.data.db.model.ChatEntity
 import org.monogram.data.db.model.ChatFullInfoEntity
 import org.monogram.domain.models.BotVerificationModel
@@ -168,7 +169,7 @@ fun ChatEntity.toTdApiChat(): TdApi.Chat {
         replyMarkupMessageId = this@toTdApiChat.replyMarkupMessageId
         messageSenderId = this@toTdApiChat.messageSenderId?.let { TdApi.MessageSenderUser(it) }
         blockList = if (this@toTdApiChat.blockList) TdApi.BlockListMain() else null
-        permissions = TdApi.ChatPermissions(
+        permissions = buildTdChatPermissions(
             this@toTdApiChat.permissionCanSendBasicMessages,
             this@toTdApiChat.permissionCanSendAudios,
             this@toTdApiChat.permissionCanSendDocuments,
@@ -179,6 +180,7 @@ fun ChatEntity.toTdApiChat(): TdApi.Chat {
             this@toTdApiChat.permissionCanSendPolls,
             this@toTdApiChat.permissionCanSendOtherMessages,
             this@toTdApiChat.permissionCanAddLinkPreviews,
+            this@toTdApiChat.permissionCanReactToMessages,
             this@toTdApiChat.permissionCanEditTag,
             this@toTdApiChat.permissionCanChangeInfo,
             this@toTdApiChat.permissionCanInviteUsers,

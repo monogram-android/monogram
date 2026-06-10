@@ -261,7 +261,8 @@ val dataModule = module {
                 MonogramMigrations.MIGRATION_29_30,
                 MonogramMigrations.MIGRATION_30_31,
                 MonogramMigrations.MIGRATION_31_32,
-                MonogramMigrations.MIGRATION_32_33
+                MonogramMigrations.MIGRATION_32_33,
+                MonogramMigrations.MIGRATION_33_34
             )
             .build()
     }

@@ -3,6 +3,8 @@ package org.monogram.data.datasource.remote
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.buildAddProxy
+import org.monogram.data.compat.buildEditProxy
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.mapper.toApi
@@ -33,12 +35,21 @@ class TdProxyRemoteDataSource(
         gateway.execute(TdApi.GetProxies()).proxies.map { it.toDomain() }
 
     override suspend fun addProxy(
-        server: String, port: Int, enable: Boolean, type: ProxyTypeModel
-    ): ProxyModel = gateway.execute(TdApi.AddProxy(TdApi.Proxy(server, port, type.toApi()), enable)).toDomain()
+        server: String, port: Int, enable: Boolean, comment: String?, type: ProxyTypeModel
+    ): ProxyModel = gateway.execute(
+        buildAddProxy(TdApi.Proxy(server, port, type.toApi()), enable, comment)
+    ).toDomain()
 
     override suspend fun editProxy(
-        proxyId: Int, server: String, port: Int, enable: Boolean, type: ProxyTypeModel
-    ): ProxyModel = gateway.execute(TdApi.EditProxy(proxyId, TdApi.Proxy(server, port, type.toApi()), enable)).toDomain()
+        proxyId: Int,
+        server: String,
+        port: Int,
+        enable: Boolean,
+        comment: String?,
+        type: ProxyTypeModel
+    ): ProxyModel = gateway.execute(
+        buildEditProxy(proxyId, TdApi.Proxy(server, port, type.toApi()), enable, comment)
+    ).toDomain()
 
     override suspend fun enableProxy(proxyId: Int) : Boolean {
         val result = coRunCatching { gateway.execute(TdApi.EnableProxy(proxyId)) }

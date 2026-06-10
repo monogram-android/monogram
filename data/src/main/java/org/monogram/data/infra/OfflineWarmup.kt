@@ -7,8 +7,13 @@ import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.chats.ChatCache
+import org.monogram.data.compat.toDomainSupportsGuestQueries
 import org.monogram.data.core.coRunCatching
-import org.monogram.data.db.dao.*
+import org.monogram.data.db.dao.ChatDao
+import org.monogram.data.db.dao.ChatFullInfoDao
+import org.monogram.data.db.dao.MessageDao
+import org.monogram.data.db.dao.UserDao
+import org.monogram.data.db.dao.UserFullInfoDao
 import org.monogram.data.db.model.ChatEntity
 import org.monogram.data.db.model.UserEntity
 import org.monogram.data.gateway.TelegramGateway
@@ -287,6 +292,7 @@ class OfflineWarmup(
             botTypeCanManageBots = botType?.canManageBots ?: false,
             botTypeIsInline = botType?.isInline ?: false,
             botTypeInlineQueryPlaceholder = botType?.inlineQueryPlaceholder?.ifEmpty { null },
+            botTypeSupportsGuestQueries = botType?.toDomainSupportsGuestQueries() ?: false,
             botTypeNeedLocation = botType?.needLocation ?: false,
             botTypeCanConnectToBusiness = botType?.canConnectToBusiness ?: false,
             botTypeCanBeAddedToAttachmentMenu = botType?.canBeAddedToAttachmentMenu ?: false,

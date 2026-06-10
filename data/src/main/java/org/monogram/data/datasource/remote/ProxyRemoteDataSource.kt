@@ -6,8 +6,22 @@ import org.monogram.domain.models.ProxyTypeModel
 
 interface ProxyRemoteDataSource {
     suspend fun getProxies(): List<ProxyModel>
-    suspend fun addProxy(server: String, port: Int, enable: Boolean, type: ProxyTypeModel): ProxyModel
-    suspend fun editProxy(proxyId: Int, server: String, port: Int, enable: Boolean, type: ProxyTypeModel): ProxyModel
+    suspend fun addProxy(
+        server: String,
+        port: Int,
+        enable: Boolean,
+        comment: String?,
+        type: ProxyTypeModel
+    ): ProxyModel
+
+    suspend fun editProxy(
+        proxyId: Int,
+        server: String,
+        port: Int,
+        enable: Boolean,
+        comment: String?,
+        type: ProxyTypeModel
+    ): ProxyModel
     suspend fun enableProxy(proxyId: Int): Boolean
     suspend fun disableProxy()
     suspend fun removeProxy(proxyId: Int)

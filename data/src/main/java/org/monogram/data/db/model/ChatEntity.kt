@@ -90,6 +90,7 @@ data class ChatEntity(
     val permissionCanSendPolls: Boolean = true,
     val permissionCanSendOtherMessages: Boolean = true,
     val permissionCanAddLinkPreviews: Boolean = true,
+    val permissionCanReactToMessages: Boolean = false,
     val permissionCanEditTag: Boolean = false,
     val permissionCanChangeInfo: Boolean = false,
     val permissionCanInviteUsers: Boolean = false,

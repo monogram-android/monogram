@@ -1,4 +1,4 @@
-package org.monogram.presentation.settings.proxy
+package org.monogram.presentation.settings.proxy.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -48,6 +48,8 @@ import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
+import org.monogram.presentation.settings.proxy.ProxyPingIndicator
+import org.monogram.presentation.settings.proxy.ProxyStatusPill
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -193,6 +195,17 @@ fun ProxyItem(
                         text = detailErrorMessage,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                proxy.comment?.takeIf { it.isNotBlank() }?.let { comment ->
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = comment,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )

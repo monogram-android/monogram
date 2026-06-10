@@ -24,6 +24,7 @@ class ProxyRepositoryImpl(
             server = input.server,
             port = input.port,
             enable = enable,
+            comment = input.comment,
             type = input.type.toProxyTypeModel()
         )
         if (enable) appPreferences.setEnabledProxyId(proxy.id)
@@ -37,6 +38,7 @@ class ProxyRepositoryImpl(
                 server = input.server,
                 port = input.port,
                 enable = enable,
+                comment = input.comment,
                 type = input.type.toProxyTypeModel()
             )
             if (enable) appPreferences.setEnabledProxyId(proxy.id)

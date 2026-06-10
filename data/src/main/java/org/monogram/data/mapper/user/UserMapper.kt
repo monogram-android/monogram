@@ -1,10 +1,18 @@
 package org.monogram.data.mapper.user
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.toDomainSupportsGuestQueries
 import org.monogram.data.mapper.isForcedVerifiedUser
 import org.monogram.data.mapper.isSponsoredUser
 import org.monogram.data.mapper.isValidFilePath
-import org.monogram.domain.models.*
+import org.monogram.domain.models.ActiveStoryStateModel
+import org.monogram.domain.models.ActiveStoryStateType
+import org.monogram.domain.models.RestrictionInfoModel
+import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.UserStatusType
+import org.monogram.domain.models.UserTypeBotInfoModel
+import org.monogram.domain.models.UserTypeEnum
+import org.monogram.domain.models.UsernamesModel
 
 fun TdApi.User.toDomain(
     fullInfo: TdApi.UserFullInfo? = null,
@@ -113,6 +121,7 @@ private fun TdApi.UserTypeBot.toDomain(): UserTypeBotInfoModel {
         canManageBots = canManageBots,
         isInline = isInline,
         inlineQueryPlaceholder = inlineQueryPlaceholder.ifEmpty { null },
+        supportsGuestQueries = toDomainSupportsGuestQueries(),
         needLocation = needLocation,
         canConnectToBusiness = canConnectToBusiness,
         canBeAddedToAttachmentMenu = canBeAddedToAttachmentMenu,

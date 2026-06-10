@@ -96,6 +96,7 @@ data class ChatPermissionsModel(
     val canSendPolls: Boolean = true,
     val canSendOtherMessages: Boolean = true,
     val canAddLinkPreviews: Boolean = true,
+    val canReactToMessages: Boolean = false,
     val canEditTag: Boolean = false,
     val canChangeInfo: Boolean = false,
     val canInviteUsers: Boolean = false,

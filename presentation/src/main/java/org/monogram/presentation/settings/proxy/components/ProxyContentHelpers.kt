@@ -1,4 +1,4 @@
-package org.monogram.presentation.settings.proxy
+package org.monogram.presentation.settings.proxy.components
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column

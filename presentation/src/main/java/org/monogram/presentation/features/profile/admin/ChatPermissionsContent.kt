@@ -7,8 +7,23 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Chat
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.AddReaction
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.EmojiEmotions
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.Poll
+import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -116,6 +131,15 @@ fun ChatPermissionsContent(component: ChatPermissionsComponent) {
                     Icons.Rounded.Link,
                     permissions.canAddLinkPreviews,
                     { component.onTogglePermission(ChatPermissionsComponent.Permission.EMBED_LINKS) },
+                    ItemPosition.MIDDLE
+                )
+            }
+            item {
+                PermissionItem(
+                    stringResource(R.string.permission_react_to_messages),
+                    Icons.Rounded.AddReaction,
+                    permissions.canReactToMessages,
+                    { component.onTogglePermission(ChatPermissionsComponent.Permission.REACT_TO_MESSAGES) },
                     ItemPosition.MIDDLE
                 )
             }

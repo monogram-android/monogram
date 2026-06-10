@@ -4,8 +4,8 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.buildTdChatPermissions
 import org.monogram.data.core.coRunCatching
-import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.domain.models.ChatPermissionsModel
 
@@ -347,7 +347,7 @@ class TdChatRemoteSource(
         }.getOrNull()
     }
 
-    private fun ChatPermissionsModel.toTd() = TdApi.ChatPermissions(
+    private fun ChatPermissionsModel.toTd() = buildTdChatPermissions(
         canSendBasicMessages,
         canSendAudios,
         canSendDocuments,
@@ -358,6 +358,7 @@ class TdChatRemoteSource(
         canSendPolls,
         canSendOtherMessages,
         canAddLinkPreviews,
+        canReactToMessages,
         canEditTag,
         canChangeInfo,
         canInviteUsers,

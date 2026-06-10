@@ -1,6 +1,7 @@
 package org.monogram.data.chats
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.buildTdChatPermissions
 import org.monogram.data.datasource.cache.ChatsCacheDataSource
 import org.monogram.data.datasource.cache.UserCacheDataSource
 import java.util.concurrent.ConcurrentHashMap
@@ -465,7 +466,7 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                 TdApi.MessageSenderUser(sender)
             }
             blockList = if (entity.blockList) TdApi.BlockListMain() else null
-            permissions = TdApi.ChatPermissions(
+            permissions = buildTdChatPermissions(
                 entity.permissionCanSendBasicMessages,
                 entity.permissionCanSendAudios,
                 entity.permissionCanSendDocuments,
@@ -476,6 +477,7 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                 entity.permissionCanSendPolls,
                 entity.permissionCanSendOtherMessages,
                 entity.permissionCanAddLinkPreviews,
+                entity.permissionCanReactToMessages,
                 entity.permissionCanEditTag,
                 entity.permissionCanChangeInfo,
                 entity.permissionCanInviteUsers,

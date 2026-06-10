@@ -336,6 +336,13 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_33_34 = object : Migration(33, 34) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("chats", "permissionCanReactToMessages", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("users", "botTypeSupportsGuestQueries", "INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     private fun SupportSQLiteDatabase.addColumn(table: String, column: String, definition: String) {
         execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
     }

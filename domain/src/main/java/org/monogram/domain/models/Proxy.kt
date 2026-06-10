@@ -6,6 +6,7 @@ data class Proxy(
     val port: Int,
     val lastUsedDate: Int,
     val isEnabled: Boolean,
+    val comment: String? = null,
     val type: ProxyType
 )
 

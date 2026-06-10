@@ -1,6 +1,6 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 
-package org.monogram.presentation.settings.proxy
+package org.monogram.presentation.settings.proxy.components
 
 import android.content.ClipData
 import android.widget.Toast
@@ -69,7 +69,7 @@ fun ProxyAddEditSheet(
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
     onDelete: () -> Unit,
-    onSave: (String, Int, ProxyTypeModel) -> Unit
+    onSave: (String, Int, String?, ProxyTypeModel) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
@@ -77,6 +77,7 @@ fun ProxyAddEditSheet(
 
     var server by remember { mutableStateOf(proxy?.server ?: "") }
     var port by remember { mutableStateOf(proxy?.port?.toString() ?: "") }
+    var comment by remember { mutableStateOf(proxy?.comment.orEmpty()) }
     var type by remember {
         mutableStateOf(
             when (proxy?.type) {
@@ -224,6 +225,17 @@ fun ProxyAddEditSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            SettingsTextField(
+                value = comment,
+                onValueChange = { comment = it },
+                placeholder = stringResource(R.string.proxy_comment_placeholder),
+                icon = Icons.Rounded.ContentCopy,
+                position = ItemPosition.STANDALONE,
+                singleLine = false
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             if (!isServerValid) {
                 Text(
                     text = "Server address is required.",
@@ -340,7 +352,7 @@ fun ProxyAddEditSheet(
                 Button(
                     onClick = {
                         val p = port.toIntOrNull() ?: 443
-                        onSave(server, p, currentProxyType)
+                        onSave(server, p, comment.ifBlank { null }, currentProxyType)
                     },
                     enabled = isInputValid,
                     modifier = Modifier

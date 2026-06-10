@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.chats.ChatCache
+import org.monogram.data.compat.buildTdChatPermissions
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.cache.ChatLocalDataSource
@@ -1052,7 +1053,7 @@ class MessageRepositoryImpl(
         permissions: ChatPermissionsModel,
         untilDate: Int
     ) {
-        val tdPermissions = TdApi.ChatPermissions(
+        val tdPermissions = buildTdChatPermissions(
             permissions.canSendBasicMessages,
             permissions.canSendAudios,
             permissions.canSendDocuments,
@@ -1063,6 +1064,7 @@ class MessageRepositoryImpl(
             permissions.canSendPolls,
             permissions.canSendOtherMessages,
             permissions.canAddLinkPreviews,
+            permissions.canReactToMessages,
             permissions.canEditTag,
             permissions.canChangeInfo,
             permissions.canInviteUsers,

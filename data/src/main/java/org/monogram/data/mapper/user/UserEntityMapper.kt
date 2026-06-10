@@ -1,6 +1,8 @@
 package org.monogram.data.mapper.user
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.buildTdUserTypeBot
+import org.monogram.data.compat.toDomainSupportsGuestQueries
 import org.monogram.data.db.model.UserEntity
 
 fun TdApi.User.toEntity(personalAvatarPath: String?): UserEntity {
@@ -56,6 +58,7 @@ fun TdApi.User.toEntity(personalAvatarPath: String?): UserEntity {
         botTypeCanManageBots = botType?.canManageBots ?: false,
         botTypeIsInline = botType?.isInline ?: false,
         botTypeInlineQueryPlaceholder = botType?.inlineQueryPlaceholder?.ifEmpty { null },
+        botTypeSupportsGuestQueries = botType?.toDomainSupportsGuestQueries() ?: false,
         botTypeNeedLocation = botType?.needLocation ?: false,
         botTypeCanConnectToBusiness = botType?.canConnectToBusiness ?: false,
         botTypeCanBeAddedToAttachmentMenu = botType?.canBeAddedToAttachmentMenu ?: false,
@@ -139,7 +142,7 @@ fun UserEntity.toTdApi(): TdApi.User {
         }
         type = when (this@toTdApi.userType) {
             "REGULAR" -> TdApi.UserTypeRegular()
-            "BOT" -> TdApi.UserTypeBot(
+            "BOT" -> buildTdUserTypeBot(
                 botTypeCanBeEdited,
                 botTypeCanJoinGroups,
                 botTypeCanReadAllGroupMessages,
@@ -149,6 +152,7 @@ fun UserEntity.toTdApi(): TdApi.User {
                 botTypeCanManageBots,
                 botTypeIsInline,
                 botTypeInlineQueryPlaceholder.orEmpty(),
+                botTypeSupportsGuestQueries,
                 botTypeNeedLocation,
                 botTypeCanConnectToBusiness,
                 botTypeCanBeAddedToAttachmentMenu,

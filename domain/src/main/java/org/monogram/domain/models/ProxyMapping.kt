@@ -6,6 +6,7 @@ fun ProxyModel.toDomainProxy(): Proxy = Proxy(
     port = port,
     lastUsedDate = lastUsedDate,
     isEnabled = isEnabled,
+    comment = comment,
     type = type.toDomainProxyType()
 )
 
@@ -15,6 +16,7 @@ fun Proxy.toProxyModel(): ProxyModel = ProxyModel(
     port = port,
     lastUsedDate = lastUsedDate,
     isEnabled = isEnabled,
+    comment = comment,
     type = type.toProxyTypeModel()
 )
 

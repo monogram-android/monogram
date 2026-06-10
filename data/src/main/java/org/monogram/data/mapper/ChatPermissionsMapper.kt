@@ -1,6 +1,8 @@
 package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.buildTdChatPermissions
+import org.monogram.data.compat.toDomainCanReactToMessages
 import org.monogram.data.db.model.ChatEntity
 import org.monogram.domain.models.ChatPermissionsModel
 
@@ -15,6 +17,7 @@ internal data class ChatEntityPermissionValues(
     val canSendPolls: Boolean,
     val canSendOtherMessages: Boolean,
     val canAddLinkPreviews: Boolean,
+    val canReactToMessages: Boolean,
     val canEditTag: Boolean,
     val canChangeInfo: Boolean,
     val canInviteUsers: Boolean,
@@ -35,6 +38,7 @@ internal fun TdApi.ChatPermissions?.toDomainChatPermissions(): ChatPermissionsMo
         canSendPolls = permissions.canSendPolls,
         canSendOtherMessages = permissions.canSendOtherMessages,
         canAddLinkPreviews = permissions.canAddLinkPreviews,
+        canReactToMessages = permissions.toDomainCanReactToMessages(),
         canEditTag = permissions.canEditTag,
         canChangeInfo = permissions.canChangeInfo,
         canInviteUsers = permissions.canInviteUsers,
@@ -44,7 +48,7 @@ internal fun TdApi.ChatPermissions?.toDomainChatPermissions(): ChatPermissionsMo
 }
 
 internal fun ChatPermissionsModel.toTdApiChatPermissions(): TdApi.ChatPermissions {
-    return TdApi.ChatPermissions(
+    return buildTdChatPermissions(
         canSendBasicMessages,
         canSendAudios,
         canSendDocuments,
@@ -55,6 +59,7 @@ internal fun ChatPermissionsModel.toTdApiChatPermissions(): TdApi.ChatPermission
         canSendPolls,
         canSendOtherMessages,
         canAddLinkPreviews,
+        canReactToMessages,
         canEditTag,
         canChangeInfo,
         canInviteUsers,
@@ -75,6 +80,7 @@ internal fun ChatEntity.toDomainChatPermissionsModel(): ChatPermissionsModel {
         canSendPolls = permissionCanSendPolls,
         canSendOtherMessages = permissionCanSendOtherMessages,
         canAddLinkPreviews = permissionCanAddLinkPreviews,
+        canReactToMessages = permissionCanReactToMessages,
         canEditTag = permissionCanEditTag,
         canChangeInfo = permissionCanChangeInfo,
         canInviteUsers = permissionCanInviteUsers,
@@ -95,6 +101,7 @@ internal fun ChatPermissionsModel.toEntityPermissionValues(): ChatEntityPermissi
         canSendPolls = canSendPolls,
         canSendOtherMessages = canSendOtherMessages,
         canAddLinkPreviews = canAddLinkPreviews,
+        canReactToMessages = canReactToMessages,
         canEditTag = canEditTag,
         canChangeInfo = canChangeInfo,
         canInviteUsers = canInviteUsers,
@@ -116,6 +123,7 @@ internal fun ChatEntity.withPermissions(permissions: ChatPermissionsModel): Chat
         permissionCanSendPolls = values.canSendPolls,
         permissionCanSendOtherMessages = values.canSendOtherMessages,
         permissionCanAddLinkPreviews = values.canAddLinkPreviews,
+        permissionCanReactToMessages = values.canReactToMessages,
         permissionCanEditTag = values.canEditTag,
         permissionCanChangeInfo = values.canChangeInfo,
         permissionCanInviteUsers = values.canInviteUsers,

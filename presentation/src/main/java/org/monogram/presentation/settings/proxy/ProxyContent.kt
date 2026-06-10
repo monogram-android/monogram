@@ -121,6 +121,22 @@ import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.SettingsTile
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.viewers.components.ViewerSettingsDropdown
+import org.monogram.presentation.settings.proxy.components.DropdownSelectionTrailing
+import org.monogram.presentation.settings.proxy.components.ProxyAddEditSheet
+import org.monogram.presentation.settings.proxy.components.ProxyItem
+import org.monogram.presentation.settings.proxy.components.SectionHeader
+import org.monogram.presentation.settings.proxy.components.StyledDropdownMenu
+import org.monogram.presentation.settings.proxy.components.SwipeToDeleteContainer
+import org.monogram.presentation.settings.proxy.components.fallbackIcon
+import org.monogram.presentation.settings.proxy.components.fallbackLabelRes
+import org.monogram.presentation.settings.proxy.components.itemPosition
+import org.monogram.presentation.settings.proxy.components.networkModeIcon
+import org.monogram.presentation.settings.proxy.components.networkModeLabelRes
+import org.monogram.presentation.settings.proxy.components.networkRuleSubtitleRes
+import org.monogram.presentation.settings.proxy.components.networkTitleRes
+import org.monogram.presentation.settings.proxy.components.smartSwitchModeLabelRes
+import org.monogram.presentation.settings.proxy.components.sortModeIcon
+import org.monogram.presentation.settings.proxy.components.sortModeLabelRes
 
 private enum class ProxyTab(
     val titleRes: Int,
@@ -1304,11 +1320,11 @@ fun ProxyContent(component: ProxyComponent) {
                     component.onDismissAddEdit()
                 }
             },
-            onSave = { server, port, type ->
+            onSave = { server, port, comment, type ->
                 if (state.proxyToEdit != null) {
-                    component.onEditProxy(state.proxyToEdit!!.id, server, port, type)
+                    component.onEditProxy(state.proxyToEdit!!.id, server, port, comment, type)
                 } else {
-                    component.onAddProxy(server, port, type)
+                    component.onAddProxy(server, port, comment, type)
                 }
             }
         )

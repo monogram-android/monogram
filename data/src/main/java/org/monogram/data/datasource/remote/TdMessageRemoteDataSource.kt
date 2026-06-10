@@ -19,6 +19,8 @@ import kotlinx.coroutines.withTimeout
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.chats.ChatCache
+import org.monogram.data.compat.buildInputPollOption
+import org.monogram.data.compat.buildInputPollTypeQuiz
 import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
@@ -684,15 +686,17 @@ class TdMessageRemoteDataSource(
         sendOptions: MessageSendOptions
     ): TdApi.Message? {
         val formattedQuestion = TdApi.FormattedText(poll.question, emptyArray())
-        val pollOptions = poll.options.map { option ->
-            TdApi.InputPollOption(TdApi.FormattedText(option, emptyArray()))
-        }.toTypedArray()
+        val pollOptions = poll.options
+            .map { option ->
+                buildInputPollOption(TdApi.FormattedText(option, emptyArray()))
+            }
+            .toTypedArray()
         val type = if (poll.isQuiz) {
             val correctOptionIds = poll.correctOptionIds
                 .map { it.coerceAtLeast(0) }
                 .distinct()
                 .toIntArray()
-            TdApi.InputPollTypeQuiz(
+            buildInputPollTypeQuiz(
                 if (correctOptionIds.isNotEmpty()) correctOptionIds else intArrayOf(0),
                 TdApi.FormattedText(poll.explanation.orEmpty(), emptyArray())
             )

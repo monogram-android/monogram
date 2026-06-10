@@ -6,6 +6,7 @@ data class ProxyModel(
     val port: Int,
     val lastUsedDate: Int,
     val isEnabled: Boolean,
+    val comment: String? = null,
     val type: ProxyTypeModel,
     val ping: Long? = null
 ) {

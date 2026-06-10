@@ -50,8 +50,8 @@ interface ProxyComponent {
     fun onPingAll()
     fun onPingProxy(proxyId: Int)
     fun onPingDatacenters()
-    fun onAddProxy(server: String, port: Int, type: ProxyTypeModel)
-    fun onEditProxy(proxyId: Int, server: String, port: Int, type: ProxyTypeModel)
+    fun onAddProxy(server: String, port: Int, comment: String?, type: ProxyTypeModel)
+    fun onEditProxy(proxyId: Int, server: String, port: Int, comment: String?, type: ProxyTypeModel)
     fun onDismissDeleteConfirmation()
     fun onConfirmDelete()
     fun onDismissAddEdit()
@@ -419,6 +419,7 @@ class DefaultProxyComponent(
                 input = ProxyInput(
                     server = backup.server,
                     port = backup.port,
+                    comment = backup.comment,
                     type = backup.type.toDomainProxyType()
                 ),
                 enable = false
@@ -452,6 +453,7 @@ class DefaultProxyComponent(
     private fun serializeProxyBackup(proxy: ProxyModel): String = JSONObject().apply {
         put("server", proxy.server)
         put("port", proxy.port)
+        proxy.comment?.let { put("comment", it) }
         when (val type = proxy.type) {
             is ProxyTypeModel.Mtproto -> {
                 put("type", "mtproto")
@@ -494,14 +496,16 @@ class DefaultProxyComponent(
 
             val server = json.optString("server")
             val port = json.optInt("port", 443)
+            val comment = json.optString("comment").ifBlank { null }
             if (server.isBlank() || port !in 1..65535) return null
-            ProxyBackup(server = server, port = port, type = type)
+            ProxyBackup(server = server, port = port, comment = comment, type = type)
         }.getOrNull()
     }
 
     private data class ProxyBackup(
         val server: String,
         val port: Int,
+        val comment: String?,
         val type: ProxyTypeModel
     )
 
@@ -532,15 +536,17 @@ class DefaultProxyComponent(
 
         val server = json.optString("server")
         val port = json.optInt("port", 443)
+        val comment = json.optString("comment").ifBlank { null }
         if (server.isBlank() || port !in 1..65535) return null
 
-        return ProxyBackup(server = server, port = port, type = type)
+        return ProxyBackup(server = server, port = port, comment = comment, type = type)
     }
 
     private fun proxyToJson(proxy: ProxyModel): JSONObject {
         return JSONObject().apply {
             put("server", proxy.server)
             put("port", proxy.port)
+            proxy.comment?.let { comment -> put("comment", comment) }
             when (val type = proxy.type) {
                 is ProxyTypeModel.Mtproto -> {
                     put("type", "mtproto")
@@ -671,6 +677,7 @@ class DefaultProxyComponent(
                     input = ProxyInput(
                         server = backup.server,
                         port = backup.port,
+                        comment = backup.comment,
                         type = backup.type.toDomainProxyType()
                     ),
                     enable = false
@@ -1036,10 +1043,15 @@ class DefaultProxyComponent(
         }
     }
 
-    override fun onAddProxy(server: String, port: Int, type: ProxyTypeModel) {
+    override fun onAddProxy(server: String, port: Int, comment: String?, type: ProxyTypeModel) {
         scope.launch {
             val proxy = proxyRepository.addProxy(
-                input = ProxyInput(server = server, port = port, type = type.toDomainProxyType()),
+                input = ProxyInput(
+                    server = server,
+                    port = port,
+                    comment = comment,
+                    type = type.toDomainProxyType()
+                ),
                 enable = true
             )?.toProxyModel()
             if (proxy != null) {
@@ -1056,12 +1068,23 @@ class DefaultProxyComponent(
         }
     }
 
-    override fun onEditProxy(proxyId: Int, server: String, port: Int, type: ProxyTypeModel) {
+    override fun onEditProxy(
+        proxyId: Int,
+        server: String,
+        port: Int,
+        comment: String?,
+        type: ProxyTypeModel
+    ) {
         scope.launch {
             val oldProxy = _state.value.proxies.find { it.id == proxyId }
             val proxy = proxyRepository.editProxy(
                 proxyId = proxyId,
-                input = ProxyInput(server = server, port = port, type = type.toDomainProxyType()),
+                input = ProxyInput(
+                    server = server,
+                    port = port,
+                    comment = comment,
+                    type = type.toDomainProxyType()
+                ),
                 enable = true
             )?.toProxyModel()
             if (proxy != null) {

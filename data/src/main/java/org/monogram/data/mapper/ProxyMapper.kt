@@ -1,6 +1,7 @@
 package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.toDomainComment
 import org.monogram.domain.models.ProxyModel
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.proxy.MtprotoSecretNormalizer
@@ -11,6 +12,7 @@ fun TdApi.AddedProxy.toDomain(): ProxyModel = ProxyModel(
     port = proxy.port,
     lastUsedDate = lastUsedDate,
     isEnabled = isEnabled,
+    comment = toDomainComment(),
     type = proxy.type.toDomain()
 )
 

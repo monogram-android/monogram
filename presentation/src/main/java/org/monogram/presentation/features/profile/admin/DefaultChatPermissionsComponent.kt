@@ -51,6 +51,7 @@ class DefaultChatPermissionsComponent(
             ChatPermissionsComponent.Permission.SEND_STICKERS -> current.copy(canSendOtherMessages = !current.canSendOtherMessages)
             ChatPermissionsComponent.Permission.SEND_POLLS -> current.copy(canSendPolls = !current.canSendPolls)
             ChatPermissionsComponent.Permission.EMBED_LINKS -> current.copy(canAddLinkPreviews =  !current.canAddLinkPreviews)
+            ChatPermissionsComponent.Permission.REACT_TO_MESSAGES -> current.copy(canReactToMessages = !current.canReactToMessages)
             ChatPermissionsComponent.Permission.ADD_MEMBERS -> current.copy(canInviteUsers = !current.canInviteUsers)
             ChatPermissionsComponent.Permission.PIN_MESSAGES -> current.copy(canPinMessages = !current.canPinMessages)
             ChatPermissionsComponent.Permission.CHANGE_INFO -> current.copy(canChangeInfo = !current.canChangeInfo)

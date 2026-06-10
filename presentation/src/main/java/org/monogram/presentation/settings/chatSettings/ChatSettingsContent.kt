@@ -941,8 +941,17 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                     subtitle = stringResource(R.string.drag_to_back_subtitle),
                     checked = state.isDragToBackEnabled,
                     iconColor = tealColor,
-                    position = ItemPosition.BOTTOM,
+                    position = ItemPosition.MIDDLE,
                     onCheckedChange = component::onDragToBackChanged
+                )
+                SettingsSwitchTile(
+                    icon = Icons.Rounded.OpenInBrowser,
+                    title = stringResource(R.string.in_app_browser_title),
+                    subtitle = stringResource(R.string.in_app_browser_subtitle),
+                    checked = state.inAppBrowserEnabled,
+                    iconColor = purpleColor,
+                    position = ItemPosition.BOTTOM,
+                    onCheckedChange = component::onInAppBrowserEnabledChanged
                 )
             }
 

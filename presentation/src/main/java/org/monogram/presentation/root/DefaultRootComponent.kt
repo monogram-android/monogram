@@ -470,6 +470,10 @@ class DefaultRootComponent(
 
     private fun openBrowser(url: String) {
         if (!url.startsWith("http")) return
+        if (!appPreferences.inAppBrowserEnabled.value) {
+            externalNavigator.openUrl(url)
+            return
+        }
         navigation.navigate { stack ->
             val newStack = stack.filterNot { it is Config.WebView && it.url == url }
             newStack + Config.WebView(url)

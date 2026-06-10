@@ -316,6 +316,9 @@ class AppPreferences(
     private val _isDragToBackEnabled = MutableStateFlow(prefs.getBoolean(KEY_DRAG_TO_BACK, true))
     val isDragToBackEnabled: StateFlow<Boolean> = _isDragToBackEnabled
 
+    private val _inAppBrowserEnabled = MutableStateFlow(prefs.getBoolean(KEY_IN_APP_BROWSER, true))
+    override val inAppBrowserEnabled: StateFlow<Boolean> = _inAppBrowserEnabled
+
     private val _isChatAnimationsEnabled = MutableStateFlow(prefs.getBoolean(KEY_CHAT_ANIMATIONS_ENABLED, true))
     override val isChatAnimationsEnabled: StateFlow<Boolean> = _isChatAnimationsEnabled
 
@@ -951,6 +954,11 @@ class AppPreferences(
         _isDragToBackEnabled.value = enabled
     }
 
+    override fun setInAppBrowserEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_IN_APP_BROWSER, enabled).apply()
+        _inAppBrowserEnabled.value = enabled
+    }
+
     override fun setChatAnimationsEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_CHAT_ANIMATIONS_ENABLED, enabled).apply()
         _isChatAnimationsEnabled.value = enabled
@@ -1306,6 +1314,7 @@ class AppPreferences(
         private const val KEY_IS_ARCHIVE_ALWAYS_VISIBLE = "is_archive_always_visible"
         private const val KEY_SHOW_LINK_PREVIEWS = "show_link_previews"
         private const val KEY_DRAG_TO_BACK = "drag_to_back"
+        private const val KEY_IN_APP_BROWSER = "in_app_browser"
         private const val KEY_CHAT_ANIMATIONS_ENABLED = "chat_animations_enabled"
         private const val KEY_CHAT_LIST_MESSAGE_LINES = "chat_list_message_lines"
         private const val KEY_SHOW_CHAT_LIST_PHOTOS = "show_chat_list_photos"

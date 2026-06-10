@@ -109,6 +109,9 @@ interface AppPreferencesProvider {
     val isPermissionRequested: StateFlow<Boolean>
     val isSupportViewed: StateFlow<Boolean>
 
+    val inAppBrowserEnabled: StateFlow<Boolean>
+    fun setInAppBrowserEnabled(enabled: Boolean)
+
     fun setAutoDownloadMobile(enabled: Boolean)
     fun setAutoDownloadWifi(enabled: Boolean)
     fun setAutoDownloadRoaming(enabled: Boolean)

@@ -923,6 +923,8 @@
     <!-- Chat Settings -->
     <string name="chat_settings_header">Chat Settings</string>
     <string name="appearance_header">Appearance</string>
+    <string name="in_app_browser_title">In-App Browser</string>
+    <string name="in_app_browser_subtitle">Open external links inside the app</string>
     <string name="message_text_size_title">Message text size</string>
     <string name="message_letter_spacing_title">Message letter spacing</string>
     <string name="bubble_rounding_title">Bubble rounding</string>

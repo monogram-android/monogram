@@ -83,6 +83,7 @@ interface ChatSettingsComponent {
     fun onNightModeEndTimeChanged(time: String)
     fun onNightModeBrightnessThresholdChanged(threshold: Float)
     fun onDragToBackChanged(enabled: Boolean)
+    fun onInAppBrowserEnabledChanged(enabled: Boolean)
     fun onTabletInterfaceEnabledChanged(enabled: Boolean)
     fun onAdBlockClick()
     fun onEmojiStyleChanged(style: EmojiStyle)
@@ -143,6 +144,7 @@ interface ChatSettingsComponent {
         val nightModeEndTime: String = "07:00",
         val nightModeBrightnessThreshold: Float = 0.2f,
         val isDragToBackEnabled: Boolean = true,
+        val inAppBrowserEnabled: Boolean = true,
         val isTabletInterfaceEnabled: Boolean = true,
         val emojiStyle: EmojiStyle = EmojiStyle.SYSTEM,
         val isAppleEmojiDownloaded: Boolean = false,
@@ -225,6 +227,7 @@ class DefaultChatSettingsComponent(
             nightModeEndTime = appPreferences.nightModeEndTime.value,
             nightModeBrightnessThreshold = appPreferences.nightModeBrightnessThreshold.value,
             isDragToBackEnabled = appPreferences.isDragToBackEnabled.value,
+            inAppBrowserEnabled = appPreferences.inAppBrowserEnabled.value,
             isTabletInterfaceEnabled = appPreferences.isTabletInterfaceEnabled.value,
             emojiStyle = appPreferences.emojiStyle.value,
             isAppleEmojiDownloaded = appPreferences.isAppleEmojiDownloaded.value,
@@ -510,6 +513,12 @@ class DefaultChatSettingsComponent(
         appPreferences.isDragToBackEnabled
             .onEach { enabled ->
                 _state.update { it.copy(isDragToBackEnabled = enabled) }
+            }
+            .launchIn(scope)
+
+        appPreferences.inAppBrowserEnabled
+            .onEach { enabled ->
+                _state.update { it.copy(inAppBrowserEnabled = enabled) }
             }
             .launchIn(scope)
 
@@ -1008,6 +1017,10 @@ class DefaultChatSettingsComponent(
 
     override fun onDragToBackChanged(enabled: Boolean) {
         appPreferences.setDragToBackEnabled(enabled)
+    }
+
+    override fun onInAppBrowserEnabledChanged(enabled: Boolean) {
+        appPreferences.setInAppBrowserEnabled(enabled)
     }
 
     override fun onTabletInterfaceEnabledChanged(enabled: Boolean) {

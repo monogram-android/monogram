@@ -194,6 +194,15 @@ class UserRepositoryImpl(
             fullInfoRequests.remove(userId)
         }
     }
+    
+    override suspend fun refreshUserFullInfo(userId: Long) {
+        if (userId <= 0) return
+        val fullInfo = remote.getUserFullInfo(userId) ?: return
+        cacheUserFullInfo(userId, fullInfo)
+        userLocal.saveFullInfoEntity(fullInfo.toEntity(userId))
+        syncUserPersonalAvatarPath(userId, fullInfo)
+        handleUserIdUpdated(userId)
+    }
 
     override suspend fun resolveUserChatFullInfo(userId: Long): ChatFullInfoModel? {
         if (userId <= 0L) return null

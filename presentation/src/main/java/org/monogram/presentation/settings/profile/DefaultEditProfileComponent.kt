@@ -218,6 +218,7 @@ class DefaultEditProfileComponent(
                     userProfileEditRepository.setBusinessOpeningHours(currentState.businessOpeningHours)
                 }
 
+                userRepository.refreshUserFullInfo(user.id)
                 onBack()
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = e.message) }

@@ -12,6 +12,7 @@ interface UserRepository {
     suspend fun getMe(): UserModel
     suspend fun getUser(userId: Long): UserModel?
     suspend fun getUserFullInfo(userId: Long): UserModel?
+    suspend fun refreshUserFullInfo(userId: Long)
     suspend fun resolveUserChatFullInfo(userId: Long): ChatFullInfoModel?
     fun getUserFlow(userId: Long): Flow<UserModel?>
 

@@ -124,11 +124,72 @@ fun TextMessageBubble(
 
                 val finalFontSize = if (renderData.isBigEmoji) fontSize * 5f else fontSize
 
+                val hasLinkPreview = showLinkPreviews && content.webPage != null
+                val useInlineTimestamp = !renderData.isBigEmoji && !hasLinkPreview
+
+                val timestampRow: @Composable () -> Unit = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (msg.editDate > 0) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(R.string.info_edited),
+                                modifier = Modifier.size(14.dp),
+                                tint = timeColor
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                        Text(
+                            text = formatTime(msg.date, timeFormat),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            color = timeColor
+                        )
+
+                        if (isOutgoing) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            MessageSendingStatusIcon(
+                                sendingState = msg.sendingState,
+                                isRead = msg.isRead,
+                                baseColor = timeColor,
+                                size = 14.dp
+                            )
+                        }
+                    }
+                }
+
                 if (renderData.isBigEmoji && renderData.bigEmojiItems.isNotEmpty()) {
                     BigEmojiContent(
                         items = renderData.bigEmojiItems,
                         sizeDp = finalFontSize,
                         modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                } else if (useInlineTimestamp) {
+                    TextWithTimestampLayout(
+                        textContent = {
+                            MessageText(
+                                text = renderData.annotatedText,
+                                rawText = content.text,
+                                entities = content.entities,
+                                inlineContent = renderData.inlineContent,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = finalFontSize.sp,
+                                    letterSpacing = letterSpacing.sp,
+                                    lineHeight = (finalFontSize * 1.1f).sp
+                                ),
+                                isOutgoing = isOutgoing,
+                                onSpoilerClick = { index ->
+                                    if (revealedSpoilers.contains(index)) {
+                                        revealedSpoilers.remove(index)
+                                    } else {
+                                        revealedSpoilers.add(index)
+                                    }
+                                },
+                                onClick = onClick,
+                                onLongClick = onLongClick
+                            )
+                        },
+                        timestampContent = timestampRow
                     )
                 } else {
                     MessageText(
@@ -155,7 +216,7 @@ fun TextMessageBubble(
                     )
                 }
 
-                if (showLinkPreviews) {
+                if (hasLinkPreview) {
                     content.webPage?.let { webPage ->
                         LinkPreview(
                             webPage = webPage,
@@ -166,33 +227,12 @@ fun TextMessageBubble(
                     }
                 }
 
-                Row(
-                    modifier = Modifier.align(Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (msg.editDate > 0) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = stringResource(R.string.info_edited),
-                            modifier = Modifier.size(14.dp),
-                            tint = timeColor
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
-                    Text(
-                        text = formatTime(msg.date, timeFormat),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                        color = timeColor
-                    )
-
-                    if (isOutgoing) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        MessageSendingStatusIcon(
-                            sendingState = msg.sendingState,
-                            isRead = msg.isRead,
-                            baseColor = timeColor,
-                            size = 14.dp
-                        )
+                if (!useInlineTimestamp) {
+                    Row(
+                        modifier = Modifier.align(Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        timestampRow()
                     }
                 }
             }

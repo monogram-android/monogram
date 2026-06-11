@@ -161,7 +161,7 @@ class ConnectionManagerTest {
         networkProvider.update(
             NetworkSnapshot(true, true, ProxyNetworkType.MOBILE, 12)
         )
-        scope.advanceAndFlush(500L)
+        scope.advanceAndFlush(1000L)
 
         assertEquals(reconnectCallsBefore + 1, chatRemoteSource.setNetworkTypeCalls)
         assertEquals(enableCallsBefore + 1, proxyRemoteSource.enableProxyCalls)
@@ -212,6 +212,9 @@ class ConnectionManagerTest {
         runManagerTest {
             authFlow.emit(
                 TdApi.UpdateAuthorizationState(TdApi.AuthorizationStateReady())
+            )
+            networkProvider.update(
+                NetworkSnapshot(true, true, ProxyNetworkType.WIFI, 1)
             )
             preferences.setAutoBestProxyEnabled(true)
             proxyRemoteSource.proxies = listOf(

@@ -1,5 +1,6 @@
 package org.monogram.data.repository
 
+import org.monogram.domain.models.FixedLinkPreviewRules
 import org.monogram.domain.models.LinkPreviewTarget
 import java.net.URI
 
@@ -64,9 +65,7 @@ class DraftLinkPreviewResolver {
     }
 
     fun shouldUseFixedPreview(normalizedUrl: String): Boolean {
-        val uri = normalizedUrl.toParsedUri() ?: return false
-        val host = uri.host?.removePrefix("www.")?.lowercase() ?: return false
-        return isTwitterHost(host) || isBlueskyHost(host)
+        return FixedLinkPreviewRules.shouldUseFixedPreview(normalizedUrl)
     }
 
     fun parseTwitterStatusId(normalizedUrl: String): String? {
@@ -93,13 +92,11 @@ class DraftLinkPreviewResolver {
     }
 
     fun toFixedPreviewUrl(normalizedUrl: String): String? {
-        val uri = normalizedUrl.toParsedUri() ?: return null
-        val host = uri.host?.removePrefix("www.")?.lowercase() ?: return null
-        return when {
-            isTwitterHost(host) -> rebuildUrlWithHost(uri, "fxtwitter.com")
-            isBlueskyHost(host) -> rebuildUrlWithHost(uri, "fxbsky.app")
-            else -> null
-        }
+        return FixedLinkPreviewRules.optimisticFixedUrl(normalizedUrl)
+    }
+
+    fun toFixedPreviewUrls(normalizedUrl: String): List<String> {
+        return FixedLinkPreviewRules.candidateFixedUrls(normalizedUrl).map { it.url }
     }
 
     private fun rebuildUrlWithHost(uri: URI, host: String): String? {

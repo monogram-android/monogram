@@ -2313,5 +2313,6 @@
     <string name="fix_link_previews_title">Исправлять превью ссылок</string>
     <string name="draft_link_preview_title">Превью ссылки</string>
     <string name="draft_link_preview_remove">Убрать превью</string>
+    <string name="action_restore">Восстановить</string>
     <string name="draft_link_preview_disabled">Это превью будет исключено из сообщения</string>
 </resources>

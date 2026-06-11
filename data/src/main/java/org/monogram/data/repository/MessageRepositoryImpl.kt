@@ -50,7 +50,6 @@ import org.monogram.domain.models.MessageSenderModel
 import org.monogram.domain.models.MessageViewerModel
 import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
-import org.monogram.domain.models.WebPage
 import org.monogram.domain.models.webapp.InstantViewModel
 import org.monogram.domain.models.webapp.InvoiceModel
 import org.monogram.domain.models.webapp.ThemeParams
@@ -86,6 +85,12 @@ class MessageRepositoryImpl(
     private val keyValueDao: KeyValueDao,
     private val textCompositionStyleDao: TextCompositionStyleDao
 ) : MessageRepository {
+    private val fixedDraftLinkPreviewFetcher = FixedDraftLinkPreviewFetcher(
+        draftLinkPreviewResolver = draftLinkPreviewResolver,
+        draftLinkPreviewRemoteDataSource = messageRemoteDataSource,
+        fixedPreviewRemoteDataSource = fxEmbedRemoteDataSource
+    )
+
     private val _textCompositionStyles = MutableStateFlow<List<TextCompositionStyleModel>>(emptyList())
     private val hardResetFlagKey = "cache_hard_reset_v2"
 
@@ -900,7 +905,8 @@ class MessageRepositoryImpl(
 
         if (shouldUseFixedPreview) {
             Log.d(DRAFT_LINK_PREVIEW_TAG, "repo using fixed preview for $normalizedUrl")
-            getFixedDraftLinkPreview(request.sourceUrl, normalizedUrl)?.let {
+            fixedDraftLinkPreviewFetcher.getFixedDraftLinkPreview(request.sourceUrl, normalizedUrl)
+                ?.let {
                 Log.d(
                     DRAFT_LINK_PREVIEW_TAG,
                     "repo fixed preview hit resolvedUrl=${it.resolvedUrl} hasWebPage=${it.webPage != null}"
@@ -1722,98 +1728,6 @@ class MessageRepositoryImpl(
             name = name,
             customEmojiId = customEmojiId,
             title = title
-        )
-    }
-
-    private suspend fun getFixedDraftLinkPreview(
-        sourceUrl: String,
-        normalizedUrl: String
-    ): DraftLinkPreview? {
-        draftLinkPreviewResolver.parseTwitterStatusId(normalizedUrl)?.let { statusId ->
-            Log.d(
-                DRAFT_LINK_PREVIEW_TAG,
-                "repo fixed preview twitter normalized=$normalizedUrl statusId=$statusId"
-            )
-            val response = fxEmbedRemoteDataSource.getTwitterStatus(statusId) ?: return@let null
-            return response.toDraftLinkPreview(
-                sourceUrl = sourceUrl,
-                normalizedUrl = normalizedUrl,
-                fallbackSiteName = "X"
-            )
-        }
-
-        draftLinkPreviewResolver.parseBlueskyStatus(normalizedUrl)?.let { (handle, rkey) ->
-            Log.d(
-                DRAFT_LINK_PREVIEW_TAG,
-                "repo fixed preview bluesky normalized=$normalizedUrl handle=$handle rkey=$rkey"
-            )
-            val response = fxEmbedRemoteDataSource.getBlueskyStatus(handle, rkey) ?: return@let null
-            return response.toDraftLinkPreview(
-                sourceUrl = sourceUrl,
-                normalizedUrl = normalizedUrl,
-                fallbackSiteName = "Bluesky"
-            )
-        }
-
-        Log.d(DRAFT_LINK_PREVIEW_TAG, "repo fixed preview unsupported for $normalizedUrl")
-        return null
-    }
-
-    private fun FxEmbedRemoteDataSource.FxEmbedStatusResponse.toDraftLinkPreview(
-        sourceUrl: String,
-        normalizedUrl: String,
-        fallbackSiteName: String
-    ): DraftLinkPreview? {
-        val bestMedia =
-            media.orEmpty().firstOrNull { !it.mediaUrl.isNullOrBlank() || !it.url.isNullOrBlank() }
-        val mediaUrl = bestMedia?.mediaUrl ?: bestMedia?.url
-        val isVideo = bestMedia?.type?.contains("video", ignoreCase = true) == true
-        val authorHandle = author?.screenName ?: author?.handle
-        val title = authorHandle?.let { "@$it" } ?: author?.name
-        val description = text?.takeIf { it.isNotBlank() }
-
-        if (title.isNullOrBlank() && description.isNullOrBlank() && mediaUrl.isNullOrBlank()) {
-            Log.d(
-                DRAFT_LINK_PREVIEW_TAG,
-                "repo fxembed mapped empty preview normalized=$normalizedUrl fallbackSiteName=$fallbackSiteName"
-            )
-            return null
-        }
-
-        val photo = mediaUrl?.let {
-            WebPage.Photo(
-                path = it,
-                width = bestMedia?.width ?: 0,
-                height = bestMedia?.height ?: 0,
-                fileId = 0,
-                minithumbnail = null
-            )
-        }
-
-        return DraftLinkPreview(
-            sourceUrl = sourceUrl,
-            resolvedUrl = normalizedUrl,
-            webPage = WebPage(
-                url = normalizedUrl,
-                displayUrl = normalizedUrl,
-                type = if (isVideo) WebPage.LinkPreviewType.ExternalVideo(normalizedUrl) else WebPage.LinkPreviewType.Article,
-                siteName = fallbackSiteName,
-                title = title ?: fallbackSiteName,
-                description = description,
-                photo = photo,
-                embedUrl = null,
-                embedType = null,
-                embedWidth = bestMedia?.width ?: 0,
-                embedHeight = bestMedia?.height ?: 0,
-                duration = 0,
-                author = author?.name,
-                video = null,
-                audio = null,
-                document = null,
-                sticker = null,
-                animation = null,
-                instantViewVersion = 0
-            )
         )
     }
 

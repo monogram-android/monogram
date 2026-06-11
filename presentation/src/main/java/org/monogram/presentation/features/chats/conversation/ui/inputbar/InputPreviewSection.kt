@@ -109,6 +109,7 @@ fun InputPreviewSection(
     onCancelReply: () -> Unit,
     onSelectDraftLinkPreview: (String) -> Unit,
     onDismissDraftLinkPreview: () -> Unit,
+    onRestoreDraftLinkPreview: () -> Unit,
     onCancelMedia: () -> Unit,
     onCancelDocuments: () -> Unit,
     onAddMedia: () -> Unit,
@@ -193,7 +194,8 @@ fun InputPreviewSection(
                                 error = draftLinkPreviewError,
                                 isDisabledForSend = isDraftLinkPreviewDisabledForSend,
                                 onSelect = onSelectDraftLinkPreview,
-                                onDismiss = onDismissDraftLinkPreview
+                                onDismiss = onDismissDraftLinkPreview,
+                                onRestore = onRestoreDraftLinkPreview
                             )
                         }
                     }
@@ -212,7 +214,8 @@ private fun DraftLinkPreviewSection(
     error: String?,
     isDisabledForSend: Boolean,
     onSelect: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onRestore: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -294,7 +297,9 @@ private fun DraftLinkPreviewSection(
                     )
                 },
                 title = stringResource(R.string.draft_link_preview_disabled),
-                body = stringResource(R.string.draft_link_preview_remove)
+                body = stringResource(R.string.draft_link_preview_remove),
+                actionLabel = stringResource(R.string.action_restore),
+                onAction = onRestore
             )
 
             isLoading -> ComposerDraftLinkPreviewLoadingCard()
@@ -473,7 +478,9 @@ private fun ComposerDraftLinkPreviewLoadingCard() {
 private fun ComposerDraftLinkPreviewStatusCard(
     title: String,
     body: String,
-    icon: (@Composable () -> Unit)? = null
+    icon: (@Composable () -> Unit)? = null,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -487,7 +494,10 @@ private fun ComposerDraftLinkPreviewStatusCard(
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         icon?.invoke()
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium,
@@ -500,6 +510,11 @@ private fun ComposerDraftLinkPreviewStatusCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+        if (actionLabel != null && onAction != null) {
+            TextButton(onClick = onAction) {
+                Text(text = actionLabel)
+            }
         }
     }
 }

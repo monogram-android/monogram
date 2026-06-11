@@ -115,6 +115,7 @@ class DefaultChatComponent(
     var inlineBotJob: Job? = null
     var draftSaveJob: Job? = null
     var draftLinkPreviewJob: Job? = null
+    var draftLinkPreviewDebounceJob: Job? = null
     private var autoLoadJob: Job? = null
     private var mentionJob: Job? = null
     internal var searchJob: Job? = null
@@ -436,6 +437,9 @@ class DefaultChatComponent(
 
     override fun onDismissDraftLinkPreview() =
         store.accept(ChatStore.Intent.DismissDraftLinkPreview)
+
+    override fun onRestoreDraftLinkPreview() =
+        store.accept(ChatStore.Intent.RestoreDraftLinkPreview)
 
     override fun onPinMessage(message: MessageModel) = store.accept(ChatStore.Intent.PinMessage(message))
 

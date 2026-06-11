@@ -71,6 +71,7 @@ data class ChatInputBarActions(
     val onDraftChange: (String) -> Unit = {},
     val onSelectDraftLinkPreview: (String) -> Unit = {},
     val onDismissDraftLinkPreview: () -> Unit = {},
+    val onRestoreDraftLinkPreview: () -> Unit = {},
     val onTyping: () -> Unit = {},
     val onCancelMedia: () -> Unit = {},
     val onSendMedia: (List<String>, String, List<MessageEntity>, MessageSendOptions) -> Unit = { _, _, _, _ -> },

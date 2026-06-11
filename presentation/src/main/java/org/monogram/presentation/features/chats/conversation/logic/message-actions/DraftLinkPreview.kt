@@ -1,13 +1,14 @@
 package org.monogram.presentation.features.chats.conversation.logic
 
 import android.util.Log
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.DraftLinkPreviewRequest
+import org.monogram.domain.models.FixedLinkPreviewRules
 import org.monogram.domain.models.LinkPreviewTarget
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
-import java.net.URI
 
 internal fun DefaultChatComponent.handleSelectDraftLinkPreview(url: String) {
     val normalizedUrl = DraftLinkPreviewTextParser.normalizeUrl(url) ?: url
@@ -37,6 +38,7 @@ internal fun DefaultChatComponent.handleSelectDraftLinkPreview(url: String) {
 
 internal fun DefaultChatComponent.handleDismissDraftLinkPreview() {
     val selectedUrl = _state.value.selectedDraftLinkPreviewUrl ?: return
+    draftLinkPreviewDebounceJob?.cancel()
     draftLinkPreviewJob?.cancel()
     Log.d(DRAFT_LINK_PREVIEW_TAG, "dismissPreview selected=$selectedUrl")
     _state.update { current ->
@@ -49,6 +51,30 @@ internal fun DefaultChatComponent.handleDismissDraftLinkPreview() {
             isDraftLinkPreviewDisabledForSend = true
         )
     }
+}
+
+internal fun DefaultChatComponent.handleRestoreDraftLinkPreview() {
+    val selectedUrl = _state.value.selectedDraftLinkPreviewUrl ?: return
+    val state = _state.value
+    if (!state.dismissedDraftLinkPreviewUrls.contains(selectedUrl) && !state.isDraftLinkPreviewDisabledForSend) {
+        return
+    }
+
+    Log.d(DRAFT_LINK_PREVIEW_TAG, "restorePreview selected=$selectedUrl")
+    _state.update { current ->
+        current.copy(
+            dismissedDraftLinkPreviewUrls = current.dismissedDraftLinkPreviewUrls - selectedUrl,
+            draftLinkPreview = null,
+            resolvedDraftLinkPreviewUrl = resolveDraftLinkPreviewUrlForSend(
+                selectedUrl = selectedUrl,
+                fixLinkPreviews = current.fixLinkPreviews
+            ),
+            isDraftLinkPreviewLoading = false,
+            draftLinkPreviewError = null,
+            isDraftLinkPreviewDisabledForSend = false
+        )
+    }
+    resolveDraftLinkPreview()
 }
 
 internal fun DefaultChatComponent.recomputeDraftLinkPreview(
@@ -120,6 +146,7 @@ internal fun DefaultChatComponent.recomputeDraftLinkPreview(
     }
 
     if (shouldDisableForSend) {
+        draftLinkPreviewDebounceJob?.cancel()
         draftLinkPreviewJob?.cancel()
         Log.d(
             DRAFT_LINK_PREVIEW_TAG,
@@ -128,10 +155,11 @@ internal fun DefaultChatComponent.recomputeDraftLinkPreview(
         return
     }
 
-    resolveDraftLinkPreview()
+    scheduleDraftLinkPreviewResolution()
 }
 
 internal fun DefaultChatComponent.resolveDraftLinkPreview() {
+    draftLinkPreviewDebounceJob?.cancel()
     val state = _state.value
     val selectedUrl = state.selectedDraftLinkPreviewUrl ?: run {
         draftLinkPreviewJob?.cancel()
@@ -207,20 +235,33 @@ internal fun DefaultChatComponent.resolveDraftLinkPreview() {
             "resolve finish selected=$selectedUrl success=${preview != null} resolvedUrl=${preview?.resolvedUrl} webPageUrl=${preview?.webPage?.url}"
         )
 
+        if (preview == null) {
+            _state.update {
+                it.copy(
+                    draftLinkTargets = emptyList(),
+                    selectedDraftLinkPreviewUrl = null,
+                    resolvedDraftLinkPreviewUrl = null,
+                    dismissedDraftLinkPreviewUrls = emptySet(),
+                    draftLinkPreview = null,
+                    isDraftLinkPreviewLoading = false,
+                    draftLinkPreviewError = null,
+                    isDraftLinkPreviewDisabledForSend = false
+                )
+            }
+            return@launch
+        }
+
         _state.update {
             it.copy(
-                draftLinkPreview = preview?.webPage,
-                resolvedDraftLinkPreviewUrl = preview?.resolvedUrl?.let { resolvedUrl ->
+                draftLinkPreview = preview.webPage,
+                resolvedDraftLinkPreviewUrl = preview.resolvedUrl.let { resolvedUrl ->
                     resolveDraftLinkPreviewUrlForSend(
                         selectedUrl = resolvedUrl,
                         fixLinkPreviews = it.fixLinkPreviews
                     )
-                } ?: resolveDraftLinkPreviewUrlForSend(
-                    selectedUrl = selectedUrl,
-                    fixLinkPreviews = it.fixLinkPreviews
-                ),
+                },
                 isDraftLinkPreviewLoading = false,
-                draftLinkPreviewError = if (preview == null) DRAFT_LINK_PREVIEW_ERROR_UNAVAILABLE else null
+                draftLinkPreviewError = null
             )
         }
     }
@@ -230,6 +271,7 @@ internal fun DefaultChatComponent.clearDraftLinkPreviewState(
     draftText: String = _state.value.draftText,
     preserveDismissed: Boolean = false
 ) {
+    draftLinkPreviewDebounceJob?.cancel()
     draftLinkPreviewJob?.cancel()
     Log.d(
         DRAFT_LINK_PREVIEW_TAG,
@@ -271,38 +313,31 @@ internal fun ChatComponent.State.hasDraftLinkPreviewContent(): Boolean {
     return draftLinkPreview != null || isDraftLinkPreviewLoading || draftLinkPreviewError != null
 }
 
+private fun DefaultChatComponent.scheduleDraftLinkPreviewResolution() {
+    draftLinkPreviewDebounceJob?.cancel()
+    val selectedUrl = _state.value.selectedDraftLinkPreviewUrl ?: return
+    Log.d(
+        DRAFT_LINK_PREVIEW_TAG,
+        "schedule resolve selected=$selectedUrl debounceMs=$DRAFT_LINK_PREVIEW_DEBOUNCE_MS"
+    )
+    draftLinkPreviewDebounceJob = scope.launch {
+        delay(DRAFT_LINK_PREVIEW_DEBOUNCE_MS)
+        if (_state.value.selectedDraftLinkPreviewUrl == selectedUrl) {
+            resolveDraftLinkPreview()
+        }
+    }
+}
+
 private fun resolveDraftLinkPreviewUrlForSend(
     selectedUrl: String,
     fixLinkPreviews: Boolean
 ): String {
     return if (fixLinkPreviews) {
-        toFixedPreviewUrl(selectedUrl) ?: selectedUrl
+        FixedLinkPreviewRules.optimisticFixedUrl(selectedUrl) ?: selectedUrl
     } else {
         selectedUrl
     }
 }
 
-private fun toFixedPreviewUrl(normalizedUrl: String): String? {
-    val uri = runCatching { URI(normalizedUrl) }.getOrNull() ?: return null
-    val host = uri.host?.removePrefix("www.")?.lowercase() ?: return null
-    val fixedHost = when (host) {
-        "twitter.com", "x.com", "mobile.twitter.com", "mobile.x.com" -> "fxtwitter.com"
-        "bsky.app" -> "fxbsky.app"
-        else -> return null
-    }
-
-    return runCatching {
-        URI(
-            uri.scheme ?: "https",
-            uri.userInfo,
-            fixedHost,
-            uri.port,
-            uri.path,
-            uri.query,
-            uri.fragment
-        ).toString()
-    }.getOrNull()
-}
-
-internal const val DRAFT_LINK_PREVIEW_ERROR_UNAVAILABLE = "unavailable"
+private const val DRAFT_LINK_PREVIEW_DEBOUNCE_MS = 700L
 private const val DRAFT_LINK_PREVIEW_TAG = "DraftLinkPreview"

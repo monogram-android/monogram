@@ -139,6 +139,7 @@ internal fun rememberChatInputBarActions(
             onDraftChange = component::onDraftChange,
             onSelectDraftLinkPreview = component::onSelectDraftLinkPreview,
             onDismissDraftLinkPreview = component::onDismissDraftLinkPreview,
+            onRestoreDraftLinkPreview = component::onRestoreDraftLinkPreview,
             onTyping = component::onTyping,
             onCancelMedia = { onSetPendingMediaPaths(emptyList()) },
             onSendMedia = { paths, caption, captionEntities, options ->

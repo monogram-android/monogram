@@ -69,6 +69,7 @@ class WebPageMapper(
             }
 
             is TdApi.LinkPreviewTypeArticle -> {
+                photoObj = type.photo
                 WebPage.LinkPreviewType.Article
             }
 

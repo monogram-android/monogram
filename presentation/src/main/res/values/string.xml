@@ -1199,6 +1199,7 @@
     <string name="adblock_whitelisted_subtitle">Posts from these channels won\'t be filtered</string>
     <string name="adblock_no_whitelisted">No channels whitelisted</string>
     <string name="action_remove">Remove</string>
+    <string name="action_restore">Restore</string>
     <string name="draft_link_preview_title">Link Preview</string>
     <string name="draft_link_preview_remove">Remove link preview</string>
     <string name="draft_link_preview_disabled">This preview will be excluded from the sent message</string>

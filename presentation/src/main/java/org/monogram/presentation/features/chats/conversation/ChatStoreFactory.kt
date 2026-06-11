@@ -46,6 +46,7 @@ import org.monogram.presentation.features.chats.conversation.logic.handleRepeatM
 import org.monogram.presentation.features.chats.conversation.logic.handleReplyMarkupButtonClick
 import org.monogram.presentation.features.chats.conversation.logic.handleReportMessage
 import org.monogram.presentation.features.chats.conversation.logic.handleReportReasonSelected
+import org.monogram.presentation.features.chats.conversation.logic.handleRestoreDraftLinkPreview
 import org.monogram.presentation.features.chats.conversation.logic.handleRetractVote
 import org.monogram.presentation.features.chats.conversation.logic.handleSaveEditedMessage
 import org.monogram.presentation.features.chats.conversation.logic.handleSearchDateRangeChange
@@ -196,6 +197,7 @@ class ChatStoreFactory(
                 is Intent.DraftChange -> component.handleDraftChange(intent.text)
                 is Intent.SelectDraftLinkPreview -> component.handleSelectDraftLinkPreview(intent.url)
                 is Intent.DismissDraftLinkPreview -> component.handleDismissDraftLinkPreview()
+                is Intent.RestoreDraftLinkPreview -> component.handleRestoreDraftLinkPreview()
                 is Intent.PinMessage -> component.handlePinMessage(intent.message)
 
                 is Intent.UnpinMessage -> component.handleUnpinMessage(intent.message)

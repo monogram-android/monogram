@@ -88,6 +88,7 @@ interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Lab
         data class DraftChange(val text: String) : Intent()
         data class SelectDraftLinkPreview(val url: String) : Intent()
         object DismissDraftLinkPreview : Intent()
+        object RestoreDraftLinkPreview : Intent()
         data class PinMessage(val message: MessageModel) : Intent()
         data class UnpinMessage(val message: MessageModel) : Intent()
         data class PinnedMessageClick(val message: MessageModel? = null) : Intent()

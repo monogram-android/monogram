@@ -9,18 +9,18 @@ import kotlinx.serialization.json.Json
 import java.net.HttpURLConnection
 import java.net.URI
 
-class FxEmbedRemoteDataSource {
+class FxEmbedRemoteDataSource : FixedPreviewRemoteDataSource {
     private val json = Json {
         ignoreUnknownKeys = true
         coerceInputValues = true
         isLenient = true
     }
 
-    suspend fun getTwitterStatus(statusId: String): FxEmbedStatusResponse? {
+    override suspend fun getTwitterStatus(statusId: String): FxEmbedStatusResponse? {
         return requestJson("$TWITTER_BASE/2/status/$statusId")
     }
 
-    suspend fun getBlueskyStatus(handle: String, rkey: String): FxEmbedStatusResponse? {
+    override suspend fun getBlueskyStatus(handle: String, rkey: String): FxEmbedStatusResponse? {
         return requestJson("$BLUESKY_BASE/2/status/$handle/$rkey")
     }
 

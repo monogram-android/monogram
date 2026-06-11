@@ -759,6 +759,7 @@ fun ChatInputBar(
                         onCancelReply = actions.onCancelReply,
                         onSelectDraftLinkPreview = actions.onSelectDraftLinkPreview,
                         onDismissDraftLinkPreview = actions.onDismissDraftLinkPreview,
+                        onRestoreDraftLinkPreview = actions.onRestoreDraftLinkPreview,
                         onCancelMedia = actions.onCancelMedia,
                         onCancelDocuments = { actions.onDocumentOrderChange(emptyList()) },
                         onAddMedia = {

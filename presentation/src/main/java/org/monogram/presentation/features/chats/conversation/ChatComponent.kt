@@ -108,6 +108,7 @@ interface ChatComponent {
     fun onDraftChange(text: String)
     fun onSelectDraftLinkPreview(url: String)
     fun onDismissDraftLinkPreview()
+    fun onRestoreDraftLinkPreview()
     fun onPinMessage(message: MessageModel)
     fun onUnpinMessage(message: MessageModel)
     fun onPinnedMessageClick(message: MessageModel? = null)

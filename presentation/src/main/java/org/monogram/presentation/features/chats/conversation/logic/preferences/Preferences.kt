@@ -121,6 +121,21 @@ internal fun DefaultChatComponent.observePreferences(availableWallpapers: List<W
 
     appPreferences.showLinkPreviews.onEach { value ->
         _state.update { it.copy(showLinkPreviews = value) }
+        if (value) {
+            recomputeDraftLinkPreview(
+                text = _state.value.draftText,
+                updateDraftText = false
+            )
+        } else {
+            clearDraftLinkPreviewState(
+                draftText = _state.value.draftText,
+                preserveDismissed = false
+            )
+        }
+    }.launchIn(scope)
+
+    appPreferences.fixLinkPreviews.onEach { value ->
+        _state.update { it.copy(fixLinkPreviews = value) }
     }.launchIn(scope)
 
     combine(appPreferences.isChatAnimationsEnabled, appPreferences.isPowerSavingMode) { enabled, powerSaving ->

@@ -19,6 +19,7 @@ import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.datasource.cache.ChatLocalDataSource
 import org.monogram.data.datasource.cache.UserLocalDataSource
+import org.monogram.data.datasource.remote.FxEmbedRemoteDataSource
 import org.monogram.data.datasource.remote.MessageRemoteDataSource
 import org.monogram.data.db.dao.KeyValueDao
 import org.monogram.data.db.dao.StickerPathDao
@@ -35,6 +36,8 @@ import org.monogram.domain.models.ChatEventActionModel
 import org.monogram.domain.models.ChatEventLogFiltersModel
 import org.monogram.domain.models.ChatEventModel
 import org.monogram.domain.models.ChatPermissionsModel
+import org.monogram.domain.models.DraftLinkPreview
+import org.monogram.domain.models.DraftLinkPreviewRequest
 import org.monogram.domain.models.FileModel
 import org.monogram.domain.models.InlineQueryResultModel
 import org.monogram.domain.models.MessageContent
@@ -47,6 +50,7 @@ import org.monogram.domain.models.MessageSenderModel
 import org.monogram.domain.models.MessageViewerModel
 import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.WebPage
 import org.monogram.domain.models.webapp.InstantViewModel
 import org.monogram.domain.models.webapp.InvoiceModel
 import org.monogram.domain.models.webapp.ThemeParams
@@ -72,6 +76,8 @@ class MessageRepositoryImpl(
     private val cache: ChatCache,
     private val fileHelper: TdFileHelper,
     private val fileDataSource: FileDataSource,
+    private val fxEmbedRemoteDataSource: FxEmbedRemoteDataSource,
+    private val draftLinkPreviewResolver: DraftLinkPreviewResolver,
     private val dispatcherProvider: DispatcherProvider,
     private val scope: CoroutineScope,
     private val chatLocalDataSource: ChatLocalDataSource,
@@ -877,6 +883,18 @@ class MessageRepositoryImpl(
         }
     }
 
+    override suspend fun getDraftLinkPreview(request: DraftLinkPreviewRequest): DraftLinkPreview? {
+        val normalizedUrl = draftLinkPreviewResolver.normalizeUrl(request.sourceUrl) ?: return null
+
+        if (request.useFixedPreview && draftLinkPreviewResolver.shouldUseFixedPreview(normalizedUrl)) {
+            getFixedDraftLinkPreview(request.sourceUrl, normalizedUrl)?.let { return it }
+        }
+
+        return messageRemoteDataSource.getDraftLinkPreview(
+            request.copy(sourceUrl = normalizedUrl)
+        )
+    }
+
     override suspend fun searchMessages(
         chatId: Long,
         query: String,
@@ -1678,6 +1696,85 @@ class MessageRepositoryImpl(
             name = name,
             customEmojiId = customEmojiId,
             title = title
+        )
+    }
+
+    private suspend fun getFixedDraftLinkPreview(
+        sourceUrl: String,
+        normalizedUrl: String
+    ): DraftLinkPreview? {
+        draftLinkPreviewResolver.parseTwitterStatusId(normalizedUrl)?.let { statusId ->
+            val response = fxEmbedRemoteDataSource.getTwitterStatus(statusId) ?: return@let null
+            return response.toDraftLinkPreview(
+                sourceUrl = sourceUrl,
+                normalizedUrl = normalizedUrl,
+                fallbackSiteName = "X"
+            )
+        }
+
+        draftLinkPreviewResolver.parseBlueskyStatus(normalizedUrl)?.let { (handle, rkey) ->
+            val response = fxEmbedRemoteDataSource.getBlueskyStatus(handle, rkey) ?: return@let null
+            return response.toDraftLinkPreview(
+                sourceUrl = sourceUrl,
+                normalizedUrl = normalizedUrl,
+                fallbackSiteName = "Bluesky"
+            )
+        }
+
+        return null
+    }
+
+    private fun FxEmbedRemoteDataSource.FxEmbedStatusResponse.toDraftLinkPreview(
+        sourceUrl: String,
+        normalizedUrl: String,
+        fallbackSiteName: String
+    ): DraftLinkPreview? {
+        val bestMedia =
+            media.orEmpty().firstOrNull { !it.mediaUrl.isNullOrBlank() || !it.url.isNullOrBlank() }
+        val mediaUrl = bestMedia?.mediaUrl ?: bestMedia?.url
+        val isVideo = bestMedia?.type?.contains("video", ignoreCase = true) == true
+        val authorHandle = author?.screenName ?: author?.handle
+        val title = authorHandle?.let { "@$it" } ?: author?.name
+        val description = text?.takeIf { it.isNotBlank() }
+
+        if (title.isNullOrBlank() && description.isNullOrBlank() && mediaUrl.isNullOrBlank()) {
+            return null
+        }
+
+        val photo = mediaUrl?.let {
+            WebPage.Photo(
+                path = it,
+                width = bestMedia?.width ?: 0,
+                height = bestMedia?.height ?: 0,
+                fileId = 0,
+                minithumbnail = null
+            )
+        }
+
+        return DraftLinkPreview(
+            sourceUrl = sourceUrl,
+            resolvedUrl = normalizedUrl,
+            webPage = WebPage(
+                url = normalizedUrl,
+                displayUrl = normalizedUrl,
+                type = if (isVideo) WebPage.LinkPreviewType.ExternalVideo(normalizedUrl) else WebPage.LinkPreviewType.Article,
+                siteName = fallbackSiteName,
+                title = title ?: fallbackSiteName,
+                description = description,
+                photo = photo,
+                embedUrl = null,
+                embedType = null,
+                embedWidth = bestMedia?.width ?: 0,
+                embedHeight = bestMedia?.height ?: 0,
+                duration = 0,
+                author = author?.name,
+                video = null,
+                audio = null,
+                document = null,
+                sticker = null,
+                animation = null,
+                instantViewVersion = 0
+            )
         )
     }
 }

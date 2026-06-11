@@ -12,6 +12,7 @@ import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.GifModel
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.KeyboardButtonModel
+import org.monogram.domain.models.LinkPreviewTarget
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
@@ -21,6 +22,7 @@ import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.models.TopicModel
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.WallpaperModel
+import org.monogram.domain.models.WebPage
 import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.StickerRepository
@@ -104,6 +106,8 @@ interface ChatComponent {
     fun onCancelEdit()
     fun onSaveEditedMessage(text: String, entities: List<MessageEntity> = emptyList())
     fun onDraftChange(text: String)
+    fun onSelectDraftLinkPreview(url: String)
+    fun onDismissDraftLinkPreview()
     fun onPinMessage(message: MessageModel)
     fun onUnpinMessage(message: MessageModel)
     fun onPinnedMessageClick(message: MessageModel? = null)
@@ -256,6 +260,13 @@ interface ChatComponent {
         val editingMessage: MessageModel? = null,
         val editRequestTime: Long = 0L,
         val draftText: String = "",
+        val draftLinkTargets: List<LinkPreviewTarget> = emptyList(),
+        val selectedDraftLinkPreviewUrl: String? = null,
+        val dismissedDraftLinkPreviewUrls: Set<String> = emptySet(),
+        val draftLinkPreview: WebPage? = null,
+        val isDraftLinkPreviewLoading: Boolean = false,
+        val draftLinkPreviewError: String? = null,
+        val isDraftLinkPreviewDisabledForSend: Boolean = false,
         val pinnedMessage: MessageModel? = null,
         val allPinnedMessages: List<MessageModel> = emptyList(),
         val showPinnedMessagesList: Boolean = false,
@@ -294,6 +305,7 @@ interface ChatComponent {
         val autoplayGifs: Boolean = true,
         val autoplayVideos: Boolean = true,
         val showLinkPreviews: Boolean = true,
+        val fixLinkPreviews: Boolean = true,
         val isChatAnimationsEnabled: Boolean = true,
         val selectedMessageIds: Set<Long> = emptySet(),
         val selectedStickerSet: StickerSetModel? = null,

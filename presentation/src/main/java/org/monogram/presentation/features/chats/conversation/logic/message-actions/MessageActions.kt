@@ -39,6 +39,9 @@ internal fun DefaultChatComponent.handleSendMessage(
         val targetChatId = currentState.effectiveThreadChatId(chatId)
         repositoryMessage.sendMessage(targetChatId, text, replyId, entities, threadId, sendOptions)
         onCancelReply()
+        if (sendOptions.scheduleDate == null) {
+            clearDraftLinkPreviewAfterSend()
+        }
         if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }
@@ -107,6 +110,9 @@ internal fun DefaultChatComponent.handleSendPhoto(
             sendOptions = sendOptions
         )
         onCancelReply()
+        if (sendOptions.scheduleDate == null) {
+            clearDraftLinkPreviewAfterSend()
+        }
         if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }
@@ -153,6 +159,9 @@ internal fun DefaultChatComponent.handleSendVideo(
             sendOptions = sendOptions
         )
         onCancelReply()
+        if (sendOptions.scheduleDate == null) {
+            clearDraftLinkPreviewAfterSend()
+        }
         if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }
@@ -190,6 +199,9 @@ internal fun DefaultChatComponent.handleSendGif(
             )
         }
         onCancelReply()
+        if (sendOptions.scheduleDate == null) {
+            clearDraftLinkPreviewAfterSend()
+        }
         if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }
@@ -220,6 +232,9 @@ internal fun DefaultChatComponent.handleSendDocument(
             sendOptions = sendOptions
         )
         onCancelReply()
+        if (sendOptions.scheduleDate == null) {
+            clearDraftLinkPreviewAfterSend()
+        }
         if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }
@@ -246,6 +261,9 @@ internal fun DefaultChatComponent.handleSendPoll(
             sendOptions = sendOptions
         )
         onCancelReply()
+        if (sendOptions.scheduleDate == null) {
+            clearDraftLinkPreviewAfterSend()
+        }
         if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }
@@ -276,6 +294,9 @@ internal fun DefaultChatComponent.handleSendGifFile(
             sendOptions = sendOptions
         )
         onCancelReply()
+        if (sendOptions.scheduleDate == null) {
+            clearDraftLinkPreviewAfterSend()
+        }
         if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }
@@ -347,6 +368,9 @@ internal fun DefaultChatComponent.handleSendAlbum(
             sendOptions = sendOptions
         )
         onCancelReply()
+        if (sendOptions.scheduleDate == null) {
+            clearDraftLinkPreviewAfterSend()
+        }
         if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
             onScrollToBottom()
         }

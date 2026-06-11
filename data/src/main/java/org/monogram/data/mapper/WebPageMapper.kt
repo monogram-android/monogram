@@ -5,7 +5,7 @@ import org.monogram.data.datasource.remote.TdMessageRemoteDataSource
 import org.monogram.domain.models.WebPage
 import org.monogram.domain.repository.AppPreferencesProvider
 
-internal class WebPageMapper(
+class WebPageMapper(
     private val fileHelper: TdFileHelper,
     private val appPreferences: AppPreferencesProvider
 ) {

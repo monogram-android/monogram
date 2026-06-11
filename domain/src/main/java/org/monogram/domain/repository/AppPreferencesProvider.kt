@@ -67,6 +67,7 @@ interface AppPreferencesProvider {
     val isArchivePinned: StateFlow<Boolean>
     val isArchiveAlwaysVisible: StateFlow<Boolean>
     val showLinkPreviews: StateFlow<Boolean>
+    val fixLinkPreviews: StateFlow<Boolean>
     val isChatAnimationsEnabled: StateFlow<Boolean>
     val chatListMessageLines: StateFlow<Int>
     val showChatListPhotos: StateFlow<Boolean>
@@ -121,6 +122,7 @@ interface AppPreferencesProvider {
     fun setArchivePinned(pinned: Boolean)
     fun setArchiveAlwaysVisible(enabled: Boolean)
     fun setShowLinkPreviews(enabled: Boolean)
+    fun setFixLinkPreviews(enabled: Boolean)
     fun setChatAnimationsEnabled(enabled: Boolean)
     fun setChatListMessageLines(lines: Int)
     fun setShowChatListPhotos(enabled: Boolean)

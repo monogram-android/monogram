@@ -505,6 +505,7 @@ class ConnectionManagerTest {
         override val isArchivePinned = MutableStateFlow(false)
         override val isArchiveAlwaysVisible = MutableStateFlow(false)
         override val showLinkPreviews = MutableStateFlow(false)
+        override val fixLinkPreviews = MutableStateFlow(false)
         override val isChatAnimationsEnabled = MutableStateFlow(false)
         override val chatListMessageLines = MutableStateFlow(2)
         override val showChatListPhotos = MutableStateFlow(true)
@@ -648,6 +649,10 @@ class ConnectionManagerTest {
 
         override fun setShowLinkPreviews(enabled: Boolean) {
             showLinkPreviews.value = enabled
+        }
+
+        override fun setFixLinkPreviews(enabled: Boolean) {
+            fixLinkPreviews.value = enabled
         }
 
         override fun setChatAnimationsEnabled(enabled: Boolean) {

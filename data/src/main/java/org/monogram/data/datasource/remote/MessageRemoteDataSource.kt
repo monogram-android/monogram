@@ -3,6 +3,8 @@ package org.monogram.data.datasource.remote
 import kotlinx.coroutines.flow.Flow
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.datasource.remote.TdMessageRemoteDataSource.DownloadType
+import org.monogram.domain.models.DraftLinkPreview
+import org.monogram.domain.models.DraftLinkPreviewRequest
 import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.MessageDeletedEvent
 import org.monogram.domain.models.MessageDownloadEvent
@@ -232,4 +234,5 @@ interface MessageRemoteDataSource {
     suspend fun getPinnedMessageCount(chatId: Long, threadId: Long? = null): Int
     suspend fun getScheduledMessages(chatId: Long): List<MessageModel>
     suspend fun sendScheduledNow(chatId: Long, messageId: Long)
+    suspend fun getDraftLinkPreview(request: DraftLinkPreviewRequest): DraftLinkPreview?
 }

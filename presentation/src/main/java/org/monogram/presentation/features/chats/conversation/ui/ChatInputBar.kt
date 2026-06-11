@@ -359,6 +359,10 @@ fun ChatInputBar(
         val captionEntities = extractEntities(textValue.annotatedString, knownCustomEmojis)
         val isScheduling = it.scheduleDate != null
         var sentInstantMessage = false
+        val effectiveSendOptions = it.copy(
+            disableLinkPreview = state.isDraftLinkPreviewDisabledForSend,
+            linkPreviewUrl = state.selectedDraftLinkPreviewUrl
+        )
 
         val canSendNow = when {
             state.pendingMediaPaths.isNotEmpty() && canUseMediaPicker -> true
@@ -373,12 +377,22 @@ fun ChatInputBar(
         }
 
         if (state.pendingMediaPaths.isNotEmpty() && canUseMediaPicker) {
-            actions.onSendMedia(state.pendingMediaPaths, textValue.text, captionEntities, it)
+            actions.onSendMedia(
+                state.pendingMediaPaths,
+                textValue.text,
+                captionEntities,
+                effectiveSendOptions
+            )
             textValue = TextFieldValue("")
             knownCustomEmojis.clear()
             sentInstantMessage = !isScheduling
         } else if (state.pendingDocumentPaths.isNotEmpty() && canUseDocumentPicker) {
-            actions.onSendDocuments(state.pendingDocumentPaths, textValue.text, captionEntities, it)
+            actions.onSendDocuments(
+                state.pendingDocumentPaths,
+                textValue.text,
+                captionEntities,
+                effectiveSendOptions
+            )
             textValue = TextFieldValue("")
             knownCustomEmojis.clear()
             sentInstantMessage = !isScheduling
@@ -387,7 +401,7 @@ fun ChatInputBar(
                 actions.onSaveEdit(textValue.text, captionEntities)
             }
         } else if (canWriteText && !isTextEmpty) {
-            actions.onSend(textValue.text, captionEntities, it)
+            actions.onSend(textValue.text, captionEntities, effectiveSendOptions)
             textValue = TextFieldValue("")
             knownCustomEmojis.clear()
             sentInstantMessage = !isScheduling
@@ -397,7 +411,7 @@ fun ChatInputBar(
             activateSlowModeCooldown()
         }
 
-        if (it.scheduleDate != null) {
+        if (effectiveSendOptions.scheduleDate != null) {
             actions.onRefreshScheduledMessages()
         }
     }
@@ -475,7 +489,7 @@ fun ChatInputBar(
     val currentOnDraftChange by rememberUpdatedState(actions.onDraftChange)
     val currentOnTyping by rememberUpdatedState(actions.onTyping)
     LaunchedEffect(textValue.text) {
-        if (state.editingMessage == null && textValue.text != state.draftText) {
+        if (textValue.text != state.draftText || state.editingMessage != null) {
             currentOnDraftChange(textValue.text)
         }
         if (textValue.text.isNotEmpty()) {
@@ -690,6 +704,12 @@ fun ChatInputBar(
                     InputBarMode.Composer -> ChatInputBarComposerSection(
                         editingMessage = state.editingMessage,
                         replyMessage = state.replyMessage,
+                        draftLinkTargets = state.draftLinkTargets,
+                        selectedDraftLinkPreviewUrl = state.selectedDraftLinkPreviewUrl,
+                        draftLinkPreview = state.draftLinkPreview,
+                        isDraftLinkPreviewLoading = state.isDraftLinkPreviewLoading,
+                        draftLinkPreviewError = state.draftLinkPreviewError,
+                        isDraftLinkPreviewDisabledForSend = state.isDraftLinkPreviewDisabledForSend,
                         attachments = ComposerAttachmentState(
                             pendingMediaPaths = state.pendingMediaPaths,
                             pendingDocumentPaths = state.pendingDocumentPaths,
@@ -737,6 +757,8 @@ fun ChatInputBar(
                         stickerRepository = stickerRepository,
                         onCancelEdit = actions.onCancelEdit,
                         onCancelReply = actions.onCancelReply,
+                        onSelectDraftLinkPreview = actions.onSelectDraftLinkPreview,
+                        onDismissDraftLinkPreview = actions.onDismissDraftLinkPreview,
                         onCancelMedia = actions.onCancelMedia,
                         onCancelDocuments = { actions.onDocumentOrderChange(emptyList()) },
                         onAddMedia = {

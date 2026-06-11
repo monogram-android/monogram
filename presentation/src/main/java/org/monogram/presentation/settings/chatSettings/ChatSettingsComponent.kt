@@ -52,6 +52,7 @@ interface ChatSettingsComponent {
     fun onArchivePinnedChanged(pinned: Boolean)
     fun onArchiveAlwaysVisibleChanged(enabled: Boolean)
     fun onShowLinkPreviewsChanged(enabled: Boolean)
+    fun onFixLinkPreviewsChanged(enabled: Boolean)
     fun onNightModeChanged(mode: NightMode)
     fun onDynamicColorsChanged(enabled: Boolean)
     fun onAmoledThemeChanged(enabled: Boolean)
@@ -116,6 +117,7 @@ interface ChatSettingsComponent {
         val isArchivePinned: Boolean = true,
         val isArchiveAlwaysVisible: Boolean = false,
         val showLinkPreviews: Boolean = true,
+        val fixLinkPreviews: Boolean = true,
         val nightMode: NightMode = NightMode.SYSTEM,
         val isDynamicColorsEnabled: Boolean = true,
         val isAmoledThemeEnabled: Boolean = false,
@@ -199,6 +201,7 @@ class DefaultChatSettingsComponent(
             isArchivePinned = appPreferences.isArchivePinned.value,
             isArchiveAlwaysVisible = appPreferences.isArchiveAlwaysVisible.value,
             showLinkPreviews = appPreferences.showLinkPreviews.value,
+            fixLinkPreviews = appPreferences.fixLinkPreviews.value,
             nightMode = appPreferences.nightMode.value,
             isDynamicColorsEnabled = appPreferences.isDynamicColorsEnabled.value,
             isAmoledThemeEnabled = appPreferences.isAmoledThemeEnabled.value,
@@ -345,6 +348,12 @@ class DefaultChatSettingsComponent(
         appPreferences.showLinkPreviews
             .onEach { enabled ->
                 _state.update { it.copy(showLinkPreviews = enabled) }
+            }
+            .launchIn(scope)
+
+        appPreferences.fixLinkPreviews
+            .onEach { enabled ->
+                _state.update { it.copy(fixLinkPreviews = enabled) }
             }
             .launchIn(scope)
 
@@ -790,6 +799,10 @@ class DefaultChatSettingsComponent(
 
     override fun onShowLinkPreviewsChanged(enabled: Boolean) {
         appPreferences.setShowLinkPreviews(enabled)
+    }
+
+    override fun onFixLinkPreviewsChanged(enabled: Boolean) {
+        appPreferences.setFixLinkPreviews(enabled)
     }
 
     override fun onNightModeChanged(mode: NightMode) {

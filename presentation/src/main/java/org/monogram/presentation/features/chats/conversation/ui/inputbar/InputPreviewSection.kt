@@ -35,6 +35,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.rounded.LinkOff
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,10 +64,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
+import org.monogram.domain.models.LinkPreviewTarget
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.WebPage
 import org.monogram.presentation.R
+import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreview
 import org.monogram.presentation.features.chats.conversation.ui.message.buildAnnotatedMessageTextWithEmoji
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberMessageInlineContent
 import java.io.File
@@ -81,10 +88,18 @@ sealed class InputPreviewState {
 fun InputPreviewSection(
     editingMessage: MessageModel?,
     replyMessage: MessageModel?,
+    draftLinkTargets: List<LinkPreviewTarget>,
+    selectedDraftLinkPreviewUrl: String?,
+    draftLinkPreview: WebPage?,
+    isDraftLinkPreviewLoading: Boolean,
+    draftLinkPreviewError: String?,
+    isDraftLinkPreviewDisabledForSend: Boolean,
     pendingMediaPaths: List<String>,
     pendingDocumentPaths: List<String>,
     onCancelEdit: () -> Unit,
     onCancelReply: () -> Unit,
+    onSelectDraftLinkPreview: (String) -> Unit,
+    onDismissDraftLinkPreview: () -> Unit,
     onCancelMedia: () -> Unit,
     onCancelDocuments: () -> Unit,
     onAddMedia: () -> Unit,
@@ -145,8 +160,173 @@ fun InputPreviewSection(
                 }
             )
 
-            InputPreviewState.None -> Spacer(modifier = Modifier.height(0.dp))
+            InputPreviewState.None -> {
+                val hasContextPreview = editingMessage != null || replyMessage != null
+                val hasDraftLinkPreview = draftLinkTargets.isNotEmpty() &&
+                        (draftLinkPreview != null || isDraftLinkPreviewLoading || draftLinkPreviewError != null || isDraftLinkPreviewDisabledForSend)
+
+                if (!hasContextPreview && !hasDraftLinkPreview) {
+                    Spacer(modifier = Modifier.height(0.dp))
+                } else {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        if (editingMessage != null) {
+                            EditPreview(message = editingMessage, onCancel = onCancelEdit)
+                        } else if (replyMessage != null) {
+                            ReplyPreview(message = replyMessage, onCancel = onCancelReply)
+                        }
+
+                        if (hasDraftLinkPreview) {
+                            DraftLinkPreviewSection(
+                                targets = draftLinkTargets,
+                                selectedUrl = selectedDraftLinkPreviewUrl,
+                                preview = draftLinkPreview,
+                                isLoading = isDraftLinkPreviewLoading,
+                                error = draftLinkPreviewError,
+                                isDisabledForSend = isDraftLinkPreviewDisabledForSend,
+                                onSelect = onSelectDraftLinkPreview,
+                                onDismiss = onDismissDraftLinkPreview
+                            )
+                        }
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun DraftLinkPreviewSection(
+    targets: List<LinkPreviewTarget>,
+    selectedUrl: String?,
+    preview: WebPage?,
+    isLoading: Boolean,
+    error: String?,
+    isDisabledForSend: Boolean,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
+            .padding(12.dp)
+    ) {
+        if (targets.size > 1) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                itemsIndexed(
+                    items = targets,
+                    key = { _, item -> item.normalizedUrl }
+                ) { _, target ->
+                    val selected = target.normalizedUrl == selectedUrl
+                    AssistChip(
+                        onClick = { onSelect(target.normalizedUrl) },
+                        label = {
+                            Text(
+                                text = target.displayLabel,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = if (selected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            },
+                            labelColor = if (selected) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.draft_link_preview_title),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.draft_link_preview_remove),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+
+        when {
+            isDisabledForSend -> DisabledDraftLinkPreviewMessage()
+            isLoading -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Text(
+                        text = stringResource(R.string.loading_text),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            preview != null -> LinkPreview(
+                webPage = preview,
+                isOutgoing = false,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            error != null -> Text(
+                text = stringResource(R.string.draft_link_preview_unavailable),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 6.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun DisabledDraftLinkPreviewMessage() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.LinkOff,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            text = stringResource(R.string.draft_link_preview_disabled),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

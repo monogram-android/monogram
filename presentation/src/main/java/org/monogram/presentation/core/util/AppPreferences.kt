@@ -313,6 +313,9 @@ class AppPreferences(
     private val _showLinkPreviews = MutableStateFlow(prefs.getBoolean(KEY_SHOW_LINK_PREVIEWS, true))
     override val showLinkPreviews: StateFlow<Boolean> = _showLinkPreviews
 
+    private val _fixLinkPreviews = MutableStateFlow(prefs.getBoolean(KEY_FIX_LINK_PREVIEWS, true))
+    override val fixLinkPreviews: StateFlow<Boolean> = _fixLinkPreviews
+
     private val _isDragToBackEnabled = MutableStateFlow(prefs.getBoolean(KEY_DRAG_TO_BACK, true))
     val isDragToBackEnabled: StateFlow<Boolean> = _isDragToBackEnabled
 
@@ -949,6 +952,11 @@ class AppPreferences(
         _showLinkPreviews.value = enabled
     }
 
+    override fun setFixLinkPreviews(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_FIX_LINK_PREVIEWS, enabled).apply()
+        _fixLinkPreviews.value = enabled
+    }
+
     fun setDragToBackEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_DRAG_TO_BACK, enabled).apply()
         _isDragToBackEnabled.value = enabled
@@ -1174,6 +1182,7 @@ class AppPreferences(
         _isArchivePinned.value = true
         _isArchiveAlwaysVisible.value = false
         _showLinkPreviews.value = true
+        _fixLinkPreviews.value = true
         _isDragToBackEnabled.value = true
         _isChatAnimationsEnabled.value = true
         _chatListMessageLines.value = 1
@@ -1313,6 +1322,7 @@ class AppPreferences(
         private const val KEY_IS_ARCHIVE_PINNED = "is_archive_pinned"
         private const val KEY_IS_ARCHIVE_ALWAYS_VISIBLE = "is_archive_always_visible"
         private const val KEY_SHOW_LINK_PREVIEWS = "show_link_previews"
+        private const val KEY_FIX_LINK_PREVIEWS = "fix_link_previews"
         private const val KEY_DRAG_TO_BACK = "drag_to_back"
         private const val KEY_IN_APP_BROWSER = "in_app_browser"
         private const val KEY_CHAT_ANIMATIONS_ENABLED = "chat_animations_enabled"

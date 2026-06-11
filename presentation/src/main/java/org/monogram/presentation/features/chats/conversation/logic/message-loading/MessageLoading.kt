@@ -1492,7 +1492,10 @@ internal fun DefaultChatComponent.loadDraft() {
         _state.value.currentTopicId
         val draft = repositoryMessage.getChatDraft(activeThreadChatId(), activeThreadId())
         if (!draft.isNullOrEmpty()) {
-            _state.update { it.copy(draftText = draft) }
+            recomputeDraftLinkPreview(
+                text = draft,
+                updateDraftText = true
+            )
         }
     }
 }

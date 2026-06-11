@@ -114,6 +114,7 @@ class DefaultChatComponent(
     var loadNewerJob: Job? = null
     var inlineBotJob: Job? = null
     var draftSaveJob: Job? = null
+    var draftLinkPreviewJob: Job? = null
     private var autoLoadJob: Job? = null
     private var mentionJob: Job? = null
     internal var searchJob: Job? = null
@@ -152,6 +153,8 @@ class DefaultChatComponent(
             autoDownloadFiles = appPreferences.autoDownloadFiles.value,
             autoplayGifs = appPreferences.autoplayGifs.value,
             autoplayVideos = appPreferences.autoplayVideos.value,
+            showLinkPreviews = appPreferences.showLinkPreviews.value,
+            fixLinkPreviews = appPreferences.fixLinkPreviews.value,
             isWhitelistedInAdBlock = appPreferences.adBlockWhitelistedChannels.value.contains(chatId),
             scrollToMessageId = initialMessageId,
             lastScrollPosition = cacheProvider.getChatScrollPosition(chatId),
@@ -428,6 +431,11 @@ class DefaultChatComponent(
         store.accept(ChatStore.Intent.SaveEditedMessage(text, entities))
 
     override fun onDraftChange(text: String) = store.accept(ChatStore.Intent.DraftChange(text))
+    override fun onSelectDraftLinkPreview(url: String) =
+        store.accept(ChatStore.Intent.SelectDraftLinkPreview(url))
+
+    override fun onDismissDraftLinkPreview() =
+        store.accept(ChatStore.Intent.DismissDraftLinkPreview)
 
     override fun onPinMessage(message: MessageModel) = store.accept(ChatStore.Intent.PinMessage(message))
 

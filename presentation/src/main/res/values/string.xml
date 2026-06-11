@@ -970,6 +970,8 @@
     <string name="always_show_pinned_archive_subtitle">Keep pinned archive visible even when scrolling</string>
     <string name="show_link_previews_title">Show Link Previews</string>
     <string name="show_link_previews_subtitle">Display previews for links in messages</string>
+    <string name="fix_link_previews_title">Fix Link Previews</string>
+    <string name="fix_link_previews_subtitle">Use alternative previews for problematic X, Twitter, and Bluesky links</string>
     <string name="drag_to_back_title">Drag to Back</string>
     <string name="drag_to_back_subtitle">Swipe from left edge to go back</string>
     <string name="tablet_interface_title">Tablet Interface</string>
@@ -1197,6 +1199,10 @@
     <string name="adblock_whitelisted_subtitle">Posts from these channels won\'t be filtered</string>
     <string name="adblock_no_whitelisted">No channels whitelisted</string>
     <string name="action_remove">Remove</string>
+    <string name="draft_link_preview_title">Link Preview</string>
+    <string name="draft_link_preview_remove">Remove link preview</string>
+    <string name="draft_link_preview_disabled">This preview will be excluded from the sent message</string>
+    <string name="draft_link_preview_unavailable">Preview unavailable for the selected link</string>
 
     <!-- Core/Common -->
     <string name="last_seen_recently">last seen recently</string>

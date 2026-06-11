@@ -56,7 +56,6 @@ import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Brightness4
-import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.BrightnessLow
 import androidx.compose.material.icons.rounded.Check
@@ -74,6 +73,7 @@ import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.Gesture
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.OpenInBrowser
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Photo
 import androidx.compose.material.icons.rounded.RestartAlt
@@ -924,6 +924,16 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                     iconColor = blueColor,
                     position = ItemPosition.MIDDLE,
                     onCheckedChange = component::onShowLinkPreviewsChanged
+                )
+                SettingsSwitchTile(
+                    icon = Icons.Rounded.Tune,
+                    title = stringResource(R.string.fix_link_previews_title),
+                    subtitle = stringResource(R.string.fix_link_previews_subtitle),
+                    checked = state.fixLinkPreviews,
+                    iconColor = tealColor,
+                    position = ItemPosition.MIDDLE,
+                    enabled = state.showLinkPreviews,
+                    onCheckedChange = component::onFixLinkPreviewsChanged
                 )
                 if (isTablet) {
                     SettingsSwitchTile(

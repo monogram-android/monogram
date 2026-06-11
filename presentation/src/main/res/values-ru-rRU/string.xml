@@ -679,6 +679,7 @@
     <string name="always_show_pinned_archive_subtitle">Не скрывать закреплённый архив при прокрутке</string>
     <string name="show_link_previews_title">Предпросмотр ссылок</string>
     <string name="show_link_previews_subtitle">Отображать превью для ссылок в сообщениях</string>
+    <string name="fix_link_previews_subtitle">Использьзовать альтернативные превью для X, Twitter, и Bluesky ссылок</string>
     <string name="drag_to_back_title">Свайп для возврата</string>
     <string name="drag_to_back_subtitle">Возврат назад свайпом от левого края</string>
     <string name="tablet_interface_title">Планшетный интерфейс</string>
@@ -881,6 +882,7 @@
     <string name="adblock_no_whitelisted">Список пуст</string>
     <string name="action_remove">Удалить</string>
     <!-- Core/Common -->
+    <string name="draft_link_preview_unavailable">Превью недоступно для выбранной ссылки</string>
     <string name="last_seen_recently">был(а) недавно</string>
     <string name="last_seen_just_now">был(а) только что</string>
     <plurals name="last_seen_minutes_ago">
@@ -2308,4 +2310,8 @@
     <string name="profile_section_overview">Основное</string>
     <string name="in_app_browser_title">Встроенный браузер</string>
     <string name="deleted_account">Удаленный аккаунт</string>
+    <string name="fix_link_previews_title">Исправлять превью ссылок</string>
+    <string name="draft_link_preview_title">Превью ссылки</string>
+    <string name="draft_link_preview_remove">Убрать превью</string>
+    <string name="draft_link_preview_disabled">Это превью будет исключено из сообщения</string>
 </resources>

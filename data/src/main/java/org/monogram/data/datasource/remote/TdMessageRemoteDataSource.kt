@@ -26,7 +26,11 @@ import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.infra.FileUpdateHandler
 import org.monogram.data.mapper.MessageMapper
+import org.monogram.data.mapper.WebPageMapper
 import org.monogram.data.mapper.toApi
+import org.monogram.data.repository.DraftLinkPreviewResolver
+import org.monogram.domain.models.DraftLinkPreview
+import org.monogram.domain.models.DraftLinkPreviewRequest
 import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageDeletedEvent
@@ -59,6 +63,8 @@ class TdMessageRemoteDataSource(
     private val pollRepository: PollRepository,
     private val fileDownloadQueue: FileDownloadQueue,
     private val fileUpdateHandler: FileUpdateHandler,
+    private val webPageMapper: WebPageMapper,
+    private val draftLinkPreviewResolver: DraftLinkPreviewResolver,
     private val dispatcherProvider: DispatcherProvider,
     val scope: CoroutineScope
 ) : MessageRemoteDataSource {
@@ -291,6 +297,27 @@ class TdMessageRemoteDataSource(
                 messageId,
                 null
             )
+        )
+    }
+
+    override suspend fun getDraftLinkPreview(request: DraftLinkPreviewRequest): DraftLinkPreview? {
+        val normalizedUrl = draftLinkPreviewResolver.normalizeUrl(request.sourceUrl) ?: return null
+        val formattedText = TdApi.FormattedText(normalizedUrl, emptyArray())
+        val previewOptions = TdApi.LinkPreviewOptions(false, normalizedUrl, false, false, false)
+        val result = safeExecute(TdApi.GetLinkPreview(formattedText, previewOptions)) ?: return null
+        if (result !is TdApi.LinkPreview) return null
+
+        val webPage = webPageMapper.map(
+            webPage = result,
+            chatId = 0L,
+            messageId = 0L,
+            networkAutoDownload = true
+        ) ?: return null
+
+        return DraftLinkPreview(
+            sourceUrl = request.sourceUrl,
+            resolvedUrl = webPage.url ?: normalizedUrl,
+            webPage = webPage
         )
     }
 
@@ -568,6 +595,7 @@ class TdMessageRemoteDataSource(
         )
         val content = TdApi.InputMessageText().apply {
             this.text = parsedText
+            this.linkPreviewOptions = sendOptions.toTdLinkPreviewOptions()
             this.clearDraft = true
         }
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
@@ -960,6 +988,7 @@ class TdMessageRemoteDataSource(
         )
         val content = TdApi.InputMessageText().apply {
             this.text = parsedText
+            this.linkPreviewOptions = TdApi.LinkPreviewOptions(false, "", false, false, false)
         }
         val req = TdApi.EditMessageText().apply {
             this.chatId = chatId
@@ -1046,6 +1075,17 @@ class TdMessageRemoteDataSource(
                 ?.takeIf { it > 0 }
                 ?.let { TdApi.MessageSchedulingStateSendAtDate(it, 0) }
         }
+    }
+
+    private fun MessageSendOptions.toTdLinkPreviewOptions(): TdApi.LinkPreviewOptions? {
+        if (!disableLinkPreview && linkPreviewUrl.isNullOrBlank()) return null
+        return TdApi.LinkPreviewOptions(
+            disableLinkPreview,
+            linkPreviewUrl.orEmpty(),
+            false,
+            false,
+            false
+        )
     }
 
     override suspend fun viewMessages(chatId: Long, messageIds: LongArray, forceRead: Boolean): TdApi.Ok? {

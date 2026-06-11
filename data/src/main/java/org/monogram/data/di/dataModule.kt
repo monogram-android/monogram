@@ -28,6 +28,7 @@ import org.monogram.data.datasource.remote.AuthRemoteDataSource
 import org.monogram.data.datasource.remote.ChatRemoteSource
 import org.monogram.data.datasource.remote.ChatsRemoteDataSource
 import org.monogram.data.datasource.remote.EmojiRemoteSource
+import org.monogram.data.datasource.remote.FxEmbedRemoteDataSource
 import org.monogram.data.datasource.remote.GifRemoteSource
 import org.monogram.data.datasource.remote.LinkRemoteDataSource
 import org.monogram.data.datasource.remote.MessageFileApi
@@ -92,6 +93,7 @@ import org.monogram.data.repository.BotRepositoryImpl
 import org.monogram.data.repository.ChatInfoRepositoryImpl
 import org.monogram.data.repository.ChatStatisticsRepositoryImpl
 import org.monogram.data.repository.ChatsListRepositoryImpl
+import org.monogram.data.repository.DraftLinkPreviewResolver
 import org.monogram.data.repository.EmojiRepositoryImpl
 import org.monogram.data.repository.GifRepositoryImpl
 import org.monogram.data.repository.LinkHandlerRepositoryImpl
@@ -219,6 +221,10 @@ val dataModule = module {
 
     single {
         NominatimRemoteDataSource()
+    }
+
+    single {
+        FxEmbedRemoteDataSource()
     }
 
     factory<PlayerDataSourceFactory> {
@@ -630,6 +636,8 @@ val dataModule = module {
             pollRepository = get(),
             fileDownloadQueue = get(),
             fileUpdateHandler = get(),
+            webPageMapper = get(),
+            draftLinkPreviewResolver = get(),
             dispatcherProvider = get(),
             scope = get()
         )
@@ -644,9 +652,11 @@ val dataModule = module {
             messageRemoteDataSource = get(),
             cache = get(),
             fileHelper = get(),
+            fileDataSource = get(),
+            fxEmbedRemoteDataSource = get(),
+            draftLinkPreviewResolver = get(),
             dispatcherProvider = get(),
             scope = get(),
-            fileDataSource = get(),
             chatLocalDataSource = get(),
             userLocalDataSource = get(),
             stickerPathDao = get(),
@@ -783,6 +793,10 @@ val dataModule = module {
 
     single {
         LinkParser()
+    }
+
+    single {
+        DraftLinkPreviewResolver()
     }
 
     single<LinkHandlerRepository> {

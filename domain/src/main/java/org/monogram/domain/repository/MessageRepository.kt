@@ -2,6 +2,8 @@ package org.monogram.domain.repository
 
 import kotlinx.coroutines.flow.Flow
 import org.monogram.domain.models.ChatPermissionsModel
+import org.monogram.domain.models.DraftLinkPreview
+import org.monogram.domain.models.DraftLinkPreviewRequest
 import org.monogram.domain.models.MessageDeletedEvent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageIdUpdatedEvent
@@ -212,6 +214,7 @@ interface MessageRepository :
     ): List<UserModel>
 
     suspend fun getWebPageInstantView(url: String, forceFull: Boolean = false): InstantViewModel?
+    suspend fun getDraftLinkPreview(request: DraftLinkPreviewRequest): DraftLinkPreview?
 
     suspend fun searchMessages(
         chatId: Long,

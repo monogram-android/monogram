@@ -55,6 +55,13 @@ internal fun rememberChatInputBarState(
             replyMessage = state.replyMessage,
             editingMessage = state.editingMessage,
             draftText = state.draftText,
+            draftLinkTargets = state.draftLinkTargets,
+            selectedDraftLinkPreviewUrl = state.selectedDraftLinkPreviewUrl,
+            dismissedDraftLinkPreviewUrls = state.dismissedDraftLinkPreviewUrls,
+            draftLinkPreview = state.draftLinkPreview,
+            isDraftLinkPreviewLoading = state.isDraftLinkPreviewLoading,
+            draftLinkPreviewError = state.draftLinkPreviewError,
+            isDraftLinkPreviewDisabledForSend = state.isDraftLinkPreviewDisabledForSend,
             pendingMediaPaths = pendingMediaPaths,
             pendingDocumentPaths = pendingDocumentPaths,
             isClosed = state.topics.find { it.id.toLong() == state.currentTopicId }?.isClosed
@@ -121,6 +128,8 @@ internal fun rememberChatInputBarActions(
             onCancelEdit = component::onCancelEdit,
             onSaveEdit = component::onSaveEditedMessage,
             onDraftChange = component::onDraftChange,
+            onSelectDraftLinkPreview = component::onSelectDraftLinkPreview,
+            onDismissDraftLinkPreview = component::onDismissDraftLinkPreview,
             onTyping = component::onTyping,
             onCancelMedia = { onSetPendingMediaPaths(emptyList()) },
             onSendMedia = { paths, caption, captionEntities, options ->

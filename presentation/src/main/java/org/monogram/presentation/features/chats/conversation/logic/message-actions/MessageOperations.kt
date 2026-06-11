@@ -74,7 +74,13 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(text: String, entities
 }
 
 internal fun DefaultChatComponent.handleDraftChange(text: String) {
-    _state.update { it.copy(draftText = text) }
+    val isEditing = _state.value.editingMessage != null
+    recomputeDraftLinkPreview(
+        text = text,
+        updateDraftText = !isEditing
+    )
+    if (isEditing) return
+
     draftSaveJob?.cancel()
     draftSaveJob = scope.launch {
         delay(200)

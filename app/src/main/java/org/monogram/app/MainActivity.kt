@@ -1,9 +1,11 @@
 package org.monogram.app
 
+import android.app.ForegroundServiceStartNotAllowedException
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
@@ -17,6 +19,7 @@ import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.retainedComponent
 import org.koin.android.ext.android.inject
 import org.monogram.app.ui.theme.AppThemeContainer
+import org.monogram.data.infra.AppForegroundTracker
 import org.monogram.data.service.TdNotificationService
 import org.monogram.domain.repository.PushProvider
 import org.monogram.presentation.core.util.AppPreferences
@@ -31,6 +34,7 @@ import java.util.Calendar
 class MainActivity : FragmentActivity() {
     private lateinit var root: RootComponent
     private val appPreferences: AppPreferences by inject()
+    private val appForegroundTracker: AppForegroundTracker by inject()
 
     @Volatile
     private var keepSplashOnScreen: Boolean = true
@@ -68,7 +72,6 @@ class MainActivity : FragmentActivity() {
         setContent {
             LaunchedEffect(Unit) {
                 keepSplashOnScreen = false
-                startNotificationService()
             }
 
             val windowLayoutInfo by windowInfoTracker.windowLayoutInfo(this)
@@ -86,6 +89,11 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        startNotificationServiceIfNeeded()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -106,13 +114,23 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    private fun startNotificationService() {
+    private fun startNotificationServiceIfNeeded() {
         if (appPreferences.pushProvider.value != PushProvider.GMS_LESS) return
+        if (!appPreferences.backgroundServiceEnabled.value) return
+        if (!appForegroundTracker.isForeground.value) return
+        if (TdNotificationService.isRunningFlow.value) return
+
         val intent = Intent(this, TdNotificationService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (_: ForegroundServiceStartNotAllowedException) {
+            Log.w(TAG, "Foreground notification service start was blocked by the system")
+        } catch (error: IllegalStateException) {
+            Log.w(TAG, "Foreground notification service start failed", error)
         }
     }
 
@@ -163,5 +181,9 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "MainActivity"
     }
 }

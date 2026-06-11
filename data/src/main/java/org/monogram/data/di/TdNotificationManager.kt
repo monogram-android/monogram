@@ -28,6 +28,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import androidx.core.app.RemoteInput
 import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.IconCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -107,7 +108,8 @@ class TdNotificationManager(
         val messageId: Long,
         val senderName: String,
         val text: String,
-        val timestamp: Long
+        val timestamp: Long,
+        val senderBitmap: Bitmap? = null
     )
 
     init {
@@ -617,7 +619,8 @@ class TdNotificationManager(
                 messageId = messageId,
                 senderName = senderName,
                 text = text,
-                timestamp = timestamp
+                timestamp = timestamp,
+                senderBitmap = senderBitmap
             )
         )
         if (history.size > 10) {
@@ -641,20 +644,28 @@ class TdNotificationManager(
         val messagingStyle = NotificationCompat.MessagingStyle(myself)
         val historySnapshot = history.toList()
         historySnapshot.forEach { entry ->
-            val person = Person.Builder()
+            val personBuilder = Person.Builder()
                 .setName(entry.senderName)
                 .setKey(entry.senderName)
-                .build()
+
+            entry.senderBitmap?.let { bitmap ->
+                personBuilder.setIcon(IconCompat.createWithBitmap(getCircularBitmap(bitmap)))
+            }
+
             messagingStyle.addMessage(
                 NotificationCompat.MessagingStyle.Message(
                     entry.text,
                     entry.timestamp,
-                    person
+                    personBuilder.build()
                 )
             )
         }
 
-        val isGroup = chatType !is TdApi.ChatTypePrivate
+        val isGroup = when (chatType) {
+            is TdApi.ChatTypePrivate -> false
+            is TdApi.ChatTypeSupergroup -> !chatType.isChannel
+            else -> true
+        }
         messagingStyle.isGroupConversation = isGroup
 
         val chatTitle = chatCache[chatId]?.title ?: senderName

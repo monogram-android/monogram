@@ -50,6 +50,7 @@ import org.monogram.domain.models.WebPage
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.conversation.ui.message.BotCommandSuggestions
+import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import org.monogram.presentation.features.stickers.ui.menu.StickerEmojiMenu
 
 @Composable
@@ -89,6 +90,7 @@ internal fun ChatInputBarComposerSection(
     onMediaOrderChange: (List<String>) -> Unit,
     onDocumentOrderChange: (List<String>) -> Unit,
     onMediaClick: (String) -> Unit,
+    onDraftLinkPreviewAction: (LinkPreviewAction) -> Unit,
     onPasteImages: (List<Uri>) -> Unit,
     onMentionClick: (UserModel) -> Unit,
     onMentionQueryClear: () -> Unit,

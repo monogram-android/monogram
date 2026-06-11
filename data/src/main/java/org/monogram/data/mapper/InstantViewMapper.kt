@@ -151,12 +151,18 @@ private fun TdApi.PageBlockRelatedArticle.toRelatedArticle() = PageBlockRelatedA
 )
 
 private fun TdApi.Photo.toPhoto(): WebPage.Photo {
-    val size = sizes.lastOrNull()
+    val selection = WebPageMapper.selectPhotoSizes(sizes)
+    val size = selection.preferredSize
+    val thumbnailSize = selection.thumbnailSize
+    val originalSize = selection.originalSize
     return WebPage.Photo(
         path = size?.photo?.local?.path?.takeIf { isValidFilePath(it) },
+        thumbnailPath = thumbnailSize?.photo?.local?.path?.takeIf { isValidFilePath(it) },
         width = size?.width ?: 0,
         height = size?.height ?: 0,
         fileId = size?.photo?.id ?: 0,
+        thumbnailFileId = thumbnailSize?.photo?.id ?: 0,
+        originalFileId = originalSize?.photo?.id?.takeIf { it != size?.photo?.id } ?: 0,
         minithumbnail = minithumbnail?.data
     )
 }

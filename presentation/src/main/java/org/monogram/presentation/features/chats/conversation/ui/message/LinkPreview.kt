@@ -1,7 +1,8 @@
 package org.monogram.presentation.features.chats.conversation.ui.message
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -44,39 +45,23 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.monogram.domain.models.WebPage
 import org.monogram.presentation.R
-import org.monogram.presentation.core.util.namespacedCacheKey
-import org.monogram.presentation.features.viewers.extractYouTubeId
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun LinkPreview(
+internal fun LinkPreview(
     webPage: WebPage,
     isOutgoing: Boolean,
     modifier: Modifier = Modifier,
-    onInstantViewClick: ((String) -> Unit)? = null,
-    onYouTubeClick: ((String) -> Unit)? = null
+    onAction: (LinkPreviewAction) -> Unit,
+    onLongClick: (() -> Unit)? = null
 ) {
-    val hasSiteName = !webPage.siteName.isNullOrEmpty()
-    val hasTitle = !webPage.title.isNullOrEmpty()
-    val hasDescription = !webPage.description.isNullOrEmpty()
+    val resolved = remember(webPage) { webPage.resolveLinkPreview() }
+    val hasTitle = !resolved.meta.title.isNullOrBlank()
+    val hasDescription = !resolved.meta.description.isNullOrBlank()
+    val hasKicker = resolved.meta.kicker.isNotBlank()
 
-    val isVideo = when (webPage.type) {
-        is WebPage.LinkPreviewType.Video,
-        is WebPage.LinkPreviewType.ExternalVideo,
-        is WebPage.LinkPreviewType.EmbeddedVideo,
-        is WebPage.LinkPreviewType.Animation,
-        is WebPage.LinkPreviewType.EmbeddedAnimation -> true
-        else -> webPage.video != null ||
-                webPage.siteName?.contains("YouTube", ignoreCase = true) == true ||
-                webPage.url?.contains("youtu", ignoreCase = true) == true
-    }
+    if (!hasKicker && !hasTitle && !hasDescription && !resolved.hasMedia) return
 
-    val hasPhoto = webPage.photo != null
-    val hasMedia = hasPhoto || isVideo
-    val isInstantView = webPage.type == WebPage.LinkPreviewType.InstantView || webPage.instantViewVersion > 0
-
-    if (!hasSiteName && !hasTitle && !hasDescription && !hasMedia) return
-
-    val linkHandler = LocalLinkHandler.current
     val colorScheme = MaterialTheme.colorScheme
 
     val borderColor = if (isOutgoing) {
@@ -84,10 +69,6 @@ fun LinkPreview(
     } else {
         colorScheme.primary.copy(alpha = 0.4f)
     }
-
-    val isSmallMedia = hasPhoto && !isVideo && (hasSiteName || hasTitle || hasDescription)
-    val isYouTube = webPage.siteName?.contains("YouTube", ignoreCase = true) == true ||
-            webPage.url?.let { extractYouTubeId(it) != null } == true
 
     Column(
         modifier = modifier
@@ -101,14 +82,6 @@ fun LinkPreview(
                     if (isOutgoing) colorScheme.onPrimaryContainer.copy(alpha = 0.05f)
                     else colorScheme.onSurface.copy(alpha = 0.05f)
                 )
-                .clickable {
-                    val url = webPage.url ?: return@clickable
-                    when {
-                        isYouTube && onYouTubeClick != null -> onYouTubeClick(url)
-                        isInstantView && onInstantViewClick != null -> onInstantViewClick(url)
-                        else -> linkHandler(url)
-                    }
-                }
         ) {
             Row(modifier = Modifier.height(IntrinsicSize.Min)) {
                 Box(
@@ -118,28 +91,52 @@ fun LinkPreview(
                         .background(borderColor)
                 )
                 Column(modifier = Modifier.padding(8.dp)) {
-                    if (isSmallMedia) {
+                    if (resolved.isSmallMedia) {
                         Row {
-                            Column(modifier = Modifier.weight(1f)) {
-                                LinkPreviewTextContent(webPage, isOutgoing, hasSiteName, hasTitle, hasDescription)
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .previewTapTarget(
+                                        onTap = { onAction(resolved.primaryAction) },
+                                        onLongClick = onLongClick
+                                    )
+                            ) {
+                                LinkPreviewTextContent(
+                                    meta = resolved.meta,
+                                    isOutgoing = isOutgoing
+                                )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
-                            LinkPreviewSmallImage(webPage)
+                            LinkPreviewSmallImage(
+                                thumbnailData = resolved.thumbnailData,
+                                thumbnailCacheKey = resolved.thumbnailCacheKey,
+                                onTap = { onAction(resolved.mediaAction) },
+                                onLongClick = onLongClick
+                            )
                         }
                     } else {
-                        LinkPreviewTextContent(webPage, isOutgoing, hasSiteName, hasTitle, hasDescription)
+                        Column(
+                            modifier = Modifier.previewTapTarget(
+                                onTap = { onAction(resolved.primaryAction) },
+                                onLongClick = onLongClick
+                            )
+                        ) {
+                            LinkPreviewTextContent(
+                                meta = resolved.meta,
+                                isOutgoing = isOutgoing
+                            )
+                        }
 
-                        if (hasMedia) {
+                        if (resolved.hasMedia) {
                             Spacer(modifier = Modifier.height(8.dp))
                             LinkPreviewLargeMedia(
-                                webPage = webPage,
-                                isVideo = isVideo,
-                                isYouTube = isYouTube,
-                                onPlayYouTube = {
-                                    if (onYouTubeClick != null && webPage.url != null) {
-                                        onYouTubeClick(webPage.url!!)
-                                    }
-                                }
+                                thumbnailData = resolved.thumbnailData,
+                                thumbnailCacheKey = resolved.thumbnailCacheKey,
+                                aspectRatio = resolved.aspectRatio,
+                                showPlayOverlay = resolved.showPlayOverlay,
+                                duration = webPage.duration,
+                                onTap = { onAction(resolved.mediaAction) },
+                                onLongClick = onLongClick
                             )
                         }
                     }
@@ -147,10 +144,10 @@ fun LinkPreview(
             }
         }
 
-        if (isInstantView && onInstantViewClick != null && webPage.url != null) {
+        if (resolved.showInstantViewButton) {
             Spacer(modifier = Modifier.height(4.dp))
             Button(
-                onClick = { onInstantViewClick(webPage.url!!) },
+                onClick = { onAction(resolved.primaryAction) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -178,24 +175,14 @@ fun LinkPreview(
 
 @Composable
 private fun LinkPreviewTextContent(
-    webPage: WebPage,
-    isOutgoing: Boolean,
-    hasSiteName: Boolean,
-    hasTitle: Boolean,
-    hasDescription: Boolean
+    meta: LinkPreviewMeta,
+    isOutgoing: Boolean
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
-    if (hasSiteName || !webPage.author.isNullOrEmpty()) {
-        val siteText = buildString {
-            if (hasSiteName) append(webPage.siteName)
-            if (!webPage.author.isNullOrEmpty() && webPage.author != webPage.siteName) {
-                if (isNotEmpty()) append(" • ")
-                append(webPage.author)
-            }
-        }
+    if (meta.kicker.isNotBlank()) {
         Text(
-            text = siteText,
+            text = meta.kicker,
             style = MaterialTheme.typography.labelMedium,
             color = if (isOutgoing) colorScheme.onPrimaryContainer else colorScheme.primary,
             fontWeight = FontWeight.Bold,
@@ -204,46 +191,49 @@ private fun LinkPreviewTextContent(
         )
     }
 
-    if (hasTitle) {
+    if (!meta.title.isNullOrBlank()) {
         Text(
-            text = webPage.title!!,
+            text = meta.title,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = if (hasSiteName) 2.dp else 0.dp)
+            modifier = Modifier.padding(top = if (meta.kicker.isNotBlank()) 2.dp else 0.dp)
         )
     }
 
-    if (hasDescription) {
+    if (!meta.description.isNullOrBlank()) {
         Text(
-            text = webPage.description!!,
+            text = meta.description,
             style = MaterialTheme.typography.bodySmall,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = if (hasSiteName || hasTitle) 2.dp else 0.dp)
+            modifier = Modifier.padding(top = if (meta.kicker.isNotBlank() || !meta.title.isNullOrBlank()) 2.dp else 0.dp)
         )
     }
 }
 
 @Composable
-private fun LinkPreviewSmallImage(webPage: WebPage) {
-    val photo = webPage.photo
+private fun LinkPreviewSmallImage(
+    thumbnailData: Any?,
+    thumbnailCacheKey: String?,
+    onTap: () -> Unit,
+    onLongClick: (() -> Unit)?
+) {
     val context = LocalContext.current
-    val modelData = remember(photo) { photo?.path ?: photo?.minithumbnail }
-    val cacheKey = remember(modelData) { namespacedCacheKey("link_preview_small", modelData) }
 
     Box(
         modifier = Modifier
             .size(54.dp)
             .clip(RoundedCornerShape(4.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
+            .previewTapTarget(onTap = onTap, onLongClick = onLongClick)
     ) {
         AsyncImage(
             model = ImageRequest.Builder(context)
-                .data(modelData)
+                .data(thumbnailData)
                 .apply {
-                    cacheKey?.let {
+                    thumbnailCacheKey?.let {
                         memoryCacheKey(it)
                         diskCacheKey(it)
                     }
@@ -259,23 +249,15 @@ private fun LinkPreviewSmallImage(webPage: WebPage) {
 
 @Composable
 private fun LinkPreviewLargeMedia(
-    webPage: WebPage,
-    isVideo: Boolean,
-    isYouTube: Boolean,
-    onPlayYouTube: () -> Unit
+    thumbnailData: Any?,
+    thumbnailCacheKey: String?,
+    aspectRatio: Float,
+    showPlayOverlay: Boolean,
+    duration: Int,
+    onTap: () -> Unit,
+    onLongClick: (() -> Unit)?
 ) {
     val context = LocalContext.current
-    val linkHandler = LocalLinkHandler.current
-    val photo = webPage.photo
-    val video = webPage.video
-
-    val aspectRatio = remember(photo, video) {
-        val w = video?.width ?: photo?.width ?: 0
-        val h = video?.height ?: photo?.height ?: 0
-        if (w > 0 && h > 0) w.toFloat() / h.toFloat() else 1.77f
-    }
-
-    val videoId = remember(webPage.url) { extractYouTubeId(webPage.url) }
 
     Box(
         modifier = Modifier
@@ -283,21 +265,13 @@ private fun LinkPreviewLargeMedia(
             .aspectRatio(aspectRatio)
             .clip(RoundedCornerShape(4.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
+            .previewTapTarget(onTap = onTap, onLongClick = onLongClick)
     ) {
-        val modelData = remember(photo, videoId, isYouTube) {
-            if (isYouTube && videoId != null) {
-                "https://img.youtube.com/vi/$videoId/maxresdefault.jpg"
-            } else {
-                photo?.path ?: photo?.minithumbnail ?: video?.path
-            }
-        }
-        val cacheKey = remember(modelData) { namespacedCacheKey("link_preview_large", modelData) }
-
         AsyncImage(
             model = ImageRequest.Builder(context)
-                .data(modelData)
+                .data(thumbnailData)
                 .apply {
-                    cacheKey?.let {
+                    thumbnailCacheKey?.let {
                         memoryCacheKey(it)
                         diskCacheKey(it)
                     }
@@ -309,19 +283,12 @@ private fun LinkPreviewLargeMedia(
             contentScale = ContentScale.Crop
         )
 
-        if (isVideo) {
+        if (showPlayOverlay) {
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .size(48.dp)
-                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                    .clickable {
-                        if (isYouTube) {
-                            onPlayYouTube()
-                        } else {
-                            webPage.url?.let { linkHandler(it) }
-                        }
-                    },
+                    .background(Color.Black.copy(alpha = 0.5f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -332,7 +299,7 @@ private fun LinkPreviewLargeMedia(
                 )
             }
 
-            if (webPage.duration > 0) {
+            if (duration > 0) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -341,7 +308,7 @@ private fun LinkPreviewLargeMedia(
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = formatDuration(webPage.duration),
+                        text = formatDuration(duration),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         fontWeight = FontWeight.Medium
@@ -350,4 +317,14 @@ private fun LinkPreviewLargeMedia(
             }
         }
     }
+}
+
+private fun Modifier.previewTapTarget(
+    onTap: () -> Unit,
+    onLongClick: (() -> Unit)?
+): Modifier {
+    return combinedClickable(
+        onClick = onTap,
+        onLongClick = onLongClick
+    )
 }

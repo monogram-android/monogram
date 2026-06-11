@@ -27,7 +27,7 @@ fun ImageViewer(
     onDismiss: () -> Unit,
     autoDownload: Boolean = true,
     onPageChanged: ((Int) -> Unit)? = null,
-    onForward: (String) -> Unit = {},
+    onForward: ((String) -> Unit)? = null,
     onDelete: ((String) -> Unit)? = null,
     onCopyLink: ((String) -> Unit)? = null,
     onCopyText: ((String) -> Unit)? = null,

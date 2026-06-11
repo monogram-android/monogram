@@ -9,6 +9,12 @@ class WebPageMapper(
     private val fileHelper: TdFileHelper,
     private val appPreferences: AppPreferencesProvider
 ) {
+    internal data class PhotoSelection(
+        val preferredSize: TdApi.PhotoSize?,
+        val thumbnailSize: TdApi.PhotoSize?,
+        val originalSize: TdApi.PhotoSize?
+    )
+
     fun map(
         webPage: TdApi.LinkPreview?,
         chatId: Long,
@@ -166,20 +172,58 @@ class WebPageMapper(
         }
 
         val photo = photoObj?.let { photoObject ->
-            val size = photoObject.sizes.firstOrNull()
-            if (size != null) {
-                val file = processTdFile(size.photo, TdMessageRemoteDataSource.DownloadType.DEFAULT)
-                val bestPath = fileHelper.findBestAvailablePath(file, photoObject.sizes)
+            val selection = selectPhotoSizes(photoObject.sizes)
+            val preferredFile = selection.preferredSize?.photo?.let(fileHelper::getUpdatedFile)
+            val thumbnailFile = selection.thumbnailSize?.photo?.let(fileHelper::getUpdatedFile)
+            val originalFile = selection.originalSize?.photo?.let(fileHelper::getUpdatedFile)
 
+            if (preferredFile != null) {
+                fileHelper.registerCachedFile(preferredFile.id, chatId, messageId)
+                if (fileHelper.findBestAvailablePath(
+                        preferredFile,
+                        photoObject.sizes
+                    ) == null && networkAutoDownload
+                ) {
+                    fileHelper.enqueueDownload(
+                        preferredFile.id,
+                        1,
+                        TdMessageRemoteDataSource.DownloadType.DEFAULT,
+                        0,
+                        0,
+                        false
+                    )
+                }
+            }
+
+            if (thumbnailFile != null) {
+                fileHelper.registerCachedFile(thumbnailFile.id, chatId, messageId)
+                if (fileHelper.resolveLocalFilePath(thumbnailFile) == null && networkAutoDownload) {
+                    fileHelper.enqueueDownload(
+                        thumbnailFile.id,
+                        1,
+                        TdMessageRemoteDataSource.DownloadType.DEFAULT,
+                        0,
+                        0,
+                        false
+                    )
+                }
+            }
+
+            if (originalFile != null && originalFile.id != preferredFile?.id && originalFile.id != thumbnailFile?.id) {
+                fileHelper.registerCachedFile(originalFile.id, chatId, messageId)
+            }
+
+            selection.preferredSize?.let { preferredSize ->
                 WebPage.Photo(
-                    path = bestPath,
-                    width = size.width,
-                    height = size.height,
-                    fileId = file.id,
+                    path = fileHelper.findBestAvailablePath(preferredFile, photoObject.sizes),
+                    thumbnailPath = fileHelper.resolveLocalFilePath(thumbnailFile),
+                    width = preferredSize.width,
+                    height = preferredSize.height,
+                    fileId = preferredFile?.id ?: 0,
+                    thumbnailFileId = thumbnailFile?.id ?: 0,
+                    originalFileId = originalFile?.id?.takeIf { it != preferredFile?.id } ?: 0,
                     minithumbnail = photoObject.minithumbnail?.data
                 )
-            } else {
-                null
             }
         }
 
@@ -278,5 +322,24 @@ class WebPageMapper(
             animation = animation,
             instantViewVersion = webPage.instantViewVersion
         )
+    }
+
+    internal companion object {
+        internal fun selectPhotoSizes(sizes: Array<TdApi.PhotoSize>): PhotoSelection {
+            val originalSize = sizes.maxByOrNull { it.width.toLong() * it.height.toLong() }
+                ?: sizes.lastOrNull()
+            val preferredSize = sizes.find { it.type == "x" }
+                ?: sizes.find { it.type == "m" }
+                ?: sizes.getOrNull(sizes.size / 2)
+                ?: originalSize
+            val thumbnailSize = sizes.find { it.type == "m" }
+                ?: sizes.find { it.type == "s" }
+                ?: sizes.firstOrNull()
+            return PhotoSelection(
+                preferredSize = preferredSize,
+                thumbnailSize = thumbnailSize,
+                originalSize = originalSize
+            )
+        }
     }
 }

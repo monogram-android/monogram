@@ -338,6 +338,7 @@ fun PinnedMessagesListSheet(
                                             onReplyClick = { _, _, _ -> onMessageClick(item.message) },
                                             onGoToReply = { onReplyClick(it) },
                                             onReactionClick = onReactionClick,
+                                            onLinkPreviewAction = { onMessageClick(item.message) },
                                             downloadUtils = downloadUtils
                                         )
                                     } else if (item is GroupedMessageItem.Album) {
@@ -411,6 +412,7 @@ fun PinnedMessagesListSheet(
                                             onReplyClick = { _, _, _ -> onMessageClick(item.message) },
                                             onGoToReply = { onReplyClick(it) },
                                             onReactionClick = onReactionClick,
+                                            onLinkPreviewAction = { onMessageClick(item.message) },
                                             toProfile = {},
                                             downloadUtils = downloadUtils
                                         )

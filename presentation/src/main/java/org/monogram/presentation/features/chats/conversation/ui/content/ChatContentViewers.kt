@@ -17,6 +17,8 @@ import androidx.compose.ui.text.AnnotatedString
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.features.chats.conversation.ChatComponent
+import org.monogram.presentation.features.chats.conversation.ui.message.PreviewImageViewerRequest
+import org.monogram.presentation.features.chats.conversation.ui.message.PreviewVideoViewerRequest
 import org.monogram.presentation.features.instantview.InstantViewer
 import org.monogram.presentation.features.viewers.ImageViewer
 import org.monogram.presentation.features.viewers.VideoViewer
@@ -32,12 +34,41 @@ fun ChatContentViewers(
     component: ChatComponent,
     localClipboard: Clipboard
 ) {
+    ChatContentViewersInternal(
+        state = state,
+        component = component,
+        localClipboard = localClipboard
+    )
+}
+
+@Composable
+internal fun ChatContentViewersInternal(
+    state: ChatComponent.State,
+    component: ChatComponent,
+    localClipboard: Clipboard,
+    previewImages: PreviewImageViewerRequest? = null,
+    onDismissPreviewImages: () -> Unit = {},
+    previewVideo: PreviewVideoViewerRequest? = null,
+    onDismissPreviewVideo: () -> Unit = {}
+) {
     InstantViewOverlay(state, component)
     YouTubeOverlay(state, component, localClipboard)
     MiniAppOverlay(state, component)
     WebViewOverlay(state, component)
-    ImagesOverlay(state, component, localClipboard)
-    VideoOverlay(state, component, localClipboard)
+    ImagesOverlay(
+        state = state,
+        component = component,
+        localClipboard = localClipboard,
+        previewImages = previewImages,
+        onDismissPreviewImages = onDismissPreviewImages
+    )
+    VideoOverlay(
+        state = state,
+        component = component,
+        localClipboard = localClipboard,
+        previewVideo = previewVideo,
+        onDismissPreviewVideo = onDismissPreviewVideo
+    )
     InvoiceOverlay(state, component)
     MiniAppTOSOverlay(state, component)
 }
@@ -140,8 +171,39 @@ internal fun WebViewOverlay(state: ChatComponent.State, component: ChatComponent
 internal fun ImagesOverlay(
     state: ChatComponent.State,
     component: ChatComponent,
-    localClipboard: Clipboard
+    localClipboard: Clipboard,
+    previewImages: PreviewImageViewerRequest? = null,
+    onDismissPreviewImages: () -> Unit = {}
 ) {
+    previewImages?.let { request ->
+        if (request.images.isNotEmpty()) {
+            ImageViewer(
+                images = request.images,
+                startIndex = request.startIndex,
+                onDismiss = onDismissPreviewImages,
+                onForward = null,
+                onDelete = null,
+                onCopyLink = { _ ->
+                    localClipboard.nativeClipboard.setPrimaryClip(
+                        ClipData.newPlainText("", AnnotatedString(request.sourceUrl))
+                    )
+                },
+                onCopyText = request.captions.firstOrNull()
+                    ?.takeIf { !it.isNullOrBlank() }
+                    ?.let {
+                        { _ ->
+                            localClipboard.nativeClipboard.setPrimaryClip(
+                                ClipData.newPlainText("", AnnotatedString(it))
+                            )
+                        }
+                    },
+                captions = request.captions,
+                downloadUtils = component.downloadUtils,
+                showImageNumber = request.images.size > 1
+            )
+        }
+    }
+
     state.fullScreenImages?.let { images ->
         val autoDownload =
             remember(state.autoDownloadWifi, state.autoDownloadRoaming, state.autoDownloadMobile) {
@@ -316,8 +378,47 @@ internal fun ImagesOverlay(
 internal fun VideoOverlay(
     state: ChatComponent.State,
     component: ChatComponent,
-    localClipboard: Clipboard
+    localClipboard: Clipboard,
+    previewVideo: PreviewVideoViewerRequest? = null,
+    onDismissPreviewVideo: () -> Unit = {}
 ) {
+    previewVideo?.let { request ->
+        val isVisible =
+            request.path.isNotBlank() || (request.supportsStreaming && request.fileId != 0)
+        if (isVisible) {
+            key(request.path, request.fileId, request.sourceUrl) {
+                VideoViewer(
+                    path = request.path,
+                    onDismiss = onDismissPreviewVideo,
+                    onForward = null,
+                    onDelete = null,
+                    onCopyLink = {
+                        localClipboard.nativeClipboard.setPrimaryClip(
+                            ClipData.newPlainText("", AnnotatedString(request.sourceUrl))
+                        )
+                    },
+                    onCopyText = request.caption
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let {
+                            {
+                                localClipboard.nativeClipboard.setPrimaryClip(
+                                    ClipData.newPlainText("", AnnotatedString(it))
+                                )
+                            }
+                        },
+                    caption = request.caption,
+                    fileId = request.fileId,
+                    supportsStreaming = request.supportsStreaming,
+                    downloadUtils = component.downloadUtils,
+                    isGesturesEnabled = state.isPlayerGesturesEnabled,
+                    isDoubleTapSeekEnabled = state.isPlayerDoubleTapSeekEnabled,
+                    seekDuration = state.playerSeekDuration,
+                    isZoomEnabled = state.isPlayerZoomEnabled
+                )
+            }
+        }
+    }
+
     val videoVisible =
         (state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null) && state.fullScreenImages == null
 

@@ -111,6 +111,7 @@ import org.monogram.presentation.features.chats.conversation.ui.UnreadMessagesSe
 import org.monogram.presentation.features.chats.conversation.ui.buildSenderGrouping
 import org.monogram.presentation.features.chats.conversation.ui.channel.ChannelMessageBubbleContainer
 import org.monogram.presentation.features.chats.conversation.ui.formatChatDayLabel
+import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import java.io.File
 
@@ -166,7 +167,7 @@ data class ChatMessageListUiState(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ChatContentList(
+internal fun ChatContentList(
     state: ChatMessageListUiState,
     component: ChatComponent,
     scrollState: LazyListState,
@@ -186,6 +187,7 @@ fun ChatContentList(
     onViaBotClick: (String) -> Unit = {},
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit,
+    onLinkPreviewAction: (LinkPreviewAction) -> Unit,
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false,
     bottomContentPadding: Dp = 8.dp
@@ -311,7 +313,6 @@ fun ChatContentList(
             formatChatDayLabel(anchor.mainTimestamp(), context)
         }
     }
-
     LaunchedEffect(groupedMessageIds, state.suppressEntryAnimations) {
         val currentIds = groupedMessageIds.toSet()
         seenMessageIds.keys.toList().forEach { id ->
@@ -483,6 +484,7 @@ fun ChatContentList(
                         onViaBotClick,
                         toProfile,
                         onForwardOriginClick,
+                        onLinkPreviewAction,
                         downloadUtils,
                         isAnyViewerOpen = isAnyViewerOpen
                     )
@@ -541,6 +543,7 @@ fun ChatContentList(
                         onViaBotClick = onViaBotClick,
                         toProfile = toProfile,
                         onForwardOriginClick = onForwardOriginClick,
+                        onLinkPreviewAction = onLinkPreviewAction,
                         isChatAnimationsEnabled = state.isChatAnimationsEnabled,
                         isScrolling = isScrolling,
                         isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
@@ -613,6 +616,7 @@ fun ChatContentList(
                         onViaBotClick = onViaBotClick,
                         toProfile = toProfile,
                         onForwardOriginClick = onForwardOriginClick,
+                        onLinkPreviewAction = onLinkPreviewAction,
                         isChatAnimationsEnabled = state.isChatAnimationsEnabled,
                         isScrolling = isScrolling,
                         isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
@@ -740,6 +744,7 @@ private fun MessageRowItem(
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit,
+    onLinkPreviewAction: (LinkPreviewAction) -> Unit,
     isChatAnimationsEnabled: Boolean,
     isScrolling: Boolean,
     isEntryAnimationPending: Boolean,
@@ -912,6 +917,7 @@ private fun MessageRowItem(
                     onViaBotClick = onViaBotClick,
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick,
+                    onLinkPreviewAction = onLinkPreviewAction,
                     downloadUtils = downloadUtils
                 )
             }
@@ -940,6 +946,7 @@ private fun MessageBubbleSwitcher(
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit,
+    onLinkPreviewAction: (LinkPreviewAction) -> Unit,
     downloadUtils: IDownloadUtils
 ) {
     val sanitizedItem = remember(item, rootMessageId) {
@@ -958,7 +965,6 @@ private fun MessageBubbleSwitcher(
             newerMsg = sanitizedNewerMsg
         )
     }
-
     when (sanitizedItem) {
         is GroupedMessageItem.Single -> {
             if (sanitizedItem.message.content is MessageContent.Service) {
@@ -1054,8 +1060,7 @@ private fun MessageBubbleSwitcher(
                     onForwardOriginClick = onForwardOriginClick,
                     onViaBotClick = onViaBotClick,
                     onReplySwipe = { component.onReplyMessage(it) },
-                    onYouTubeClick = { component.onOpenYouTube(it) },
-                    onInstantViewClick = { component.onOpenInstantView(it) },
+                    onLinkPreviewAction = onLinkPreviewAction,
                     downloadUtils = downloadUtils
                 )
             } else {
@@ -1143,8 +1148,7 @@ private fun MessageBubbleSwitcher(
                             it
                         )
                     },
-                    onInstantViewClick = { component.onOpenInstantView(it) },
-                    onYouTubeClick = { component.onOpenYouTube(it) },
+                    onLinkPreviewAction = onLinkPreviewAction,
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick,
@@ -1253,6 +1257,7 @@ private fun RootMessageSection(
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit,
+    onLinkPreviewAction: (LinkPreviewAction) -> Unit,
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
@@ -1304,8 +1309,7 @@ private fun RootMessageSection(
                 toProfile = toProfile,
                 onForwardOriginClick = onForwardOriginClick,
                 onViaBotClick = onViaBotClick,
-                onYouTubeClick = { component.onOpenYouTube(it) },
-                onInstantViewClick = { component.onOpenInstantView(it) },
+                onLinkPreviewAction = onLinkPreviewAction,
                 downloadUtils = downloadUtils
             )
         } else {
@@ -1334,8 +1338,7 @@ private fun RootMessageSection(
                 toProfile = toProfile,
                 onForwardOriginClick = onForwardOriginClick,
                 onViaBotClick = onViaBotClick,
-                onInstantViewClick = { component.onOpenInstantView(it) },
-                onYouTubeClick = { component.onOpenYouTube(it) },
+                onLinkPreviewAction = onLinkPreviewAction,
                 downloadUtils = downloadUtils
             )
         }

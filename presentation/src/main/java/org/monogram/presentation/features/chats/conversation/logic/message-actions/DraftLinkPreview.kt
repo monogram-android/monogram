@@ -7,6 +7,7 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.models.DraftLinkPreviewRequest
 import org.monogram.domain.models.FixedLinkPreviewRules
 import org.monogram.domain.models.LinkPreviewTarget
+import org.monogram.domain.models.WebPage
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
@@ -267,6 +268,21 @@ internal fun DefaultChatComponent.resolveDraftLinkPreview() {
     }
 }
 
+internal fun DefaultChatComponent.refreshDraftLinkPreviewOnPhotoDownloadIfNeeded(fileId: Int) {
+    if (fileId == 0) return
+    val state = _state.value
+    val selectedUrl = state.selectedDraftLinkPreviewUrl ?: return
+    if (!state.showLinkPreviews || state.dismissedDraftLinkPreviewUrls.contains(selectedUrl)) return
+    val photo = state.draftLinkPreview?.photo ?: return
+    if (!photo.shouldRefreshForCompletedDownload(fileId)) return
+
+    Log.d(
+        DRAFT_LINK_PREVIEW_TAG,
+        "refreshOnPhotoDownload selected=$selectedUrl fileId=$fileId"
+    )
+    resolveDraftLinkPreview()
+}
+
 internal fun DefaultChatComponent.clearDraftLinkPreviewState(
     draftText: String = _state.value.draftText,
     preserveDismissed: Boolean = false
@@ -337,6 +353,10 @@ private fun resolveDraftLinkPreviewUrlForSend(
     } else {
         selectedUrl
     }
+}
+
+private fun WebPage.Photo.shouldRefreshForCompletedDownload(fileId: Int): Boolean {
+    return fileId == this.fileId || fileId == thumbnailFileId || fileId == originalFileId
 }
 
 private const val DRAFT_LINK_PREVIEW_DEBOUNCE_MS = 700L

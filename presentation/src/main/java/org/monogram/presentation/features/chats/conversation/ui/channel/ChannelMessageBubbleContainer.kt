@@ -48,6 +48,7 @@ import org.monogram.presentation.features.chats.conversation.ui.fastReplyPointer
 import org.monogram.presentation.features.chats.conversation.ui.message.AudioMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.ContactMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.DocumentMessageBubble
+import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import org.monogram.presentation.features.chats.conversation.ui.message.LocationMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageViaBotAttribution
 import org.monogram.presentation.features.chats.conversation.ui.message.ReplyMarkupView
@@ -78,8 +79,7 @@ internal fun ChannelMessageBubbleContainer(
     onRetractVote: (Long) -> Unit = {},
     onShowVoters: (Long, Int) -> Unit = { _, _ -> },
     onClosePoll: (Long) -> Unit = {},
-    onInstantViewClick: ((String) -> Unit)? = null,
-    onYouTubeClick: ((String) -> Unit)? = null,
+    onLinkPreviewAction: ((LinkPreviewAction) -> Unit)? = null,
     onPositionChange: (Long, Offset, IntSize) -> Unit = { _, _, _ -> },
     onCommentsClick: (Long) -> Unit = {},
     showComments: Boolean = true,
@@ -187,8 +187,14 @@ internal fun ChannelMessageBubbleContainer(
                                 showLinkPreviews = appearance.showLinkPreviews,
                                 onReplyClick = onGoToReply,
                                 onReactionClick = { onReactionClick(msg.id, it) },
-                                onInstantViewClick = onInstantViewClick,
-                                onYouTubeClick = onYouTubeClick,
+                                onLinkPreviewAction = onLinkPreviewAction,
+                                onLinkPreviewLongClick = {
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + (layoutTracker.bubbleSize.toSize() / 2f).toOffset()
+                                    )
+                                },
                                 onClick = { offset ->
                                     onReplyClickState(
                                         layoutTracker.bubblePosition,

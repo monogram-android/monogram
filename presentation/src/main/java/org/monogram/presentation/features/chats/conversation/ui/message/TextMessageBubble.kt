@@ -26,7 +26,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.core.util.DateFormatManager
 
 @Composable
-fun TextMessageBubble(
+internal fun TextMessageBubble(
     content: MessageContent.Text,
     msg: MessageModel,
     isOutgoing: Boolean,
@@ -39,8 +39,8 @@ fun TextMessageBubble(
     showLinkPreviews: Boolean = true,
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
-    onInstantViewClick: ((String) -> Unit)? = null,
-    onYouTubeClick: ((String) -> Unit)? = null,
+    onLinkPreviewAction: ((LinkPreviewAction) -> Unit)? = null,
+    onLinkPreviewLongClick: (() -> Unit)? = null,
     onClick: (Offset) -> Unit = {},
     onLongClick: (Offset) -> Unit = {},
     showReactions: Boolean = true,
@@ -213,8 +213,8 @@ fun TextMessageBubble(
                         LinkPreview(
                             webPage = webPage,
                             isOutgoing = msg.isOutgoing,
-                            onInstantViewClick = onInstantViewClick,
-                            onYouTubeClick = onYouTubeClick
+                            onAction = { onLinkPreviewAction?.invoke(it) },
+                            onLongClick = onLinkPreviewLongClick
                         )
                     }
                 }

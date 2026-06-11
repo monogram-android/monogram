@@ -69,6 +69,7 @@ import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ui.AdvancedCircularRecorderScreen
 import org.monogram.presentation.features.chats.conversation.ui.ChatInputBar
 import org.monogram.presentation.features.chats.conversation.ui.MessageListShimmer
+import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import java.io.File
 import java.io.FileOutputStream
 
@@ -80,6 +81,7 @@ internal fun ChatContentBottomBar(
     chromeState: ChatContentChromeState,
     pendingMediaPaths: List<String>,
     pendingDocumentPaths: List<String>,
+    onDraftLinkPreviewAction: (LinkPreviewAction) -> Unit,
     onPendingMediaPathsChanged: (List<String>) -> Unit,
     onPendingDocumentPathsChanged: (List<String>) -> Unit,
     onStartRecordingVideo: () -> Unit,
@@ -136,7 +138,8 @@ internal fun ChatContentBottomBar(
             onStartRecordingVideo = onStartRecordingVideo,
             onSetPendingMediaPaths = onPendingMediaPathsChanged,
             onSetPendingDocumentPaths = onPendingDocumentPathsChanged,
-            onEditMediaPath = onEditMediaPath
+            onEditMediaPath = onEditMediaPath,
+            onDraftLinkPreviewAction = onDraftLinkPreviewAction
         )
 
         ChatInputBar(
@@ -198,7 +201,8 @@ internal fun ChatContentBody(
     onMessageOptionsRequested: (Long, Offset, IntSize, Offset) -> Unit,
     onMessageAnchorChanged: (Offset, IntSize) -> Unit,
     onRecordingVideoChanged: (Boolean) -> Unit,
-    onVideoRecorded: (File) -> Unit
+    onVideoRecorded: (File) -> Unit,
+    onLinkPreviewAction: (LinkPreviewAction) -> Unit
 ) {
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -415,6 +419,7 @@ internal fun ChatContentBody(
                 onViaBotClick = onViaBotClick,
                 toProfile = toProfile,
                 onForwardOriginClick = onForwardOriginClick,
+                onLinkPreviewAction = onLinkPreviewAction,
                 downloadUtils = component.downloadUtils,
                 isAnyViewerOpen = isAnyViewerOpen,
                 bottomContentPadding = bottomContentPadding

@@ -27,6 +27,7 @@ import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.features.chats.conversation.ui.message.BigEmojiContent
 import org.monogram.presentation.features.chats.conversation.ui.message.ForwardContent
 import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreview
+import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageFooterRow
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageReactionsView
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageText
@@ -37,7 +38,7 @@ import org.monogram.presentation.features.chats.conversation.ui.message.remember
 import org.monogram.presentation.features.chats.conversation.ui.message.shouldUseInlineFooter
 
 @Composable
-fun ChannelTextMessageBubble(
+internal fun ChannelTextMessageBubble(
     content: MessageContent.Text,
     msg: MessageModel,
     isSameSenderAbove: Boolean = false,
@@ -48,8 +49,8 @@ fun ChannelTextMessageBubble(
     showLinkPreviews: Boolean = true,
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
-    onInstantViewClick: ((String) -> Unit)? = null,
-    onYouTubeClick: ((String) -> Unit)? = null,
+    onLinkPreviewAction: ((LinkPreviewAction) -> Unit)? = null,
+    onLinkPreviewLongClick: (() -> Unit)? = null,
     onClick: (Offset) -> Unit = {},
     onLongClick: (Offset) -> Unit = {},
     onCommentsClick: (Long) -> Unit = {},
@@ -216,8 +217,8 @@ fun ChannelTextMessageBubble(
                         LinkPreview(
                             webPage = webPage,
                             isOutgoing = msg.isOutgoing,
-                            onInstantViewClick = onInstantViewClick,
-                            onYouTubeClick = onYouTubeClick
+                            onAction = { onLinkPreviewAction?.invoke(it) },
+                            onLongClick = onLinkPreviewLongClick
                         )
                     }
                 }

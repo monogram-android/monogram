@@ -92,7 +92,7 @@ private enum class AttachmentPickerMode {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatInputBar(
+internal fun ChatInputBar(
     state: ChatInputBarState,
     actions: ChatInputBarActions,
     appPreferences: AppPreferences,
@@ -779,6 +779,7 @@ fun ChatInputBar(
                         onMediaOrderChange = actions.onMediaOrderChange,
                         onDocumentOrderChange = actions.onDocumentOrderChange,
                         onMediaClick = actions.onMediaClick,
+                        onDraftLinkPreviewAction = actions.onDraftLinkPreviewAction,
                         onPasteImages = { uris ->
                             if (!canUseMediaPicker || state.editingMessage != null) return@ChatInputBarComposerSection
                             val localPaths = uris.mapNotNull { uri ->

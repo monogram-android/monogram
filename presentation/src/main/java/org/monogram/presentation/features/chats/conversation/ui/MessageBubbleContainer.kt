@@ -43,6 +43,7 @@ import org.monogram.presentation.features.chats.conversation.ui.message.AudioMes
 import org.monogram.presentation.features.chats.conversation.ui.message.ContactMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.DocumentMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.GifMessageBubble
+import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import org.monogram.presentation.features.chats.conversation.ui.message.LocationMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageViaBotAttribution
 import org.monogram.presentation.features.chats.conversation.ui.message.PhotoMessageBubble
@@ -77,8 +78,7 @@ internal fun MessageBubbleContainer(
     onRetractVote: (Long) -> Unit = {},
     onShowVoters: (Long, Int) -> Unit = { _, _ -> },
     onClosePoll: (Long) -> Unit = {},
-    onInstantViewClick: ((String) -> Unit)? = null,
-    onYouTubeClick: ((String) -> Unit)? = null,
+    onLinkPreviewAction: ((LinkPreviewAction) -> Unit)? = null,
     onReplyMarkupButtonClick: (Long, InlineKeyboardButtonModel) -> Unit = { _, _ -> },
     onPositionChange: (Long, Offset, IntSize) -> Unit = { _, _, _ -> },
     toProfile: (Long) -> Unit,
@@ -198,8 +198,7 @@ internal fun MessageBubbleContainer(
                         onRetractVote = onRetractVote,
                         onShowVoters = onShowVoters,
                         onClosePoll = onClosePoll,
-                        onInstantViewClick = onInstantViewClick,
-                        onYouTubeClick = onYouTubeClick,
+                        onLinkPreviewAction = onLinkPreviewAction,
                         onReplyMarkupButtonClick = onReplyMarkupButtonClick,
                         toProfile = toProfile,
                         onForwardOriginClick = onForwardOriginClick,
@@ -313,8 +312,7 @@ private fun MessageBubbleContentHost(
     onRetractVote: (Long) -> Unit,
     onShowVoters: (Long, Int) -> Unit,
     onClosePoll: (Long) -> Unit,
-    onInstantViewClick: ((String) -> Unit)?,
-    onYouTubeClick: ((String) -> Unit)?,
+    onLinkPreviewAction: ((LinkPreviewAction) -> Unit)?,
     onReplyMarkupButtonClick: (Long, InlineKeyboardButtonModel) -> Unit,
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit,
@@ -349,8 +347,7 @@ private fun MessageBubbleContentHost(
             onRetractVote = onRetractVote,
             onShowVoters = onShowVoters,
             onClosePoll = onClosePoll,
-            onInstantViewClick = onInstantViewClick,
-            onYouTubeClick = onYouTubeClick,
+            onLinkPreviewAction = onLinkPreviewAction,
             toProfile = toProfile,
             onForwardOriginClick = onForwardOriginClick,
             downloadUtils = downloadUtils,
@@ -418,8 +415,7 @@ private fun MessageContentSelector(
     onRetractVote: (Long) -> Unit,
     onShowVoters: (Long, Int) -> Unit,
     onClosePoll: (Long) -> Unit,
-    onInstantViewClick: ((String) -> Unit)?,
-    onYouTubeClick: ((String) -> Unit)?,
+    onLinkPreviewAction: ((LinkPreviewAction) -> Unit)?,
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit,
     downloadUtils: IDownloadUtils,
@@ -444,8 +440,8 @@ private fun MessageContentSelector(
                     showLinkPreviews = appearance.showLinkPreviews,
                     onReplyClick = onGoToReply,
                     onReactionClick = { onReactionClick(msg.id, it) },
-                    onInstantViewClick = onInstantViewClick,
-                    onYouTubeClick = onYouTubeClick,
+                    onLinkPreviewAction = onLinkPreviewAction,
+                    onLinkPreviewLongClick = onBubbleCenterLongClick,
                     onClick = onBubbleClick,
                     onLongClick = onBubbleLongClick,
                     toProfile = toProfile,

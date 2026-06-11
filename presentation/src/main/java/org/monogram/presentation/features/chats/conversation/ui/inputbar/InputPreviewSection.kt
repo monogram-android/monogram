@@ -11,6 +11,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -78,11 +79,11 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.WebPage
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.shimmerBackground
-import org.monogram.presentation.core.util.namespacedCacheKey
+import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import org.monogram.presentation.features.chats.conversation.ui.message.buildAnnotatedMessageTextWithEmoji
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberMessageInlineContent
+import org.monogram.presentation.features.chats.conversation.ui.message.resolveLinkPreview
 import java.io.File
-import java.net.URI
 import java.util.Collections
 
 sealed class InputPreviewState {
@@ -94,7 +95,7 @@ sealed class InputPreviewState {
 }
 
 @Composable
-fun InputPreviewSection(
+internal fun InputPreviewSection(
     editingMessage: MessageModel?,
     replyMessage: MessageModel?,
     draftLinkTargets: List<LinkPreviewTarget>,
@@ -116,7 +117,8 @@ fun InputPreviewSection(
     onAddDocuments: () -> Unit,
     onMediaOrderChange: (List<String>) -> Unit,
     onDocumentOrderChange: (List<String>) -> Unit,
-    onMediaClick: (String) -> Unit
+    onMediaClick: (String) -> Unit,
+    onDraftLinkPreviewAction: (LinkPreviewAction) -> Unit = {}
 ) {
     val previewState =
         remember(editingMessage, replyMessage, pendingMediaPaths, pendingDocumentPaths) {
@@ -195,7 +197,8 @@ fun InputPreviewSection(
                                 isDisabledForSend = isDraftLinkPreviewDisabledForSend,
                                 onSelect = onSelectDraftLinkPreview,
                                 onDismiss = onDismissDraftLinkPreview,
-                                onRestore = onRestoreDraftLinkPreview
+                                onRestore = onRestoreDraftLinkPreview,
+                                onPreviewAction = onDraftLinkPreviewAction
                             )
                         }
                     }
@@ -215,7 +218,8 @@ private fun DraftLinkPreviewSection(
     isDisabledForSend: Boolean,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
-    onRestore: () -> Unit
+    onRestore: () -> Unit,
+    onPreviewAction: (LinkPreviewAction) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -304,7 +308,10 @@ private fun DraftLinkPreviewSection(
 
             isLoading -> ComposerDraftLinkPreviewLoadingCard()
 
-            preview != null -> ComposerDraftLinkPreviewCard(preview = preview)
+            preview != null -> ComposerDraftLinkPreviewCard(
+                preview = preview,
+                onAction = onPreviewAction
+            )
 
             error != null -> ComposerDraftLinkPreviewStatusCard(
                 title = stringResource(R.string.draft_link_preview_unavailable),
@@ -315,8 +322,11 @@ private fun DraftLinkPreviewSection(
 }
 
 @Composable
-private fun ComposerDraftLinkPreviewCard(preview: WebPage) {
-    val meta = remember(preview) { preview.toComposerDraftPreviewMeta() }
+private fun ComposerDraftLinkPreviewCard(
+    preview: WebPage,
+    onAction: (LinkPreviewAction) -> Unit
+) {
+    val resolved = remember(preview) { preview.resolveLinkPreview() }
     val context = LocalContext.current
 
     Row(
@@ -333,18 +343,19 @@ private fun ComposerDraftLinkPreviewCard(preview: WebPage) {
     ) {
         Column(
             modifier = Modifier
-                .weight(1f),
+                .weight(1f)
+                .combinedClickable(onClick = { onAction(resolved.primaryAction) }),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
-                text = meta.kicker,
+                text = resolved.meta.kicker,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
-            meta.title?.takeIf { it.isNotBlank() }?.let {
+            resolved.meta.title?.takeIf { it.isNotBlank() }?.let {
                 Text(
                     text = it,
                     style = MaterialTheme.typography.titleMedium,
@@ -354,7 +365,7 @@ private fun ComposerDraftLinkPreviewCard(preview: WebPage) {
                 )
             }
 
-            meta.description?.takeIf { it.isNotBlank() }?.let {
+            resolved.meta.description?.takeIf { it.isNotBlank() }?.let {
                 Text(
                     text = it,
                     style = MaterialTheme.typography.bodySmall,
@@ -365,19 +376,20 @@ private fun ComposerDraftLinkPreviewCard(preview: WebPage) {
             }
         }
 
-        meta.mediaData?.let { mediaData ->
+        resolved.thumbnailData?.let { mediaData ->
             Box(
                 modifier = Modifier
                     .width(116.dp)
                     .height(92.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .combinedClickable(onClick = { onAction(resolved.mediaAction) })
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(mediaData)
                         .apply {
-                            meta.mediaCacheKey?.let {
+                            resolved.thumbnailCacheKey?.let {
                                 memoryCacheKey(it)
                                 diskCacheKey(it)
                             }
@@ -389,7 +401,7 @@ private fun ComposerDraftLinkPreviewCard(preview: WebPage) {
                     contentScale = ContentScale.Crop
                 )
 
-                if (meta.showPlayOverlay) {
+                if (resolved.showPlayOverlay) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -519,75 +531,9 @@ private fun ComposerDraftLinkPreviewStatusCard(
     }
 }
 
-private data class ComposerDraftPreviewMeta(
-    val kicker: String,
-    val title: String?,
-    val description: String?,
-    val mediaData: Any?,
-    val mediaCacheKey: String?,
-    val showPlayOverlay: Boolean
-)
-
 private fun LinkPreviewTarget.toComposerTabLabel(): String {
     val compactHost = host.removePrefix("www.").takeIf { it.isNotBlank() }
     return compactHost ?: displayLabel.ifBlank { normalizedUrl }
-}
-
-private fun WebPage.toComposerDraftPreviewMeta(): ComposerDraftPreviewMeta {
-    val fallbackUrl = displayUrl?.takeIf { it.isNotBlank() }
-        ?: url?.takeIf { it.isNotBlank() }
-    val fallbackHost = fallbackUrl?.hostFromUrl()
-    val source = siteName?.takeIf { it.isNotBlank() }
-        ?: fallbackHost
-        ?: fallbackUrl
-        ?: ""
-    val kicker = listOfNotNull(
-        source.takeIf { it.isNotBlank() },
-        author?.takeIf { it.isNotBlank() }
-    ).joinToString(" • ").ifBlank {
-        fallbackUrl ?: ""
-    }
-
-    val rawTitle = title?.takeIf { it.isNotBlank() }
-        ?: siteName?.takeIf { it.isNotBlank() }
-    val rawDescription = description?.takeIf { it.isNotBlank() }
-        ?: document?.fileName?.takeIf { it.isNotBlank() }
-        ?: audio?.title?.takeIf { it.isNotBlank() }
-    val titleLooksLikeHandle = rawTitle?.startsWith("@") == true && !rawDescription.isNullOrBlank()
-    val candidateTitle = if (titleLooksLikeHandle) rawDescription else rawTitle
-    val candidateDescription = if (titleLooksLikeHandle) rawTitle else rawDescription
-    val resolvedTitle = candidateTitle
-        ?: fallbackHost
-        ?: fallbackUrl
-    val resolvedDescription = candidateDescription
-        ?: fallbackUrl?.takeIf { it != resolvedTitle }
-
-    val mediaData = photo?.path
-        ?: photo?.minithumbnail
-        ?: video?.thumbnailPath
-        ?: video?.minithumbnail
-        ?: video?.path
-        ?: animation?.thumbnailPath
-        ?: animation?.minithumbnail
-        ?: animation?.path
-        ?: sticker?.path
-    val mediaCacheKey = namespacedCacheKey("composer_link_preview_media", mediaData)
-    val showPlayOverlay = video != null || type is WebPage.LinkPreviewType.Video ||
-            type is WebPage.LinkPreviewType.EmbeddedVideo ||
-            type is WebPage.LinkPreviewType.ExternalVideo
-
-    return ComposerDraftPreviewMeta(
-        kicker = kicker,
-        title = resolvedTitle,
-        description = resolvedDescription,
-        mediaData = mediaData,
-        mediaCacheKey = mediaCacheKey,
-        showPlayOverlay = showPlayOverlay
-    )
-}
-
-private fun String.hostFromUrl(): String? {
-    return runCatching { URI(this).host?.removePrefix("www.") }.getOrNull()
 }
 
 @Composable

@@ -17,7 +17,7 @@ import org.monogram.presentation.features.viewers.components.VideoPage
 fun VideoViewer(
     path: String,
     onDismiss: () -> Unit,
-    onForward: (String) -> Unit = {},
+    onForward: ((String) -> Unit)? = null,
     onDelete: ((String) -> Unit)? = null,
     onCopyLink: ((String) -> Unit)? = null,
     onCopyText: ((String) -> Unit)? = null,

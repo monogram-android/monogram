@@ -26,6 +26,8 @@ import org.monogram.presentation.features.chats.conversation.editor.video.VideoE
 import org.monogram.presentation.features.chats.conversation.ui.StickerSetSheet
 import org.monogram.presentation.features.chats.conversation.ui.message.BotCommandsSheet
 import org.monogram.presentation.features.chats.conversation.ui.message.PollVotersSheet
+import org.monogram.presentation.features.chats.conversation.ui.message.PreviewImageViewerRequest
+import org.monogram.presentation.features.chats.conversation.ui.message.PreviewVideoViewerRequest
 import org.monogram.presentation.features.chats.conversation.ui.pins.PinnedMessagesListSheet
 
 @Composable
@@ -58,6 +60,10 @@ internal fun ChatContentOverlays(
     editingVideoPath: String?,
     onCloseVideoEditor: () -> Unit,
     onSaveVideoEditor: (String) -> Unit,
+    previewImages: PreviewImageViewerRequest?,
+    onDismissPreviewImages: () -> Unit,
+    previewVideo: PreviewVideoViewerRequest?,
+    onDismissPreviewVideo: () -> Unit,
     isCustomBackHandlingEnabled: Boolean,
     onBack: () -> Unit
 ) {
@@ -126,14 +132,15 @@ internal fun ChatContentOverlays(
     }
 
     if (!isTablet) {
-        InstantViewOverlay(state, component)
-        YouTubeOverlay(state, component, localClipboard)
-        MiniAppOverlay(state, component)
-        WebViewOverlay(state, component)
-        ImagesOverlay(state, component, localClipboard)
-        VideoOverlay(state, component, localClipboard)
-        InvoiceOverlay(state, component)
-        MiniAppTOSOverlay(state, component)
+        ChatContentViewersInternal(
+            state = state,
+            component = component,
+            localClipboard = localClipboard,
+            previewImages = previewImages,
+            onDismissPreviewImages = onDismissPreviewImages,
+            previewVideo = previewVideo,
+            onDismissPreviewVideo = onDismissPreviewVideo
+        )
     }
 
     selectedMessage?.let { msg ->

@@ -18,6 +18,7 @@ import org.monogram.domain.models.ReplyMarkupModel
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.WebPage
 import org.monogram.domain.repository.InlineBotResultsModel
+import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 
 @Immutable
 data class ChatInputBarState(
@@ -58,7 +59,7 @@ data class ChatInputBarState(
 )
 
 @Immutable
-data class ChatInputBarActions(
+internal data class ChatInputBarActions(
     val onSend: (String, List<MessageEntity>, MessageSendOptions) -> Unit,
     val onStickerClick: (String) -> Unit = {},
     val onGifClick: (GifModel) -> Unit = {},
@@ -79,6 +80,7 @@ data class ChatInputBarActions(
     val onMediaOrderChange: (List<String>) -> Unit = {},
     val onDocumentOrderChange: (List<String>) -> Unit = {},
     val onMediaClick: (String) -> Unit = {},
+    val onDraftLinkPreviewAction: (LinkPreviewAction) -> Unit = {},
     val onSendPoll: (PollDraft) -> Unit = {},
     val onShowBotCommands: () -> Unit = {},
     val onReplyMarkupButtonClick: (KeyboardButtonModel) -> Unit = {},

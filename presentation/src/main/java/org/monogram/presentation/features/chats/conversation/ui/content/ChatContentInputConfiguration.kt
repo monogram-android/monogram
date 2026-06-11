@@ -6,6 +6,7 @@ import org.monogram.domain.models.ReplyMarkupModel
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.ChatInputBarActions
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.ChatInputBarState
+import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -108,7 +109,8 @@ internal fun rememberChatInputBarActions(
     onStartRecordingVideo: () -> Unit,
     onSetPendingMediaPaths: (List<String>) -> Unit,
     onSetPendingDocumentPaths: (List<String>) -> Unit,
-    onEditMediaPath: (String) -> Unit
+    onEditMediaPath: (String) -> Unit,
+    onDraftLinkPreviewAction: (LinkPreviewAction) -> Unit
 ): ChatInputBarActions {
     return remember(
         component,
@@ -119,7 +121,8 @@ internal fun rememberChatInputBarActions(
         onStartRecordingVideo,
         onSetPendingMediaPaths,
         onSetPendingDocumentPaths,
-        onEditMediaPath
+        onEditMediaPath,
+        onDraftLinkPreviewAction
     ) {
         ChatInputBarActions(
             onSend = { text, entities, options ->
@@ -190,6 +193,7 @@ internal fun rememberChatInputBarActions(
                 }
             },
             onMediaClick = onEditMediaPath,
+            onDraftLinkPreviewAction = onDraftLinkPreviewAction,
             onShowBotCommands = {
                 onHideKeyboardAndClearFocus()
                 component.onShowBotCommands()

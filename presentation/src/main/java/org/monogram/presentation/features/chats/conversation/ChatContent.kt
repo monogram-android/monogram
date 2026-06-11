@@ -62,8 +62,11 @@ import org.monogram.presentation.features.chats.conversation.ui.content.remember
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatMessagePresentationState
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatSearchUiState
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatTopBarUiState
+import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import org.monogram.presentation.features.chats.conversation.ui.message.LocalLinkHandler
 import org.monogram.presentation.features.chats.conversation.ui.message.LocalMessageRenderDependencies
+import org.monogram.presentation.features.chats.conversation.ui.message.PreviewImageViewerRequest
+import org.monogram.presentation.features.chats.conversation.ui.message.PreviewVideoViewerRequest
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberChatMessageRenderDependencies
 import org.monogram.presentation.features.chats.conversation.ui.rememberVoicePlaybackController
 
@@ -105,6 +108,8 @@ fun ChatContent(
     var editingPhotoPath by rememberSaveable { mutableStateOf<String?>(null) }
     var editingVideoPath by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBlockUserId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var previewImages by remember { mutableStateOf<PreviewImageViewerRequest?>(null) }
+    var previewVideo by remember { mutableStateOf<PreviewVideoViewerRequest?>(null) }
 
     var showScrollToBottomButton by remember { mutableStateOf(false) }
     var showAllSearchResults by rememberSaveable(
@@ -178,6 +183,8 @@ fun ChatContent(
         state.webViewUrl,
         editingPhotoPath,
         editingVideoPath,
+        previewImages,
+        previewVideo,
         isRecordingVideo
     ) {
         derivedStateOf {
@@ -190,7 +197,36 @@ fun ChatContent(
                     state.webViewUrl != null ||
                     editingPhotoPath != null ||
                     editingVideoPath != null ||
+                    previewImages != null ||
+                    previewVideo != null ||
                     isRecordingVideo
+        }
+    }
+
+    val onLinkPreviewAction = remember(component, state.chatId, state.isBot) {
+        { action: LinkPreviewAction ->
+            when (action) {
+                is LinkPreviewAction.OpenImageViewer -> {
+                    previewVideo = null
+                    previewImages = action.request
+                }
+
+                is LinkPreviewAction.OpenVideoViewer -> {
+                    previewImages = null
+                    previewVideo = action.request
+                }
+
+                is LinkPreviewAction.OpenInstantView -> component.onOpenInstantView(action.url)
+                is LinkPreviewAction.OpenYouTube -> component.onOpenYouTube(action.url)
+                is LinkPreviewAction.OpenMiniApp -> component.onOpenMiniApp(
+                    action.url,
+                    action.name,
+                    if (state.isBot) state.chatId else 0L
+                )
+
+                is LinkPreviewAction.OpenWebView -> component.onOpenWebView(action.url)
+                is LinkPreviewAction.OpenLink -> component.onLinkClick(action.url)
+            }
         }
     }
 
@@ -333,6 +369,7 @@ fun ChatContent(
                             chromeState = chromeState,
                             pendingMediaPaths = pendingMediaPaths,
                             pendingDocumentPaths = pendingDocumentPaths,
+                            onDraftLinkPreviewAction = onLinkPreviewAction,
                             onPendingMediaPathsChanged = { pendingMediaPaths = it },
                             onPendingDocumentPathsChanged = { pendingDocumentPaths = it },
                             onStartRecordingVideo = { isRecordingVideo = true },
@@ -387,7 +424,8 @@ fun ChatContent(
                                 menuMessageSize = size
                             },
                             onRecordingVideoChanged = { isRecordingVideo = it },
-                            onVideoRecorded = component::onVideoRecorded
+                            onVideoRecorded = component::onVideoRecorded,
+                            onLinkPreviewAction = onLinkPreviewAction
                         )
                     }
                 }
@@ -470,10 +508,16 @@ fun ChatContent(
                     }
                     editingVideoPath = null
                 },
+                previewImages = previewImages,
+                onDismissPreviewImages = { previewImages = null },
+                previewVideo = previewVideo,
+                onDismissPreviewVideo = { previewVideo = null },
                 isCustomBackHandlingEnabled = chromeState.isCustomBackHandlingEnabled,
                 onBack = {
                     if (editingPhotoPath != null) editingPhotoPath = null
                     else if (editingVideoPath != null) editingVideoPath = null
+                    else if (previewImages != null) previewImages = null
+                    else if (previewVideo != null) previewVideo = null
                     else if (state.selectedMessageIds.isNotEmpty()) component.onClearSelection()
                     else if (selectedMessageId != null) selectedMessageId = null
                     else if (state.showBotCommands) component.onDismissBotCommands()

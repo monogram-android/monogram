@@ -132,9 +132,12 @@ class FixedDraftLinkPreviewFetcher(
         val photo = mediaUrl?.let {
             WebPage.Photo(
                 path = it,
+                thumbnailPath = null,
                 width = bestMedia?.width ?: 0,
                 height = bestMedia?.height ?: 0,
                 fileId = 0,
+                thumbnailFileId = 0,
+                originalFileId = 0,
                 minithumbnail = null
             )
         }

@@ -152,7 +152,7 @@ fun ImageOverlay(
     showSettingsMenu: Boolean,
     onToggleSettings: () -> Unit,
     downloadUtils: IDownloadUtils,
-    onForward: (String) -> Unit,
+    onForward: ((String) -> Unit)?,
     onDelete: ((String) -> Unit)?,
     onCopyLink: ((String) -> Unit)?,
     onCopyText: ((String) -> Unit)?
@@ -266,9 +266,11 @@ fun ImageOverlay(
                             onToggleSettings()
                         }
                     } else null,
-                    onForward = {
-                        onForward(currentItem)
-                        onToggleSettings()
+                    onForward = onForward?.let {
+                        {
+                            it(currentItem)
+                            onToggleSettings()
+                        }
                     },
                     onDelete = onDelete?.let {
                         {
@@ -288,7 +290,7 @@ fun ImageSettingsMenu(
     onCopyImage: () -> Unit,
     onCopyLink: (() -> Unit)?,
     onCopyText: (() -> Unit)? = null,
-    onForward: () -> Unit,
+    onForward: (() -> Unit)?,
     onDelete: (() -> Unit)?
 ) {
     ViewerSettingsDropdown {
@@ -316,11 +318,13 @@ fun ImageSettingsMenu(
                 onClick = onCopyLink
             )
         }
-        MenuOptionRow(
-            icon = Icons.AutoMirrored.Rounded.Forward,
-            title = stringResource(R.string.action_forward),
-            onClick = onForward
-        )
+        if (onForward != null) {
+            MenuOptionRow(
+                icon = Icons.AutoMirrored.Rounded.Forward,
+                title = stringResource(R.string.action_forward),
+                onClick = onForward
+            )
+        }
         if (onDelete != null) {
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),

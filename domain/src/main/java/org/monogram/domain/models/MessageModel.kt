@@ -501,9 +501,12 @@ data class WebPage(
 
     data class Photo(
         val path: String?,
+        val thumbnailPath: String? = null,
         val width: Int,
         val height: Int,
         val fileId: Int,
+        val thumbnailFileId: Int = 0,
+        val originalFileId: Int = 0,
         val minithumbnail: ByteArray?
     ) {
         override fun equals(other: Any?): Boolean {
@@ -515,7 +518,10 @@ data class WebPage(
             if (width != other.width) return false
             if (height != other.height) return false
             if (fileId != other.fileId) return false
+            if (thumbnailFileId != other.thumbnailFileId) return false
+            if (originalFileId != other.originalFileId) return false
             if (path != other.path) return false
+            if (thumbnailPath != other.thumbnailPath) return false
             if (!(minithumbnail contentEquals other.minithumbnail)) return false
 
             return true
@@ -525,7 +531,10 @@ data class WebPage(
             var result = width
             result = 31 * result + height
             result = 31 * result + fileId
+            result = 31 * result + thumbnailFileId
+            result = 31 * result + originalFileId
             result = 31 * result + (path?.hashCode() ?: 0)
+            result = 31 * result + (thumbnailPath?.hashCode() ?: 0)
             result = 31 * result + (minithumbnail?.contentHashCode() ?: 0)
             return result
         }

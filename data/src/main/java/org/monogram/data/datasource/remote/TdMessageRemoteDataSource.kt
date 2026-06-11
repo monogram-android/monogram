@@ -301,10 +301,25 @@ class TdMessageRemoteDataSource(
     }
 
     override suspend fun getDraftLinkPreview(request: DraftLinkPreviewRequest): DraftLinkPreview? {
-        val normalizedUrl = draftLinkPreviewResolver.normalizeUrl(request.sourceUrl) ?: return null
+        val normalizedUrl = draftLinkPreviewResolver.normalizeUrl(request.sourceUrl) ?: run {
+            Log.d(
+                DRAFT_LINK_PREVIEW_TAG,
+                "td getDraftLinkPreview source=${request.sourceUrl} normalized=null"
+            )
+            return null
+        }
+        Log.d(
+            DRAFT_LINK_PREVIEW_TAG,
+            "td getDraftLinkPreview source=${request.sourceUrl} normalized=$normalizedUrl"
+        )
         val formattedText = TdApi.FormattedText(normalizedUrl, emptyArray())
         val previewOptions = TdApi.LinkPreviewOptions(false, normalizedUrl, false, false, false)
-        val result = safeExecute(TdApi.GetLinkPreview(formattedText, previewOptions)) ?: return null
+        Log.d(DRAFT_LINK_PREVIEW_TAG, "td request GetLinkPreview url=$normalizedUrl")
+        val result = safeExecute(TdApi.GetLinkPreview(formattedText, previewOptions))
+        Log.d(
+            DRAFT_LINK_PREVIEW_TAG,
+            "td response type=${result?.javaClass?.simpleName ?: "null"}"
+        )
         if (result !is TdApi.LinkPreview) return null
 
         val webPage = webPageMapper.map(
@@ -312,7 +327,12 @@ class TdMessageRemoteDataSource(
             chatId = 0L,
             messageId = 0L,
             networkAutoDownload = true
-        ) ?: return null
+        )
+        Log.d(
+            DRAFT_LINK_PREVIEW_TAG,
+            "td mapped webPage success=${webPage != null} url=${webPage?.url}"
+        )
+        webPage ?: return null
 
         return DraftLinkPreview(
             sourceUrl = request.sourceUrl,
@@ -1793,5 +1813,9 @@ class TdMessageRemoteDataSource(
         refreshJobs.values.forEach { it.cancel() }; refreshJobs.clear()
         messageUpdateJobs.values.forEach { it.cancel() }; messageUpdateJobs.clear()
         lastProgressMap.clear()
+    }
+
+    private companion object {
+        private const val DRAFT_LINK_PREVIEW_TAG = "DraftLinkPreview"
     }
 }

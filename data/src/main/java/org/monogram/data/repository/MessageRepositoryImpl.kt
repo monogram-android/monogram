@@ -884,15 +884,41 @@ class MessageRepositoryImpl(
     }
 
     override suspend fun getDraftLinkPreview(request: DraftLinkPreviewRequest): DraftLinkPreview? {
-        val normalizedUrl = draftLinkPreviewResolver.normalizeUrl(request.sourceUrl) ?: return null
+        val normalizedUrl = draftLinkPreviewResolver.normalizeUrl(request.sourceUrl) ?: run {
+            Log.d(
+                DRAFT_LINK_PREVIEW_TAG,
+                "repo getDraftLinkPreview source=${request.sourceUrl} normalized=null useFixed=${request.useFixedPreview}"
+            )
+            return null
+        }
+        val shouldUseFixedPreview =
+            request.useFixedPreview && draftLinkPreviewResolver.shouldUseFixedPreview(normalizedUrl)
+        Log.d(
+            DRAFT_LINK_PREVIEW_TAG,
+            "repo getDraftLinkPreview source=${request.sourceUrl} normalized=$normalizedUrl useFixed=${request.useFixedPreview} shouldUseFixed=$shouldUseFixedPreview"
+        )
 
-        if (request.useFixedPreview && draftLinkPreviewResolver.shouldUseFixedPreview(normalizedUrl)) {
-            getFixedDraftLinkPreview(request.sourceUrl, normalizedUrl)?.let { return it }
+        if (shouldUseFixedPreview) {
+            Log.d(DRAFT_LINK_PREVIEW_TAG, "repo using fixed preview for $normalizedUrl")
+            getFixedDraftLinkPreview(request.sourceUrl, normalizedUrl)?.let {
+                Log.d(
+                    DRAFT_LINK_PREVIEW_TAG,
+                    "repo fixed preview hit resolvedUrl=${it.resolvedUrl} hasWebPage=${it.webPage != null}"
+                )
+                return it
+            }
+            Log.d(DRAFT_LINK_PREVIEW_TAG, "repo fixed preview miss for $normalizedUrl")
         }
 
-        return messageRemoteDataSource.getDraftLinkPreview(
+        Log.d(DRAFT_LINK_PREVIEW_TAG, "repo falling back to td preview for $normalizedUrl")
+        val preview = messageRemoteDataSource.getDraftLinkPreview(
             request.copy(sourceUrl = normalizedUrl)
         )
+        Log.d(
+            DRAFT_LINK_PREVIEW_TAG,
+            "repo td preview result success=${preview != null} resolvedUrl=${preview?.resolvedUrl}"
+        )
+        return preview
     }
 
     override suspend fun searchMessages(
@@ -1704,6 +1730,10 @@ class MessageRepositoryImpl(
         normalizedUrl: String
     ): DraftLinkPreview? {
         draftLinkPreviewResolver.parseTwitterStatusId(normalizedUrl)?.let { statusId ->
+            Log.d(
+                DRAFT_LINK_PREVIEW_TAG,
+                "repo fixed preview twitter normalized=$normalizedUrl statusId=$statusId"
+            )
             val response = fxEmbedRemoteDataSource.getTwitterStatus(statusId) ?: return@let null
             return response.toDraftLinkPreview(
                 sourceUrl = sourceUrl,
@@ -1713,6 +1743,10 @@ class MessageRepositoryImpl(
         }
 
         draftLinkPreviewResolver.parseBlueskyStatus(normalizedUrl)?.let { (handle, rkey) ->
+            Log.d(
+                DRAFT_LINK_PREVIEW_TAG,
+                "repo fixed preview bluesky normalized=$normalizedUrl handle=$handle rkey=$rkey"
+            )
             val response = fxEmbedRemoteDataSource.getBlueskyStatus(handle, rkey) ?: return@let null
             return response.toDraftLinkPreview(
                 sourceUrl = sourceUrl,
@@ -1721,6 +1755,7 @@ class MessageRepositoryImpl(
             )
         }
 
+        Log.d(DRAFT_LINK_PREVIEW_TAG, "repo fixed preview unsupported for $normalizedUrl")
         return null
     }
 
@@ -1738,6 +1773,10 @@ class MessageRepositoryImpl(
         val description = text?.takeIf { it.isNotBlank() }
 
         if (title.isNullOrBlank() && description.isNullOrBlank() && mediaUrl.isNullOrBlank()) {
+            Log.d(
+                DRAFT_LINK_PREVIEW_TAG,
+                "repo fxembed mapped empty preview normalized=$normalizedUrl fallbackSiteName=$fallbackSiteName"
+            )
             return null
         }
 
@@ -1776,5 +1815,9 @@ class MessageRepositoryImpl(
                 instantViewVersion = 0
             )
         )
+    }
+
+    private companion object {
+        private const val DRAFT_LINK_PREVIEW_TAG = "DraftLinkPreview"
     }
 }

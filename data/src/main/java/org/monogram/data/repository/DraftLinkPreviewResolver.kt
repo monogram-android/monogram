@@ -92,6 +92,30 @@ class DraftLinkPreviewResolver {
         return handle to rkey
     }
 
+    fun toFixedPreviewUrl(normalizedUrl: String): String? {
+        val uri = normalizedUrl.toParsedUri() ?: return null
+        val host = uri.host?.removePrefix("www.")?.lowercase() ?: return null
+        return when {
+            isTwitterHost(host) -> rebuildUrlWithHost(uri, "fxtwitter.com")
+            isBlueskyHost(host) -> rebuildUrlWithHost(uri, "fxbsky.app")
+            else -> null
+        }
+    }
+
+    private fun rebuildUrlWithHost(uri: URI, host: String): String? {
+        return runCatching {
+            URI(
+                uri.scheme ?: "https",
+                uri.userInfo,
+                host,
+                uri.port,
+                uri.path,
+                uri.query,
+                uri.fragment
+            ).toString()
+        }.getOrNull()
+    }
+
     private fun isTwitterHost(host: String): Boolean {
         return host == "twitter.com" || host == "x.com" || host == "mobile.twitter.com" || host == "mobile.x.com"
     }

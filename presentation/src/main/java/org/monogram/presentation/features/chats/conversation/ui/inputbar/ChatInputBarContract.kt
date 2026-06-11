@@ -26,6 +26,7 @@ data class ChatInputBarState(
     val draftText: String = "",
     val draftLinkTargets: List<LinkPreviewTarget> = emptyList(),
     val selectedDraftLinkPreviewUrl: String? = null,
+    val resolvedDraftLinkPreviewUrl: String? = null,
     val dismissedDraftLinkPreviewUrls: Set<String> = emptySet(),
     val draftLinkPreview: WebPage? = null,
     val isDraftLinkPreviewLoading: Boolean = false,

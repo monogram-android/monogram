@@ -12,9 +12,11 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,9 +28,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -57,6 +61,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -64,16 +69,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import org.monogram.domain.models.LinkPreviewTarget
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.WebPage
 import org.monogram.presentation.R
-import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreview
+import org.monogram.presentation.core.ui.shimmerBackground
+import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.conversation.ui.message.buildAnnotatedMessageTextWithEmoji
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberMessageInlineContent
 import java.io.File
+import java.net.URI
 import java.util.Collections
 
 sealed class InputPreviewState {
@@ -212,40 +221,6 @@ private fun DraftLinkPreviewSection(
             .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
             .padding(12.dp)
     ) {
-        if (targets.size > 1) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                itemsIndexed(
-                    items = targets,
-                    key = { _, item -> item.normalizedUrl }
-                ) { _, target ->
-                    val selected = target.normalizedUrl == selectedUrl
-                    AssistChip(
-                        onClick = { onSelect(target.normalizedUrl) },
-                        label = {
-                            Text(
-                                text = target.displayLabel,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = if (selected) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant
-                            },
-                            labelColor = if (selected) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-        }
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -269,65 +244,335 @@ private fun DraftLinkPreviewSection(
             }
         }
 
-        when {
-            isDisabledForSend -> DisabledDraftLinkPreviewMessage()
-            isLoading -> {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp
-                    )
-                    Text(
-                        text = stringResource(R.string.loading_text),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+        if (targets.size > 1) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                targets.forEach { target ->
+                    val selected = target.normalizedUrl == selectedUrl
+                    AssistChip(
+                        onClick = { onSelect(target.normalizedUrl) },
+                        label = {
+                            Text(
+                                text = target.toComposerTabLabel(),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        modifier = Modifier.widthIn(max = 144.dp),
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = if (selected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            },
+                            labelColor = if (selected) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
                     )
                 }
             }
+        }
 
-            preview != null -> LinkPreview(
-                webPage = preview,
-                isOutgoing = false,
-                modifier = Modifier.fillMaxWidth()
+        Spacer(modifier = Modifier.height(10.dp))
+
+        when {
+            isDisabledForSend -> ComposerDraftLinkPreviewStatusCard(
+                icon = {
+                    Icon(
+                        imageVector = Icons.Rounded.LinkOff,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                title = stringResource(R.string.draft_link_preview_disabled),
+                body = stringResource(R.string.draft_link_preview_remove)
             )
 
-            error != null -> Text(
-                text = stringResource(R.string.draft_link_preview_unavailable),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 6.dp)
+            isLoading -> ComposerDraftLinkPreviewLoadingCard()
+
+            preview != null -> ComposerDraftLinkPreviewCard(preview = preview)
+
+            error != null -> ComposerDraftLinkPreviewStatusCard(
+                title = stringResource(R.string.draft_link_preview_unavailable),
+                body = error
             )
         }
     }
 }
 
 @Composable
-private fun DisabledDraftLinkPreviewMessage() {
+private fun ComposerDraftLinkPreviewCard(preview: WebPage) {
+    val meta = remember(preview) { preview.toComposerDraftPreviewMeta() }
+    val context = LocalContext.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .background(
+                MaterialTheme.colorScheme.surfaceContainerHighest,
+                RoundedCornerShape(14.dp)
+            )
+            .padding(10.dp)
+            .height(IntrinsicSize.Min),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Icon(
-            imageVector = Icons.Rounded.LinkOff,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp)
-        )
-        Text(
-            text = stringResource(R.string.draft_link_preview_disabled),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        Column(
+            modifier = Modifier
+                .weight(1f),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = meta.kicker,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            meta.title?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            meta.description?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        meta.mediaData?.let { mediaData ->
+            Box(
+                modifier = Modifier
+                    .width(116.dp)
+                    .height(92.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(mediaData)
+                        .apply {
+                            meta.mediaCacheKey?.let {
+                                memoryCacheKey(it)
+                                diskCacheKey(it)
+                            }
+                        }
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+
+                if (meta.showPlayOverlay) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(40.dp)
+                            .background(Color.Black.copy(alpha = 0.42f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayCircle,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ComposerDraftLinkPreviewLoadingCard() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                MaterialTheme.colorScheme.surfaceContainerHighest,
+                RoundedCornerShape(14.dp)
+            )
+            .padding(10.dp)
+            .height(IntrinsicSize.Min),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp
+                )
+                Text(
+                    text = stringResource(R.string.loading_text),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.72f)
+                    .height(12.dp)
+                    .shimmerBackground(RoundedCornerShape(999.dp))
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.94f)
+                    .height(18.dp)
+                    .shimmerBackground(RoundedCornerShape(10.dp))
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.88f)
+                    .height(14.dp)
+                    .shimmerBackground(RoundedCornerShape(10.dp))
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .width(116.dp)
+                .height(92.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .shimmerBackground(RoundedCornerShape(12.dp))
         )
     }
+}
+
+@Composable
+private fun ComposerDraftLinkPreviewStatusCard(
+    title: String,
+    body: String,
+    icon: (@Composable () -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                MaterialTheme.colorScheme.surfaceContainerHighest,
+                RoundedCornerShape(14.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        icon?.invoke()
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+private data class ComposerDraftPreviewMeta(
+    val kicker: String,
+    val title: String?,
+    val description: String?,
+    val mediaData: Any?,
+    val mediaCacheKey: String?,
+    val showPlayOverlay: Boolean
+)
+
+private fun LinkPreviewTarget.toComposerTabLabel(): String {
+    val compactHost = host.removePrefix("www.").takeIf { it.isNotBlank() }
+    return compactHost ?: displayLabel.ifBlank { normalizedUrl }
+}
+
+private fun WebPage.toComposerDraftPreviewMeta(): ComposerDraftPreviewMeta {
+    val fallbackUrl = displayUrl?.takeIf { it.isNotBlank() }
+        ?: url?.takeIf { it.isNotBlank() }
+    val fallbackHost = fallbackUrl?.hostFromUrl()
+    val source = siteName?.takeIf { it.isNotBlank() }
+        ?: fallbackHost
+        ?: fallbackUrl
+        ?: ""
+    val kicker = listOfNotNull(
+        source.takeIf { it.isNotBlank() },
+        author?.takeIf { it.isNotBlank() }
+    ).joinToString(" • ").ifBlank {
+        fallbackUrl ?: ""
+    }
+
+    val rawTitle = title?.takeIf { it.isNotBlank() }
+        ?: siteName?.takeIf { it.isNotBlank() }
+    val rawDescription = description?.takeIf { it.isNotBlank() }
+        ?: document?.fileName?.takeIf { it.isNotBlank() }
+        ?: audio?.title?.takeIf { it.isNotBlank() }
+    val titleLooksLikeHandle = rawTitle?.startsWith("@") == true && !rawDescription.isNullOrBlank()
+    val candidateTitle = if (titleLooksLikeHandle) rawDescription else rawTitle
+    val candidateDescription = if (titleLooksLikeHandle) rawTitle else rawDescription
+    val resolvedTitle = candidateTitle
+        ?: fallbackHost
+        ?: fallbackUrl
+    val resolvedDescription = candidateDescription
+        ?: fallbackUrl?.takeIf { it != resolvedTitle }
+
+    val mediaData = photo?.path
+        ?: photo?.minithumbnail
+        ?: video?.thumbnailPath
+        ?: video?.minithumbnail
+        ?: video?.path
+        ?: animation?.thumbnailPath
+        ?: animation?.minithumbnail
+        ?: animation?.path
+        ?: sticker?.path
+    val mediaCacheKey = namespacedCacheKey("composer_link_preview_media", mediaData)
+    val showPlayOverlay = video != null || type is WebPage.LinkPreviewType.Video ||
+            type is WebPage.LinkPreviewType.EmbeddedVideo ||
+            type is WebPage.LinkPreviewType.ExternalVideo
+
+    return ComposerDraftPreviewMeta(
+        kicker = kicker,
+        title = resolvedTitle,
+        description = resolvedDescription,
+        mediaData = mediaData,
+        mediaCacheKey = mediaCacheKey,
+        showPlayOverlay = showPlayOverlay
+    )
+}
+
+private fun String.hostFromUrl(): String? {
+    return runCatching { URI(this).host?.removePrefix("www.") }.getOrNull()
 }
 
 @Composable

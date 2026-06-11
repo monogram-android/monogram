@@ -361,7 +361,7 @@ fun ChatInputBar(
         var sentInstantMessage = false
         val effectiveSendOptions = it.copy(
             disableLinkPreview = state.isDraftLinkPreviewDisabledForSend,
-            linkPreviewUrl = state.selectedDraftLinkPreviewUrl
+            linkPreviewUrl = state.resolvedDraftLinkPreviewUrl ?: state.selectedDraftLinkPreviewUrl
         )
 
         val canSendNow = when {

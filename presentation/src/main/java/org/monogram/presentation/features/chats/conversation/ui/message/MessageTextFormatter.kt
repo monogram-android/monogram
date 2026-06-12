@@ -221,9 +221,9 @@ fun buildAnnotatedMessageTextWithEmoji(
     revealedSpoilers: List<Int> = emptyList(),
     emojiFontFamily: FontFamily = LocalMessageRenderDependencies.current.emojiFontFamily
 ): AnnotatedString {
-    val linkColor = MaterialTheme.colorScheme.primary
-    val codeBackgroundColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-    val codeTextColor = MaterialTheme.colorScheme.primary
+    val linkColor = if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+    val codeBackgroundColor = if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+    val codeTextColor = if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
     val revealedSpoilersSnapshot = revealedSpoilers.toSet()
 
     return remember(

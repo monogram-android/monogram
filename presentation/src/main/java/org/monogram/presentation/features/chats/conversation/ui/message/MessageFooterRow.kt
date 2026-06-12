@@ -73,7 +73,8 @@ internal fun MessageFooterRow(
                 sendingState = sendingState,
                 isRead = isRead,
                 baseColor = color,
-                size = 14.dp
+                size = 14.dp,
+                usePrimaryForRead = false
             )
         }
     }

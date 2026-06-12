@@ -307,7 +307,7 @@ fun MessageMetadata(
                 isRead = msg.isRead,
                 baseColor = contentColor,
                 size = 13.dp,
-                usePrimaryForRead = contentColor != Color.White
+                usePrimaryForRead = false
             )
         }
     }
@@ -320,7 +320,7 @@ fun MessageSendingStatusIcon(
     baseColor: Color,
     modifier: Modifier = Modifier,
     size: androidx.compose.ui.unit.Dp = 14.dp,
-    usePrimaryForRead: Boolean = true
+    usePrimaryForRead: Boolean = false
 ) {
     val targetTint = when {
         sendingState is MessageSendingState.Failed -> MaterialTheme.colorScheme.error

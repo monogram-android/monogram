@@ -24,6 +24,7 @@ class ChatViewportRestorePolicyTest {
         val around = target as InitialChatScrollTarget.AroundMessage
         assertEquals(99L, around.messageId)
         assertTrue(around.highlight)
+        assertFalse(around.backfillNewerAfterInitialLoad)
         assertEquals(99L, (around.command as ChatScrollCommand.JumpToMessage).messageId)
     }
 
@@ -44,21 +45,55 @@ class ChatViewportRestorePolicyTest {
         val command = around.command as ChatScrollCommand.RestoreViewport
         assertEquals(42L, around.messageId)
         assertFalse(around.highlight)
+        assertFalse(around.backfillNewerAfterInitialLoad)
         assertEquals(12, command.anchorOffsetPx)
     }
 
     @Test
-    fun `unread wins when saved viewport is absent`() {
+    fun `unread wins when saved viewport is absent without backfill for small unread`() {
         val target = resolveInitialChatScrollTarget(
             explicitMessageId = null,
             savedViewport = null,
             firstUnreadMessageId = 50L,
+            unreadCount = 10,
             isComments = false
         )
 
         val around = target as InitialChatScrollTarget.AroundMessage
         assertEquals(50L, around.messageId)
         assertFalse(around.highlight)
+        assertFalse(around.backfillNewerAfterInitialLoad)
+    }
+
+    @Test
+    fun `large unread root chat requests newer backfill`() {
+        val target = resolveInitialChatScrollTarget(
+            explicitMessageId = null,
+            savedViewport = null,
+            firstUnreadMessageId = 50L,
+            unreadCount = 80,
+            backfillUnreadThreshold = 50,
+            isComments = false
+        )
+
+        val around = target as InitialChatScrollTarget.AroundMessage
+        assertEquals(50L, around.messageId)
+        assertFalse(around.highlight)
+        assertTrue(around.backfillNewerAfterInitialLoad)
+    }
+
+    @Test
+    fun `large unread comments do not request newer backfill`() {
+        val target = resolveInitialChatScrollTarget(
+            explicitMessageId = null,
+            savedViewport = null,
+            firstUnreadMessageId = 50L,
+            unreadCount = 80,
+            backfillUnreadThreshold = 50,
+            isComments = true
+        )
+
+        assertTrue(target is InitialChatScrollTarget.Comments)
     }
 
     @Test

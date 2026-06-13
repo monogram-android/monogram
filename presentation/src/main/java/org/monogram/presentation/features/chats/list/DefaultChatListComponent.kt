@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatType
@@ -33,6 +35,7 @@ import org.monogram.domain.repository.ForumTopicsRepository
 import org.monogram.domain.repository.ForwardOptions
 import org.monogram.domain.repository.ForwardRequest
 import org.monogram.domain.repository.ForwardTarget
+import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
@@ -62,6 +65,7 @@ class DefaultChatListComponent(
     private val chatFolderRepository: ChatFolderRepository = container.repositories.chatFolderRepository
     private val chatSearchRepository: ChatSearchRepository = container.repositories.chatSearchRepository
     private val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
+    private val messageRepository: MessageRepository = container.repositories.messageRepository
     private val forumTopicsRepository: ForumTopicsRepository =
         container.repositories.forumTopicsRepository
     private val repositoryUser: UserRepository = container.repositories.userRepository
@@ -102,6 +106,8 @@ class DefaultChatListComponent(
     private var searchJob: Job? = null
     private var isFetchingMoreMessages = false
     private var nextMessagesOffset = ""
+    private val prefetchSemaphore = Semaphore(PREFETCH_CONCURRENCY)
+    private val messagePrefetchTimestamps = mutableMapOf<Long, Long>()
 
     private fun ChatListComponent.State.toUiState() = ChatListComponent.UiState(
         currentUser = currentUser,
@@ -1009,6 +1015,52 @@ class DefaultChatListComponent(
         }
     }
 
+    override fun onVisibleChatIdsChanged(ids: List<Long>) =
+        store.accept(ChatListStore.Intent.VisibleChatIdsChanged(ids))
+
+    internal fun handleVisibleChatIdsChanged(ids: List<Long>) {
+        val state = _state.value
+        if (state.isSearchActive || state.selectedFolderId == -2 || ids.isEmpty()) return
+
+        val chatsById = state.chats.associateBy { it.id }
+        val now = System.currentTimeMillis()
+        ids.asSequence()
+            .mapNotNull { chatsById[it] }
+            .distinctBy { it.id }
+            .take(PREFETCH_MAX_CANDIDATES)
+            .filter { chat ->
+                val lastPrefetchAt = messagePrefetchTimestamps[chat.id] ?: 0L
+                now - lastPrefetchAt >= PREFETCH_TTL_MS
+            }
+            .forEach { chat ->
+                messagePrefetchTimestamps[chat.id] = now
+                scope.launch(Dispatchers.IO) {
+                    prefetchSemaphore.withPermit {
+                        prefetchMessagesForChat(chat)
+                    }
+                }
+            }
+    }
+
+    private suspend fun prefetchMessagesForChat(chat: ChatModel) {
+        coRunCatching {
+            messageRepository.getMessagesOlder(
+                chatId = chat.id,
+                fromMessageId = 0L,
+                limit = PREFETCH_PAGE_SIZE
+            )
+            if (chat.unreadCount > 0 && chat.lastReadInboxMessageId > 0L) {
+                messageRepository.getMessagesNewer(
+                    chatId = chat.id,
+                    fromMessageId = chat.lastReadInboxMessageId,
+                    limit = PREFETCH_PAGE_SIZE
+                )
+            }
+        }.onFailure { error ->
+            Log.d(TAG, "message prefetch failed chatId=${chat.id}: ${error.message}")
+        }
+    }
+
     override fun updateScrollPosition(folderId: Int, index: Int, offset: Int) =
         store.accept(ChatListStore.Intent.UpdateScrollPosition(folderId, index, offset))
 
@@ -1022,6 +1074,10 @@ class DefaultChatListComponent(
 
     companion object {
         private const val TAG = "PinnedUiDiag"
+        private const val PREFETCH_MAX_CANDIDATES = 6
+        private const val PREFETCH_CONCURRENCY = 2
+        private const val PREFETCH_PAGE_SIZE = 30
+        private const val PREFETCH_TTL_MS = 60_000L
     }
 
     private fun toggleSelection(id: Long) {

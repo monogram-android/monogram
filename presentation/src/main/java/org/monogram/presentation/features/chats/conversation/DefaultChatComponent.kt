@@ -70,6 +70,7 @@ import org.monogram.presentation.features.chats.conversation.logic.observeUserUp
 import org.monogram.presentation.features.chats.conversation.logic.refreshDraftLinkPreviewOnPhotoDownloadIfNeeded
 import org.monogram.presentation.features.chats.conversation.logic.setupMessageCollectors
 import org.monogram.presentation.features.chats.conversation.logic.setupPinnedMessageCollector
+import org.monogram.presentation.features.chats.conversation.logic.withUnreadSessionFromChat
 import org.monogram.presentation.root.AppComponentContext
 import org.monogram.presentation.settings.storage.CacheController
 import java.io.File
@@ -271,9 +272,9 @@ class DefaultChatComponent(
             chatListRepository.getChatById(chatId)?.let { chat ->
                 if (chat.unreadCount > 0) {
                     _state.update {
-                        it.copy(
-                            unreadSeparatorCount = chat.unreadCount,
-                            unreadSeparatorLastReadInboxMessageId = chat.lastReadInboxMessageId
+                        it.withUnreadSessionFromChat(
+                            chatUnreadCount = chat.unreadCount,
+                            chatLastReadInboxMessageId = chat.lastReadInboxMessageId
                         )
                     }
                 }

@@ -51,6 +51,14 @@ class RoomChatLocalDataSource(
 
     override suspend fun getMessagesNewer(chatId: Long, fromMessageId: Long, limit: Int) = messageDao.getMessagesNewer(chatId, fromMessageId, limit)
 
+    override suspend fun getMessagesAround(chatId: Long, messageId: Long, limit: Int) =
+        messageDao.getMessagesAround(
+            chatId = chatId,
+            messageId = messageId,
+            olderLimit = (limit + 1) / 2,
+            newerLimit = limit / 2
+        )
+
     override suspend fun getLatestMessages(chatId: Long, limit: Int) = messageDao.getLatestMessages(chatId, limit)
 
     override suspend fun getMessagesByIds(chatId: Long, messageIds: List<Long>) =

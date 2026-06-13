@@ -583,6 +583,26 @@ class MessageRepositoryImpl(
             }
         }
 
+    override suspend fun getCachedMessagesNewer(
+        chatId: Long,
+        fromMessageId: Long,
+        limit: Int
+    ): List<MessageModel> =
+        withContext(dispatcherProvider.io) {
+            chatLocalDataSource.getMessagesNewer(chatId, fromMessageId, limit)
+                .let { mapLocalMessages(it) }
+        }
+
+    override suspend fun getCachedMessagesAround(
+        chatId: Long,
+        messageId: Long,
+        limit: Int
+    ): List<MessageModel> =
+        withContext(dispatcherProvider.io) {
+            chatLocalDataSource.getMessagesAround(chatId, messageId, limit)
+                .let { mapLocalMessages(it) }
+        }
+
     override suspend fun getMessagesAround(
         chatId: Long,
         messageId: Long,
@@ -595,7 +615,7 @@ class MessageRepositoryImpl(
                 persistRemoteMessages(chatId, remoteMessages)
                 remoteMessages
             } catch (e: Exception) {
-                val local = chatLocalDataSource.getLatestMessages(chatId, limit)
+                val local = chatLocalDataSource.getMessagesAround(chatId, messageId, limit)
                 mapLocalMessages(local)
             }
         }

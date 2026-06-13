@@ -1702,6 +1702,18 @@ private fun FolderPageContent(
             }
     }
 
+    LaunchedEffect(folderId, folderChats, isFolderLoading, scrollState) {
+        if (isFolderLoading || folderChats.isEmpty()) return@LaunchedEffect
+
+        snapshotFlow {
+            scrollState.layoutInfo.visibleItemsInfo
+                .mapNotNull { item -> folderChats.getOrNull(item.index)?.id }
+                .distinct()
+        }
+            .distinctUntilChanged()
+            .collect(component::onVisibleChatIdsChanged)
+    }
+
     val isInitialLoad = remember(folderId) { mutableStateOf(true) }
     LaunchedEffect(folderChats) {
         if (isInitialLoad.value && folderChats.isNotEmpty()) {

@@ -160,17 +160,6 @@ internal fun DefaultChatComponent.observeUserUpdates() {
 private fun DefaultChatComponent.updateBaseChatState(chat: ChatModel) {
     _state.update { currentState ->
         val isDetailedInfoMissing = (chat.isGroup || chat.isChannel) && chat.memberCount == 0
-        val effectiveUnreadCount = if (currentState.isAtBottom) 0 else chat.unreadCount
-        val unreadSeparatorCount = when {
-            currentState.unreadSeparatorCount > 0 -> currentState.unreadSeparatorCount
-            chat.unreadCount > 0 -> chat.unreadCount
-            else -> 0
-        }
-        val unreadSeparatorLastReadInboxMessageId = when {
-            currentState.unreadSeparatorCount > 0 -> currentState.unreadSeparatorLastReadInboxMessageId
-            chat.unreadCount > 0 -> chat.lastReadInboxMessageId
-            else -> 0L
-        }
 
         currentState.copy(
             chatTitle = chat.title,
@@ -184,16 +173,15 @@ private fun DefaultChatComponent.updateBaseChatState(chat: ChatModel) {
             isSponsor = if (chat.isGroup || chat.isChannel) false else (chat.isSponsor || currentState.isSponsor),
             memberCount = if (!isDetailedInfoMissing) chat.memberCount else currentState.memberCount,
             onlineCount = if (!isDetailedInfoMissing) chat.onlineCount else currentState.onlineCount,
-            unreadCount = effectiveUnreadCount,
-            unreadSeparatorCount = unreadSeparatorCount,
             unreadMentionCount = chat.unreadMentionCount,
             unreadReactionCount = chat.unreadReactionCount,
             userStatus = chat.userStatus,
             typingAction = chat.typingAction,
             viewAsTopics = chat.viewAsTopics,
             isMuted = chat.isMuted,
-            lastReadInboxMessageId = chat.lastReadInboxMessageId,
-            unreadSeparatorLastReadInboxMessageId = unreadSeparatorLastReadInboxMessageId,
+        ).withUnreadSessionFromChat(
+            chatUnreadCount = chat.unreadCount,
+            chatLastReadInboxMessageId = chat.lastReadInboxMessageId
         )
     }
 }

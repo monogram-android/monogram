@@ -8,7 +8,8 @@ internal sealed interface InitialChatScrollTarget {
     data class AroundMessage(
         val messageId: Long,
         val command: ChatScrollCommand,
-        val highlight: Boolean
+        val highlight: Boolean,
+        val backfillNewerAfterInitialLoad: Boolean = false
     ) : InitialChatScrollTarget
 
     data class Bottom(val command: ChatScrollCommand) : InitialChatScrollTarget
@@ -19,6 +20,8 @@ internal fun resolveInitialChatScrollTarget(
     explicitMessageId: Long?,
     savedViewport: ChatViewportCacheEntry?,
     firstUnreadMessageId: Long?,
+    unreadCount: Int = 0,
+    backfillUnreadThreshold: Int = 50,
     isComments: Boolean
 ): InitialChatScrollTarget {
     if (explicitMessageId != null) {
@@ -73,6 +76,7 @@ internal fun resolveInitialChatScrollTarget(
         return InitialChatScrollTarget.AroundMessage(
             messageId = firstUnreadMessageId,
             highlight = false,
+            backfillNewerAfterInitialLoad = !isComments && unreadCount > backfillUnreadThreshold,
             command = ChatScrollCommand.JumpToMessage(
                 messageId = firstUnreadMessageId,
                 highlight = false,

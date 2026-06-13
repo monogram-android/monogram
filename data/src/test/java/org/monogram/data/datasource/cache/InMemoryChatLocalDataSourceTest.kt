@@ -39,6 +39,44 @@ class InMemoryChatLocalDataSourceTest {
         assertEquals("sent", result.single().content)
     }
 
+    @Test
+    fun `getMessagesAround includes target with older and newer cached messages`() = runBlocking {
+        val source = InMemoryChatLocalDataSource()
+        listOf(10L, 20L, 30L, 40L, 50L).forEach { id ->
+            source.insertMessage(
+                message(
+                    id = id,
+                    chatId = 1L,
+                    content = "message $id",
+                    date = id.toInt()
+                )
+            )
+        }
+
+        val result = source.getMessagesAround(chatId = 1L, messageId = 30L, limit = 5)
+
+        assertEquals(listOf(50L, 40L, 30L, 20L, 10L), result.map { it.id })
+    }
+
+    @Test
+    fun `getMessagesNewer returns ascending cached page`() = runBlocking {
+        val source = InMemoryChatLocalDataSource()
+        listOf(10L, 20L, 30L, 40L).forEach { id ->
+            source.insertMessage(
+                message(
+                    id = id,
+                    chatId = 1L,
+                    content = "message $id",
+                    date = id.toInt()
+                )
+            )
+        }
+
+        val result = source.getMessagesNewer(chatId = 1L, fromMessageId = 20L, limit = 2)
+
+        assertEquals(listOf(30L, 40L), result.map { it.id })
+    }
+
     private fun chat(id: Long, order: Long, isPinned: Boolean): ChatEntity =
         ChatEntity(
             id = id,
@@ -58,14 +96,14 @@ class InMemoryChatLocalDataSourceTest {
             onlineCount = 0
         )
 
-    private fun message(id: Long, chatId: Long, content: String): MessageEntity =
+    private fun message(id: Long, chatId: Long, content: String, date: Int = 100): MessageEntity =
         MessageEntity(
             id = id,
             chatId = chatId,
             senderId = 1L,
             senderName = "sender",
             content = content,
-            date = 100,
+            date = date,
             isOutgoing = true,
             isRead = false
         )

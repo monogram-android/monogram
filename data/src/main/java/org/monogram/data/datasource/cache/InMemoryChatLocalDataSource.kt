@@ -88,6 +88,24 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
             .take(limit)
     }
 
+    override suspend fun getMessagesAround(
+        chatId: Long,
+        messageId: Long,
+        limit: Int
+    ): List<MessageEntity> {
+        val chatMessages = messages[chatId]?.value?.values ?: return emptyList()
+        val olderLimit = (limit + 1) / 2
+        val newerLimit = limit - olderLimit
+        val olderAndTarget = chatMessages.filter { it.id <= messageId }
+            .sortedByDescending { it.date }
+            .take(olderLimit)
+        val newer = chatMessages.filter { it.id > messageId }
+            .sortedBy { it.date }
+            .take(newerLimit)
+        return (olderAndTarget + newer).distinctBy { it.id }
+            .sortedByDescending { it.date }
+    }
+
     override suspend fun getLatestMessages(chatId: Long, limit: Int): List<MessageEntity> {
         val chatMessages = messages[chatId]?.value?.values ?: return emptyList()
         return chatMessages.sortedByDescending { it.date }.take(limit)

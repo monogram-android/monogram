@@ -78,6 +78,8 @@ interface ChatListComponent {
 
     fun handleBack(): Boolean
 
+    fun onVisibleChatIdsChanged(ids: List<Long>)
+
     fun updateScrollPosition(folderId: Int, index: Int, offset: Int)
 
     data class State(

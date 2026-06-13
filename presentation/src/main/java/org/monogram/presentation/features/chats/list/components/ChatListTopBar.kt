@@ -131,7 +131,13 @@ fun ChatListTopBar(
                             onExpandedChange = {},
                             placeholder = { Text(stringResource(R.string.search_conversations_placeholder)) },
                             leadingIcon = {
-                                IconButton(onClick = onSearchToggle, shapes = iconButtonShapes) {
+                                IconButton(
+                                    onClick = {
+                                        keyboardController?.hide()
+                                        onSearchToggle()
+                                    },
+                                    shapes = iconButtonShapes
+                                ) {
                                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                                 }
                             },

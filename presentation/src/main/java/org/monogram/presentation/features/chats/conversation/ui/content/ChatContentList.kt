@@ -149,7 +149,7 @@ data class ChatMessageListUiState(
     val autoplayGifs: Boolean,
     val autoplayVideos: Boolean,
     val showLinkPreviews: Boolean,
-    val messageOptionsOnSingleTapEnabled: Boolean,
+    val showReactions: Boolean,
     val isChatAnimationsEnabled: Boolean,
     val suppressEntryAnimations: Boolean,
     val isViewportSettled: Boolean
@@ -1417,7 +1417,6 @@ private fun ChatMessageListUiState.toAppearanceConfig(): MessageAppearanceConfig
         autoDownloadWifi = autoDownloadWifi,
         autoDownloadRoaming = autoDownloadRoaming,
         autoDownloadFiles = autoDownloadFiles,
-        messageOptionsOnSingleTapEnabled = messageOptionsOnSingleTapEnabled,
         showReactions = showReactions
     )
 

@@ -17,7 +17,6 @@ internal data class MessageAppearanceConfig(
     val autoDownloadWifi: Boolean = false,
     val autoDownloadRoaming: Boolean = false,
     val autoDownloadFiles: Boolean = false,
-    val messageOptionsOnSingleTapEnabled: Boolean = true,
     val showReactions: Boolean = true
 )
 

@@ -71,7 +71,6 @@ interface AppPreferencesProvider {
     val isChatAnimationsEnabled: StateFlow<Boolean>
     val chatListMessageLines: StateFlow<Int>
     val showChatListPhotos: StateFlow<Boolean>
-    val messageOptionsOnSingleTapEnabled: StateFlow<Boolean>
     val showReactions: StateFlow<Boolean>
 
     val privateChatsNotifications: StateFlow<Boolean>
@@ -128,7 +127,6 @@ interface AppPreferencesProvider {
     fun setChatAnimationsEnabled(enabled: Boolean)
     fun setChatListMessageLines(lines: Int)
     fun setShowChatListPhotos(enabled: Boolean)
-    fun setMessageOptionsOnSingleTapEnabled(enabled: Boolean)
     fun setShowReactions(enabled: Boolean)
 
     fun setPrivateChatsNotifications(enabled: Boolean)

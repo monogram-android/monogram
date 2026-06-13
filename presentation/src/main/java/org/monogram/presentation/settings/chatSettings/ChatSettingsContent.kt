@@ -935,15 +935,7 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                     enabled = state.showLinkPreviews,
                     onCheckedChange = component::onFixLinkPreviewsChanged
                 )
-                SettingsSwitchTile(
-                    icon = Icons.Rounded.Gesture,
-                    title = stringResource(R.string.message_options_single_tap_title),
-                    subtitle = stringResource(R.string.message_options_single_tap_subtitle),
-                    checked = state.messageOptionsOnSingleTapEnabled,
-                    iconColor = greenColor,
-                    position = ItemPosition.MIDDLE,
-                    onCheckedChange = component::onMessageOptionsOnSingleTapEnabledChanged
-                )
+
                 SettingsSwitchTile(
                     icon = Icons.Rounded.EmojiEmotions,
                     title = stringResource(R.string.show_reactions_title),

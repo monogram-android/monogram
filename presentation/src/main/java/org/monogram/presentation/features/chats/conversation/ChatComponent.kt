@@ -311,7 +311,6 @@ interface ChatComponent {
         val autoplayVideos: Boolean = true,
         val showLinkPreviews: Boolean = true,
         val fixLinkPreviews: Boolean = true,
-        val messageOptionsOnSingleTapEnabled: Boolean = true,
         val showReactions: Boolean = true,
         val isChatAnimationsEnabled: Boolean = true,
         val selectedMessageIds: Set<Long> = emptySet(),

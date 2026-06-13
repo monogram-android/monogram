@@ -3,6 +3,7 @@ package org.monogram.app.components
 import androidx.compose.runtime.Composable
 import org.monogram.presentation.features.auth.AuthContent
 import org.monogram.presentation.features.chats.conversation.ChatContent
+import org.monogram.presentation.features.chats.conversation.ChatRenderMode
 import org.monogram.presentation.features.chats.creation.NewChatContent
 import org.monogram.presentation.features.chats.list.ChatListContent
 import org.monogram.presentation.features.profile.ProfileContent
@@ -46,7 +47,7 @@ fun RenderChild(
         is RootComponent.Child.NewChatChild -> NewChatContent(child.component)
         is RootComponent.Child.ChatDetailChild -> ChatContent(
             component = child.component,
-            isOverlay = isOverlay,
+            renderMode = if (isOverlay) ChatRenderMode.SwipePreview else ChatRenderMode.Active,
             onSwipeBackBlockedChanged = onSwipeBackBlockedChanged,
         )
 

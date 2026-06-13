@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.UserModel
 import org.monogram.presentation.features.chats.conversation.ChatComponent
+import org.monogram.presentation.features.chats.conversation.ChatViewportPhase
 
 @Immutable
 internal data class ChatContentPermissionState(
@@ -238,7 +239,8 @@ internal fun rememberChatMessageListState(
         state.showLinkPreviews,
         state.isChatAnimationsEnabled,
         showInitialLoading,
-        state.pendingScrollCommand
+        state.pendingScrollCommand,
+        state.viewportPhase
     ) {
         ChatMessageListUiState(
             chatId = state.chatId,
@@ -266,15 +268,18 @@ internal fun rememberChatMessageListState(
             letterSpacing = state.letterSpacing,
             bubbleRadius = state.bubbleRadius,
             stickerSize = state.stickerSize,
-            autoDownloadMobile = state.autoDownloadMobile,
-            autoDownloadWifi = state.autoDownloadWifi,
-            autoDownloadRoaming = state.autoDownloadRoaming,
-            autoDownloadFiles = state.autoDownloadFiles,
-            autoplayGifs = state.autoplayGifs,
-            autoplayVideos = state.autoplayVideos,
+            autoDownloadMobile = state.viewportPhase == ChatViewportPhase.Settled && state.autoDownloadMobile,
+            autoDownloadWifi = state.viewportPhase == ChatViewportPhase.Settled && state.autoDownloadWifi,
+            autoDownloadRoaming = state.viewportPhase == ChatViewportPhase.Settled && state.autoDownloadRoaming,
+            autoDownloadFiles = state.viewportPhase == ChatViewportPhase.Settled && state.autoDownloadFiles,
+            autoplayGifs = state.viewportPhase == ChatViewportPhase.Settled && state.autoplayGifs,
+            autoplayVideos = state.viewportPhase == ChatViewportPhase.Settled && state.autoplayVideos,
             showLinkPreviews = state.showLinkPreviews,
             isChatAnimationsEnabled = state.isChatAnimationsEnabled,
-            suppressEntryAnimations = showInitialLoading || state.pendingScrollCommand != null
+            suppressEntryAnimations = showInitialLoading ||
+                    state.pendingScrollCommand != null ||
+                    state.viewportPhase != ChatViewportPhase.Settled,
+            isViewportSettled = state.viewportPhase == ChatViewportPhase.Settled
         )
     }
 }

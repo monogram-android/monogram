@@ -19,6 +19,7 @@ import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.conversation.ChatScrollCommand
+import org.monogram.presentation.features.chats.conversation.ChatViewportPhase
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 import org.monogram.presentation.features.chats.conversation.ScrollAlign
 import java.io.File
@@ -293,7 +294,8 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
                 isLoading = true,
                 isOldestLoaded = false,
                 isLatestLoaded = false,
-                pendingScrollCommand = null
+                pendingScrollCommand = null,
+                viewportPhase = ChatViewportPhase.Initializing
             )
         }
 
@@ -320,76 +322,47 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
                 }
             }
 
-            if (isComments && threadId != null) {
-                val commentsViewport = savedViewport
-                val commentsAnchorId = commentsViewport?.anchorMessageId
-                if (commentsAnchorId != null && commentsViewport.atBottom.not()) {
+            when (
+                val target = resolveInitialChatScrollTarget(
+                    explicitMessageId = currentState.scrollToMessageId,
+                    savedViewport = savedViewport,
+                    firstUnreadMessageId = firstUnreadId,
+                    isComments = isComments
+                )
+            ) {
+                is InitialChatScrollTarget.AroundMessage -> {
                     loadAroundMessage(
-                        messageId = commentsAnchorId,
                         chatId = targetChatId,
+                        messageId = target.messageId,
                         threadId = threadId,
-                        shouldHighlight = false,
-                        scrollCommand = ChatScrollCommand.RestoreViewport(
-                            anchorMessageId = commentsAnchorId,
-                            anchorOffsetPx = savedViewport.anchorOffsetPx,
-                            atBottom = false
-                        )
+                        shouldHighlight = target.highlight,
+                        scrollCommand = target.command
                     )
-                } else {
+                }
+
+                is InitialChatScrollTarget.Comments -> {
+                    if (threadId == null) {
+                        loadBottomMessages(
+                            targetChatId = targetChatId,
+                            threadId = threadId,
+                            scrollCommand = ChatScrollCommand.ScrollToBottom(animated = false)
+                        )
+                        return@launch
+                    }
                     loadComments(
                         targetChatId = targetChatId,
                         threadId = threadId,
-                        scrollCommand = if (commentsViewport != null) {
-                            ChatScrollCommand.RestoreViewport(
-                                anchorMessageId = commentsViewport.anchorMessageId,
-                                anchorOffsetPx = commentsViewport.anchorOffsetPx,
-                                atBottom = commentsViewport.atBottom
-                            )
-                        } else {
-                            ChatScrollCommand.ScrollToStart(animated = false)
-                        }
+                        scrollCommand = target.command
                     )
                 }
-            } else if (firstUnreadId != null) {
-                loadAroundMessage(
-                    chatId = targetChatId,
-                    messageId = firstUnreadId,
-                    threadId = threadId,
-                    shouldHighlight = false,
-                    scrollCommand = ChatScrollCommand.JumpToMessage(
-                        messageId = firstUnreadId,
-                        highlight = false,
-                        align = ScrollAlign.Center,
-                        animated = false
-                    )
-                )
-            } else if (savedViewport != null) {
-                if (savedViewport.atBottom || savedViewport.anchorMessageId == null) {
+
+                is InitialChatScrollTarget.Bottom -> {
                     loadBottomMessages(
                         targetChatId = targetChatId,
                         threadId = threadId,
-                        scrollCommand = ChatScrollCommand.ScrollToBottom(animated = false)
-                    )
-                } else {
-                    val savedAnchorId = savedViewport.anchorMessageId ?: return@launch
-                    loadAroundMessage(
-                        chatId = targetChatId,
-                        messageId = savedAnchorId,
-                        threadId = threadId,
-                        shouldHighlight = false,
-                        scrollCommand = ChatScrollCommand.RestoreViewport(
-                            anchorMessageId = savedAnchorId,
-                            anchorOffsetPx = savedViewport.anchorOffsetPx,
-                            atBottom = false
-                        )
+                        scrollCommand = target.command
                     )
                 }
-            } else {
-                loadBottomMessages(
-                    targetChatId = targetChatId,
-                    threadId = threadId,
-                    scrollCommand = ChatScrollCommand.ScrollToBottom(animated = false)
-                )
             }
         } catch (e: CancellationException) {
             throw e
@@ -428,7 +401,12 @@ internal suspend fun DefaultChatComponent.loadComments(
     updateMessages(messages, replace = true)
     refreshCachedSenderProfiles(messages)
     if (scrollCommand != null) {
-        _state.update { it.copy(pendingScrollCommand = scrollCommand) }
+        _state.update {
+            it.copy(
+                pendingScrollCommand = scrollCommand,
+                viewportPhase = ChatViewportPhase.Restoring
+            )
+        }
     }
 }
 
@@ -496,7 +474,12 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
         }
     }
     if (scrollCommand != null) {
-        _state.update { it.copy(pendingScrollCommand = scrollCommand) }
+        _state.update {
+            it.copy(
+                pendingScrollCommand = scrollCommand,
+                viewportPhase = ChatViewportPhase.Restoring
+            )
+        }
     }
     if (!isRemoteSameAsCachedPreview && !isOldestLoaded) {
         delay(100)
@@ -532,7 +515,12 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
         updateMessages(messages, replace = true)
         refreshCachedSenderProfiles(messages)
         if (scrollCommand != null) {
-            _state.update { it.copy(pendingScrollCommand = scrollCommand) }
+            _state.update {
+                it.copy(
+                    pendingScrollCommand = scrollCommand,
+                    viewportPhase = ChatViewportPhase.Restoring
+                )
+            }
         }
         delay(100)
         loadMoreMessages()
@@ -576,6 +564,7 @@ private fun DefaultChatComponent.queueJumpToLoadedMessage(
     _state.update {
         it.copy(
             isAtBottom = false,
+            viewportPhase = ChatViewportPhase.Restoring,
             pendingScrollCommand = ChatScrollCommand.JumpToMessage(
                 messageId = messageId,
                 highlight = highlight,
@@ -767,6 +756,7 @@ internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
                 isOldestLoaded = false,
                 isLatestLoaded = false,
                 pendingScrollCommand = null,
+                viewportPhase = ChatViewportPhase.Initializing,
                 highlightRequest = null
             )
         }
@@ -802,6 +792,7 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
         _state.update {
             it.copy(
                 isAtBottom = true,
+                viewportPhase = ChatViewportPhase.Restoring,
                 pendingScrollCommand = ChatScrollCommand.ScrollToBottom(animated = true)
             )
         }
@@ -815,7 +806,8 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
                 isLoading = true,
                 isOldestLoaded = false,
                 isLatestLoaded = false,
-                pendingScrollCommand = null
+                pendingScrollCommand = null,
+                viewportPhase = ChatViewportPhase.Initializing
             )
         }
         try {
@@ -1513,7 +1505,8 @@ internal fun DefaultChatComponent.handleTopicClick(topicId: Int) {
             isLatestLoaded = false,
             rootMessage = null,
             isAtBottom = id == null,
-            pendingScrollCommand = null
+            pendingScrollCommand = null,
+            viewportPhase = ChatViewportPhase.Initializing
         )
     }
     if (topicId != 0) {
@@ -1539,7 +1532,8 @@ internal fun DefaultChatComponent.handleCommentsClick(messageId: Long) {
                 isOldestLoaded = false,
                 isLatestLoaded = false,
                 isAtBottom = false,
-                pendingScrollCommand = null
+                pendingScrollCommand = null,
+                viewportPhase = ChatViewportPhase.Initializing
             )
         }
         loadComments(

@@ -150,7 +150,8 @@ data class ChatMessageListUiState(
     val autoplayVideos: Boolean,
     val showLinkPreviews: Boolean,
     val isChatAnimationsEnabled: Boolean,
-    val suppressEntryAnimations: Boolean
+    val suppressEntryAnimations: Boolean,
+    val isViewportSettled: Boolean
 ) {
     val isComments: Boolean
         get() = rootMessage != null
@@ -351,8 +352,10 @@ internal fun ChatContentList(
     LaunchedEffect(
         scrollState,
         groupedMessages.size,
-        isComments
+        isComments,
+        state.isViewportSettled
     ) {
+        if (!state.isViewportSettled) return@LaunchedEffect
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
             .filter { it.isNotEmpty() && groupedMessages.isNotEmpty() }
             .map { visibleItems ->
@@ -407,8 +410,10 @@ internal fun ChatContentList(
         state.isLoadingOlder,
         state.isLoadingNewer,
         state.isAtBottom,
-        groupedMessages.isNotEmpty()
+        groupedMessages.isNotEmpty(),
+        state.isViewportSettled
     ) {
+        if (!state.isViewportSettled) return@LaunchedEffect
         val boundaryIndex = unreadBoundaryIndex ?: return@LaunchedEffect
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
             .filter { it.isNotEmpty() }
@@ -1545,22 +1550,27 @@ private fun handleAlbumVideoClick(
     }
 }
 
-private data class AlbumMediaEntry(
+internal data class AlbumMediaEntry(
     val message: MessageModel,
     val path: String,
     val caption: String?
 )
 
-private fun buildAlbumMediaEntries(messages: List<MessageModel>): List<AlbumMediaEntry> {
+internal fun buildAlbumMediaEntries(
+    messages: List<MessageModel>,
+    pathExists: (String) -> Boolean = { File(it).exists() }
+): List<AlbumMediaEntry> {
     return messages.mapNotNull { msg ->
-        val path = msg.displayMediaPath() ?: return@mapNotNull null
+        val path = msg.displayMediaPath(pathExists) ?: return@mapNotNull null
         val caption = msg.mediaCaption()
 
         AlbumMediaEntry(message = msg, path = path, caption = caption)
     }
 }
 
-private fun MessageModel.displayMediaPath(): String? {
+internal fun MessageModel.displayMediaPath(
+    pathExists: (String) -> Boolean = { File(it).exists() }
+): String? {
     val raw = when (val content = content) {
         is MessageContent.Photo -> content.path ?: content.thumbnailPath
         is MessageContent.Video -> content.path
@@ -1568,10 +1578,10 @@ private fun MessageModel.displayMediaPath(): String? {
         else -> null
     }
 
-    return raw?.takeIf { it.isNotBlank() && File(it).exists() }
+    return raw?.takeIf { it.isNotBlank() && pathExists(it) }
 }
 
-private fun MessageModel.mediaCaption(): String? {
+internal fun MessageModel.mediaCaption(): String? {
     return when (val content = content) {
         is MessageContent.Photo -> content.caption
         is MessageContent.Video -> content.caption

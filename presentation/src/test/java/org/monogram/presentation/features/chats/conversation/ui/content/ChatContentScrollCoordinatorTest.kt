@@ -97,4 +97,50 @@ class ChatContentScrollCoordinatorTest {
         assertEquals(200f, startDelta, 0.001f)
         assertEquals((-230f), endDelta, 0.001f)
     }
+
+    @Test
+    fun `chatContentLeadingItemsCount accounts for root loading-newer item`() {
+        val leadingItems = chatContentLeadingItemsCount(
+            isComments = false,
+            showNavPadding = false,
+            isLoadingOlder = false,
+            isLoadingNewer = true,
+            isAtBottom = false,
+            hasMessages = true
+        )
+
+        assertEquals(1, leadingItems)
+        assertEquals(4, groupedIndexToLazyIndex(groupedIndex = 3, leadingItemsCount = leadingItems))
+        assertEquals(3, lazyIndexToGroupedIndex(lazyIndex = 4, leadingItemsCount = leadingItems))
+    }
+
+    @Test
+    fun `chatContentLeadingItemsCount ignores root loading-newer at bottom`() {
+        val leadingItems = chatContentLeadingItemsCount(
+            isComments = false,
+            showNavPadding = false,
+            isLoadingOlder = false,
+            isLoadingNewer = true,
+            isAtBottom = true,
+            hasMessages = true
+        )
+
+        assertEquals(0, leadingItems)
+    }
+
+    @Test
+    fun `chatContentLeadingItemsCount accounts for comments root header and older loader`() {
+        val leadingItems = chatContentLeadingItemsCount(
+            isComments = true,
+            showNavPadding = false,
+            isLoadingOlder = true,
+            isLoadingNewer = false,
+            isAtBottom = false,
+            hasMessages = true
+        )
+
+        assertEquals(2, leadingItems)
+        assertEquals(2, groupedIndexToLazyIndex(groupedIndex = 0, leadingItemsCount = leadingItems))
+        assertEquals(0, lazyIndexToGroupedIndex(lazyIndex = 2, leadingItemsCount = leadingItems))
+    }
 }

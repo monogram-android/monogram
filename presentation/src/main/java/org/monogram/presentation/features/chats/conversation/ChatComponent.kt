@@ -116,6 +116,7 @@ interface ChatComponent {
     fun onDismissPinnedMessages()
     fun onScrollToMessageConsumed()
     fun onScrollCommandConsumed()
+    fun onViewportSettled()
     fun onScrollToBottom()
     fun onDownloadFile(fileId: Int)
     fun onDownloadHighRes(messageId: Long)
@@ -277,6 +278,7 @@ interface ChatComponent {
         val pinnedMessageIndex: Int = 0,
         val scrollToMessageId: Long? = null,
         val pendingScrollCommand: ChatScrollCommand? = null,
+        val viewportPhase: ChatViewportPhase = ChatViewportPhase.Initializing,
         val highlightRequest: MessageHighlightRequest? = null,
         val highlightRequestToken: Long = 0L,
         val isAtBottom: Boolean = true,

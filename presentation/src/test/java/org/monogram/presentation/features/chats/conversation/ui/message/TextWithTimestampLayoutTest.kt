@@ -44,7 +44,7 @@ class TextWithTimestampLayoutTest {
     }
 
     @Test
-    fun `uses inline placement when footer fits after last ltr line`() {
+    fun `uses inline placement at trailing edge of wider ltr text`() {
         val placement = calculateFooterPlacement(
             textLayoutInfo = layoutInfo(
                 width = 220,
@@ -64,7 +64,7 @@ class TextWithTimestampLayoutTest {
         )
 
         assertEquals(FooterPlacementMode.Inline, placement.mode)
-        assertEquals(128, placement.footerX)
+        assertEquals(160, placement.footerX)
         assertEquals(34, placement.footerY)
         assertEquals(220, placement.layoutWidth)
         assertEquals(48, placement.layoutHeight)
@@ -93,6 +93,32 @@ class TextWithTimestampLayoutTest {
         assertEquals(FooterPlacementMode.Inline, placement.mode)
         assertEquals(92, placement.footerX)
         assertEquals(146, placement.layoutWidth)
+    }
+
+    @Test
+    fun `uses inline placement at trailing edge when parent enforces wider bubble`() {
+        val placement = calculateFooterPlacement(
+            textLayoutInfo = layoutInfo(
+                width = 128,
+                height = 24,
+                lastLineLeft = 0f,
+                lastLineRight = 88f,
+                lastLineBottom = 24f,
+                direction = ResolvedTextDirection.Ltr
+            ),
+            textWidth = 128,
+            textHeight = 24,
+            footerWidth = 52,
+            footerHeight = 14,
+            minWidth = 220,
+            maxWidth = 260,
+            horizontalPadding = 8,
+            stackedTopPadding = 2
+        )
+
+        assertEquals(FooterPlacementMode.Inline, placement.mode)
+        assertEquals(168, placement.footerX)
+        assertEquals(220, placement.layoutWidth)
     }
 
     @Test
@@ -163,6 +189,26 @@ class TextWithTimestampLayoutTest {
         assertEquals(128, placement.footerX)
         assertEquals(38, placement.footerY)
         assertEquals(180, placement.layoutWidth)
+        assertEquals(52, placement.layoutHeight)
+    }
+
+    @Test
+    fun `uses stacked placement at trailing edge when parent enforces wider bubble`() {
+        val placement = calculateFooterPlacement(
+            textLayoutInfo = null,
+            textWidth = 180,
+            textHeight = 36,
+            footerWidth = 52,
+            footerHeight = 14,
+            minWidth = 240,
+            maxWidth = 260,
+            horizontalPadding = 8,
+            stackedTopPadding = 2
+        )
+
+        assertEquals(FooterPlacementMode.Stacked, placement.mode)
+        assertEquals(188, placement.footerX)
+        assertEquals(240, placement.layoutWidth)
         assertEquals(52, placement.layoutHeight)
     }
 

@@ -63,7 +63,10 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
-
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -102,6 +105,14 @@ fun ChatListTopBar(
         label = "TopBarSearchTransition"
     ) { active ->
         if (active) {
+            val focusRequester = remember { FocusRequester() }
+            val keyboardController = LocalSoftwareKeyboardController.current
+
+            LaunchedEffect(Unit) {
+                focusRequester.requestFocus()
+                keyboardController?.show()
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -112,6 +123,7 @@ fun ChatListTopBar(
                 SearchBar(
                     inputField = {
                         SearchBarDefaults.InputField(
+                            modifier = Modifier.focusRequester(focusRequester),
                             query = searchQuery,
                             onQueryChange = onSearchQueryChange,
                             onSearch = {},

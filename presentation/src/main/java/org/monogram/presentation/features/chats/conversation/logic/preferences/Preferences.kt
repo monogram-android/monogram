@@ -138,6 +138,14 @@ internal fun DefaultChatComponent.observePreferences(availableWallpapers: List<W
         _state.update { it.copy(fixLinkPreviews = value) }
     }.launchIn(scope)
 
+    appPreferences.messageOptionsOnSingleTapEnabled.onEach { value ->
+        _state.update { it.copy(messageOptionsOnSingleTapEnabled = value) }
+    }.launchIn(scope)
+
+    appPreferences.showReactions.onEach { value ->
+        _state.update { it.copy(showReactions = value) }
+    }.launchIn(scope)
+
     combine(appPreferences.isChatAnimationsEnabled, appPreferences.isPowerSavingMode) { enabled, powerSaving ->
         if (powerSaving) false else enabled
     }.onEach { value ->

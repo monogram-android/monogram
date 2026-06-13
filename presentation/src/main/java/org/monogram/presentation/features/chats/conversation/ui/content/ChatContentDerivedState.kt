@@ -244,6 +244,8 @@ internal fun rememberChatMessageListState(
         state.autoplayGifs,
         state.autoplayVideos,
         state.showLinkPreviews,
+        state.messageOptionsOnSingleTapEnabled,
+        state.showReactions,
         state.isChatAnimationsEnabled,
         showInitialLoading,
         state.viewportPhase
@@ -281,6 +283,8 @@ internal fun rememberChatMessageListState(
             autoplayGifs = state.viewportPhase == ChatViewportPhase.Settled && state.autoplayGifs,
             autoplayVideos = state.viewportPhase == ChatViewportPhase.Settled && state.autoplayVideos,
             showLinkPreviews = state.showLinkPreviews,
+            messageOptionsOnSingleTapEnabled = state.messageOptionsOnSingleTapEnabled,
+            showReactions = state.showReactions,
             isChatAnimationsEnabled = state.isChatAnimationsEnabled,
             suppressEntryAnimations = shouldSuppressMessageEntryAnimations(
                 showInitialLoading = showInitialLoading,

@@ -1,28 +1,67 @@
 package org.monogram.data.chats
 
-import org.drinkless.tdlib.TdApi
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Test
+import org.monogram.data.db.model.ChatEntity
 
 class ChatCacheTest {
+
     @Test
-    fun `putChat replaces old cached position with incoming authoritative position`() {
+    fun `putChatFromEntity keeps lastMessage null for empty cached preview`() {
         val cache = ChatCache()
-        cache.putChat(chat(id = 1L, order = 100L, isPinned = true))
+        val entity = ChatEntity(
+            id = 1L,
+            title = "Empty chat",
+            unreadCount = 0,
+            avatarPath = null,
+            lastMessageText = "",
+            lastMessageTime = "0",
+            order = 1L,
+            isPinned = false,
+            isMuted = false,
+            isChannel = false,
+            isGroup = false,
+            type = "PRIVATE",
+            isArchived = false,
+            memberCount = 0,
+            onlineCount = 0
+        )
 
-        cache.putChat(chat(id = 1L, order = 10L, isPinned = false))
+        cache.putChatFromEntity(entity)
 
-        val position = cache.getChat(1L)!!.positions.single()
-        assertEquals(10L, position.order)
-        assertFalse(position.isPinned)
+        val chat = cache.getChat(1L)
+        assertNull(chat?.lastMessage)
     }
 
-    private fun chat(id: Long, order: Long, isPinned: Boolean): TdApi.Chat =
-        TdApi.Chat().apply {
-            this.id = id
-            title = "chat $id"
-            type = TdApi.ChatTypePrivate(id)
-            positions = arrayOf(TdApi.ChatPosition(TdApi.ChatListMain(), order, isPinned, null))
-        }
+    @Test
+    fun `putChatFromEntity restores lastMessage when cached preview is meaningful`() {
+        val cache = ChatCache()
+        val entity = ChatEntity(
+            id = 2L,
+            title = "Photo chat",
+            unreadCount = 0,
+            avatarPath = null,
+            lastMessageText = "caption",
+            lastMessageTime = "1710000000",
+            lastMessageDate = 1710000000,
+            lastMessageId = 99L,
+            lastMessageContentType = "photo",
+            order = 2L,
+            isPinned = false,
+            isMuted = false,
+            isChannel = false,
+            isGroup = false,
+            type = "PRIVATE",
+            isArchived = false,
+            memberCount = 0,
+            onlineCount = 0
+        )
+
+        cache.putChatFromEntity(entity)
+
+        val chat = cache.getChat(2L)
+        assertEquals(99L, chat?.lastMessage?.id)
+        assertEquals(1710000000, chat?.lastMessage?.date)
+    }
 }

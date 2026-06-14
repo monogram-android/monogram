@@ -314,6 +314,10 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
             entity.lastMessageDate > 0L -> entity.lastMessageDate
             else -> entity.lastMessageTime.toLongOrNull() ?: 0L
         }
+        val hasMeaningfulLastMessage = entity.lastMessageId != 0L ||
+            entity.lastMessageDate > 0 ||
+            entity.lastMessageText.isNotBlank() ||
+            entity.lastMessageContentType != "text"
         val chat = TdApi.Chat().apply {
             id = entity.id
             title = entity.title
@@ -327,109 +331,113 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                     }
                 }
             }
-            lastMessage = TdApi.Message().apply {
-                content = when (entity.lastMessageContentType) {
-                    "photo" -> TdApi.MessagePhoto().apply {
-                        photo = TdApi.Photo().apply { sizes = emptyArray(); minithumbnail = null; hasStickers = false }
-                        caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
-                        isSecret = false
-                        showCaptionAboveMedia = false
-                        selfDestructType = null
-                    }
-
-                    "video" -> TdApi.MessageVideo().apply {
-                        video = TdApi.Video()
-                        caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
-                        showCaptionAboveMedia = false
-                        isSecret = false
-                        selfDestructType = null
-                    }
-
-                    "gif" -> TdApi.MessageAnimation().apply {
-                        animation = TdApi.Animation()
-                        caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
-                        showCaptionAboveMedia = false
-                        hasSpoiler = false
-                    }
-
-                    "voice" -> TdApi.MessageVoiceNote().apply {
-                        voiceNote = TdApi.VoiceNote()
-                        caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
-                        isListened = false
-                    }
-
-                    "video_note" -> TdApi.MessageVideoNote().apply {
-                        videoNote = TdApi.VideoNote()
-                        isViewed = false
-                    }
-
-                    "sticker" -> TdApi.MessageSticker().apply {
-                        sticker = TdApi.Sticker()
-                        isPremium = false
-                    }
-
-                    "document" -> TdApi.MessageDocument().apply {
-                        document = TdApi.Document()
-                        caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
-                    }
-
-                    "audio" -> TdApi.MessageAudio().apply {
-                        audio = TdApi.Audio()
-                        caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
-                    }
-
-                    "contact" -> TdApi.MessageContact().apply {
-                        contact = TdApi.Contact()
-                        val parts = entity.lastMessageText.split(" ", limit = 2)
-                        contact.firstName = parts.firstOrNull().orEmpty()
-                        contact.lastName = parts.getOrNull(1).orEmpty()
-                    }
-
-                    "poll" -> TdApi.MessagePoll().apply {
-                        poll = TdApi.Poll().apply {
-                            question = TdApi.FormattedText(entity.lastMessageText, emptyArray())
-                            options = emptyArray()
+            lastMessage = if (hasMeaningfulLastMessage) {
+                TdApi.Message().apply {
+                    content = when (entity.lastMessageContentType) {
+                        "photo" -> TdApi.MessagePhoto().apply {
+                            photo = TdApi.Photo().apply { sizes = emptyArray(); minithumbnail = null; hasStickers = false }
+                            caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
+                            isSecret = false
+                            showCaptionAboveMedia = false
+                            selfDestructType = null
                         }
-                    }
 
-                    "location" -> TdApi.MessageLocation().apply {
-                        location = TdApi.Location()
-                    }
-
-                    "call" -> TdApi.MessageCall().apply {
-                        discardReason = null
-                        duration = 0
-                        isVideo = false
-                    }
-
-                    "game" -> TdApi.MessageGame().apply {
-                        game = TdApi.Game().apply {
-                            title = entity.lastMessageText
+                        "video" -> TdApi.MessageVideo().apply {
+                            video = TdApi.Video()
+                            caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
+                            showCaptionAboveMedia = false
+                            isSecret = false
+                            selfDestructType = null
                         }
-                    }
 
-                    "invoice" -> TdApi.MessageInvoice().apply {
-                        productInfo = TdApi.ProductInfo().apply {
-                            title = entity.lastMessageText
+                        "gif" -> TdApi.MessageAnimation().apply {
+                            animation = TdApi.Animation()
+                            caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
+                            showCaptionAboveMedia = false
+                            hasSpoiler = false
                         }
-                    }
 
-                    "story" -> TdApi.MessageStory().apply {
-                        storyPosterChatId = 0L
-                        storyId = 0
-                        viaMention = false
-                    }
+                        "voice" -> TdApi.MessageVoiceNote().apply {
+                            voiceNote = TdApi.VoiceNote()
+                            caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
+                            isListened = false
+                        }
 
-                    "pinned" -> TdApi.MessagePinMessage().apply {
-                        messageId = 0L
-                    }
+                        "video_note" -> TdApi.MessageVideoNote().apply {
+                            videoNote = TdApi.VideoNote()
+                            isViewed = false
+                        }
 
-                    else -> TdApi.MessageText()
-                        .apply { text = TdApi.FormattedText(entity.lastMessageText, emptyArray()) }
+                        "sticker" -> TdApi.MessageSticker().apply {
+                            sticker = TdApi.Sticker()
+                            isPremium = false
+                        }
+
+                        "document" -> TdApi.MessageDocument().apply {
+                            document = TdApi.Document()
+                            caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
+                        }
+
+                        "audio" -> TdApi.MessageAudio().apply {
+                            audio = TdApi.Audio()
+                            caption = TdApi.FormattedText(entity.lastMessageText, emptyArray())
+                        }
+
+                        "contact" -> TdApi.MessageContact().apply {
+                            contact = TdApi.Contact()
+                            val parts = entity.lastMessageText.split(" ", limit = 2)
+                            contact.firstName = parts.firstOrNull().orEmpty()
+                            contact.lastName = parts.getOrNull(1).orEmpty()
+                        }
+
+                        "poll" -> TdApi.MessagePoll().apply {
+                            poll = TdApi.Poll().apply {
+                                question = TdApi.FormattedText(entity.lastMessageText, emptyArray())
+                                options = emptyArray()
+                            }
+                        }
+
+                        "location" -> TdApi.MessageLocation().apply {
+                            location = TdApi.Location()
+                        }
+
+                        "call" -> TdApi.MessageCall().apply {
+                            discardReason = null
+                            duration = 0
+                            isVideo = false
+                        }
+
+                        "game" -> TdApi.MessageGame().apply {
+                            game = TdApi.Game().apply {
+                                title = entity.lastMessageText
+                            }
+                        }
+
+                        "invoice" -> TdApi.MessageInvoice().apply {
+                            productInfo = TdApi.ProductInfo().apply {
+                                title = entity.lastMessageText
+                            }
+                        }
+
+                        "story" -> TdApi.MessageStory().apply {
+                            storyPosterChatId = 0L
+                            storyId = 0
+                            viaMention = false
+                        }
+
+                        "pinned" -> TdApi.MessagePinMessage().apply {
+                            messageId = 0L
+                        }
+
+                        else -> TdApi.MessageText()
+                            .apply { text = TdApi.FormattedText(entity.lastMessageText, emptyArray()) }
+                    }
+                    date = restoredLastMessageDate.toInt()
+                    id = entity.lastMessageId
+                    isOutgoing = entity.isLastMessageOutgoing
                 }
-                date = restoredLastMessageDate.toInt()
-                id = entity.lastMessageId
-                isOutgoing = entity.isLastMessageOutgoing
+            } else {
+                null
             }
             positions = cachedPositions ?: arrayOf(TdApi.ChatPosition(chatList, entity.order, entity.isPinned, null))
             notificationSettings = TdApi.ChatNotificationSettings().apply {

@@ -227,7 +227,13 @@ private fun ChatListItemHeader(
 ) {
     val dateFormatManager: DateFormatManager = koinInject()
     val timeFormat = dateFormatManager.getHourMinuteFormat()
-    val chatTime = chat.lastMessageDate.toDate().toShortRelativeDate(timeFormat)
+    val chatTime = remember(chat.lastMessageDate, timeFormat) {
+        chat.lastMessageDate
+            .takeIf { it > 0 }
+            ?.toDate()
+            ?.toShortRelativeDate(timeFormat)
+            .orEmpty()
+    }
     val savedMessagesTitle = stringResource(R.string.menu_saved_messages)
     val deletedAccountTitle = stringResource(R.string.deleted_account)
 
@@ -305,11 +311,13 @@ private fun ChatListItemHeader(
             MaterialTheme.colorScheme.onSurfaceVariant
         }
 
-        Text(
-            text = chatTime,
-            style = MaterialTheme.typography.labelMedium,
-            color = timeColor
-        )
+        if (chatTime.isNotBlank()) {
+            Text(
+                text = chatTime,
+                style = MaterialTheme.typography.labelMedium,
+                color = timeColor
+            )
+        }
     }
 }
 
@@ -699,7 +707,7 @@ private fun shouldHideMediaLabelWhenThumbnailShown(contentType: String): Boolean
 
 private fun hasLastMessagePreview(chat: ChatModel): Boolean {
     return chat.lastMessageId != 0L ||
-            chat.lastMessageDate != 0 ||
+            chat.lastMessageDate > 0 ||
             chat.lastMessageText.isNotBlank() ||
             chat.lastMessageEntities.isNotEmpty() ||
             chat.lastMessageContentType != "text"

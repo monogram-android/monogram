@@ -39,17 +39,17 @@ mvikotlin = "4.4.0"
 koin = "4.2.1"
 
 # UI & Media
-coil = "3.4.0"
+coil = "3.5.0"
 maplibre = "1.7.0"
 
 # Google & Firebase
-firebase-bom = "34.14.0"
+firebase-bom = "34.14.1"
 playServices-ossLicenses = "17.5.1"
 
 # Others
 zxing = "3.5.4"
 junit = "4.13.2"
-libphonenumber = "9.0.31"
+libphonenumber = "9.0.32"
 unifiedpush-connector = "3.3.3"
 
 [libraries]

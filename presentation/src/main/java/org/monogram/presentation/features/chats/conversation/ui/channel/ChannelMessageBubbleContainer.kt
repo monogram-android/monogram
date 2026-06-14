@@ -71,6 +71,7 @@ internal fun ChannelMessageBubbleContainer(
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onReplyClick: (Offset, IntSize, Offset) -> Unit,
+    onMessageLongPress: ((Offset, IntSize, Offset) -> Unit)? = null,
     onGoToReply: (MessageModel) -> Unit = {},
     onReactionClick: (Long, String) -> Unit = { _, _ -> },
     onReplyMarkupButtonClick: (Long, InlineKeyboardButtonModel) -> Unit = { _, _ -> },
@@ -105,6 +106,7 @@ internal fun ChannelMessageBubbleContainer(
     val coroutineScope = rememberCoroutineScope()
     val layoutTracker = remember { MessageBubbleLayoutTracker() }
     val onReplyClickState by rememberUpdatedState(onReplyClick)
+    val onMessageLongPressState by rememberUpdatedState(onMessageLongPress)
     val onPositionChangeState by rememberUpdatedState(onPositionChange)
 
     Column(
@@ -139,7 +141,7 @@ internal fun ChannelMessageBubbleContainer(
                         val bubbleRect =
                             Rect(layoutTracker.bubblePosition, layoutTracker.bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
-                            onReplyClickState(
+                            (onMessageLongPressState ?: onReplyClickState)(
                                 layoutTracker.bubblePosition,
                                 layoutTracker.bubbleSize,
                                 clickPos
@@ -189,7 +191,7 @@ internal fun ChannelMessageBubbleContainer(
                                 onReactionClick = { onReactionClick(msg.id, it) },
                                 onLinkPreviewAction = onLinkPreviewAction,
                                 onLinkPreviewLongClick = {
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + (layoutTracker.bubbleSize.toSize() / 2f).toOffset()
@@ -203,7 +205,7 @@ internal fun ChannelMessageBubbleContainer(
                                     )
                                 },
                                 onLongClick = { offset ->
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + offset
@@ -233,7 +235,7 @@ internal fun ChannelMessageBubbleContainer(
                                 onDownloadPhoto = onDownloadPhoto,
                                 onCancelDownload = onCancelDownload,
                                 onLongClick = { offset ->
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + offset
@@ -266,7 +268,7 @@ internal fun ChannelMessageBubbleContainer(
                                 onVideoClick = onVideoClick,
                                 onCancelDownload = onCancelDownload,
                                 onLongClick = { offset ->
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + offset
@@ -300,7 +302,7 @@ internal fun ChannelMessageBubbleContainer(
                                 onDocumentClick = onDocumentClick,
                                 onCancelDownload = onCancelDownload,
                                 onLongClick = { offset ->
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + offset
@@ -362,7 +364,7 @@ internal fun ChannelMessageBubbleContainer(
                                 onVoiceClick = onAudioClick,
                                 onCancelDownload = onCancelDownload,
                                 onLongClick = { offset ->
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + offset
@@ -395,7 +397,7 @@ internal fun ChannelMessageBubbleContainer(
                                 onGifClick = onVideoClick,
                                 onCancelDownload = onCancelDownload,
                                 onLongClick = { offset ->
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + offset
@@ -421,7 +423,7 @@ internal fun ChannelMessageBubbleContainer(
                                 onVideoClick = onVideoClick,
                                 onCancelDownload = onCancelDownload,
                                 onLongClick = { offset ->
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + offset
@@ -445,7 +447,7 @@ internal fun ChannelMessageBubbleContainer(
                                 onReactionClick = { onReactionClick(msg.id, it) },
                                 onStickerClick = { onStickerClick(content.setId) },
                                 onLongClick = {
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + (layoutTracker.bubbleSize.toSize() / 2f).toOffset()
@@ -468,7 +470,7 @@ internal fun ChannelMessageBubbleContainer(
                                 bubbleRadius = appearance.bubbleRadius,
                                 onClick = { onGoToReply(msg) },
                                 onLongClick = {
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + (layoutTracker.bubbleSize.toSize() / 2f).toOffset()
@@ -498,7 +500,7 @@ internal fun ChannelMessageBubbleContainer(
                                 onReplyClick = onGoToReply,
                                 onReactionClick = { onReactionClick(msg.id, it) },
                                 onLongClick = { offset ->
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + offset
@@ -523,7 +525,7 @@ internal fun ChannelMessageBubbleContainer(
                                 bubbleRadius = appearance.bubbleRadius,
                                 onClick = { onGoToReply(msg) },
                                 onLongClick = {
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + (layoutTracker.bubbleSize.toSize() / 2f).toOffset()
@@ -549,7 +551,7 @@ internal fun ChannelMessageBubbleContainer(
                                 bubbleRadius = appearance.bubbleRadius,
                                 onClick = { onGoToReply(msg) },
                                 onLongClick = {
-                                    onReplyClickState(
+                                    (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,
                                         layoutTracker.bubbleSize,
                                         layoutTracker.bubblePosition + (layoutTracker.bubbleSize.toSize() / 2f).toOffset()

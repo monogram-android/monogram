@@ -81,6 +81,7 @@ fun ChannelAlbumMessageBubble(
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onReplyClick: (MessageModel) -> Unit = {},
+    onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReactionClick: (String) -> Unit = {},
     onCommentsClick: (Long) -> Unit = {},
     showComments: Boolean = true,
@@ -109,6 +110,7 @@ fun ChannelAlbumMessageBubble(
             onDocumentClick = onDocumentClick,
             onCancelDownload = onCancelDownload,
             onLongClick = onLongClick,
+            onMessageLongPress = onMessageLongPress,
             onReplyClick = onReplyClick,
             onReactionClick = onReactionClick,
             onCommentsClick = onCommentsClick,
@@ -135,6 +137,7 @@ fun ChannelAlbumMessageBubble(
             onAudioClick = onAudioClick,
             onCancelDownload = onCancelDownload,
             onLongClick = onLongClick,
+            onMessageLongPress = onMessageLongPress,
             onReplyClick = onReplyClick,
             onReactionClick = onReactionClick,
             onCommentsClick = onCommentsClick,
@@ -229,7 +232,13 @@ fun ChannelAlbumMessageBubble(
                     onDownloadPhoto = onDownloadPhoto,
                     onVideoClick = onVideoClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = onLongClick,
+                    onLongClick = { tappedMessage, offset ->
+                        if (onMessageLongPress != null) {
+                            onMessageLongPress(tappedMessage, offset)
+                        } else {
+                            onLongClick(offset)
+                        }
+                    },
                     showTimestampOverlay = caption.isEmpty(),
                     timestampStr = formattedTime,
                     isRead = lastMsg.isRead,
@@ -276,7 +285,14 @@ fun ChannelAlbumMessageBubble(
                                 }
                             },
                             onClick = { offset -> onLongClick(bubblePosition + offset) },
-                            onLongClick = { offset -> onLongClick(bubblePosition + offset) }
+                            onLongClick = { offset ->
+                                val clickPosition = bubblePosition + offset
+                                if (onMessageLongPress != null) {
+                                    onMessageLongPress(lastMsg, clickPosition)
+                                } else {
+                                    onLongClick(clickPosition)
+                                }
+                            }
                         )
 
                         Box(
@@ -331,6 +347,7 @@ fun ChannelDocumentAlbumBubble(
     onDocumentClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
+    onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
     onCommentsClick: (Long) -> Unit,
@@ -487,7 +504,14 @@ fun ChannelDocumentAlbumBubble(
                             }
                         },
                         onClick = { offset -> onLongClick(bubblePosition + offset) },
-                        onLongClick = { offset -> onLongClick(bubblePosition + offset) }
+                        onLongClick = { offset ->
+                            val clickPosition = bubblePosition + offset
+                            if (onMessageLongPress != null) {
+                                onMessageLongPress(lastMsg, clickPosition)
+                            } else {
+                                onLongClick(clickPosition)
+                            }
+                        }
                     )
                 }
 
@@ -535,6 +559,7 @@ fun ChannelAudioAlbumBubble(
     onAudioClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
+    onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
     onCommentsClick: (Long) -> Unit,
@@ -694,7 +719,14 @@ fun ChannelAudioAlbumBubble(
                             }
                         },
                         onClick = { offset -> onLongClick(bubblePosition + offset) },
-                        onLongClick = { offset -> onLongClick(bubblePosition + offset) }
+                        onLongClick = { offset ->
+                            val clickPosition = bubblePosition + offset
+                            if (onMessageLongPress != null) {
+                                onMessageLongPress(lastMsg, clickPosition)
+                            } else {
+                                onLongClick(clickPosition)
+                            }
+                        }
                     )
                 }
 

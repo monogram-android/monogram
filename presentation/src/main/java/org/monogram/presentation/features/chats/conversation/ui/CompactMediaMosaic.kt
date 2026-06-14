@@ -79,7 +79,7 @@ fun CompactMediaMosaic(
     onDownloadPhoto: (Int) -> Unit = {},
     onVideoClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit = {},
-    onLongClick: (Offset) -> Unit,
+    onLongClick: (MessageModel, Offset) -> Unit,
     showTimestampOverlay: Boolean,
     timestampStr: String,
     isRead: Boolean,
@@ -310,7 +310,7 @@ fun PhotoItem(
     onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit,
     onCancelDownload: (Int) -> Unit,
-    onLongClick: (Offset) -> Unit,
+    onLongClick: (MessageModel, Offset) -> Unit,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,
     autoDownloadRoaming: Boolean,
@@ -381,7 +381,7 @@ fun PhotoItem(
                                     if (!isRevealed) isRevealed = true
                                     else onPhotoClick(msg)
                                 },
-                                onLongPress = { offset -> onLongClick(itemPosition + offset) }
+                                onLongPress = { offset -> onLongClick(msg, itemPosition + offset) }
                             )
                         },
                     contentScale = contentScale
@@ -405,7 +405,7 @@ fun PhotoItem(
                                         onDownloadPhoto(photo.fileId)
                                     }
                                 },
-                                onLongPress = { offset -> onLongClick(itemPosition + offset) }
+                                onLongPress = { offset -> onLongClick(msg, itemPosition + offset) }
                             )
                         },
                     contentAlignment = Alignment.Center
@@ -448,7 +448,7 @@ fun VideoItem(
     autoplayVideos: Boolean,
     onVideoClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
-    onLongClick: (Offset) -> Unit,
+    onLongClick: (MessageModel, Offset) -> Unit,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,
     autoDownloadRoaming: Boolean,
@@ -514,7 +514,12 @@ fun VideoItem(
                                         if (!isRevealed) isRevealed = true
                                         else onVideoClick(msg)
                                     },
-                                    onLongPress = { offset -> onLongClick(itemPosition + offset) }
+                                    onLongPress = { offset ->
+                                        onLongClick(
+                                            msg,
+                                            itemPosition + offset
+                                        )
+                                    }
                                 )
                             },
                         animate = !isAnyViewerOpen,
@@ -547,7 +552,12 @@ fun VideoItem(
                                             if (!isRevealed) isRevealed = true
                                             else onVideoClick(msg)
                                         },
-                                        onLongPress = { offset -> onLongClick(itemPosition + offset) }
+                                        onLongPress = { offset ->
+                                            onLongClick(
+                                                msg,
+                                                itemPosition + offset
+                                            )
+                                        }
                                     )
                                 },
                             contentScale = contentScale
@@ -624,7 +634,7 @@ fun VideoItem(
                                         onVideoClick(msg)
                                     }
                                 },
-                                onLongPress = { offset -> onLongClick(itemPosition + offset) }
+                                onLongPress = { offset -> onLongClick(msg, itemPosition + offset) }
                             )
                         },
                     contentAlignment = Alignment.Center
@@ -671,7 +681,7 @@ fun VideoNoteItem(
     autoplayVideos: Boolean,
     onVideoClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
-    onLongClick: (Offset) -> Unit,
+    onLongClick: (MessageModel, Offset) -> Unit,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,
     autoDownloadRoaming: Boolean,
@@ -725,7 +735,12 @@ fun VideoNoteItem(
                             .pointerInput(Unit) {
                                 detectTapGestures(
                                     onTap = { onVideoClick(msg) },
-                                    onLongPress = { offset -> onLongClick(itemPosition + offset) }
+                                    onLongPress = { offset ->
+                                        onLongClick(
+                                            msg,
+                                            itemPosition + offset
+                                        )
+                                    }
                                 )
                             },
                         animate = !isAnyViewerOpen,
@@ -758,7 +773,12 @@ fun VideoNoteItem(
                             .pointerInput(Unit) {
                                 detectTapGestures(
                                     onTap = { onVideoClick(msg) },
-                                    onLongPress = { offset -> onLongClick(itemPosition + offset) }
+                                    onLongPress = { offset ->
+                                        onLongClick(
+                                            msg,
+                                            itemPosition + offset
+                                        )
+                                    }
                                 )
                             },
                         contentScale = contentScale
@@ -811,7 +831,7 @@ fun VideoNoteItem(
                                         onVideoClick(msg)
                                     }
                                 },
-                                onLongPress = { offset -> onLongClick(itemPosition + offset) }
+                                onLongPress = { offset -> onLongClick(msg, itemPosition + offset) }
                             )
                         },
                     contentAlignment = Alignment.Center
@@ -850,7 +870,7 @@ fun GifItem(
     autoplayGifs: Boolean,
     onGifClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
-    onLongClick: (Offset) -> Unit,
+    onLongClick: (MessageModel, Offset) -> Unit,
     autoDownloadMobile: Boolean,
     autoDownloadWifi: Boolean,
     autoDownloadRoaming: Boolean,
@@ -907,7 +927,7 @@ fun GifItem(
                                     if (!isRevealed) isRevealed = true
                                     else onGifClick(msg)
                                 },
-                                onLongPress = { offset -> onLongClick(itemPosition + offset) }
+                                onLongPress = { offset -> onLongClick(msg, itemPosition + offset) }
                             )
                         },
                     animate = autoplayGifs && !isAnyViewerOpen,
@@ -965,7 +985,7 @@ fun GifItem(
                                         onGifClick(msg)
                                     }
                                 },
-                                onLongPress = { offset -> onLongClick(itemPosition + offset) }
+                                onLongPress = { offset -> onLongClick(msg, itemPosition + offset) }
                             )
                         },
                     contentAlignment = Alignment.Center

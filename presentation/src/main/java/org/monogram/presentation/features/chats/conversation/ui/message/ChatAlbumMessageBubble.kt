@@ -56,6 +56,7 @@ fun ChatAlbumMessageBubble(
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onLongClick: (Offset) -> Unit,
+    onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
     toProfile: (Long) -> Unit = {},
@@ -86,6 +87,7 @@ fun ChatAlbumMessageBubble(
             onDocumentClick = onDocumentClick,
             onCancelDownload = onCancelDownload,
             onLongClick = onLongClick,
+            onMessageLongPress = onMessageLongPress,
             onReplyClick = onReplyClick,
             onReactionClick = onReactionClick,
             isGroup = isGroup,
@@ -112,6 +114,7 @@ fun ChatAlbumMessageBubble(
             onAudioClick = onAudioClick,
             onCancelDownload = onCancelDownload,
             onLongClick = onLongClick,
+            onMessageLongPress = onMessageLongPress,
             onReplyClick = onReplyClick,
             onReactionClick = onReactionClick,
             isGroup = isGroup,
@@ -215,7 +218,13 @@ fun ChatAlbumMessageBubble(
                     onDownloadPhoto = onDownloadPhoto,
                     onVideoClick = onVideoClick,
                     onCancelDownload = onCancelDownload,
-                    onLongClick = onLongClick,
+                    onLongClick = { tappedMessage, offset ->
+                        if (onMessageLongPress != null) {
+                            onMessageLongPress(tappedMessage, offset)
+                        } else {
+                            onLongClick(offset)
+                        }
+                    },
                     showTimestampOverlay = caption.isEmpty(),
                     timestampStr = formattedTime,
                     isRead = lastMsg.isRead,
@@ -263,7 +272,14 @@ fun ChatAlbumMessageBubble(
                                 }
                             },
                             onClick = { offset -> onLongClick(bubblePosition + offset) },
-                            onLongClick = { offset -> onLongClick(bubblePosition + offset) }
+                            onLongClick = { offset ->
+                                val clickPosition = bubblePosition + offset
+                                if (onMessageLongPress != null) {
+                                    onMessageLongPress(lastMsg, clickPosition)
+                                } else {
+                                    onLongClick(clickPosition)
+                                }
+                            }
                         )
 
                         Box(modifier = Modifier.align(Alignment.End)) {

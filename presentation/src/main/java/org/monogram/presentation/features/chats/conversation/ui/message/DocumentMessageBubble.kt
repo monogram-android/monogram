@@ -335,6 +335,7 @@ fun DocumentAlbumBubble(
     onDocumentClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
+    onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
     isGroup: Boolean = false,
@@ -453,7 +454,14 @@ fun DocumentAlbumBubble(
                             }
                         },
                         onClick = { offset -> onLongClick(bubblePosition + offset) },
-                        onLongClick = { offset -> onLongClick(bubblePosition + offset) }
+                        onLongClick = { offset ->
+                            val clickPosition = bubblePosition + offset
+                            if (onMessageLongPress != null) {
+                                onMessageLongPress(lastMsg, clickPosition)
+                            } else {
+                                onLongClick(clickPosition)
+                            }
+                        }
                     )
                 }
 
@@ -491,6 +499,7 @@ fun ChannelDocumentAlbumBubble(
     onDocumentClick: (MessageModel) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (Offset) -> Unit,
+    onMessageLongPress: ((MessageModel, Offset) -> Unit)? = null,
     onReplyClick: (MessageModel) -> Unit,
     onReactionClick: (String) -> Unit,
     onCommentsClick: (Long) -> Unit,
@@ -598,7 +607,14 @@ fun ChannelDocumentAlbumBubble(
                             }
                         },
                         onClick = { offset -> onLongClick(bubblePosition + offset) },
-                        onLongClick = { offset -> onLongClick(bubblePosition + offset) }
+                        onLongClick = { offset ->
+                            val clickPosition = bubblePosition + offset
+                            if (onMessageLongPress != null) {
+                                onMessageLongPress(lastMsg, clickPosition)
+                            } else {
+                                onLongClick(clickPosition)
+                            }
+                        }
                     )
                 }
 

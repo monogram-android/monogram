@@ -1010,14 +1010,19 @@ private fun MessageBubbleSwitcher(
                     },
                     onCancelDownload = { component.onCancelDownloadFile(it) },
                     onReplyClick = { pos, size, click ->
-                        if (behavior.isSelectionMode) component.onToggleMessageSelection(
-                            sanitizedItem.message.id
-                        ) else onMessageOptionsClick(
-                            sanitizedItem.message,
-                            pos,
-                            size,
-                            click
-                        )
+                        if (behavior.isSelectionMode) {
+                            component.onToggleMessageSelection(sanitizedItem.message.id)
+                        } else {
+                            onMessageOptionsClick(
+                                sanitizedItem.message,
+                                pos,
+                                size,
+                                click
+                            )
+                        }
+                    },
+                    onMessageLongPress = { _, _, _ ->
+                        component.onToggleMessageSelection(sanitizedItem.message.id)
                     },
                     onGoToReply = onGoToReply,
                     onReactionClick = { id, r ->
@@ -1104,14 +1109,19 @@ private fun MessageBubbleSwitcher(
                     },
                     onCancelDownload = { component.onCancelDownloadFile(it) },
                     onReplyClick = { pos, size, click ->
-                        if (behavior.isSelectionMode) component.onToggleMessageSelection(
-                            sanitizedItem.message.id
-                        ) else onMessageOptionsClick(
-                            sanitizedItem.message,
-                            pos,
-                            size,
-                            click
-                        )
+                        if (behavior.isSelectionMode) {
+                            component.onToggleMessageSelection(sanitizedItem.message.id)
+                        } else {
+                            onMessageOptionsClick(
+                                sanitizedItem.message,
+                                pos,
+                                size,
+                                click
+                            )
+                        }
+                    },
+                    onMessageLongPress = { _, _, _ ->
+                        component.onToggleMessageSelection(sanitizedItem.message.id)
                     },
                     onGoToReply = onGoToReply,
                     onReactionClick = { id, r ->
@@ -1202,12 +1212,19 @@ private fun MessageBubbleSwitcher(
                 },
                 onCancelDownload = { component.onCancelDownloadFile(it) },
                 onReplyClick = { pos, size, click ->
-                    if (behavior.isSelectionMode) component.onToggleMessageSelection(sanitizedItem.messages.last().id) else onMessageOptionsClick(
-                        sanitizedItem.messages.last(),
-                        pos,
-                        size,
-                        click
-                    )
+                    if (behavior.isSelectionMode) {
+                        component.onToggleMessageSelection(sanitizedItem.messages.last().id)
+                    } else {
+                        onMessageOptionsClick(
+                            sanitizedItem.messages.last(),
+                            pos,
+                            size,
+                            click
+                        )
+                    }
+                },
+                onMessageLongPress = { tappedMessage, _, _, _ ->
+                    component.onToggleMessageSelection(tappedMessage.id)
                 },
                 onGoToReply = onGoToReply,
                 onReactionClick = { id, r ->

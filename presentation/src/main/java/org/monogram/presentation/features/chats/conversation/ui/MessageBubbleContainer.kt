@@ -71,6 +71,7 @@ internal fun MessageBubbleContainer(
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onReplyClick: (Offset, IntSize, Offset) -> Unit,
+    onMessageLongPress: ((Offset, IntSize, Offset) -> Unit)? = null,
     onGoToReply: (MessageModel) -> Unit = {},
     onReactionClick: (Long, String) -> Unit = { _, _ -> },
     onStickerClick: (Long) -> Unit = {},
@@ -105,6 +106,7 @@ internal fun MessageBubbleContainer(
     val coroutineScope = rememberCoroutineScope()
     val layoutTracker = remember { MessageBubbleLayoutTracker() }
     val onReplyClickState by rememberUpdatedState(onReplyClick)
+    val onMessageLongPressState by rememberUpdatedState(onMessageLongPress)
     val onPositionChangeState by rememberUpdatedState(onPositionChange)
     val onReplySwipeState by rememberUpdatedState(onReplySwipe)
 
@@ -117,9 +119,27 @@ internal fun MessageBubbleContainer(
             )
         }
     }
-    val onBubbleCenterClick: () -> Unit = remember(msg.id) {
+    remember(msg.id) {
         {
             onReplyClickState(
+                layoutTracker.bubblePosition,
+                layoutTracker.bubbleSize,
+                layoutTracker.bubblePosition + (layoutTracker.bubbleSize.toSize() / 2f).toOffset()
+            )
+        }
+    }
+    val onBubbleLongClick: (Offset) -> Unit = remember(msg.id) {
+        { offset ->
+            (onMessageLongPressState ?: onReplyClickState)(
+                layoutTracker.bubblePosition,
+                layoutTracker.bubbleSize,
+                layoutTracker.bubblePosition + offset
+            )
+        }
+    }
+    val onBubbleCenterLongClick: () -> Unit = remember(msg.id) {
+        {
+            (onMessageLongPressState ?: onReplyClickState)(
                 layoutTracker.bubblePosition,
                 layoutTracker.bubbleSize,
                 layoutTracker.bubblePosition + (layoutTracker.bubbleSize.toSize() / 2f).toOffset()
@@ -136,8 +156,15 @@ internal fun MessageBubbleContainer(
         maxWidth = maxWidth.value,
         onReplySwipe = { onReplySwipeState(msg) },
         layoutTracker = layoutTracker,
-        onOutsideBubblePress = { clickPosition ->
+        onOutsideBubbleTap = { clickPosition ->
             onReplyClickState(
+                layoutTracker.bubblePosition,
+                layoutTracker.bubbleSize,
+                clickPosition
+            )
+        },
+        onOutsideBubbleLongPress = { clickPosition ->
+            (onMessageLongPressState ?: onReplyClickState)(
                 layoutTracker.bubblePosition,
                 layoutTracker.bubbleSize,
                 clickPosition
@@ -189,8 +216,8 @@ internal fun MessageBubbleContainer(
                         onAudioClick = onAudioClick,
                         onCancelDownload = onCancelDownload,
                         onBubbleClick = onBubbleClick,
-                        onBubbleLongClick = onBubbleClick,
-                        onBubbleCenterLongClick = onBubbleCenterClick,
+                        onBubbleLongClick = onBubbleLongClick,
+                        onBubbleCenterLongClick = onBubbleCenterLongClick,
                         onGoToReply = onGoToReply,
                         onReactionClick = onReactionClick,
                         onStickerClick = onStickerClick,
@@ -229,10 +256,12 @@ private fun MessageBubbleGestureLayer(
     maxWidth: Float,
     onReplySwipe: () -> Unit,
     layoutTracker: MessageBubbleLayoutTracker,
-    onOutsideBubblePress: (Offset) -> Unit,
+    onOutsideBubbleTap: (Offset) -> Unit,
+    onOutsideBubbleLongPress: (Offset) -> Unit,
     content: @Composable () -> Unit
 ) {
-    val onOutsideBubblePressState by rememberUpdatedState(onOutsideBubblePress)
+    val onOutsideBubbleTapState by rememberUpdatedState(onOutsideBubbleTap)
+    val onOutsideBubbleLongPressState by rememberUpdatedState(onOutsideBubbleLongPress)
 
     Column(
         modifier = modifier
@@ -253,7 +282,7 @@ private fun MessageBubbleGestureLayer(
                         val bubbleRect =
                             Rect(layoutTracker.bubblePosition, layoutTracker.bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
-                            onOutsideBubblePressState(clickPos)
+                            onOutsideBubbleTapState(clickPos)
                         }
                     },
                     onLongPress = { offset ->
@@ -261,7 +290,7 @@ private fun MessageBubbleGestureLayer(
                         val bubbleRect =
                             Rect(layoutTracker.bubblePosition, layoutTracker.bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
-                            onOutsideBubblePressState(clickPos)
+                            onOutsideBubbleLongPressState(clickPos)
                         }
                     }
                 )

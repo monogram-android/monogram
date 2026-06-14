@@ -57,6 +57,7 @@ internal fun AlbumMessageBubbleContainer(
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onReplyClick: (Offset, IntSize, Offset) -> Unit,
+    onMessageLongPress: ((MessageModel, Offset, IntSize, Offset) -> Unit)? = null,
     onGoToReply: (MessageModel) -> Unit = {},
     onReactionClick: (Long, String) -> Unit = { _, _ -> },
     onReplyMarkupButtonClick: (Long, InlineKeyboardButtonModel) -> Unit = { _, _ -> },
@@ -101,6 +102,7 @@ internal fun AlbumMessageBubbleContainer(
     val coroutineScope = rememberCoroutineScope()
     val layoutTracker = remember { MessageBubbleLayoutTracker() }
     val onReplyClickState by rememberUpdatedState(onReplyClick)
+    val onMessageLongPressState by rememberUpdatedState(onMessageLongPress)
     val onPositionChangeState by rememberUpdatedState(onPositionChange)
 
     Column(
@@ -135,11 +137,20 @@ internal fun AlbumMessageBubbleContainer(
                         val bubbleRect =
                             Rect(layoutTracker.bubblePosition, layoutTracker.bubbleSize.toSize())
                         if (!bubbleRect.contains(clickPos)) {
-                            onReplyClickState(
-                                layoutTracker.bubblePosition,
-                                layoutTracker.bubbleSize,
-                                clickPos
-                            )
+                            if (onMessageLongPressState != null) {
+                                onMessageLongPressState?.invoke(
+                                    lastMsg,
+                                    layoutTracker.bubblePosition,
+                                    layoutTracker.bubbleSize,
+                                    clickPos
+                                )
+                            } else {
+                                onReplyClickState(
+                                    layoutTracker.bubblePosition,
+                                    layoutTracker.bubbleSize,
+                                    clickPos
+                                )
+                            }
                         }
                     }
                 )
@@ -211,11 +222,27 @@ internal fun AlbumMessageBubbleContainer(
                             onAudioClick = onAudioClick,
                             onCancelDownload = onCancelDownload,
                             onLongClick = { offset ->
-                                onReplyClick(
+                                onReplyClickState(
                                     layoutTracker.bubblePosition,
                                     layoutTracker.bubbleSize,
-                                    layoutTracker.bubblePosition + offset
+                                    offset
                                 )
+                            },
+                            onMessageLongPress = { tappedMessage, offset ->
+                                if (onMessageLongPressState != null) {
+                                    onMessageLongPressState?.invoke(
+                                        tappedMessage,
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        offset
+                                    )
+                                } else {
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        offset
+                                    )
+                                }
                             },
                             onReplyClick = onGoToReply,
                             onReactionClick = { onReactionClick(lastMsg.id, it) },
@@ -248,11 +275,27 @@ internal fun AlbumMessageBubbleContainer(
                             onAudioClick = onAudioClick,
                             onCancelDownload = onCancelDownload,
                             onLongClick = { offset ->
-                                onReplyClick(
+                                onReplyClickState(
                                     layoutTracker.bubblePosition,
                                     layoutTracker.bubbleSize,
-                                    layoutTracker.bubblePosition + offset
+                                    offset
                                 )
+                            },
+                            onMessageLongPress = { tappedMessage, offset ->
+                                if (onMessageLongPressState != null) {
+                                    onMessageLongPressState?.invoke(
+                                        tappedMessage,
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        offset
+                                    )
+                                } else {
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        offset
+                                    )
+                                }
                             },
                             onReplyClick = onGoToReply,
                             onReactionClick = { onReactionClick(lastMsg.id, it) },

@@ -28,6 +28,7 @@ import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.util.fastFirstOrNull
 import androidx.compose.ui.zIndex
 import com.arkivanov.decompose.Child
@@ -58,6 +59,8 @@ fun MobileLayout(root: RootComponent) {
     var isCompletingSwipeBack by remember { mutableStateOf(false) }
     var widthPx by remember { mutableFloatStateOf(0f) }
     var isSwipeBackBlocked by remember { mutableStateOf(false) }
+    var swipeBackActiveKey by remember { mutableStateOf<Any?>(null) }
+    var suppressNextPopAnimation by remember { mutableStateOf(false) }
     val canUseDragToBack =
         isDragToBackEnabled &&
                 previousEntry != null &&
@@ -68,9 +71,11 @@ fun MobileLayout(root: RootComponent) {
 
     LaunchedEffect(activeEntry.key, stackKeysAreUnique) {
         isSwipeBackBlocked = false
+        swipeBackActiveKey = null
         if (!stackKeysAreUnique) {
             dragOffsetX = 0f
             isCompletingSwipeBack = false
+            suppressNextPopAnimation = false
         }
     }
 
@@ -78,36 +83,20 @@ fun MobileLayout(root: RootComponent) {
         if (!canUseDragToBack && dragOffsetX > 0f) {
             dragOffsetX = 0f
             isCompletingSwipeBack = false
+            swipeBackActiveKey = null
         }
     }
 
-    if (dragOffsetX > 0f && canRenderSwipePreview) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationX = ((dragProgress - 1f) * widthPx * 0.08f)
-                    },
-            ) {
-                key("swipe-preview:${previousEntry.key}") {
-                    RenderChild(
-                        child = previousEntry.instance,
-                        isOverlay = true,
-                    )
-                }
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Color.Black.copy(
-                            alpha = 0.3f * (1f - dragProgress),
-                        ),
-                    ),
-            )
+    val isSwipeBackActive =
+        dragOffsetX > 0f &&
+                canRenderSwipePreview &&
+                swipeBackActiveKey == activeEntry.key
+    val retainedPreviousKey =
+        if (stackKeysAreUnique && previousEntry != null && previousEntry.key != activeEntry.key) {
+            previousEntry.key
+        } else {
+            null
         }
-    }
 
     Box(
         modifier = Modifier
@@ -163,9 +152,11 @@ fun MobileLayout(root: RootComponent) {
                                                 ) { value, _ ->
                                                     dragOffsetX = value
                                                 }
+                                                suppressNextPopAnimation = true
                                                 root.onBack()
                                                 dragOffsetX = 0f
                                                 isCompletingSwipeBack = false
+                                                swipeBackActiveKey = null
                                             }
                                         } else {
                                             shouldAnimateBack = true
@@ -200,6 +191,7 @@ fun MobileLayout(root: RootComponent) {
                                     }
 
                                     isDragging = true
+                                    swipeBackActiveKey = activeEntry.key
                                 }
 
                                 if (delta != Offset.Zero) {
@@ -218,6 +210,7 @@ fun MobileLayout(root: RootComponent) {
                                     ) { value, _ ->
                                         dragOffsetX = value
                                     }
+                                    swipeBackActiveKey = null
                                 }
                             }
                         }
@@ -225,29 +218,30 @@ fun MobileLayout(root: RootComponent) {
                 } else {
                     Modifier
                 }
-            )
-            .graphicsLayer {
-                translationX = dragOffsetX
-                shadowElevation = if (dragOffsetX > 0f) 12f else 0f
-            },
+            ),
     ) {
         Children(
             stack = stack,
-            animation = safeStackAnimation(
-                enabled = dragOffsetX == 0f && !isCompletingSwipeBack,
+            animation = mobileStackAnimation(
+                dragOffsetX = dragOffsetX,
+                dragProgress = dragProgress,
+                isSwipeBackActive = isSwipeBackActive,
+                stackKeysAreUnique = stackKeysAreUnique,
+                suppressNextPopAnimation = suppressNextPopAnimation,
+                onSuppressNextPopAnimationConsumed = {
+                    suppressNextPopAnimation = false
+                },
             ),
         ) { child ->
-            key(child.key) {
-                RenderChild(
-                    child = child.instance,
-                    isOverlay = false,
-                    onSwipeBackBlockedChanged = { blocked ->
-                        if (stack.active.instance === child.instance) {
-                            isSwipeBackBlocked = blocked
-                        }
-                    },
-                )
-            }
+            RenderChild(
+                child = child.instance,
+                isOverlay = child.key == retainedPreviousKey,
+                onSwipeBackBlockedChanged = { blocked ->
+                    if (stack.active.instance === child.instance) {
+                        isSwipeBackBlocked = blocked
+                    }
+                },
+            )
         }
     }
 }
@@ -283,40 +277,46 @@ private fun isSwipeBackSupported(child: RootComponent.Child): Boolean =
         else -> false
     }
 
-private fun <C : Any, T : Any> activeOnlyStackAnimation(): StackAnimation<C, T> =
-    StackAnimation { stack, modifier, content ->
-        Box(modifier = modifier) {
-            content(stack.active)
-        }
-    }
-
 @Composable
-private fun <C : Any, T : Any> safeStackAnimation(enabled: Boolean): StackAnimation<C, T> {
-    if (!enabled) {
-        return activeOnlyStackAnimation()
-    }
-
+private fun <C : Any, T : Any> mobileStackAnimation(
+    dragOffsetX: Float,
+    dragProgress: Float,
+    isSwipeBackActive: Boolean,
+    stackKeysAreUnique: Boolean,
+    suppressNextPopAnimation: Boolean,
+    onSuppressNextPopAnimationConsumed: () -> Unit,
+): StackAnimation<C, T> {
     return StackAnimation { stack, modifier, content ->
         var previousStack by remember { mutableStateOf<ChildStack<C, T>?>(null) }
         var transition by remember { mutableStateOf<StackTransition<C, T>?>(null) }
         val oldStack = previousStack
+        var shouldConsumeSuppressedPop = false
 
         if (oldStack == null) {
             previousStack = stack
         } else if (oldStack.active.key != stack.active.key) {
             val oldActive = oldStack.active
             val newActive = stack.active
+            val isPop = stack.items.size < oldStack.items.size
+            val shouldSuppressPop = suppressNextPopAnimation && isPop
             transition =
-                if (oldActive.key != newActive.key) {
+                if (!shouldSuppressPop && oldActive.key != newActive.key) {
                     StackTransition(
                         oldActive = oldActive,
                         newActive = newActive,
-                        isPop = stack.items.size < oldStack.items.size,
+                        isPop = isPop,
                     )
                 } else {
                     null
                 }
+            shouldConsumeSuppressedPop = shouldSuppressPop
             previousStack = stack
+        }
+
+        if (shouldConsumeSuppressedPop) {
+            LaunchedEffect(stack.active.key) {
+                onSuppressNextPopAnimationConsumed()
+            }
         }
 
         val currentTransition = transition
@@ -328,72 +328,183 @@ private fun <C : Any, T : Any> safeStackAnimation(enabled: Boolean): StackAnimat
                 transition = null
             },
         )
+        val retainedPreviousChild = if (stackKeysAreUnique) {
+            stack.items.dropLast(1).lastOrNull()
+        } else {
+            null
+        }?.takeIf { it.key != stack.active.key }
 
-        Box(modifier = modifier) {
-            if (
+        val layers =
+            if (!isSwipeBackActive &&
                 currentTransition != null &&
                 currentTransition.oldActive.key != currentTransition.newActive.key
             ) {
-                StackAnimatedChild(
-                    child = currentTransition.oldActive,
-                    progress = animationProgress,
-                    isPop = currentTransition.isPop,
-                    isOutgoing = true,
-                    content = content,
-                )
-                StackAnimatedChild(
-                    child = currentTransition.newActive,
-                    progress = animationProgress,
-                    isPop = currentTransition.isPop,
-                    isOutgoing = false,
-                    content = content,
+                listOf(
+                    StackLayer(
+                        child = currentTransition.oldActive,
+                        role = StackLayerRole.TransitionOutgoing,
+                        isPop = currentTransition.isPop,
+                    ),
+                    StackLayer(
+                        child = currentTransition.newActive,
+                        role = StackLayerRole.TransitionIncoming,
+                        isPop = currentTransition.isPop,
+                    ),
                 )
             } else {
-                content(stack.active)
+                buildList {
+                    if (retainedPreviousChild != null) {
+                        add(
+                            StackLayer(
+                                child = retainedPreviousChild,
+                                role = StackLayerRole.RetainedPrevious,
+                            ),
+                        )
+                    }
+                    add(
+                        StackLayer(
+                            child = stack.active,
+                            role = StackLayerRole.Active,
+                        ),
+                    )
+                }
+            }
+
+        Box(modifier = modifier) {
+            layers.forEach { layer ->
+                key(layer.child.key) {
+                    StackLayerChild(
+                        layer = layer,
+                        dragOffsetX = if (isSwipeBackActive) dragOffsetX else 0f,
+                        dragProgress = dragProgress,
+                        transitionProgress = animationProgress,
+                        content = content,
+                    )
+                }
+            }
+
+            if (isSwipeBackActive && retainedPreviousChild != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(0.5f)
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    event.changes.forEach { it.consume() }
+                                }
+                            }
+                        }
+                        .background(
+                            Color.Black.copy(
+                                alpha = 0.3f * (1f - dragProgress),
+                            ),
+                        ),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun <C : Any, T : Any> StackAnimatedChild(
-    child: Child.Created<C, T>,
-    progress: Float,
-    isPop: Boolean,
-    isOutgoing: Boolean,
+private fun <C : Any, T : Any> StackLayerChild(
+    layer: StackLayer<C, T>,
+    dragOffsetX: Float,
+    dragProgress: Float,
+    transitionProgress: Float,
     content: @Composable (child: Child.Created<C, T>) -> Unit,
 ) {
-    val direction = if (isPop) -1f else 1f
-    val translationFactor =
-        if (isOutgoing) {
-            -direction * 0.08f * (1f - progress)
-        } else {
-            direction * progress
-        }
-    val alpha =
-        if (isOutgoing) {
-            1f - 0.18f * (1f - progress)
-        } else {
-            1f
-        }
-
-    key("stack-animation:${child.key}:${if (isOutgoing) "out" else "in"}") {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(if (isOutgoing) 0f else 1f)
-                .graphicsLayer {
-                    translationX = size.width * translationFactor
-                    this.alpha = alpha
-                },
-        ) {
-            content(child)
-        }
+    Box(
+        modifier = Modifier.mobileStackLayerModifier(
+            role = layer.role,
+            dragOffsetX = dragOffsetX,
+            dragProgress = dragProgress,
+            transitionProgress = transitionProgress,
+            isPop = layer.isPop,
+        ),
+    ) {
+        content(layer.child)
     }
 }
+
+private fun Modifier.mobileStackLayerModifier(
+    role: StackLayerRole,
+    dragOffsetX: Float,
+    dragProgress: Float,
+    transitionProgress: Float,
+    isPop: Boolean,
+): Modifier =
+    fillMaxSize()
+        .then(
+            if (role == StackLayerRole.RetainedPrevious) {
+                Modifier.clearAndSetSemantics {}
+            } else {
+                Modifier
+            },
+        )
+        .zIndex(
+            when (role) {
+                StackLayerRole.Active,
+                StackLayerRole.TransitionIncoming -> 1f
+
+                StackLayerRole.RetainedPrevious,
+                StackLayerRole.TransitionOutgoing -> 0f
+            },
+        )
+        .graphicsLayer {
+            when (role) {
+                StackLayerRole.Active -> {
+                    translationX = dragOffsetX
+                    shadowElevation = if (dragOffsetX > 0f) 12f else 0f
+                }
+
+                StackLayerRole.RetainedPrevious -> {
+                    translationX =
+                        if (dragOffsetX > 0f) {
+                            (dragProgress - 1f) * size.width * 0.08f
+                        } else {
+                            -size.width
+                        }
+                    alpha = if (dragOffsetX > 0f) 1f else 0f
+                }
+
+                StackLayerRole.TransitionOutgoing,
+                StackLayerRole.TransitionIncoming -> {
+                    val isOutgoing = role == StackLayerRole.TransitionOutgoing
+                    val direction = if (isPop) -1f else 1f
+                    val translationFactor =
+                        if (isOutgoing) {
+                            -direction * 0.08f * (1f - transitionProgress)
+                        } else {
+                            direction * transitionProgress
+                        }
+                    translationX = size.width * translationFactor
+                    alpha =
+                        if (isOutgoing) {
+                            1f - 0.18f * (1f - transitionProgress)
+                        } else {
+                            1f
+                        }
+                }
+            }
+        }
 
 private data class StackTransition<C : Any, T : Any>(
     val oldActive: Child.Created<C, T>,
     val newActive: Child.Created<C, T>,
     val isPop: Boolean,
 )
+
+private data class StackLayer<C : Any, T : Any>(
+    val child: Child.Created<C, T>,
+    val role: StackLayerRole,
+    val isPop: Boolean = false,
+)
+
+private enum class StackLayerRole {
+    Active,
+    RetainedPrevious,
+    TransitionOutgoing,
+    TransitionIncoming,
+}

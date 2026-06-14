@@ -70,10 +70,15 @@ import org.monogram.presentation.features.chats.conversation.logic.observeUserUp
 import org.monogram.presentation.features.chats.conversation.logic.refreshDraftLinkPreviewOnPhotoDownloadIfNeeded
 import org.monogram.presentation.features.chats.conversation.logic.setupMessageCollectors
 import org.monogram.presentation.features.chats.conversation.logic.setupPinnedMessageCollector
+import org.monogram.presentation.features.chats.conversation.logic.withUnreadSessionFromChat
 import org.monogram.presentation.root.AppComponentContext
 import org.monogram.presentation.settings.storage.CacheController
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
+
+private const val VIEWPORT_PERSIST_DEBOUNCE_MS = 750L
+private const val VIEWPORT_OFFSET_DELTA_THRESHOLD_PX = 8
 
 class DefaultChatComponent(
     context: AppComponentContext,
@@ -120,6 +125,11 @@ class DefaultChatComponent(
     var draftLinkPreviewDebounceJob: Job? = null
     private var autoLoadJob: Job? = null
     private var mentionJob: Job? = null
+    private var viewportPersistenceJob: Job? = null
+    private var pendingViewportToPersist: ChatViewportCacheEntry? = null
+    private var pendingViewportThreadId: Long? = null
+    private var lastPersistedViewport: ChatViewportCacheEntry? = null
+    private var lastPersistedViewportThreadId: Long? = null
     internal var searchJob: Job? = null
     internal val reactionUpdateSuppressedUntil = ConcurrentHashMap<Long, Long>()
     internal val remappedMessageIds = ConcurrentHashMap<Long, Long>()
@@ -191,9 +201,7 @@ class DefaultChatComponent(
 
         lifecycle.doOnStop {
             autoLoadJob?.cancel()
-            _state.value.lastSavedViewport?.let { viewport ->
-                cacheProvider.saveChatViewport(chatId, _state.value.currentTopicId, viewport)
-            }
+            flushViewportPersistence()
         }
 
         lifecycle.doOnResume {
@@ -264,9 +272,9 @@ class DefaultChatComponent(
             chatListRepository.getChatById(chatId)?.let { chat ->
                 if (chat.unreadCount > 0) {
                     _state.update {
-                        it.copy(
-                            unreadSeparatorCount = chat.unreadCount,
-                            unreadSeparatorLastReadInboxMessageId = chat.lastReadInboxMessageId
+                        it.withUnreadSessionFromChat(
+                            chatUnreadCount = chat.unreadCount,
+                            chatLastReadInboxMessageId = chat.lastReadInboxMessageId
                         )
                     }
                 }
@@ -465,6 +473,16 @@ class DefaultChatComponent(
 
     override fun onScrollCommandConsumed() = store.accept(ChatStore.Intent.ScrollCommandConsumed)
 
+    override fun onViewportSettled() {
+        _state.update {
+            if (it.viewportPhase == ChatViewportPhase.Settled) {
+                it
+            } else {
+                it.copy(viewportPhase = ChatViewportPhase.Settled)
+            }
+        }
+    }
+
     override fun onScrollToBottom() = store.accept(ChatStore.Intent.ScrollToBottom)
 
     override fun onDownloadFile(fileId: Int) {
@@ -490,11 +508,7 @@ class DefaultChatComponent(
     }
 
     override fun updateViewport(viewport: ChatViewportCacheEntry) {
-        val threadId = _state.value.currentTopicId
-        cacheProvider.saveChatViewport(chatId, threadId, viewport)
-        if (threadId == null) {
-            cacheProvider.saveChatScrollPosition(chatId, viewport.anchorMessageId ?: 0L)
-        }
+        val threadId = _state.value.currentMessageThreadId ?: _state.value.currentTopicId
         _state.update {
             if (it.lastSavedViewport == viewport && it.lastScrollPosition == (viewport.anchorMessageId
                     ?: 0L)
@@ -507,6 +521,7 @@ class DefaultChatComponent(
                 )
             }
         }
+        scheduleViewportPersistence(threadId, viewport)
     }
 
     override fun onBottomReached(isAtBottom: Boolean) = store.accept(ChatStore.Intent.BottomReached(isAtBottom))
@@ -696,4 +711,54 @@ class DefaultChatComponent(
     }
 
     override fun onClosePoll(messageId: Long) = store.accept(ChatStore.Intent.ClosePoll(messageId))
+
+    private fun scheduleViewportPersistence(threadId: Long?, viewport: ChatViewportCacheEntry) {
+        val previous = when {
+            pendingViewportToPersist != null && pendingViewportThreadId == threadId -> pendingViewportToPersist
+            lastPersistedViewportThreadId == threadId -> lastPersistedViewport
+            else -> null
+        }
+        if (!isMeaningfulViewportChange(previous, viewport)) return
+
+        pendingViewportThreadId = threadId
+        pendingViewportToPersist = viewport
+        viewportPersistenceJob?.cancel()
+        viewportPersistenceJob = scope.launch {
+            delay(VIEWPORT_PERSIST_DEBOUNCE_MS)
+            flushViewportPersistence()
+        }
+    }
+
+    private fun flushViewportPersistence() {
+        viewportPersistenceJob?.cancel()
+        viewportPersistenceJob = null
+
+        val hasPendingViewport = pendingViewportToPersist != null
+        val viewport = pendingViewportToPersist ?: _state.value.lastSavedViewport ?: return
+        val threadId = if (hasPendingViewport) {
+            pendingViewportThreadId
+        } else {
+            _state.value.currentMessageThreadId ?: _state.value.currentTopicId
+        }
+
+        cacheProvider.saveChatViewport(chatId, threadId, viewport)
+        if (threadId == null) {
+            cacheProvider.saveChatScrollPosition(chatId, viewport.anchorMessageId ?: 0L)
+        }
+
+        lastPersistedViewportThreadId = threadId
+        lastPersistedViewport = viewport
+        pendingViewportThreadId = null
+        pendingViewportToPersist = null
+    }
+
+    private fun isMeaningfulViewportChange(
+        previous: ChatViewportCacheEntry?,
+        next: ChatViewportCacheEntry
+    ): Boolean {
+        previous ?: return true
+        return previous.anchorMessageId != next.anchorMessageId ||
+                previous.atBottom != next.atBottom ||
+                abs(previous.anchorOffsetPx - next.anchorOffsetPx) > VIEWPORT_OFFSET_DELTA_THRESHOLD_PX
+    }
 }

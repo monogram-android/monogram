@@ -59,6 +59,7 @@ internal fun TextWithTimestampLayout(
             textHeight = textPlaceable.height,
             footerWidth = timestampWidth,
             footerHeight = timestampHeight,
+            minWidth = constraints.minWidth,
             maxWidth = constraints.maxWidth,
             horizontalPadding = horizontalPaddingPx,
             stackedTopPadding = stackedTopPaddingPx
@@ -80,11 +81,13 @@ internal fun calculateFooterPlacement(
     textHeight: Int,
     footerWidth: Int,
     footerHeight: Int,
+    minWidth: Int = 0,
     maxWidth: Int,
     horizontalPadding: Int,
     stackedTopPadding: Int
 ): FooterPlacement {
     val effectiveMaxWidth = if (maxWidth == Constraints.Infinity) Int.MAX_VALUE else maxWidth
+    val effectiveMinWidth = minWidth.coerceIn(0, effectiveMaxWidth)
 
     if (textLayoutInfo != null) {
         val lastLineBottom = ceil(textLayoutInfo.lastLineBottom).toInt()
@@ -106,12 +109,15 @@ internal fun calculateFooterPlacement(
                 )
             }
         } else {
-            val footerX = ceil(textLayoutInfo.lastLineRight).toInt() + horizontalPadding
+            val minimumFooterX = ceil(textLayoutInfo.lastLineRight).toInt() + horizontalPadding
+            val minimumFooterRight = minimumFooterX + footerWidth
+            val layoutWidth = max(max(textWidth, minimumFooterRight), effectiveMinWidth)
+            val footerX = max(minimumFooterX, layoutWidth - footerWidth)
             val footerRight = footerX + footerWidth
             if (footerRight <= effectiveMaxWidth) {
                 return FooterPlacement(
                     mode = FooterPlacementMode.Inline,
-                    layoutWidth = max(textWidth, footerRight),
+                    layoutWidth = max(layoutWidth, footerRight),
                     layoutHeight = max(textHeight, footerY + footerHeight),
                     footerX = footerX,
                     footerY = footerY
@@ -120,7 +126,7 @@ internal fun calculateFooterPlacement(
         }
     }
 
-    val layoutWidth = max(textWidth, footerWidth)
+    val layoutWidth = max(max(textWidth, footerWidth), effectiveMinWidth)
     return FooterPlacement(
         mode = FooterPlacementMode.Stacked,
         layoutWidth = layoutWidth,

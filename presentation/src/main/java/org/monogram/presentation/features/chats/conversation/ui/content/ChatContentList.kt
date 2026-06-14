@@ -150,7 +150,8 @@ data class ChatMessageListUiState(
     val autoplayVideos: Boolean,
     val showLinkPreviews: Boolean,
     val isChatAnimationsEnabled: Boolean,
-    val suppressEntryAnimations: Boolean
+    val suppressEntryAnimations: Boolean,
+    val isViewportSettled: Boolean
 ) {
     val isComments: Boolean
         get() = rootMessage != null
@@ -224,7 +225,7 @@ internal fun ChatContentList(
             val boundaryItem = findFirstUnreadBoundary(
                 messages = state.messages,
                 groupedItems = groupedMessages,
-                firstUnreadMessageId = state.unreadSeparatorLastReadInboxMessageId
+                lastReadInboxMessageId = state.unreadSeparatorLastReadInboxMessageId
             )
             boundaryItem?.let { target ->
                 groupedMessages.indexOfFirst { it.firstMessageId == target.firstMessageId }
@@ -240,16 +241,12 @@ internal fun ChatContentList(
     var hasUnreadSeparatorBeenVisible by rememberSaveable(
         state.chatId,
         state.currentTopicId,
-        unreadBoundaryGroupId,
-        state.unreadSeparatorLastReadInboxMessageId,
-        state.unreadSeparatorCount
+        unreadBoundaryGroupId
     ) { mutableStateOf(false) }
     var hasUnreadSeparatorDismissed by rememberSaveable(
         state.chatId,
         state.currentTopicId,
-        unreadBoundaryGroupId,
-        state.unreadSeparatorLastReadInboxMessageId,
-        state.unreadSeparatorCount
+        unreadBoundaryGroupId
     ) { mutableStateOf(false) }
     val visibleGroupedMessageIds by remember(
         scrollState,
@@ -351,8 +348,10 @@ internal fun ChatContentList(
     LaunchedEffect(
         scrollState,
         groupedMessages.size,
-        isComments
+        isComments,
+        state.isViewportSettled
     ) {
+        if (!state.isViewportSettled) return@LaunchedEffect
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
             .filter { it.isNotEmpty() && groupedMessages.isNotEmpty() }
             .map { visibleItems ->
@@ -365,19 +364,26 @@ internal fun ChatContentList(
                 val currentState = latestState
                 if (currentState.isLoading || currentState.isLoadingOlder || currentState.isLoadingNewer) return@collect
 
-                val nearStart = firstVisibleIndex <= 2
+                val olderPreloadThreshold = 2
+                val newerPreloadThreshold = 8
+                val nearStartForOlder = firstVisibleIndex <= olderPreloadThreshold
+                val nearStartForNewer = firstVisibleIndex <= newerPreloadThreshold
                 val nearEnd = lastVisibleIndex >= (groupedMessages.size - 3).coerceAtLeast(0)
+                val nearEndForNewer =
+                    lastVisibleIndex >= (groupedMessages.size - (newerPreloadThreshold + 1)).coerceAtLeast(
+                        0
+                    )
                 val now = SystemClock.uptimeMillis()
 
                 if (isComments) {
                     if (!scrollState.isScrollInProgress) return@collect
 
-                    if (nearStart && !currentState.isOldestLoaded) {
+                    if (nearStartForOlder && !currentState.isOldestLoaded) {
                         if (now - lastOlderLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
                             lastOlderLoadTriggerUptimeMs = now
                             component.loadMore()
                         }
-                    } else if (nearEnd && !currentState.isLatestLoaded) {
+                    } else if (nearEndForNewer && !currentState.isLatestLoaded) {
                         if (now - lastNewerLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
                             lastNewerLoadTriggerUptimeMs = now
                             component.loadNewer()
@@ -389,7 +395,7 @@ internal fun ChatContentList(
                             lastOlderLoadTriggerUptimeMs = now
                             component.loadMore()
                         }
-                    } else if (nearStart && !currentState.isAtBottom && !currentState.isLatestLoaded) {
+                    } else if (nearStartForNewer && !currentState.isAtBottom && !currentState.isLatestLoaded) {
                         if (now - lastNewerLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
                             lastNewerLoadTriggerUptimeMs = now
                             component.loadNewer()
@@ -407,8 +413,10 @@ internal fun ChatContentList(
         state.isLoadingOlder,
         state.isLoadingNewer,
         state.isAtBottom,
-        groupedMessages.isNotEmpty()
+        groupedMessages.isNotEmpty(),
+        state.isViewportSettled
     ) {
+        if (!state.isViewportSettled) return@LaunchedEffect
         val boundaryIndex = unreadBoundaryIndex ?: return@LaunchedEffect
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
             .filter { it.isNotEmpty() }
@@ -1545,22 +1553,27 @@ private fun handleAlbumVideoClick(
     }
 }
 
-private data class AlbumMediaEntry(
+internal data class AlbumMediaEntry(
     val message: MessageModel,
     val path: String,
     val caption: String?
 )
 
-private fun buildAlbumMediaEntries(messages: List<MessageModel>): List<AlbumMediaEntry> {
+internal fun buildAlbumMediaEntries(
+    messages: List<MessageModel>,
+    pathExists: (String) -> Boolean = { File(it).exists() }
+): List<AlbumMediaEntry> {
     return messages.mapNotNull { msg ->
-        val path = msg.displayMediaPath() ?: return@mapNotNull null
+        val path = msg.displayMediaPath(pathExists) ?: return@mapNotNull null
         val caption = msg.mediaCaption()
 
         AlbumMediaEntry(message = msg, path = path, caption = caption)
     }
 }
 
-private fun MessageModel.displayMediaPath(): String? {
+internal fun MessageModel.displayMediaPath(
+    pathExists: (String) -> Boolean = { File(it).exists() }
+): String? {
     val raw = when (val content = content) {
         is MessageContent.Photo -> content.path ?: content.thumbnailPath
         is MessageContent.Video -> content.path
@@ -1568,10 +1581,10 @@ private fun MessageModel.displayMediaPath(): String? {
         else -> null
     }
 
-    return raw?.takeIf { it.isNotBlank() && File(it).exists() }
+    return raw?.takeIf { it.isNotBlank() && pathExists(it) }
 }
 
-private fun MessageModel.mediaCaption(): String? {
+internal fun MessageModel.mediaCaption(): String? {
     return when (val content = content) {
         is MessageContent.Photo -> content.caption
         is MessageContent.Video -> content.caption

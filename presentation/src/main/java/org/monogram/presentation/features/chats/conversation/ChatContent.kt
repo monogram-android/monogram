@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalDensity
@@ -70,15 +69,29 @@ import org.monogram.presentation.features.chats.conversation.ui.message.PreviewV
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberChatMessageRenderDependencies
 import org.monogram.presentation.features.chats.conversation.ui.rememberVoicePlaybackController
 
+internal fun shouldHideChatContentForViewportTransition(
+    renderMode: ChatRenderMode,
+    viewportPhase: ChatViewportPhase
+): Boolean {
+    return renderMode != ChatRenderMode.SwipePreview &&
+            viewportPhase != ChatViewportPhase.Settled
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChatContent(
     component: ChatComponent,
-    isOverlay: Boolean = false,
+    renderMode: ChatRenderMode = ChatRenderMode.Active,
     onSwipeBackBlockedChanged: (Boolean) -> Unit = {},
 ) {
     val state by component.state.collectAsState()
-    val scrollState = rememberLazyListState()
+    val conversationKey =
+        remember(state.chatId, state.currentTopicId, state.currentMessageThreadId) {
+            "${state.chatId}:${state.currentMessageThreadId ?: state.currentTopicId ?: 0L}"
+        }
+    val scrollState = rememberSaveable(conversationKey, saver = LazyListState.Saver) {
+        LazyListState()
+    }
     val density = LocalDensity.current
     val localClipboard = LocalClipboard.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -90,26 +103,36 @@ fun ChatContent(
         adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED &&
                 isTabletInterfaceEnabled
 
-    var isVisible by remember { mutableStateOf(false) }
-    var showInitialLoading by remember { mutableStateOf(false) }
-    var isRecordingVideo by remember { mutableStateOf(false) }
+    var isVisible by remember(conversationKey) {
+        mutableStateOf(!shouldHideChatContentForViewportTransition(renderMode, state.viewportPhase))
+    }
+    var showInitialLoading by remember(conversationKey) { mutableStateOf(false) }
+    var isRecordingVideo by remember(conversationKey) { mutableStateOf(false) }
     var topOverlayHeight by remember { mutableStateOf(0.dp) }
 
-    var selectedMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
-    val transformedMessageTexts = remember { mutableStateMapOf<Long, String>() }
-    val originalMessageTexts = remember { mutableStateMapOf<Long, String>() }
-    var menuOffset by remember { mutableStateOf(Offset.Zero) }
-    var menuMessageSize by remember { mutableStateOf(IntSize.Zero) }
-    var clickOffset by remember { mutableStateOf(Offset.Zero) }
+    var selectedMessageId by rememberSaveable(conversationKey) { mutableStateOf<Long?>(null) }
+    val transformedMessageTexts = remember(conversationKey) { mutableStateMapOf<Long, String>() }
+    val originalMessageTexts = remember(conversationKey) { mutableStateMapOf<Long, String>() }
+    var menuOffset by remember(conversationKey) { mutableStateOf(Offset.Zero) }
+    var menuMessageSize by remember(conversationKey) { mutableStateOf(IntSize.Zero) }
+    var clickOffset by remember(conversationKey) { mutableStateOf(Offset.Zero) }
     var contentRect by remember { mutableStateOf(Rect.Zero) }
 
-    var pendingMediaPaths by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
-    var pendingDocumentPaths by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
-    var editingPhotoPath by rememberSaveable { mutableStateOf<String?>(null) }
-    var editingVideoPath by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingBlockUserId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var previewImages by remember { mutableStateOf<PreviewImageViewerRequest?>(null) }
-    var previewVideo by remember { mutableStateOf<PreviewVideoViewerRequest?>(null) }
+    var pendingMediaPaths by rememberSaveable(conversationKey) {
+        mutableStateOf<List<String>>(
+            emptyList()
+        )
+    }
+    var pendingDocumentPaths by rememberSaveable(conversationKey) {
+        mutableStateOf<List<String>>(
+            emptyList()
+        )
+    }
+    var editingPhotoPath by rememberSaveable(conversationKey) { mutableStateOf<String?>(null) }
+    var editingVideoPath by rememberSaveable(conversationKey) { mutableStateOf<String?>(null) }
+    var pendingBlockUserId by rememberSaveable(conversationKey) { mutableStateOf<Long?>(null) }
+    var previewImages by remember(conversationKey) { mutableStateOf<PreviewImageViewerRequest?>(null) }
+    var previewVideo by remember(conversationKey) { mutableStateOf<PreviewVideoViewerRequest?>(null) }
 
     var showScrollToBottomButton by remember { mutableStateOf(false) }
     var showAllSearchResults by rememberSaveable(
@@ -134,10 +157,10 @@ fun ChatContent(
     ) {
         mutableStateOf(false)
     }
-    var hasUserScrolledAwayFromBottom by rememberSaveable(state.chatId, state.currentTopicId) {
+    var hasUserScrolledAwayFromBottom by rememberSaveable(conversationKey) {
         mutableStateOf(false)
     }
-    var renderPinnedMessagesList by rememberSaveable { mutableStateOf(state.showPinnedMessagesList) }
+    var renderPinnedMessagesList by rememberSaveable(conversationKey) { mutableStateOf(state.showPinnedMessagesList) }
     var pendingPinnedSheetAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val isDragged by scrollState.interactionSource.collectIsDraggedAsState()
@@ -238,16 +261,27 @@ fun ChatContent(
         onDispose { onSwipeBackBlockedChanged(false) }
     }
 
-    val shouldAnimateContentEntrance = state.isChatAnimationsEnabled && isOverlay
-    val contentAlpha by animateFloatAsState(
-        targetValue = if (isVisible || !shouldAnimateContentEntrance) 1f else 0f,
+    LaunchedEffect(renderMode, state.viewportPhase, conversationKey) {
+        if (renderMode == ChatRenderMode.SwipePreview) {
+            isVisible = true
+        } else if (shouldHideChatContentForViewportTransition(renderMode, state.viewportPhase)) {
+            isVisible = false
+        }
+    }
+
+    val effectsEnabled = renderMode == ChatRenderMode.Active
+    val shouldAnimateContentEntrance = effectsEnabled && state.isChatAnimationsEnabled
+    val shouldShowContent = renderMode == ChatRenderMode.SwipePreview || isVisible
+    val chromeAlpha = 1f
+    val messagesAlpha by animateFloatAsState(
+        targetValue = if (shouldShowContent) 1f else 0f,
         animationSpec = if (shouldAnimateContentEntrance) tween(300) else snap(),
-        label = "ContentAlpha"
+        label = "MessagesAlpha"
     )
-    val contentOffset by animateDpAsState(
-        targetValue = if (isVisible || !shouldAnimateContentEntrance) 0.dp else 20.dp,
+    val messagesOffset by animateDpAsState(
+        targetValue = if (shouldShowContent) 0.dp else 20.dp,
         animationSpec = if (shouldAnimateContentEntrance) tween(300) else snap(),
-        label = "ContentOffset"
+        label = "MessagesOffset"
     )
 
     ChatContentEffects(
@@ -258,6 +292,7 @@ fun ChatContent(
         groupedMessageIndexById = messagePresentationState.groupedMessageIndexById,
         isComments = messagePresentationState.isComments,
         isForumList = messagePresentationState.isForumList,
+        effectsEnabled = effectsEnabled,
         isDragged = isDragged,
         isRecordingVideo = isRecordingVideo,
         showInitialLoading = showInitialLoading,
@@ -296,10 +331,6 @@ fun ChatContent(
     ) {
         val statusBarHeight = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
         val headerOverlayHeight = statusBarHeight + 16.dp
-        val animatedLayerModifier = Modifier.graphicsLayer {
-            alpha = contentAlpha
-            translationY = contentOffset.toPx()
-        }
 
         Box(
             modifier = Modifier
@@ -307,9 +338,7 @@ fun ChatContent(
                 .background(MaterialTheme.colorScheme.background)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                Box(modifier = Modifier
-                    .fillMaxSize()
-                    .then(animatedLayerModifier)) {
+                Box(modifier = Modifier.fillMaxSize()) {
                     ChatContentBackground(state = state)
                 }
 
@@ -318,7 +347,6 @@ fun ChatContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(headerOverlayHeight)
-                            .then(animatedLayerModifier)
                             .background(MaterialTheme.colorScheme.surface)
                     )
                 }
@@ -326,7 +354,6 @@ fun ChatContent(
                 Scaffold(
                     modifier = Modifier
                         .fillMaxSize()
-                        .then(animatedLayerModifier)
                         .semantics { contentDescription = "ChatContent" },
                     containerColor = Color.Transparent,
                     topBar = {
@@ -340,7 +367,7 @@ fun ChatContent(
                                 selectedCount = chromeState.selectedCount,
                                 canRevokeSelected = chromeState.canRevokeSelected,
                                 component = component,
-                                contentAlpha = contentAlpha,
+                                contentAlpha = chromeAlpha,
                                 onBack = {
                                     keyboardController?.hide()
                                     if (state.currentTopicId != null) {
@@ -399,8 +426,8 @@ fun ChatContent(
                             selectedMessageId = selectedMessageId,
                             topOverlayHeight = topOverlayHeight,
                             bottomContentPadding = bottomContentPadding,
-                            contentAlpha = contentAlpha,
-                            contentOffset = contentOffset,
+                            contentAlpha = messagesAlpha,
+                            contentOffset = messagesOffset,
                             isVisible = isVisible,
                             showInitialLoading = showInitialLoading,
                             showScrollToBottomButton = showScrollToBottomButton,

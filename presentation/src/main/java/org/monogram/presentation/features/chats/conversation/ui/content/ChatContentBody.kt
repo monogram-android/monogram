@@ -571,7 +571,6 @@ internal fun ChatContentBody(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surface)
                 ) {
                     MessageListShimmer(
                         isGroup = state.isGroup,

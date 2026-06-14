@@ -125,6 +125,18 @@ interface MessageRepository :
         threadId: Long? = null
     ): List<MessageModel>
 
+    suspend fun getCachedMessagesNewer(
+        chatId: Long,
+        fromMessageId: Long,
+        limit: Int
+    ): List<MessageModel>
+
+    suspend fun getCachedMessagesAround(
+        chatId: Long,
+        messageId: Long,
+        limit: Int
+    ): List<MessageModel>
+
     suspend fun getMessagesAround(chatId: Long, messageId: Long, limit: Int, threadId: Long? = null): List<MessageModel>
 
     suspend fun getMessageThreadContext(chatId: Long, messageId: Long): MessageThreadContext?

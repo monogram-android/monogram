@@ -18,6 +18,33 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE chatId = :chatId AND id > :fromMessageId ORDER BY date ASC LIMIT :limit")
     suspend fun getMessagesNewer(chatId: Long, fromMessageId: Long, limit: Int): List<MessageEntity>
 
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE chatId = :chatId
+          AND id IN (
+            SELECT id FROM messages
+            WHERE chatId = :chatId AND id <= :messageId
+            ORDER BY date DESC LIMIT :olderLimit
+          )
+        UNION
+        SELECT * FROM messages
+        WHERE chatId = :chatId
+          AND id IN (
+            SELECT id FROM messages
+            WHERE chatId = :chatId AND id > :messageId
+            ORDER BY date ASC LIMIT :newerLimit
+          )
+        ORDER BY date DESC
+        """
+    )
+    suspend fun getMessagesAround(
+        chatId: Long,
+        messageId: Long,
+        olderLimit: Int,
+        newerLimit: Int
+    ): List<MessageEntity>
+
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY date DESC LIMIT :limit")
     suspend fun getLatestMessages(chatId: Long, limit: Int): List<MessageEntity>
 

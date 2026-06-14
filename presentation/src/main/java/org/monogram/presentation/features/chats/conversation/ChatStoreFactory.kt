@@ -85,6 +85,7 @@ import org.monogram.presentation.features.chats.conversation.logic.loadNewerMess
 import org.monogram.presentation.features.chats.conversation.logic.loadScheduledMessages
 import org.monogram.presentation.features.chats.conversation.logic.scrollToBottomInternal
 import org.monogram.presentation.features.chats.conversation.logic.scrollToMessageInternal
+import org.monogram.presentation.features.chats.conversation.logic.withUnreadSessionCleared
 
 class ChatStoreFactory(
     private val storeFactory: StoreFactory,
@@ -240,15 +241,13 @@ class ChatStoreFactory(
                     if (it.lastSavedViewport == intent.viewport) it else it.copy(lastSavedViewport = intent.viewport)
                 }
                 is Intent.BottomReached -> component._state.update {
-                    val nextUnreadCount = if (intent.isAtBottom) 0 else it.unreadCount
-                    if (it.isAtBottom == intent.isAtBottom && it.unreadCount == nextUnreadCount) {
-                        it
+                    val nextState = if (intent.isAtBottom) {
+                        it.withUnreadSessionCleared()
                     } else {
-                        it.copy(
-                            isAtBottom = intent.isAtBottom,
-                            unreadCount = nextUnreadCount
-                        )
+                        it
                     }
+                    if (nextState.isAtBottom == intent.isAtBottom) nextState
+                    else nextState.copy(isAtBottom = intent.isAtBottom)
                 }
                 is Intent.HighlightConsumed -> component._state.update { it.copy(highlightRequest = null) }
                 is Intent.Typing -> { /* Handle typing */

@@ -70,9 +70,12 @@ interface TelegramWebAppHost {
     fun onDeviceStorageSave(reqId: String, key: String, value: String)
     fun onDeviceStorageGet(reqId: String, key: String)
     fun onDeviceStorageDelete(reqId: String, key: String)
+    fun onDeviceStorageClear(reqId: String)
     fun onSecureStorageSave(reqId: String, key: String, value: String)
     fun onSecureStorageGet(reqId: String, key: String)
     fun onSecureStorageDelete(reqId: String, key: String)
+    fun onSecureStorageRestore(reqId: String, key: String)
+    fun onSecureStorageClear(reqId: String)
 
     // Biometry
     fun onBiometryGetInfo()

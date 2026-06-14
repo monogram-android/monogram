@@ -37,7 +37,8 @@ sealed class WebAppEvent {
     data class OpenPopup(
         val title: String?,
         val message: String,
-        val buttons: List<WebAppPopupButton>
+        val buttons: List<WebAppPopupButton>,
+        val callbackId: String?
     ) : WebAppEvent()
 
     data class OpenLink(val url: String, val tryBrowser: Boolean, val tryInstantView: Boolean) : WebAppEvent()
@@ -70,9 +71,12 @@ sealed class WebAppEvent {
     data class DeviceStorageSave(val reqId: String, val key: String, val value: String) : WebAppEvent()
     data class DeviceStorageGet(val reqId: String, val key: String) : WebAppEvent()
     data class DeviceStorageRemove(val reqId: String, val key: String) : WebAppEvent()
+    data class DeviceStorageClear(val reqId: String) : WebAppEvent()
     data class SecureStorageSave(val reqId: String, val key: String, val value: String) : WebAppEvent()
     data class SecureStorageGet(val reqId: String, val key: String) : WebAppEvent()
     data class SecureStorageRemove(val reqId: String, val key: String) : WebAppEvent()
+    data class SecureStorageRestoreKey(val reqId: String, val key: String) : WebAppEvent()
+    data class SecureStorageClear(val reqId: String) : WebAppEvent()
     data object BiometryGetInfo : WebAppEvent()
     data class BiometryRequestAccess(val reason: String?) : WebAppEvent()
     data class BiometryRequestAuth(val reason: String?) : WebAppEvent()

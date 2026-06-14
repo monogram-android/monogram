@@ -12,7 +12,9 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.drinkless.tdlib.TdApi
+import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.compat.buildTdChatPermissions
@@ -1064,6 +1066,54 @@ class MessageRepositoryImpl(
         messageRemoteDataSource.sendWebAppResult(launchId, queryId)
     }
 
+    override suspend fun saveCloudStorageValue(
+        botUserId: Long,
+        key: String,
+        value: String
+    ): Boolean =
+        (sendCloudStorageRequest(botUserId, "saveStorageValue", JSONObject().apply {
+            put("key", key)
+            put("value", value)
+        }) as? Boolean) == true
+
+    override suspend fun getCloudStorageValue(botUserId: Long, key: String): String? =
+        when (val result =
+            sendCloudStorageRequest(botUserId, "getStorageValue", JSONObject().apply {
+                put("key", key)
+            })) {
+            null -> null
+            is String -> result
+            else -> result.toString()
+        }
+
+    override suspend fun getCloudStorageValues(
+        botUserId: Long,
+        keys: List<String>
+    ): Map<String, String?> {
+        val result = sendCloudStorageRequest(botUserId, "getStorageValues", JSONObject().apply {
+            put("keys", org.json.JSONArray(keys))
+        }) as? JSONObject ?: return emptyMap()
+        return result.keys().asSequence().associateWith { key ->
+            if (result.isNull(key)) null else result.getString(key)
+        }
+    }
+
+    override suspend fun deleteCloudStorageValue(botUserId: Long, key: String): Boolean =
+        (sendCloudStorageRequest(botUserId, "deleteStorageValue", JSONObject().apply {
+            put("key", key)
+        }) as? Boolean) == true
+
+    override suspend fun deleteCloudStorageValues(botUserId: Long, keys: List<String>): Boolean =
+        (sendCloudStorageRequest(botUserId, "deleteStorageValues", JSONObject().apply {
+            put("keys", org.json.JSONArray(keys))
+        }) as? Boolean) == true
+
+    override suspend fun getCloudStorageKeys(botUserId: Long): List<String> {
+        val array = sendCloudStorageRequest(botUserId, "getStorageKeys", JSONObject()) as? JSONArray
+            ?: return emptyList()
+        return List(array.length()) { index -> array.getString(index) }
+    }
+
     override suspend fun getProfileMedia(
         chatId: Long,
         filter: ProfileMediaFilter,
@@ -1757,6 +1807,26 @@ class MessageRepositoryImpl(
             customEmojiId = customEmojiId,
             title = title
         )
+    }
+
+    private suspend fun sendCloudStorageRequest(
+        botUserId: Long,
+        method: String,
+        parameters: JSONObject
+    ): Any? = withContext(dispatcherProvider.io) {
+        val result = gateway.execute(
+            TdApi.SendWebAppCustomRequest(
+                botUserId,
+                method,
+                parameters.toString()
+            )
+        )
+        if (result is TdApi.CustomRequestResult) {
+            val parsed = JSONTokener(result.result).nextValue()
+            if (parsed == JSONObject.NULL) null else parsed
+        } else {
+            null
+        }
     }
 
     private companion object {

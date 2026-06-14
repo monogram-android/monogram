@@ -104,4 +104,5 @@ dependencies {
     implementation(libs.libphonenumber)
 
     testImplementation(libs.junit)
+    testImplementation(libs.json)
 }

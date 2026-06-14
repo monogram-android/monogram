@@ -51,6 +51,7 @@ zxing = "3.5.4"
 junit = "4.13.2"
 libphonenumber = "9.0.32"
 unifiedpush-connector = "3.3.3"
+json = "20260522"
 
 [libraries]
 # AndroidX Activity
@@ -145,6 +146,7 @@ zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 libphonenumber = { module = "com.googlecode.libphonenumber:libphonenumber", version.ref = "libphonenumber" }
 unifiedpush-connector = { group = "org.unifiedpush.android", name = "connector", version.ref = "unifiedpush-connector" }
+json = { group = "org.json", name = "json", version.ref = "json" }
 
 [bundles]
 androidx-camera = [

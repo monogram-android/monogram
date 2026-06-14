@@ -13,6 +13,7 @@ import org.monogram.domain.models.KeyboardButtonModel
 import org.monogram.domain.models.KeyboardButtonType
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.UserTypeEnum
 import org.monogram.domain.repository.ChatMembersFilter
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
@@ -88,34 +89,40 @@ internal fun DefaultChatComponent.handleInlineQueryChange(botUsername: String, q
     }
 
     inlineBotJob?.cancel()
+
+    val cachedBotId = if (state.currentInlineBotUsername == normalizedUsername) {
+        state.currentInlineBotId
+    } else {
+        null
+    }
+
+    if (state.currentInlineBotUsername != null && state.currentInlineBotUsername != normalizedUsername) {
+        clearInlineBotState()
+    }
+
     inlineBotJob = scope.launch {
         delay(300)
-        val currentState = _state.value
-        val cachedBotId = if (currentState.currentInlineBotUsername == normalizedUsername) {
-            currentState.currentInlineBotId
-        } else {
-            null
-        }
-
-        _state.update {
-            it.copy(
-                inlineBotResults = if (it.currentInlineBotUsername == normalizedUsername) it.inlineBotResults else null,
-                currentInlineBotId = cachedBotId,
-                currentInlineBotUsername = normalizedUsername,
-                currentInlineQuery = normalizedQuery,
-                isInlineBotLoading = true
-            )
-        }
 
         try {
             val botId = cachedBotId ?: chatInfoRepository.searchPublicChat(normalizedUsername)
                 ?.id
+                ?.takeIf { userRepository.getUser(it)?.type == UserTypeEnum.BOT }
 
             if (!isActive) return@launch
 
             if (botId == null) {
                 clearInlineBotState()
                 return@launch
+            }
+
+            _state.update {
+                it.copy(
+                    inlineBotResults = if (it.currentInlineBotUsername == normalizedUsername) it.inlineBotResults else null,
+                    currentInlineBotId = botId,
+                    currentInlineBotUsername = normalizedUsername,
+                    currentInlineQuery = normalizedQuery,
+                    isInlineBotLoading = true
+                )
             }
 
             val results = inlineBotRepository.getInlineBotResults(botId, chatId, normalizedQuery)

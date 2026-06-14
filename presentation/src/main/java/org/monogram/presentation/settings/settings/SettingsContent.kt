@@ -216,6 +216,8 @@ fun SettingsContent(component: SettingsComponent) {
 
     val localClipboard = LocalClipboard.current
     val nativeClipboard = localClipboard.nativeClipboard
+    val profileUsername = state.currentUser?.username?.takeIf { it.isNotBlank() }
+    val profileLink = profileUsername?.let { "https://t.me/$it" }
     val collapsedColor = MaterialTheme.colorScheme.surface
     val expandedColor = MaterialTheme.colorScheme.background
     val dynamicContainerColor = lerp(
@@ -223,7 +225,7 @@ fun SettingsContent(component: SettingsComponent) {
         stop = expandedColor,
         fraction = collapsingToolbarState.toolbarState.progress
     )
-    val dynamicContainerColorTopBar = lerp(
+    lerp(
         start = collapsedColor,
         stop = Color.Transparent,
         fraction = collapsingToolbarState.toolbarState.progress
@@ -249,7 +251,7 @@ fun SettingsContent(component: SettingsComponent) {
         component.onDismissAvatarViewer()
     }
 
-    if (state.isQrVisible) {
+    if (state.isQrVisible && profileUsername != null && profileLink != null) {
         val sheetState = rememberModalBottomSheetState()
         ModalBottomSheet(
             onDismissRequest = component::onQrCodeDismissed,
@@ -257,8 +259,7 @@ fun SettingsContent(component: SettingsComponent) {
             containerColor = MaterialTheme.colorScheme.background,
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
-            val username = state.currentUser?.username ?: "user"
-            val qrContent = state.qrContent.ifEmpty { "https://t.me/$username" }
+            val qrContent = state.qrContent.ifBlank { profileLink }
 
             Column(
                 modifier = Modifier
@@ -290,7 +291,7 @@ fun SettingsContent(component: SettingsComponent) {
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "@$username",
+                            text = "@$profileUsername",
                             color = QrDarkGreen,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Medium
@@ -388,7 +389,7 @@ fun SettingsContent(component: SettingsComponent) {
         }
     }
 
-    if (state.isMoreOptionsVisible && state.currentUser?.username != null) {
+    if (state.isMoreOptionsVisible && profileUsername != null && profileLink != null) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = component::onMoreOptionsDismissed,
@@ -410,13 +411,11 @@ fun SettingsContent(component: SettingsComponent) {
                     iconBackgroundColor = blueColor,
                     position = ItemPosition.TOP,
                     onClick = {
-                        state.currentUser?.username?.let { username ->
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "https://t.me/$username")
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, null))
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, profileLink)
                         }
+                        context.startActivity(Intent.createChooser(shareIntent, null))
                         component.onMoreOptionsDismissed()
                     }
                 )
@@ -427,13 +426,10 @@ fun SettingsContent(component: SettingsComponent) {
                     iconBackgroundColor = greenColor,
                     position = ItemPosition.BOTTOM,
                     onClick = {
-                        state.currentUser?.username?.let { username ->
-                            nativeClipboard.setPrimaryClip(
-                                ClipData.newPlainText("", AnnotatedString("https://t.me/$username"))
-                            )
-
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        }
+                        nativeClipboard.setPrimaryClip(
+                            ClipData.newPlainText("", AnnotatedString(profileLink))
+                        )
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         component.onMoreOptionsDismissed()
                     }
                 )
@@ -558,12 +554,14 @@ fun SettingsContent(component: SettingsComponent) {
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 4.dp)
                         ) {
-                            IconButton(onClick = component::onQrCodeClicked) {
-                                Icon(
-                                    imageVector = Icons.Default.QrCode2,
-                                    contentDescription = stringResource(R.string.action_qr_code),
-                                    tint = iconTint
-                                )
+                            if (profileUsername != null) {
+                                IconButton(onClick = component::onQrCodeClicked) {
+                                    Icon(
+                                        imageVector = Icons.Default.QrCode2,
+                                        contentDescription = stringResource(R.string.action_qr_code),
+                                        tint = iconTint
+                                    )
+                                }
                             }
                             IconButton(onClick = component::onEditProfileClicked) {
                                 Icon(
@@ -572,7 +570,7 @@ fun SettingsContent(component: SettingsComponent) {
                                     tint = iconTint
                                 )
                             }
-                            if (!state.currentUser?.username.isNullOrEmpty()) {
+                            if (profileUsername != null) {
                                 IconButton(onClick = component::onMoreOptionsClicked) {
                                     Icon(
                                         imageVector = Icons.Default.MoreVert,
@@ -728,7 +726,12 @@ fun SettingsContent(component: SettingsComponent) {
                                     position = ItemPosition.MIDDLE,
                                     onClick = {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        ClipData.newPlainText(usernameSubTitle, AnnotatedString("@${user.username}"))
+                                        nativeClipboard.setPrimaryClip(
+                                            ClipData.newPlainText(
+                                                usernameSubTitle,
+                                                AnnotatedString("@${user.username}")
+                                            )
+                                        )
                                     }
                                 )
                             }
@@ -741,7 +744,12 @@ fun SettingsContent(component: SettingsComponent) {
                                 position = ItemPosition.MIDDLE,
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    ClipData.newPlainText(yourIdSubTitle, AnnotatedString(user.id.toString()))
+                                    nativeClipboard.setPrimaryClip(
+                                        ClipData.newPlainText(
+                                            yourIdSubTitle,
+                                            AnnotatedString(user.id.toString())
+                                        )
+                                    )
                                 }
                             )
 

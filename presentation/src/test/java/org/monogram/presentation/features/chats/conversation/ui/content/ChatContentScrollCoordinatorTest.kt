@@ -99,6 +99,86 @@ class ChatContentScrollCoordinatorTest {
     }
 
     @Test
+    fun `calculateBottomAlignmentDelta supports root chat and comments bottom alignment`() {
+        val rootDelta = calculateBottomAlignmentDelta(
+            viewportStart = 50,
+            viewportEnd = 1050,
+            itemOffset = 90,
+            itemSize = 120,
+            isComments = false
+        )
+        val commentsDelta = calculateBottomAlignmentDelta(
+            viewportStart = 50,
+            viewportEnd = 1050,
+            itemOffset = 860,
+            itemSize = 150,
+            isComments = true
+        )
+
+        assertEquals(40f, rootDelta, 0.001f)
+        assertEquals((-40f), commentsDelta, 0.001f)
+    }
+
+    @Test
+    fun `visible bottom fast path is used only for small visible deltas`() {
+        assertTrue(
+            shouldUseVisibleBottomFastPath(
+                targetAlreadyVisible = true,
+                bottomAlignmentDelta = 80f
+            )
+        )
+        assertFalse(
+            shouldUseVisibleBottomFastPath(
+                targetAlreadyVisible = true,
+                bottomAlignmentDelta = 180f
+            )
+        )
+        assertFalse(
+            shouldUseVisibleBottomFastPath(
+                targetAlreadyVisible = false,
+                bottomAlignmentDelta = 40f
+            )
+        )
+    }
+
+    @Test
+    fun `needsBottomAlignmentCorrection ignores already aligned bottom`() {
+        assertFalse(needsBottomAlignmentCorrection(0.5f))
+        assertTrue(needsBottomAlignmentCorrection(8f))
+    }
+
+    @Test
+    fun `buildBottomCoarseScrollIndex skips staged jump when already near bottom`() {
+        val coarseIndex = buildBottomCoarseScrollIndex(
+            currentFirstVisibleIndex = 2,
+            targetIndex = 0,
+            totalItemsCount = 120,
+            isComments = false
+        )
+
+        assertNull(coarseIndex)
+    }
+
+    @Test
+    fun `buildBottomCoarseScrollIndex keeps staged jump for far positions`() {
+        val rootCoarseIndex = buildBottomCoarseScrollIndex(
+            currentFirstVisibleIndex = 70,
+            targetIndex = 0,
+            totalItemsCount = 120,
+            isComments = false
+        )
+        val commentsCoarseIndex = buildBottomCoarseScrollIndex(
+            currentFirstVisibleIndex = 10,
+            targetIndex = 119,
+            totalItemsCount = 120,
+            isComments = true
+        )
+
+        assertEquals(8, rootCoarseIndex)
+        assertEquals(111, commentsCoarseIndex)
+    }
+
+    @Test
     fun `chatContentLeadingItemsCount accounts for root loading-newer item`() {
         val leadingItems = chatContentLeadingItemsCount(
             isComments = false,

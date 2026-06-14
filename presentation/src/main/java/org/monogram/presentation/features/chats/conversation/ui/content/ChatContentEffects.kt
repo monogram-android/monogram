@@ -18,6 +18,27 @@ import org.monogram.presentation.features.chats.conversation.ChatScrollCommand
 import org.monogram.presentation.features.chats.conversation.ChatViewportPhase
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 import org.monogram.presentation.features.chats.conversation.logic.requestMessageHighlight
+import kotlin.math.abs
+
+internal fun shouldRetainBottomAlignmentAfterContentChange(
+    viewportPhase: ChatViewportPhase,
+    pendingScrollCommand: ChatScrollCommand?,
+    stateIsAtBottom: Boolean,
+    measuredIsAtBottom: Boolean,
+    isLoading: Boolean,
+    isLoadingOlder: Boolean,
+    isLoadingNewer: Boolean,
+    isScrollInProgress: Boolean,
+    bottomAlignmentDeltaPx: Float?,
+    alignmentTolerancePx: Float = 1f
+): Boolean {
+    if (viewportPhase != ChatViewportPhase.Settled) return false
+    if (pendingScrollCommand != null) return false
+    if (!stateIsAtBottom && !measuredIsAtBottom) return false
+    if (isLoading || isLoadingOlder || isLoadingNewer || isScrollInProgress) return false
+    val delta = bottomAlignmentDeltaPx ?: return false
+    return abs(delta) > alignmentTolerancePx
+}
 
 @Composable
 internal fun ChatContentEffects(
@@ -395,6 +416,7 @@ internal fun ChatContentEffects(
     LaunchedEffect(
         effectsEnabled,
         state.viewportPhase,
+        state.pendingScrollCommand,
         groupedMessages.size,
         state.isLatestLoaded
     ) {
@@ -405,11 +427,18 @@ internal fun ChatContentEffects(
             isComments = isComments,
             isLatestLoaded = state.isLatestLoaded
         )
-        if ((state.isAtBottom || isAtBottomNow) &&
-            !state.isLoading &&
-            !state.isLoadingOlder &&
-            !state.isLoadingNewer &&
-            !scrollState.isScrollInProgress
+        val bottomAlignmentDelta = scrollState.bottomAlignmentDelta(isComments = isComments)
+        if (shouldRetainBottomAlignmentAfterContentChange(
+                viewportPhase = state.viewportPhase,
+                pendingScrollCommand = state.pendingScrollCommand,
+                stateIsAtBottom = state.isAtBottom,
+                measuredIsAtBottom = isAtBottomNow,
+                isLoading = state.isLoading,
+                isLoadingOlder = state.isLoadingOlder,
+                isLoadingNewer = state.isLoadingNewer,
+                isScrollInProgress = scrollState.isScrollInProgress,
+                bottomAlignmentDeltaPx = bottomAlignmentDelta
+            )
         ) {
             scrollState.scrollToChatBottomStaged(
                 isComments = isComments,

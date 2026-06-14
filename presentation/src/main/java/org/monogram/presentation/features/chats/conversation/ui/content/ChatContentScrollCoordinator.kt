@@ -12,6 +12,10 @@ import org.monogram.domain.models.ChatViewportCacheEntry
 import org.monogram.presentation.features.chats.conversation.ScrollAlign
 import kotlin.math.abs
 
+private const val BOTTOM_ALIGNMENT_TOLERANCE_PX = 1f
+private const val BOTTOM_FAST_PATH_MAX_DELTA_PX = 120f
+private const val BOTTOM_STAGED_SCROLL_DISTANCE_THRESHOLD = 24
+
 @Immutable
 internal data class BottomVisibilitySnapshot(
     val isAtBottom: Boolean,
@@ -31,6 +35,67 @@ internal data class ScrollToMessagePlan(
     val coarseIndex: Int?,
     val shouldAnimateToIndex: Boolean
 )
+
+internal fun calculateBottomAlignmentDelta(
+    viewportStart: Int,
+    viewportEnd: Int,
+    itemOffset: Int,
+    itemSize: Int,
+    isComments: Boolean
+): Float {
+    return if (isComments) {
+        ((itemOffset + itemSize) - viewportEnd).toFloat()
+    } else {
+        (itemOffset - viewportStart).toFloat()
+    }
+}
+
+internal fun shouldUseVisibleBottomFastPath(
+    targetAlreadyVisible: Boolean,
+    bottomAlignmentDelta: Float,
+    maxDeltaPx: Float = BOTTOM_FAST_PATH_MAX_DELTA_PX
+): Boolean {
+    return targetAlreadyVisible && abs(bottomAlignmentDelta) <= maxDeltaPx
+}
+
+internal fun needsBottomAlignmentCorrection(
+    bottomAlignmentDelta: Float,
+    tolerancePx: Float = BOTTOM_ALIGNMENT_TOLERANCE_PX
+): Boolean {
+    return abs(bottomAlignmentDelta) > tolerancePx
+}
+
+internal fun buildBottomCoarseScrollIndex(
+    currentFirstVisibleIndex: Int,
+    targetIndex: Int,
+    totalItemsCount: Int,
+    isComments: Boolean
+): Int? {
+    if (totalItemsCount <= 0) return null
+
+    val boundedTargetIndex = targetIndex.coerceIn(0, totalItemsCount - 1)
+    val distance = abs(currentFirstVisibleIndex - boundedTargetIndex)
+    if (distance <= BOTTOM_STAGED_SCROLL_DISTANCE_THRESHOLD) return null
+
+    return if (isComments) {
+        (boundedTargetIndex - 8).coerceAtLeast(0)
+    } else {
+        (boundedTargetIndex + 8).coerceAtMost(totalItemsCount - 1)
+    }
+}
+
+internal fun LazyListState.bottomAlignmentDelta(isComments: Boolean): Float? {
+    val info = layoutInfo
+    val targetIndex = if (isComments) info.totalItemsCount - 1 else 0
+    val targetInfo = info.visibleItemsInfo.firstOrNull { it.index == targetIndex } ?: return null
+    return calculateBottomAlignmentDelta(
+        viewportStart = info.viewportStartOffset,
+        viewportEnd = info.viewportEndOffset,
+        itemOffset = targetInfo.offset,
+        itemSize = targetInfo.size,
+        isComments = isComments
+    )
+}
 
 internal suspend fun LazyListState.scrollToMessageIndex(
     index: Int,
@@ -155,15 +220,41 @@ internal suspend fun LazyListState.scrollToChatBottomStaged(
     if (total <= 0) return
 
     val targetIndex = if (isComments) total - 1 else 0
-    val distance = abs(firstVisibleItemIndex - targetIndex)
+    val visibleTargetInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
+    if (visibleTargetInfo != null) {
+        val visibleDelta = calculateBottomAlignmentDelta(
+            viewportStart = layoutInfo.viewportStartOffset,
+            viewportEnd = layoutInfo.viewportEndOffset,
+            itemOffset = visibleTargetInfo.offset,
+            itemSize = visibleTargetInfo.size,
+            isComments = isComments
+        )
+        if (!needsBottomAlignmentCorrection(visibleDelta)) return
 
-    if (distance > 24) {
-        val coarse = if (isComments) {
-            (targetIndex - 8).coerceAtLeast(0)
-        } else {
-            (targetIndex + 8).coerceAtMost(total - 1)
+        if (shouldUseVisibleBottomFastPath(
+                targetAlreadyVisible = true,
+                bottomAlignmentDelta = visibleDelta
+            )
+        ) {
+            if (animated) {
+                animateScrollBy(visibleDelta)
+            } else {
+                scrollBy(visibleDelta)
+            }
+            val remainingDelta = bottomAlignmentDelta(isComments = isComments)
+            if (remainingDelta == null || !needsBottomAlignmentCorrection(remainingDelta)) {
+                return
+            }
         }
-        scrollToItem(coarse)
+    }
+
+    buildBottomCoarseScrollIndex(
+        currentFirstVisibleIndex = firstVisibleItemIndex,
+        targetIndex = targetIndex,
+        totalItemsCount = total,
+        isComments = isComments
+    )?.let { coarseIndex ->
+        scrollToItem(coarseIndex)
     }
 
     if (animated) {
@@ -174,13 +265,19 @@ internal suspend fun LazyListState.scrollToChatBottomStaged(
 
     val targetInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex }
     if (targetInfo != null) {
-        val delta = if (isComments) {
-            ((targetInfo.offset + targetInfo.size) - layoutInfo.viewportEndOffset).toFloat()
-        } else {
-            (targetInfo.offset - layoutInfo.viewportStartOffset).toFloat()
-        }
-        if (abs(delta) > 1f) {
+        val delta = calculateBottomAlignmentDelta(
+            viewportStart = layoutInfo.viewportStartOffset,
+            viewportEnd = layoutInfo.viewportEndOffset,
+            itemOffset = targetInfo.offset,
+            itemSize = targetInfo.size,
+            isComments = isComments
+        )
+        if (needsBottomAlignmentCorrection(delta)) {
             scrollBy(delta)
+        }
+        val remainingDelta = bottomAlignmentDelta(isComments = isComments)
+        if (remainingDelta == null || !needsBottomAlignmentCorrection(remainingDelta)) {
+            return
         }
     }
 

@@ -69,6 +69,14 @@ import org.monogram.presentation.features.chats.conversation.ui.message.PreviewV
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberChatMessageRenderDependencies
 import org.monogram.presentation.features.chats.conversation.ui.rememberVoicePlaybackController
 
+internal fun shouldHideChatContentForViewportTransition(
+    renderMode: ChatRenderMode,
+    viewportPhase: ChatViewportPhase
+): Boolean {
+    return renderMode != ChatRenderMode.SwipePreview &&
+            viewportPhase != ChatViewportPhase.Settled
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ChatContent(
@@ -96,7 +104,7 @@ fun ChatContent(
                 isTabletInterfaceEnabled
 
     var isVisible by remember(conversationKey) {
-        mutableStateOf(renderMode == ChatRenderMode.SwipePreview || state.viewportPhase == ChatViewportPhase.Settled)
+        mutableStateOf(!shouldHideChatContentForViewportTransition(renderMode, state.viewportPhase))
     }
     var showInitialLoading by remember(conversationKey) { mutableStateOf(false) }
     var isRecordingVideo by remember(conversationKey) { mutableStateOf(false) }
@@ -256,7 +264,7 @@ fun ChatContent(
     LaunchedEffect(renderMode, state.viewportPhase, conversationKey) {
         if (renderMode == ChatRenderMode.SwipePreview) {
             isVisible = true
-        } else if (state.viewportPhase != ChatViewportPhase.Settled) {
+        } else if (shouldHideChatContentForViewportTransition(renderMode, state.viewportPhase)) {
             isVisible = false
         }
     }

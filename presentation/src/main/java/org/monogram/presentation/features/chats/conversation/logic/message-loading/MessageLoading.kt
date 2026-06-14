@@ -18,6 +18,7 @@ import org.monogram.domain.models.MessageSendingState
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppression
+import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ChatScrollCommand
 import org.monogram.presentation.features.chats.conversation.ChatViewportPhase
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
@@ -604,6 +605,15 @@ internal fun DefaultChatComponent.requestMessageHighlight(messageId: Long) {
     }
 }
 
+internal fun ChatComponent.State.enqueueRuntimeScrollToBottom(
+    animated: Boolean = true
+): ChatComponent.State {
+    return copy(
+        isAtBottom = true,
+        pendingScrollCommand = ChatScrollCommand.ScrollToBottom(animated = animated)
+    )
+}
+
 private fun DefaultChatComponent.queueJumpToLoadedMessage(
     messageId: Long,
     highlight: Boolean,
@@ -843,13 +853,7 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
     val isComments = currentState.rootMessage != null
     val targetChatId = currentState.effectiveThreadChatId(chatId)
     if (currentState.messages.isNotEmpty() && currentState.isLatestLoaded) {
-        _state.update {
-            it.copy(
-                isAtBottom = true,
-                viewportPhase = ChatViewportPhase.Restoring,
-                pendingScrollCommand = ChatScrollCommand.ScrollToBottom(animated = true)
-            )
-        }
+        _state.update { it.enqueueRuntimeScrollToBottom(animated = true) }
         return
     }
     if (currentState.messages.isNotEmpty() && !currentState.isLatestLoaded) {
@@ -866,13 +870,7 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
                     reachedLatest = loadNewerMessagesPage()
                 }
                 if (reachedLatest || _state.value.isLatestLoaded) {
-                    _state.update {
-                        it.copy(
-                            isAtBottom = true,
-                            viewportPhase = ChatViewportPhase.Restoring,
-                            pendingScrollCommand = ChatScrollCommand.ScrollToBottom(animated = true)
-                        )
-                    }
+                    _state.update { it.enqueueRuntimeScrollToBottom(animated = true) }
                 }
             } catch (e: Exception) {
                 Log.e(

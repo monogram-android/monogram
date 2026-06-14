@@ -59,6 +59,13 @@ internal data class ChatContentBodyUiState(
     val isChannel: Boolean
 )
 
+internal fun shouldSuppressMessageEntryAnimations(
+    showInitialLoading: Boolean,
+    viewportPhase: ChatViewportPhase
+): Boolean {
+    return showInitialLoading || viewportPhase != ChatViewportPhase.Settled
+}
+
 @Composable
 internal fun rememberChatContentPermissionState(
     state: ChatComponent.State
@@ -239,7 +246,6 @@ internal fun rememberChatMessageListState(
         state.showLinkPreviews,
         state.isChatAnimationsEnabled,
         showInitialLoading,
-        state.pendingScrollCommand,
         state.viewportPhase
     ) {
         ChatMessageListUiState(
@@ -276,9 +282,10 @@ internal fun rememberChatMessageListState(
             autoplayVideos = state.viewportPhase == ChatViewportPhase.Settled && state.autoplayVideos,
             showLinkPreviews = state.showLinkPreviews,
             isChatAnimationsEnabled = state.isChatAnimationsEnabled,
-            suppressEntryAnimations = showInitialLoading ||
-                    state.pendingScrollCommand != null ||
-                    state.viewportPhase != ChatViewportPhase.Settled,
+            suppressEntryAnimations = shouldSuppressMessageEntryAnimations(
+                showInitialLoading = showInitialLoading,
+                viewportPhase = state.viewportPhase
+            ),
             isViewportSettled = state.viewportPhase == ChatViewportPhase.Settled
         )
     }

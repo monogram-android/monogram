@@ -97,7 +97,7 @@ class ChatViewportRestorePolicyTest {
     }
 
     @Test
-    fun `saved at-bottom opens bottom`() {
+    fun `saved at-bottom with unread opens around first unread`() {
         val target = resolveInitialChatScrollTarget(
             explicitMessageId = null,
             savedViewport = ChatViewportCacheEntry(
@@ -106,6 +106,25 @@ class ChatViewportRestorePolicyTest {
                 atBottom = true
             ),
             firstUnreadMessageId = 50L,
+            isComments = false
+        )
+
+        val around = target as InitialChatScrollTarget.AroundMessage
+        assertEquals(50L, around.messageId)
+        assertFalse(around.highlight)
+        assertEquals(50L, (around.command as ChatScrollCommand.JumpToMessage).messageId)
+    }
+
+    @Test
+    fun `saved at-bottom without unread opens bottom`() {
+        val target = resolveInitialChatScrollTarget(
+            explicitMessageId = null,
+            savedViewport = ChatViewportCacheEntry(
+                anchorMessageId = null,
+                anchorOffsetPx = 0,
+                atBottom = true
+            ),
+            firstUnreadMessageId = null,
             isComments = false
         )
 
@@ -123,5 +142,23 @@ class ChatViewportRestorePolicyTest {
         )
 
         assertTrue((target as InitialChatScrollTarget.Comments).command is ChatScrollCommand.ScrollToStart)
+    }
+
+    @Test
+    fun `comments with saved at-bottom and unread restore saved viewport`() {
+        val target = resolveInitialChatScrollTarget(
+            explicitMessageId = null,
+            savedViewport = ChatViewportCacheEntry(
+                anchorMessageId = null,
+                anchorOffsetPx = 0,
+                atBottom = true
+            ),
+            firstUnreadMessageId = 50L,
+            isComments = true
+        )
+
+        val command =
+            (target as InitialChatScrollTarget.Comments).command as ChatScrollCommand.RestoreViewport
+        assertTrue(command.atBottom)
     }
 }

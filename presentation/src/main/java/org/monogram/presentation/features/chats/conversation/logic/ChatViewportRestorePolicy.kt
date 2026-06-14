@@ -62,16 +62,6 @@ internal fun resolveInitialChatScrollTarget(
         )
     }
 
-    if (savedViewport != null && savedViewport.atBottom) {
-        return InitialChatScrollTarget.Bottom(
-            command = ChatScrollCommand.RestoreViewport(
-                anchorMessageId = savedViewport.anchorMessageId,
-                anchorOffsetPx = savedViewport.anchorOffsetPx,
-                atBottom = true
-            )
-        )
-    }
-
     if (firstUnreadMessageId != null) {
         return InitialChatScrollTarget.AroundMessage(
             messageId = firstUnreadMessageId,
@@ -82,6 +72,16 @@ internal fun resolveInitialChatScrollTarget(
                 highlight = false,
                 align = ScrollAlign.Center,
                 animated = false
+            )
+        )
+    }
+
+    if (savedViewport != null && savedViewport.atBottom) {
+        return InitialChatScrollTarget.Bottom(
+            command = ChatScrollCommand.RestoreViewport(
+                anchorMessageId = savedViewport.anchorMessageId,
+                anchorOffsetPx = savedViewport.anchorOffsetPx,
+                atBottom = true
             )
         )
     }

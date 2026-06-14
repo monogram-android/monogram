@@ -1,6 +1,7 @@
 [versions]
 # Plugins
 agp = "9.2.1"
+exifinterface = "1.4.2"
 kotlin = "2.3.21"
 google-services = "4.4.4"
 ossLicensesPlugin = "0.12.0"
@@ -54,6 +55,7 @@ unifiedpush-connector = "3.3.3"
 [libraries]
 # AndroidX Activity
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "androidx-activityCompose" }
+androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
 androidx-window = { module = "androidx.window:window", version.ref = "androidx-window" }
 androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "androidx-core-splashscreen" }
 androidx-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "androidx-lifecycle" }

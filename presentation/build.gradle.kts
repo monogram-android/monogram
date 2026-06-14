@@ -92,6 +92,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.zxing.core)
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.security.crypto)
     implementation(libs.maplibre.compose)
     add("firebaseImplementation", libs.play.services.oss.licenses)

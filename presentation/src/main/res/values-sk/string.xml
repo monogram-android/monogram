@@ -236,6 +236,8 @@
     <string name="menu_repeat">+1</string>
     <string name="menu_select">Vybrať</string>
     <string name="menu_more">Viac</string>
+    <string name="message_info_json">JSON správy</string>
+    <string name="message_info_json_unavailable">JSON správy nie je k dispozícii</string>
     <string name="menu_delete">Odstrániť</string>
     <string name="menu_view_comments">Zobraziť komentáre</string>
     <string name="menu_save_to_downloads">Uložiť do stiahnutých</string>

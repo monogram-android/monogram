@@ -59,6 +59,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DoneAll
@@ -173,6 +174,7 @@ fun MessageOptionsMenu(
     showTelegramSummary: Boolean = false,
     showTelegramTranslator: Boolean = false,
     showRestoreOriginalText: Boolean = false,
+    showRawMessageJson: Boolean = false,
     packOptions: List<MessagePackMenuOption> = emptyList(),
     viewers: List<MessageViewerModel> = emptyList(),
     isLoadingViewers: Boolean = false,
@@ -194,6 +196,7 @@ fun MessageOptionsMenu(
     onTelegramSummary: () -> Unit = {},
     onTelegramTranslator: () -> Unit = {},
     onRestoreOriginalText: () -> Unit = {},
+    onShowRawMessageJson: () -> Unit = {},
     onPackClick: (Long) -> Unit = {},
     onReport: () -> Unit = {},
     onBlock: () -> Unit = {},
@@ -271,6 +274,7 @@ fun MessageOptionsMenu(
         showTelegramSummary,
         showTelegramTranslator,
         showRestoreOriginalText,
+        showRawMessageJson,
         packOptions,
         canCopyLink,
         canReport,
@@ -291,6 +295,7 @@ fun MessageOptionsMenu(
             showTelegramSummary = showTelegramSummary,
             showTelegramTranslator = showTelegramTranslator,
             showRestoreOriginalText = showRestoreOriginalText,
+            showRawMessageJson = showRawMessageJson,
             hasPackAction = packOptions.isNotEmpty()
         )
     }
@@ -830,6 +835,14 @@ fun MessageOptionsMenu(
                             )
                         }
 
+                        if (sections.hasRawMessageJsonAction) {
+                            InternalMenuOptionItem(
+                                icon = Icons.Rounded.Code,
+                                text = stringResource(R.string.message_info_json),
+                                onClick = { animateOutAndDismiss(onShowRawMessageJson) }
+                            )
+                        }
+
                         if (sections.hasReportAction) {
                             InternalMenuOptionItem(
                                 icon = Icons.Rounded.Report,
@@ -1017,6 +1030,7 @@ private data class MessageMenuSections(
     val hasTelegramTranslatorAction: Boolean,
     val hasRestoreOriginalTextAction: Boolean,
     val hasRepeatAction: Boolean,
+    val hasRawMessageJsonAction: Boolean,
 ) {
     fun merge(other: MessageMenuSections): MessageMenuSections {
         return MessageMenuSections(
@@ -1040,6 +1054,7 @@ private data class MessageMenuSections(
             hasTelegramTranslatorAction = hasTelegramTranslatorAction || other.hasTelegramTranslatorAction,
             hasRestoreOriginalTextAction = hasRestoreOriginalTextAction || other.hasRestoreOriginalTextAction,
             hasRepeatAction = hasRepeatAction || other.hasRepeatAction,
+            hasRawMessageJsonAction = hasRawMessageJsonAction || other.hasRawMessageJsonAction,
         )
     }
 
@@ -1067,6 +1082,7 @@ private data class MessageMenuSections(
                     it.hasTelegramTranslatorAction,
                     it.hasRestoreOriginalTextAction,
                     it.hasRepeatAction,
+                    it.hasRawMessageJsonAction,
                 )
             },
             restore = { values ->
@@ -1091,6 +1107,7 @@ private data class MessageMenuSections(
                     hasTelegramTranslatorAction = values[17],
                     hasRestoreOriginalTextAction = values[18],
                     hasRepeatAction = values[19],
+                    hasRawMessageJsonAction = values[20],
                 )
             }
         )
@@ -1109,12 +1126,14 @@ private fun buildMenuSections(
     showTelegramSummary: Boolean,
     showTelegramTranslator: Boolean,
     showRestoreOriginalText: Boolean,
+    showRawMessageJson: Boolean,
     hasPackAction: Boolean
 ): MessageMenuSections {
     val hasCocoonActions = showTelegramSummary || showTelegramTranslator || showRestoreOriginalText
     val hasMoreActions = message.canGetMessageThread ||
             canCopyLink ||
             shouldShowDownload(message) ||
+            showRawMessageJson ||
             canReport ||
             canBlock
     return MessageMenuSections(
@@ -1138,6 +1157,7 @@ private fun buildMenuSections(
         hasTelegramTranslatorAction = showTelegramTranslator,
         hasRestoreOriginalTextAction = showRestoreOriginalText,
         hasRepeatAction = message.canBeForwarded && canWrite,
+        hasRawMessageJsonAction = showRawMessageJson,
     )
 }
 

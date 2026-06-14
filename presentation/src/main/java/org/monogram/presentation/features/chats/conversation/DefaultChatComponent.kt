@@ -541,6 +541,10 @@ class DefaultChatComponent(
         return repositoryMessage.getMessageViewers(chatId, messageId)
     }
 
+    override suspend fun getRawMessageJson(chatId: Long, messageId: Long): String? {
+        return repositoryMessage.getRawMessageJson(chatId, messageId)
+    }
+
     override fun toProfile(id: Long) = toProfiles(id)
     override fun onForwardOriginClick(forwardInfo: ForwardInfo) {
         when (forwardInfo.originType) {

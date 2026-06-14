@@ -129,6 +129,7 @@ interface ChatComponent {
     fun onSendReaction(messageId: Long, reaction: String)
     suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int
     suspend fun getMessageViewers(chatId: Long, messageId: Long): List<MessageViewerModel>
+    suspend fun getRawMessageJson(chatId: Long, messageId: Long): String?
     fun toProfile(id: Long)
     fun onForwardOriginClick(forwardInfo: ForwardInfo)
     fun onToggleMessageSelection(messageId: Long)

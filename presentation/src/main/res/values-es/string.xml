@@ -227,6 +227,8 @@
     <string name="menu_repeat">+1</string>
     <string name="menu_select">Seleccionar</string>
     <string name="menu_more">Más</string>
+    <string name="message_info_json">JSON del mensaje</string>
+    <string name="message_info_json_unavailable">El JSON del mensaje no está disponible</string>
     <string name="menu_delete">Eliminar</string>
     <string name="menu_view_comments">Ver Comentarios</string>
     <string name="menu_save_to_downloads">Guardar en Descargas</string>

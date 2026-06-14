@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.drinkless.tdlib.TdApi
+import org.json.JSONObject
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.compat.buildTdChatPermissions
@@ -743,6 +744,13 @@ class MessageRepositoryImpl(
     override suspend fun getMessageViewers(chatId: Long, messageId: Long): List<MessageViewerModel> =
         withContext(dispatcherProvider.io) {
             messageRemoteDataSource.getMessageViewersModels(chatId, messageId)
+        }
+
+    override suspend fun getRawMessageJson(chatId: Long, messageId: Long): String? =
+        withContext(dispatcherProvider.io) {
+            val raw = messageRemoteDataSource.getMessage(chatId, messageId)?.toString()
+                ?: return@withContext null
+            runCatching { JSONObject(raw).toString(2) }.getOrElse { raw }
         }
 
     override suspend fun summarizeMessage(chatId: Long, messageId: Long, toLanguageCode: String): String? =

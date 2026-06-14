@@ -1,5 +1,6 @@
 package org.monogram.presentation.features.chats.conversation.ui.content
 
+import android.content.ClipData
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -7,14 +8,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.zIndex
 import androidx.window.core.layout.WindowWidthSizeClass
+import kotlinx.coroutines.launch
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
@@ -72,6 +80,12 @@ internal fun ChatContentOverlays(
     val isTablet =
         adaptiveInfo.windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED &&
                 isTabletInterfaceEnabled
+    val scope = rememberCoroutineScope()
+    val rawMessageJsonUnavailable = stringResource(R.string.message_info_json_unavailable)
+    var rawMessageJsonRequest by remember { mutableStateOf<MessageModel?>(null) }
+    var rawMessageJson by remember { mutableStateOf<String?>(null) }
+    var isRawMessageJsonLoading by remember { mutableStateOf(false) }
+
     if (renderPinnedMessagesList) {
         PinnedMessagesListSheet(
             isVisible = state.showPinnedMessagesList,
@@ -159,7 +173,41 @@ internal fun ChatContentOverlays(
             onApplyTransformedText = onApplyTransformedText,
             onRestoreOriginalText = onRestoreOriginalText,
             onBlockRequest = onRequestBlockUser,
+            onShowRawMessageJson = { message ->
+                rawMessageJsonRequest = message
+                rawMessageJson = null
+                isRawMessageJsonLoading = true
+                scope.launch {
+                    val chatId = message.chatId
+                    val messageId = message.id
+                    val json = runCatching {
+                        component.getRawMessageJson(chatId, messageId)
+                    }.getOrNull()
+
+                    if (rawMessageJsonRequest?.chatId == chatId && rawMessageJsonRequest?.id == messageId) {
+                        rawMessageJson = json ?: rawMessageJsonUnavailable
+                        isRawMessageJsonLoading = false
+                    }
+                }
+            },
             onDismiss = onDismissMessageOptions
+        )
+    }
+
+    if (rawMessageJsonRequest != null) {
+        RawMessageJsonSheet(
+            json = rawMessageJson,
+            isLoading = isRawMessageJsonLoading,
+            onCopy = { json ->
+                localClipboard.nativeClipboard.setPrimaryClip(
+                    ClipData.newPlainText("", AnnotatedString(json))
+                )
+            },
+            onDismiss = {
+                rawMessageJsonRequest = null
+                rawMessageJson = null
+                isRawMessageJsonLoading = false
+            }
         )
     }
 

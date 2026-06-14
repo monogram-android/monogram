@@ -227,6 +227,8 @@
     <string name="menu_repeat">+1</string>
     <string name="menu_select">Seç</string>
     <string name="menu_more">Daha Fazla</string>
+    <string name="message_info_json">Mesaj JSON\'u</string>
+    <string name="message_info_json_unavailable">Mesaj JSON\'u kullanılamıyor</string>
     <string name="menu_delete">Sil</string>
     <string name="menu_view_comments">Yorumları Görüntüle</string>
     <string name="menu_save_to_downloads">İndirilenlere Kaydet</string>

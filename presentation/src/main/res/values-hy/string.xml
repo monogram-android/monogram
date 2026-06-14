@@ -218,6 +218,8 @@
     <string name="menu_repeat">+1</string>
     <string name="menu_select">Ընտրել</string>
     <string name="menu_more">Ավելին</string>
+    <string name="message_info_json">Հաղորդագրության JSON</string>
+    <string name="message_info_json_unavailable">Հաղորդագրության JSON-ը հասանելի չէ</string>
     <string name="menu_delete">Ջնջել</string>
     <string name="menu_view_comments">Դիտել մեկնաբանությունները</string>
     <string name="menu_save_to_downloads">Պահպանել ներբեռնումներում</string>

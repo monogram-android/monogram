@@ -2,6 +2,29 @@ package org.monogram.presentation.features.chats.conversation.ui.content
 
 import android.content.ClipData
 import android.util.Log
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -16,8 +39,11 @@ import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,6 +63,7 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.features.chats.conversation.ChatComponent
+import org.monogram.presentation.features.chats.conversation.ui.message.code.CodeHighlighter
 import org.monogram.presentation.features.stickers.ui.menu.MessageOptionsMenu
 import org.monogram.presentation.features.stickers.ui.menu.MessagePackMenuOption
 import java.util.Locale
@@ -57,6 +84,7 @@ fun ChatMessageOptionsMenu(
     onApplyTransformedText: (String) -> Unit,
     onRestoreOriginalText: () -> Unit,
     onBlockRequest: (Long) -> Unit,
+    onShowRawMessageJson: (MessageModel) -> Unit,
     onDismiss: () -> Unit
 ) {
     val nativeClipboard = localClipboard.nativeClipboard
@@ -281,6 +309,7 @@ fun ChatMessageOptionsMenu(
         showTelegramSummary = canUseTelegramSummary,
         showTelegramTranslator = canUseTelegramTranslator,
         showRestoreOriginalText = canRestoreOriginalText,
+        showRawMessageJson = true,
         packOptions = packOptions,
         viewers = messageViewers,
         isLoadingViewers = isLoadingViewers,
@@ -434,6 +463,9 @@ fun ChatMessageOptionsMenu(
             onRestoreOriginalText()
             onDismiss()
         },
+        onShowRawMessageJson = {
+            onShowRawMessageJson(selectedMessage)
+        },
         onPackClick = { setId ->
             component.onStickerClick(setId)
             onDismiss()
@@ -460,6 +492,121 @@ fun ChatMessageOptionsMenu(
         },
         onDismiss = onDismiss,
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun RawMessageJsonSheet(
+    json: String?,
+    isLoading: Boolean,
+    onCopy: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val highlighter = remember { CodeHighlighter() }
+    val colorScheme = MaterialTheme.colorScheme
+    val highlightedJson = remember(json, colorScheme) {
+        highlighter.highlight(
+            text = json.orEmpty(),
+            language = "json",
+            scheme = colorScheme
+        )
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = androidx.compose.ui.Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.message_info_json),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = androidx.compose.ui.Modifier.padding(horizontal = 4.dp)
+            )
+
+            Spacer(modifier = androidx.compose.ui.Modifier.height(16.dp))
+
+            Surface(
+                modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                if (isLoading) {
+                    Box(
+                        modifier = androidx.compose.ui.Modifier
+                            .fillMaxWidth()
+                            .height(220.dp),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    Box(
+                        modifier = androidx.compose.ui.Modifier
+                            .heightIn(max = 520.dp)
+                            .verticalScroll(rememberScrollState())
+                            .horizontalScroll(rememberScrollState())
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = highlightedJson,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp
+                            )
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = androidx.compose.ui.Modifier.height(24.dp))
+
+            Row(
+                modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = androidx.compose.ui.Modifier
+                        .weight(1f)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.cd_close),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Button(
+                    onClick = { json?.let(onCopy) },
+                    enabled = !isLoading && !json.isNullOrBlank(),
+                    modifier = androidx.compose.ui.Modifier
+                        .weight(1f)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.action_copy),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
 }
 
 private suspend fun resolveMessagePackOptions(

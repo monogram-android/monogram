@@ -226,6 +226,8 @@
     <string name="menu_repeat">+1</string>
     <string name="menu_select">Вибрати</string>
     <string name="menu_more">Ще</string>
+    <string name="message_info_json">JSON повідомлення</string>
+    <string name="message_info_json_unavailable">JSON повідомлення недоступний</string>
     <string name="menu_delete">Видалити</string>
     <string name="menu_view_comments">Переглянути коментарі</string>
     <string name="menu_save_to_downloads">Зберегти у завантаження</string>

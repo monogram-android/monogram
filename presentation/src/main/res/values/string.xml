@@ -273,6 +273,8 @@
     <string name="menu_repeat">+1</string>
     <string name="menu_select">Select</string>
     <string name="menu_more">More</string>
+    <string name="message_info_json">Message JSON</string>
+    <string name="message_info_json_unavailable">Message JSON is unavailable</string>
     <string name="menu_view_sticker_pack">Sticker Pack</string>
     <string name="menu_view_emoji_pack">Emoji Pack</string>
     <string name="menu_view_used_packs">Used Packs</string>

@@ -243,6 +243,8 @@
     <string name="menu_repeat">+1</string>
     <string name="menu_select">Выбрать</string>
     <string name="menu_more">Ещё</string>
+    <string name="message_info_json">JSON сообщения</string>
+    <string name="message_info_json_unavailable">JSON сообщения недоступен</string>
     <string name="menu_delete">Удалить</string>
     <string name="menu_view_comments">Посмотреть комментарии</string>
     <string name="menu_save_to_downloads">Сохранить в загрузки</string>

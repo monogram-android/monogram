@@ -1521,8 +1521,7 @@ private fun handleAlbumVideoClick(
     val supportsStreaming = videoContent?.supportsStreaming ?: false
     val path = (videoContent?.path ?: gifContent?.path)?.takeIf { it.isNotBlank() && File(it).exists() }
     val clickedCaption = clickedMsg.mediaCaption()
-
-    if (path == null && !supportsStreaming) return
+    
     if (path == null && supportsStreaming) {
         onVideoClick(clickedMsg, null, clickedCaption)
         return

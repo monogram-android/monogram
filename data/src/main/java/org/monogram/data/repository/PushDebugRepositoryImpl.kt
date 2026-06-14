@@ -71,7 +71,10 @@ class PushDebugRepositoryImpl(
                     unifiedPushEndpoint = endpoint,
                     unifiedPushSavedDistributor = unifiedPushManager.getSavedDistributor(),
                     unifiedPushAckDistributor = unifiedPushManager.getAckDistributor(),
-                    unifiedPushDistributorsCount = unifiedPushManager.getDistributors().size
+                    unifiedPushDistributorsCount = unifiedPushManager.getDistributors().size,
+                    unifiedPushLastRegisterAttemptAt = unifiedPushManager.getLastRegisterAttemptAt(),
+                    unifiedPushLastRegisteredAt = unifiedPushManager.getLastRegisteredAt(),
+                    unifiedPushLastPushAt = unifiedPushManager.getLastPushAt()
                 )
             }.collect {
                 _diagnostics.value = it

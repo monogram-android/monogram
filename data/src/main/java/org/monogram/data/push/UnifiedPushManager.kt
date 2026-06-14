@@ -130,6 +130,10 @@ class UnifiedPushManager(
         Log.w(TAG, "UnifiedPush distributor temporarily unavailable")
     }
 
+    fun markPushReceived() {
+        prefs.edit().putLong(KEY_LAST_PUSH_AT, System.currentTimeMillis()).apply()
+    }
+
     fun onUnregistered() {
         clearEndpoint()
         _status.value = Status.UNREGISTERED
@@ -140,6 +144,12 @@ class UnifiedPushManager(
         if (last <= 0L) return true
         return System.currentTimeMillis() - last >= REFRESH_INTERVAL_MS
     }
+
+    fun getLastRegisterAttemptAt(): Long = prefs.getLong(KEY_LAST_REGISTER_ATTEMPT_AT, 0L)
+
+    fun getLastRegisteredAt(): Long = prefs.getLong(KEY_LAST_REGISTERED_AT, 0L)
+
+    fun getLastPushAt(): Long = prefs.getLong(KEY_LAST_PUSH_AT, 0L)
 
     private fun clearEndpoint() {
         prefs.edit().remove(KEY_ENDPOINT).apply()
@@ -163,6 +173,7 @@ class UnifiedPushManager(
         const val KEY_ENDPOINT = "endpoint"
         const val KEY_LAST_REGISTERED_AT = "last_registered_at"
         const val KEY_LAST_REGISTER_ATTEMPT_AT = "last_register_attempt_at"
+        const val KEY_LAST_PUSH_AT = "last_push_at"
         const val REFRESH_INTERVAL_MS = 24L * 60L * 60L * 1000L
         const val INSTANCE_ID = "monogram_default"
     }

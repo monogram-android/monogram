@@ -34,6 +34,7 @@ class UnifiedPushService : PushService(), KoinComponent {
             return
         }
 
+        unifiedPushManager.markPushReceived()
         val reason =
             if (payload.startsWith("version=")) "unified_push_telegram_simple" else "unified_push_message"
         pushSyncTrigger.requestSync(reason)

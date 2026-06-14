@@ -46,7 +46,10 @@ class DefaultDebugComponent(
                     unifiedPushEndpoint = diagnostics.unifiedPushEndpoint,
                     unifiedPushSavedDistributor = diagnostics.unifiedPushSavedDistributor,
                     unifiedPushAckDistributor = diagnostics.unifiedPushAckDistributor,
-                    unifiedPushDistributorsCount = diagnostics.unifiedPushDistributorsCount
+                    unifiedPushDistributorsCount = diagnostics.unifiedPushDistributorsCount,
+                    unifiedPushLastRegisterAttemptAt = diagnostics.unifiedPushLastRegisterAttemptAt,
+                    unifiedPushLastRegisteredAt = diagnostics.unifiedPushLastRegisteredAt,
+                    unifiedPushLastPushAt = diagnostics.unifiedPushLastPushAt
                 )
             }
         }.launchIn(scope)

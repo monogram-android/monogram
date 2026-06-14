@@ -58,6 +58,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import java.text.DateFormat
+import java.util.Date
 import org.monogram.domain.repository.PushProvider
 import org.monogram.domain.repository.UnifiedPushDebugStatus
 import org.monogram.presentation.R
@@ -305,6 +307,30 @@ fun DebugContent(component: DebugComponent) {
                     title = "Distributors count",
                     subtitle = state.unifiedPushDistributorsCount.toString(),
                     iconBackgroundColor = Color(0xFF9575CD),
+                    position = ItemPosition.MIDDLE,
+                    onClick = { }
+                )
+                SettingsItem(
+                    icon = Icons.Rounded.Sync,
+                    title = "Last register attempt",
+                    subtitle = state.unifiedPushLastRegisterAttemptAt.toDebugTimestamp(),
+                    iconBackgroundColor = Color(0xFF7E57C2),
+                    position = ItemPosition.MIDDLE,
+                    onClick = { }
+                )
+                SettingsItem(
+                    icon = Icons.Rounded.DoneAll,
+                    title = "Last successful register",
+                    subtitle = state.unifiedPushLastRegisteredAt.toDebugTimestamp(),
+                    iconBackgroundColor = Color(0xFF5E35B1),
+                    position = ItemPosition.MIDDLE,
+                    onClick = { }
+                )
+                SettingsItem(
+                    icon = Icons.Rounded.Notifications,
+                    title = "Last push",
+                    subtitle = state.unifiedPushLastPushAt.toDebugTimestamp(),
+                    iconBackgroundColor = Color(0xFF3949AB),
                     position = ItemPosition.BOTTOM,
                     onClick = { }
                 )
@@ -396,4 +422,9 @@ private fun UnifiedPushDebugStatus.toUiText(): String = when (this) {
     UnifiedPushDebugStatus.REGISTERED -> "Registered"
     UnifiedPushDebugStatus.FAILED -> "Failed"
     UnifiedPushDebugStatus.UNREGISTERED -> "Unregistered"
+}
+
+private fun Long.toDebugTimestamp(): String {
+    if (this <= 0L) return "Never"
+    return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(this))
 }

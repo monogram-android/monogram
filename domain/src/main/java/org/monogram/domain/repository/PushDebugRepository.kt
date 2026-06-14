@@ -22,7 +22,10 @@ data class PushDiagnostics(
     val unifiedPushEndpoint: String? = null,
     val unifiedPushSavedDistributor: String? = null,
     val unifiedPushAckDistributor: String? = null,
-    val unifiedPushDistributorsCount: Int = 0
+    val unifiedPushDistributorsCount: Int = 0,
+    val unifiedPushLastRegisterAttemptAt: Long = 0L,
+    val unifiedPushLastRegisteredAt: Long = 0L,
+    val unifiedPushLastPushAt: Long = 0L
 )
 
 interface PushDebugRepository {

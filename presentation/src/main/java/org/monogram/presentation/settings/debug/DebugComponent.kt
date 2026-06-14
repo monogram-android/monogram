@@ -30,6 +30,9 @@ interface DebugComponent {
         val unifiedPushSavedDistributor: String? = null,
         val unifiedPushAckDistributor: String? = null,
         val unifiedPushDistributorsCount: Int = 0,
+        val unifiedPushLastRegisterAttemptAt: Long = 0L,
+        val unifiedPushLastRegisteredAt: Long = 0L,
+        val unifiedPushLastPushAt: Long = 0L,
         val isGmsAvailable: Boolean = false,
         val isFcmAvailable: Boolean = false,
         val isUnifiedPushDistributorAvailable: Boolean = false

@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 sealed class AuthStep {
     object Loading : AuthStep()
     object WaitParameters : AuthStep()
+    object Closing : AuthStep()
     object InputPhone : AuthStep()
     data class InputCode(
         val codeType: String,

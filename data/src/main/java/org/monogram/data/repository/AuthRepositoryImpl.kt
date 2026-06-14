@@ -73,6 +73,12 @@ class AuthRepositoryImpl(
             sendTdLibParameters()
         }
         val domainState = state.toDomain()
+        if (domainState is AuthStep.Closing) {
+            clearPendingAuthState()
+            pendingAction = null
+            _authState.update { AuthStep.InputPhone }
+            return
+        }
         _authState.update { domainState }
         if (pendingAction != null && isExpectedNextState(pendingAction!!.stage, domainState)) {
             clearPendingAuthState()
@@ -248,7 +254,8 @@ class AuthRepositoryImpl(
         return when (stage) {
             AuthSubmissionStage.PHONE -> state !is AuthStep.InputPhone &&
                     state !is AuthStep.Loading &&
-                    state !is AuthStep.WaitParameters
+                    state !is AuthStep.WaitParameters &&
+                    state !is AuthStep.Closing
             AuthSubmissionStage.CODE -> state is AuthStep.InputPassword ||
                     state is AuthStep.Ready
             AuthSubmissionStage.PASSWORD -> state is AuthStep.Ready

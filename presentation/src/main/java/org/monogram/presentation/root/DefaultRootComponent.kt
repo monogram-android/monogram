@@ -190,6 +190,15 @@ class DefaultRootComponent(
                             navigation.replaceAll(Config.Startup)
                         }
                     }
+
+                    is AuthStep.Closing -> {
+                        _isLocked.update { false }
+                        appPreferences.setPasscode(null)
+                        appPreferences.setBiometricEnabled(false)
+                        if (activeConfig !is Config.Auth) {
+                            navigation.replaceAll(Config.Auth)
+                        }
+                    }
                 }
             }
             .launchIn(scope)

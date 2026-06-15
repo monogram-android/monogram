@@ -65,6 +65,9 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.system.measureTimeMillis
 
+private const val RESUME_RECOVERY_COOLDOWN_MS_POLICY = 3_000L
+private const val MIN_EXPECTED_RENDERED_CHATS_POLICY = 20
+
 class ChatsListRepositoryImpl(
     private val remoteDataSource: ChatsRemoteDataSource,
     private val chatRemoteSource: ChatRemoteSource,
@@ -230,6 +233,9 @@ class ChatsListRepositoryImpl(
 
     @Volatile
     private var lastRecoveryAttemptAtMs = 0L
+
+    @Volatile
+    private var lastResumeRecoveryAttemptAtMs = 0L
 
     @Volatile
     private var lastConnectionStatus: ConnectionStatus? = null
@@ -592,6 +598,15 @@ class ChatsListRepositoryImpl(
                 triggerUpdate()
             }
         }
+    }
+
+    override fun refreshOnResume() {
+        scheduleRecoveryIfNeeded(
+            reason = "screen_resume",
+            force = false,
+            ignoreGlobalCooldown = true,
+            resumeTrigger = true
+        )
     }
 
     override fun loadNextChunk(limit: Int) {
@@ -1205,26 +1220,59 @@ class ChatsListRepositoryImpl(
         }
     }
 
-    private fun scheduleRecoveryIfNeeded(reason: String, force: Boolean = false) {
+    private fun scheduleRecoveryIfNeeded(
+        reason: String,
+        force: Boolean = false,
+        ignoreGlobalCooldown: Boolean = false,
+        resumeTrigger: Boolean = false
+    ) {
         scope.launch(dispatchers.io) {
             if (!cacheHydrated.isCompleted) {
                 cacheHydrated.await()
             }
             val now = System.currentTimeMillis()
-            if (!force && now - lastRecoveryAttemptAtMs < RECOVERY_COOLDOWN_MS) return@launch
+            val snapshot = ChatListRecoverySnapshot(
+                rendered = _chatListFlow.value.size,
+                activePositions = cache.activeListPositions.size,
+                cachedChats = cache.allChats.size,
+                currentLimit = currentLimit,
+                initialLimit = initialChatListLimit,
+                maxLimit = maxChatListLimit,
+                activeRequestId = activeRequestId,
+                isLoading = _isLoadingFlow.value,
+                connectionStatus = lastConnectionStatus,
+                nowMs = now,
+                lastRecoveryAttemptAtMs = lastRecoveryAttemptAtMs,
+                lastResumeRecoveryAttemptAtMs = lastResumeRecoveryAttemptAtMs
+            )
+            var shouldForce = force
 
-            val rendered = _chatListFlow.value.size
-            val activePositions = cache.activeListPositions.size
-            val cachedChats = cache.allChats.size
-            val hasRecoverableState = activeRequestId == 0L ||
-                    (rendered == 0 && (cachedChats > 0 || activePositions > 0)) ||
-                    (rendered < MIN_EXPECTED_RENDERED_CHATS &&
-                            currentLimit <= initialChatListLimit &&
-                            cachedChats > rendered + MIN_EXPECTED_RENDERED_CHATS)
+            if (resumeTrigger) {
+                val resumeDecision = ChatListRecoveryPolicy.decideResumeRecovery(snapshot)
+                if (resumeDecision == ResumeRecoveryDecision.None) return@launch
+                if (!shouldForce) {
+                    shouldForce = resumeDecision == ResumeRecoveryDecision.Disconnected
+                }
+            }
 
-            if (!force && !hasRecoverableState) return@launch
+            if (!shouldForce &&
+                !ignoreGlobalCooldown &&
+                now - lastRecoveryAttemptAtMs < RECOVERY_COOLDOWN_MS
+            ) {
+                return@launch
+            }
+
+            val rendered = snapshot.rendered
+            val activePositions = snapshot.activePositions
+            val cachedChats = snapshot.cachedChats
+            val hasRecoverableState = ChatListRecoveryPolicy.hasRecoverableState(snapshot)
+
+            if (!shouldForce && !hasRecoverableState) return@launch
 
             lastRecoveryAttemptAtMs = now
+            if (resumeTrigger) {
+                lastResumeRecoveryAttemptAtMs = now
+            }
             Log.w(
                 TAG,
                 "Recovery trigger: reason=$reason rendered=$rendered activePositions=$activePositions cachedChats=$cachedChats currentLimit=$currentLimit activeRequestId=$activeRequestId list=${activeChatList.debugName()}"
@@ -1267,10 +1315,61 @@ class ChatsListRepositoryImpl(
         private const val REBUILD_THROTTLE_MS = 250L
         private const val MODEL_CACHE_SIZE = 256
         private const val RECOVERY_COOLDOWN_MS = 10_000L
+        private const val RESUME_RECOVERY_COOLDOWN_MS = 3_000L
         private const val RECOVERY_POST_REFRESH_DELAY_MS = 1_500L
         private const val RECOVERY_LOAD_CHUNK = 200
         private const val MIN_EXPECTED_RENDERED_CHATS = 20
         private const val LOAD_CHATS_STABILIZATION_PASSES = 4
         private const val INITIAL_CACHE_HYDRATION_LIMIT = 3000
+    }
+}
+
+internal data class ChatListRecoverySnapshot(
+    val rendered: Int,
+    val activePositions: Int,
+    val cachedChats: Int,
+    val currentLimit: Int,
+    val initialLimit: Int,
+    val maxLimit: Int,
+    val activeRequestId: Long,
+    val isLoading: Boolean,
+    val connectionStatus: ConnectionStatus?,
+    val nowMs: Long,
+    val lastRecoveryAttemptAtMs: Long,
+    val lastResumeRecoveryAttemptAtMs: Long
+)
+
+internal enum class ResumeRecoveryDecision {
+    None,
+    Disconnected,
+    Stale
+}
+
+internal object ChatListRecoveryPolicy {
+    fun decideResumeRecovery(snapshot: ChatListRecoverySnapshot): ResumeRecoveryDecision {
+        if (snapshot.isLoading) return ResumeRecoveryDecision.None
+        if (snapshot.nowMs - snapshot.lastResumeRecoveryAttemptAtMs <
+            RESUME_RECOVERY_COOLDOWN_MS_POLICY
+        ) {
+            return ResumeRecoveryDecision.None
+        }
+
+        if (snapshot.connectionStatus !is ConnectionStatus.Connected) {
+            return ResumeRecoveryDecision.Disconnected
+        }
+
+        return if (hasRecoverableState(snapshot)) {
+            ResumeRecoveryDecision.Stale
+        } else {
+            ResumeRecoveryDecision.None
+        }
+    }
+
+    fun hasRecoverableState(snapshot: ChatListRecoverySnapshot): Boolean {
+        return snapshot.activeRequestId == 0L ||
+                (snapshot.rendered == 0 && (snapshot.cachedChats > 0 || snapshot.activePositions > 0)) ||
+                (snapshot.rendered < MIN_EXPECTED_RENDERED_CHATS_POLICY &&
+                        snapshot.currentLimit <= snapshot.initialLimit &&
+                        snapshot.cachedChats > snapshot.rendered + MIN_EXPECTED_RENDERED_CHATS_POLICY)
     }
 }

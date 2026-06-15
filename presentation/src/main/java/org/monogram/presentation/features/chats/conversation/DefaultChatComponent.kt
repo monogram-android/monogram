@@ -46,6 +46,7 @@ import org.monogram.domain.repository.ChatInfoRepository
 import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.ChatMembersFilter
 import org.monogram.domain.repository.ChatOperationsRepository
+import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.ForumTopicsRepository
 import org.monogram.domain.repository.GifRepository
 import org.monogram.domain.repository.InlineBotRepository
@@ -447,6 +448,32 @@ class DefaultChatComponent(
 
     override fun onSaveEditedMessage(text: String, entities: List<MessageEntity>) =
         store.accept(ChatStore.Intent.SaveEditedMessage(text, entities))
+
+    override fun onOpenChecklistEditor(message: MessageModel?) =
+        run {
+            Log.d("ChecklistFlow", "intent_open_editor messageId=${message?.id}")
+            store.accept(ChatStore.Intent.OpenChecklistEditor(message))
+        }
+
+    override fun onSaveChecklistDraft(draft: ChecklistDraft) =
+        run {
+            Log.d(
+                "ChecklistFlow",
+                "intent_save_draft title=${draft.title} tasks=${draft.tasks.size}"
+            )
+            store.accept(ChatStore.Intent.SaveChecklistDraft(draft))
+        }
+
+    override fun onToggleChecklistTask(messageId: Long, taskId: Int, isDone: Boolean) =
+        run {
+            Log.d(
+                "ChecklistFlow",
+                "intent_toggle_task messageId=$messageId taskId=$taskId isDone=$isDone"
+            )
+            store.accept(ChatStore.Intent.ToggleChecklistTask(messageId, taskId, isDone))
+        }
+
+    override fun onCancelChecklistEditor() = store.accept(ChatStore.Intent.CancelChecklistEditor)
 
     override fun onDraftChange(text: String) = store.accept(ChatStore.Intent.DraftChange(text))
     override fun onSelectDraftLinkPreview(url: String) =

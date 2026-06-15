@@ -2,6 +2,7 @@ package org.monogram.presentation.features.chats.list
 
 import android.util.Log
 import com.arkivanov.decompose.value.Value
+import com.arkivanov.essenty.lifecycle.doOnResume
 import com.arkivanov.mvikotlin.core.instancekeeper.getStore
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
 import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
@@ -106,6 +107,7 @@ class DefaultChatListComponent(
     private var searchJob: Job? = null
     private var isFetchingMoreMessages = false
     private var nextMessagesOffset = ""
+    private var hasSeenResume = false
     private val prefetchSemaphore = Semaphore(PREFETCH_CONCURRENCY)
     private val messagePrefetchTimestamps = mutableMapOf<Long, Long>()
 
@@ -237,6 +239,14 @@ class DefaultChatListComponent(
     )
 
     init {
+        lifecycle.doOnResume {
+            if (!hasSeenResume) {
+                hasSeenResume = true
+                return@doOnResume
+            }
+            chatListRepository.refreshOnResume()
+        }
+
         activeChatId.subscribe { id ->
             _state.update { it.copy(activeChatId = id) }
         }

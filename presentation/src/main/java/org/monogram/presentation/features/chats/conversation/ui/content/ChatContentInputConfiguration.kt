@@ -227,6 +227,7 @@ internal fun rememberChatInputBarActions(
                 component.onOpenAttachBot(bot.botUserId, bot.name)
             },
             onSendPoll = component::onSendPoll,
+            onCreateChecklist = { component.onOpenChecklistEditor(null) },
             onRefreshScheduledMessages = component::onRefreshScheduledMessages,
             onEditScheduledMessage = component::onEditMessage,
             onDeleteScheduledMessage = component::onDeleteMessage,

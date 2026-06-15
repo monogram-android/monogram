@@ -92,6 +92,7 @@ class ConnectionManager(
         startReconnectProcessor()
         observeAuthorization()
         observeConnectionState()
+        observeAppForeground()
         observeNetworkSnapshots()
         startProxyManagement()
         startWatchdog()
@@ -122,6 +123,20 @@ class ConnectionManager(
         scope.launch(dispatchers.default) {
             updates.connectionState.collect { update ->
                 handleConnectionState(update.state, "update")
+            }
+        }
+    }
+
+    private fun observeAppForeground() {
+        scope.launch(dispatchers.default) {
+            var wasForeground = appForegroundTracker.isForeground.value
+            appForegroundTracker.isForeground.collect { isForeground ->
+                val resumed = !wasForeground && isForeground
+                wasForeground = isForeground
+
+                if (resumed) {
+                    requestReconnect("app_foreground", syncAfter = true)
+                }
             }
         }
     }

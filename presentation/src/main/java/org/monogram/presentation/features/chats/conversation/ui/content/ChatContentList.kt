@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.chats.conversation.ui.content
 
 import android.os.SystemClock
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
@@ -183,6 +184,9 @@ internal fun ChatContentList(
     onAudioClick: (MessageModel) -> Unit,
     onMessageOptionsClick: (MessageModel, Offset, IntSize, Offset) -> Unit,
     onGoToReply: (MessageModel) -> Unit,
+    onChecklistTaskToggle: (Long, Int, Boolean) -> Unit = { _, _, _ -> },
+    onChecklistEdit: (MessageModel) -> Unit = {},
+    onPaidMediaBuy: (MessageModel) -> Unit = {},
     selectedMessageId: Long? = null,
     onMessagePositionChange: (Offset, IntSize) -> Unit = { _, _ -> },
     onViaBotClick: (String) -> Unit = {},
@@ -492,6 +496,9 @@ internal fun ChatContentList(
                         onViaBotClick,
                         toProfile,
                         onForwardOriginClick,
+                        onChecklistTaskToggle,
+                        onChecklistEdit,
+                        onPaidMediaBuy,
                         onLinkPreviewAction,
                         downloadUtils,
                         isAnyViewerOpen = isAnyViewerOpen
@@ -551,6 +558,9 @@ internal fun ChatContentList(
                         onViaBotClick = onViaBotClick,
                         toProfile = toProfile,
                         onForwardOriginClick = onForwardOriginClick,
+                        onChecklistTaskToggle = onChecklistTaskToggle,
+                        onChecklistEdit = onChecklistEdit,
+                        onPaidMediaBuy = onPaidMediaBuy,
                         onLinkPreviewAction = onLinkPreviewAction,
                         isChatAnimationsEnabled = state.isChatAnimationsEnabled,
                         isScrolling = isScrolling,
@@ -624,6 +634,9 @@ internal fun ChatContentList(
                         onViaBotClick = onViaBotClick,
                         toProfile = toProfile,
                         onForwardOriginClick = onForwardOriginClick,
+                        onChecklistTaskToggle = onChecklistTaskToggle,
+                        onChecklistEdit = onChecklistEdit,
+                        onPaidMediaBuy = onPaidMediaBuy,
                         onLinkPreviewAction = onLinkPreviewAction,
                         isChatAnimationsEnabled = state.isChatAnimationsEnabled,
                         isScrolling = isScrolling,
@@ -752,6 +765,9 @@ private fun MessageRowItem(
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit,
+    onChecklistTaskToggle: (Long, Int, Boolean) -> Unit,
+    onChecklistEdit: (MessageModel) -> Unit,
+    onPaidMediaBuy: (MessageModel) -> Unit,
     onLinkPreviewAction: (LinkPreviewAction) -> Unit,
     isChatAnimationsEnabled: Boolean,
     isScrolling: Boolean,
@@ -925,6 +941,9 @@ private fun MessageRowItem(
                     onViaBotClick = onViaBotClick,
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick,
+                    onChecklistTaskToggle = onChecklistTaskToggle,
+                    onChecklistEdit = onChecklistEdit,
+                    onPaidMediaBuy = onPaidMediaBuy,
                     onLinkPreviewAction = onLinkPreviewAction,
                     downloadUtils = downloadUtils
                 )
@@ -954,6 +973,9 @@ private fun MessageBubbleSwitcher(
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit,
+    onChecklistTaskToggle: (Long, Int, Boolean) -> Unit,
+    onChecklistEdit: (MessageModel) -> Unit,
+    onPaidMediaBuy: (MessageModel) -> Unit,
     onLinkPreviewAction: (LinkPreviewAction) -> Unit,
     downloadUtils: IDownloadUtils
 ) {
@@ -1067,6 +1089,21 @@ private fun MessageBubbleSwitcher(
                             it
                         )
                     },
+                    onChecklistTaskToggle = { messageId, taskId, isDone ->
+                        Log.d(
+                            "ChatContentList",
+                            "forward_checklist_toggle messageId=$messageId taskId=$taskId isDone=$isDone"
+                        )
+                        onChecklistTaskToggle(messageId, taskId, isDone)
+                    },
+                    onChecklistEdit = { message ->
+                        Log.d("ChatContentList", "forward_checklist_edit messageId=${message.id}")
+                        onChecklistEdit(message)
+                    },
+                    onPaidMediaBuy = { message ->
+                        Log.d("ChatContentList", "forward_paid_media_buy messageId=${message.id}")
+                        onPaidMediaBuy(message)
+                    },
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     onCommentsClick = { component.onCommentsClick(it) },
                     toProfile = toProfile,
@@ -1167,6 +1204,21 @@ private fun MessageBubbleSwitcher(
                         )
                     },
                     onLinkPreviewAction = onLinkPreviewAction,
+                    onChecklistTaskToggle = { messageId, taskId, isDone ->
+                        Log.d(
+                            "ChatContentList",
+                            "forward_checklist_toggle messageId=$messageId taskId=$taskId isDone=$isDone"
+                        )
+                        onChecklistTaskToggle(messageId, taskId, isDone)
+                    },
+                    onChecklistEdit = { message ->
+                        Log.d("ChatContentList", "forward_checklist_edit messageId=${message.id}")
+                        onChecklistEdit(message)
+                    },
+                    onPaidMediaBuy = { message ->
+                        Log.d("ChatContentList", "forward_paid_media_buy messageId=${message.id}")
+                        onPaidMediaBuy(message)
+                    },
                     onPositionChange = { _, pos, size -> onMessagePositionChange(pos, size) },
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick,
@@ -1282,6 +1334,9 @@ private fun RootMessageSection(
     onViaBotClick: (String) -> Unit,
     toProfile: (Long) -> Unit,
     onForwardOriginClick: (ForwardInfo) -> Unit,
+    onChecklistTaskToggle: (Long, Int, Boolean) -> Unit,
+    onChecklistEdit: (MessageModel) -> Unit,
+    onPaidMediaBuy: (MessageModel) -> Unit,
     onLinkPreviewAction: (LinkPreviewAction) -> Unit,
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
@@ -1360,6 +1415,21 @@ private fun RootMessageSection(
                 onRetractVote = { component.onRetractVote(it) },
                 onShowVoters = { id, opt -> component.onShowVoters(id, opt) },
                 onClosePoll = { component.onClosePoll(it) },
+                onChecklistTaskToggle = { messageId, taskId, isDone ->
+                    Log.d(
+                        "ChatContentList",
+                        "forward_checklist_toggle messageId=$messageId taskId=$taskId isDone=$isDone"
+                    )
+                    onChecklistTaskToggle(messageId, taskId, isDone)
+                },
+                onChecklistEdit = { message ->
+                    Log.d("ChatContentList", "forward_checklist_edit messageId=${message.id}")
+                    onChecklistEdit(message)
+                },
+                onPaidMediaBuy = { message ->
+                    Log.d("ChatContentList", "forward_paid_media_buy messageId=${message.id}")
+                    onPaidMediaBuy(message)
+                },
                 toProfile = toProfile,
                 onForwardOriginClick = onForwardOriginClick,
                 onViaBotClick = onViaBotClick,

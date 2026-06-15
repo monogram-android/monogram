@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Poll
@@ -43,6 +44,7 @@ import org.monogram.presentation.R
 private sealed interface GalleryRailItem {
     data object File : GalleryRailItem
     data object Poll : GalleryRailItem
+    data object Checklist : GalleryRailItem
     data class Bot(val bot: AttachMenuBotModel) : GalleryRailItem
 }
 
@@ -52,13 +54,16 @@ fun AttachBotsSection(
     bots: List<AttachMenuBotModel>,
     canAttachFiles: Boolean,
     canCreatePoll: Boolean,
+    canCreateChecklist: Boolean,
     onAttachFileClick: () -> Unit,
     onCreatePollClick: () -> Unit,
+    onCreateChecklistClick: () -> Unit,
     onAttachBotClick: (AttachMenuBotModel) -> Unit
 ) {
     val items = buildList {
         if (canAttachFiles) add(GalleryRailItem.File)
         if (canCreatePoll) add(GalleryRailItem.Poll)
+        if (canCreateChecklist) add(GalleryRailItem.Checklist)
         addAll(bots.map(GalleryRailItem::Bot))
     }
 
@@ -81,6 +86,7 @@ fun AttachBotsSection(
                 when (item) {
                     GalleryRailItem.File -> "file"
                     GalleryRailItem.Poll -> "poll"
+                    GalleryRailItem.Checklist -> "checklist"
                     is GalleryRailItem.Bot -> "bot_${item.bot.botUserId}"
                 }
             }) { item ->
@@ -98,6 +104,14 @@ fun AttachBotsSection(
                             label = stringResource(R.string.action_create_poll),
                             icon = Icons.Filled.Poll,
                             onClick = onCreatePollClick
+                        )
+                    }
+
+                    GalleryRailItem.Checklist -> {
+                        RailActionChip(
+                            label = stringResource(R.string.action_create_checklist),
+                            icon = Icons.Filled.Checklist,
+                            onClick = onCreateChecklistClick
                         )
                     }
 

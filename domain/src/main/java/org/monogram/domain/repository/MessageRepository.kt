@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.DraftLinkPreview
 import org.monogram.domain.models.DraftLinkPreviewRequest
+import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageDeletedEvent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageIdUpdatedEvent
@@ -63,6 +64,20 @@ data class ForwardRequest(
     val messageIds: List<Long>,
     val targets: List<ForwardTarget>,
     val options: ForwardOptions = ForwardOptions()
+)
+
+data class ChecklistDraft(
+    val title: String,
+    val titleEntities: List<MessageEntity> = emptyList(),
+    val tasks: List<ChecklistTaskDraft>,
+    val othersCanAddTasks: Boolean = false,
+    val othersCanMarkTasksAsDone: Boolean = false
+)
+
+data class ChecklistTaskDraft(
+    val id: Int,
+    val text: String,
+    val entities: List<MessageEntity> = emptyList()
 )
 
 interface MessageRepository :
@@ -153,6 +168,16 @@ interface MessageRepository :
         sendOptions: MessageSendOptions = MessageSendOptions()
     )
 
+    suspend fun sendRichMessage(
+        chatId: Long,
+        markdown: String,
+        replyToMsgId: Long? = null,
+        threadId: Long? = null,
+        sendOptions: MessageSendOptions = MessageSendOptions(),
+        isRtl: Boolean? = null,
+        detectAutomaticBlocks: Boolean = true
+    )
+
     suspend fun sendSticker(chatId: Long, stickerPath: String, replyToMsgId: Long? = null, threadId: Long? = null)
     suspend fun sendPhoto(
         chatId: Long,
@@ -187,6 +212,14 @@ interface MessageRepository :
     suspend fun sendPoll(
         chatId: Long,
         poll: PollDraft,
+        replyToMsgId: Long? = null,
+        threadId: Long? = null,
+        sendOptions: MessageSendOptions = MessageSendOptions()
+    )
+
+    suspend fun sendChecklist(
+        chatId: Long,
+        checklistDraft: ChecklistDraft,
         replyToMsgId: Long? = null,
         threadId: Long? = null,
         sendOptions: MessageSendOptions = MessageSendOptions()
@@ -227,6 +260,7 @@ interface MessageRepository :
     ): List<UserModel>
 
     suspend fun getWebPageInstantView(url: String, forceFull: Boolean = false): InstantViewModel?
+    suspend fun getFullRichMessage(chatId: Long, messageId: Long): MessageContent.RichMessage?
     suspend fun getDraftLinkPreview(request: DraftLinkPreviewRequest): DraftLinkPreview?
 
     suspend fun searchMessages(
@@ -273,7 +307,21 @@ interface MessageRepository :
     suspend fun forwardMessages(request: ForwardRequest)
     suspend fun deleteMessage(chatId: Long, messageIds: List<Long>, revoke: Boolean = false)
     suspend fun editMessage(chatId: Long, messageId: Long, newText: String, entities: List<MessageEntity> = emptyList())
+    suspend fun editRichMessage(
+        chatId: Long,
+        messageId: Long,
+        markdown: String,
+        isRtl: Boolean? = null,
+        detectAutomaticBlocks: Boolean = true
+    )
     suspend fun editMessageCaption(chatId: Long, messageId: Long, newCaption: String, entities: List<MessageEntity> = emptyList())
+    suspend fun editChecklistMessage(chatId: Long, messageId: Long, checklistDraft: ChecklistDraft)
+    suspend fun markChecklistTasksAsDone(
+        chatId: Long,
+        messageId: Long,
+        doneIds: List<Int>,
+        undoneIds: List<Int>
+    )
     suspend fun markAsRead(chatId: Long, messageId: Long)
     suspend fun markAllMentionsAsRead(chatId: Long)
     suspend fun markAllReactionsAsRead(chatId: Long)

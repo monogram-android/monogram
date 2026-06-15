@@ -150,13 +150,10 @@ fun AsyncImageWithDownload(
 
     LaunchedEffect(path, fileId) {
         progress = 0f
-        if (!path.isNullOrEmpty()) {
-            currentPath = path
-        }
-        if (currentPath.isNullOrEmpty()) {
+        currentPath = path ?: currentPath
+        while (currentPath.isNullOrEmpty() && fileId != 0) {
             currentPath = fileRepository.getFilePath(fileId)
-        }
-        if (currentPath == null && fileId != 0) {
+            if (!currentPath.isNullOrEmpty()) break
             fileRepository.downloadFile(fileId)
 
             val progressJob = launch {
@@ -167,11 +164,12 @@ fun AsyncImageWithDownload(
             }
 
             val completedPath = withTimeoutOrNull(60_000L) {
-                fileRepository.fileDownloadFlow
+                val completedPathFlow: kotlinx.coroutines.flow.Flow<String> =
+                    fileRepository.fileDownloadFlow
                     .filterIsInstance<FileDownloadEvent.Completed>()
                     .filter { it.fileId == fileId }
                     .mapNotNull { event -> event.path.takeIf { it.isNotEmpty() } }
-                    .first()
+                completedPathFlow.first()
             }
 
             currentPath = completedPath ?: fileRepository.getFilePath(fileId)
@@ -250,13 +248,10 @@ fun AsyncVideoWithDownload(
 
     LaunchedEffect(path, fileId) {
         progress = 0f
-        if (!path.isNullOrEmpty()) {
-            currentPath = path
-        }
-        if (currentPath.isNullOrEmpty()) {
+        currentPath = path ?: currentPath
+        while (currentPath.isNullOrEmpty() && fileId != 0) {
             currentPath = fileRepository.getFilePath(fileId)
-        }
-        if (currentPath == null && fileId != 0) {
+            if (!currentPath.isNullOrEmpty()) break
             fileRepository.downloadFile(fileId)
 
             val progressJob = launch {
@@ -267,11 +262,12 @@ fun AsyncVideoWithDownload(
             }
 
             val completedPath = withTimeoutOrNull(60_000L) {
-                fileRepository.fileDownloadFlow
+                val completedPathFlow: kotlinx.coroutines.flow.Flow<String> =
+                    fileRepository.fileDownloadFlow
                     .filterIsInstance<FileDownloadEvent.Completed>()
                     .filter { it.fileId == fileId }
                     .mapNotNull { event -> event.path.takeIf { it.isNotEmpty() } }
-                    .first()
+                completedPathFlow.first()
             }
 
             currentPath = completedPath ?: fileRepository.getFilePath(fileId)

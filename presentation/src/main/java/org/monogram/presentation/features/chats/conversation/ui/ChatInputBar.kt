@@ -127,13 +127,19 @@ internal fun ChatInputBar(
     val canSendPolls by remember(state.isAdmin, state.permissions.canSendPolls) {
         derivedStateOf { state.isAdmin || state.permissions.canSendPolls }
     }
+    val canCreateChecklist by remember(canWriteText, state.isSecretChat) {
+        derivedStateOf { canWriteText && !state.isSecretChat }
+    }
     val canOpenAttachSheet by remember(
         canUseMediaPicker,
         canUseDocumentPicker,
         canSendPolls,
+        canCreateChecklist,
         state.attachBots
     ) {
-        derivedStateOf { canUseMediaPicker || canUseDocumentPicker || canSendPolls || state.attachBots.isNotEmpty() }
+        derivedStateOf {
+            canUseMediaPicker || canUseDocumentPicker || canSendPolls || canCreateChecklist || state.attachBots.isNotEmpty()
+        }
     }
     val canSendStickers by remember(state.isAdmin, state.permissions.canSendOtherMessages) {
         derivedStateOf { state.isAdmin || state.permissions.canSendOtherMessages }
@@ -1078,6 +1084,7 @@ internal fun ChatInputBar(
                 canUseCamera = canUseMediaPicker,
                 canAttachFiles = canUseDocumentPicker && attachmentPickerMode == AttachmentPickerMode.Default,
                 canCreatePoll = canSendPolls && !state.isSecretChat && attachmentPickerMode == AttachmentPickerMode.Default,
+                canCreateChecklist = canCreateChecklist && attachmentPickerMode == AttachmentPickerMode.Default,
                 onAttachFileClick = {
                     if (!canUseDocumentPicker) return@GalleryScreen
                     showGallery = false
@@ -1089,6 +1096,13 @@ internal fun ChatInputBar(
                         showGallery = false
                         attachmentPickerMode = AttachmentPickerMode.Default
                         showPollComposer = true
+                    }
+                },
+                onCreateChecklistClick = {
+                    if (canCreateChecklist) {
+                        showGallery = false
+                        attachmentPickerMode = AttachmentPickerMode.Default
+                        actions.onCreateChecklist()
                     }
                 },
                 attachBots = state.attachBots,

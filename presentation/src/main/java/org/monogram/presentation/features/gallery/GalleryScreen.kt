@@ -67,8 +67,10 @@ fun GalleryScreen(
     canUseCamera: Boolean,
     canAttachFiles: Boolean,
     canCreatePoll: Boolean,
+    canCreateChecklist: Boolean,
     onAttachFileClick: () -> Unit,
     onCreatePollClick: () -> Unit,
+    onCreateChecklistClick: () -> Unit,
     attachBots: List<AttachMenuBotModel>,
     hasMediaAccess: Boolean,
     isPartialAccess: Boolean,
@@ -257,7 +259,7 @@ fun GalleryScreen(
                 }
             }
 
-            if (canAttachFiles || canCreatePoll || visibleBots.isNotEmpty()) {
+            if (canAttachFiles || canCreatePoll || canCreateChecklist || visibleBots.isNotEmpty()) {
                 AttachBotsSection(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -267,8 +269,10 @@ fun GalleryScreen(
                     bots = visibleBots,
                     canAttachFiles = canAttachFiles,
                     canCreatePoll = canCreatePoll,
+                    canCreateChecklist = canCreateChecklist,
                     onAttachFileClick = onAttachFileClick,
                     onCreatePollClick = onCreatePollClick,
+                    onCreateChecklistClick = onCreateChecklistClick,
                     onAttachBotClick = onAttachBotClick
                 )
             }

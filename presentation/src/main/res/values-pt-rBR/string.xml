@@ -2341,4 +2341,28 @@
     <string name="about_exdev">Ex-desenvolvedor</string>
     <string name="about_contributors">Colaboradores</string>
     <string name="about_contributors_summary">E um grande agradecimento a todos os outros que contribuíram para o desenvolvimento</string>
+    <string name="action_create_checklist">Checklist</string>
+    <string name="checklist_create_title">Checklist</string>
+    <string name="checklist_create_section_main">Titulo</string>
+    <string name="checklist_create_section_tasks">Tarefas</string>
+    <string name="checklist_create_section_permissions">Colaboracao</string>
+    <string name="checklist_create_title_label">Titulo</string>
+    <string name="checklist_create_task_label">Tarefa %1$d</string>
+    <string name="checklist_create_add_task">Adicionar tarefa</string>
+    <string name="checklist_create_remove_task">Remover</string>
+    <string name="checklist_create_others_can_add_tasks">Outros podem adicionar tarefas</string>
+    <string name="checklist_create_others_can_mark_tasks">Outros podem marcar tarefas</string>
+    <string name="checklist_create_tasks_hint">Adicione as etapas que devem ser concluidas.</string>
+    <string name="checklist_create_permissions_hint">Defina quanto o chat pode alterar este checklist.</string>
+    <string name="checklist_save">Salvar checklist</string>
+    <string name="checklist_edit_action">Editar checklist</string>
+    <string name="checklist_done_by">Concluido por %1$s</string>
+    <string name="checklist_progress">%1$d/%2$d concluidas</string>
+    <string name="label_you">Voce</string>
+    <string name="message_expired_video_note">Mensagem de video expirada</string>
+    <string name="message_expired_voice_note">Mensagem de voz expirada</string>
+    <string name="chat_mapper_checklist">Checklist</string>
+    <string name="chat_mapper_paid_media">Midia paga</string>
+    <string name="chat_mapper_stake_dice">Dado apostado</string>
+    <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
 </resources>

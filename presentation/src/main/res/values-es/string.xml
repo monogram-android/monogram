@@ -2334,4 +2334,28 @@
     <string name="about_exdev">Ex-desarrollador</string>
     <string name="about_contributors">Colaboradores</string>
     <string name="about_contributors_summary">Y un enorme agradecimiento a todos los demás que contribuyeron al desarrollo</string>
+    <string name="action_create_checklist">Lista de tareas</string>
+    <string name="checklist_create_title">Lista de tareas</string>
+    <string name="checklist_create_section_main">Titulo</string>
+    <string name="checklist_create_section_tasks">Tareas</string>
+    <string name="checklist_create_section_permissions">Colaboracion</string>
+    <string name="checklist_create_title_label">Titulo</string>
+    <string name="checklist_create_task_label">Tarea %1$d</string>
+    <string name="checklist_create_add_task">Agregar tarea</string>
+    <string name="checklist_create_remove_task">Eliminar</string>
+    <string name="checklist_create_others_can_add_tasks">Otros pueden agregar tareas</string>
+    <string name="checklist_create_others_can_mark_tasks">Otros pueden marcar tareas</string>
+    <string name="checklist_create_tasks_hint">Agrega los pasos que deben completarse.</string>
+    <string name="checklist_create_permissions_hint">Decide cuanto puede cambiar el chat esta lista de tareas.</string>
+    <string name="checklist_save">Guardar lista de tareas</string>
+    <string name="checklist_edit_action">Editar lista de tareas</string>
+    <string name="checklist_done_by">Completado por %1$s</string>
+    <string name="checklist_progress">%1$d/%2$d completadas</string>
+    <string name="label_you">Tu</string>
+    <string name="message_expired_video_note">Nota de video expirada</string>
+    <string name="message_expired_voice_note">Nota de voz expirada</string>
+    <string name="chat_mapper_checklist">Lista de tareas</string>
+    <string name="chat_mapper_paid_media">Contenido de pago</string>
+    <string name="chat_mapper_stake_dice">Dado apostado</string>
+    <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
 </resources>

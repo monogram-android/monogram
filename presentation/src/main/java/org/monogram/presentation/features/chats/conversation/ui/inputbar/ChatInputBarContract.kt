@@ -82,6 +82,7 @@ internal data class ChatInputBarActions(
     val onMediaClick: (String) -> Unit = {},
     val onDraftLinkPreviewAction: (LinkPreviewAction) -> Unit = {},
     val onSendPoll: (PollDraft) -> Unit = {},
+    val onCreateChecklist: () -> Unit = {},
     val onShowBotCommands: () -> Unit = {},
     val onReplyMarkupButtonClick: (KeyboardButtonModel) -> Unit = {},
     val onOpenMiniApp: (String, String) -> Unit = { _, _ -> },

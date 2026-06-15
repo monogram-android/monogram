@@ -548,6 +548,7 @@ fun ChatContent(
                     else if (state.selectedMessageIds.isNotEmpty()) component.onClearSelection()
                     else if (selectedMessageId != null) selectedMessageId = null
                     else if (state.showBotCommands) component.onDismissBotCommands()
+                    else if (state.checklistDraft != null) component.onCancelChecklistEditor()
                     else if (state.restrictUserId != null) component.onDismissRestrictDialog()
                     else if (state.showPinnedMessagesList && !isAnyViewerOpen) requestPinnedMessagesListDismiss()
                     else if (state.fullScreenImages != null) component.onDismissImages()

@@ -8,10 +8,13 @@ import org.monogram.data.datasource.remote.TdMessageRemoteDataSource
 import org.monogram.data.mapper.CustomEmojiLoader
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.data.mapper.WebPageMapper
+import org.monogram.data.mapper.toDomainRichMessage
 import org.monogram.data.mapper.toMessageEntityOrNull
+import org.monogram.domain.models.ChecklistTask
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
+import org.monogram.domain.models.PaidMediaItem
 import org.monogram.domain.models.PollOption
 import org.monogram.domain.models.PollType
 import org.monogram.domain.models.StickerFormat
@@ -58,6 +61,19 @@ internal class MessageContentMapper(
                     networkAutoDownload = context.networkAutoDownload
                 )
                 MessageContent.Text(content.text.text, entities, webPage)
+            }
+
+            is TdApi.MessageRichMessage -> {
+                content.message?.toDomainRichMessage(
+                    chatId = context.chatId,
+                    messageId = context.messageId
+                ) ?: MessageContent.RichMessage(
+                    blocks = emptyList(),
+                    isRtl = false,
+                    isFull = false,
+                    chatId = context.chatId,
+                    messageId = context.messageId
+                )
             }
 
             is TdApi.MessagePhoto -> {
@@ -597,9 +613,221 @@ internal class MessageContentMapper(
             is TdApi.MessageStory -> MessageContent.Text(stringProvider.getString("chat_mapper_story"))
             is TdApi.MessageExpiredPhoto -> MessageContent.Text(stringProvider.getString("message_expired_photo"))
             is TdApi.MessageExpiredVideo -> MessageContent.Text(stringProvider.getString("message_expired_video"))
+            is TdApi.MessageExpiredVideoNote -> MessageContent.Text(stringProvider.getString("message_expired_video_note"))
+            is TdApi.MessageExpiredVoiceNote -> MessageContent.Text(stringProvider.getString("message_expired_voice_note"))
+            is TdApi.MessageUnsupported -> MessageContent.Unsupported
+            is TdApi.MessageStakeDice -> mapStakeDice(content)
+            is TdApi.MessageChecklist -> mapChecklist(content, context)
+            is TdApi.MessagePaidMedia -> mapPaidMedia(content, context)
             else -> serviceMessageFormatter.format(content, context)
-                ?: MessageContent.Text("ℹ️ Unsupported message type: ${content.javaClass.simpleName}")
+                ?: MessageContent.Text(stringProvider.getString("logs_media_unsupported"))
         }
+    }
+
+    private fun mapStakeDice(content: TdApi.MessageStakeDice): MessageContent {
+        val stakeTon = content.stakeToncoinAmount / 1_000_000_000.0
+        val base = if (content.value == 0) {
+            "Staked dice • $stakeTon TON"
+        } else {
+            val prizeTon = content.prizeToncoinAmount / 1_000_000_000.0
+            if (content.prizeToncoinAmount >= 0) {
+                "Staked dice • result ${content.value} • stake $stakeTon TON • prize $prizeTon TON"
+            } else {
+                "Staked dice • result ${content.value} • stake $stakeTon TON"
+            }
+        }
+        return MessageContent.Text(base)
+    }
+
+    private fun mapChecklist(
+        content: TdApi.MessageChecklist,
+        context: ContentMappingContext
+    ): MessageContent {
+        return MessageContent.Checklist(
+            title = content.list.title.text,
+            titleEntities = mapEntities(
+                entities = content.list.title.entities,
+                chatId = context.chatId,
+                messageId = context.messageId,
+                networkAutoDownload = context.networkAutoDownload
+            ),
+            tasks = content.list.tasks.map { task ->
+                val completedBy = task.completedBy
+                val completedById = when (completedBy) {
+                    is TdApi.MessageSenderUser -> completedBy.userId
+                    is TdApi.MessageSenderChat -> completedBy.chatId
+                    else -> null
+                }
+                ChecklistTask(
+                    id = task.id,
+                    text = task.text.text,
+                    entities = mapEntities(
+                        entities = task.text.entities,
+                        chatId = context.chatId,
+                        messageId = context.messageId,
+                        networkAutoDownload = context.networkAutoDownload
+                    ),
+                    completedById = completedById,
+                    completedByName = resolveSenderName(completedBy),
+                    completionDate = task.completionDate
+                )
+            },
+            othersCanAddTasks = content.list.othersCanAddTasks,
+            canAddTasks = content.list.canAddTasks,
+            othersCanMarkTasksAsDone = content.list.othersCanMarkTasksAsDone,
+            canMarkTasksAsDone = content.list.canMarkTasksAsDone
+        )
+    }
+
+    private fun mapPaidMedia(
+        content: TdApi.MessagePaidMedia,
+        context: ContentMappingContext
+    ): MessageContent {
+        return MessageContent.PaidMedia(
+            starCount = content.starCount,
+            items = content.media.map { media -> mapPaidMediaItem(media, context) },
+            caption = content.caption.text,
+            entities = mapEntities(
+                entities = content.caption.entities,
+                chatId = context.chatId,
+                messageId = context.messageId,
+                networkAutoDownload = context.networkAutoDownload
+            ),
+            showCaptionAboveMedia = content.showCaptionAboveMedia
+        )
+    }
+
+    private fun mapPaidMediaItem(
+        media: TdApi.PaidMedia,
+        context: ContentMappingContext
+    ): PaidMediaItem {
+        return when (media) {
+            is TdApi.PaidMediaPreview -> PaidMediaItem.Preview(
+                width = media.width,
+                height = media.height,
+                duration = media.duration,
+                minithumbnail = media.minithumbnail?.data
+            )
+
+            is TdApi.PaidMediaPhoto -> mapPaidMediaPhoto(media, context)
+            is TdApi.PaidMediaVideo -> mapPaidMediaVideo(media, context)
+            else -> PaidMediaItem.Unsupported
+        }
+    }
+
+    private fun mapPaidMediaPhoto(
+        media: TdApi.PaidMediaPhoto,
+        context: ContentMappingContext
+    ): PaidMediaItem {
+        val sizes = media.photo.sizes
+        val originalSize = sizes.maxByOrNull { it.width.toLong() * it.height.toLong() }
+            ?: sizes.lastOrNull()
+        val photoSize = sizes.find { it.type == "x" }
+            ?: sizes.find { it.type == "m" }
+            ?: sizes.getOrNull(sizes.size / 2)
+            ?: originalSize
+        val thumbnailSize = sizes.find { it.type == "m" }
+            ?: sizes.find { it.type == "s" }
+            ?: sizes.firstOrNull()
+        val photoFile = photoSize?.photo?.let(fileHelper::getUpdatedFile)
+        val originalFile = originalSize?.photo?.let(fileHelper::getUpdatedFile)
+        val thumbnailFile = thumbnailSize?.photo?.let(fileHelper::getUpdatedFile)
+        val path = fileHelper.findBestAvailablePath(photoFile, sizes)
+        val thumbnailPath = fileHelper.resolveLocalFilePath(thumbnailFile)
+
+        photoFile?.let {
+            fileHelper.registerCachedFile(it.id, context.chatId, context.messageId)
+            if (path == null && context.networkAutoDownload) {
+                fileHelper.enqueueDownload(
+                    it.id,
+                    1,
+                    TdMessageRemoteDataSource.DownloadType.DEFAULT,
+                    0,
+                    0,
+                    false
+                )
+            }
+        }
+        originalFile?.takeIf { it.id != photoFile?.id }?.let {
+            fileHelper.registerCachedFile(it.id, context.chatId, context.messageId)
+        }
+        thumbnailFile?.let {
+            fileHelper.registerCachedFile(it.id, context.chatId, context.messageId)
+            if (thumbnailPath == null && context.networkAutoDownload) {
+                fileHelper.enqueueDownload(
+                    it.id,
+                    1,
+                    TdMessageRemoteDataSource.DownloadType.DEFAULT,
+                    0,
+                    0,
+                    false
+                )
+            }
+        }
+
+        return PaidMediaItem.Photo(
+            path = path,
+            thumbnailPath = thumbnailPath,
+            width = photoSize?.width ?: 0,
+            height = photoSize?.height ?: 0,
+            fileId = photoFile?.id ?: 0,
+            originalFileId = originalFile?.id ?: photoFile?.id ?: 0,
+            minithumbnail = media.photo.minithumbnail?.data,
+            livePhotoVideoPath = null,
+            livePhotoVideoFileId = 0
+        )
+    }
+
+    private fun mapPaidMediaVideo(
+        media: TdApi.PaidMediaVideo,
+        context: ContentMappingContext
+    ): PaidMediaItem {
+        val video = media.video
+        val videoFile = fileHelper.getUpdatedFile(video.video)
+        val path = fileHelper.resolveLocalFilePath(videoFile)
+        fileHelper.registerCachedFile(videoFile.id, context.chatId, context.messageId)
+        if (path == null && context.networkAutoDownload && !video.supportsStreaming) {
+            fileHelper.enqueueDownload(
+                videoFile.id,
+                1,
+                TdMessageRemoteDataSource.DownloadType.VIDEO,
+                0,
+                0,
+                false
+            )
+        }
+
+        val coverPath = media.cover?.sizes
+            ?.maxByOrNull { it.width.toLong() * it.height.toLong() }
+            ?.photo
+            ?.let(fileHelper::getUpdatedFile)
+            ?.also { fileHelper.registerCachedFile(it.id, context.chatId, context.messageId) }
+            ?.let(fileHelper::resolveLocalFilePath)
+
+        return PaidMediaItem.Video(
+            path = path,
+            thumbnailPath = coverPath,
+            width = video.width,
+            height = video.height,
+            duration = video.duration,
+            fileId = videoFile.id,
+            minithumbnail = null,
+            supportsStreaming = video.supportsStreaming,
+            coverPath = coverPath,
+            startTimestamp = media.startTimestamp
+        )
+    }
+
+    private fun resolveSenderName(sender: TdApi.MessageSender?): String? {
+        val id = when (sender) {
+            is TdApi.MessageSenderUser -> sender.userId
+            is TdApi.MessageSenderChat -> sender.chatId
+            else -> return null
+        }
+        return cache.getUser(id)?.let { user ->
+            listOf(user.firstName, user.lastName).filter { !it.isNullOrBlank() }.joinToString(" ")
+        }?.takeIf { it.isNotBlank() }
+            ?: cache.getChat(id)?.title?.takeIf { it.isNotBlank() }
     }
 
     fun mapEntities(

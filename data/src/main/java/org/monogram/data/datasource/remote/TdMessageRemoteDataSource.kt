@@ -52,6 +52,7 @@ import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
 import org.monogram.domain.repository.ChatListRepository
+import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.OlderMessagesPage
 import org.monogram.domain.repository.PollRepository
 import org.monogram.domain.repository.ReadUpdate
@@ -635,6 +636,37 @@ class TdMessageRemoteDataSource(
         return safeExecute(req)
     }
 
+    override suspend fun sendRichMessage(
+        chatId: Long,
+        markdown: String,
+        replyToMsgId: Long?,
+        threadId: Long?,
+        sendOptions: MessageSendOptions,
+        isRtl: Boolean?,
+        detectAutomaticBlocks: Boolean
+    ): TdApi.Message? {
+        val content = buildInputMessageRichMessage(
+            markdown = markdown,
+            isRtl = isRtl ?: shouldRenderRtl(markdown),
+            detectAutomaticBlocks = detectAutomaticBlocks,
+            clearDraft = true
+        )
+        val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) {
+            TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "")
+        } else {
+            null
+        }
+        val topicId = resolveTopicId(chatId, threadId)
+        val req = TdApi.SendMessage().apply {
+            this.chatId = chatId
+            this.topicId = topicId
+            this.replyTo = replyTo
+            this.inputMessageContent = content
+            this.options = sendOptions.toTdMessageSendOptions()
+        }
+        return safeExecute(req)
+    }
+
     override suspend fun sendPhoto(
         chatId: Long,
         photoPath: String,
@@ -1038,6 +1070,32 @@ class TdMessageRemoteDataSource(
         return safeExecute(req)
     }
 
+    override suspend fun editRichMessage(
+        chatId: Long,
+        messageId: Long,
+        markdown: String,
+        isRtl: Boolean?,
+        detectAutomaticBlocks: Boolean
+    ): TdApi.Message? {
+        val content = buildInputMessageRichMessage(
+            markdown = markdown,
+            isRtl = isRtl ?: shouldRenderRtl(markdown),
+            detectAutomaticBlocks = detectAutomaticBlocks,
+            clearDraft = false
+        )
+        val req = TdApi.EditMessageText(
+            chatId,
+            messageId,
+            null,
+            content
+        )
+        return safeExecute(req)
+    }
+
+    override suspend fun getFullRichMessage(chatId: Long, messageId: Long): TdApi.RichMessage? {
+        return safeExecute(TdApi.GetFullRichMessage(chatId, messageId))
+    }
+
     override suspend fun editMessageCaption(chatId: Long, messageId: Long, caption: String, entities: List<MessageEntity>): TdApi.Message? {
         val req = TdApi.EditMessageCaption().apply {
             this.chatId = chatId
@@ -1050,6 +1108,106 @@ class TdMessageRemoteDataSource(
             this.showCaptionAboveMedia = false
         }
         return safeExecute(req)
+    }
+
+    override suspend fun sendChecklist(
+        chatId: Long,
+        checklistDraft: ChecklistDraft,
+        replyToMsgId: Long?,
+        threadId: Long?,
+        sendOptions: MessageSendOptions
+    ): TdApi.Message? {
+        val content = TdApi.InputMessageChecklist(buildInputChecklist(checklistDraft))
+        val replyTo =
+            if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(
+                replyToMsgId,
+                null,
+                0,
+                ""
+            ) else null
+        val topicId = resolveTopicId(chatId, threadId)
+        val req = TdApi.SendMessage().apply {
+            this.chatId = chatId
+            this.topicId = topicId
+            this.replyTo = replyTo
+            this.inputMessageContent = content
+            this.options = sendOptions.toTdMessageSendOptions()
+        }
+        return safeExecute(req)
+    }
+
+    override suspend fun editChecklistMessage(
+        chatId: Long,
+        messageId: Long,
+        checklistDraft: ChecklistDraft
+    ): TdApi.Message? {
+        val req =
+            TdApi.EditMessageChecklist(chatId, messageId, null, buildInputChecklist(checklistDraft))
+        return safeExecute(req)
+    }
+
+    private fun buildInputChecklist(checklistDraft: ChecklistDraft): TdApi.InputChecklist {
+        return TdApi.InputChecklist(
+            TdApi.FormattedText(
+                checklistDraft.title,
+                checklistDraft.titleEntities.toTdTextEntities(checklistDraft.title)
+            ),
+            checklistDraft.tasks.map { task ->
+                TdApi.InputChecklistTask(
+                    task.id,
+                    TdApi.FormattedText(
+                        task.text,
+                        task.entities.toTdTextEntities(task.text)
+                    )
+                )
+            }.toTypedArray(),
+            checklistDraft.othersCanAddTasks,
+            checklistDraft.othersCanMarkTasksAsDone
+        )
+    }
+
+    private fun buildInputMessageRichMessage(
+        markdown: String,
+        isRtl: Boolean,
+        detectAutomaticBlocks: Boolean,
+        clearDraft: Boolean
+    ): TdApi.InputMessageRichMessage {
+        return TdApi.InputMessageRichMessage(
+            TdApi.InputRichMessage(
+                TdApi.RichMessageSourceMarkdown(markdown),
+                isRtl,
+                detectAutomaticBlocks
+            ),
+            clearDraft
+        )
+    }
+
+    private fun shouldRenderRtl(text: String): Boolean {
+        val directionalChars = text.asSequence()
+            .filter { Character.isLetter(it) }
+            .take(64)
+            .toList()
+        if (directionalChars.isEmpty()) return false
+        val rtlCount = directionalChars.count { char ->
+            when (Character.getDirectionality(char)) {
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT,
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC,
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT_EMBEDDING,
+                Character.DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE -> true
+
+                else -> false
+            }
+        }
+        return rtlCount > directionalChars.size / 2
+    }
+
+    override suspend fun markChecklistTasksAsDone(
+        chatId: Long,
+        messageId: Long,
+        doneIds: IntArray,
+        undoneIds: IntArray
+    ): TdApi.Ok? {
+        return safeExecute(TdApi.MarkChecklistTasksAsDone(chatId, messageId, doneIds, undoneIds))
     }
 
     private fun List<MessageEntity>.toTdTextEntities(text: String): Array<TdApi.TextEntity> {

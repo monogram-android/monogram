@@ -2,7 +2,14 @@ package org.monogram.presentation.features.chats.conversation.ui.message
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -66,6 +73,10 @@ fun ReplyContent(
                 is MessageContent.VideoNote -> stringResource(R.string.reply_content_video_message) to emptyList()
                 is MessageContent.Gif -> content.caption.ifEmpty { stringResource(R.string.reply_content_gif) } to content.entities
                 is MessageContent.Document -> (content.caption.ifEmpty { content.fileName }) to content.entities
+                is MessageContent.RichMessage -> stringResource(R.string.reply_content_message) to emptyList()
+                is MessageContent.Checklist -> content.title.ifEmpty { stringResource(R.string.chat_mapper_checklist) } to emptyList()
+                is MessageContent.PaidMedia -> stringResource(R.string.chat_mapper_paid_media) to emptyList()
+                MessageContent.Unsupported -> stringResource(R.string.logs_media_unsupported) to emptyList()
                 else -> stringResource(R.string.reply_content_message) to emptyList()
             }
 

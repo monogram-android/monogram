@@ -12,6 +12,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
+import org.monogram.domain.repository.ChecklistDraft
 import java.io.File
 
 interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Label> {
@@ -85,6 +86,12 @@ interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Lab
         data class EditMessage(val message: MessageModel) : Intent()
         object CancelEdit : Intent()
         data class SaveEditedMessage(val text: String, val entities: List<MessageEntity> = emptyList()) : Intent()
+        data class OpenChecklistEditor(val message: MessageModel? = null) : Intent()
+        data class SaveChecklistDraft(val draft: ChecklistDraft) : Intent()
+        data class ToggleChecklistTask(val messageId: Long, val taskId: Int, val isDone: Boolean) :
+            Intent()
+
+        object CancelChecklistEditor : Intent()
         data class DraftChange(val text: String) : Intent()
         data class SelectDraftLinkPreview(val url: String) : Intent()
         object DismissDraftLinkPreview : Intent()

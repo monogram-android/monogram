@@ -4,6 +4,7 @@ import org.drinkless.tdlib.TdApi
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.mapper.SenderNameResolver
 import org.monogram.data.mapper.TdFileHelper
+import org.monogram.data.mapper.toPageBlock
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.ForwardOriginType
 import org.monogram.domain.models.MessageContent
@@ -11,6 +12,8 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.PollType
+import org.monogram.domain.models.webapp.PageBlock
+import org.monogram.domain.models.webapp.RichText
 import org.monogram.domain.repository.StringProvider
 import org.monogram.data.db.model.MessageEntity as MessageDbEntity
 
@@ -27,7 +30,35 @@ internal class MessagePersistenceMapper(
         val path: String? = null,
         val thumbnailPath: String? = null,
         val minithumbnail: ByteArray? = null
-    )
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as CachedMessageContent
+
+            if (fileId != other.fileId) return false
+            if (type != other.type) return false
+            if (text != other.text) return false
+            if (meta != other.meta) return false
+            if (path != other.path) return false
+            if (thumbnailPath != other.thumbnailPath) return false
+            if (!minithumbnail.contentEquals(other.minithumbnail)) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = fileId
+            result = 31 * result + type.hashCode()
+            result = 31 * result + text.hashCode()
+            result = 31 * result + (meta?.hashCode() ?: 0)
+            result = 31 * result + (path?.hashCode() ?: 0)
+            result = 31 * result + (thumbnailPath?.hashCode() ?: 0)
+            result = 31 * result + (minithumbnail?.contentHashCode() ?: 0)
+            return result
+        }
+    }
 
     private data class CachedReplyPreview(
         val senderName: String,
@@ -99,6 +130,18 @@ internal class MessagePersistenceMapper(
     fun extractCachedContent(content: TdApi.MessageContent): CachedMessageContent {
         return when (content) {
             is TdApi.MessageText -> CachedMessageContent("text", content.text.text, null)
+            is TdApi.MessageRichMessage -> {
+                val rich = content.message
+                CachedMessageContent(
+                    "rich_message",
+                    rich?.blocks.orEmpty().joinToString("\n") { it.toPageBlock().plainText() }
+                        .ifBlank { stringProvider.getString("reply_content_message") },
+                    encodeMeta(
+                        if (rich?.isRtl == true) 1 else 0,
+                        if (rich?.isFull == true) 1 else 0
+                    )
+                )
+            }
             is TdApi.MessagePhoto -> {
                 val sizes = content.photo.sizes
                 val original = sizes.maxByOrNull { it.width.toLong() * it.height.toLong() }
@@ -244,6 +287,50 @@ internal class MessagePersistenceMapper(
             is TdApi.MessageChatChangeTitle -> CachedMessageContent("service", "Changed title", null)
             is TdApi.MessageAnimatedEmoji -> CachedMessageContent("text", content.emoji, null)
             is TdApi.MessageDice -> CachedMessageContent("text", content.emoji, null)
+            is TdApi.MessageStakeDice -> CachedMessageContent(
+                "stake_dice",
+                "Staked dice",
+                encodeMeta(content.value, content.stakeToncoinAmount, content.prizeToncoinAmount)
+            )
+
+            is TdApi.MessageChecklist -> CachedMessageContent(
+                "checklist",
+                content.list.title.text,
+                ChecklistPayload(
+                    titleEntities = content.list.title.entities.toDomainEntities(),
+                    tasks = content.list.tasks.map { task ->
+                        val completedById = when (val sender = task.completedBy) {
+                            is TdApi.MessageSenderUser -> sender.userId
+                            is TdApi.MessageSenderChat -> sender.chatId
+                            else -> null
+                        }
+                        ChecklistTaskPayload(
+                            id = task.id,
+                            text = task.text.text,
+                            entities = task.text.entities.toDomainEntities(),
+                            completedById = completedById,
+                            completedByName = resolveSenderName(task.completedBy),
+                            completionDate = task.completionDate
+                        )
+                    },
+                    othersCanAddTasks = content.list.othersCanAddTasks,
+                    canAddTasks = content.list.canAddTasks,
+                    othersCanMarkTasksAsDone = content.list.othersCanMarkTasksAsDone,
+                    canMarkTasksAsDone = content.list.canMarkTasksAsDone
+                ).encode()
+            )
+
+            is TdApi.MessagePaidMedia -> CachedMessageContent(
+                "paid_media",
+                content.caption.text,
+                PaidMediaPayload(
+                    starCount = content.starCount,
+                    caption = content.caption.text,
+                    entities = content.caption.entities.toDomainEntities(),
+                    showCaptionAboveMedia = content.showCaptionAboveMedia,
+                    items = content.media.map(::mapPaidMediaPayload)
+                ).encode()
+            )
             else -> CachedMessageContent("unsupported", "", null)
         }
     }
@@ -339,6 +426,17 @@ internal class MessagePersistenceMapper(
                 text = entity.content,
                 entities = decodeEntities(entity.entities)
             )
+
+            "rich_message" -> {
+                val isRtl = (meta.getOrNull(0)?.toIntOrNull() ?: 0) == 1
+                MessageContent.RichMessage(
+                    blocks = emptyList(),
+                    isRtl = isRtl,
+                    isFull = false,
+                    chatId = entity.chatId,
+                    messageId = entity.id
+                )
+            }
 
             "photo" -> {
                 val fileId = mediaFileId
@@ -481,6 +579,35 @@ internal class MessagePersistenceMapper(
                 longitude = meta.getOrNull(1)?.toDoubleOrNull() ?: 0.0,
                 livePeriod = meta.getOrNull(2)?.toIntOrNull() ?: 0
             )
+
+            "checklist" -> {
+                val rich = decodeChecklistPayload(entity.contentMeta)
+                MessageContent.Checklist(
+                    title = entity.content,
+                    titleEntities = decodeEntities(entity.entities).ifEmpty { rich?.titleEntities.orEmpty() },
+                    tasks = rich?.tasks?.map { it.toDomain() }.orEmpty(),
+                    othersCanAddTasks = rich?.othersCanAddTasks ?: ((meta.getOrNull(2)
+                        ?.toIntOrNull() ?: 0) == 1),
+                    canAddTasks = rich?.canAddTasks ?: ((meta.getOrNull(3)?.toIntOrNull()
+                        ?: 0) == 1),
+                    othersCanMarkTasksAsDone = rich?.othersCanMarkTasksAsDone ?: ((meta.getOrNull(4)
+                        ?.toIntOrNull() ?: 0) == 1),
+                    canMarkTasksAsDone = rich?.canMarkTasksAsDone ?: ((meta.getOrNull(5)
+                        ?.toIntOrNull() ?: 0) == 1)
+                )
+            }
+
+            "paid_media" -> {
+                val rich = decodePaidMediaPayload(entity.contentMeta)
+                MessageContent.PaidMedia(
+                    starCount = rich?.starCount ?: (meta.getOrNull(0)?.toLongOrNull() ?: 0L),
+                    items = rich?.items?.map { it.toDomain() }.orEmpty(),
+                    caption = rich?.caption ?: entity.content,
+                    entities = decodeEntities(entity.entities).ifEmpty { rich?.entities.orEmpty() },
+                    showCaptionAboveMedia = rich?.showCaptionAboveMedia ?: ((meta.getOrNull(1)
+                        ?.toIntOrNull() ?: 0) == 1)
+                )
+            }
 
             "service" -> MessageContent.Service(entity.content)
             else -> MessageContent.Text(entity.content)
@@ -662,7 +789,91 @@ internal class MessagePersistenceMapper(
 
             "location" -> MessageContent.Location(latitude = 0.0, longitude = 0.0)
             "service" -> MessageContent.Service(preview.text)
+            "rich_message" -> MessageContent.RichMessage(
+                blocks = emptyList(),
+                isRtl = false,
+                isFull = false,
+                chatId = 0L,
+                messageId = 0L
+            )
             else -> MessageContent.Text(preview.text)
+        }
+    }
+
+    private fun PageBlock.plainText(): String {
+        return when (this) {
+            is PageBlock.Title -> title.plainText()
+            is PageBlock.Subtitle -> subtitle.plainText()
+            is PageBlock.AuthorDate -> author.plainText()
+            is PageBlock.Header -> header.plainText()
+            is PageBlock.Subheader -> subheader.plainText()
+            is PageBlock.SectionHeading -> text.plainText()
+            is PageBlock.Kicker -> kicker.plainText()
+            is PageBlock.Paragraph -> text.plainText()
+            is PageBlock.Preformatted -> text.plainText()
+            is PageBlock.Footer -> footer.plainText()
+            is PageBlock.Thinking -> text.plainText()
+            is PageBlock.MathematicalExpression -> expression
+            is PageBlock.ListBlock -> items.joinToString("\n") { item ->
+                listOf(item.label, item.pageBlocks.joinToString("\n") { it.plainText() })
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ")
+            }
+
+            is PageBlock.BlockQuote -> text.plainText()
+            is PageBlock.PullQuote -> text.plainText()
+            is PageBlock.Details -> pageBlocks.joinToString("\n") { it.plainText() }
+            is PageBlock.Table -> cells.joinToString("\n") { row ->
+                row.joinToString(" ") { it.text.plainText() }
+            }
+
+            is PageBlock.RelatedArticles -> header.plainText()
+            is PageBlock.PhotoBlock -> caption.text.plainText()
+            is PageBlock.VideoBlock -> caption.text.plainText()
+            is PageBlock.AnimationBlock -> caption.text.plainText()
+            is PageBlock.AudioBlock -> caption.text.plainText()
+            is PageBlock.Collage -> caption.text.plainText()
+            is PageBlock.Slideshow -> caption.text.plainText()
+            is PageBlock.Embedded -> caption.text.plainText()
+            is PageBlock.EmbeddedPost -> caption.text.plainText()
+            is PageBlock.MapBlock -> caption.text.plainText()
+            is PageBlock.ChatLink -> title
+            is PageBlock.Anchor,
+            is PageBlock.Cover,
+            PageBlock.Divider,
+            is PageBlock.Unsupported -> ""
+        }
+    }
+
+    private fun RichText.plainText(): String {
+        return when (this) {
+            is RichText.Plain -> text
+            is RichText.Bold -> text.plainText()
+            is RichText.Italic -> text.plainText()
+            is RichText.Underline -> text.plainText()
+            is RichText.Strikethrough -> text.plainText()
+            is RichText.Spoiler -> text.plainText()
+            is RichText.DateTime -> text.plainText()
+            is RichText.Mention -> text.plainText()
+            is RichText.Hashtag -> text.plainText()
+            is RichText.Cashtag -> text.plainText()
+            is RichText.BotCommand -> text.plainText()
+            is RichText.Fixed -> text.plainText()
+            is RichText.MentionName -> text.plainText()
+            is RichText.Url -> text.plainText()
+            is RichText.EmailAddress -> text.plainText()
+            is RichText.BankCardNumber -> text.plainText()
+            is RichText.Subscript -> text.plainText()
+            is RichText.Superscript -> text.plainText()
+            is RichText.Marked -> text.plainText()
+            is RichText.PhoneNumber -> text.plainText()
+            is RichText.CustomEmoji -> alternativeText
+            is RichText.Icon -> ""
+            is RichText.MathematicalExpression -> expression
+            is RichText.Reference -> text.plainText()
+            is RichText.Anchor -> ""
+            is RichText.AnchorLink -> text.plainText()
+            is RichText.Texts -> texts.joinToString("") { it.plainText() }
         }
     }
 
@@ -712,6 +923,8 @@ internal class MessagePersistenceMapper(
             is TdApi.MessageAudio -> content.caption
             is TdApi.MessageAnimation -> content.caption
             is TdApi.MessageVoiceNote -> content.caption
+            is TdApi.MessageChecklist -> content.list.title
+            is TdApi.MessagePaidMedia -> content.caption
             is TdApi.MessageAnimatedEmoji -> TdApi.FormattedText(
                 content.emoji,
                 listOfNotNull(
@@ -793,6 +1006,108 @@ internal class MessagePersistenceMapper(
 
             MessageEntity(offset = offset, length = length, type = type)
         }
+    }
+
+    private fun Array<TdApi.TextEntity>?.toDomainEntities(): List<MessageEntity> {
+        if (isNullOrEmpty()) return emptyList()
+        return mapNotNull { entity ->
+            val type = when (val entityType = entity.type) {
+                is TdApi.TextEntityTypeBold -> MessageEntityType.Bold
+                is TdApi.TextEntityTypeItalic -> MessageEntityType.Italic
+                is TdApi.TextEntityTypeUnderline -> MessageEntityType.Underline
+                is TdApi.TextEntityTypeStrikethrough -> MessageEntityType.Strikethrough
+                is TdApi.TextEntityTypeSpoiler -> MessageEntityType.Spoiler
+                is TdApi.TextEntityTypeCode -> MessageEntityType.Code
+                is TdApi.TextEntityTypePre -> MessageEntityType.Pre()
+                is TdApi.TextEntityTypePreCode -> MessageEntityType.Pre(entityType.language)
+                is TdApi.TextEntityTypeTextUrl -> MessageEntityType.TextUrl(entityType.url)
+                is TdApi.TextEntityTypeMention -> MessageEntityType.Mention
+                is TdApi.TextEntityTypeMentionName -> MessageEntityType.TextMention(entityType.userId)
+                is TdApi.TextEntityTypeHashtag -> MessageEntityType.Hashtag
+                is TdApi.TextEntityTypeBotCommand -> MessageEntityType.BotCommand
+                is TdApi.TextEntityTypeUrl -> MessageEntityType.Url
+                is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email
+                is TdApi.TextEntityTypePhoneNumber -> MessageEntityType.PhoneNumber
+                is TdApi.TextEntityTypeBankCardNumber -> MessageEntityType.BankCardNumber
+                is TdApi.TextEntityTypeCustomEmoji -> MessageEntityType.CustomEmoji(entityType.customEmojiId)
+                is TdApi.TextEntityTypeBlockQuote -> MessageEntityType.BlockQuote
+                is TdApi.TextEntityTypeExpandableBlockQuote -> MessageEntityType.BlockQuoteExpandable
+                else -> MessageEntityType.Other(entityType.javaClass.simpleName)
+            }
+            MessageEntity(entity.offset, entity.length, type)
+        }
+    }
+
+    private fun mapPaidMediaPayload(media: TdApi.PaidMedia): PaidMediaItemPayload {
+        return when (media) {
+            is TdApi.PaidMediaPreview -> PaidMediaItemPayload.Preview(
+                width = media.width,
+                height = media.height,
+                duration = media.duration,
+                minithumbnail = media.minithumbnail?.data
+            )
+
+            is TdApi.PaidMediaPhoto -> {
+                val sizes = media.photo.sizes
+                val original = sizes.maxByOrNull { it.width.toLong() * it.height.toLong() }
+                    ?: sizes.lastOrNull()
+                val best = sizes.find { it.type == "x" }
+                    ?: sizes.find { it.type == "m" }
+                    ?: sizes.getOrNull(sizes.size / 2)
+                    ?: original
+                val thumb = sizes.find { it.type == "m" } ?: sizes.find { it.type == "s" }
+                ?: sizes.firstOrNull()
+                val bestFile = best?.photo?.let(fileHelper::getUpdatedFile)
+                val originalFile = original?.photo?.let(fileHelper::getUpdatedFile)
+                val thumbFile = thumb?.photo?.let(fileHelper::getUpdatedFile)
+                PaidMediaItemPayload.Photo(
+                    path = fileHelper.findBestAvailablePath(bestFile, sizes),
+                    thumbnailPath = fileHelper.resolveLocalFilePath(thumbFile),
+                    width = best?.width ?: 0,
+                    height = best?.height ?: 0,
+                    fileId = bestFile?.id ?: 0,
+                    originalFileId = originalFile?.id ?: bestFile?.id ?: 0,
+                    minithumbnail = media.photo.minithumbnail?.data,
+                    livePhotoVideoPath = null,
+                    livePhotoVideoFileId = 0
+                )
+            }
+
+            is TdApi.PaidMediaVideo -> {
+                val videoFile = fileHelper.getUpdatedFile(media.video.video)
+                val coverPath = media.cover?.sizes
+                    ?.maxByOrNull { it.width.toLong() * it.height.toLong() }
+                    ?.photo
+                    ?.let(fileHelper::getUpdatedFile)
+                    ?.let(fileHelper::resolveLocalFilePath)
+                PaidMediaItemPayload.Video(
+                    path = fileHelper.resolveLocalFilePath(videoFile),
+                    thumbnailPath = coverPath,
+                    width = media.video.width,
+                    height = media.video.height,
+                    duration = media.video.duration,
+                    fileId = videoFile.id,
+                    minithumbnail = null,
+                    supportsStreaming = media.video.supportsStreaming,
+                    coverPath = coverPath,
+                    startTimestamp = media.startTimestamp
+                )
+            }
+
+            else -> PaidMediaItemPayload.Unsupported
+        }
+    }
+
+    private fun resolveSenderName(sender: TdApi.MessageSender?): String? {
+        val id = when (sender) {
+            is TdApi.MessageSenderUser -> sender.userId
+            is TdApi.MessageSenderChat -> sender.chatId
+            else -> return null
+        }
+        return cache.getUser(id)?.let { user ->
+            listOf(user.firstName, user.lastName).filter { !it.isNullOrBlank() }.joinToString(" ")
+        }?.takeIf { it.isNotBlank() }
+            ?: cache.getChat(id)?.title?.takeIf { it.isNotBlank() }
     }
 
     private fun encodeMeta(vararg parts: Any?): String {

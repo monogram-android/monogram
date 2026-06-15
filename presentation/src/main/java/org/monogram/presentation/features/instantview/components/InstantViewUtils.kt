@@ -11,11 +11,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.withTimeoutOrNull
+import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.webapp.PageBlock
+import org.monogram.domain.models.webapp.PageBlockCaption
 import org.monogram.domain.models.webapp.RichText
 import org.monogram.domain.repository.FileRepository
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 val LocalOnUrlClick = staticCompositionLocalOf<(String) -> Unit> { { } }
 val LocalFileRepository =
@@ -46,8 +54,64 @@ fun AnnotatedString.Builder.appendRichText(richText: RichText, linkColor: Color)
             appendRichText(richText.text, linkColor)
         }
 
+        is RichText.Spoiler -> withStyle(
+            SpanStyle(
+                background = Color(0x66000000),
+                color = Color.Transparent
+            )
+        ) {
+            appendRichText(richText.text, linkColor)
+        }
+
+        is RichText.DateTime -> {
+            pushStringAnnotation(tag = "DATE_TIME", annotation = richText.unixTime.toString())
+            withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
+                appendRichText(richText.text, linkColor)
+            }
+            pop()
+        }
+
+        is RichText.Mention -> {
+            pushStringAnnotation(
+                tag = "URL",
+                annotation = "https://t.me/${richText.username.removePrefix("@")}"
+            )
+            withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
+                appendRichText(richText.text, linkColor)
+            }
+            pop()
+        }
+
+        is RichText.Hashtag -> {
+            pushStringAnnotation(tag = "SEARCH", annotation = richText.hashtag)
+            withStyle(SpanStyle(color = linkColor)) {
+                appendRichText(richText.text, linkColor)
+            }
+            pop()
+        }
+
+        is RichText.Cashtag -> {
+            pushStringAnnotation(tag = "SEARCH", annotation = richText.cashtag)
+            withStyle(SpanStyle(color = linkColor)) {
+                appendRichText(richText.text, linkColor)
+            }
+            pop()
+        }
+
+        is RichText.BotCommand -> withStyle(SpanStyle(color = linkColor)) {
+            appendRichText(richText.text, linkColor)
+        }
+
         is RichText.Fixed -> withStyle(SpanStyle(fontFamily = FontFamily.Monospace)) {
             appendRichText(richText.text, linkColor)
+        }
+
+        is RichText.MentionName -> {
+            pushStringAnnotation(tag = "USER", annotation = richText.userId.toString())
+            withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
+                appendRichText(richText.text, linkColor)
+            }
+            pop()
         }
 
         is RichText.Url -> {
@@ -82,8 +146,18 @@ fun AnnotatedString.Builder.appendRichText(richText: RichText, linkColor: Color)
             pop()
         }
 
+        is RichText.BankCardNumber -> withStyle(SpanStyle(fontFamily = FontFamily.Monospace)) {
+            appendRichText(richText.text, linkColor)
+        }
+
         is RichText.Icon -> {
             // Icon is a position marker, usually invisible in text flow
+        }
+
+        is RichText.CustomEmoji -> append(richText.alternativeText)
+
+        is RichText.MathematicalExpression -> withStyle(SpanStyle(fontFamily = FontFamily.Monospace)) {
+            append(richText.expression)
         }
 
         is RichText.Marked -> withStyle(SpanStyle(background = Color(0x55FFFF00))) {
@@ -127,10 +201,13 @@ fun PageBlock.containsText(query: String): Boolean {
 
         is PageBlock.Header -> header.containsText(query)
         is PageBlock.Subheader -> subheader.containsText(query)
+        is PageBlock.SectionHeading -> text.containsText(query)
         is PageBlock.Kicker -> kicker.containsText(query)
         is PageBlock.Paragraph -> text.containsText(query)
         is PageBlock.Preformatted -> text.containsText(query)
         is PageBlock.Footer -> footer.containsText(query)
+        is PageBlock.Thinking -> text.containsText(query)
+        is PageBlock.MathematicalExpression -> expression.contains(query, ignoreCase = true)
         is PageBlock.BlockQuote -> text.containsText(query) || credit.containsText(query)
         is PageBlock.PullQuote -> text.containsText(query) || credit.containsText(query)
         is PageBlock.ListBlock -> items.any { item ->
@@ -181,6 +258,7 @@ fun PageBlock.containsText(query: String): Boolean {
         ) || pageBlocks.any { it.containsText(query) }
 
         is PageBlock.MapBlock -> caption.text.containsText(query) || caption.credit.containsText(query)
+        is PageBlock.Unsupported -> typeName.contains(query, ignoreCase = true)
     }
 }
 
@@ -191,7 +269,29 @@ fun RichText.containsText(query: String): Boolean {
         is RichText.Italic -> text.containsText(query)
         is RichText.Underline -> text.containsText(query)
         is RichText.Strikethrough -> text.containsText(query)
+        is RichText.Spoiler -> text.containsText(query)
+        is RichText.DateTime -> text.containsText(query) || unixTime.toString().contains(query)
+        is RichText.Mention -> text.containsText(query) || username.contains(
+            query,
+            ignoreCase = true
+        )
+
+        is RichText.Hashtag -> text.containsText(query) || hashtag.contains(
+            query,
+            ignoreCase = true
+        )
+
+        is RichText.Cashtag -> text.containsText(query) || cashtag.contains(
+            query,
+            ignoreCase = true
+        )
+
+        is RichText.BotCommand -> text.containsText(query) || botCommand.contains(
+            query,
+            ignoreCase = true
+        )
         is RichText.Fixed -> text.containsText(query)
+        is RichText.MentionName -> text.containsText(query) || userId.toString().contains(query)
         is RichText.Url -> text.containsText(query) || url.contains(query, ignoreCase = true)
         is RichText.Texts -> texts.any { it.containsText(query) }
         is RichText.Anchor -> name.contains(query, ignoreCase = true)
@@ -201,7 +301,13 @@ fun RichText.containsText(query: String): Boolean {
         ) || url.contains(query, ignoreCase = true)
 
         is RichText.EmailAddress -> text.containsText(query) || emailAddress.contains(query, ignoreCase = true)
+        is RichText.BankCardNumber -> text.containsText(query) || bankCardNumber.contains(
+            query,
+            ignoreCase = true
+        )
         is RichText.Icon -> false
+        is RichText.CustomEmoji -> alternativeText.contains(query, ignoreCase = true)
+        is RichText.MathematicalExpression -> expression.contains(query, ignoreCase = true)
         is RichText.Marked -> text.containsText(query)
         is RichText.PhoneNumber -> text.containsText(query) || phoneNumber.contains(query, ignoreCase = true)
         is RichText.Reference -> text.containsText(query) || anchorName.contains(
@@ -212,4 +318,38 @@ fun RichText.containsText(query: String): Boolean {
         is RichText.Subscript -> text.containsText(query)
         is RichText.Superscript -> text.containsText(query)
     }
+}
+
+fun PageBlockCaption.renderedTextOrNull(): String? {
+    val text = buildString {
+        renderRichText(this@renderedTextOrNull.text).text.takeIf { it.isNotBlank() }?.let(::append)
+        renderRichText(this@renderedTextOrNull.credit).text.takeIf { it.isNotBlank() }
+            ?.let { credit ->
+                if (isNotEmpty()) append("\n")
+                append(credit)
+            }
+    }
+    return text.ifBlank { null }
+}
+
+suspend fun FileRepository.resolvePathForViewer(
+    fileId: Int,
+    initialPath: String?
+): String? {
+    if (!initialPath.isNullOrBlank()) return initialPath
+    if (fileId == 0) return null
+    val cachedPath = getFilePath(fileId)
+    if (!cachedPath.isNullOrBlank()) return cachedPath
+
+    downloadFile(fileId)
+
+    val completedPath = withTimeoutOrNull(60_000L) {
+        fileDownloadFlow
+            .filterIsInstance<FileDownloadEvent.Completed>()
+            .filter { it.fileId == fileId }
+            .mapNotNull { event -> event.path.takeIf { it.isNotEmpty() } }
+            .first()
+    }
+
+    return completedPath ?: getFilePath(fileId)
 }

@@ -1,11 +1,34 @@
 package org.monogram.presentation.features.chats.conversation.ui.inputbar
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -318,6 +341,9 @@ private fun messagePreviewText(message: MessageModel): String =
         is MessageContent.Voice -> stringResource(R.string.reply_content_voice_message)
         is MessageContent.VideoNote -> stringResource(R.string.reply_content_video_message)
         is MessageContent.Audio -> stringResource(R.string.logs_media_audio)
+        is MessageContent.Checklist -> content.title.ifBlank { stringResource(R.string.chat_mapper_checklist) }
+        is MessageContent.PaidMedia -> stringResource(R.string.chat_mapper_paid_media)
+        is MessageContent.RichMessage -> stringResource(R.string.reply_content_message)
         is MessageContent.Location -> stringResource(R.string.location_label)
         is MessageContent.Venue -> content.title.ifBlank { stringResource(R.string.logs_media_venue) }
         is MessageContent.Contact -> {
@@ -348,6 +374,9 @@ private fun scheduledMessageTypeLabel(message: MessageModel): String =
         is MessageContent.Location -> stringResource(R.string.location_label)
         is MessageContent.Venue -> stringResource(R.string.logs_media_venue)
         is MessageContent.Poll -> stringResource(R.string.logs_media_poll)
+        is MessageContent.Checklist -> stringResource(R.string.chat_mapper_checklist)
+        is MessageContent.PaidMedia -> stringResource(R.string.chat_mapper_paid_media)
+        is MessageContent.RichMessage -> stringResource(R.string.reply_content_message)
         is MessageContent.Service -> stringResource(R.string.profile_statistics_preview_service_message)
         MessageContent.Unsupported -> stringResource(R.string.reply_content_message)
     }
@@ -355,5 +384,6 @@ private fun scheduledMessageTypeLabel(message: MessageModel): String =
 private fun canEditScheduledMessage(message: MessageModel): Boolean =
     when (message.content) {
         is MessageContent.Text -> true
+        is MessageContent.Checklist -> true
         else -> false
     }

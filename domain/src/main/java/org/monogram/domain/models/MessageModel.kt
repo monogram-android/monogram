@@ -1,6 +1,7 @@
 package org.monogram.domain.models
 
 import kotlinx.serialization.Serializable
+import org.monogram.domain.models.webapp.PageBlock
 
 data class MessageModel(
     val id: Long,
@@ -77,6 +78,15 @@ sealed interface MessageContent {
         val text: String,
         val entities: List<MessageEntity> = emptyList(),
         val webPage: WebPage? = null
+    ) : MessageContent
+
+    data class RichMessage(
+        val blocks: List<PageBlock>,
+        val isRtl: Boolean,
+        val isFull: Boolean,
+        val chatId: Long,
+        val messageId: Long,
+        val markdownSource: String? = null
     ) : MessageContent
 
     data class Service(
@@ -416,7 +426,70 @@ sealed interface MessageContent {
         val venueType: String
     ) : MessageContent
 
+    data class Checklist(
+        val title: String,
+        val titleEntities: List<MessageEntity> = emptyList(),
+        val tasks: List<ChecklistTask> = emptyList(),
+        val othersCanAddTasks: Boolean = false,
+        val canAddTasks: Boolean = false,
+        val othersCanMarkTasksAsDone: Boolean = false,
+        val canMarkTasksAsDone: Boolean = false
+    ) : MessageContent
+
+    data class PaidMedia(
+        val starCount: Long,
+        val items: List<PaidMediaItem>,
+        val caption: String,
+        val entities: List<MessageEntity> = emptyList(),
+        val showCaptionAboveMedia: Boolean = false
+    ) : MessageContent
+
     object Unsupported : MessageContent
+}
+
+data class ChecklistTask(
+    val id: Int,
+    val text: String,
+    val entities: List<MessageEntity> = emptyList(),
+    val completedById: Long? = null,
+    val completedByName: String? = null,
+    val completionDate: Int = 0
+)
+
+sealed interface PaidMediaItem {
+    data class Preview(
+        val width: Int,
+        val height: Int,
+        val duration: Int,
+        val minithumbnail: ByteArray? = null
+    ) : PaidMediaItem
+
+    data class Photo(
+        val path: String?,
+        val thumbnailPath: String? = null,
+        val width: Int,
+        val height: Int,
+        val fileId: Int,
+        val originalFileId: Int,
+        val minithumbnail: ByteArray? = null,
+        val livePhotoVideoPath: String? = null,
+        val livePhotoVideoFileId: Int = 0
+    ) : PaidMediaItem
+
+    data class Video(
+        val path: String?,
+        val thumbnailPath: String? = null,
+        val width: Int,
+        val height: Int,
+        val duration: Int,
+        val fileId: Int,
+        val minithumbnail: ByteArray? = null,
+        val supportsStreaming: Boolean = false,
+        val coverPath: String? = null,
+        val startTimestamp: Int = 0
+    ) : PaidMediaItem
+
+    object Unsupported : PaidMediaItem
 }
 
 enum class ServiceKind {
@@ -610,25 +683,64 @@ data class MessageEntity(
 
 @Serializable
 sealed interface MessageEntityType {
+    @Serializable
     object Bold : MessageEntityType
+
+    @Serializable
     object Italic : MessageEntityType
+
+    @Serializable
     object Underline : MessageEntityType
+
+    @Serializable
     object Strikethrough : MessageEntityType
+
+    @Serializable
     object Spoiler : MessageEntityType
+
+    @Serializable
     object BlockQuote : MessageEntityType
-    object BlockQuoteExpandable: MessageEntityType
+
+    @Serializable
+    object BlockQuoteExpandable : MessageEntityType
+
+    @Serializable
     object Code : MessageEntityType
+
+    @Serializable
     data class Pre(val language: String = "") : MessageEntityType
+
+    @Serializable
     data class TextUrl(val url: String) : MessageEntityType
+
+    @Serializable
     object Mention : MessageEntityType
+
+    @Serializable
     data class TextMention(val userId: Long) : MessageEntityType
+
+    @Serializable
     object Hashtag : MessageEntityType
+
+    @Serializable
     object BotCommand : MessageEntityType
+
+    @Serializable
     object Url : MessageEntityType
+
+    @Serializable
     object Email : MessageEntityType
+
+    @Serializable
     object PhoneNumber : MessageEntityType
+
+    @Serializable
     object BankCardNumber : MessageEntityType
+
+    @Serializable
     data class CustomEmoji(val emojiId: Long, val path: String? = null) : MessageEntityType
+
+    @Serializable
     data class Other(val srcEntity: String) : MessageEntityType
 }
 

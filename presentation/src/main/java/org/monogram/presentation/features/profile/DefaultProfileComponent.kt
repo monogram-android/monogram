@@ -1231,6 +1231,9 @@ class DefaultProfileComponent(
             is MessageContent.Venue -> stringProvider.getString("profile_statistics_preview_venue_format", title)
             is MessageContent.Poll -> stringProvider.getString("profile_statistics_preview_poll_format", question)
             is MessageContent.Service -> text.ifBlank { stringProvider.getString("profile_statistics_preview_service_message") }
+            is MessageContent.Checklist -> title.ifBlank { stringProvider.getString("chat_mapper_checklist") }
+            is MessageContent.PaidMedia -> caption.ifBlank { stringProvider.getString("chat_mapper_paid_media") }
+            is MessageContent.RichMessage -> stringProvider.getString("reply_content_message")
             MessageContent.Unsupported -> stringProvider.getString("logs_media_unsupported")
         }
     }

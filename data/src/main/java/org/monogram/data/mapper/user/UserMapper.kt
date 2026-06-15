@@ -122,6 +122,7 @@ private fun TdApi.UserTypeBot.toDomain(): UserTypeBotInfoModel {
         isInline = isInline,
         inlineQueryPlaceholder = inlineQueryPlaceholder.ifEmpty { null },
         supportsGuestQueries = toDomainSupportsGuestQueries(),
+        isGuard = isGuard,
         needLocation = needLocation,
         canConnectToBusiness = canConnectToBusiness,
         canBeAddedToAttachmentMenu = canBeAddedToAttachmentMenu,

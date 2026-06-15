@@ -293,6 +293,7 @@ class OfflineWarmup(
             botTypeIsInline = botType?.isInline ?: false,
             botTypeInlineQueryPlaceholder = botType?.inlineQueryPlaceholder?.ifEmpty { null },
             botTypeSupportsGuestQueries = botType?.toDomainSupportsGuestQueries() ?: false,
+            botTypeIsGuard = botType?.isGuard ?: false,
             botTypeNeedLocation = botType?.needLocation ?: false,
             botTypeCanConnectToBusiness = botType?.canConnectToBusiness ?: false,
             botTypeCanBeAddedToAttachmentMenu = botType?.canBeAddedToAttachmentMenu ?: false,

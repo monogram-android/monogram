@@ -222,6 +222,14 @@
     <string name="permission_send_polls">Odosielanie ankiet</string>
     <string name="permission_embed_links">Vkladanie odkazov</string>
     <string name="permission_pin_messages">Pripínanie správ</string>
+    <string name="profile_restriction_title">Obmedzenia</string>
+    <string name="profile_chat_tools">Nástroje chatu</string>
+    <string name="profile_chat_anti_spam">Agresívny anti-spam</string>
+    <string name="profile_chat_sponsored_messages">Sponzorované správy povolené</string>
+    <string name="profile_chat_direct_messages">Priame správy prepojené</string>
+    <string name="profile_chat_boosts_format">%1$d boostov od vás</string>
+    <string name="profile_chat_level_format">Úroveň boostu %1$d</string>
+    <string name="yes">Áno</string>
     <string name="permission_change_chat_info">Zmena informácií o chate</string>
     <string name="restrict_until">Obmedziť do</string>
     <string name="restrict_forever">Navždy</string>
@@ -2449,4 +2457,10 @@
     <string name="search_results_loading">Vyhľadávanie...</string>
     <string name="search_results_show_all">Zobraziť všetko</string>
     <string name="search_sender_all">Všetci odosielatelia</string>
+    <string name="join_chat_request_sent">Žiadosť o pripojenie bola odoslaná</string>
+    <string name="join_chat_request_declined">Žiadosť o pripojenie bola zamietnutá</string>
+    <string name="join_chat_guard_bot_required">Vyžaduje sa schválenie ochranným botom</string>
+    <string name="about_exdev">Bývalý vývojár</string>
+    <string name="about_contributors">Prispievatelia</string>
+    <string name="about_contributors_summary">A veľké ďakujem patrí všetkým ostatným, ktorí prispeli k vývoju</string>
 </resources>

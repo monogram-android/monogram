@@ -229,6 +229,14 @@
     <string name="permission_embed_links">Предпросмотр ссылок</string>
     <string name="proxy_comment_placeholder">Комментарий</string>
     <string name="permission_pin_messages">Закрепление сообщений</string>
+    <string name="profile_restriction_title">Ограничения</string>
+    <string name="profile_chat_tools">Инструменты чата</string>
+    <string name="profile_chat_anti_spam">Агрессивный антиспам</string>
+    <string name="profile_chat_sponsored_messages">Sponsoring-сообщения включены</string>
+    <string name="profile_chat_direct_messages">Личные сообщения привязаны</string>
+    <string name="profile_chat_boosts_format">%1$d бустов от вас</string>
+    <string name="profile_chat_level_format">Уровень буста %1$d</string>
+    <string name="yes">Да</string>
     <string name="permission_change_chat_info">Изменение данных чата</string>
     <string name="restrict_until">Ограничить до</string>
     <string name="restrict_forever">Навсегда</string>
@@ -2317,4 +2325,10 @@
     <string name="draft_link_preview_remove">Убрать превью</string>
     <string name="action_restore">Восстановить</string>
     <string name="draft_link_preview_disabled">Это превью будет исключено из сообщения</string>
+    <string name="join_chat_request_sent">Заявка на вступление отправлена</string>
+    <string name="join_chat_request_declined">Заявка на вступление отклонена</string>
+    <string name="join_chat_guard_bot_required">Требуется одобрение от защитного бота</string>
+    <string name="about_exdev">Бывший разработчик</string>
+    <string name="about_contributors">Участники проекта</string>
+    <string name="about_contributors_summary">И огромное спасибо всем остальным, кто внес свой вклад в развитие</string>
 </resources>

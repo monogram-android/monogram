@@ -212,6 +212,14 @@
     <string name="permission_send_polls">Надсилання опитувань</string>
     <string name="permission_embed_links">Попередній перегляд посилань</string>
     <string name="permission_pin_messages">Закріплення повідомлень</string>
+    <string name="profile_restriction_title">Обмеження</string>
+    <string name="profile_chat_tools">Інструменти чату</string>
+    <string name="profile_chat_anti_spam">Агресивний антиспам</string>
+    <string name="profile_chat_sponsored_messages">Спонсоровані повідомлення увімкнено</string>
+    <string name="profile_chat_direct_messages">Особисті повідомлення прив’язані</string>
+    <string name="profile_chat_boosts_format">%1$d бустів від вас</string>
+    <string name="profile_chat_level_format">Рівень бусту %1$d</string>
+    <string name="yes">Так</string>
     <string name="permission_change_chat_info">Зміна даних чату</string>
     <string name="restrict_until">Обмежити до</string>
     <string name="restrict_forever">Назавжди</string>
@@ -2316,4 +2324,10 @@
     <string name="search_results_loading">Пошук...</string>
     <string name="search_results_show_all">Показати все</string>
     <string name="search_sender_all">Усі відправники</string>
+    <string name="join_chat_request_sent">Запит на вступ надіслано</string>
+    <string name="join_chat_request_declined">Запит на вступ відхилено</string>
+    <string name="join_chat_guard_bot_required">Потрібне схвалення від захисного бота</string>
+    <string name="about_exdev">Колишній розробник</string>
+    <string name="about_contributors">Учасники</string>
+    <string name="about_contributors_summary">І величезна подяка всім іншим, хто зробив свій внесок у розвиток</string>
 </resources>

@@ -59,6 +59,7 @@ fun TdApi.User.toEntity(personalAvatarPath: String?): UserEntity {
         botTypeIsInline = botType?.isInline ?: false,
         botTypeInlineQueryPlaceholder = botType?.inlineQueryPlaceholder?.ifEmpty { null },
         botTypeSupportsGuestQueries = botType?.toDomainSupportsGuestQueries() ?: false,
+        botTypeIsGuard = botType?.isGuard ?: false,
         botTypeNeedLocation = botType?.needLocation ?: false,
         botTypeCanConnectToBusiness = botType?.canConnectToBusiness ?: false,
         botTypeCanBeAddedToAttachmentMenu = botType?.canBeAddedToAttachmentMenu ?: false,
@@ -153,7 +154,7 @@ fun UserEntity.toTdApi(): TdApi.User {
                 botTypeIsInline,
                 botTypeInlineQueryPlaceholder.orEmpty(),
                 botTypeSupportsGuestQueries,
-                false,
+                botTypeIsGuard,
                 botTypeNeedLocation,
                 botTypeCanConnectToBusiness,
                 botTypeCanBeAddedToAttachmentMenu,
@@ -206,7 +207,29 @@ private data class QuadUsernames(
     val disabled: Array<String>,
     val editable: String,
     val collectible: Array<String>
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as QuadUsernames
+
+        if (!active.contentEquals(other.active)) return false
+        if (!disabled.contentEquals(other.disabled)) return false
+        if (editable != other.editable) return false
+        if (!collectible.contentEquals(other.collectible)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = active.contentHashCode()
+        result = 31 * result + disabled.contentHashCode()
+        result = 31 * result + editable.hashCode()
+        result = 31 * result + collectible.contentHashCode()
+        return result
+    }
+}
 
 private fun TdApi.ActiveStoryState?.toTypeString(): String? {
     return when (this) {

@@ -16,6 +16,7 @@ import org.monogram.domain.models.PollDraft
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
+import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.OlderMessagesPage
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.domain.repository.SearchChatMessagesResult
@@ -105,6 +106,14 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         sendOptions: MessageSendOptions
     ): TdApi.Message?
 
+    suspend fun sendChecklist(
+        chatId: Long,
+        checklistDraft: ChecklistDraft,
+        replyToMsgId: Long?,
+        threadId: Long?,
+        sendOptions: MessageSendOptions
+    ): TdApi.Message?
+
     suspend fun sendSticker(chatId: Long, stickerPath: String, replyToMsgId: Long?, threadId: Long?): TdApi.Message?
     suspend fun sendGif(
         chatId: Long,
@@ -161,6 +170,18 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
     suspend fun deleteMessages(chatId: Long, messageIds: LongArray, revoke: Boolean): TdApi.Ok?
     suspend fun editMessageText(chatId: Long, messageId: Long, text: String, entities: List<MessageEntity>): TdApi.Message?
     suspend fun editMessageCaption(chatId: Long, messageId: Long, caption: String, entities: List<MessageEntity>): TdApi.Message?
+    suspend fun editChecklistMessage(
+        chatId: Long,
+        messageId: Long,
+        checklistDraft: ChecklistDraft
+    ): TdApi.Message?
+
+    suspend fun markChecklistTasksAsDone(
+        chatId: Long,
+        messageId: Long,
+        doneIds: IntArray,
+        undoneIds: IntArray
+    ): TdApi.Ok?
     suspend fun viewMessages(chatId: Long, messageIds: LongArray, forceRead: Boolean): TdApi.Ok?
     suspend fun readAllChatMentions(chatId: Long): TdApi.Ok?
     suspend fun readAllChatReactions(chatId: Long): TdApi.Ok?

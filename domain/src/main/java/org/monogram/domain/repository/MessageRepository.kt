@@ -65,6 +65,20 @@ data class ForwardRequest(
     val options: ForwardOptions = ForwardOptions()
 )
 
+data class ChecklistDraft(
+    val title: String,
+    val titleEntities: List<MessageEntity> = emptyList(),
+    val tasks: List<ChecklistTaskDraft>,
+    val othersCanAddTasks: Boolean = false,
+    val othersCanMarkTasksAsDone: Boolean = false
+)
+
+data class ChecklistTaskDraft(
+    val id: Int,
+    val text: String,
+    val entities: List<MessageEntity> = emptyList()
+)
+
 interface MessageRepository :
     FileRepository,
     InlineBotRepository,
@@ -192,6 +206,14 @@ interface MessageRepository :
         sendOptions: MessageSendOptions = MessageSendOptions()
     )
 
+    suspend fun sendChecklist(
+        chatId: Long,
+        checklistDraft: ChecklistDraft,
+        replyToMsgId: Long? = null,
+        threadId: Long? = null,
+        sendOptions: MessageSendOptions = MessageSendOptions()
+    )
+
     suspend fun sendGif(
         chatId: Long,
         gifId: String,
@@ -274,6 +296,13 @@ interface MessageRepository :
     suspend fun deleteMessage(chatId: Long, messageIds: List<Long>, revoke: Boolean = false)
     suspend fun editMessage(chatId: Long, messageId: Long, newText: String, entities: List<MessageEntity> = emptyList())
     suspend fun editMessageCaption(chatId: Long, messageId: Long, newCaption: String, entities: List<MessageEntity> = emptyList())
+    suspend fun editChecklistMessage(chatId: Long, messageId: Long, checklistDraft: ChecklistDraft)
+    suspend fun markChecklistTasksAsDone(
+        chatId: Long,
+        messageId: Long,
+        doneIds: List<Int>,
+        undoneIds: List<Int>
+    )
     suspend fun markAsRead(chatId: Long, messageId: Long)
     suspend fun markAllMentionsAsRead(chatId: Long)
     suspend fun markAllReactionsAsRead(chatId: Long)

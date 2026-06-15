@@ -257,7 +257,7 @@ fun MessagePreview(
                                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
                                     append(stringResource(R.string.chat_mapper_checklist))
                                 }
-                                append(": ${content.title}")
+                                append(": ${content.title.ifBlank { content.tasks.joinToString { it.text } }}")
                             },
                             style = MaterialTheme.typography.bodyMedium
                         )

@@ -33,6 +33,7 @@ import org.monogram.presentation.features.chats.conversation.editor.photo.PhotoE
 import org.monogram.presentation.features.chats.conversation.editor.video.VideoEditorScreen
 import org.monogram.presentation.features.chats.conversation.ui.StickerSetSheet
 import org.monogram.presentation.features.chats.conversation.ui.message.BotCommandsSheet
+import org.monogram.presentation.features.chats.conversation.ui.message.ChecklistEditorSheet
 import org.monogram.presentation.features.chats.conversation.ui.message.PollVotersSheet
 import org.monogram.presentation.features.chats.conversation.ui.message.PreviewImageViewerRequest
 import org.monogram.presentation.features.chats.conversation.ui.message.PreviewVideoViewerRequest
@@ -142,6 +143,14 @@ internal fun ChatContentOverlays(
             commands = state.botCommands,
             onCommandClick = component::onBotCommandClick,
             onDismiss = component::onDismissBotCommands
+        )
+    }
+
+    state.checklistDraft?.let { draft ->
+        ChecklistEditorSheet(
+            draft = draft,
+            onSave = component::onSaveChecklistDraft,
+            onDismiss = component::onCancelChecklistEditor
         )
     }
 

@@ -23,6 +23,7 @@ import org.monogram.domain.models.TopicModel
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.WallpaperModel
 import org.monogram.domain.models.WebPage
+import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.StickerRepository
@@ -105,6 +106,10 @@ interface ChatComponent {
     fun onEditMessage(message: MessageModel)
     fun onCancelEdit()
     fun onSaveEditedMessage(text: String, entities: List<MessageEntity> = emptyList())
+    fun onOpenChecklistEditor(message: MessageModel? = null)
+    fun onSaveChecklistDraft(draft: ChecklistDraft)
+    fun onToggleChecklistTask(messageId: Long, taskId: Int, isDone: Boolean)
+    fun onCancelChecklistEditor()
     fun onDraftChange(text: String)
     fun onSelectDraftLinkPreview(url: String)
     fun onDismissDraftLinkPreview()
@@ -261,6 +266,8 @@ interface ChatComponent {
         val isLoadingNewer: Boolean = false,
         val replyMessage: MessageModel? = null,
         val editingMessage: MessageModel? = null,
+        val checklistMessage: MessageModel? = null,
+        val checklistDraft: ChecklistDraft? = null,
         val editRequestTime: Long = 0L,
         val draftText: String = "",
         val draftLinkTargets: List<LinkPreviewTarget> = emptyList(),

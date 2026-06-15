@@ -5,6 +5,9 @@ import com.arkivanov.mvikotlin.core.store.Store
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import kotlinx.coroutines.flow.update
+import org.monogram.domain.models.MessageContent
+import org.monogram.domain.repository.ChecklistDraft
+import org.monogram.domain.repository.ChecklistTaskDraft
 import org.monogram.presentation.features.chats.conversation.ChatStore.Intent
 import org.monogram.presentation.features.chats.conversation.ChatStore.Label
 import org.monogram.presentation.features.chats.conversation.logic.handleAcceptMiniAppTOS
@@ -48,6 +51,7 @@ import org.monogram.presentation.features.chats.conversation.logic.handleReportM
 import org.monogram.presentation.features.chats.conversation.logic.handleReportReasonSelected
 import org.monogram.presentation.features.chats.conversation.logic.handleRestoreDraftLinkPreview
 import org.monogram.presentation.features.chats.conversation.logic.handleRetractVote
+import org.monogram.presentation.features.chats.conversation.logic.handleSaveChecklistDraft
 import org.monogram.presentation.features.chats.conversation.logic.handleSaveEditedMessage
 import org.monogram.presentation.features.chats.conversation.logic.handleSearchDateRangeChange
 import org.monogram.presentation.features.chats.conversation.logic.handleSearchNextResult
@@ -72,6 +76,7 @@ import org.monogram.presentation.features.chats.conversation.logic.handleSendVid
 import org.monogram.presentation.features.chats.conversation.logic.handleSendVoice
 import org.monogram.presentation.features.chats.conversation.logic.handleShowVoters
 import org.monogram.presentation.features.chats.conversation.logic.handleStickerClick
+import org.monogram.presentation.features.chats.conversation.logic.handleToggleChecklistTask
 import org.monogram.presentation.features.chats.conversation.logic.handleToggleMessageSelection
 import org.monogram.presentation.features.chats.conversation.logic.handleToggleMute
 import org.monogram.presentation.features.chats.conversation.logic.handleTopicClick
@@ -195,6 +200,40 @@ class ChatStoreFactory(
 
                 is Intent.CancelEdit -> component._state.update { it.copy(editingMessage = null) }
                 is Intent.SaveEditedMessage -> component.handleSaveEditedMessage(intent.text, intent.entities)
+                is Intent.OpenChecklistEditor -> component._state.update {
+                    it.copy(
+                        checklistMessage = intent.message,
+                        checklistDraft = (intent.message?.content as? MessageContent.Checklist)?.let { content ->
+                            ChecklistDraft(
+                                title = content.title,
+                                titleEntities = content.titleEntities,
+                                tasks = content.tasks.map { task ->
+                                    ChecklistTaskDraft(
+                                        id = task.id,
+                                        text = task.text,
+                                        entities = task.entities
+                                    )
+                                },
+                                othersCanAddTasks = content.othersCanAddTasks,
+                                othersCanMarkTasksAsDone = content.othersCanMarkTasksAsDone
+                            )
+                        } ?: ChecklistDraft(
+                            title = "",
+                            tasks = listOf(ChecklistTaskDraft(id = 1, text = ""))
+                        )
+                    )
+                }
+
+                is Intent.SaveChecklistDraft -> component.handleSaveChecklistDraft(intent.draft)
+                is Intent.ToggleChecklistTask -> component.handleToggleChecklistTask(
+                    intent.messageId,
+                    intent.taskId,
+                    intent.isDone
+                )
+
+                is Intent.CancelChecklistEditor -> component._state.update {
+                    it.copy(checklistMessage = null, checklistDraft = null)
+                }
                 is Intent.DraftChange -> component.handleDraftChange(intent.text)
                 is Intent.SelectDraftLinkPreview -> component.handleSelectDraftLinkPreview(intent.url)
                 is Intent.DismissDraftLinkPreview -> component.handleDismissDraftLinkPreview()

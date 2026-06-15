@@ -414,6 +414,15 @@ internal fun ChatContentBody(
                 onAudioClick = onAudioClick,
                 onMessageOptionsClick = onMessageOptionsClick,
                 onGoToReply = onGoToReply,
+                onChecklistTaskToggle = { messageId, taskId, isDone ->
+                    component.onToggleChecklistTask(messageId, taskId, isDone)
+                },
+                onChecklistEdit = { message ->
+                    component.onOpenChecklistEditor(message)
+                },
+                onPaidMediaBuy = { message ->
+                    component.onOpenInvoice(messageId = message.id)
+                },
                 selectedMessageId = selectedMessageId,
                 onMessagePositionChange = onMessagePositionChange,
                 onViaBotClick = onViaBotClick,

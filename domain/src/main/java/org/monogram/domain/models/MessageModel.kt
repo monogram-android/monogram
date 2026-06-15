@@ -673,25 +673,64 @@ data class MessageEntity(
 
 @Serializable
 sealed interface MessageEntityType {
+    @Serializable
     object Bold : MessageEntityType
+
+    @Serializable
     object Italic : MessageEntityType
+
+    @Serializable
     object Underline : MessageEntityType
+
+    @Serializable
     object Strikethrough : MessageEntityType
+
+    @Serializable
     object Spoiler : MessageEntityType
+
+    @Serializable
     object BlockQuote : MessageEntityType
-    object BlockQuoteExpandable: MessageEntityType
+
+    @Serializable
+    object BlockQuoteExpandable : MessageEntityType
+
+    @Serializable
     object Code : MessageEntityType
+
+    @Serializable
     data class Pre(val language: String = "") : MessageEntityType
+
+    @Serializable
     data class TextUrl(val url: String) : MessageEntityType
+
+    @Serializable
     object Mention : MessageEntityType
+
+    @Serializable
     data class TextMention(val userId: Long) : MessageEntityType
+
+    @Serializable
     object Hashtag : MessageEntityType
+
+    @Serializable
     object BotCommand : MessageEntityType
+
+    @Serializable
     object Url : MessageEntityType
+
+    @Serializable
     object Email : MessageEntityType
+
+    @Serializable
     object PhoneNumber : MessageEntityType
+
+    @Serializable
     object BankCardNumber : MessageEntityType
+
+    @Serializable
     data class CustomEmoji(val emojiId: Long, val path: String? = null) : MessageEntityType
+
+    @Serializable
     data class Other(val srcEntity: String) : MessageEntityType
 }
 

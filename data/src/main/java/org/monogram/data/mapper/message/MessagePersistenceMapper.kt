@@ -246,31 +246,47 @@ internal class MessagePersistenceMapper(
             is TdApi.MessageDice -> CachedMessageContent("text", content.emoji, null)
             is TdApi.MessageStakeDice -> CachedMessageContent(
                 "stake_dice",
-                content.emoji,
+                "Staked dice",
                 encodeMeta(content.value, content.stakeToncoinAmount, content.prizeToncoinAmount)
             )
 
             is TdApi.MessageChecklist -> CachedMessageContent(
                 "checklist",
                 content.list.title.text,
-                encodeMeta(
-                    content.list.tasks.size,
-                    content.list.tasks.count { it.completionDate > 0 },
-                    if (content.list.othersCanAddTasks) 1 else 0,
-                    if (content.list.canAddTasks) 1 else 0,
-                    if (content.list.othersCanMarkTasksAsDone) 1 else 0,
-                    if (content.list.canMarkTasksAsDone) 1 else 0
-                )
+                ChecklistPayload(
+                    titleEntities = content.list.title.entities.toDomainEntities(),
+                    tasks = content.list.tasks.map { task ->
+                        val completedById = when (val sender = task.completedBy) {
+                            is TdApi.MessageSenderUser -> sender.userId
+                            is TdApi.MessageSenderChat -> sender.chatId
+                            else -> null
+                        }
+                        ChecklistTaskPayload(
+                            id = task.id,
+                            text = task.text.text,
+                            entities = task.text.entities.toDomainEntities(),
+                            completedById = completedById,
+                            completedByName = resolveSenderName(task.completedBy),
+                            completionDate = task.completionDate
+                        )
+                    },
+                    othersCanAddTasks = content.list.othersCanAddTasks,
+                    canAddTasks = content.list.canAddTasks,
+                    othersCanMarkTasksAsDone = content.list.othersCanMarkTasksAsDone,
+                    canMarkTasksAsDone = content.list.canMarkTasksAsDone
+                ).encode()
             )
 
             is TdApi.MessagePaidMedia -> CachedMessageContent(
                 "paid_media",
                 content.caption.text,
-                encodeMeta(
-                    content.starCount,
-                    if (content.showCaptionAboveMedia) 1 else 0,
-                    content.media.size
-                )
+                PaidMediaPayload(
+                    starCount = content.starCount,
+                    caption = content.caption.text,
+                    entities = content.caption.entities.toDomainEntities(),
+                    showCaptionAboveMedia = content.showCaptionAboveMedia,
+                    items = content.media.map(::mapPaidMediaPayload)
+                ).encode()
             )
             else -> CachedMessageContent("unsupported", "", null)
         }
@@ -510,17 +526,34 @@ internal class MessagePersistenceMapper(
                 livePeriod = meta.getOrNull(2)?.toIntOrNull() ?: 0
             )
 
-            "checklist" -> MessageContent.Checklist(
-                title = entity.content,
-                tasks = emptyList(),
-            )
+            "checklist" -> {
+                val rich = decodeChecklistPayload(entity.contentMeta)
+                MessageContent.Checklist(
+                    title = entity.content,
+                    titleEntities = decodeEntities(entity.entities).ifEmpty { rich?.titleEntities.orEmpty() },
+                    tasks = rich?.tasks?.map { it.toDomain() }.orEmpty(),
+                    othersCanAddTasks = rich?.othersCanAddTasks ?: ((meta.getOrNull(2)
+                        ?.toIntOrNull() ?: 0) == 1),
+                    canAddTasks = rich?.canAddTasks ?: ((meta.getOrNull(3)?.toIntOrNull()
+                        ?: 0) == 1),
+                    othersCanMarkTasksAsDone = rich?.othersCanMarkTasksAsDone ?: ((meta.getOrNull(4)
+                        ?.toIntOrNull() ?: 0) == 1),
+                    canMarkTasksAsDone = rich?.canMarkTasksAsDone ?: ((meta.getOrNull(5)
+                        ?.toIntOrNull() ?: 0) == 1)
+                )
+            }
 
-            "paid_media" -> MessageContent.PaidMedia(
-                starCount = meta.getOrNull(0)?.toLongOrNull() ?: 0L,
-                items = emptyList(),
-                caption = entity.content,
-                showCaptionAboveMedia = (meta.getOrNull(1)?.toIntOrNull() ?: 0) == 1
-            )
+            "paid_media" -> {
+                val rich = decodePaidMediaPayload(entity.contentMeta)
+                MessageContent.PaidMedia(
+                    starCount = rich?.starCount ?: (meta.getOrNull(0)?.toLongOrNull() ?: 0L),
+                    items = rich?.items?.map { it.toDomain() }.orEmpty(),
+                    caption = rich?.caption ?: entity.content,
+                    entities = decodeEntities(entity.entities).ifEmpty { rich?.entities.orEmpty() },
+                    showCaptionAboveMedia = rich?.showCaptionAboveMedia ?: ((meta.getOrNull(1)
+                        ?.toIntOrNull() ?: 0) == 1)
+                )
+            }
 
             "service" -> MessageContent.Service(entity.content)
             else -> MessageContent.Text(entity.content)
@@ -752,6 +785,8 @@ internal class MessagePersistenceMapper(
             is TdApi.MessageAudio -> content.caption
             is TdApi.MessageAnimation -> content.caption
             is TdApi.MessageVoiceNote -> content.caption
+            is TdApi.MessageChecklist -> content.list.title
+            is TdApi.MessagePaidMedia -> content.caption
             is TdApi.MessageAnimatedEmoji -> TdApi.FormattedText(
                 content.emoji,
                 listOfNotNull(
@@ -833,6 +868,108 @@ internal class MessagePersistenceMapper(
 
             MessageEntity(offset = offset, length = length, type = type)
         }
+    }
+
+    private fun Array<TdApi.TextEntity>?.toDomainEntities(): List<MessageEntity> {
+        if (isNullOrEmpty()) return emptyList()
+        return mapNotNull { entity ->
+            val type = when (val entityType = entity.type) {
+                is TdApi.TextEntityTypeBold -> MessageEntityType.Bold
+                is TdApi.TextEntityTypeItalic -> MessageEntityType.Italic
+                is TdApi.TextEntityTypeUnderline -> MessageEntityType.Underline
+                is TdApi.TextEntityTypeStrikethrough -> MessageEntityType.Strikethrough
+                is TdApi.TextEntityTypeSpoiler -> MessageEntityType.Spoiler
+                is TdApi.TextEntityTypeCode -> MessageEntityType.Code
+                is TdApi.TextEntityTypePre -> MessageEntityType.Pre()
+                is TdApi.TextEntityTypePreCode -> MessageEntityType.Pre(entityType.language)
+                is TdApi.TextEntityTypeTextUrl -> MessageEntityType.TextUrl(entityType.url)
+                is TdApi.TextEntityTypeMention -> MessageEntityType.Mention
+                is TdApi.TextEntityTypeMentionName -> MessageEntityType.TextMention(entityType.userId)
+                is TdApi.TextEntityTypeHashtag -> MessageEntityType.Hashtag
+                is TdApi.TextEntityTypeBotCommand -> MessageEntityType.BotCommand
+                is TdApi.TextEntityTypeUrl -> MessageEntityType.Url
+                is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email
+                is TdApi.TextEntityTypePhoneNumber -> MessageEntityType.PhoneNumber
+                is TdApi.TextEntityTypeBankCardNumber -> MessageEntityType.BankCardNumber
+                is TdApi.TextEntityTypeCustomEmoji -> MessageEntityType.CustomEmoji(entityType.customEmojiId)
+                is TdApi.TextEntityTypeBlockQuote -> MessageEntityType.BlockQuote
+                is TdApi.TextEntityTypeExpandableBlockQuote -> MessageEntityType.BlockQuoteExpandable
+                else -> MessageEntityType.Other(entityType.javaClass.simpleName)
+            }
+            MessageEntity(entity.offset, entity.length, type)
+        }
+    }
+
+    private fun mapPaidMediaPayload(media: TdApi.PaidMedia): PaidMediaItemPayload {
+        return when (media) {
+            is TdApi.PaidMediaPreview -> PaidMediaItemPayload.Preview(
+                width = media.width,
+                height = media.height,
+                duration = media.duration,
+                minithumbnail = media.minithumbnail?.data
+            )
+
+            is TdApi.PaidMediaPhoto -> {
+                val sizes = media.photo.sizes
+                val original = sizes.maxByOrNull { it.width.toLong() * it.height.toLong() }
+                    ?: sizes.lastOrNull()
+                val best = sizes.find { it.type == "x" }
+                    ?: sizes.find { it.type == "m" }
+                    ?: sizes.getOrNull(sizes.size / 2)
+                    ?: original
+                val thumb = sizes.find { it.type == "m" } ?: sizes.find { it.type == "s" }
+                ?: sizes.firstOrNull()
+                val bestFile = best?.photo?.let(fileHelper::getUpdatedFile)
+                val originalFile = original?.photo?.let(fileHelper::getUpdatedFile)
+                val thumbFile = thumb?.photo?.let(fileHelper::getUpdatedFile)
+                PaidMediaItemPayload.Photo(
+                    path = fileHelper.findBestAvailablePath(bestFile, sizes),
+                    thumbnailPath = fileHelper.resolveLocalFilePath(thumbFile),
+                    width = best?.width ?: 0,
+                    height = best?.height ?: 0,
+                    fileId = bestFile?.id ?: 0,
+                    originalFileId = originalFile?.id ?: bestFile?.id ?: 0,
+                    minithumbnail = media.photo.minithumbnail?.data,
+                    livePhotoVideoPath = null,
+                    livePhotoVideoFileId = 0
+                )
+            }
+
+            is TdApi.PaidMediaVideo -> {
+                val videoFile = fileHelper.getUpdatedFile(media.video.video)
+                val coverPath = media.cover?.sizes
+                    ?.maxByOrNull { it.width.toLong() * it.height.toLong() }
+                    ?.photo
+                    ?.let(fileHelper::getUpdatedFile)
+                    ?.let(fileHelper::resolveLocalFilePath)
+                PaidMediaItemPayload.Video(
+                    path = fileHelper.resolveLocalFilePath(videoFile),
+                    thumbnailPath = coverPath,
+                    width = media.video.width,
+                    height = media.video.height,
+                    duration = media.video.duration,
+                    fileId = videoFile.id,
+                    minithumbnail = null,
+                    supportsStreaming = media.video.supportsStreaming,
+                    coverPath = coverPath,
+                    startTimestamp = media.startTimestamp
+                )
+            }
+
+            else -> PaidMediaItemPayload.Unsupported
+        }
+    }
+
+    private fun resolveSenderName(sender: TdApi.MessageSender?): String? {
+        val id = when (sender) {
+            is TdApi.MessageSenderUser -> sender.userId
+            is TdApi.MessageSenderChat -> sender.chatId
+            else -> return null
+        }
+        return cache.getUser(id)?.let { user ->
+            listOf(user.firstName, user.lastName).filter { !it.isNullOrBlank() }.joinToString(" ")
+        }?.takeIf { it.isNotBlank() }
+            ?: cache.getChat(id)?.title?.takeIf { it.isNotBlank() }
     }
 
     private fun encodeMeta(vararg parts: Any?): String {

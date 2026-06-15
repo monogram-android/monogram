@@ -11,7 +11,11 @@ internal fun MessageModel.extractTextContent(): String? {
         is MessageContent.Gif -> currentContent.caption
         is MessageContent.Document -> currentContent.caption
         is MessageContent.Audio -> currentContent.caption
-        is MessageContent.Checklist -> currentContent.title
+        is MessageContent.Checklist -> currentContent.title.ifBlank {
+            currentContent.tasks.joinToString(
+                "\n"
+            ) { it.text }
+        }
         is MessageContent.PaidMedia -> currentContent.caption
         else -> null
     }

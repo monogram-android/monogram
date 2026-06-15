@@ -52,6 +52,7 @@ import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
 import org.monogram.domain.repository.ChatListRepository
+import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.OlderMessagesPage
 import org.monogram.domain.repository.PollRepository
 import org.monogram.domain.repository.ReadUpdate
@@ -1050,6 +1051,71 @@ class TdMessageRemoteDataSource(
             this.showCaptionAboveMedia = false
         }
         return safeExecute(req)
+    }
+
+    override suspend fun sendChecklist(
+        chatId: Long,
+        checklistDraft: ChecklistDraft,
+        replyToMsgId: Long?,
+        threadId: Long?,
+        sendOptions: MessageSendOptions
+    ): TdApi.Message? {
+        val content = TdApi.InputMessageChecklist(buildInputChecklist(checklistDraft))
+        val replyTo =
+            if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(
+                replyToMsgId,
+                null,
+                0,
+                ""
+            ) else null
+        val topicId = resolveTopicId(chatId, threadId)
+        val req = TdApi.SendMessage().apply {
+            this.chatId = chatId
+            this.topicId = topicId
+            this.replyTo = replyTo
+            this.inputMessageContent = content
+            this.options = sendOptions.toTdMessageSendOptions()
+        }
+        return safeExecute(req)
+    }
+
+    override suspend fun editChecklistMessage(
+        chatId: Long,
+        messageId: Long,
+        checklistDraft: ChecklistDraft
+    ): TdApi.Message? {
+        val req =
+            TdApi.EditMessageChecklist(chatId, messageId, null, buildInputChecklist(checklistDraft))
+        return safeExecute(req)
+    }
+
+    private fun buildInputChecklist(checklistDraft: ChecklistDraft): TdApi.InputChecklist {
+        return TdApi.InputChecklist(
+            TdApi.FormattedText(
+                checklistDraft.title,
+                checklistDraft.titleEntities.toTdTextEntities(checklistDraft.title)
+            ),
+            checklistDraft.tasks.map { task ->
+                TdApi.InputChecklistTask(
+                    task.id,
+                    TdApi.FormattedText(
+                        task.text,
+                        task.entities.toTdTextEntities(task.text)
+                    )
+                )
+            }.toTypedArray(),
+            checklistDraft.othersCanAddTasks,
+            checklistDraft.othersCanMarkTasksAsDone
+        )
+    }
+
+    override suspend fun markChecklistTasksAsDone(
+        chatId: Long,
+        messageId: Long,
+        doneIds: IntArray,
+        undoneIds: IntArray
+    ): TdApi.Ok? {
+        return safeExecute(TdApi.MarkChecklistTasksAsDone(chatId, messageId, doneIds, undoneIds))
     }
 
     private fun List<MessageEntity>.toTdTextEntities(text: String): Array<TdApi.TextEntity> {

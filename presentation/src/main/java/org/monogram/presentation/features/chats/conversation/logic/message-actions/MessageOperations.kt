@@ -1,12 +1,18 @@
 package org.monogram.presentation.features.chats.conversation.logic
 
+import android.util.Log
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.monogram.domain.models.ChecklistTask
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageReactionModel
+import org.monogram.domain.models.UserModel
+import org.monogram.domain.repository.ChecklistDraft
+import org.monogram.presentation.R
+import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
 private const val REACTION_UPDATE_SUPPRESSION_MS = 1500L
@@ -78,6 +84,208 @@ internal fun DefaultChatComponent.handleSaveEditedMessage(text: String, entities
         }
         onCancelEdit()
     }
+}
+
+internal fun DefaultChatComponent.handleSaveChecklistDraft(draft: ChecklistDraft) {
+    val checklistMessage = _state.value.checklistMessage
+    Log.d(
+        "ChecklistFlow",
+        "save_draft messageId=${checklistMessage?.id} title=${draft.title} tasks=${draft.tasks.size}"
+    )
+    if (checklistMessage != null) {
+        _state.update { state ->
+            state.withUpdatedChecklistDraft(checklistMessage.id, draft)
+                .copy(checklistMessage = null, checklistDraft = null)
+        }
+    } else {
+        _state.update { state -> state.copy(checklistMessage = null, checklistDraft = null) }
+    }
+    scope.launch {
+        runCatching {
+            if (checklistMessage != null) {
+                repositoryMessage.editChecklistMessage(
+                    chatId = chatId,
+                    messageId = checklistMessage.id,
+                    checklistDraft = draft
+                )
+            } else {
+                val currentState = _state.value
+                repositoryMessage.sendChecklist(
+                    chatId = currentState.effectiveThreadChatId(chatId),
+                    checklistDraft = draft,
+                    replyToMsgId = currentState.replyMessage?.id,
+                    threadId = currentState.effectiveThreadId()
+                )
+                onCancelReply()
+                if (currentState.rootMessage == null && !currentState.isAtBottom) {
+                    onScrollToBottom()
+                }
+            }
+        }.onSuccess {
+            Log.d("ChecklistFlow", "save_draft_success messageId=${checklistMessage?.id}")
+        }.onFailure { error ->
+            Log.e("ChecklistFlow", "save_draft_failed messageId=${checklistMessage?.id}", error)
+        }
+    }
+}
+
+internal fun DefaultChatComponent.handleToggleChecklistTask(
+    messageId: Long,
+    taskId: Int,
+    isDone: Boolean
+) {
+    Log.d(
+        "ChecklistFlow",
+        "toggle_task messageId=$messageId taskId=$taskId isDone=$isDone"
+    )
+    val currentUser = _state.value.currentUser
+    _state.update { state ->
+        state.withUpdatedChecklistTask(
+            messageId = messageId,
+            taskId = taskId,
+            isDone = isDone,
+            currentUser = currentUser,
+            fallbackName = cacheController.context.getString(R.string.label_you)
+        )
+    }
+    scope.launch {
+        runCatching {
+            repositoryMessage.markChecklistTasksAsDone(
+                chatId = chatId,
+                messageId = messageId,
+                doneIds = if (isDone) listOf(taskId) else emptyList(),
+                undoneIds = if (isDone) emptyList() else listOf(taskId)
+            )
+        }.onSuccess {
+            Log.d(
+                "ChecklistFlow",
+                "toggle_task_success messageId=$messageId taskId=$taskId isDone=$isDone"
+            )
+        }.onFailure { error ->
+            Log.e(
+                "ChecklistFlow",
+                "toggle_task_failed messageId=$messageId taskId=$taskId isDone=$isDone",
+                error
+            )
+        }
+    }
+}
+
+private fun ChatComponent.State.withUpdatedChecklistTask(
+    messageId: Long,
+    taskId: Int,
+    isDone: Boolean,
+    currentUser: UserModel?,
+    fallbackName: String
+): ChatComponent.State {
+    return copy(
+        messages = messages.map {
+            it.withUpdatedChecklistTask(
+                messageId,
+                taskId,
+                isDone,
+                currentUser,
+                fallbackName
+            )
+        },
+        rootMessage = rootMessage?.withUpdatedChecklistTask(
+            messageId,
+            taskId,
+            isDone,
+            currentUser,
+            fallbackName
+        ),
+        checklistMessage = checklistMessage?.withUpdatedChecklistTask(
+            messageId,
+            taskId,
+            isDone,
+            currentUser,
+            fallbackName
+        )
+    )
+}
+
+private fun ChatComponent.State.withUpdatedChecklistDraft(
+    messageId: Long,
+    draft: ChecklistDraft
+): ChatComponent.State {
+    return copy(
+        messages = messages.map { it.withUpdatedChecklistDraft(messageId, draft) },
+        rootMessage = rootMessage?.withUpdatedChecklistDraft(messageId, draft),
+        checklistMessage = checklistMessage?.withUpdatedChecklistDraft(messageId, draft)
+    )
+}
+
+private fun MessageModel.withUpdatedChecklistTask(
+    messageId: Long,
+    taskId: Int,
+    isDone: Boolean,
+    currentUser: UserModel?,
+    fallbackName: String
+): MessageModel {
+    if (id != messageId) return this
+    val checklist = content as? MessageContent.Checklist ?: return this
+    val updatedTasks = checklist.tasks.map { task ->
+        if (task.id == taskId) {
+            task.withCompletion(isDone, currentUser, fallbackName)
+        } else {
+            task
+        }
+    }
+    return copy(content = checklist.copy(tasks = updatedTasks))
+}
+
+private fun MessageModel.withUpdatedChecklistDraft(
+    messageId: Long,
+    draft: ChecklistDraft
+): MessageModel {
+    if (id != messageId) return this
+    val checklist = content as? MessageContent.Checklist ?: return this
+    val previousTasks = checklist.tasks.associateBy(ChecklistTask::id)
+    val updatedTasks = draft.tasks.map { task ->
+        val previous = previousTasks[task.id]
+        ChecklistTask(
+            id = task.id,
+            text = task.text,
+            entities = task.entities,
+            completedById = previous?.completedById,
+            completedByName = previous?.completedByName,
+            completionDate = previous?.completionDate ?: 0
+        )
+    }
+    return copy(
+        content = checklist.copy(
+            title = draft.title,
+            titleEntities = draft.titleEntities,
+            tasks = updatedTasks,
+            othersCanAddTasks = draft.othersCanAddTasks,
+            othersCanMarkTasksAsDone = draft.othersCanMarkTasksAsDone
+        )
+    )
+}
+
+private fun ChecklistTask.withCompletion(
+    isDone: Boolean,
+    currentUser: UserModel?,
+    fallbackName: String
+): ChecklistTask {
+    if (!isDone) {
+        return copy(completedById = null, completedByName = null, completionDate = 0)
+    }
+
+    val name = currentUser?.let { user ->
+        listOf(user.firstName, user.lastName)
+            .filterNot { it.isNullOrBlank() }
+            .joinToString(" ")
+            .ifBlank { user.username.orEmpty() }
+            .ifBlank { fallbackName }
+    } ?: fallbackName
+
+    return copy(
+        completedById = currentUser?.id ?: 0L,
+        completedByName = name,
+        completionDate = (System.currentTimeMillis() / 1000L).toInt()
+    )
 }
 
 internal fun DefaultChatComponent.handleDraftChange(text: String) {

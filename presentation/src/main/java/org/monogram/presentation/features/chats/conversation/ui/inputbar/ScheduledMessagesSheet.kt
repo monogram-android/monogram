@@ -341,7 +341,7 @@ private fun messagePreviewText(message: MessageModel): String =
         is MessageContent.Voice -> stringResource(R.string.reply_content_voice_message)
         is MessageContent.VideoNote -> stringResource(R.string.reply_content_video_message)
         is MessageContent.Audio -> stringResource(R.string.logs_media_audio)
-        is MessageContent.Checklist -> stringResource(R.string.chat_mapper_checklist)
+        is MessageContent.Checklist -> content.title.ifBlank { stringResource(R.string.chat_mapper_checklist) }
         is MessageContent.PaidMedia -> stringResource(R.string.chat_mapper_paid_media)
         is MessageContent.Location -> stringResource(R.string.location_label)
         is MessageContent.Venue -> content.title.ifBlank { stringResource(R.string.logs_media_venue) }
@@ -382,5 +382,6 @@ private fun scheduledMessageTypeLabel(message: MessageModel): String =
 private fun canEditScheduledMessage(message: MessageModel): Boolean =
     when (message.content) {
         is MessageContent.Text -> true
+        is MessageContent.Checklist -> true
         else -> false
     }

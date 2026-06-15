@@ -46,11 +46,13 @@ import org.monogram.presentation.features.chats.conversation.ui.MessageRowUiFlag
 import org.monogram.presentation.features.chats.conversation.ui.MessageSenderGrouping
 import org.monogram.presentation.features.chats.conversation.ui.fastReplyPointer
 import org.monogram.presentation.features.chats.conversation.ui.message.AudioMessageBubble
+import org.monogram.presentation.features.chats.conversation.ui.message.ChecklistMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.ContactMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.DocumentMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import org.monogram.presentation.features.chats.conversation.ui.message.LocationMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageViaBotAttribution
+import org.monogram.presentation.features.chats.conversation.ui.message.PaidMediaMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.ReplyMarkupView
 import org.monogram.presentation.features.chats.conversation.ui.message.StickerMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.VenueMessageBubble
@@ -88,6 +90,9 @@ internal fun ChannelMessageBubbleContainer(
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
     onViaBotClick: (String) -> Unit = {},
     onReplySwipe: (MessageModel) -> Unit = {},
+    onChecklistTaskToggle: (Long, Int, Boolean) -> Unit = { _, _, _ -> },
+    onChecklistEdit: (MessageModel) -> Unit = {},
+    onPaidMediaBuy: (MessageModel) -> Unit = {},
     downloadUtils: IDownloadUtils,
 ) {
     val configuration = LocalConfiguration.current
@@ -536,6 +541,45 @@ internal fun ChannelMessageBubbleContainer(
                                 toProfile = toProfile,
                                 onForwardOriginClick = onForwardOriginClick,
                                 showReactions = msg.reactions.isNotEmpty()
+                            )
+                        }
+
+                        is MessageContent.Checklist -> {
+                            ChecklistMessageBubble(
+                                content = content,
+                                msg = msg,
+                                isOutgoing = false,
+                                isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                                isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                                fontSize = appearance.fontSize,
+                                letterSpacing = appearance.letterSpacing,
+                                onReplyClick = onGoToReply,
+                                onReactionClick = { onReactionClick(msg.id, it) },
+                                onTaskToggle = { taskId, isDone ->
+                                    onChecklistTaskToggle(
+                                        msg.id,
+                                        taskId,
+                                        isDone
+                                    )
+                                },
+                                onOpenEditor = { onChecklistEdit(msg) },
+                                toProfile = toProfile,
+                                onForwardOriginClick = onForwardOriginClick
+                            )
+                        }
+
+                        is MessageContent.PaidMedia -> {
+                            PaidMediaMessageBubble(
+                                content = content,
+                                msg = msg,
+                                isOutgoing = false,
+                                isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                                isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                                onPhotoClick = onPhotoClick,
+                                onVideoClick = onVideoClick,
+                                onOpenBuy = { onPaidMediaBuy(msg) },
+                                toProfile = toProfile,
+                                onForwardOriginClick = onForwardOriginClick
                             )
                         }
 

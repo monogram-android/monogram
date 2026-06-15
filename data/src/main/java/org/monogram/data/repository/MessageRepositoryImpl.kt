@@ -58,6 +58,7 @@ import org.monogram.domain.models.webapp.InstantViewModel
 import org.monogram.domain.models.webapp.InvoiceModel
 import org.monogram.domain.models.webapp.ThemeParams
 import org.monogram.domain.models.webapp.WebAppInfoModel
+import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.FixedTextResult
 import org.monogram.domain.repository.FormattedTextResult
 import org.monogram.domain.repository.ForwardRequest
@@ -404,6 +405,22 @@ class MessageRepositoryImpl(
         )
     }
 
+    override suspend fun sendChecklist(
+        chatId: Long,
+        checklistDraft: ChecklistDraft,
+        replyToMsgId: Long?,
+        threadId: Long?,
+        sendOptions: MessageSendOptions
+    ) {
+        messageRemoteDataSource.sendChecklist(
+            chatId = chatId,
+            checklistDraft = checklistDraft,
+            replyToMsgId = replyToMsgId,
+            threadId = threadId,
+            sendOptions = sendOptions
+        )
+    }
+
     override suspend fun sendGif(
         chatId: Long,
         gifId: String,
@@ -516,6 +533,28 @@ class MessageRepositoryImpl(
 
     override suspend fun editMessageCaption(chatId: Long, messageId: Long, newCaption: String, entities: List<MessageEntity>) {
         messageRemoteDataSource.editMessageCaption(chatId, messageId, newCaption, entities)
+    }
+
+    override suspend fun editChecklistMessage(
+        chatId: Long,
+        messageId: Long,
+        checklistDraft: ChecklistDraft
+    ) {
+        messageRemoteDataSource.editChecklistMessage(chatId, messageId, checklistDraft)
+    }
+
+    override suspend fun markChecklistTasksAsDone(
+        chatId: Long,
+        messageId: Long,
+        doneIds: List<Int>,
+        undoneIds: List<Int>
+    ) {
+        messageRemoteDataSource.markChecklistTasksAsDone(
+            chatId = chatId,
+            messageId = messageId,
+            doneIds = doneIds.toIntArray(),
+            undoneIds = undoneIds.toIntArray()
+        )
     }
 
     override suspend fun markAsRead(chatId: Long, messageId: Long) {

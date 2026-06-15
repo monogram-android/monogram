@@ -2463,4 +2463,28 @@
     <string name="about_exdev">Bývalý vývojár</string>
     <string name="about_contributors">Prispievatelia</string>
     <string name="about_contributors_summary">A veľké ďakujem patrí všetkým ostatným, ktorí prispeli k vývoju</string>
+    <string name="action_create_checklist">Kontrolny zoznam</string>
+    <string name="checklist_create_title">Kontrolny zoznam</string>
+    <string name="checklist_create_section_main">Nazov</string>
+    <string name="checklist_create_section_tasks">Ulohy</string>
+    <string name="checklist_create_section_permissions">Spolupraca</string>
+    <string name="checklist_create_title_label">Nazov</string>
+    <string name="checklist_create_task_label">Uloha %1$d</string>
+    <string name="checklist_create_add_task">Pridat ulohu</string>
+    <string name="checklist_create_remove_task">Odstranit</string>
+    <string name="checklist_create_others_can_add_tasks">Ostatni mozu pridavat ulohy</string>
+    <string name="checklist_create_others_can_mark_tasks">Ostatni mozu oznacovat ulohy</string>
+    <string name="checklist_create_tasks_hint">Pridajte kroky, ktore treba dokoncit.</string>
+    <string name="checklist_create_permissions_hint">Rozhodnite, do akej miery moze chat menit tento kontrolny zoznam.</string>
+    <string name="checklist_save">Ulozit kontrolny zoznam</string>
+    <string name="checklist_edit_action">Upravit kontrolny zoznam</string>
+    <string name="checklist_done_by">Dokoncene od %1$s</string>
+    <string name="checklist_progress">%1$d/%2$d hotovo</string>
+    <string name="label_you">Vy</string>
+    <string name="message_expired_video_note">Video sprava uz vyprsala</string>
+    <string name="message_expired_voice_note">Hlasova sprava uz vyprsala</string>
+    <string name="chat_mapper_checklist">Kontrolny zoznam</string>
+    <string name="chat_mapper_paid_media">Platene media</string>
+    <string name="chat_mapper_stake_dice">Stavkova kocka</string>
+    <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
 </resources>

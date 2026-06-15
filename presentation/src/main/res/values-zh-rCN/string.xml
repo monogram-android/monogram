@@ -2309,4 +2309,28 @@
     <string name="about_exdev">前开发者</string>
     <string name="about_contributors">贡献者</string>
     <string name="about_contributors_summary">也非常感谢其他所有为开发做出贡献的人</string>
+    <string name="action_create_checklist">清单</string>
+    <string name="checklist_create_title">清单</string>
+    <string name="checklist_create_section_main">标题</string>
+    <string name="checklist_create_section_tasks">任务</string>
+    <string name="checklist_create_section_permissions">协作</string>
+    <string name="checklist_create_title_label">标题</string>
+    <string name="checklist_create_task_label">任务 %1$d</string>
+    <string name="checklist_create_add_task">添加任务</string>
+    <string name="checklist_create_remove_task">移除</string>
+    <string name="checklist_create_others_can_add_tasks">其他人可以添加任务</string>
+    <string name="checklist_create_others_can_mark_tasks">其他人可以标记任务</string>
+    <string name="checklist_create_tasks_hint">添加需要完成的步骤。</string>
+    <string name="checklist_create_permissions_hint">决定聊天成员可以在多大程度上修改此清单。</string>
+    <string name="checklist_save">保存清单</string>
+    <string name="checklist_edit_action">编辑清单</string>
+    <string name="checklist_done_by">由 %1$s 完成</string>
+    <string name="checklist_progress">已完成 %1$d/%2$d</string>
+    <string name="label_you">你</string>
+    <string name="message_expired_video_note">视频消息已过期</string>
+    <string name="message_expired_voice_note">语音消息已过期</string>
+    <string name="chat_mapper_checklist">清单</string>
+    <string name="chat_mapper_paid_media">付费媒体</string>
+    <string name="chat_mapper_stake_dice">押注骰子</string>
+    <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
 </resources>

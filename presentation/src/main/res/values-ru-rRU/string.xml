@@ -2331,4 +2331,28 @@
     <string name="about_exdev">Бывший разработчик</string>
     <string name="about_contributors">Участники проекта</string>
     <string name="about_contributors_summary">И огромное спасибо всем остальным, кто внес свой вклад в развитие</string>
+    <string name="action_create_checklist">Чек-лист</string>
+    <string name="checklist_create_title">Чек-лист</string>
+    <string name="checklist_create_section_main">Название</string>
+    <string name="checklist_create_section_tasks">Задачи</string>
+    <string name="checklist_create_section_permissions">Совместная работа</string>
+    <string name="checklist_create_title_label">Название</string>
+    <string name="checklist_create_task_label">Задача %1$d</string>
+    <string name="checklist_create_add_task">Добавить задачу</string>
+    <string name="checklist_create_remove_task">Удалить</string>
+    <string name="checklist_create_others_can_add_tasks">Другие могут добавлять задачи</string>
+    <string name="checklist_create_others_can_mark_tasks">Другие могут отмечать задачи</string>
+    <string name="checklist_create_tasks_hint">Добавьте шаги, которые нужно выполнить</string>
+    <string name="checklist_create_permissions_hint">Определите, насколько участники чата могут изменять этот чек-лист</string>
+    <string name="checklist_save">Сохранить чек-лист</string>
+    <string name="checklist_edit_action">Редактировать чек-лист</string>
+    <string name="checklist_done_by">Выполнено: %1$s</string>
+    <string name="checklist_progress">Выполнено %1$d/%2$d</string>
+    <string name="label_you">Вы</string>
+    <string name="message_expired_video_note">Видеосообщение недоступно</string>
+    <string name="message_expired_voice_note">Голосовое сообщение недоступно</string>
+    <string name="chat_mapper_checklist">Чек-лист</string>
+    <string name="chat_mapper_paid_media">Платный медиафайл</string>
+    <string name="chat_mapper_stake_dice">Кость со ставкой</string>
+    <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
 </resources>

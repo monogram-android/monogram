@@ -2217,4 +2217,28 @@
     <string name="about_exdev">Նախկին մշակող</string>
     <string name="about_contributors">Աջակիցներ</string>
     <string name="about_contributors_summary">Եվ մեծ շնորհակալություն բոլորին, ովքեր իրենց ներդրումն են ունեցել մշակման գործում</string>
+    <string name="action_create_checklist">Ստուգաթերթ</string>
+    <string name="checklist_create_title">Ստուգաթերթ</string>
+    <string name="checklist_create_section_main">Վերնագիր</string>
+    <string name="checklist_create_section_tasks">Առաջադրանքներ</string>
+    <string name="checklist_create_section_permissions">Համագործակցություն</string>
+    <string name="checklist_create_title_label">Վերնագիր</string>
+    <string name="checklist_create_task_label">Առաջադրանք %1$d</string>
+    <string name="checklist_create_add_task">Ավելացնել առաջադրանք</string>
+    <string name="checklist_create_remove_task">Հեռացնել</string>
+    <string name="checklist_create_others_can_add_tasks">Մյուսները կարող են առաջադրանքներ ավելացնել</string>
+    <string name="checklist_create_others_can_mark_tasks">Մյուսները կարող են նշել առաջադրանքները</string>
+    <string name="checklist_create_tasks_hint">Ավելացրեք այն քայլերը, որոնք պետք է կատարվեն։</string>
+    <string name="checklist_create_permissions_hint">Որոշեք, թե որքանով կարող է չատը փոխել այս ստուգաթերթը։</string>
+    <string name="checklist_save">Պահպանել ստուգաթերթը</string>
+    <string name="checklist_edit_action">Խմբագրել ստուգաթերթը</string>
+    <string name="checklist_done_by">Կատարվել է %1$s-ի կողմից</string>
+    <string name="checklist_progress">%1$d/%2$d կատարված է</string>
+    <string name="label_you">Դուք</string>
+    <string name="message_expired_video_note">Տեսանյութի նշումը ժամկետանց է</string>
+    <string name="message_expired_voice_note">Ձայնային նշումը ժամկետանց է</string>
+    <string name="chat_mapper_checklist">Ստուգաթերթ</string>
+    <string name="chat_mapper_paid_media">Վճարովի մեդիա</string>
+    <string name="chat_mapper_stake_dice">Խաղադրույքով զառ</string>
+    <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
 </resources>

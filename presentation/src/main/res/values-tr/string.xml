@@ -2311,4 +2311,28 @@
     <string name="about_exdev">Eski Geliştirici</string>
     <string name="about_contributors">Katkıda Bulunanlar</string>
     <string name="about_contributors_summary">Ve geliştirilmesine katkıda bulunan diğer herkese çok teşekkürler</string>
+    <string name="action_create_checklist">Kontrol listesi</string>
+    <string name="checklist_create_title">Kontrol listesi</string>
+    <string name="checklist_create_section_main">Baslik</string>
+    <string name="checklist_create_section_tasks">Gorevler</string>
+    <string name="checklist_create_section_permissions">Is birligi</string>
+    <string name="checklist_create_title_label">Baslik</string>
+    <string name="checklist_create_task_label">Gorev %1$d</string>
+    <string name="checklist_create_add_task">Gorev ekle</string>
+    <string name="checklist_create_remove_task">Kaldir</string>
+    <string name="checklist_create_others_can_add_tasks">Baskalari gorev ekleyebilir</string>
+    <string name="checklist_create_others_can_mark_tasks">Baskalari gorevleri isaretleyebilir</string>
+    <string name="checklist_create_tasks_hint">Tamamlanmasi gereken adimlari ekleyin.</string>
+    <string name="checklist_create_permissions_hint">Sohbetin bu kontrol listesini ne kadar degistirebilecegine karar verin.</string>
+    <string name="checklist_save">Kontrol listesini kaydet</string>
+    <string name="checklist_edit_action">Kontrol listesini duzenle</string>
+    <string name="checklist_done_by">%1$s tarafindan tamamlandi</string>
+    <string name="checklist_progress">%1$d/%2$d tamamlandi</string>
+    <string name="label_you">Siz</string>
+    <string name="message_expired_video_note">Video notunun suresi doldu</string>
+    <string name="message_expired_voice_note">Sesli notun suresi doldu</string>
+    <string name="chat_mapper_checklist">Kontrol listesi</string>
+    <string name="chat_mapper_paid_media">Ucretli medya</string>
+    <string name="chat_mapper_stake_dice">Bahisli zar</string>
+    <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
 </resources>

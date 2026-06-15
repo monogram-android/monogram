@@ -37,3 +37,6 @@ google-services.json
 # Android Profiling
 *.hprof
 /app/release/baselineProfiles
+/tdlib_temp_official
+/td
+/td-telemt

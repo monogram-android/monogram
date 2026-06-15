@@ -15,7 +15,7 @@
     <img src="https://img.shields.io/github/stars/monogram-android/monogram" width="120">
   </a>
   <img src="https://img.shields.io/badge/Kotlin-2.0+-blue.svg?logo=kotlin" width="130">
-  <img src="https://img.shields.io/badge/TDLib-1.8.64-blue" width="120">
+  <img src="https://img.shields.io/badge/TDLib-1.8.65-blue" width="120">
   <img src="https://img.shields.io/badge/Durum-Aktif_Geliştirme-orange" width="170">
   <a href="https://boosty.to/monogram">
     <img src="https://img.shields.io/badge/Boosty-Projeyi_Destekle-ff6f61?logo=boosty&logoColor=white" width="200">

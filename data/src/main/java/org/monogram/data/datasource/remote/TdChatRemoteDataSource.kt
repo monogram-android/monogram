@@ -4,6 +4,8 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.buildSearchChats
+import org.monogram.data.compat.buildSearchPublicChats
 import org.monogram.data.compat.buildTdChatPermissions
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TelegramGateway
@@ -28,11 +30,11 @@ class TdChatRemoteSource(
     }
 
     override suspend fun searchChats(query: String, limit: Int): TdApi.Chats? {
-        return coRunCatching { gateway.execute(TdApi.SearchChats(query, limit)) }.getOrNull()
+        return coRunCatching { gateway.execute(buildSearchChats(query, limit)) }.getOrNull()
     }
 
     override suspend fun searchPublicChats(query: String): TdApi.Chats? {
-        return coRunCatching { gateway.execute(TdApi.SearchPublicChats(query)) }.getOrNull()
+        return coRunCatching { gateway.execute(buildSearchPublicChats(query)) }.getOrNull()
     }
 
     override suspend fun searchMessages(query: String, offset: String, limit: Int): TdApi.FoundMessages? {

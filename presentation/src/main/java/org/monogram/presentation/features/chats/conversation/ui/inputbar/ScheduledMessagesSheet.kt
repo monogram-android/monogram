@@ -310,10 +310,10 @@ private fun ScheduledMessageRow(
 private fun messagePreviewText(message: MessageModel): String =
     when (val content = message.content) {
         is MessageContent.Text -> content.text.ifBlank { stringResource(R.string.reply_content_message) }
-        is MessageContent.Photo -> if (content.caption.isNotBlank()) content.caption else stringResource(R.string.reply_content_photo)
-        is MessageContent.Video -> if (content.caption.isNotBlank()) content.caption else stringResource(R.string.reply_content_video)
-        is MessageContent.Document -> if (content.caption.isNotBlank()) content.caption else stringResource(R.string.logs_media_document)
-        is MessageContent.Gif -> if (content.caption.isNotBlank()) content.caption else stringResource(R.string.reply_content_gif)
+        is MessageContent.Photo -> content.caption.ifBlank { stringResource(R.string.reply_content_photo) }
+        is MessageContent.Video -> content.caption.ifBlank { stringResource(R.string.reply_content_video) }
+        is MessageContent.Document -> content.caption.ifBlank { stringResource(R.string.logs_media_document) }
+        is MessageContent.Gif -> content.caption.ifBlank { stringResource(R.string.reply_content_gif) }
         is MessageContent.Sticker -> stringResource(R.string.reply_content_sticker)
         is MessageContent.Voice -> stringResource(R.string.reply_content_voice_message)
         is MessageContent.VideoNote -> stringResource(R.string.reply_content_video_message)

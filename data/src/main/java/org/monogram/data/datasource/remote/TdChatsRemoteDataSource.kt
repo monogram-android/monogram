@@ -2,6 +2,8 @@ package org.monogram.data.datasource.remote
 
 import android.util.Log
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.buildSearchChats
+import org.monogram.data.compat.buildSearchPublicChats
 import org.monogram.data.gateway.TelegramGateway
 
 class TdChatsRemoteDataSource(
@@ -27,10 +29,10 @@ class TdChatsRemoteDataSource(
     }
 
     override suspend fun searchChats(query: String, limit: Int): TdApi.Chats? =
-        safeExecute(TdApi.SearchChats(query, limit))
+        safeExecute(buildSearchChats(query, limit))
 
     override suspend fun searchPublicChats(query: String): TdApi.Chats? =
-        safeExecute(TdApi.SearchPublicChats(query))
+        safeExecute(buildSearchPublicChats(query))
 
     override suspend fun getChatNotificationSettingsExceptions(
         scope: TdApi.NotificationSettingsScope,

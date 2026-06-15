@@ -20,7 +20,7 @@ class TdLinkRemoteDataSource(
     override suspend fun checkChatInviteLink(inviteLink: String): TdApi.ChatInviteLinkInfo? =
         coRunCatching { gateway.execute(TdApi.CheckChatInviteLink(inviteLink)) }.getOrNull()
 
-    override suspend fun joinChatByInviteLink(inviteLink: String): TdApi.Chat? =
+    override suspend fun joinChatByInviteLink(inviteLink: String): TdApi.ChatJoinResult? =
         coRunCatching { gateway.execute(TdApi.JoinChatByInviteLink(inviteLink)) }.getOrNull()
 
     override suspend fun getMe(): TdApi.User? =

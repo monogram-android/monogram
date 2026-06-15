@@ -612,6 +612,19 @@ fun ProfileInfoSection(
         }
     }
 
+    user?.restrictionInfo?.restrictionReason?.takeIf { it.isNotBlank() }?.let { reason ->
+        detailsItems.add { pos ->
+            SettingsTile(
+                icon = Icons.Rounded.Security,
+                title = stringResource(R.string.profile_restriction_title),
+                subtitle = reason,
+                iconColor = Color(0xFFFF7043),
+                position = pos,
+                onClick = { }
+            )
+        }
+    }
+
     fullInfo?.botVerification?.let { botVerification ->
         detailsItems.add { pos ->
             SettingsTile(
@@ -806,6 +819,54 @@ fun ProfileInfoSection(
                 position = pos,
                 onClick = { }
             )
+        }
+    }
+
+    if (isGroupOrChannel && fullInfo != null) {
+        if (fullInfo.hasAggressiveAntiSpamEnabled) {
+            detailsItems.add { pos ->
+                SettingsTile(
+                    icon = Icons.Rounded.Shield,
+                    title = stringResource(R.string.profile_chat_anti_spam),
+                    subtitle = stringResource(R.string.profile_chat_tools),
+                    iconColor = MaterialTheme.colorScheme.tertiary,
+                    position = pos,
+                    onClick = { }
+                )
+            }
+        }
+
+        if (fullInfo.hasSponsoredMessagesEnabled) {
+            detailsItems.add { pos ->
+                SettingsTile(
+                    icon = Icons.Rounded.Payments,
+                    title = stringResource(R.string.profile_chat_sponsored_messages),
+                    subtitle = stringResource(R.string.profile_chat_tools),
+                    iconColor = MaterialTheme.colorScheme.tertiary,
+                    position = pos,
+                    onClick = { }
+                )
+            }
+        }
+
+        if (fullInfo.myBoostCount > 0 || chat.boostLevel > 0) {
+            detailsItems.add { pos ->
+                SettingsTile(
+                    icon = Icons.Rounded.RocketLaunch,
+                    title = when {
+                        fullInfo.myBoostCount > 0 -> stringResource(
+                            R.string.profile_chat_boosts_format,
+                            fullInfo.myBoostCount
+                        )
+
+                        else -> stringResource(R.string.profile_chat_level_format, chat.boostLevel)
+                    },
+                    subtitle = stringResource(R.string.profile_chat_tools),
+                    iconColor = MaterialTheme.colorScheme.primary,
+                    position = pos,
+                    onClick = { }
+                )
+            }
         }
     }
 

@@ -33,7 +33,8 @@ internal data class PreviewVideoViewerRequest(
 internal data class LinkPreviewMeta(
     val kicker: String,
     val title: String?,
-    val description: String?
+    val description: String?,
+    val instantView: Boolean
 )
 
 internal data class ResolvedLinkPreview(
@@ -209,7 +210,8 @@ private fun WebPage.buildLinkPreviewMeta(sourceUrl: String): LinkPreviewMeta {
         kicker = kicker,
         title = candidateTitle ?: fallbackHost ?: sourceUrl.takeIf { it.isNotBlank() },
         description = candidateDescription
-            ?: sourceUrl.takeIf { it.isNotBlank() && it != candidateTitle }
+            ?: sourceUrl.takeIf { it.isNotBlank() && it != candidateTitle },
+        instantView = type == WebPage.LinkPreviewType.InstantView || instantViewVersion > 0
     )
 }
 

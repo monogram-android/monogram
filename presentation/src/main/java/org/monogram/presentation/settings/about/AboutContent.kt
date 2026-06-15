@@ -34,6 +34,7 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.SystemUpdate
@@ -266,8 +267,16 @@ fun AboutContent(component: AboutComponent) {
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Person,
-                    title = "Rozetka_img",
+                    title = "recodius",
                     subtitle = stringResource(R.string.role_developer),
+                    iconBackgroundColor = Color(0xFF607D8B),
+                    position = ItemPosition.MIDDLE,
+                    onClick = { uriHandler.openUri("https://t.me/recodius") }
+                )
+                SettingsItem(
+                    icon = Icons.Rounded.Person,
+                    title = "Rozetka_img",
+                    subtitle = stringResource(R.string.about_exdev),
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.MIDDLE,
                     onClick = { uriHandler.openUri("https://t.me/Rozetka_img") }
@@ -275,18 +284,10 @@ fun AboutContent(component: AboutComponent) {
                 SettingsItem(
                     icon = Icons.Rounded.Person,
                     title = "aliveoutside",
-                    subtitle = stringResource(R.string.role_developer),
+                    subtitle = stringResource(R.string.about_exdev),
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.MIDDLE,
                     onClick = { uriHandler.openUri("https://t.me/toxyxd") }
-                )
-                SettingsItem(
-                    icon = Icons.Rounded.Person,
-                    title = "recodius",
-                    subtitle = stringResource(R.string.role_developer),
-                    iconBackgroundColor = Color(0xFF607D8B),
-                    position = ItemPosition.MIDDLE,
-                    onClick = { uriHandler.openUri("https://t.me/recodius") }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Brush,
@@ -295,6 +296,14 @@ fun AboutContent(component: AboutComponent) {
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.BOTTOM,
                     onClick = { uriHandler.openUri("https://t.me/the8055u") }
+                )
+                SettingsItem(
+                    icon = Icons.Rounded.Groups,
+                    title = stringResource(R.string.about_contributors),
+                    subtitle = stringResource(R.string.about_contributors_summary),
+                    iconBackgroundColor = Color(0xFF7D8590),
+                    position = ItemPosition.MIDDLE,
+                    onClick = { uriHandler.openUri("https://github.com/monogram-android/monogram/graphs/contributors") }
                 )
             }
 

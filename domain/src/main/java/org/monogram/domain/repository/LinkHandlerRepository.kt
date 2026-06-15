@@ -7,6 +7,7 @@ import org.monogram.domain.models.ProxyTypeModel
 interface LinkHandlerRepository {
     suspend fun handleLink(link: String): LinkAction
     suspend fun joinChat(inviteLink: String): Long?
+    suspend fun joinChatAction(inviteLink: String): LinkAction
 }
 
 sealed class LinkAction {
@@ -16,6 +17,11 @@ sealed class LinkAction {
     data class OpenSettings(val settingsType: SettingsType) : LinkAction()
     data class OpenStickerSet(val name: String) : LinkAction()
     data class JoinChat(val inviteLink: String) : LinkAction()
+    data class JoinChatApprovalRequired(val chatId: Long, val url: String, val queryId: Long) :
+        LinkAction()
+
+    data class JoinChatRequestSent(val chatId: Long? = null) : LinkAction()
+    data object JoinChatDeclined : LinkAction()
     data class ConfirmJoinChat(val chat: ChatModel, val fullInfo: ChatFullInfoModel) : LinkAction()
     data class ConfirmJoinInviteLink(
         val inviteLink: String,

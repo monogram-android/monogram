@@ -214,6 +214,14 @@
     <string name="permission_send_polls">Enviar enquetes</string>
     <string name="permission_embed_links">Incorporar links</string>
     <string name="permission_pin_messages">Fixar mensagens</string>
+    <string name="profile_restriction_title">Restrições</string>
+    <string name="profile_chat_tools">Ferramentas de chat</string>
+    <string name="profile_chat_anti_spam">Anti-spam agressivo</string>
+    <string name="profile_chat_sponsored_messages">Mensagens patrocinadas ativadas</string>
+    <string name="profile_chat_direct_messages">Mensagens diretas vinculadas</string>
+    <string name="profile_chat_boosts_format">%1$d impulsos seus</string>
+    <string name="profile_chat_level_format">Nível de impulso %1$d</string>
+    <string name="yes">Sim</string>
     <string name="permission_change_chat_info">Alterar informações do chat</string>
     <string name="restrict_until">Restringir até</string>
     <string name="restrict_forever">Para sempre</string>
@@ -2327,4 +2335,10 @@
     <string name="search_results_loading">Pesquisando...</string>
     <string name="search_results_show_all">Mostrar tudo</string>
     <string name="search_sender_all">Todos os remetentes</string>
+    <string name="join_chat_request_sent">Pedido de entrada enviado</string>
+    <string name="join_chat_request_declined">Pedido de entrada recusado</string>
+    <string name="join_chat_guard_bot_required">É necessária a aprovação de um bot de proteção</string>
+    <string name="about_exdev">Ex-desenvolvedor</string>
+    <string name="about_contributors">Colaboradores</string>
+    <string name="about_contributors_summary">E um grande agradecimento a todos os outros que contribuíram para o desenvolvimento</string>
 </resources>

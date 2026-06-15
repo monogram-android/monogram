@@ -225,7 +225,14 @@ public final class Client {
 
     private static final ResponseReceiver responseReceiver = new ResponseReceiver();
 
-    private record Handler(ResultHandler resultHandler, ExceptionHandler exceptionHandler) {
+    private static class Handler {
+        final ResultHandler resultHandler;
+        final ExceptionHandler exceptionHandler;
+
+        Handler(ResultHandler resultHandler, ExceptionHandler exceptionHandler) {
+            this.resultHandler = resultHandler;
+            this.exceptionHandler = exceptionHandler;
+        }
     }
 
     private Client(ResultHandler updateHandler, ExceptionHandler updateExceptionHandler, ExceptionHandler defaultExceptionHandler) {

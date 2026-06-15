@@ -19,7 +19,7 @@ fun map(iv: TdApi.WebPageInstantView, url: String): InstantViewModel {
 
 private fun TdApi.WebPageInstantView.toInstantViewModel(url: String): InstantViewModel {
     return InstantViewModel(
-        pageBlocks = pageBlocks.mapNotNull { it.toPageBlock() },
+        pageBlocks = blocks.mapNotNull { it.toPageBlock() },
         viewCount = viewCount,
         version = version,
         isRtl = isRtl,
@@ -42,7 +42,16 @@ private fun TdApi.PageBlock.toPageBlock(): PageBlock? {
         is TdApi.PageBlockDivider -> PageBlock.Divider
         is TdApi.PageBlockAnchor -> PageBlock.Anchor(name)
         is TdApi.PageBlockList -> PageBlock.ListBlock(items.map { it.toPageBlockListItem() })
-        is TdApi.PageBlockBlockQuote -> PageBlock.BlockQuote(text.toRichText(), credit.toRichText())
+        is TdApi.PageBlockBlockQuote -> PageBlock.BlockQuote(
+            blocks.firstOrNull()?.toPageBlock()?.let { block ->
+                when (block) {
+                    is PageBlock.Paragraph -> block.text
+                    is PageBlock.Preformatted -> block.text
+                    else -> RichText.Plain("")
+                }
+            } ?: RichText.Plain(""),
+            credit.toRichText()
+        )
         is TdApi.PageBlockPullQuote -> PageBlock.PullQuote(text.toRichText(), credit.toRichText())
         is TdApi.PageBlockAnimation -> animation?.let { PageBlock.AnimationBlock(it.toAnimation(), caption.toCaption(), needAutoplay) }
         is TdApi.PageBlockAudio -> audio?.let { PageBlock.AudioBlock(it.toAudio(), caption.toCaption()) }
@@ -64,11 +73,19 @@ private fun TdApi.PageBlock.toPageBlock(): PageBlock? {
             author = author,
             authorPhoto = authorPhoto?.toPhoto(),
             date = date,
-            pageBlocks = pageBlocks.mapNotNull { it.toPageBlock() },
+            pageBlocks = blocks.mapNotNull { it.toPageBlock() },
             caption = caption.toCaption()
         )
-        is TdApi.PageBlockCollage -> PageBlock.Collage(pageBlocks.mapNotNull { it.toPageBlock() }, caption.toCaption())
-        is TdApi.PageBlockSlideshow -> PageBlock.Slideshow(pageBlocks.mapNotNull { it.toPageBlock() }, caption.toCaption())
+
+        is TdApi.PageBlockCollage -> PageBlock.Collage(
+            blocks.mapNotNull { it.toPageBlock() },
+            caption.toCaption()
+        )
+
+        is TdApi.PageBlockSlideshow -> PageBlock.Slideshow(
+            blocks.mapNotNull { it.toPageBlock() },
+            caption.toCaption()
+        )
         is TdApi.PageBlockChatLink -> PageBlock.ChatLink(title, username)
         is TdApi.PageBlockTable -> PageBlock.Table(
             caption = caption.toRichText(),
@@ -76,7 +93,11 @@ private fun TdApi.PageBlock.toPageBlock(): PageBlock? {
             isBordered = isBordered,
             isStriped = isStriped
         )
-        is TdApi.PageBlockDetails -> PageBlock.Details(header.toRichText(), pageBlocks.mapNotNull { it.toPageBlock() }, isOpen)
+        is TdApi.PageBlockDetails -> PageBlock.Details(
+            header.toRichText(),
+            blocks.mapNotNull { it.toPageBlock() },
+            isOpen
+        )
         is TdApi.PageBlockRelatedArticles -> PageBlock.RelatedArticles(header.toRichText(), articles.map { it.toRelatedArticle() })
         is TdApi.PageBlockMap -> PageBlock.MapBlock(
             location = Location(location.latitude, location.longitude),
@@ -89,8 +110,17 @@ private fun TdApi.PageBlock.toPageBlock(): PageBlock? {
     }
 }
 
-private fun TdApi.RichText.toRichText(): RichText {
-    return when (this) {
+private fun TdApi.PageBlockListItem.toPageBlockListItem() =
+    PageBlockListItem(label, blocks.mapNotNull { it.toPageBlock() })
+
+private fun TdApi.PageBlockCaption?.toCaption() = PageBlockCaption(
+    text = this?.text.toRichText(),
+    credit = this?.credit.toRichText()
+)
+
+private fun TdApi.RichText?.toRichText(): RichText = when (this) {
+    null -> RichText.Plain("")
+    else -> when (this) {
         is TdApi.RichTextPlain -> RichText.Plain(text)
         is TdApi.RichTextBold -> RichText.Bold(text.toRichText())
         is TdApi.RichTextItalic -> RichText.Italic(text.toRichText())
@@ -103,18 +133,17 @@ private fun TdApi.RichText.toRichText(): RichText {
         is TdApi.RichTextSuperscript -> RichText.Superscript(text.toRichText())
         is TdApi.RichTextMarked -> RichText.Marked(text.toRichText())
         is TdApi.RichTextPhoneNumber -> RichText.PhoneNumber(text.toRichText(), phoneNumber)
-        is TdApi.RichTextIcon -> document?.let { RichText.Icon(it.toDocument(), width, height) } ?: RichText.Plain("")
-        is TdApi.RichTextReference -> RichText.Reference(text.toRichText(), anchorName, url)
+        is TdApi.RichTextIcon -> document?.let { RichText.Icon(it.toDocument(), width, height) }
+            ?: RichText.Plain("")
+
+        is TdApi.RichTextReference -> RichText.Reference(text.toRichText(), name, "")
+        is TdApi.RichTextReferenceLink -> RichText.Reference(text.toRichText(), referenceName, url)
         is TdApi.RichTextAnchor -> RichText.Anchor(name)
         is TdApi.RichTextAnchorLink -> RichText.AnchorLink(text.toRichText(), anchorName, url)
         is TdApi.RichTexts -> RichText.Texts(texts.map { it.toRichText() })
         else -> RichText.Plain("")
     }
 }
-
-private fun TdApi.PageBlockListItem.toPageBlockListItem() = PageBlockListItem(label, pageBlocks.mapNotNull { it.toPageBlock() })
-
-private fun TdApi.PageBlockCaption.toCaption() = PageBlockCaption(text.toRichText(), credit.toRichText())
 
 private fun TdApi.PageBlockTableCell.toTableCell() = PageBlockTableCell(
     text = text?.toRichText() ?: RichText.Plain(""),

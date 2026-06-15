@@ -37,11 +37,16 @@ class LinkHandlerRepositoryImpl(
     }
 
     override suspend fun joinChat(inviteLink: String): Long? {
-        val chat = remote.joinChatByInviteLink(inviteLink)
-        if (chat == null) {
+        return (joinChatAction(inviteLink) as? LinkAction.OpenChat)?.chatId
+    }
+
+    override suspend fun joinChatAction(inviteLink: String): LinkAction {
+        val result = remote.joinChatByInviteLink(inviteLink)
+        if (result == null) {
             Log.w(TAG, "Failed to join chat by invite link")
+            return LinkAction.None
         }
-        return chat?.id
+        return mapJoinResult(result)
     }
 
     private suspend fun handleInternalLink(
@@ -171,6 +176,19 @@ class LinkHandlerRepositoryImpl(
         } else {
             LinkAction.OpenChat(chat.id)
         }
+    }
+
+    private fun mapJoinResult(result: TdApi.ChatJoinResult): LinkAction = when (result) {
+        is TdApi.ChatJoinResultSuccess -> LinkAction.OpenChat(result.chatId)
+        is TdApi.ChatJoinResultRequestSent -> LinkAction.JoinChatRequestSent()
+        is TdApi.ChatJoinResultGuardBotApprovalRequired -> LinkAction.JoinChatApprovalRequired(
+            chatId = 0L,
+            url = result.url.url,
+            queryId = result.queryId
+        )
+
+        is TdApi.ChatJoinResultDeclined -> LinkAction.JoinChatDeclined
+        else -> LinkAction.None
     }
 
     private fun handleInternalProxy(internalLink: TdApi.InternalLinkTypeProxy): LinkAction {

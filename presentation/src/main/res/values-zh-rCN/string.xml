@@ -212,6 +212,14 @@
     <string name="permission_send_polls">发送投票</string>
     <string name="permission_embed_links">嵌入链接</string>
     <string name="permission_pin_messages">置顶消息</string>
+    <string name="profile_restriction_title">限制</string>
+    <string name="profile_chat_tools">聊天工具</string>
+    <string name="profile_chat_anti_spam">强力防垃圾信息</string>
+    <string name="profile_chat_sponsored_messages">已启用赞助消息</string>
+    <string name="profile_chat_direct_messages">已链接私信</string>
+    <string name="profile_chat_boosts_format">来自您的 %1$d 个助力</string>
+    <string name="profile_chat_level_format">助力等级 %1$d</string>
+    <string name="yes">是</string>
     <string name="permission_change_chat_info">更改会话信息</string>
     <string name="restrict_until">限制直到</string>
     <string name="restrict_forever">永久</string>
@@ -2295,4 +2303,10 @@
     <string name="search_results_loading">搜索中...</string>
     <string name="search_results_show_all">显示全部</string>
     <string name="search_sender_all">所有发送者</string>
+    <string name="join_chat_request_sent">加入申请已发送</string>
+    <string name="join_chat_request_declined">加入申请已被拒绝</string>
+    <string name="join_chat_guard_bot_required">需要防护机器人的批准</string>
+    <string name="about_exdev">前开发者</string>
+    <string name="about_contributors">贡献者</string>
+    <string name="about_contributors_summary">也非常感谢其他所有为开发做出贡献的人</string>
 </resources>

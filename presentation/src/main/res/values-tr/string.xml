@@ -213,6 +213,14 @@
     <string name="permission_send_polls">Anket Gönder</string>
     <string name="permission_embed_links">Bağlantıları Önizle</string>
     <string name="permission_pin_messages">Mesajları Sabitle</string>
+    <string name="profile_restriction_title">Kısıtlamalar</string>
+    <string name="profile_chat_tools">Sohbet araçları</string>
+    <string name="profile_chat_anti_spam">Agresif anti-spam</string>
+    <string name="profile_chat_sponsored_messages">Sponsorlu mesajlar etkinleştirildi</string>
+    <string name="profile_chat_direct_messages">Direkt mesajlar bağlandı</string>
+    <string name="profile_chat_boosts_format">Sizden %1$d yükseltme</string>
+    <string name="profile_chat_level_format">Yükseltme seviyesi %1$d</string>
+    <string name="yes">Evet</string>
     <string name="permission_change_chat_info">Sohbet Bilgisini Değiştir</string>
     <string name="restrict_until">Kısıtlama bitişi</string>
     <string name="restrict_forever">Süresiz</string>
@@ -2297,4 +2305,10 @@
     <string name="search_results_loading">Aranıyor...</string>
     <string name="search_results_show_all">Tümünü göster</string>
     <string name="search_sender_all">Tüm gönderenler</string>
+    <string name="join_chat_request_sent">Katılma isteği gönderildi</string>
+    <string name="join_chat_request_declined">Katılma isteği reddedildi</string>
+    <string name="join_chat_guard_bot_required">Koruma botunun onayı gerekiyor</string>
+    <string name="about_exdev">Eski Geliştirici</string>
+    <string name="about_contributors">Katkıda Bulunanlar</string>
+    <string name="about_contributors_summary">Ve geliştirilmesine katkıda bulunan diğer herkese çok teşekkürler</string>
 </resources>

@@ -258,6 +258,14 @@
     <string name="permission_embed_links">Embed Links</string>
     <string name="proxy_comment_placeholder">Comment</string>
     <string name="permission_pin_messages">Pin Messages</string>
+    <string name="profile_restriction_title">Restrictions</string>
+    <string name="profile_chat_tools">Chat tools</string>
+    <string name="profile_chat_anti_spam">Aggressive anti-spam</string>
+    <string name="profile_chat_sponsored_messages">Sponsored messages enabled</string>
+    <string name="profile_chat_direct_messages">Direct messages linked</string>
+    <string name="profile_chat_boosts_format">%1$d boosts from you</string>
+    <string name="profile_chat_level_format">Boost level %1$d</string>
+    <string name="yes">Yes</string>
     <string name="permission_change_chat_info">Change Chat Info</string>
     <string name="restrict_until">Restrict until</string>
     <string name="restrict_forever">Forever</string>
@@ -2470,4 +2478,10 @@
     <string name="unexpected_error">An unexpected error occurred</string>
     <string name="unread_messages">%1$d unread messages</string>
     <string name="deleted_account">Deleted Account</string>
+    <string name="join_chat_request_sent">Join request sent</string>
+    <string name="join_chat_request_declined">Join request declined</string>
+    <string name="join_chat_guard_bot_required">Approval is required from a guard bot</string>
+    <string name="about_exdev">Ex-Developer</string>
+    <string name="about_contributors">Contributors</string>
+    <string name="about_contributors_summary">And a big thank you to everyone else who contributed to the development</string>
 </resources>

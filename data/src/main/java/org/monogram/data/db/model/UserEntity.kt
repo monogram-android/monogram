@@ -37,6 +37,7 @@ data class UserEntity(
     val botTypeIsInline: Boolean = false,
     val botTypeInlineQueryPlaceholder: String? = null,
     val botTypeSupportsGuestQueries: Boolean = false,
+    val botTypeIsGuard: Boolean = false,
     val botTypeNeedLocation: Boolean = false,
     val botTypeCanConnectToBusiness: Boolean = false,
     val botTypeCanBeAddedToAttachmentMenu: Boolean = false,

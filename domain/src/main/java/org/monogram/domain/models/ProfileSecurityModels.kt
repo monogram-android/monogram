@@ -99,6 +99,7 @@ data class UserTypeBotInfoModel(
     val isInline: Boolean = false,
     val inlineQueryPlaceholder: String? = null,
     val supportsGuestQueries: Boolean = false,
+    val isGuard: Boolean = false,
     val needLocation: Boolean = false,
     val canConnectToBusiness: Boolean = false,
     val canBeAddedToAttachmentMenu: Boolean = false,

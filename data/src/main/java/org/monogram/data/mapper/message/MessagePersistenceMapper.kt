@@ -234,7 +234,7 @@ internal class MessagePersistenceMapper(
             is TdApi.MessageLocation -> CachedMessageContent(
                 "location",
                 "",
-                encodeMeta(content.location.latitude, content.location.longitude, content.livePeriod)
+                encodeMeta(content.location.latitude, content.location.longitude, 0)
             )
 
             is TdApi.MessageCall -> CachedMessageContent("service", "Call (${content.duration}s)", null)

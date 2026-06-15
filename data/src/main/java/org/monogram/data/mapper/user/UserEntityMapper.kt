@@ -153,6 +153,7 @@ fun UserEntity.toTdApi(): TdApi.User {
                 botTypeIsInline,
                 botTypeInlineQueryPlaceholder.orEmpty(),
                 botTypeSupportsGuestQueries,
+                false,
                 botTypeNeedLocation,
                 botTypeCanConnectToBusiness,
                 botTypeCanBeAddedToAttachmentMenu,

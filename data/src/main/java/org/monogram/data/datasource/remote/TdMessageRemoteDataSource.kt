@@ -1269,11 +1269,12 @@ class TdMessageRemoteDataSource(
 
         for ((targetChatId, targetUrl) in attempts) {
             try {
+                val resolvedUrl = targetUrl.removePrefix("menu://")
                 val result = gateway.execute(
-                    TdApi.OpenWebApp(targetChatId, botUserId, targetUrl, null, null, parameters)
+                    TdApi.OpenWebApp(targetChatId, botUserId, resolvedUrl, null, null, parameters)
                 )
                 if (result is TdApi.WebAppInfo) {
-                    return WebAppInfoModel(result.launchId, result.url)
+                    return WebAppInfoModel(result.launchId, result.url.url)
                 }
             } catch (e: TdLibException) {
                 lastError = e

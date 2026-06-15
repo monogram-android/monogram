@@ -19,7 +19,7 @@ fun map(iv: TdApi.WebPageInstantView, url: String): InstantViewModel {
 
 private fun TdApi.WebPageInstantView.toInstantViewModel(url: String): InstantViewModel {
     return InstantViewModel(
-        pageBlocks = pageBlocks.mapNotNull { it.toPageBlock() },
+        pageBlocks = blocks.mapNotNull { it.toPageBlock() },
         viewCount = viewCount,
         version = version,
         isRtl = isRtl,
@@ -104,7 +104,8 @@ private fun TdApi.RichText.toRichText(): RichText {
         is TdApi.RichTextMarked -> RichText.Marked(text.toRichText())
         is TdApi.RichTextPhoneNumber -> RichText.PhoneNumber(text.toRichText(), phoneNumber)
         is TdApi.RichTextIcon -> document?.let { RichText.Icon(it.toDocument(), width, height) } ?: RichText.Plain("")
-        is TdApi.RichTextReference -> RichText.Reference(text.toRichText(), anchorName, url)
+        is TdApi.RichTextReference -> RichText.Reference(text.toRichText(), name, "")
+        is TdApi.RichTextReferenceLink -> RichText.Reference(text.toRichText(), referenceName, url)
         is TdApi.RichTextAnchor -> RichText.Anchor(name)
         is TdApi.RichTextAnchorLink -> RichText.AnchorLink(text.toRichText(), anchorName, url)
         is TdApi.RichTexts -> RichText.Texts(texts.map { it.toRichText() })
@@ -112,7 +113,8 @@ private fun TdApi.RichText.toRichText(): RichText {
     }
 }
 
-private fun TdApi.PageBlockListItem.toPageBlockListItem() = PageBlockListItem(label, pageBlocks.mapNotNull { it.toPageBlock() })
+private fun TdApi.PageBlockListItem.toPageBlockListItem() =
+    PageBlockListItem(label, blocks.mapNotNull { it.toPageBlock() })
 
 private fun TdApi.PageBlockCaption.toCaption() = PageBlockCaption(text.toRichText(), credit.toRichText())
 

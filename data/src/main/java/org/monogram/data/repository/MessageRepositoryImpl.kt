@@ -17,6 +17,7 @@ import org.json.JSONObject
 import org.json.JSONTokener
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.chats.ChatCache
+import org.monogram.data.compat.buildDraftMessageTextContent
 import org.monogram.data.compat.buildTdChatPermissions
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.datasource.FileDataSource
@@ -649,11 +650,8 @@ class MessageRepositoryImpl(
 
     override suspend fun saveChatDraft(chatId: Long, text: String, replyToMsgId: Long?, threadId: Long?) {
         val draft = if (text.isNotEmpty()) {
-            val inputMessageText = TdApi.InputMessageText().apply {
-                this.text = TdApi.FormattedText(text, null)
-            }
             TdApi.DraftMessage().apply {
-                this.inputMessageText = inputMessageText
+                this.content = buildDraftMessageTextContent(TdApi.FormattedText(text, null), null)
                 this.date = (System.currentTimeMillis() / 1000).toInt()
 
                 if (replyToMsgId != null && replyToMsgId != 0L) {
@@ -1172,7 +1170,13 @@ class MessageRepositoryImpl(
     }
 
     override suspend fun joinChat(chatId: Long) {
-        gateway.execute(TdApi.JoinChat(chatId))
+        when (val result = gateway.execute(TdApi.JoinChat(chatId))) {
+            is TdApi.ChatJoinResultSuccess -> Unit
+            is TdApi.ChatJoinResultRequestSent -> Unit
+            is TdApi.ChatJoinResultGuardBotApprovalRequired -> Unit
+            is TdApi.ChatJoinResultDeclined -> Unit
+            else -> Unit
+        }
     }
 
     override suspend fun restrictChatMember(

@@ -15,6 +15,7 @@ internal fun buildTdUserTypeBot(
     isInline: Boolean,
     inlineQueryPlaceholder: String,
     supportsGuestQueries: Boolean,
+    isGuard: Boolean,
     needLocation: Boolean,
     canConnectToBusiness: Boolean,
     canBeAddedToAttachmentMenu: Boolean,

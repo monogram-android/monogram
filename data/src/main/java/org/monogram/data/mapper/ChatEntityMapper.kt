@@ -1,6 +1,7 @@
 package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.extractTextDraft
 import org.monogram.data.db.model.ChatEntity
 
 fun TdApi.Chat.toEntity(): ChatEntity {
@@ -63,7 +64,7 @@ fun TdApi.Chat.toEntity(): ChatEntity {
         isAdmin = false,
         isOnline = false,
         typingAction = null,
-        draftMessage = (draftMessage?.inputMessageText as? TdApi.InputMessageText)?.text?.text,
+        draftMessage = draftMessage?.extractTextDraft(),
         isVerified = false,
         viewAsTopics = viewAsTopics,
         isForum = false,

@@ -2470,4 +2470,7 @@
     <string name="unexpected_error">An unexpected error occurred</string>
     <string name="unread_messages">%1$d unread messages</string>
     <string name="deleted_account">Deleted Account</string>
+    <string name="join_chat_request_sent">Join request sent</string>
+    <string name="join_chat_request_declined">Join request declined</string>
+    <string name="join_chat_guard_bot_required">Approval is required from a guard bot</string>
 </resources>

@@ -19,8 +19,13 @@ import kotlinx.coroutines.withTimeout
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.chats.ChatCache
+import org.monogram.data.compat.buildInputAnimation
+import org.monogram.data.compat.buildInputDocument
+import org.monogram.data.compat.buildInputPhoto
 import org.monogram.data.compat.buildInputPollOption
 import org.monogram.data.compat.buildInputPollTypeQuiz
+import org.monogram.data.compat.buildInputVideo
+import org.monogram.data.compat.extractTextDraft
 import org.monogram.data.gateway.TdLibException
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.infra.FileDownloadQueue
@@ -639,10 +644,13 @@ class TdMessageRemoteDataSource(
         threadId: Long?,
         sendOptions: MessageSendOptions
     ): TdApi.Message? {
-        val content = TdApi.InputMessagePhoto().apply {
-            this.photo = TdApi.InputFileLocal(photoPath)
-            this.caption = TdApi.FormattedText(caption, captionEntities.toTdTextEntities(caption))
-        }
+        val content = TdApi.InputMessagePhoto(
+            buildInputPhoto(TdApi.InputFileLocal(photoPath)),
+            TdApi.FormattedText(caption, captionEntities.toTdTextEntities(caption)),
+            false,
+            null,
+            false
+        )
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
         val topicId = resolveTopicId(chatId, threadId)
         val req = TdApi.SendMessage().apply {
@@ -672,10 +680,13 @@ class TdMessageRemoteDataSource(
         threadId: Long?,
         sendOptions: MessageSendOptions
     ): TdApi.Message? {
-        val content = TdApi.InputMessageVideo().apply {
-            this.video = TdApi.InputFileLocal(videoPath)
-            this.caption = TdApi.FormattedText(caption, captionEntities.toTdTextEntities(caption))
-        }
+        val content = TdApi.InputMessageVideo(
+            buildInputVideo(TdApi.InputFileLocal(videoPath)),
+            TdApi.FormattedText(caption, captionEntities.toTdTextEntities(caption)),
+            false,
+            null,
+            false
+        )
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
         val topicId = resolveTopicId(chatId, threadId)
         val req = TdApi.SendMessage().apply {
@@ -703,11 +714,10 @@ class TdMessageRemoteDataSource(
         threadId: Long?,
         sendOptions: MessageSendOptions
     ): TdApi.Message? {
-        val content = TdApi.InputMessageDocument().apply {
-            this.document = TdApi.InputFileLocal(documentPath)
-            this.disableContentTypeDetection = true
-            this.caption = TdApi.FormattedText(caption, captionEntities.toTdTextEntities(caption))
-        }
+        val content = TdApi.InputMessageDocument(
+            buildInputDocument(TdApi.InputFileLocal(documentPath), true),
+            TdApi.FormattedText(caption, captionEntities.toTdTextEntities(caption))
+        )
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
         val topicId = resolveTopicId(chatId, threadId)
         val req = TdApi.SendMessage().apply {
@@ -813,9 +823,12 @@ class TdMessageRemoteDataSource(
         threadId: Long?,
         sendOptions: MessageSendOptions
     ): TdApi.Message? {
-        val content = TdApi.InputMessageAnimation().apply {
-            this.animation = TdApi.InputFileId(gifId.toInt())
-        }
+        val content = TdApi.InputMessageAnimation(
+            buildInputAnimation(TdApi.InputFileId(gifId.toInt())),
+            TdApi.FormattedText("", null),
+            false,
+            false
+        )
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
         val topicId = resolveTopicId(chatId, threadId)
         val req = TdApi.SendMessage().apply {
@@ -837,10 +850,12 @@ class TdMessageRemoteDataSource(
         threadId: Long?,
         sendOptions: MessageSendOptions
     ): TdApi.Message? {
-        val content = TdApi.InputMessageAnimation().apply {
-            this.animation = TdApi.InputFileLocal(gifPath)
-            this.caption = TdApi.FormattedText(caption, captionEntities.toTdTextEntities(caption))
-        }
+        val content = TdApi.InputMessageAnimation(
+            buildInputAnimation(TdApi.InputFileLocal(gifPath)),
+            TdApi.FormattedText(caption, captionEntities.toTdTextEntities(caption)),
+            false,
+            false
+        )
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
         val topicId = resolveTopicId(chatId, threadId)
         val req = TdApi.SendMessage().apply {
@@ -874,21 +889,26 @@ class TdMessageRemoteDataSource(
                 captionEntities.toTdTextEntities(caption)
             ) else null
             if (sendOptions.sendAsDocument) {
-                TdApi.InputMessageDocument().apply {
-                    this.document = TdApi.InputFileLocal(path)
-                    this.disableContentTypeDetection = true
-                    this.caption = cap
-                }
+                TdApi.InputMessageDocument(
+                    buildInputDocument(TdApi.InputFileLocal(path), true),
+                    cap
+                )
             } else {
                 val isVideo = path.endsWith(".mp4", ignoreCase = true)
-                if (isVideo) TdApi.InputMessageVideo().apply {
-                    this.video = TdApi.InputFileLocal(path)
-                    this.caption = cap
-                }
-                else TdApi.InputMessagePhoto().apply {
-                    this.photo = TdApi.InputFileLocal(path)
-                    this.caption = cap
-                }
+                if (isVideo) TdApi.InputMessageVideo(
+                    buildInputVideo(TdApi.InputFileLocal(path)),
+                    cap,
+                    false,
+                    null,
+                    false
+                )
+                else TdApi.InputMessagePhoto(
+                    buildInputPhoto(TdApi.InputFileLocal(path)),
+                    cap,
+                    false,
+                    null,
+                    false
+                )
             }
         }.toTypedArray()
         val replyTo = if (replyToMsgId != null && replyToMsgId != 0L) TdApi.InputMessageReplyToMessage(replyToMsgId, null, 0, "") else null
@@ -1368,12 +1388,7 @@ class TdMessageRemoteDataSource(
             if (result is TdApi.ForumTopic) {
                 val draft = result.draftMessage
                 if (draft != null) {
-                    val content = draft.inputMessageText
-                    return if (content is TdApi.InputMessageText) {
-                        content.text.text
-                    } else {
-                        null
-                    }
+                    return draft.extractTextDraft()
                 } else {
                     return null
                 }
@@ -1385,10 +1400,7 @@ class TdMessageRemoteDataSource(
             if (cachedChat != null) {
                 val draft = cachedChat.draftMessage
                 if (draft != null) {
-                    val content = draft.inputMessageText
-                    if (content is TdApi.InputMessageText) {
-                        return content.text.text
-                    }
+                    return draft.extractTextDraft()
                 }
             }
 
@@ -1397,12 +1409,7 @@ class TdMessageRemoteDataSource(
                 cache.putChat(result)
                 val draft = result.draftMessage
                 if (draft != null) {
-                    val content = draft.inputMessageText
-                    return if (content is TdApi.InputMessageText) {
-                        content.text.text
-                    } else {
-                        null
-                    }
+                    return draft.extractTextDraft()
                 } else {
                     return null
                 }

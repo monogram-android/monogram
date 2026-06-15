@@ -2,6 +2,7 @@ package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.date.DateFormatManager
+import org.monogram.data.compat.extractTextDraft
 import org.monogram.data.db.model.ChatEntity
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatType
@@ -73,11 +74,8 @@ class ChatMapper(
         val permissions = chat.permissions.toDomainChatPermissions()
         val isChannel = chat.type.isChannelType()
 
-        val draft = chat.draftMessage?.inputMessageText as? TdApi.InputMessageText
-        val draftText = draft?.text?.text
-        val draftEntities = draft?.text?.entities
-            ?.mapNotNull { it.toMessageEntityOrNull(mapUnsupportedToOther = true) }
-            ?: emptyList()
+        val draftText = chat.draftMessage?.extractTextDraft()
+        val draftEntities = emptyList<MessageEntity>()
 
         return ChatModel(
             id = chat.id,

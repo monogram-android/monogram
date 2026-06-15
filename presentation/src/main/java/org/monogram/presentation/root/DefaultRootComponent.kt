@@ -51,6 +51,7 @@ import org.monogram.domain.repository.ProxyNetworkType
 import org.monogram.domain.repository.ProxyRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StorageRepository
+import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.media.VideoPlayerPool
@@ -106,6 +107,7 @@ class DefaultRootComponent(
     private val externalNavigator: ExternalNavigator = container.utils.externalNavigator()
     private val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
     private val phoneManager: PhoneManager = container.utils.phoneManager()
+    private val stringProvider: StringProvider = container.utils.stringProvider()
     private val updateRepository: UpdateRepository = container.repositories.updateRepository
     private val userRepository: UserRepository = container.repositories.userRepository
     private val cacheProvider: CacheProvider = container.cacheProvider
@@ -306,11 +308,24 @@ class DefaultRootComponent(
             }
 
             is LinkAction.JoinChat -> {
-                val chatId = linkHandlerRepository.joinChat(action.inviteLink)
-                if (chatId != null) {
-                    navigateToChat(chatId)
-                }
+                processLinkAction(
+                    linkHandlerRepository.joinChatAction(action.inviteLink),
+                    originalLink
+                )
             }
+
+            is LinkAction.JoinChatApprovalRequired -> {
+                messageDisplayer.show(stringProvider.getString("join_chat_guard_bot_required"))
+                openBrowser(action.url)
+            }
+
+            is LinkAction.JoinChatRequestSent -> messageDisplayer.show(
+                stringProvider.getString("join_chat_request_sent")
+            )
+
+            LinkAction.JoinChatDeclined -> messageDisplayer.show(
+                stringProvider.getString("join_chat_request_declined")
+            )
 
             is LinkAction.ConfirmJoinChat -> {
                 _chatToConfirmJoin.update { RootComponent.ChatConfirmJoinState(chat = action.chat, fullInfo = action.fullInfo) }
@@ -450,11 +465,8 @@ class DefaultRootComponent(
 
     override fun confirmJoinInviteLink(inviteLink: String) {
         scope.launch {
-            val chatId = linkHandlerRepository.joinChat(inviteLink)
             dismissChatConfirmJoin()
-            if (chatId != null) {
-                navigateToChat(chatId)
-            }
+            processLinkAction(linkHandlerRepository.joinChatAction(inviteLink), inviteLink)
         }
     }
 

@@ -527,9 +527,9 @@ internal class MessageContentMapper(
                     latitude = location.latitude,
                     longitude = location.longitude,
                     horizontalAccuracy = location.horizontalAccuracy,
-                    livePeriod = content.livePeriod,
-                    heading = content.heading,
-                    proximityAlertRadius = content.proximityAlertRadius
+                    livePeriod = 0,
+                    heading = 0,
+                    proximityAlertRadius = 0
                 )
             }
 

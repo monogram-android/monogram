@@ -21,28 +21,28 @@ fun TdApi.Session.toDomain(): SessionModel {
         ipAddress = this.ipAddress,
         location = this.location,
         isOfficial = this.isOfficialApplication,
-        type = this.type.toDomain()
+        type = this.deviceType.toDomain()
     )
 }
 
-fun TdApi.SessionType.toDomain(): SessionType {
+fun TdApi.SessionDeviceType.toDomain(): SessionType {
     return when (this) {
-        is TdApi.SessionTypeAndroid -> SessionType.Android
-        is TdApi.SessionTypeApple -> SessionType.Apple
-        is TdApi.SessionTypeBrave -> SessionType.Brave
-        is TdApi.SessionTypeChrome -> SessionType.Chrome
-        is TdApi.SessionTypeEdge -> SessionType.Edge
-        is TdApi.SessionTypeFirefox -> SessionType.Firefox
-        is TdApi.SessionTypeIpad -> SessionType.Ipad
-        is TdApi.SessionTypeIphone -> SessionType.Iphone
-        is TdApi.SessionTypeLinux -> SessionType.Linux
-        is TdApi.SessionTypeMac -> SessionType.Mac
-        is TdApi.SessionTypeOpera -> SessionType.Opera
-        is TdApi.SessionTypeSafari -> SessionType.Safari
-        is TdApi.SessionTypeUbuntu -> SessionType.Ubuntu
-        is TdApi.SessionTypeVivaldi -> SessionType.Vivaldi
-        is TdApi.SessionTypeWindows -> SessionType.Windows
-        is TdApi.SessionTypeXbox -> SessionType.Xbox
+        is TdApi.SessionDeviceTypeAndroid -> SessionType.Android
+        is TdApi.SessionDeviceTypeApple -> SessionType.Apple
+        is TdApi.SessionDeviceTypeBrave -> SessionType.Brave
+        is TdApi.SessionDeviceTypeChrome -> SessionType.Chrome
+        is TdApi.SessionDeviceTypeEdge -> SessionType.Edge
+        is TdApi.SessionDeviceTypeFirefox -> SessionType.Firefox
+        is TdApi.SessionDeviceTypeIpad -> SessionType.Ipad
+        is TdApi.SessionDeviceTypeIphone -> SessionType.Iphone
+        is TdApi.SessionDeviceTypeLinux -> SessionType.Linux
+        is TdApi.SessionDeviceTypeMac -> SessionType.Mac
+        is TdApi.SessionDeviceTypeOpera -> SessionType.Opera
+        is TdApi.SessionDeviceTypeSafari -> SessionType.Safari
+        is TdApi.SessionDeviceTypeUbuntu -> SessionType.Ubuntu
+        is TdApi.SessionDeviceTypeVivaldi -> SessionType.Vivaldi
+        is TdApi.SessionDeviceTypeWindows -> SessionType.Windows
+        is TdApi.SessionDeviceTypeXbox -> SessionType.Xbox
         else -> SessionType.Unknown
     }
 }

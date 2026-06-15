@@ -275,6 +275,17 @@ fun MessagePreview(
                         )
                     }
 
+                    is MessageContent.RichMessage -> {
+                        Text(
+                            text = buildAnnotatedString {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                                    append(stringResource(R.string.reply_content_message))
+                                }
+                            },
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
                     MessageContent.Unsupported -> {
                         Text(
                             stringResource(R.string.logs_media_unsupported),

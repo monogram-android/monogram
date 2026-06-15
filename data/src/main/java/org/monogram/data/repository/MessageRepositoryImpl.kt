@@ -36,6 +36,7 @@ import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.data.mapper.map
 import org.monogram.data.mapper.toDomain
+import org.monogram.data.mapper.toDomainRichMessage
 import org.monogram.domain.models.ChatEventActionModel
 import org.monogram.domain.models.ChatEventLogFiltersModel
 import org.monogram.domain.models.ChatEventModel
@@ -325,6 +326,26 @@ class MessageRepositoryImpl(
         messageRemoteDataSource.sendMessage(chatId, text, replyToMsgId, entities, threadId, sendOptions)
     }
 
+    override suspend fun sendRichMessage(
+        chatId: Long,
+        markdown: String,
+        replyToMsgId: Long?,
+        threadId: Long?,
+        sendOptions: MessageSendOptions,
+        isRtl: Boolean?,
+        detectAutomaticBlocks: Boolean
+    ) {
+        messageRemoteDataSource.sendRichMessage(
+            chatId = chatId,
+            markdown = markdown,
+            replyToMsgId = replyToMsgId,
+            threadId = threadId,
+            sendOptions = sendOptions,
+            isRtl = isRtl,
+            detectAutomaticBlocks = detectAutomaticBlocks
+        )
+    }
+
     override suspend fun sendSticker(chatId: Long, stickerPath: String, replyToMsgId: Long?, threadId: Long?) {
         messageRemoteDataSource.sendSticker(chatId, stickerPath, replyToMsgId, threadId)
     }
@@ -529,6 +550,22 @@ class MessageRepositoryImpl(
 
     override suspend fun editMessage(chatId: Long, messageId: Long, newText: String, entities: List<MessageEntity>) {
         messageRemoteDataSource.editMessageText(chatId, messageId, newText, entities)
+    }
+
+    override suspend fun editRichMessage(
+        chatId: Long,
+        messageId: Long,
+        markdown: String,
+        isRtl: Boolean?,
+        detectAutomaticBlocks: Boolean
+    ) {
+        messageRemoteDataSource.editRichMessage(
+            chatId = chatId,
+            messageId = messageId,
+            markdown = markdown,
+            isRtl = isRtl,
+            detectAutomaticBlocks = detectAutomaticBlocks
+        )
     }
 
     override suspend fun editMessageCaption(chatId: Long, messageId: Long, newCaption: String, entities: List<MessageEntity>) {
@@ -953,6 +990,14 @@ class MessageRepositoryImpl(
         } else {
             null
         }
+    }
+
+    override suspend fun getFullRichMessage(
+        chatId: Long,
+        messageId: Long
+    ): MessageContent.RichMessage? {
+        return messageRemoteDataSource.getFullRichMessage(chatId, messageId)
+            ?.toDomainRichMessage(chatId = chatId, messageId = messageId)
     }
 
     override suspend fun getDraftLinkPreview(request: DraftLinkPreviewRequest): DraftLinkPreview? {

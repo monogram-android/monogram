@@ -11,6 +11,7 @@ interface ChatListRepository {
     fun loadNextChunk(limit: Int)
     fun selectFolder(folderId: Int)
     fun refresh()
+    fun refreshOnResume()
     suspend fun getChatById(chatId: Long): ChatModel?
     fun retryConnection()
 }

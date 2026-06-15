@@ -51,6 +51,7 @@ import org.monogram.presentation.features.chats.conversation.ui.message.PaidMedi
 import org.monogram.presentation.features.chats.conversation.ui.message.PhotoMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.PollMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.ReplyMarkupView
+import org.monogram.presentation.features.chats.conversation.ui.message.RichMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.StickerMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.TextMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.VenueMessageBubble
@@ -490,6 +491,26 @@ private fun MessageContentSelector(
                     onLinkPreviewLongClick = onBubbleCenterLongClick,
                     onClick = onBubbleClick,
                     onLongClick = onBubbleLongClick,
+                    toProfile = toProfile,
+                    onForwardOriginClick = onForwardOriginClick
+                )
+            }
+
+            is MessageContent.RichMessage -> {
+                RichMessageBubble(
+                    content = content,
+                    msg = msg,
+                    isOutgoing = isOutgoing,
+                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                    fontSize = appearance.fontSize,
+                    isGroup = isGroup,
+                    bubbleRadius = appearance.bubbleRadius,
+                    onReplyClick = onGoToReply,
+                    onReactionClick = { onReactionClick(msg.id, it) },
+                    onClick = onBubbleClick,
+                    onLongClick = onBubbleLongClick,
+                    onLinkPreviewAction = onLinkPreviewAction,
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick
                 )

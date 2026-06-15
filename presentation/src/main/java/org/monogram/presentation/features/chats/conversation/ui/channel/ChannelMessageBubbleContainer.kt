@@ -54,6 +54,7 @@ import org.monogram.presentation.features.chats.conversation.ui.message.Location
 import org.monogram.presentation.features.chats.conversation.ui.message.MessageViaBotAttribution
 import org.monogram.presentation.features.chats.conversation.ui.message.PaidMediaMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.ReplyMarkupView
+import org.monogram.presentation.features.chats.conversation.ui.message.RichMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.StickerMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.VenueMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.VideoNoteBubble
@@ -218,6 +219,39 @@ internal fun ChannelMessageBubbleContainer(
                                 },
                                 onCommentsClick = onCommentsClick,
                                 showComments = showComments,
+                                toProfile = toProfile,
+                                onForwardOriginClick = onForwardOriginClick,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        is MessageContent.RichMessage -> {
+                            RichMessageBubble(
+                                content = content,
+                                msg = msg,
+                                isOutgoing = msg.isOutgoing,
+                                isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                                isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                                fontSize = appearance.fontSize,
+                                isGroup = false,
+                                bubbleRadius = appearance.bubbleRadius,
+                                onReplyClick = onGoToReply,
+                                onReactionClick = { onReactionClick(msg.id, it) },
+                                onClick = { offset ->
+                                    onReplyClickState(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
+                                    )
+                                },
+                                onLongClick = { offset ->
+                                    (onMessageLongPressState ?: onReplyClickState)(
+                                        layoutTracker.bubblePosition,
+                                        layoutTracker.bubbleSize,
+                                        layoutTracker.bubblePosition + offset
+                                    )
+                                },
+                                onLinkPreviewAction = onLinkPreviewAction,
                                 toProfile = toProfile,
                                 onForwardOriginClick = onForwardOriginClick,
                                 modifier = Modifier.fillMaxWidth()

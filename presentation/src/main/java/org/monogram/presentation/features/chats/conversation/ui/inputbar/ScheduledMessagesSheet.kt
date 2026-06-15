@@ -343,6 +343,7 @@ private fun messagePreviewText(message: MessageModel): String =
         is MessageContent.Audio -> stringResource(R.string.logs_media_audio)
         is MessageContent.Checklist -> content.title.ifBlank { stringResource(R.string.chat_mapper_checklist) }
         is MessageContent.PaidMedia -> stringResource(R.string.chat_mapper_paid_media)
+        is MessageContent.RichMessage -> stringResource(R.string.reply_content_message)
         is MessageContent.Location -> stringResource(R.string.location_label)
         is MessageContent.Venue -> content.title.ifBlank { stringResource(R.string.logs_media_venue) }
         is MessageContent.Contact -> {
@@ -375,6 +376,7 @@ private fun scheduledMessageTypeLabel(message: MessageModel): String =
         is MessageContent.Poll -> stringResource(R.string.logs_media_poll)
         is MessageContent.Checklist -> stringResource(R.string.chat_mapper_checklist)
         is MessageContent.PaidMedia -> stringResource(R.string.chat_mapper_paid_media)
+        is MessageContent.RichMessage -> stringResource(R.string.reply_content_message)
         is MessageContent.Service -> stringResource(R.string.profile_statistics_preview_service_message)
         MessageContent.Unsupported -> stringResource(R.string.reply_content_message)
     }

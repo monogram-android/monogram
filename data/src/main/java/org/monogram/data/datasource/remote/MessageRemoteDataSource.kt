@@ -69,6 +69,16 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         sendOptions: MessageSendOptions
     ): TdApi.Message?
 
+    suspend fun sendRichMessage(
+        chatId: Long,
+        markdown: String,
+        replyToMsgId: Long?,
+        threadId: Long?,
+        sendOptions: MessageSendOptions,
+        isRtl: Boolean?,
+        detectAutomaticBlocks: Boolean
+    ): TdApi.Message?
+
     suspend fun sendPhoto(
         chatId: Long,
         photoPath: String,
@@ -169,7 +179,15 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
     ): TdApi.Messages?
     suspend fun deleteMessages(chatId: Long, messageIds: LongArray, revoke: Boolean): TdApi.Ok?
     suspend fun editMessageText(chatId: Long, messageId: Long, text: String, entities: List<MessageEntity>): TdApi.Message?
+    suspend fun editRichMessage(
+        chatId: Long,
+        messageId: Long,
+        markdown: String,
+        isRtl: Boolean?,
+        detectAutomaticBlocks: Boolean
+    ): TdApi.Message?
     suspend fun editMessageCaption(chatId: Long, messageId: Long, caption: String, entities: List<MessageEntity>): TdApi.Message?
+    suspend fun getFullRichMessage(chatId: Long, messageId: Long): TdApi.RichMessage?
     suspend fun editChecklistMessage(
         chatId: Long,
         messageId: Long,

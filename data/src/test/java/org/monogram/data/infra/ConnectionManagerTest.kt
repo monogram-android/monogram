@@ -156,8 +156,8 @@ class ConnectionManagerTest {
         )
         scope.advanceAndFlush(400L)
 
-        val reconnectCallsBefore = chatRemoteSource.setNetworkTypeCalls
-        val enableCallsBefore = proxyRemoteSource.enableProxyCalls
+        chatRemoteSource.setNetworkTypeCalls
+        proxyRemoteSource.enableProxyCalls
 
         networkProvider.update(
             NetworkSnapshot(true, true, ProxyNetworkType.MOBILE, 12)
@@ -263,6 +263,29 @@ class ConnectionManagerTest {
 
         assertEquals(before + 1, chatRemoteSource.setNetworkTypeCalls)
     }
+
+    @Test
+    fun `foreground resume triggers immediate reconnect and coalesces with manual retry`() =
+        runManagerTest {
+            authFlow.emit(
+                TdApi.UpdateAuthorizationState(TdApi.AuthorizationStateReady())
+            )
+            foregroundTracker.setForeground(true)
+            networkProvider.update(
+                NetworkSnapshot(true, true, ProxyNetworkType.WIFI, 1)
+            )
+            scope.advanceAndFlush(500L)
+
+            val before = chatRemoteSource.setNetworkTypeCalls
+
+            foregroundTracker.setForeground(false)
+            scope.flush()
+            foregroundTracker.setForeground(true)
+            connectionManager.retryConnection()
+            scope.advanceAndFlush(500L)
+
+            assertEquals(before + 1, chatRemoteSource.setNetworkTypeCalls)
+        }
 
     private fun runManagerTest(block: suspend TestEnvironment.() -> Unit) = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)

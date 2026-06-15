@@ -8,6 +8,7 @@ import org.monogram.data.datasource.remote.TdMessageRemoteDataSource
 import org.monogram.data.mapper.CustomEmojiLoader
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.data.mapper.WebPageMapper
+import org.monogram.data.mapper.toDomainRichMessage
 import org.monogram.data.mapper.toMessageEntityOrNull
 import org.monogram.domain.models.ChecklistTask
 import org.monogram.domain.models.MessageContent
@@ -60,6 +61,19 @@ internal class MessageContentMapper(
                     networkAutoDownload = context.networkAutoDownload
                 )
                 MessageContent.Text(content.text.text, entities, webPage)
+            }
+
+            is TdApi.MessageRichMessage -> {
+                content.message?.toDomainRichMessage(
+                    chatId = context.chatId,
+                    messageId = context.messageId
+                ) ?: MessageContent.RichMessage(
+                    blocks = emptyList(),
+                    isRtl = false,
+                    isFull = false,
+                    chatId = context.chatId,
+                    messageId = context.messageId
+                )
             }
 
             is TdApi.MessagePhoto -> {

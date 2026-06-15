@@ -4,6 +4,7 @@ import org.drinkless.tdlib.TdApi
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.mapper.SenderNameResolver
 import org.monogram.data.mapper.TdFileHelper
+import org.monogram.data.mapper.toPageBlock
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.ForwardOriginType
 import org.monogram.domain.models.MessageContent
@@ -11,6 +12,8 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.PollType
+import org.monogram.domain.models.webapp.PageBlock
+import org.monogram.domain.models.webapp.RichText
 import org.monogram.domain.repository.StringProvider
 import org.monogram.data.db.model.MessageEntity as MessageDbEntity
 
@@ -27,7 +30,35 @@ internal class MessagePersistenceMapper(
         val path: String? = null,
         val thumbnailPath: String? = null,
         val minithumbnail: ByteArray? = null
-    )
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as CachedMessageContent
+
+            if (fileId != other.fileId) return false
+            if (type != other.type) return false
+            if (text != other.text) return false
+            if (meta != other.meta) return false
+            if (path != other.path) return false
+            if (thumbnailPath != other.thumbnailPath) return false
+            if (!minithumbnail.contentEquals(other.minithumbnail)) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = fileId
+            result = 31 * result + type.hashCode()
+            result = 31 * result + text.hashCode()
+            result = 31 * result + (meta?.hashCode() ?: 0)
+            result = 31 * result + (path?.hashCode() ?: 0)
+            result = 31 * result + (thumbnailPath?.hashCode() ?: 0)
+            result = 31 * result + (minithumbnail?.contentHashCode() ?: 0)
+            return result
+        }
+    }
 
     private data class CachedReplyPreview(
         val senderName: String,
@@ -99,6 +130,18 @@ internal class MessagePersistenceMapper(
     fun extractCachedContent(content: TdApi.MessageContent): CachedMessageContent {
         return when (content) {
             is TdApi.MessageText -> CachedMessageContent("text", content.text.text, null)
+            is TdApi.MessageRichMessage -> {
+                val rich = content.message
+                CachedMessageContent(
+                    "rich_message",
+                    rich?.blocks.orEmpty().joinToString("\n") { it.toPageBlock().plainText() }
+                        .ifBlank { stringProvider.getString("reply_content_message") },
+                    encodeMeta(
+                        if (rich?.isRtl == true) 1 else 0,
+                        if (rich?.isFull == true) 1 else 0
+                    )
+                )
+            }
             is TdApi.MessagePhoto -> {
                 val sizes = content.photo.sizes
                 val original = sizes.maxByOrNull { it.width.toLong() * it.height.toLong() }
@@ -383,6 +426,17 @@ internal class MessagePersistenceMapper(
                 text = entity.content,
                 entities = decodeEntities(entity.entities)
             )
+
+            "rich_message" -> {
+                val isRtl = (meta.getOrNull(0)?.toIntOrNull() ?: 0) == 1
+                MessageContent.RichMessage(
+                    blocks = emptyList(),
+                    isRtl = isRtl,
+                    isFull = false,
+                    chatId = entity.chatId,
+                    messageId = entity.id
+                )
+            }
 
             "photo" -> {
                 val fileId = mediaFileId
@@ -735,7 +789,91 @@ internal class MessagePersistenceMapper(
 
             "location" -> MessageContent.Location(latitude = 0.0, longitude = 0.0)
             "service" -> MessageContent.Service(preview.text)
+            "rich_message" -> MessageContent.RichMessage(
+                blocks = emptyList(),
+                isRtl = false,
+                isFull = false,
+                chatId = 0L,
+                messageId = 0L
+            )
             else -> MessageContent.Text(preview.text)
+        }
+    }
+
+    private fun PageBlock.plainText(): String {
+        return when (this) {
+            is PageBlock.Title -> title.plainText()
+            is PageBlock.Subtitle -> subtitle.plainText()
+            is PageBlock.AuthorDate -> author.plainText()
+            is PageBlock.Header -> header.plainText()
+            is PageBlock.Subheader -> subheader.plainText()
+            is PageBlock.SectionHeading -> text.plainText()
+            is PageBlock.Kicker -> kicker.plainText()
+            is PageBlock.Paragraph -> text.plainText()
+            is PageBlock.Preformatted -> text.plainText()
+            is PageBlock.Footer -> footer.plainText()
+            is PageBlock.Thinking -> text.plainText()
+            is PageBlock.MathematicalExpression -> expression
+            is PageBlock.ListBlock -> items.joinToString("\n") { item ->
+                listOf(item.label, item.pageBlocks.joinToString("\n") { it.plainText() })
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ")
+            }
+
+            is PageBlock.BlockQuote -> text.plainText()
+            is PageBlock.PullQuote -> text.plainText()
+            is PageBlock.Details -> pageBlocks.joinToString("\n") { it.plainText() }
+            is PageBlock.Table -> cells.joinToString("\n") { row ->
+                row.joinToString(" ") { it.text.plainText() }
+            }
+
+            is PageBlock.RelatedArticles -> header.plainText()
+            is PageBlock.PhotoBlock -> caption.text.plainText()
+            is PageBlock.VideoBlock -> caption.text.plainText()
+            is PageBlock.AnimationBlock -> caption.text.plainText()
+            is PageBlock.AudioBlock -> caption.text.plainText()
+            is PageBlock.Collage -> caption.text.plainText()
+            is PageBlock.Slideshow -> caption.text.plainText()
+            is PageBlock.Embedded -> caption.text.plainText()
+            is PageBlock.EmbeddedPost -> caption.text.plainText()
+            is PageBlock.MapBlock -> caption.text.plainText()
+            is PageBlock.ChatLink -> title
+            is PageBlock.Anchor,
+            is PageBlock.Cover,
+            PageBlock.Divider,
+            is PageBlock.Unsupported -> ""
+        }
+    }
+
+    private fun RichText.plainText(): String {
+        return when (this) {
+            is RichText.Plain -> text
+            is RichText.Bold -> text.plainText()
+            is RichText.Italic -> text.plainText()
+            is RichText.Underline -> text.plainText()
+            is RichText.Strikethrough -> text.plainText()
+            is RichText.Spoiler -> text.plainText()
+            is RichText.DateTime -> text.plainText()
+            is RichText.Mention -> text.plainText()
+            is RichText.Hashtag -> text.plainText()
+            is RichText.Cashtag -> text.plainText()
+            is RichText.BotCommand -> text.plainText()
+            is RichText.Fixed -> text.plainText()
+            is RichText.MentionName -> text.plainText()
+            is RichText.Url -> text.plainText()
+            is RichText.EmailAddress -> text.plainText()
+            is RichText.BankCardNumber -> text.plainText()
+            is RichText.Subscript -> text.plainText()
+            is RichText.Superscript -> text.plainText()
+            is RichText.Marked -> text.plainText()
+            is RichText.PhoneNumber -> text.plainText()
+            is RichText.CustomEmoji -> alternativeText
+            is RichText.Icon -> ""
+            is RichText.MathematicalExpression -> expression
+            is RichText.Reference -> text.plainText()
+            is RichText.Anchor -> ""
+            is RichText.AnchorLink -> text.plainText()
+            is RichText.Texts -> texts.joinToString("") { it.plainText() }
         }
     }
 

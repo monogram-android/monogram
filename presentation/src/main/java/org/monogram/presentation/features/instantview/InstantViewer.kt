@@ -128,14 +128,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.compose.koinInject
-import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.WebPage
 import org.monogram.domain.models.webapp.InstantViewModel
 import org.monogram.domain.models.webapp.PageBlock
@@ -154,6 +148,8 @@ import org.monogram.presentation.features.instantview.components.PageBlockCaptio
 import org.monogram.presentation.features.instantview.components.RichTextView
 import org.monogram.presentation.features.instantview.components.containsText
 import org.monogram.presentation.features.instantview.components.renderRichText
+import org.monogram.presentation.features.instantview.components.renderedTextOrNull
+import org.monogram.presentation.features.instantview.components.resolvePathForViewer
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.viewers.ImageViewer
 import org.monogram.presentation.features.viewers.VideoViewer
@@ -622,6 +618,22 @@ fun InstantViewBlock(
             color = MaterialTheme.colorScheme.onSurface
         )
 
+        is PageBlock.SectionHeading -> RichTextView(
+            richText = block.text,
+            style = when (block.size.coerceIn(1, 6)) {
+                1 -> MaterialTheme.typography.headlineMedium
+                2 -> MaterialTheme.typography.headlineSmall
+                3 -> MaterialTheme.typography.titleLarge
+                4 -> MaterialTheme.typography.titleMedium
+                5 -> MaterialTheme.typography.titleSmall
+                else -> MaterialTheme.typography.labelLarge
+            },
+            textSizeMultiplier = textSizeMultiplier,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 8.dp),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
         is PageBlock.Kicker -> RichTextView(
             richText = block.kicker,
             style = MaterialTheme.typography.labelLarge,
@@ -658,10 +670,36 @@ fun InstantViewBlock(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
+        is PageBlock.Thinking -> Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            RichTextView(
+                richText = block.text,
+                style = MaterialTheme.typography.bodyMedium,
+                textSizeMultiplier = textSizeMultiplier,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        }
+
         is PageBlock.Divider -> HorizontalDivider(
             modifier = Modifier.padding(vertical = 16.dp),
             color = MaterialTheme.colorScheme.outlineVariant
         )
+
+        is PageBlock.MathematicalExpression -> Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                text = block.expression,
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(12.dp)
+            )
+        }
 
         is PageBlock.PhotoBlock -> {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -1228,6 +1266,18 @@ fun InstantViewBlock(
                 )
             }
         }
+
+        is PageBlock.Unsupported -> Surface(
+            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                text = "Unsupported rich block: ${block.typeName.ifBlank { "unknown" }}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        }
     }
 }
 
@@ -1239,18 +1289,6 @@ private sealed interface InstantViewFullscreenMedia {
         val fileId: Int,
         val supportsStreaming: Boolean
     ) : InstantViewFullscreenMedia
-}
-
-private fun PageBlockCaption.renderedTextOrNull(): String? {
-    val text = buildString {
-        renderRichText(this@renderedTextOrNull.text).text.takeIf { it.isNotBlank() }?.let(::append)
-        renderRichText(this@renderedTextOrNull.credit).text.takeIf { it.isNotBlank() }
-            ?.let { credit ->
-                if (isNotEmpty()) append("\n")
-                append(credit)
-            }
-    }
-    return text.ifBlank { null }
 }
 
 @Composable
@@ -1554,24 +1592,3 @@ private fun formatMediaDuration(durationSeconds: Int): String {
     }
 }
 
-private suspend fun FileRepository.resolvePathForViewer(
-    fileId: Int,
-    initialPath: String?
-): String? {
-    if (!initialPath.isNullOrBlank()) return initialPath
-    if (fileId == 0) return null
-    val cachedPath = getFilePath(fileId)
-    if (!cachedPath.isNullOrBlank()) return cachedPath
-
-    downloadFile(fileId)
-
-    val completedPath = withTimeoutOrNull(60_000L) {
-        fileDownloadFlow
-            .filterIsInstance<FileDownloadEvent.Completed>()
-            .filter { it.fileId == fileId }
-            .mapNotNull { event -> event.path.takeIf { it.isNotEmpty() } }
-            .first()
-    }
-
-    return completedPath ?: getFilePath(fileId)
-}

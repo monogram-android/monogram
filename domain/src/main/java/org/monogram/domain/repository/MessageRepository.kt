@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import org.monogram.domain.models.ChatPermissionsModel
 import org.monogram.domain.models.DraftLinkPreview
 import org.monogram.domain.models.DraftLinkPreviewRequest
+import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageDeletedEvent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageIdUpdatedEvent
@@ -167,6 +168,16 @@ interface MessageRepository :
         sendOptions: MessageSendOptions = MessageSendOptions()
     )
 
+    suspend fun sendRichMessage(
+        chatId: Long,
+        markdown: String,
+        replyToMsgId: Long? = null,
+        threadId: Long? = null,
+        sendOptions: MessageSendOptions = MessageSendOptions(),
+        isRtl: Boolean? = null,
+        detectAutomaticBlocks: Boolean = true
+    )
+
     suspend fun sendSticker(chatId: Long, stickerPath: String, replyToMsgId: Long? = null, threadId: Long? = null)
     suspend fun sendPhoto(
         chatId: Long,
@@ -249,6 +260,7 @@ interface MessageRepository :
     ): List<UserModel>
 
     suspend fun getWebPageInstantView(url: String, forceFull: Boolean = false): InstantViewModel?
+    suspend fun getFullRichMessage(chatId: Long, messageId: Long): MessageContent.RichMessage?
     suspend fun getDraftLinkPreview(request: DraftLinkPreviewRequest): DraftLinkPreview?
 
     suspend fun searchMessages(
@@ -295,6 +307,13 @@ interface MessageRepository :
     suspend fun forwardMessages(request: ForwardRequest)
     suspend fun deleteMessage(chatId: Long, messageIds: List<Long>, revoke: Boolean = false)
     suspend fun editMessage(chatId: Long, messageId: Long, newText: String, entities: List<MessageEntity> = emptyList())
+    suspend fun editRichMessage(
+        chatId: Long,
+        messageId: Long,
+        markdown: String,
+        isRtl: Boolean? = null,
+        detectAutomaticBlocks: Boolean = true
+    )
     suspend fun editMessageCaption(chatId: Long, messageId: Long, newCaption: String, entities: List<MessageEntity> = emptyList())
     suspend fun editChecklistMessage(chatId: Long, messageId: Long, checklistDraft: ChecklistDraft)
     suspend fun markChecklistTasksAsDone(

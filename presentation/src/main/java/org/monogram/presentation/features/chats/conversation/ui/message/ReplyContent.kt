@@ -73,6 +73,7 @@ fun ReplyContent(
                 is MessageContent.VideoNote -> stringResource(R.string.reply_content_video_message) to emptyList()
                 is MessageContent.Gif -> content.caption.ifEmpty { stringResource(R.string.reply_content_gif) } to content.entities
                 is MessageContent.Document -> (content.caption.ifEmpty { content.fileName }) to content.entities
+                is MessageContent.RichMessage -> stringResource(R.string.reply_content_message) to emptyList()
                 is MessageContent.Checklist -> content.title.ifEmpty { stringResource(R.string.chat_mapper_checklist) } to emptyList()
                 is MessageContent.PaidMedia -> stringResource(R.string.chat_mapper_paid_media) to emptyList()
                 MessageContent.Unsupported -> stringResource(R.string.logs_media_unsupported) to emptyList()

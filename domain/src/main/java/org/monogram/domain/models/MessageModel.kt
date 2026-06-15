@@ -1,6 +1,7 @@
 package org.monogram.domain.models
 
 import kotlinx.serialization.Serializable
+import org.monogram.domain.models.webapp.PageBlock
 
 data class MessageModel(
     val id: Long,
@@ -77,6 +78,15 @@ sealed interface MessageContent {
         val text: String,
         val entities: List<MessageEntity> = emptyList(),
         val webPage: WebPage? = null
+    ) : MessageContent
+
+    data class RichMessage(
+        val blocks: List<PageBlock>,
+        val isRtl: Boolean,
+        val isFull: Boolean,
+        val chatId: Long,
+        val messageId: Long,
+        val markdownSource: String? = null
     ) : MessageContent
 
     data class Service(

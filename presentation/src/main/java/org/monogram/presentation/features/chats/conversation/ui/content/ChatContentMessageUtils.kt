@@ -11,6 +11,8 @@ internal fun MessageModel.extractTextContent(): String? {
         is MessageContent.Gif -> currentContent.caption
         is MessageContent.Document -> currentContent.caption
         is MessageContent.Audio -> currentContent.caption
+        is MessageContent.Checklist -> currentContent.title
+        is MessageContent.PaidMedia -> currentContent.caption
         else -> null
     }
 }
@@ -28,6 +30,11 @@ internal fun MessageModel.withUpdatedTextContent(newText: String): MessageModel 
         is MessageContent.Gif -> currentContent.copy(caption = newText, entities = emptyList())
         is MessageContent.Document -> currentContent.copy(caption = newText, entities = emptyList())
         is MessageContent.Audio -> currentContent.copy(caption = newText, entities = emptyList())
+        is MessageContent.Checklist -> currentContent.copy(title = newText)
+        is MessageContent.PaidMedia -> currentContent.copy(
+            caption = newText,
+            entities = emptyList()
+        )
         else -> return this
     }
 

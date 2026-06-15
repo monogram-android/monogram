@@ -2194,6 +2194,11 @@
     <string name="reply_content_message">Message</string>
     <string name="message_expired_photo">Photo expired</string>
     <string name="message_expired_video">Video expired</string>
+    <string name="message_expired_video_note">Video note expired</string>
+    <string name="message_expired_voice_note">Voice note expired</string>
+    <string name="chat_mapper_checklist">Checklist</string>
+    <string name="chat_mapper_paid_media">Paid media</string>
+    <string name="chat_mapper_stake_dice">Staked dice</string>
 
     <!-- Chat Folders -->
     <string name="folders_title">Chat Folders</string>

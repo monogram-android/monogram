@@ -416,7 +416,70 @@ sealed interface MessageContent {
         val venueType: String
     ) : MessageContent
 
+    data class Checklist(
+        val title: String,
+        val titleEntities: List<MessageEntity> = emptyList(),
+        val tasks: List<ChecklistTask> = emptyList(),
+        val othersCanAddTasks: Boolean = false,
+        val canAddTasks: Boolean = false,
+        val othersCanMarkTasksAsDone: Boolean = false,
+        val canMarkTasksAsDone: Boolean = false
+    ) : MessageContent
+
+    data class PaidMedia(
+        val starCount: Long,
+        val items: List<PaidMediaItem>,
+        val caption: String,
+        val entities: List<MessageEntity> = emptyList(),
+        val showCaptionAboveMedia: Boolean = false
+    ) : MessageContent
+
     object Unsupported : MessageContent
+}
+
+data class ChecklistTask(
+    val id: Int,
+    val text: String,
+    val entities: List<MessageEntity> = emptyList(),
+    val completedById: Long? = null,
+    val completedByName: String? = null,
+    val completionDate: Int = 0
+)
+
+sealed interface PaidMediaItem {
+    data class Preview(
+        val width: Int,
+        val height: Int,
+        val duration: Int,
+        val minithumbnail: ByteArray? = null
+    ) : PaidMediaItem
+
+    data class Photo(
+        val path: String?,
+        val thumbnailPath: String? = null,
+        val width: Int,
+        val height: Int,
+        val fileId: Int,
+        val originalFileId: Int,
+        val minithumbnail: ByteArray? = null,
+        val livePhotoVideoPath: String? = null,
+        val livePhotoVideoFileId: Int = 0
+    ) : PaidMediaItem
+
+    data class Video(
+        val path: String?,
+        val thumbnailPath: String? = null,
+        val width: Int,
+        val height: Int,
+        val duration: Int,
+        val fileId: Int,
+        val minithumbnail: ByteArray? = null,
+        val supportsStreaming: Boolean = false,
+        val coverPath: String? = null,
+        val startTimestamp: Int = 0
+    ) : PaidMediaItem
+
+    object Unsupported : PaidMediaItem
 }
 
 enum class ServiceKind {

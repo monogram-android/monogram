@@ -251,6 +251,30 @@ fun MessagePreview(
                         )
                     }
 
+                    is MessageContent.Checklist -> {
+                        Text(
+                            text = buildAnnotatedString {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                                    append(stringResource(R.string.chat_mapper_checklist))
+                                }
+                                append(": ${content.title}")
+                            },
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    is MessageContent.PaidMedia -> {
+                        Text(
+                            text = buildAnnotatedString {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                                    append(stringResource(R.string.chat_mapper_paid_media))
+                                }
+                                append(": ${content.caption}")
+                            },
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
                     MessageContent.Unsupported -> {
                         Text(
                             stringResource(R.string.logs_media_unsupported),

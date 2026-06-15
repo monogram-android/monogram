@@ -597,9 +597,50 @@ internal class MessageContentMapper(
             is TdApi.MessageStory -> MessageContent.Text(stringProvider.getString("chat_mapper_story"))
             is TdApi.MessageExpiredPhoto -> MessageContent.Text(stringProvider.getString("message_expired_photo"))
             is TdApi.MessageExpiredVideo -> MessageContent.Text(stringProvider.getString("message_expired_video"))
+            is TdApi.MessageExpiredVideoNote -> MessageContent.Text(stringProvider.getString("message_expired_video_note"))
+            is TdApi.MessageExpiredVoiceNote -> MessageContent.Text(stringProvider.getString("message_expired_voice_note"))
+            is TdApi.MessageUnsupported -> MessageContent.Unsupported
+            is TdApi.MessageStakeDice -> mapStakeDice(content)
+            is TdApi.MessageChecklist -> mapChecklist(content, context)
+            is TdApi.MessagePaidMedia -> mapPaidMedia(content, context)
             else -> serviceMessageFormatter.format(content, context)
-                ?: MessageContent.Text("ℹ️ Unsupported message type: ${content.javaClass.simpleName}")
+                ?: MessageContent.Text(stringProvider.getString("logs_media_unsupported"))
         }
+    }
+
+    private fun mapStakeDice(content: TdApi.MessageStakeDice): MessageContent {
+        val stakeTon = content.stakeToncoinAmount / 1_000_000_000.0
+        val base = if (content.value == 0) {
+            "Staked dice • $stakeTon TON"
+        } else {
+            val prizeTon = content.prizeToncoinAmount / 1_000_000_000.0
+            if (content.prizeToncoinAmount >= 0) {
+                "Staked dice • result ${content.value} • stake $stakeTon TON • prize $prizeTon TON"
+            } else {
+                "Staked dice • result ${content.value} • stake $stakeTon TON"
+            }
+        }
+        return MessageContent.Text(base)
+    }
+
+    private fun mapChecklist(
+        content: TdApi.MessageChecklist,
+        context: ContentMappingContext
+    ): MessageContent {
+        val title = content.list.title.text.takeIf { it.isNotBlank() }
+            ?: stringProvider.getString("chat_mapper_checklist")
+        val done = content.list.tasks.count { it.completionDate > 0 }
+        val total = content.list.tasks.size
+        return MessageContent.Text("$title • $done/$total")
+    }
+
+    private fun mapPaidMedia(
+        content: TdApi.MessagePaidMedia,
+        context: ContentMappingContext
+    ): MessageContent {
+        val label = stringProvider.getString("chat_mapper_paid_media")
+        val text = "$label • ${content.starCount} Stars • ${content.media.size} item(s)"
+        return MessageContent.Text(text)
     }
 
     fun mapEntities(

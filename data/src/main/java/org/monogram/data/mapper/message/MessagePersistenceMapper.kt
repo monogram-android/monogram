@@ -244,6 +244,34 @@ internal class MessagePersistenceMapper(
             is TdApi.MessageChatChangeTitle -> CachedMessageContent("service", "Changed title", null)
             is TdApi.MessageAnimatedEmoji -> CachedMessageContent("text", content.emoji, null)
             is TdApi.MessageDice -> CachedMessageContent("text", content.emoji, null)
+            is TdApi.MessageStakeDice -> CachedMessageContent(
+                "stake_dice",
+                content.emoji,
+                encodeMeta(content.value, content.stakeToncoinAmount, content.prizeToncoinAmount)
+            )
+
+            is TdApi.MessageChecklist -> CachedMessageContent(
+                "checklist",
+                content.list.title.text,
+                encodeMeta(
+                    content.list.tasks.size,
+                    content.list.tasks.count { it.completionDate > 0 },
+                    if (content.list.othersCanAddTasks) 1 else 0,
+                    if (content.list.canAddTasks) 1 else 0,
+                    if (content.list.othersCanMarkTasksAsDone) 1 else 0,
+                    if (content.list.canMarkTasksAsDone) 1 else 0
+                )
+            )
+
+            is TdApi.MessagePaidMedia -> CachedMessageContent(
+                "paid_media",
+                content.caption.text,
+                encodeMeta(
+                    content.starCount,
+                    if (content.showCaptionAboveMedia) 1 else 0,
+                    content.media.size
+                )
+            )
             else -> CachedMessageContent("unsupported", "", null)
         }
     }
@@ -480,6 +508,18 @@ internal class MessagePersistenceMapper(
                 latitude = meta.getOrNull(0)?.toDoubleOrNull() ?: 0.0,
                 longitude = meta.getOrNull(1)?.toDoubleOrNull() ?: 0.0,
                 livePeriod = meta.getOrNull(2)?.toIntOrNull() ?: 0
+            )
+
+            "checklist" -> MessageContent.Checklist(
+                title = entity.content,
+                tasks = emptyList(),
+            )
+
+            "paid_media" -> MessageContent.PaidMedia(
+                starCount = meta.getOrNull(0)?.toLongOrNull() ?: 0L,
+                items = emptyList(),
+                caption = entity.content,
+                showCaptionAboveMedia = (meta.getOrNull(1)?.toIntOrNull() ?: 0) == 1
             )
 
             "service" -> MessageContent.Service(entity.content)

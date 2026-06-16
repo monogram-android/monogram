@@ -935,6 +935,16 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                     enabled = state.showLinkPreviews,
                     onCheckedChange = component::onFixLinkPreviewsChanged
                 )
+
+                SettingsSwitchTile(
+                    icon = Icons.Rounded.EmojiEmotions,
+                    title = stringResource(R.string.show_reactions_title),
+                    subtitle = stringResource(R.string.show_reactions_subtitle),
+                    checked = state.showReactions,
+                    iconColor = orangeColor,
+                    position = ItemPosition.MIDDLE,
+                    onCheckedChange = component::onShowReactionsChanged
+                )
                 if (isTablet) {
                     SettingsSwitchTile(
                         icon = Icons.Rounded.TabletAndroid,

@@ -95,6 +95,7 @@ interface ChatSettingsComponent {
     fun onCompressVideosChanged(enabled: Boolean)
     fun onChatListMessageLinesChanged(lines: Int)
     fun onShowChatListPhotosChanged(enabled: Boolean)
+    fun onShowReactionsChanged(enabled: Boolean)
 
     data class State(
         val fontSize: Float = 16f,
@@ -164,6 +165,7 @@ interface ChatSettingsComponent {
         val compressVideos: Boolean = true,
         val chatListMessageLines: Int = 1,
         val showChatListPhotos: Boolean = true,
+        val showReactions: Boolean = true,
         val isInstalledFromGooglePlay: Boolean = true
     )
 }
@@ -242,6 +244,7 @@ class DefaultChatSettingsComponent(
             compressVideos = appPreferences.compressVideos.value,
             chatListMessageLines = appPreferences.chatListMessageLines.value,
             showChatListPhotos = appPreferences.showChatListPhotos.value,
+            showReactions = appPreferences.showReactions.value,
             isInstalledFromGooglePlay = distrManager.isInstalledFromGooglePlay()
         )
     )
@@ -1217,6 +1220,10 @@ class DefaultChatSettingsComponent(
 
     override fun onShowChatListPhotosChanged(enabled: Boolean) {
         appPreferences.setShowChatListPhotos(enabled)
+    }
+
+    override fun onShowReactionsChanged(enabled: Boolean) {
+        appPreferences.setShowReactions(enabled)
     }
 
     private fun shiftHue(color: Int, delta: Float): Int {

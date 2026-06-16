@@ -982,6 +982,10 @@
     <string name="show_link_previews_subtitle">Display previews for links in messages</string>
     <string name="fix_link_previews_title">Fix Link Previews</string>
     <string name="fix_link_previews_subtitle">Use alternative previews for problematic X, Twitter, and Bluesky links</string>
+    <string name="message_options_single_tap_title">Open Options on Single Tap</string>
+    <string name="message_options_single_tap_subtitle">Enable opening the message options menu with a single tap. If disabled, a long press is required.</string>
+    <string name="show_reactions_title">Show Reactions</string>
+    <string name="show_reactions_subtitle">Show quick reactions on messages</string>
     <string name="drag_to_back_title">Drag to Back</string>
     <string name="drag_to_back_subtitle">Swipe from left edge to go back</string>
     <string name="tablet_interface_title">Tablet Interface</string>

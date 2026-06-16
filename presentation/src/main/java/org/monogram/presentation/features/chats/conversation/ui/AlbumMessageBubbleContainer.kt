@@ -72,10 +72,11 @@ internal fun AlbumMessageBubbleContainer(
 ) {
     if (messages.isEmpty()) return
 
-    val orderedMessages = remember(messages) {
-        messages
+    val orderedMessages = remember(messages, appearance.showReactions) {
+        val sorted = messages
             .distinctBy { it.id }
             .sortedWith(compareBy<MessageModel> { it.date }.thenBy { it.id })
+        if (appearance.showReactions) sorted else sorted.map { it.copy(reactions = emptyList()) }
     }
 
     val firstMsg = orderedMessages.first()

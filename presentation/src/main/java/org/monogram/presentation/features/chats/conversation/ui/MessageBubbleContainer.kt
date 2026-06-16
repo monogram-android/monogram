@@ -468,15 +468,19 @@ private fun MessageContentSelector(
     downloadUtils: IDownloadUtils,
     isAnyViewerOpen: Boolean = false
 ) {
+    val finalMsg = remember(msg, appearance.showReactions) {
+        if (appearance.showReactions) msg else msg.copy(reactions = emptyList())
+    }
+
     Column(
         modifier = Modifier.width(IntrinsicSize.Max),
         horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
     ) {
-        when (val content = msg.content) {
+        when (val content = finalMsg.content) {
             is MessageContent.Text -> {
                 TextMessageBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     isSameSenderAbove = senderGrouping.isSameSenderAbove,
                     isSameSenderBelow = senderGrouping.isSameSenderBelow,
@@ -519,7 +523,7 @@ private fun MessageContentSelector(
             is MessageContent.Sticker -> {
                 StickerMessageBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     stickerSize = appearance.stickerSize,
                     onReplyClick = onGoToReply,
@@ -532,7 +536,7 @@ private fun MessageContentSelector(
             is MessageContent.Photo -> {
                 PhotoMessageBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     isSameSenderAbove = senderGrouping.isSameSenderAbove,
                     isSameSenderBelow = senderGrouping.isSameSenderBelow,
@@ -558,7 +562,7 @@ private fun MessageContentSelector(
             is MessageContent.Video -> {
                 VideoMessageBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     isSameSenderAbove = senderGrouping.isSameSenderAbove,
                     isSameSenderBelow = senderGrouping.isSameSenderBelow,
@@ -584,7 +588,7 @@ private fun MessageContentSelector(
             is MessageContent.VideoNote -> {
                 VideoNoteBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     onVideoClick = onVideoClick,
                     onCancelDownload = onCancelDownload,
@@ -597,7 +601,7 @@ private fun MessageContentSelector(
             is MessageContent.Voice -> {
                 VoiceMessageBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     isSameSenderAbove = senderGrouping.isSameSenderAbove,
                     isSameSenderBelow = senderGrouping.isSameSenderBelow,
@@ -622,7 +626,7 @@ private fun MessageContentSelector(
             is MessageContent.Gif -> {
                 GifMessageBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     isSameSenderAbove = senderGrouping.isSameSenderAbove,
                     isSameSenderBelow = senderGrouping.isSameSenderBelow,
@@ -647,7 +651,7 @@ private fun MessageContentSelector(
             is MessageContent.Document -> {
                 DocumentMessageBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     isSameSenderAbove = senderGrouping.isSameSenderAbove,
                     isSameSenderBelow = senderGrouping.isSameSenderBelow,
@@ -671,7 +675,7 @@ private fun MessageContentSelector(
             is MessageContent.Audio -> {
                 AudioMessageBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     isSameSenderAbove = senderGrouping.isSameSenderAbove,
                     isSameSenderBelow = senderGrouping.isSameSenderBelow,
@@ -694,7 +698,7 @@ private fun MessageContentSelector(
             is MessageContent.Contact -> {
                 ContactMessageBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     isSameSenderAbove = senderGrouping.isSameSenderAbove,
                     isSameSenderBelow = senderGrouping.isSameSenderBelow,
@@ -715,7 +719,7 @@ private fun MessageContentSelector(
             is MessageContent.Poll -> {
                 PollMessageBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     isSameSenderAbove = senderGrouping.isSameSenderAbove,
                     isSameSenderBelow = senderGrouping.isSameSenderBelow,
@@ -737,7 +741,7 @@ private fun MessageContentSelector(
             is MessageContent.Location -> {
                 LocationMessageBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     isSameSenderAbove = senderGrouping.isSameSenderAbove,
                     isSameSenderBelow = senderGrouping.isSameSenderBelow,
@@ -800,7 +804,7 @@ private fun MessageContentSelector(
             is MessageContent.Venue -> {
                 VenueMessageBubble(
                     content = content,
-                    msg = msg,
+                    msg = finalMsg,
                     isOutgoing = isOutgoing,
                     isSameSenderAbove = senderGrouping.isSameSenderAbove,
                     isSameSenderBelow = senderGrouping.isSameSenderBelow,

@@ -544,6 +544,7 @@ class ConnectionManagerTest {
         override val isChatAnimationsEnabled = MutableStateFlow(false)
         override val chatListMessageLines = MutableStateFlow(2)
         override val showChatListPhotos = MutableStateFlow(true)
+        override val showReactions = MutableStateFlow(true)
         override val privateChatsNotifications = MutableStateFlow(true)
         override val groupsNotifications = MutableStateFlow(true)
         override val channelsNotifications = MutableStateFlow(true)
@@ -700,6 +701,10 @@ class ConnectionManagerTest {
 
         override fun setShowChatListPhotos(enabled: Boolean) {
             showChatListPhotos.value = enabled
+        }
+
+        override fun setShowReactions(enabled: Boolean) {
+            showReactions.value = enabled
         }
 
         override fun setPrivateChatsNotifications(enabled: Boolean) {

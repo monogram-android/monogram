@@ -331,6 +331,9 @@ class AppPreferences(
     private val _showChatListPhotos = MutableStateFlow(prefs.getBoolean(KEY_SHOW_CHAT_LIST_PHOTOS, true))
     override val showChatListPhotos: StateFlow<Boolean> = _showChatListPhotos
 
+    private val _showReactions = MutableStateFlow(prefs.getBoolean(KEY_SHOW_REACTIONS, true))
+    override val showReactions: StateFlow<Boolean> = _showReactions
+
     private val _showAllChatsFolder =
         MutableStateFlow(prefs.getBoolean(KEY_SHOW_ALL_CHATS_FOLDER, true))
     val showAllChatsFolder: StateFlow<Boolean> = _showAllChatsFolder
@@ -982,6 +985,11 @@ class AppPreferences(
         _showChatListPhotos.value = enabled
     }
 
+    override fun setShowReactions(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_REACTIONS, enabled).apply()
+        _showReactions.value = enabled
+    }
+
     fun setShowAllChatsFolder(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_ALL_CHATS_FOLDER, enabled).apply()
         _showAllChatsFolder.value = enabled
@@ -1328,6 +1336,7 @@ class AppPreferences(
         private const val KEY_CHAT_ANIMATIONS_ENABLED = "chat_animations_enabled"
         private const val KEY_CHAT_LIST_MESSAGE_LINES = "chat_list_message_lines"
         private const val KEY_SHOW_CHAT_LIST_PHOTOS = "show_chat_list_photos"
+        private const val KEY_SHOW_REACTIONS = "show_reactions"
         private const val KEY_SHOW_ALL_CHATS_FOLDER = "show_all_chats_folder"
         private const val KEY_TABLET_INTERFACE_ENABLED = "tablet_interface_enabled"
 

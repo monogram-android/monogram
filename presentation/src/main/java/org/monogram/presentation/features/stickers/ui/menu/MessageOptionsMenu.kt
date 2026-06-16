@@ -190,6 +190,7 @@ fun MessageOptionsMenu(
     onSelect: () -> Unit = {},
     onCopyLink: () -> Unit,
     onCopy: () -> Unit,
+    showReactions: Boolean = true,
     onSaveToDownloads: () -> Unit = {},
     onReaction: (String) -> Unit = {},
     onComments: () -> Unit = {},
@@ -310,9 +311,13 @@ fun MessageOptionsMenu(
         )
     }
 
-    LaunchedEffect(message.chatId, message.id) {
-        availableReactions = null
-        availableReactions = emojiRepository.getMessageAvailableReactions(message.chatId, message.id)
+    LaunchedEffect(message.chatId, message.id, showReactions) {
+        if (showReactions) {
+            availableReactions = null
+            availableReactions = emojiRepository.getMessageAvailableReactions(message.chatId, message.id)
+        } else {
+            availableReactions = emptyList()
+        }
     }
 
     fun animateOutAndDismiss(action: (() -> Unit)? = null) {
@@ -660,20 +665,22 @@ fun MessageOptionsMenu(
                             showViewsInfo = showViewsInfo
                         )
 
-                        ReactionsRow(
-                            message = message,
-                            availableReactions = availableReactions,
-                            suppressAppearanceAnimation = suppressNextReactionsAppearanceAnimation,
-                            onAppearanceAnimationConsumed = {
-                                suppressNextReactionsAppearanceAnimation = false
-                            },
-                            onReactionsChanged = { reactionCount ->
-                                hasReactionsInMessage = reactionCount > 0
-                            },
-                            onReaction = { reaction ->
-                                animateOutAndDismiss { onReaction(reaction) }
-                            }
-                        )
+                        if (showReactions) {
+                            ReactionsRow(
+                                message = message,
+                                availableReactions = availableReactions,
+                                suppressAppearanceAnimation = suppressNextReactionsAppearanceAnimation,
+                                onAppearanceAnimationConsumed = {
+                                    suppressNextReactionsAppearanceAnimation = false
+                                },
+                                onReactionsChanged = { reactionCount ->
+                                    hasReactionsInMessage = reactionCount > 0
+                                },
+                                onReaction = { reaction ->
+                                    animateOutAndDismiss { onReaction(reaction) }
+                                }
+                            )
+                        }
 
                         if (sections.hasForwardAction) {
                             InternalMenuOptionItem(

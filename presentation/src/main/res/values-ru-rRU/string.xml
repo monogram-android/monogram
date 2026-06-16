@@ -690,6 +690,8 @@
     <string name="show_link_previews_title">Предпросмотр ссылок</string>
     <string name="show_link_previews_subtitle">Отображать превью для ссылок в сообщениях</string>
     <string name="fix_link_previews_subtitle">Использьзовать альтернативные превью для X, Twitter, и Bluesky ссылок</string>
+    <string name="show_reactions_title">Показывать реакции</string>
+    <string name="show_reactions_subtitle">Показывать быстрые реакции на сообщениях</string>
     <string name="drag_to_back_title">Свайп для возврата</string>
     <string name="drag_to_back_subtitle">Возврат назад свайпом от левого края</string>
     <string name="tablet_interface_title">Планшетный интерфейс</string>

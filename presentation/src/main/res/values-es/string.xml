@@ -2297,6 +2297,8 @@
     <string name="draft_link_preview_title">Vista previa del enlace</string>
     <string name="draft_link_preview_unavailable">Vista previa no disponible para el enlace seleccionado</string>
     <string name="fix_link_previews_subtitle">Usar vistas previas alternativas para enlaces problemáticos de X, Twitter y Bluesky</string>
+    <string name="show_reactions_title">Mostrar reacciones</string>
+    <string name="show_reactions_subtitle">Mostrar reacciones rápidas en los mensajes</string>
     <string name="fix_link_previews_title">Corregir vistas previas de enlaces</string>
     <string name="forward_comment_hint">Añadir un comentario</string>
     <string name="forward_confirm_title">Reenviar mensajes</string>

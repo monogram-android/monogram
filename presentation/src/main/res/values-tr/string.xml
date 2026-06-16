@@ -2274,6 +2274,8 @@
     <string name="draft_link_preview_title">Bağlantı önizlemesi</string>
     <string name="draft_link_preview_unavailable">Seçilen bağlantı için önizleme kullanılamıyor</string>
     <string name="fix_link_previews_subtitle">Sorunlu X, Twitter ve Bluesky bağlantıları için alternatif önizlemeler kullan</string>
+    <string name="show_reactions_title">Tepkileri göster</string>
+    <string name="show_reactions_subtitle">Mesajlarda hızlı tepkileri göster</string>
     <string name="fix_link_previews_title">Bağlantı önizlemelerini düzelt</string>
     <string name="forward_comment_hint">Yorum ekle</string>
     <string name="forward_confirm_title">Mesajları ilet</string>

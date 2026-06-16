@@ -2272,6 +2272,8 @@
     <string name="draft_link_preview_title">链接预览</string>
     <string name="draft_link_preview_unavailable">所选链接无法显示预览</string>
     <string name="fix_link_previews_subtitle">为有问题的 X、Twitter 和 Bluesky 链接使用替代预览</string>
+    <string name="show_reactions_title">显示 papers 反应</string>
+    <string name="show_reactions_subtitle">在消息上显示快捷反应</string>
     <string name="fix_link_previews_title">修复链接预览</string>
     <string name="forward_comment_hint">添加评论</string>
     <string name="forward_confirm_title">转发消息</string>

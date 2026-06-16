@@ -2426,6 +2426,8 @@
     <string name="draft_link_preview_title">Náhľad odkazu</string>
     <string name="draft_link_preview_unavailable">Náhľad nie je pre vybraný odkaz dostupný</string>
     <string name="fix_link_previews_subtitle">Použiť alternatívne náhľady pre problematické odkazy X, Twitter a Bluesky</string>
+    <string name="show_reactions_title">Zobrazovať reakcie</string>
+    <string name="show_reactions_subtitle">Zobrazovať rýchle reakcie na správach</string>
     <string name="fix_link_previews_title">Opraviť náhľady odkazov</string>
     <string name="forward_comment_hint">Pridať komentár</string>
     <string name="forward_confirm_title">Preposlať správy</string>

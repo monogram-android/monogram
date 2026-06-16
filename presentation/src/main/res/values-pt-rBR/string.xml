@@ -2304,6 +2304,8 @@
     <string name="draft_link_preview_title">Prévia do link</string>
     <string name="draft_link_preview_unavailable">Prévia indisponível para o link selecionado</string>
     <string name="fix_link_previews_subtitle">Usar prévias alternativas para links problemáticos do X, Twitter e Bluesky</string>
+    <string name="show_reactions_title">Mostrar reações</string>
+    <string name="show_reactions_subtitle">Mostrar reações rápidas nas mensagens</string>
     <string name="fix_link_previews_title">Corrigir prévias de links</string>
     <string name="forward_comment_hint">Adicionar um comentário</string>
     <string name="forward_confirm_title">Encaminhar mensagens</string>

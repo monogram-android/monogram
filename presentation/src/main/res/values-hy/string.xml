@@ -2180,6 +2180,8 @@
     <string name="draft_link_preview_title">Հղման նախադիտում</string>
     <string name="draft_link_preview_unavailable">Ընտրված հղման համար նախադիտումը հասանելի չէ</string>
     <string name="fix_link_previews_subtitle">Օգտագործել այլընտրանքային նախադիտումներ X, Twitter և Bluesky խնդրահարույց հղումների համար</string>
+    <string name="show_reactions_title">Ցուցադրել ռեակցիաները</string>
+    <string name="show_reactions_subtitle">Ցուցադրել արագ ռեակցիաներ հաղորդագրությունների վրա</string>
     <string name="fix_link_previews_title">Ուղղել հղումների նախադիտումները</string>
     <string name="forward_comment_hint">Ավելացնել մեկնաբանություն</string>
     <string name="forward_confirm_title">Փոխանցել հաղորդագրությունները</string>

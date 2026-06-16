@@ -2293,6 +2293,8 @@
     <string name="draft_link_preview_title">Попередній перегляд посилання</string>
     <string name="draft_link_preview_unavailable">Попередній перегляд недоступний для вибраного посилання</string>
     <string name="fix_link_previews_subtitle">Використовувати альтернативні попередні перегляди для проблемних посилань X, Twitter і Bluesky</string>
+    <string name="show_reactions_title">Показувати реакції</string>
+    <string name="show_reactions_subtitle">Показувати швидкі реакції на повідомленнях</string>
     <string name="fix_link_previews_title">Виправляти попередні перегляди посилань</string>
     <string name="forward_comment_hint">Додати коментар</string>
     <string name="forward_confirm_title">Переслати повідомлення</string>

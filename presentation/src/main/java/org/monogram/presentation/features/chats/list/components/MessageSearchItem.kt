@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
@@ -41,6 +42,7 @@ fun MessageSearchItem(
         SimpleDateFormat("MMM d", Locale.getDefault())
     }
     val time = format.format(date)
+    val fontSize = LocalChatListFontSize.current
 
     Row(
         modifier = modifier
@@ -66,7 +68,10 @@ fun MessageSearchItem(
             ) {
                 Text(
                     text = message.senderName,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = (fontSize + 1).sp,
+                        lineHeight = ((fontSize + 1) * 1.2f).sp
+                    ),
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -78,7 +83,10 @@ fun MessageSearchItem(
 
                 Text(
                     text = time,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontSize = (fontSize - 3).sp,
+                        lineHeight = ((fontSize - 3) * 1.4f).sp
+                    ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -103,7 +111,10 @@ fun MessageSearchItem(
                 text = text.replace("\n", " "),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = (fontSize - 1).sp,
+                    lineHeight = ((fontSize - 1) * 1.4f).sp
+                ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
             )
         }

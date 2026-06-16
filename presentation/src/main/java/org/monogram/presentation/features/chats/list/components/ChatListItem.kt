@@ -40,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -58,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import org.koin.compose.koinInject
 import org.monogram.core.date.toDate
@@ -73,6 +75,8 @@ import org.monogram.presentation.features.chats.conversation.ui.message.addEmoji
 import org.monogram.presentation.features.chats.conversation.ui.message.buildAnnotatedMessageTextWithEmoji
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberMessageInlineContent
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
+
+val LocalChatListFontSize = compositionLocalOf { 16f }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -127,11 +131,13 @@ fun ChatListItem(
             }
         }
 
+        val fontSize = LocalChatListFontSize.current
         ChatListItemInfo(
             chat = chat,
             isSavedMessages = isSavedMessages,
             emojiFontFamily = emojiFontFamily,
             messageLines = messageLines,
+            fontSize = fontSize,
             modifier = Modifier.weight(1f)
         )
     }
@@ -202,12 +208,14 @@ private fun ChatListItemInfo(
     isSavedMessages: Boolean,
     emojiFontFamily: FontFamily,
     messageLines: Int,
+    fontSize: Float,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
         ChatListItemHeader(
             chat = chat,
-            isSavedMessages = isSavedMessages
+            isSavedMessages = isSavedMessages,
+            fontSize = fontSize
         )
 
         Spacer(Modifier.height(4.dp))
@@ -215,7 +223,8 @@ private fun ChatListItemInfo(
         ChatListItemContent(
             chat = chat,
             emojiFontFamily = emojiFontFamily,
-            messageLines = messageLines
+            messageLines = messageLines,
+            fontSize = fontSize
         )
     }
 }
@@ -223,7 +232,8 @@ private fun ChatListItemInfo(
 @Composable
 private fun ChatListItemHeader(
     chat: ChatModel,
-    isSavedMessages: Boolean
+    isSavedMessages: Boolean,
+    fontSize: Float
 ) {
     val dateFormatManager: DateFormatManager = koinInject()
     val timeFormat = dateFormatManager.getHourMinuteFormat()
@@ -254,7 +264,10 @@ private fun ChatListItemHeader(
             }
             Text(
                 text = if (isSavedMessages) savedMessagesTitle else chat.title.ifBlank { deletedAccountTitle },
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontSize = (fontSize + 1).sp,
+                    lineHeight = ((fontSize + 1) * 1.2f).sp
+                ),
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
@@ -314,7 +327,10 @@ private fun ChatListItemHeader(
         if (chatTime.isNotBlank()) {
             Text(
                 text = chatTime,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontSize = (fontSize - 3).sp,
+                    lineHeight = ((fontSize - 3) * 1.4f).sp
+                ),
                 color = timeColor
             )
         }
@@ -325,7 +341,8 @@ private fun ChatListItemHeader(
 private fun ChatListItemContent(
     chat: ChatModel,
     emojiFontFamily: FontFamily,
-    messageLines: Int
+    messageLines: Int,
+    fontSize: Float
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.weight(1f)) {
@@ -334,7 +351,10 @@ private fun ChatListItemContent(
                     Text(
                         text = chat.typingAction ?: "",
                         maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = (fontSize - 1).sp,
+                            lineHeight = ((fontSize - 1) * 1.4f).sp
+                        ),
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.width(2.dp))
@@ -351,6 +371,7 @@ private fun ChatListItemContent(
                     emojiFontFamily = emojiFontFamily,
                     maxLines = messageLines,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = fontSize,
                     prefix = stringResource(R.string.message_draft_prefix),
                     prefixColor = MaterialTheme.colorScheme.error
                 )
@@ -359,6 +380,7 @@ private fun ChatListItemContent(
                     chat = chat,
                     emojiFontFamily = emojiFontFamily,
                     maxLines = messageLines,
+                    fontSize = fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
             }
@@ -375,6 +397,7 @@ private fun ChatListMessagePreview(
     chat: ChatModel,
     emojiFontFamily: FontFamily,
     maxLines: Int,
+    fontSize: Float,
     color: Color
 ) {
     val previewPaths = remember(chat.lastMessagePreviewPaths, chat.lastMessagePreviewPath) {
@@ -438,7 +461,8 @@ private fun ChatListMessagePreview(
     )
     val inlineContent = rememberPreviewInlineContent(
         text = visibleBodyPayload.text,
-        entities = visibleBodyPayload.entities
+        entities = visibleBodyPayload.entities,
+        fontSize = fontSize
     )
     val hasVisibleTail = visibleMediaLabel != null || bodyText.text.isNotBlank()
     val finalText = buildAnnotatedString {
@@ -493,7 +517,10 @@ private fun ChatListMessagePreview(
             inlineContent = inlineContent,
             maxLines = maxLines,
             overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontSize = (fontSize - 1).sp,
+                lineHeight = ((fontSize - 1) * 1.4f).sp
+            ),
             color = color
         )
     }
@@ -593,6 +620,7 @@ private fun ChatListPreviewText(
     emojiFontFamily: FontFamily,
     maxLines: Int,
     color: Color,
+    fontSize: Float = 16f,
     prefix: String? = null,
     prefixColor: Color = Color.Unspecified,
     fallbackText: String? = null
@@ -607,7 +635,8 @@ private fun ChatListPreviewText(
     val renderEntities = if (renderText == payload.text) payload.entities else emptyList()
     val inlineContent = rememberPreviewInlineContent(
         text = renderText,
-        entities = renderEntities
+        entities = renderEntities,
+        fontSize = fontSize
     )
     val bodyText = rememberPreviewBodyText(
         text = renderText,
@@ -631,7 +660,10 @@ private fun ChatListPreviewText(
         inlineContent = inlineContent,
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
-        style = MaterialTheme.typography.bodyMedium,
+        style = MaterialTheme.typography.bodyMedium.copy(
+            fontSize = (fontSize - 1).sp,
+            lineHeight = ((fontSize - 1) * 1.4f).sp
+        ),
         color = color
     )
 }
@@ -639,12 +671,13 @@ private fun ChatListPreviewText(
 @Composable
 private fun rememberPreviewInlineContent(
     text: String,
-    entities: List<MessageEntity>
+    entities: List<MessageEntity>,
+    fontSize: Float
 ) =
     if (text.isNotBlank() && entities.isNotEmpty() && entities.none { it.type is MessageEntityType.Spoiler }) {
         rememberMessageInlineContent(
             entities = entities,
-            fontSize = MaterialTheme.typography.bodyMedium.fontSize.value
+            fontSize = (fontSize - 1f)
         )
     } else {
         emptyMap()

@@ -1220,45 +1220,48 @@ private fun ChatListBody(
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        if (searchState.isSearchActive || foldersState.selectedFolderId == -2) {
-            SearchOrArchiveContent(
-                component = component,
-                foldersState = foldersState,
-                chatsState = chatsState,
-                selectionState = selectionState,
-                selectedForwardChatIds = selectedForwardChatIds,
-                isForwarding = isForwarding,
-                searchState = searchState,
-                firstFolderTransitionCompleted = firstFolderTransitionCompleted,
-                scrollStates = scrollStates,
-                currentUserId = currentUserId,
-                isTablet = isTablet,
-                emojiFontFamily = emojiFontFamily,
-                messageLines = messageLines,
-                showPhotos = showPhotos,
-                onChatClicked = onChatClicked,
-                onChatLongClicked = onChatLongClicked
-            )
-        } else {
-            FolderPagerContent(
-                component = component,
-                foldersState = foldersState,
-                selectionState = selectionState,
-                selectedForwardChatIds = selectedForwardChatIds,
-                isForwarding = isForwarding,
-                visibleFolders = visibleFolders,
-                pagerState = pagerState,
-                firstFolderTransitionCompleted = firstFolderTransitionCompleted,
-                scrollStates = scrollStates,
-                currentUserId = currentUserId,
-                isTablet = isTablet,
-                emojiFontFamily = emojiFontFamily,
-                messageLines = messageLines,
-                showPhotos = showPhotos,
-                onChatClicked = onChatClicked,
-                onChatLongClicked = onChatLongClicked
-            )
+    val fontSize by component.appPreferences.fontSize.collectAsState(initial = 16f)
+    androidx.compose.runtime.CompositionLocalProvider(org.monogram.presentation.features.chats.list.components.LocalChatListFontSize provides fontSize) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (searchState.isSearchActive || foldersState.selectedFolderId == -2) {
+                SearchOrArchiveContent(
+                    component = component,
+                    foldersState = foldersState,
+                    chatsState = chatsState,
+                    selectionState = selectionState,
+                    selectedForwardChatIds = selectedForwardChatIds,
+                    isForwarding = isForwarding,
+                    searchState = searchState,
+                    firstFolderTransitionCompleted = firstFolderTransitionCompleted,
+                    scrollStates = scrollStates,
+                    currentUserId = currentUserId,
+                    isTablet = isTablet,
+                    emojiFontFamily = emojiFontFamily,
+                    messageLines = messageLines,
+                    showPhotos = showPhotos,
+                    onChatClicked = onChatClicked,
+                    onChatLongClicked = onChatLongClicked
+                )
+            } else {
+                FolderPagerContent(
+                    component = component,
+                    foldersState = foldersState,
+                    selectionState = selectionState,
+                    selectedForwardChatIds = selectedForwardChatIds,
+                    isForwarding = isForwarding,
+                    visibleFolders = visibleFolders,
+                    pagerState = pagerState,
+                    firstFolderTransitionCompleted = firstFolderTransitionCompleted,
+                    scrollStates = scrollStates,
+                    currentUserId = currentUserId,
+                    isTablet = isTablet,
+                    emojiFontFamily = emojiFontFamily,
+                    messageLines = messageLines,
+                    showPhotos = showPhotos,
+                    onChatClicked = onChatClicked,
+                    onChatLongClicked = onChatLongClicked
+                )
+            }
         }
     }
 }

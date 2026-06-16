@@ -294,7 +294,7 @@ fun AboutContent(component: AboutComponent) {
                     title = "the8055u",
                     subtitle = stringResource(R.string.role_designer),
                     iconBackgroundColor = Color(0xFF607D8B),
-                    position = ItemPosition.BOTTOM,
+                    position = ItemPosition.MIDDLE,
                     onClick = { uriHandler.openUri("https://t.me/the8055u") }
                 )
                 SettingsItem(
@@ -302,7 +302,7 @@ fun AboutContent(component: AboutComponent) {
                     title = stringResource(R.string.about_contributors),
                     subtitle = stringResource(R.string.about_contributors_summary),
                     iconBackgroundColor = Color(0xFF7D8590),
-                    position = ItemPosition.MIDDLE,
+                    position = ItemPosition.BOTTOM,
                     onClick = { uriHandler.openUri("https://github.com/monogram-android/monogram/graphs/contributors") }
                 )
             }

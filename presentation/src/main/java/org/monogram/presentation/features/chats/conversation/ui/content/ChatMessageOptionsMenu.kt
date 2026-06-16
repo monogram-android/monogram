@@ -284,6 +284,7 @@ fun ChatMessageOptionsMenu(
     }
     MessageOptionsMenu(
         message = menuMessage.copy(readDate = messageWithReadDate.readDate),
+        showReactions = state.showReactions,
         canWrite = state.canWrite,
         canPinMessages = canPinMessages,
         isPinned = selectedMessage.id == state.pinnedMessage?.id,

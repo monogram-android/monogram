@@ -12,6 +12,7 @@ import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ChatMemberStatus
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.features.chats.common.ChatActionState
 
 interface ProfileComponent {
     val state: Value<State>
@@ -138,6 +139,7 @@ interface ProfileComponent {
         val isQrVisible: Boolean = false,
         val qrContent: String = "",
         val isReportVisible: Boolean = false,
+        val actionState: ChatActionState = ChatActionState.Idle,
 
         val statistics: ChatStatisticsModel? = null,
         val revenueStatistics: ChatRevenueStatisticsModel? = null,

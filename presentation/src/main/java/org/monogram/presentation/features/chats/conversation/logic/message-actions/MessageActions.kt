@@ -5,9 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.MediaMetadataRetriever
-import androidx.exifinterface.media.ExifInterface
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.text.AnnotatedString
+import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -18,6 +18,7 @@ import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.PollDraft
+import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 import org.monogram.presentation.features.chats.conversation.editor.video.VideoQuality
 import org.monogram.presentation.features.chats.conversation.editor.video.VideoTrimRange
@@ -504,7 +505,10 @@ internal fun DefaultChatComponent.handleReportMessage(message: MessageModel) {
 }
 
 internal fun DefaultChatComponent.handleReportReasonSelected(reason: String) {
-    chatOperationsRepository.reportChat(chatId, reason)
+    runChatAction(ChatActionType.Report) {
+        chatOperationsRepository.reportChat(chatId, reason)
+        _state.update { it.copy(showReportDialog = false) }
+    }
 }
 
 internal fun DefaultChatComponent.handleCopyLink(localClipboard: Clipboard) {

@@ -65,8 +65,10 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.util.rememberUserStatusText
+import org.monogram.presentation.features.chats.common.ChatActionScreenContext
+import org.monogram.presentation.features.chats.common.ChatActionState
 import org.monogram.presentation.features.chats.common.ChatExitAction
-import org.monogram.presentation.features.chats.common.resolveChatExitAction
+import org.monogram.presentation.features.chats.common.resolveChatActionPolicy
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ui.ChatTopBar
 import org.monogram.presentation.features.chats.conversation.ui.pins.PinnedMessageBar
@@ -120,20 +122,27 @@ fun ChatContentTopBar(
 ) {
     val localClipboard = LocalClipboard.current
     val isAdBlockEnabled by component.appPreferences.isAdBlockEnabled.collectAsState()
+    val componentState by component.state.collectAsState()
     val isSelectionMode = selectedCount > 0
     val isMainChat = topBarState.currentTopicId == null && topBarState.rootMessage == null
-    val canClearHistory =
-        isMainChat && ((!topBarState.isGroup && !topBarState.isChannel) || topBarState.isAdmin)
-    val exitAction = resolveChatExitAction(
+    val otherUserId = topBarState.otherUser?.id
+    val actionPolicy = resolveChatActionPolicy(
         isMainChat = isMainChat,
         isGroup = topBarState.isGroup,
         isChannel = topBarState.isChannel,
         isMember = topBarState.isMember,
-        canDeleteChat = topBarState.canDeleteChat
+        canDeleteChat = topBarState.canDeleteChat,
+        canReport = topBarState.isGroup || topBarState.isChannel ||
+                (otherUserId != null && topBarState.currentUser?.id != otherUserId),
+        canJoin = (topBarState.isGroup || topBarState.isChannel) && !topBarState.isMember,
+        canBlockOrUnblock = otherUserId != null && !topBarState.isGroup && !topBarState.isChannel,
+        canPin = false,
+        context = ChatActionScreenContext.Chat
     )
-    val otherUserId = topBarState.otherUser?.id
-    val canReportChat = topBarState.isGroup || topBarState.isChannel ||
-            (otherUserId != null && topBarState.currentUser?.id != otherUserId)
+    val canClearHistory = actionPolicy.canClearHistory
+    val exitAction = actionPolicy.exitAction
+    val canReportChat = actionPolicy.canReport
+    val isActionPending = componentState.actionState is ChatActionState.Pending
 
     var showDeleteSheet by rememberSaveable { mutableStateOf(false) }
     var pendingUnpinMessage by remember { mutableStateOf<MessageModel?>(null) }
@@ -383,10 +392,10 @@ fun ChatContentTopBar(
                     searchQuery = topBarState.searchQuery,
                     onSearchToggle = component::onSearchToggle,
                     onSearchQueryChange = component::onSearchQueryChange,
-                    onClearHistory = if (canClearHistory) component::onClearHistory else null,
-                    onLeaveChat = if (exitAction == ChatExitAction.Leave) component::onLeaveChat else null,
-                    onDeleteChat = if (exitAction == ChatExitAction.Delete) component::onDeleteChat else null,
-                    onReport = if (isMainChat && canReportChat) component::onReport else null,
+                    onClearHistory = if (canClearHistory && !isActionPending) component::onClearHistory else null,
+                    onLeaveChat = if (exitAction == ChatExitAction.Leave && !isActionPending) component::onLeaveChat else null,
+                    onDeleteChat = if (exitAction == ChatExitAction.Delete && !isActionPending) component::onDeleteChat else null,
+                    onReport = if (isMainChat && canReportChat && !isActionPending) component::onReport else null,
                     onCopyLink = if (isMainChat && (topBarState.isGroup || topBarState.isChannel)) {
                         { component.onCopyLink(localClipboard) }
                     } else null,

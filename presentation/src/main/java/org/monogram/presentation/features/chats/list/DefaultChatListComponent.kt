@@ -23,6 +23,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.ChatModel
+import org.monogram.domain.models.ChatType
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.UpdateState
 import org.monogram.domain.repository.AttachMenuBotRepository
@@ -43,7 +44,11 @@ import org.monogram.presentation.BuildConfig
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
+import org.monogram.presentation.features.chats.common.ChatActionScreenContext
+import org.monogram.presentation.features.chats.common.ChatActionState
+import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.features.chats.common.ChatExitAction
+import org.monogram.presentation.features.chats.common.resolveChatActionPolicy
 import org.monogram.presentation.features.chats.common.resolveChatExitAction
 import org.monogram.presentation.root.AppComponentContext
 
@@ -76,6 +81,7 @@ class DefaultChatListComponent(
     private val attachMenuBotRepository: AttachMenuBotRepository = container.repositories.attachMenuBotRepository
     private val updateRepository: UpdateRepository = container.repositories.updateRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
+    private val messageDisplayer = container.utils.messageDisplayer()
 
     internal val _state = MutableStateFlow(
         ChatListComponent.State(
@@ -208,17 +214,21 @@ class DefaultChatListComponent(
 
         val canPin = selectedChats.all { currentFolderChatIds.contains(it.id) }
         val singleChat = selectedChats.singleOrNull()
-        val singleExitAction = singleChat?.let(::resolveChatListExitAction)
+        val singlePolicy = singleChat?.let(::resolveChatListActionPolicy)
         val canDelete = when {
-            singleExitAction == ChatExitAction.Delete -> true
-            selectedChats.size > 1 -> selectedChats.all { resolveChatListExitAction(it) == ChatExitAction.Delete }
+            singlePolicy?.exitAction == ChatExitAction.Delete -> true
+            selectedChats.size > 1 -> selectedChats.all { resolveChatListActionPolicy(it).exitAction == ChatExitAction.Delete }
             else -> false
         }
-        val canLeave = singleChat?.let {
-            singleExitAction == ChatExitAction.Leave
-        } ?: false
-        val canClearHistory = singleChat != null
-        val canReport = singleChat?.canBeReported ?: false
+        val canLeave = when {
+            singlePolicy?.exitAction == ChatExitAction.Leave -> true
+            selectedChats.size > 1 -> selectedChats.all { resolveChatListActionPolicy(it).exitAction == ChatExitAction.Leave }
+            else -> false
+        }
+        val canClearHistory =
+            selectedChats.isNotEmpty() && selectedChats.all { resolveChatListActionPolicy(it).canClearHistory }
+        val canReport =
+            selectedChats.isNotEmpty() && selectedChats.all { resolveChatListActionPolicy(it).canReport }
 
         return ChatListComponent.SelectionCapabilities(
             canPin = canPin,
@@ -646,7 +656,7 @@ class DefaultChatListComponent(
         val selectedIds = selection.selectedChatIds
         if (selectedIds.isEmpty()) return
 
-        scope.launch(Dispatchers.IO) {
+        runSelectionAction(ChatActionType.Mute) {
             chatOperationsRepository.toggleMuteChats(selectedIds, mute)
             handleClearSelection()
         }
@@ -661,7 +671,7 @@ class DefaultChatListComponent(
         val selectedIds = selection.selectedChatIds
         if (selectedIds.isEmpty()) return
 
-        scope.launch(Dispatchers.IO) {
+        runSelectionAction(ChatActionType.Archive) {
             chatOperationsRepository.toggleArchiveChats(selectedIds, archive)
             handleClearSelection()
         }
@@ -679,7 +689,7 @@ class DefaultChatListComponent(
         val shouldPin = selection.selectedChats.any { !it.isPinned }
         val folderId = _state.value.selectedFolderId
 
-        scope.launch(Dispatchers.IO) {
+        runSelectionAction(ChatActionType.Pin) {
             chatOperationsRepository.togglePinChats(selectedIds, shouldPin, folderId)
             handleClearSelection()
         }
@@ -696,7 +706,7 @@ class DefaultChatListComponent(
 
         val shouldMarkUnread = selection.canMarkUnread
 
-        scope.launch(Dispatchers.IO) {
+        runSelectionAction(ChatActionType.ToggleRead) {
             chatOperationsRepository.toggleReadChats(selectedIds, shouldMarkUnread)
             handleClearSelection()
         }
@@ -711,7 +721,7 @@ class DefaultChatListComponent(
         val selectedIds = selection.selectedChatIds
         if (selectedIds.isEmpty()) return
 
-        scope.launch(Dispatchers.IO) {
+        runSelectionAction(ChatActionType.Delete) {
             chatOperationsRepository.deleteChats(selectedIds)
             handleClearSelection()
         }
@@ -742,7 +752,7 @@ class DefaultChatListComponent(
         val selectedIds = selection.selectedChatIds
         if (selectedIds.isEmpty()) return
 
-        scope.launch(Dispatchers.IO) {
+        runSelectionAction(ChatActionType.Leave) {
             chatOperationsRepository.leaveChats(selectedIds)
             handleClearSelection()
         }
@@ -757,7 +767,7 @@ class DefaultChatListComponent(
         val selectedIds = selection.selectedChatIds
         if (selectedIds.isEmpty()) return
 
-        scope.launch(Dispatchers.IO) {
+        runSelectionAction(ChatActionType.ClearHistory) {
             chatOperationsRepository.clearChatHistories(selectedIds, revoke)
             handleClearSelection()
         }
@@ -772,7 +782,7 @@ class DefaultChatListComponent(
         val selectedIds = selection.selectedChatIds
         if (selectedIds.isEmpty()) return
 
-        scope.launch(Dispatchers.IO) {
+        runSelectionAction(ChatActionType.Report) {
             chatOperationsRepository.reportChats(selectedIds, reason)
             handleClearSelection()
         }
@@ -1105,6 +1115,35 @@ class DefaultChatListComponent(
         _state.value = _state.value.copy(selectedChatIds = newSelection)
     }
 
+    private fun runSelectionAction(
+        action: ChatActionType,
+        block: suspend () -> Unit
+    ) {
+        if (_state.value.actionState is ChatActionState.Pending) return
+        scope.launch(Dispatchers.IO) {
+            _state.update { it.copy(actionState = ChatActionState.Pending(action)) }
+            runCatching { block() }
+                .onSuccess {
+                    _state.update { it.copy(actionState = ChatActionState.Success(action)) }
+                }
+                .onFailure { error ->
+                    val message = error.message ?: "Action failed"
+                    _state.update {
+                        it.copy(
+                            actionState = ChatActionState.Failure(
+                                action,
+                                message
+                            )
+                        )
+                    }
+                    messageDisplayer.show(message)
+                }
+            if (_state.value.actionState !is ChatActionState.Pending) {
+                _state.update { it.copy(actionState = ChatActionState.Idle) }
+            }
+        }
+    }
+
     private fun toggleForwardTarget(id: Long) {
         val chat = _state.value.resolveSelectedChats(setOf(id)).firstOrNull()
         if (chat?.viewAsTopics == true) {
@@ -1187,6 +1226,20 @@ internal fun resolveChatListExitAction(chat: ChatModel): ChatExitAction {
         canDeleteChat = chat.canBeDeletedOnlyForSelf || chat.canBeDeletedForAllUsers
     )
 }
+
+internal fun resolveChatListActionPolicy(chat: ChatModel) =
+    resolveChatActionPolicy(
+        isMainChat = true,
+        isGroup = chat.isGroup,
+        isChannel = chat.isChannel,
+        isMember = chat.isMember,
+        canDeleteChat = chat.canBeDeletedOnlyForSelf || chat.canBeDeletedForAllUsers,
+        canReport = chat.canBeReported,
+        canJoin = (chat.isGroup || chat.isChannel) && !chat.isMember,
+        canBlockOrUnblock = !chat.isGroup && !chat.isChannel,
+        canPin = true,
+        context = ChatActionScreenContext.ListSelection
+    )
 
 internal fun normalizeFolderChats(chats: List<ChatModel>): List<ChatModel> {
     if (chats.size < 2) return chats

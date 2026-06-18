@@ -14,6 +14,8 @@ import org.monogram.domain.models.ChatType
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.domain.repository.ChatMemberStatus
+import org.monogram.presentation.features.chats.common.ChatActionState
+import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
 internal fun DefaultChatComponent.loadChatInfo() {
@@ -204,7 +206,9 @@ private fun DefaultChatComponent.updateEffectiveChatState(chat: ChatModel) {
 }
 
 internal fun DefaultChatComponent.handleToggleMute() {
-    chatOperationsRepository.toggleMuteChats(setOf(chatId), !_state.value.isMuted)
+    runChatAction(ChatActionType.Mute) {
+        chatOperationsRepository.toggleMuteChats(setOf(chatId), !_state.value.isMuted)
+    }
 }
 
 internal fun DefaultChatComponent.handleAddToAdBlockWhitelist() {
@@ -224,27 +228,27 @@ internal fun DefaultChatComponent.handleRemoveFromAdBlockWhitelist() {
 }
 
 internal fun DefaultChatComponent.handleClearHistory() {
-    chatOperationsRepository.clearChatHistory(chatId, true)
+    runChatAction(ChatActionType.ClearHistory) {
+        chatOperationsRepository.clearChatHistory(chatId, true)
+    }
 }
 
 internal fun DefaultChatComponent.handleLeaveChat() {
-    chatOperationsRepository.leaveChat(chatId)
-    onBackClicked()
+    runChatAction(ChatActionType.Leave, closeOnSuccess = true) {
+        chatOperationsRepository.leaveChat(chatId)
+    }
 }
 
 internal fun DefaultChatComponent.handleDeleteChat() {
-    chatOperationsRepository.deleteChats(setOf(chatId))
-    onBackClicked()
+    runChatAction(ChatActionType.Delete, closeOnSuccess = true) {
+        chatOperationsRepository.deleteChats(setOf(chatId))
+    }
 }
 
 internal fun DefaultChatComponent.handleJoinChat() {
-    scope.launch {
+    runChatAction(ChatActionType.Join) {
         val effectiveChatId = _state.value.effectiveThreadChatId(chatId)
-        chatInfoRepository.setChatMemberStatus(
-            effectiveChatId,
-            userRepository.getMe().id,
-            ChatMemberStatus.Member
-        )
+        repositoryMessage.joinChat(effectiveChatId)
         chatListRepository.getChatById(effectiveChatId)?.let(::updateEffectiveChatState)
         refreshEffectiveChatDetails(effectiveChatId)
         refreshCurrentUserRestrictionState()
@@ -252,7 +256,7 @@ internal fun DefaultChatComponent.handleJoinChat() {
 }
 
 internal fun DefaultChatComponent.handleBlockUser(userId: Long) {
-    scope.launch {
+    runChatAction(ChatActionType.BlockUser) {
         if (_state.value.isGroup || _state.value.isChannel) {
             chatInfoRepository.setChatMemberStatus(chatId, userId, ChatMemberStatus.Banned())
         } else {
@@ -262,8 +266,32 @@ internal fun DefaultChatComponent.handleBlockUser(userId: Long) {
 }
 
 internal fun DefaultChatComponent.handleUnblockUser(userId: Long) {
-    scope.launch {
+    runChatAction(ChatActionType.UnblockUser) {
         privacyRepository.unblockUser(userId)
+    }
+}
+
+internal fun DefaultChatComponent.runChatAction(
+    action: ChatActionType,
+    closeOnSuccess: Boolean = false,
+    block: suspend () -> Unit
+) {
+    if (_state.value.actionState is ChatActionState.Pending) return
+    scope.launch {
+        _state.update { it.copy(actionState = ChatActionState.Pending(action)) }
+        runCatching { block() }
+            .onSuccess {
+                _state.update { it.copy(actionState = ChatActionState.Success(action)) }
+                if (closeOnSuccess) {
+                    onBackClicked()
+                }
+            }
+            .onFailure { error ->
+                val message = error.message ?: "Action failed"
+                _state.update { it.copy(actionState = ChatActionState.Failure(action, message)) }
+                toastMessageDisplayer.show(message)
+            }
+        _state.update { it.copy(actionState = ChatActionState.Idle) }
     }
 }
 

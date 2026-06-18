@@ -81,6 +81,34 @@ class UnreadMessagesPolicyTest {
         assertEquals(0, state.unreadSeparatorCount)
     }
 
+    @Test
+    fun `visible messages read decrements unread once reporting is enabled`() {
+        val initial = ChatComponent.State(
+            chatId = CHAT_ID,
+            isAtBottom = false,
+            messages = listOf(
+                message(id = 101L),
+                message(id = 102L),
+                message(id = 103L)
+            ),
+            unreadCount = 3,
+            unreadSeparatorCount = 3,
+            lastReadInboxMessageId = 100L,
+            unreadSeparatorLastReadInboxMessageId = 100L
+        )
+
+        val updated = initial.withVisibleMessagesRead(
+            readChatId = CHAT_ID,
+            visibleMessageIds = listOf(101L, 102L)
+        )
+
+        assertEquals(1, updated.unreadCount)
+        assertEquals(1, updated.unreadSeparatorCount)
+        assertEquals(102L, updated.lastReadInboxMessageId)
+        assertTrue(updated.messages.first { it.id == 101L }.isRead)
+        assertTrue(updated.messages.first { it.id == 102L }.isRead)
+    }
+
     private fun message(id: Long): MessageModel =
         MessageModel(
             id = id,

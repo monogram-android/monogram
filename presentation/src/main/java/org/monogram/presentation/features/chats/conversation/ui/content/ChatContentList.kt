@@ -164,12 +164,55 @@ data class ChatMessageListUiState(
         get() = isChannel && currentTopicId == null
 }
 
+internal fun shouldShowUnreadSeparator(
+    isComments: Boolean,
+    unreadBoundaryIndex: Int?,
+    unreadSeparatorCount: Int,
+    itemIndex: Int
+): Boolean {
+    if (isComments) return false
+    if (unreadSeparatorCount <= 0) return false
+    return unreadBoundaryIndex == itemIndex
+}
+
+internal data class VisibleMessageReadReportingContext(
+    val chatId: Long,
+    val currentTopicId: Long?,
+    val rootMessageId: Long?
+)
+
+internal data class VisibleMessageReadReportingState(
+    val context: VisibleMessageReadReportingContext,
+    val isEnabled: Boolean
+)
+
+internal fun updateVisibleMessageReadReportingState(
+    previousState: VisibleMessageReadReportingState?,
+    nextContext: VisibleMessageReadReportingContext,
+    hasUserDraggedList: Boolean
+): VisibleMessageReadReportingState {
+    val isSameContext = previousState?.context == nextContext
+    val wasEnabled = isSameContext && previousState.isEnabled
+    return VisibleMessageReadReportingState(
+        context = nextContext,
+        isEnabled = wasEnabled || hasUserDraggedList
+    )
+}
+
+internal fun shouldReportVisibleMessageAsRead(
+    reportingState: VisibleMessageReadReportingState?,
+    context: VisibleMessageReadReportingContext
+): Boolean {
+    return reportingState?.context == context && reportingState.isEnabled
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ChatContentList(
     state: ChatMessageListUiState,
     component: ChatComponent,
     scrollState: LazyListState,
+    isDragged: Boolean,
     groupedMessages: List<GroupedMessageItem>,
     onPhotoClick: (MessageModel, List<String>, List<String?>, List<Long>, Int) -> Unit,
     onPhotoDownload: (Int) -> Unit,
@@ -205,6 +248,25 @@ internal fun ChatContentList(
     val loadTriggerThrottleMs = 350L
     val groupedMessageIds =
         remember(groupedMessages) { groupedMessages.map(GroupedMessageItem::firstMessageId) }
+    val visibleMessageReadReportingContext = remember(
+        state.chatId,
+        state.currentTopicId,
+        state.rootMessage?.id
+    ) {
+        VisibleMessageReadReportingContext(
+            chatId = state.chatId,
+            currentTopicId = state.currentTopicId,
+            rootMessageId = state.rootMessage?.id
+        )
+    }
+    var visibleMessageReadReportingState by remember {
+        mutableStateOf(
+            VisibleMessageReadReportingState(
+                context = visibleMessageReadReportingContext,
+                isEnabled = false
+            )
+        )
+    }
     var hasSeededEntryAnimations by rememberSaveable(
         state.chatId,
         state.currentTopicId
@@ -234,21 +296,6 @@ internal fun ChatContentList(
             }
         }
     }
-    val unreadBoundaryGroupId = remember(unreadBoundaryIndex, groupedMessages) {
-        unreadBoundaryIndex
-            ?.takeIf { it in groupedMessages.indices }
-            ?.let { groupedMessages[it].firstMessageId }
-    }
-    var hasUnreadSeparatorBeenVisible by rememberSaveable(
-        state.chatId,
-        state.currentTopicId,
-        unreadBoundaryGroupId
-    ) { mutableStateOf(false) }
-    var hasUnreadSeparatorDismissed by rememberSaveable(
-        state.chatId,
-        state.currentTopicId,
-        unreadBoundaryGroupId
-    ) { mutableStateOf(false) }
     val visibleGroupedMessageIds by remember(
         scrollState,
         groupedMessages,
@@ -345,6 +392,19 @@ internal fun ChatContentList(
         }
     }
 
+    LaunchedEffect(visibleMessageReadReportingContext, isDragged) {
+        visibleMessageReadReportingState = updateVisibleMessageReadReportingState(
+            previousState = visibleMessageReadReportingState,
+            nextContext = visibleMessageReadReportingContext,
+            hasUserDraggedList = isDragged
+        )
+    }
+
+    val canReportVisibleMessagesAsRead = shouldReportVisibleMessageAsRead(
+        reportingState = visibleMessageReadReportingState,
+        context = visibleMessageReadReportingContext
+    )
+
 
     LaunchedEffect(
         scrollState,
@@ -402,44 +462,6 @@ internal fun ChatContentList(
                             component.loadNewer()
                         }
                     }
-                }
-            }
-    }
-
-    LaunchedEffect(
-        scrollState,
-        unreadBoundaryIndex,
-        isComments,
-        showNavPadding,
-        state.isLoadingOlder,
-        state.isLoadingNewer,
-        state.isAtBottom,
-        groupedMessages.isNotEmpty(),
-        state.isViewportSettled
-    ) {
-        if (!state.isViewportSettled) return@LaunchedEffect
-        val boundaryIndex = unreadBoundaryIndex ?: return@LaunchedEffect
-        snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
-            .filter { it.isNotEmpty() }
-            .map { visibleItems ->
-                val leadingItems = chatContentLeadingItemsCount(
-                    isComments = isComments,
-                    showNavPadding = showNavPadding,
-                    isLoadingOlder = state.isLoadingOlder,
-                    isLoadingNewer = state.isLoadingNewer,
-                    isAtBottom = state.isAtBottom,
-                    hasMessages = groupedMessages.isNotEmpty()
-                )
-                visibleItems.any { item ->
-                    lazyIndexToGroupedIndex(item.index, leadingItems) == boundaryIndex
-                }
-            }
-            .distinctUntilChanged()
-            .collect { isBoundaryVisible ->
-                if (isBoundaryVisible) {
-                    hasUnreadSeparatorBeenVisible = true
-                } else if (hasUnreadSeparatorBeenVisible) {
-                    hasUnreadSeparatorDismissed = true
                 }
             }
     }
@@ -537,12 +559,18 @@ internal fun ChatContentList(
                         ),
                         uiFlags = MessageRowUiFlags(
                             isSelected = isItemSelected(item, state.selectedMessageIds),
-                            showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
+                            showUnreadSeparator = shouldShowUnreadSeparator(
+                                isComments = isComments,
+                                unreadBoundaryIndex = unreadBoundaryIndex,
+                                unreadSeparatorCount = state.unreadSeparatorCount,
+                                itemIndex = index
+                            ),
                             unreadCount = state.unreadSeparatorCount,
                             shouldReportPosition = item.lastMessageId == selectedMessageId
                         ),
                         highlightRequest = highlightRequestForItem(item, state.highlightRequest),
                         isTargetVisibleInViewport = item.firstMessageId in visibleGroupedMessageIds,
+                        canReportVisibleMessagesAsRead = canReportVisibleMessagesAsRead,
                         rootMessageId = state.rootMessage?.id,
                         onPhotoClick = onPhotoClick,
                         onPhotoDownload = onPhotoDownload,
@@ -613,12 +641,18 @@ internal fun ChatContentList(
                         ),
                         uiFlags = MessageRowUiFlags(
                             isSelected = isItemSelected(item, state.selectedMessageIds),
-                            showUnreadSeparator = index == unreadBoundaryIndex && !hasUnreadSeparatorDismissed,
+                            showUnreadSeparator = shouldShowUnreadSeparator(
+                                isComments = isComments,
+                                unreadBoundaryIndex = unreadBoundaryIndex,
+                                unreadSeparatorCount = state.unreadSeparatorCount,
+                                itemIndex = index
+                            ),
                             unreadCount = state.unreadSeparatorCount,
                             shouldReportPosition = item.lastMessageId == selectedMessageId
                         ),
                         highlightRequest = highlightRequestForItem(item, state.highlightRequest),
                         isTargetVisibleInViewport = item.firstMessageId in visibleGroupedMessageIds,
+                        canReportVisibleMessagesAsRead = canReportVisibleMessagesAsRead,
                         rootMessageId = state.rootMessage?.id,
                         onPhotoClick = onPhotoClick,
                         onPhotoDownload = onPhotoDownload,
@@ -750,6 +784,7 @@ private fun MessageRowItem(
     uiFlags: MessageRowUiFlags,
     highlightRequest: MessageHighlightRequest?,
     isTargetVisibleInViewport: Boolean,
+    canReportVisibleMessagesAsRead: Boolean,
     rootMessageId: Long?,
     onPhotoClick: (MessageModel, List<String>, List<String?>, List<Long>, Int) -> Unit,
     onPhotoDownload: (Int) -> Unit,
@@ -800,7 +835,8 @@ private fun MessageRowItem(
     val highlightBorderAlpha = remember { Animatable(0f) }
     val highlightScale = remember { Animatable(1f) }
 
-    LaunchedEffect(mainMsg.id) {
+    LaunchedEffect(mainMsg.id, canReportVisibleMessagesAsRead) {
+        if (!canReportVisibleMessagesAsRead) return@LaunchedEffect
         component.onMessageVisible(mainMsg.id)
     }
 

@@ -420,6 +420,7 @@ fun ChatContent(
                             state = bodyUiState,
                             component = component,
                             scrollState = scrollState,
+                            isDragged = isDragged,
                             messageListState = messageListState,
                             groupedMessages = messagePresentationState.groupedMessages,
                             searchUiState = searchUiState,

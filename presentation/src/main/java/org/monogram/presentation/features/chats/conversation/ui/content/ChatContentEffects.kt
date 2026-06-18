@@ -4,7 +4,11 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.delay
@@ -19,6 +23,53 @@ import org.monogram.presentation.features.chats.conversation.ChatViewportPhase
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 import org.monogram.presentation.features.chats.conversation.logic.requestMessageHighlight
 import kotlin.math.abs
+
+internal fun shouldAutoFollowLatestAfterContentChange(
+    previousLastGroupedMessageId: Long?,
+    currentLastGroupedMessageId: Long?,
+    followLatestArmed: Boolean,
+    viewportPhase: ChatViewportPhase,
+    pendingScrollCommand: ChatScrollCommand?,
+    isLoading: Boolean,
+    isLoadingOlder: Boolean,
+    isLoadingNewer: Boolean,
+    isScrollInProgress: Boolean,
+    showInitialLoading: Boolean,
+    isLatestLoaded: Boolean
+): Boolean {
+    if (!followLatestArmed) return false
+    if (viewportPhase != ChatViewportPhase.Settled) return false
+    if (previousLastGroupedMessageId == null || currentLastGroupedMessageId == null) return false
+    if (previousLastGroupedMessageId == currentLastGroupedMessageId) return false
+    if (pendingScrollCommand != null) return false
+    if (isLoading || isLoadingOlder || isLoadingNewer || isScrollInProgress || showInitialLoading) return false
+    if (!isLatestLoaded) return false
+    return true
+}
+
+internal fun updateFollowLatestArmed(
+    previousArmed: Boolean,
+    isNearBottom: Boolean,
+    hasUserScrolledAwayFromBottom: Boolean,
+    isDragged: Boolean
+): Boolean {
+    if (isNearBottom) return true
+    if (isDragged || hasUserScrolledAwayFromBottom) return false
+    return previousArmed
+}
+
+internal fun shouldDisarmFollowLatest(
+    pendingScrollCommand: ChatScrollCommand?
+): Boolean {
+    return when (pendingScrollCommand) {
+        is ChatScrollCommand.JumpToMessage,
+        is ChatScrollCommand.ScrollToStart -> true
+
+        is ChatScrollCommand.RestoreViewport -> !pendingScrollCommand.atBottom
+        null,
+        is ChatScrollCommand.ScrollToBottom -> false
+    }
+}
 
 internal fun shouldRetainBottomAlignmentAfterContentChange(
     viewportPhase: ChatViewportPhase,
@@ -69,6 +120,8 @@ internal fun ChatContentEffects(
     val isViewportSettled = effectsEnabled && state.viewportPhase == ChatViewportPhase.Settled
     val firstGroupedMessageId = groupedMessages.firstOrNull()?.firstMessageId
     val lastGroupedMessageId = groupedMessages.lastOrNull()?.firstMessageId
+    var followLatestArmed by remember { mutableStateOf(false) }
+    var previousLastGroupedMessageId by remember { mutableStateOf<Long?>(null) }
     suspend fun consumeScrollCommandAndSettle() {
         component.onScrollCommandConsumed()
         withFrameNanos { }
@@ -229,6 +282,13 @@ internal fun ChatContentEffects(
         }
     }
 
+    LaunchedEffect(effectsEnabled, state.viewportPhase, state.pendingScrollCommand) {
+        if (!effectsEnabled) return@LaunchedEffect
+        if (shouldDisarmFollowLatest(state.pendingScrollCommand)) {
+            followLatestArmed = false
+        }
+    }
+
     LaunchedEffect(
         effectsEnabled,
         state.viewportPhase,
@@ -259,27 +319,74 @@ internal fun ChatContentEffects(
                     lastReportedBottomState = snapshot.isAtBottom
                 }
 
+                val nextHasUserScrolledAwayFromBottom = when {
+                    snapshot.isNearBottom -> false
+                    isDragged -> true
+                    else -> hasUserScrolledAwayFromBottom
+                }
                 if (snapshot.isNearBottom) {
                     onHasUserScrolledAwayFromBottomChanged(false)
                 } else if (isDragged) {
                     onHasUserScrolledAwayFromBottomChanged(true)
                 }
+                followLatestArmed = updateFollowLatestArmed(
+                    previousArmed = followLatestArmed,
+                    isNearBottom = snapshot.isNearBottom,
+                    hasUserScrolledAwayFromBottom = nextHasUserScrolledAwayFromBottom,
+                    isDragged = isDragged
+                )
 
                 val shouldShow = !isForumList &&
                         !showInitialLoading &&
-                        (snapshot.unreadCount > 0 || (hasUserScrolledAwayFromBottom && !snapshot.isNearBottom))
+                        (snapshot.unreadCount > 0 ||
+                                (nextHasUserScrolledAwayFromBottom && !snapshot.isNearBottom))
 
                 if (shouldShow) {
                     onShowScrollToBottomButtonChanged(true)
                 } else {
                     delay(120)
                     val keepVisible = snapshot.unreadCount > 0 ||
-                            (hasUserScrolledAwayFromBottom && !snapshot.isNearBottom)
+                            (nextHasUserScrolledAwayFromBottom && !snapshot.isNearBottom)
                     if (!keepVisible) {
                         onShowScrollToBottomButtonChanged(false)
                     }
                 }
             }
+    }
+
+    LaunchedEffect(
+        effectsEnabled,
+        state.viewportPhase,
+        lastGroupedMessageId,
+        state.pendingScrollCommand,
+        state.isLoading,
+        state.isLoadingOlder,
+        state.isLoadingNewer,
+        state.isLatestLoaded,
+        showInitialLoading,
+        isDragged
+    ) {
+        if (!effectsEnabled) return@LaunchedEffect
+        val shouldAutoFollow = shouldAutoFollowLatestAfterContentChange(
+            previousLastGroupedMessageId = previousLastGroupedMessageId,
+            currentLastGroupedMessageId = lastGroupedMessageId,
+            followLatestArmed = followLatestArmed,
+            viewportPhase = state.viewportPhase,
+            pendingScrollCommand = state.pendingScrollCommand,
+            isLoading = state.isLoading,
+            isLoadingOlder = state.isLoadingOlder,
+            isLoadingNewer = state.isLoadingNewer,
+            isScrollInProgress = isDragged || scrollState.isScrollInProgress,
+            showInitialLoading = showInitialLoading,
+            isLatestLoaded = state.isLatestLoaded
+        )
+        if (shouldAutoFollow) {
+            scrollState.scrollToChatBottomStaged(
+                isComments = isComments,
+                animated = state.isChatAnimationsEnabled
+            )
+        }
+        previousLastGroupedMessageId = lastGroupedMessageId
     }
 
     LaunchedEffect(

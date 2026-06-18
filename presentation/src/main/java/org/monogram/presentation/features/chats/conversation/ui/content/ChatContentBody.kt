@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -117,60 +118,89 @@ internal fun ChatContentBottomBar(
             }
         }
 
-    if (chromeState.showInputBar) {
-        val inputBarState = rememberChatInputBarState(
-            state = state,
-            pendingMediaPaths = pendingMediaPaths,
-            pendingDocumentPaths = pendingDocumentPaths
-        )
-        val inputBarActions = rememberChatInputBarActions(
-            component = component,
-            state = state,
-            onPickMedia = {
-                pickMedia.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
-                )
-            },
-            onHideKeyboardAndClearFocus = {
-                keyboardController?.hide()
-                focusManager.clearFocus(force = true)
-            },
-            onStartRecordingVideo = onStartRecordingVideo,
-            onSetPendingMediaPaths = onPendingMediaPathsChanged,
-            onSetPendingDocumentPaths = onPendingDocumentPathsChanged,
-            onEditMediaPath = onEditMediaPath,
-            onDraftLinkPreviewAction = onDraftLinkPreviewAction
-        )
+    val inputBarState = rememberChatInputBarState(
+        state = state,
+        pendingMediaPaths = pendingMediaPaths,
+        pendingDocumentPaths = pendingDocumentPaths
+    )
+    val inputBarActions = rememberChatInputBarActions(
+        component = component,
+        state = state,
+        onPickMedia = {
+            pickMedia.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+            )
+        },
+        onHideKeyboardAndClearFocus = {
+            keyboardController?.hide()
+            focusManager.clearFocus(force = true)
+        },
+        onStartRecordingVideo = onStartRecordingVideo,
+        onSetPendingMediaPaths = onPendingMediaPathsChanged,
+        onSetPendingDocumentPaths = onPendingDocumentPathsChanged,
+        onEditMediaPath = onEditMediaPath,
+        onDraftLinkPreviewAction = onDraftLinkPreviewAction
+    )
 
-        ChatInputBar(
-            state = inputBarState,
-            actions = inputBarActions,
-            appPreferences = component.appPreferences,
-            stickerRepository = component.stickerRepository
-        )
-    } else if (chromeState.showJoinButton) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
-                .windowInsetsPadding(WindowInsets.navigationBars),
-            contentAlignment = Alignment.Center
-        ) {
-            Button(
-                onClick = component::onJoinChat,
-                shapes = ExpressiveDefaults.largeButtonShapes(),
+    AnimatedContent(
+        targetState = when {
+            chromeState.showInputBar -> BottomBarContent.Input
+            chromeState.showJoinButton -> BottomBarContent.Join
+            else -> BottomBarContent.None
+        },
+        transitionSpec = {
+            (slideInVertically(
+                animationSpec = tween(durationMillis = 240),
+                initialOffsetY = { it / 3 }
+            ) + fadeIn(animationSpec = tween(durationMillis = 180)))
+                .togetherWith(
+                    slideOutVertically(
+                        animationSpec = tween(durationMillis = 220),
+                        targetOffsetY = { it / 3 }
+                    ) + fadeOut(animationSpec = tween(durationMillis = 160))
+                )
+        },
+        label = "ChatBottomBar"
+    ) { content ->
+        when (content) {
+            BottomBarContent.Input -> ChatInputBar(
+                state = inputBarState,
+                actions = inputBarActions,
+                appPreferences = component.appPreferences,
+                stickerRepository = component.stickerRepository
+            )
+
+            BottomBarContent.Join -> Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(ButtonDefaults.MediumContainerHeight)
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .windowInsetsPadding(WindowInsets.navigationBars),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = stringResource(R.string.action_join),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Button(
+                    onClick = component::onJoinChat,
+                    shapes = ExpressiveDefaults.largeButtonShapes(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ButtonDefaults.MediumContainerHeight)
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_join),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
+
+            BottomBarContent.None -> Box(modifier = Modifier.fillMaxWidth())
         }
     }
+}
+
+private enum class BottomBarContent {
+    Input,
+    Join,
+    None
 }
 
 @Composable

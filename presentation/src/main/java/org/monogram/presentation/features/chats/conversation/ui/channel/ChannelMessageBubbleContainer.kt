@@ -43,6 +43,8 @@ import org.monogram.presentation.features.chats.conversation.ui.MessageAppearanc
 import org.monogram.presentation.features.chats.conversation.ui.MessageBubbleLayoutTracker
 import org.monogram.presentation.features.chats.conversation.ui.MessageRowBehaviorConfig
 import org.monogram.presentation.features.chats.conversation.ui.MessageRowUiFlags
+import org.monogram.presentation.features.chats.conversation.ui.MessageSelectionBadgeAlignment
+import org.monogram.presentation.features.chats.conversation.ui.MessageSelectionDecoration
 import org.monogram.presentation.features.chats.conversation.ui.MessageSenderGrouping
 import org.monogram.presentation.features.chats.conversation.ui.fastReplyPointer
 import org.monogram.presentation.features.chats.conversation.ui.message.AudioMessageBubble
@@ -114,6 +116,7 @@ internal fun ChannelMessageBubbleContainer(
     val onReplyClickState by rememberUpdatedState(onReplyClick)
     val onMessageLongPressState by rememberUpdatedState(onMessageLongPress)
     val onPositionChangeState by rememberUpdatedState(onPositionChange)
+    val selectionBadgeAlignment = MessageSelectionBadgeAlignment.TopEnd
 
     Column(
         modifier = Modifier
@@ -165,7 +168,10 @@ internal fun ChannelMessageBubbleContainer(
             Box(
                 modifier = Modifier.wrapContentSize()
             ) {
-                Column(
+                MessageSelectionDecoration(
+                    isSelectionMode = behavior.isSelectionMode,
+                    isSelected = uiFlags.isSelected,
+                    badgeAlignment = selectionBadgeAlignment,
                     modifier = Modifier
                         .padding(horizontal = 8.dp)
                         .widthIn(max = maxWidth)
@@ -182,7 +188,8 @@ internal fun ChannelMessageBubbleContainer(
                             }
                         }
                 ) {
-                    when (val content = msg.content) {
+                    Column {
+                        when (val content = msg.content) {
                         is MessageContent.Text -> {
                             ChannelTextMessageBubble(
                                 content = content,
@@ -652,19 +659,20 @@ internal fun ChannelMessageBubbleContainer(
                         }
                     }
 
-                    msg.replyMarkup?.let { markup ->
-                        ReplyMarkupView(
-                            replyMarkup = markup,
-                            onButtonClick = { onReplyMarkupButtonClick(msg.id, it) }
+                        msg.replyMarkup?.let { markup ->
+                            ReplyMarkupView(
+                                replyMarkup = markup,
+                                onButtonClick = { onReplyMarkupButtonClick(msg.id, it) }
+                            )
+                        }
+
+                        MessageViaBotAttribution(
+                            msg = msg,
+                            isOutgoing = msg.isOutgoing,
+                            onViaBotClick = onViaBotClick,
+                            modifier = Modifier.align(Alignment.Start)
                         )
                     }
-
-                    MessageViaBotAttribution(
-                        msg = msg,
-                        isOutgoing = msg.isOutgoing,
-                        onViaBotClick = onViaBotClick,
-                        modifier = Modifier.align(Alignment.Start)
-                    )
                 }
 
                 FastReplyIndicator(

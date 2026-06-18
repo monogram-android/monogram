@@ -6,13 +6,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -43,7 +41,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -68,7 +65,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -854,11 +850,20 @@ private fun MessageRowItem(
 
     val backgroundColor by animateColorAsState(
         targetValue = when {
-            uiFlags.isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-            else -> highlightBackground.value
+            highlightBackground.value != Color.Transparent -> highlightBackground.value
+            behavior.isSelectionMode && uiFlags.isSelected -> MaterialTheme.colorScheme.primary.copy(
+                alpha = 0.12f
+            )
+
+            else -> Color.Transparent
         },
         animationSpec = tween(durationMillis = 220),
         label = "bg"
+    )
+    val selectionAlpha by animateFloatAsState(
+        targetValue = if (behavior.isSelectionMode) 1f else 0f,
+        animationSpec = tween(durationMillis = 180),
+        label = "selectionAlpha"
     )
     val borderColor by animateColorAsState(
         targetValue = if (highlightBorderAlpha.value > 0f) {
@@ -869,11 +874,6 @@ private fun MessageRowItem(
         animationSpec = tween(durationMillis = 220),
         label = "highlightBorder"
     )
-    val horizontalPadding by animateDpAsState(
-        if (behavior.isSelectionMode) 16.dp else 8.dp,
-        label = "padding"
-    )
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -895,20 +895,19 @@ private fun MessageRowItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = horizontalPadding, vertical = 1.dp),
+                .background(
+                    color = backgroundColor.copy(
+                        alpha = if (highlightBackground.value != Color.Transparent) {
+                            backgroundColor.alpha
+                        } else {
+                            backgroundColor.alpha * selectionAlpha
+                        }
+                    ),
+                    shape = rowShape
+                )
+                .padding(horizontal = 8.dp, vertical = 1.dp),
             verticalAlignment = Alignment.Bottom
         ) {
-            AnimatedVisibility(
-                visible = behavior.isSelectionMode,
-                enter = expandHorizontally(),
-                exit = shrinkHorizontally()
-            ) {
-                SelectionIndicator(
-                    isSelected = uiFlags.isSelected,
-                    modifier = Modifier.padding(end = 12.dp, bottom = 4.dp)
-                )
-            }
-
             Column(modifier = Modifier.weight(1f)) {
                 if (shouldShowDate(mainMsg, olderMsg)) {
                     DateSeparator(mainMsg.date)
@@ -1293,29 +1292,6 @@ private fun MessageBubbleSwitcher(
                 onViaBotClick = onViaBotClick,
                 onReplySwipe = { component.onReplyMessage(it) },
                 downloadUtils = downloadUtils
-            )
-        }
-    }
-}
-
-@Composable
-private fun SelectionIndicator(isSelected: Boolean, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .size(24.dp)
-            .clip(CircleShape)
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (isSelected) {
-            Icon(
-                Icons.Default.CheckCircle,
-                null,
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(24.dp)
             )
         }
     }

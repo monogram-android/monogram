@@ -114,6 +114,11 @@ internal fun MessageBubbleContainer(
     val onReplyClickState by rememberUpdatedState(onReplyClick)
     val onMessageLongPressState by rememberUpdatedState(onMessageLongPress)
     val onPositionChangeState by rememberUpdatedState(onPositionChange)
+    val selectionBadgeAlignment = if (isOutgoing) {
+        MessageSelectionBadgeAlignment.TopEnd
+    } else {
+        MessageSelectionBadgeAlignment.TopStart
+    }
     val onReplySwipeState by rememberUpdatedState(onReplySwipe)
 
     val onBubbleClick: (Offset) -> Unit = remember(msg.id) {
@@ -194,10 +199,11 @@ internal fun MessageBubbleContainer(
             },
             content = {
                 Box(modifier = Modifier.wrapContentSize()) {
-                    MessageBubbleContentHost(
+                    MessageSelectionDecoration(
+                        isSelectionMode = behavior.isSelectionMode,
+                        isSelected = uiFlags.isSelected,
+                        badgeAlignment = selectionBadgeAlignment,
                         modifier = Modifier
-                            .width(IntrinsicSize.Max)
-                            .widthIn(max = maxWidth)
                             .onGloballyPositioned { coordinates ->
                                 layoutTracker.bubblePosition = coordinates.positionInWindow()
                                 layoutTracker.bubbleSize = coordinates.size
@@ -208,40 +214,46 @@ internal fun MessageBubbleContainer(
                                         layoutTracker.bubbleSize
                                     )
                                 }
-                            },
-                        msg = msg,
-                        newerMsg = newerMsg,
-                        isOutgoing = isOutgoing,
-                        senderGrouping = senderGrouping,
-                        isGroup = behavior.isGroup,
-                        appearance = appearance,
-                        onPhotoClick = onPhotoClick,
-                        onDownloadPhoto = onDownloadPhoto,
-                        onVideoClick = onVideoClick,
-                        onDocumentClick = onDocumentClick,
-                        onAudioClick = onAudioClick,
-                        onCancelDownload = onCancelDownload,
-                        onBubbleClick = onBubbleClick,
-                        onBubbleLongClick = onBubbleLongClick,
-                        onBubbleCenterLongClick = onBubbleCenterLongClick,
-                        onGoToReply = onGoToReply,
-                        onReactionClick = onReactionClick,
-                        onStickerClick = onStickerClick,
-                        onPollOptionClick = onPollOptionClick,
-                        onRetractVote = onRetractVote,
-                        onShowVoters = onShowVoters,
-                        onClosePoll = onClosePoll,
-                        onLinkPreviewAction = onLinkPreviewAction,
-                        onReplyMarkupButtonClick = onReplyMarkupButtonClick,
-                        toProfile = toProfile,
-                        onForwardOriginClick = onForwardOriginClick,
-                        onViaBotClick = onViaBotClick,
-                        onChecklistTaskToggle = onChecklistTaskToggle,
-                        onChecklistEdit = onChecklistEdit,
-                        onPaidMediaBuy = onPaidMediaBuy,
-                        downloadUtils = downloadUtils,
-                        isAnyViewerOpen = behavior.isAnyViewerOpen
-                    )
+                            }
+                    ) {
+                        MessageBubbleContentHost(
+                            modifier = Modifier
+                                .width(IntrinsicSize.Max)
+                                .widthIn(max = maxWidth),
+                            msg = msg,
+                            newerMsg = newerMsg,
+                            isOutgoing = isOutgoing,
+                            senderGrouping = senderGrouping,
+                            isGroup = behavior.isGroup,
+                            appearance = appearance,
+                            onPhotoClick = onPhotoClick,
+                            onDownloadPhoto = onDownloadPhoto,
+                            onVideoClick = onVideoClick,
+                            onDocumentClick = onDocumentClick,
+                            onAudioClick = onAudioClick,
+                            onCancelDownload = onCancelDownload,
+                            onBubbleClick = onBubbleClick,
+                            onBubbleLongClick = onBubbleLongClick,
+                            onBubbleCenterLongClick = onBubbleCenterLongClick,
+                            onGoToReply = onGoToReply,
+                            onReactionClick = onReactionClick,
+                            onStickerClick = onStickerClick,
+                            onPollOptionClick = onPollOptionClick,
+                            onRetractVote = onRetractVote,
+                            onShowVoters = onShowVoters,
+                            onClosePoll = onClosePoll,
+                            onLinkPreviewAction = onLinkPreviewAction,
+                            onReplyMarkupButtonClick = onReplyMarkupButtonClick,
+                            toProfile = toProfile,
+                            onForwardOriginClick = onForwardOriginClick,
+                            onViaBotClick = onViaBotClick,
+                            onChecklistTaskToggle = onChecklistTaskToggle,
+                            onChecklistEdit = onChecklistEdit,
+                            onPaidMediaBuy = onPaidMediaBuy,
+                            downloadUtils = downloadUtils,
+                            isAnyViewerOpen = behavior.isAnyViewerOpen
+                        )
+                    }
 
                     FastReplyIndicator(
                         modifier = Modifier.align(Alignment.CenterEnd),

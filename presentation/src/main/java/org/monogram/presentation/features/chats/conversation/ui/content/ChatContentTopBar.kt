@@ -11,6 +11,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -159,7 +161,16 @@ fun ChatContentTopBar(
         AnimatedContent(
             targetState = isSelectionMode,
             transitionSpec = {
-                fadeIn() togetherWith fadeOut()
+                (slideInVertically(
+                    animationSpec = tween(durationMillis = 240),
+                    initialOffsetY = { -it / 2 }
+                ) + fadeIn(animationSpec = tween(durationMillis = 180)))
+                    .togetherWith(
+                        slideOutVertically(
+                            animationSpec = tween(durationMillis = 220),
+                            targetOffsetY = { -it / 3 }
+                        ) + fadeOut(animationSpec = tween(durationMillis = 160))
+                    )
             },
             label = "TopBarSelection"
         ) { selectionMode ->

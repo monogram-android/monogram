@@ -105,6 +105,11 @@ internal fun AlbumMessageBubbleContainer(
     val onReplyClickState by rememberUpdatedState(onReplyClick)
     val onMessageLongPressState by rememberUpdatedState(onMessageLongPress)
     val onPositionChangeState by rememberUpdatedState(onPositionChange)
+    val selectionBadgeAlignment = if (behavior.isChannel || isOutgoing) {
+        MessageSelectionBadgeAlignment.TopEnd
+    } else {
+        MessageSelectionBadgeAlignment.TopStart
+    }
 
     Column(
         modifier = Modifier
@@ -185,17 +190,6 @@ internal fun AlbumMessageBubbleContainer(
                         .then(if (behavior.isChannel) Modifier.padding(horizontal = 8.dp) else Modifier)
                         .widthIn(max = maxWidth)
                         .then(if (behavior.isChannel) Modifier.fillMaxWidth() else Modifier)
-                        .onGloballyPositioned { coordinates ->
-                            layoutTracker.bubblePosition = coordinates.positionInWindow()
-                            layoutTracker.bubbleSize = coordinates.size
-                            if (uiFlags.shouldReportPosition) {
-                                onPositionChangeState(
-                                    lastMsg.id,
-                                    layoutTracker.bubblePosition,
-                                    layoutTracker.bubbleSize
-                                )
-                            }
-                        }
                 ) {
                     if (behavior.isGroup && !isOutgoing && !behavior.isChannel && !senderGrouping.isSameSenderAbove) {
                         Text(
@@ -206,122 +200,141 @@ internal fun AlbumMessageBubbleContainer(
                         )
                     }
 
-                    if (behavior.isChannel) {
-                        ChannelAlbumMessageBubble(
-                            messages = orderedMessages,
-                            isSameSenderAbove = senderGrouping.isSameSenderAbove,
-                            isSameSenderBelow = senderGrouping.isSameSenderBelow,
-                            autoplayGifs = appearance.autoplayGifs,
-                            autoplayVideos = appearance.autoplayVideos,
-                            autoDownloadMobile = appearance.autoDownloadMobile,
-                            autoDownloadWifi = appearance.autoDownloadWifi,
-                            autoDownloadRoaming = appearance.autoDownloadRoaming,
-                            onPhotoClick = onPhotoClick,
-                            onDownloadPhoto = onDownloadPhoto,
-                            onVideoClick = onVideoClick,
-                            onDocumentClick = onDocumentClick,
-                            onAudioClick = onAudioClick,
-                            onCancelDownload = onCancelDownload,
-                            onLongClick = { offset ->
-                                onReplyClickState(
+                    MessageSelectionDecoration(
+                        isSelectionMode = behavior.isSelectionMode,
+                        isSelected = uiFlags.isSelected,
+                        badgeAlignment = selectionBadgeAlignment,
+                        modifier = Modifier.onGloballyPositioned { coordinates ->
+                            layoutTracker.bubblePosition = coordinates.positionInWindow()
+                            layoutTracker.bubbleSize = coordinates.size
+                            if (uiFlags.shouldReportPosition) {
+                                onPositionChangeState(
+                                    lastMsg.id,
                                     layoutTracker.bubblePosition,
-                                    layoutTracker.bubbleSize,
-                                    offset
+                                    layoutTracker.bubbleSize
                                 )
-                            },
-                            onMessageLongPress = { tappedMessage, offset ->
-                                if (onMessageLongPressState != null) {
-                                    onMessageLongPressState?.invoke(
-                                        tappedMessage,
-                                        layoutTracker.bubblePosition,
-                                        layoutTracker.bubbleSize,
-                                        offset
-                                    )
-                                } else {
-                                    onReplyClickState(
-                                        layoutTracker.bubblePosition,
-                                        layoutTracker.bubbleSize,
-                                        offset
-                                    )
-                                }
-                            },
-                            onReplyClick = onGoToReply,
-                            onReactionClick = { onReactionClick(lastMsg.id, it) },
-                            onCommentsClick = onCommentsClick,
-                            showComments = showComments,
-                            toProfile = toProfile,
-                            onForwardOriginClick = onForwardOriginClick,
-                            modifier = Modifier.fillMaxWidth(),
-                            fontSize = appearance.fontSize,
-                            bubbleRadius = appearance.bubbleRadius,
-                            downloadUtils = downloadUtils,
-                            isAnyViewerOpen = behavior.isAnyViewerOpen
-                        )
-                    } else {
-                        ChatAlbumMessageBubble(
-                            messages = orderedMessages,
-                            isOutgoing = isOutgoing,
-                            isGroup = behavior.isGroup,
-                            isSameSenderAbove = senderGrouping.isSameSenderAbove,
-                            isSameSenderBelow = senderGrouping.isSameSenderBelow,
-                            autoplayGifs = appearance.autoplayGifs,
-                            autoplayVideos = appearance.autoplayVideos,
-                            autoDownloadMobile = appearance.autoDownloadMobile,
-                            autoDownloadWifi = appearance.autoDownloadWifi,
-                            autoDownloadRoaming = appearance.autoDownloadRoaming,
-                            onPhotoClick = onPhotoClick,
-                            onDownloadPhoto = onDownloadPhoto,
-                            onVideoClick = onVideoClick,
-                            onDocumentClick = onDocumentClick,
-                            onAudioClick = onAudioClick,
-                            onCancelDownload = onCancelDownload,
-                            onLongClick = { offset ->
-                                onReplyClickState(
-                                    layoutTracker.bubblePosition,
-                                    layoutTracker.bubbleSize,
-                                    offset
+                            }
+                        }
+                    ) {
+                        Column {
+                            if (behavior.isChannel) {
+                                ChannelAlbumMessageBubble(
+                                    messages = orderedMessages,
+                                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                                    autoplayGifs = appearance.autoplayGifs,
+                                    autoplayVideos = appearance.autoplayVideos,
+                                    autoDownloadMobile = appearance.autoDownloadMobile,
+                                    autoDownloadWifi = appearance.autoDownloadWifi,
+                                    autoDownloadRoaming = appearance.autoDownloadRoaming,
+                                    onPhotoClick = onPhotoClick,
+                                    onDownloadPhoto = onDownloadPhoto,
+                                    onVideoClick = onVideoClick,
+                                    onDocumentClick = onDocumentClick,
+                                    onAudioClick = onAudioClick,
+                                    onCancelDownload = onCancelDownload,
+                                    onLongClick = { offset ->
+                                        onReplyClickState(
+                                            layoutTracker.bubblePosition,
+                                            layoutTracker.bubbleSize,
+                                            offset
+                                        )
+                                    },
+                                    onMessageLongPress = { tappedMessage, offset ->
+                                        if (onMessageLongPressState != null) {
+                                            onMessageLongPressState?.invoke(
+                                                tappedMessage,
+                                                layoutTracker.bubblePosition,
+                                                layoutTracker.bubbleSize,
+                                                offset
+                                            )
+                                        } else {
+                                            onReplyClickState(
+                                                layoutTracker.bubblePosition,
+                                                layoutTracker.bubbleSize,
+                                                offset
+                                            )
+                                        }
+                                    },
+                                    onReplyClick = onGoToReply,
+                                    onReactionClick = { onReactionClick(lastMsg.id, it) },
+                                    onCommentsClick = onCommentsClick,
+                                    showComments = showComments,
+                                    toProfile = toProfile,
+                                    onForwardOriginClick = onForwardOriginClick,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    fontSize = appearance.fontSize,
+                                    bubbleRadius = appearance.bubbleRadius,
+                                    downloadUtils = downloadUtils,
+                                    isAnyViewerOpen = behavior.isAnyViewerOpen
                                 )
-                            },
-                            onMessageLongPress = { tappedMessage, offset ->
-                                if (onMessageLongPressState != null) {
-                                    onMessageLongPressState?.invoke(
-                                        tappedMessage,
-                                        layoutTracker.bubblePosition,
-                                        layoutTracker.bubbleSize,
-                                        offset
-                                    )
-                                } else {
-                                    onReplyClickState(
-                                        layoutTracker.bubblePosition,
-                                        layoutTracker.bubbleSize,
-                                        offset
-                                    )
-                                }
-                            },
-                            onReplyClick = onGoToReply,
-                            onReactionClick = { onReactionClick(lastMsg.id, it) },
-                            toProfile = toProfile,
-                            onForwardOriginClick = onForwardOriginClick,
-                            modifier = Modifier,
-                            fontSize = appearance.fontSize,
-                            downloadUtils = downloadUtils,
-                            isAnyViewerOpen = behavior.isAnyViewerOpen
-                        )
-                    }
+                            } else {
+                                ChatAlbumMessageBubble(
+                                    messages = orderedMessages,
+                                    isOutgoing = isOutgoing,
+                                    isGroup = behavior.isGroup,
+                                    isSameSenderAbove = senderGrouping.isSameSenderAbove,
+                                    isSameSenderBelow = senderGrouping.isSameSenderBelow,
+                                    autoplayGifs = appearance.autoplayGifs,
+                                    autoplayVideos = appearance.autoplayVideos,
+                                    autoDownloadMobile = appearance.autoDownloadMobile,
+                                    autoDownloadWifi = appearance.autoDownloadWifi,
+                                    autoDownloadRoaming = appearance.autoDownloadRoaming,
+                                    onPhotoClick = onPhotoClick,
+                                    onDownloadPhoto = onDownloadPhoto,
+                                    onVideoClick = onVideoClick,
+                                    onDocumentClick = onDocumentClick,
+                                    onAudioClick = onAudioClick,
+                                    onCancelDownload = onCancelDownload,
+                                    onLongClick = { offset ->
+                                        onReplyClickState(
+                                            layoutTracker.bubblePosition,
+                                            layoutTracker.bubbleSize,
+                                            offset
+                                        )
+                                    },
+                                    onMessageLongPress = { tappedMessage, offset ->
+                                        if (onMessageLongPressState != null) {
+                                            onMessageLongPressState?.invoke(
+                                                tappedMessage,
+                                                layoutTracker.bubblePosition,
+                                                layoutTracker.bubbleSize,
+                                                offset
+                                            )
+                                        } else {
+                                            onReplyClickState(
+                                                layoutTracker.bubblePosition,
+                                                layoutTracker.bubbleSize,
+                                                offset
+                                            )
+                                        }
+                                    },
+                                    onReplyClick = onGoToReply,
+                                    onReactionClick = { onReactionClick(lastMsg.id, it) },
+                                    toProfile = toProfile,
+                                    onForwardOriginClick = onForwardOriginClick,
+                                    modifier = Modifier,
+                                    fontSize = appearance.fontSize,
+                                    downloadUtils = downloadUtils,
+                                    isAnyViewerOpen = behavior.isAnyViewerOpen
+                                )
+                            }
 
-                    lastMsg.replyMarkup?.let { markup ->
-                        ReplyMarkupView(
-                            replyMarkup = markup,
-                            onButtonClick = { onReplyMarkupButtonClick(lastMsg.id, it) }
-                        )
-                    }
+                            lastMsg.replyMarkup?.let { markup ->
+                                ReplyMarkupView(
+                                    replyMarkup = markup,
+                                    onButtonClick = { onReplyMarkupButtonClick(lastMsg.id, it) }
+                                )
+                            }
 
-                    MessageViaBotAttribution(
-                        msg = lastMsg,
-                        isOutgoing = isOutgoing,
-                        onViaBotClick = onViaBotClick,
-                        modifier = Modifier.align(if (isOutgoing) Alignment.End else Alignment.Start)
-                    )
+                            MessageViaBotAttribution(
+                                msg = lastMsg,
+                                isOutgoing = isOutgoing,
+                                onViaBotClick = onViaBotClick,
+                                modifier = Modifier.align(if (isOutgoing) Alignment.End else Alignment.Start)
+                            )
+                        }
+                    }
                 }
 
                 FastReplyIndicator(

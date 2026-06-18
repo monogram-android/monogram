@@ -384,6 +384,7 @@ class ChatStoreFactory(
                     intent.toEpochSeconds
                 )
                 is Intent.ClearHistory -> component.handleClearHistory()
+                is Intent.LeaveChat -> component.handleLeaveChat()
 
                 is Intent.DeleteChat -> component.handleDeleteChat()
 

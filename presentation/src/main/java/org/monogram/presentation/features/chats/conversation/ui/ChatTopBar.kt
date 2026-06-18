@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ExitToApp
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAddCheck
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
@@ -92,6 +93,7 @@ fun ChatTopBar(
     onSearchToggle: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit = {},
     onClearHistory: (() -> Unit)? = null,
+    onLeaveChat: (() -> Unit)? = null,
     onDeleteChat: (() -> Unit)? = null,
     onReport: (() -> Unit)? = null,
     onCopyLink: (() -> Unit)? = null,
@@ -104,6 +106,7 @@ fun ChatTopBar(
 ) {
     var showMenu by rememberSaveable { mutableStateOf(false) }
     var showClearHistorySheet by rememberSaveable { mutableStateOf(false) }
+    var showLeaveChatSheet by rememberSaveable { mutableStateOf(false) }
     var showDeleteChatSheet by rememberSaveable { mutableStateOf(false) }
 
     val windowInsets = WindowInsets.statusBars
@@ -392,6 +395,17 @@ fun ChatTopBar(
                         }
                     )
                 }
+                if (onLeaveChat != null) {
+                    MenuOptionRow(
+                        icon = Icons.AutoMirrored.Rounded.ExitToApp,
+                        title = stringResource(R.string.menu_leave),
+                        destructive = true,
+                        onClick = {
+                            showMenu = false
+                            showLeaveChatSheet = true
+                        }
+                    )
+                }
                 if (onDeleteChat != null) {
                     MenuOptionRow(
                         icon = Icons.Rounded.Delete,
@@ -426,6 +440,20 @@ fun ChatTopBar(
                         showClearHistorySheet = false
                     },
                     onDismiss = { showClearHistorySheet = false }
+                )
+            }
+
+            if (showLeaveChatSheet && onLeaveChat != null) {
+                ConfirmationSheet(
+                    icon = Icons.AutoMirrored.Rounded.ExitToApp,
+                    title = stringResource(R.string.leave_chat_title),
+                    description = stringResource(R.string.leave_chat_confirmation),
+                    confirmText = stringResource(R.string.action_leave),
+                    onConfirm = {
+                        onLeaveChat()
+                        showLeaveChatSheet = false
+                    },
+                    onDismiss = { showLeaveChatSheet = false }
                 )
             }
 

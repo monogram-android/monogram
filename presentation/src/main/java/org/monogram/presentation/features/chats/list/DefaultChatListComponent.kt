@@ -23,7 +23,6 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.ChatModel
-import org.monogram.domain.models.ChatType
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.UpdateState
 import org.monogram.domain.repository.AttachMenuBotRepository
@@ -44,6 +43,8 @@ import org.monogram.presentation.BuildConfig
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
+import org.monogram.presentation.features.chats.common.ChatExitAction
+import org.monogram.presentation.features.chats.common.resolveChatExitAction
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultChatListComponent(
@@ -206,11 +207,15 @@ class DefaultChatListComponent(
             .toSet()
 
         val canPin = selectedChats.all { currentFolderChatIds.contains(it.id) }
-        val canDelete =
-            selectedChats.all { it.canBeDeletedOnlyForSelf || it.canBeDeletedForAllUsers }
         val singleChat = selectedChats.singleOrNull()
+        val singleExitAction = singleChat?.let(::resolveChatListExitAction)
+        val canDelete = when {
+            singleExitAction == ChatExitAction.Delete -> true
+            selectedChats.size > 1 -> selectedChats.all { resolveChatListExitAction(it) == ChatExitAction.Delete }
+            else -> false
+        }
         val canLeave = singleChat?.let {
-            it.isMember && (it.type == ChatType.BASIC_GROUP || it.type == ChatType.SUPERGROUP || it.isChannel)
+            singleExitAction == ChatExitAction.Leave
         } ?: false
         val canClearHistory = singleChat != null
         val canReport = singleChat?.canBeReported ?: false
@@ -1171,6 +1176,16 @@ private fun hasUnreadState(chat: ChatModel): Boolean {
             chat.isMarkedAsUnread ||
             chat.unreadMentionCount > 0 ||
             chat.unreadReactionCount > 0
+}
+
+internal fun resolveChatListExitAction(chat: ChatModel): ChatExitAction {
+    return resolveChatExitAction(
+        isMainChat = true,
+        isGroup = chat.isGroup,
+        isChannel = chat.isChannel,
+        isMember = chat.isMember,
+        canDeleteChat = chat.canBeDeletedOnlyForSelf || chat.canBeDeletedForAllUsers
+    )
 }
 
 internal fun normalizeFolderChats(chats: List<ChatModel>): List<ChatModel> {

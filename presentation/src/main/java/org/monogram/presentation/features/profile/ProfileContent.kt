@@ -76,6 +76,8 @@ import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.core.util.getUserStatusText
+import org.monogram.presentation.features.chats.common.ChatExitAction
+import org.monogram.presentation.features.chats.common.resolveChatExitAction
 import org.monogram.presentation.features.profile.components.LocationViewer
 import org.monogram.presentation.features.profile.components.ProfileHeaderTransformed
 import org.monogram.presentation.features.profile.components.ProfileInfoSection
@@ -209,7 +211,23 @@ fun ProfileContent(component: ProfileComponent) {
     val canEditContactTopBar = !isCurrentUserProfile && !isGroupOrChannel && user?.isContact == true
     val canToggleContactTopBar =
         !isCurrentUserProfile && !isGroupOrChannel && user != null && user.type != UserTypeEnum.BOT
-    val canDeleteTopBar = !isCurrentUserProfile && (!isGroupOrChannel || chat.isMember)
+    val exitAction = remember(
+        chat?.isGroup,
+        chat?.isChannel,
+        chat?.isMember,
+        chat?.canBeDeletedOnlyForSelf,
+        chat?.canBeDeletedForAllUsers
+    ) {
+        resolveChatExitAction(
+            isMainChat = true,
+            isGroup = chat?.isGroup == true,
+            isChannel = chat?.isChannel == true,
+            isMember = chat?.isMember == true,
+            canDeleteChat = chat?.let { it.canBeDeletedOnlyForSelf || it.canBeDeletedForAllUsers } == true
+        )
+    }
+    val canLeaveTopBar = !isCurrentUserProfile && exitAction == ChatExitAction.Leave
+    val canDeleteTopBar = !isCurrentUserProfile && exitAction == ChatExitAction.Delete
     var showLeaveSheet by remember { mutableStateOf(false) }
     var showDeleteChatSheet by remember { mutableStateOf(false) }
     var showBlockSheet by remember { mutableStateOf(false) }
@@ -240,7 +258,8 @@ fun ProfileContent(component: ProfileComponent) {
                     canReport = canReportTopBar,
                     canBlock = canBlockTopBar,
                     isBlocked = state.isBlocked,
-                    canDelete = canDeleteTopBar,
+                    canLeave = canLeaveTopBar,
+                    canDeleteChat = canDeleteTopBar,
                     onSearch = { Toast.makeText(context, searchNotImplemented, Toast.LENGTH_SHORT).show() },
                     onShare = {
                         val valueToCopy = shareLink ?: fallbackShareText
@@ -264,13 +283,8 @@ fun ProfileContent(component: ProfileComponent) {
                     onToggleContact = component::onToggleContact,
                     onReport = component::onShowReport,
                     onBlock = { showBlockSheet = true },
-                    onDelete = {
-                        if (isGroupOrChannel) {
-                            showLeaveSheet = true
-                        } else {
-                            showDeleteChatSheet = true
-                        }
-                    }
+                    onLeave = { showLeaveSheet = true },
+                    onDeleteChat = { showDeleteChatSheet = true }
                 )
             },
             containerColor = dynamicContainerColor
@@ -369,6 +383,7 @@ fun ProfileContent(component: ProfileComponent) {
                                     onToggleMute = component::onToggleMute,
                                     onShowQRCode = component::onShowQRCode,
                                     onEdit = component::onEdit,
+                                    exitAction = exitAction,
                                     onLeave = { showLeaveSheet = true },
                                     onJoin = component::onJoinChat,
                                     onShowLogs = component::onShowLogs,
@@ -417,7 +432,7 @@ fun ProfileContent(component: ProfileComponent) {
             onReport = component::onReport
         )
 
-        if (showLeaveSheet) {
+        if (showLeaveSheet && canLeaveTopBar) {
             ConfirmationSheet(
                 icon = Icons.AutoMirrored.Rounded.ExitToApp,
                 title = stringResource(R.string.leave_chat_title),
@@ -431,7 +446,7 @@ fun ProfileContent(component: ProfileComponent) {
             )
         }
 
-        if (showDeleteChatSheet && !isGroupOrChannel) {
+        if (showDeleteChatSheet && canDeleteTopBar) {
             ConfirmationSheet(
                 icon = Icons.Rounded.Delete,
                 title = stringResource(R.string.delete_chat_title),

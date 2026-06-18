@@ -193,6 +193,7 @@ interface ChatComponent {
     fun onSearchSenderChange(user: UserModel?)
     fun onSearchDateRangeChange(fromEpochSeconds: Int?, toEpochSeconds: Int?)
     fun onClearHistory()
+    fun onLeaveChat()
     fun onDeleteChat()
     fun onReport()
     fun onReportMessage(message: MessageModel)
@@ -373,6 +374,7 @@ interface ChatComponent {
         val invoiceMessageId: Long? = null,
         val mentionSuggestions: List<UserModel> = emptyList(),
         val isMember: Boolean = true,
+        val canDeleteChat: Boolean = false,
         val restrictUserId: Long? = null,
         val inlineBotResults: InlineBotResultsModel? = null,
         val currentInlineBotId: Long? = null,

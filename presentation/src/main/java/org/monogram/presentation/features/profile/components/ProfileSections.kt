@@ -110,6 +110,7 @@ import org.monogram.presentation.core.ui.saveBitmapToGallery
 import org.monogram.presentation.core.ui.shareBitmap
 import org.monogram.presentation.core.util.CountryManager
 import org.monogram.presentation.core.util.OperatorManager
+import org.monogram.presentation.features.chats.common.ChatExitAction
 import org.monogram.presentation.features.profile.ProfileComponent
 import java.util.Calendar
 
@@ -336,6 +337,7 @@ fun ProfileInfoSection(
     onToggleMute: () -> Unit = {},
     onShowQRCode: () -> Unit = {},
     onEdit: () -> Unit = {},
+    exitAction: ChatExitAction = ChatExitAction.None,
     onLeave: () -> Unit = {},
     onJoin: () -> Unit = {},
     onShowLogs: () -> Unit = {},
@@ -428,8 +430,8 @@ fun ProfileInfoSection(
     if (!isCurrentUser) {
         ProfileQuickActions(
             state = state,
-            isGroupOrChannel = isGroupOrChannel,
             isCurrentUser = isCurrentUser,
+            exitAction = exitAction,
             onSendMessage = onSendMessage,
             onLeave = onLeave,
             onJoin = onJoin,
@@ -1092,8 +1094,8 @@ private fun compactTileShape(position: ItemPosition): RoundedCornerShape {
 @Composable
 private fun ProfileQuickActions(
     state: ProfileComponent.State,
-    isGroupOrChannel: Boolean,
     isCurrentUser: Boolean,
+    exitAction: ChatExitAction,
     onSendMessage: () -> Unit,
     onLeave: () -> Unit,
     onJoin: () -> Unit,
@@ -1118,14 +1120,14 @@ private fun ProfileQuickActions(
         )
     }
 
-    if (isGroupOrChannel) {
-        if (chat?.isMember == true) {
+    if (chat?.isGroup == true || chat?.isChannel == true) {
+        if (exitAction == ChatExitAction.Leave) {
             items += QuickActionConfig(
                 icon = Icons.AutoMirrored.Rounded.Logout,
                 label = stringResource(R.string.menu_leave),
                 onClick = onLeave
             )
-        } else {
+        } else if (chat.isMember == false) {
             items += QuickActionConfig(
                 icon = Icons.AutoMirrored.Rounded.Login,
                 label = stringResource(R.string.action_join_chat),

@@ -179,6 +179,7 @@ private fun DefaultChatComponent.updateBaseChatState(chat: ChatModel) {
             typingAction = chat.typingAction,
             viewAsTopics = chat.viewAsTopics,
             isMuted = chat.isMuted,
+            canDeleteChat = chat.canBeDeletedOnlyForSelf || chat.canBeDeletedForAllUsers,
         ).withUnreadSessionFromChat(
             chatUnreadCount = chat.unreadCount,
             chatLastReadInboxMessageId = chat.lastReadInboxMessageId
@@ -224,6 +225,11 @@ internal fun DefaultChatComponent.handleRemoveFromAdBlockWhitelist() {
 
 internal fun DefaultChatComponent.handleClearHistory() {
     chatOperationsRepository.clearChatHistory(chatId, true)
+}
+
+internal fun DefaultChatComponent.handleLeaveChat() {
+    chatOperationsRepository.leaveChat(chatId)
+    onBackClicked()
 }
 
 internal fun DefaultChatComponent.handleDeleteChat() {

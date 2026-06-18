@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ExitToApp
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Delete
@@ -92,7 +93,8 @@ fun ProfileTopBar(
     canReport: Boolean = false,
     canBlock: Boolean = false,
     isBlocked: Boolean = false,
-    canDelete: Boolean = false,
+    canLeave: Boolean = false,
+    canDeleteChat: Boolean = false,
     onSearch: () -> Unit = {},
     onShare: () -> Unit = {},
     onEdit: () -> Unit = {},
@@ -100,11 +102,12 @@ fun ProfileTopBar(
     onToggleContact: () -> Unit = {},
     onReport: () -> Unit = {},
     onBlock: () -> Unit = {},
-    onDelete: () -> Unit = {}
+    onLeave: () -> Unit = {},
+    onDeleteChat: () -> Unit = {}
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val hasMenuActions =
-        canShare || canEdit || canEditContact || canToggleContact || canReport || canBlock || canDelete
+        canShare || canEdit || canEditContact || canToggleContact || canReport || canBlock || canLeave || canDeleteChat
     val iconButtonShapes = ExpressiveDefaults.iconButtonShapes()
     val hasTextStatusBadges = isBot || isScam || isFake
     val shouldCompactTopBar = hasTextStatusBadges && (title.length >= 18 || canSearch || hasMenuActions)
@@ -353,18 +356,25 @@ fun ProfileTopBar(
                                     }
                                 )
                             }
-                            if (canDelete) {
+                            if (canLeave) {
                                 MenuOptionRow(
-                                    icon = Icons.Rounded.Delete,
-                                    title = if (chatModel?.isGroup == true || chatModel?.isChannel == true) stringResource(
-                                        R.string.menu_leave
-                                    ) else stringResource(
-                                        R.string.menu_delete_chat
-                                    ),
+                                    icon = Icons.AutoMirrored.Rounded.ExitToApp,
+                                    title = stringResource(R.string.menu_leave),
                                     destructive = true,
                                     onClick = {
                                         showMenu = false
-                                        onDelete()
+                                        onLeave()
+                                    }
+                                )
+                            }
+                            if (canDeleteChat) {
+                                MenuOptionRow(
+                                    icon = Icons.Rounded.Delete,
+                                    title = stringResource(R.string.menu_delete_chat),
+                                    destructive = true,
+                                    onClick = {
+                                        showMenu = false
+                                        onDeleteChat()
                                     }
                                 )
                             }

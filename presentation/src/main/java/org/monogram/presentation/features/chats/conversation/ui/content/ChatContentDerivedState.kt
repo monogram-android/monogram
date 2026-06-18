@@ -361,6 +361,8 @@ internal fun rememberChatTopBarUiState(
         state.isMuted,
         state.isSearchActive,
         state.searchQuery,
+        state.isMember,
+        state.canDeleteChat,
         state.pinnedMessage,
         state.pinnedMessageCount
     ) {
@@ -389,6 +391,8 @@ internal fun rememberChatTopBarUiState(
             isMuted = state.isMuted,
             isSearchActive = state.isSearchActive,
             searchQuery = state.searchQuery,
+            isMember = state.isMember,
+            canDeleteChat = state.canDeleteChat,
             pinnedMessage = if (state.isSearchActive) null else state.pinnedMessage,
             pinnedMessageCount = if (state.isSearchActive) 0 else state.pinnedMessageCount
         )

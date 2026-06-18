@@ -876,6 +876,9 @@ class DefaultProfileComponent(
     override fun onDeleteChat() {
         scope.launch {
             chatOperationsRepository.deleteChats(setOf(chatId))
+            withContext(Dispatchers.Main) {
+                onBackClicked()
+            }
         }
     }
 
@@ -954,6 +957,9 @@ class DefaultProfileComponent(
         scope.launch {
             chatOperationsRepository.leaveChat(chatId)
             updateChat(chatId)
+            withContext(Dispatchers.Main) {
+                onBackClicked()
+            }
         }
     }
 

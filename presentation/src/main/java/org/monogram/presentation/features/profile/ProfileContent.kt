@@ -76,15 +76,17 @@ import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.core.util.ScrollStrategy
 import org.monogram.presentation.core.util.getUserStatusText
+import org.monogram.presentation.features.chats.common.ChatActionScreenContext
+import org.monogram.presentation.features.chats.common.ChatActionState
 import org.monogram.presentation.features.chats.common.ChatExitAction
-import org.monogram.presentation.features.chats.common.resolveChatExitAction
+import org.monogram.presentation.features.chats.common.resolveChatActionPolicy
+import org.monogram.presentation.features.chats.conversation.ui.content.ReportChatDialog
 import org.monogram.presentation.features.profile.components.LocationViewer
 import org.monogram.presentation.features.profile.components.ProfileHeaderTransformed
 import org.monogram.presentation.features.profile.components.ProfileInfoSection
 import org.monogram.presentation.features.profile.components.ProfileInfoSectionSkeleton
 import org.monogram.presentation.features.profile.components.ProfilePermissionsDialog
 import org.monogram.presentation.features.profile.components.ProfileQRDialog
-import org.monogram.presentation.features.profile.components.ProfileReportDialog
 import org.monogram.presentation.features.profile.components.ProfileTOSDialog
 import org.monogram.presentation.features.profile.components.ProfileTopBar
 import org.monogram.presentation.features.profile.components.StatisticsViewer
@@ -211,23 +213,33 @@ fun ProfileContent(component: ProfileComponent) {
     val canEditContactTopBar = !isCurrentUserProfile && !isGroupOrChannel && user?.isContact == true
     val canToggleContactTopBar =
         !isCurrentUserProfile && !isGroupOrChannel && user != null && user.type != UserTypeEnum.BOT
-    val exitAction = remember(
+    val actionPolicy = remember(
         chat?.isGroup,
         chat?.isChannel,
         chat?.isMember,
         chat?.canBeDeletedOnlyForSelf,
-        chat?.canBeDeletedForAllUsers
+        chat?.canBeDeletedForAllUsers,
+        chat?.canBeReported,
+        user?.id,
+        isCurrentUserProfile
     ) {
-        resolveChatExitAction(
+        resolveChatActionPolicy(
             isMainChat = true,
             isGroup = chat?.isGroup == true,
             isChannel = chat?.isChannel == true,
             isMember = chat?.isMember == true,
-            canDeleteChat = chat?.let { it.canBeDeletedOnlyForSelf || it.canBeDeletedForAllUsers } == true
+            canDeleteChat = chat?.let { it.canBeDeletedOnlyForSelf || it.canBeDeletedForAllUsers } == true,
+            canReport = chat?.canBeReported == true,
+            canJoin = (chat?.isGroup == true || chat?.isChannel == true) && chat?.isMember == false,
+            canBlockOrUnblock = !isCurrentUserProfile && !isGroupOrChannel && user?.type != UserTypeEnum.BOT,
+            canPin = false,
+            context = ChatActionScreenContext.Profile
         )
     }
+    val exitAction = actionPolicy.exitAction
     val canLeaveTopBar = !isCurrentUserProfile && exitAction == ChatExitAction.Leave
     val canDeleteTopBar = !isCurrentUserProfile && exitAction == ChatExitAction.Delete
+    val isActionPending = state.actionState is ChatActionState.Pending
     var showLeaveSheet by remember { mutableStateOf(false) }
     var showDeleteChatSheet by remember { mutableStateOf(false) }
     var showBlockSheet by remember { mutableStateOf(false) }
@@ -281,7 +293,7 @@ fun ProfileContent(component: ProfileComponent) {
                         showEditContactDialog = true
                     },
                     onToggleContact = component::onToggleContact,
-                    onReport = component::onShowReport,
+                    onReport = if (!isActionPending) ({ component.onShowReport() }) else ({}),
                     onBlock = { showBlockSheet = true },
                     onLeave = { showLeaveSheet = true },
                     onDeleteChat = { showDeleteChatSheet = true }
@@ -385,7 +397,7 @@ fun ProfileContent(component: ProfileComponent) {
                                     onEdit = component::onEdit,
                                     exitAction = exitAction,
                                     onLeave = { showLeaveSheet = true },
-                                    onJoin = component::onJoinChat,
+                                    onJoin = if (!isActionPending) ({ component.onJoinChat() }) else ({}),
                                     onShowLogs = component::onShowLogs,
                                     onShowStatistics = component::onShowStatistics,
                                     onShowRevenueStatistics = component::onShowRevenueStatistics,
@@ -426,11 +438,12 @@ fun ProfileContent(component: ProfileComponent) {
             onDismiss = component::onDismissQRCode
         )
 
-        ProfileReportDialog(
-            state = state,
-            onDismiss = component::onDismissReport,
-            onReport = component::onReport
-        )
+        if (state.isReportVisible) {
+            ReportChatDialog(
+                onDismiss = component::onDismissReport,
+                onReasonSelected = component::onReport
+            )
+        }
 
         if (showLeaveSheet && canLeaveTopBar) {
             ConfirmationSheet(
@@ -440,7 +453,6 @@ fun ProfileContent(component: ProfileComponent) {
                 confirmText = stringResource(R.string.action_leave),
                 onConfirm = {
                     component.onLeave()
-                    showLeaveSheet = false
                 },
                 onDismiss = { showLeaveSheet = false }
             )
@@ -454,7 +466,6 @@ fun ProfileContent(component: ProfileComponent) {
                 confirmText = stringResource(R.string.action_delete_chat),
                 onConfirm = {
                     component.onDeleteChat()
-                    showDeleteChatSheet = false
                 },
                 onDismiss = { showDeleteChatSheet = false }
             )
@@ -470,7 +481,6 @@ fun ProfileContent(component: ProfileComponent) {
                 confirmText = if (state.isBlocked) stringResource(R.string.privacy_unblock_action) else stringResource(R.string.action_block),
                 onConfirm = {
                     component.onToggleBlockUser()
-                    showBlockSheet = false
                 },
                 onDismiss = { showBlockSheet = false },
                 isDestructive = !state.isBlocked

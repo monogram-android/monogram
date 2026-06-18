@@ -148,6 +148,8 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
+import org.monogram.presentation.features.chats.common.ChatActionState
+import org.monogram.presentation.features.chats.conversation.ui.content.ReportChatDialog
 import org.monogram.presentation.features.chats.conversation.ui.message.getEmojiFontFamily
 import org.monogram.presentation.features.chats.list.components.AccountMenu
 import org.monogram.presentation.features.chats.list.components.ArchiveHeaderCard
@@ -188,6 +190,7 @@ fun ChatListContent(component: ChatListComponent) {
     var showDeleteChatsSheet by remember { mutableStateOf(false) }
     var showLeaveChatSheet by remember { mutableStateOf(false) }
     var showClearHistorySheet by remember { mutableStateOf(false) }
+    var showReportSheet by remember { mutableStateOf(false) }
     var forwardCommentText by remember { mutableStateOf("") }
     var forwardSendCopy by remember { mutableStateOf(false) }
     var forwardRemoveCaption by remember { mutableStateOf(false) }
@@ -207,6 +210,8 @@ fun ChatListContent(component: ChatListComponent) {
 
     val isPermissionRequested by component.appPreferences.isPermissionRequested.collectAsState()
     var showPermissionRequest by remember { mutableStateOf(!isPermissionRequested) }
+    val fullState by component.state.collectAsState()
+    val isActionPending = fullState.actionState is ChatActionState.Pending
 
     val adaptiveInfo = currentWindowAdaptiveInfo()
     val isTabletInterfaceEnabled = LocalTabletInterfaceEnabled.current
@@ -994,7 +999,6 @@ fun ChatListContent(component: ChatListComponent) {
             confirmText = stringResource(R.string.action_leave),
             onConfirm = {
                 component.onLeaveSelected()
-                showLeaveChatSheet = false
             },
             onDismiss = { showLeaveChatSheet = false }
         )
@@ -1007,10 +1011,18 @@ fun ChatListContent(component: ChatListComponent) {
             description = stringResource(R.string.clear_history_confirmation),
             confirmText = stringResource(R.string.action_clear_history),
             onConfirm = {
-                component.onClearHistorySelected(revoke = false)
-                showClearHistorySheet = false
+                component.onClearHistorySelected(revoke = true)
             },
             onDismiss = { showClearHistorySheet = false }
+        )
+    }
+    if (showReportSheet) {
+        ReportChatDialog(
+            onDismiss = { showReportSheet = false },
+            onReasonSelected = { reason ->
+                component.onReportSelected(reason)
+                showReportSheet = false
+            }
         )
     }
 
@@ -1033,6 +1045,7 @@ fun ChatListContent(component: ChatListComponent) {
         visible = showSelectionActionsMenu,
         selectionState = selectionState,
         isInArchive = foldersState.selectedFolderId == -2,
+        isActionPending = isActionPending,
         onDismiss = { showSelectionActionsMenu = false },
         onPin = {
             showSelectionActionsMenu = false
@@ -1056,7 +1069,7 @@ fun ChatListContent(component: ChatListComponent) {
         },
         onReport = {
             showSelectionActionsMenu = false
-            component.onReportSelected("other")
+            showReportSheet = true
         },
         onLeave = {
             showSelectionActionsMenu = false
@@ -1118,6 +1131,7 @@ private fun SelectionActionsPopup(
     visible: Boolean,
     selectionState: ChatListComponent.SelectionState,
     isInArchive: Boolean,
+    isActionPending: Boolean,
     onDismiss: () -> Unit,
     onPin: () -> Unit,
     onMute: () -> Unit,
@@ -1166,21 +1180,21 @@ private fun SelectionActionsPopup(
             enabled = capabilities.canToggleRead,
             onClick = onToggleRead
         )
-        if (capabilities.canClearHistory) {
+        if (capabilities.canClearHistory && !isActionPending) {
             MenuOptionRow(
                 icon = Icons.Rounded.CleaningServices,
                 title = stringResource(R.string.menu_clear_history),
                 onClick = onClearHistory
             )
         }
-        if (capabilities.canReport) {
+        if (capabilities.canReport && !isActionPending) {
             MenuOptionRow(
                 icon = Icons.Rounded.Report,
                 title = stringResource(R.string.menu_report),
                 onClick = onReport
             )
         }
-        if (capabilities.canLeave) {
+        if (capabilities.canLeave && !isActionPending) {
             MenuOptionRow(
                 icon = Icons.AutoMirrored.Rounded.ExitToApp,
                 title = stringResource(R.string.menu_leave),

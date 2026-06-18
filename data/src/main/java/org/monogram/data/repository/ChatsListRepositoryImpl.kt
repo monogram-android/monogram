@@ -700,26 +700,22 @@ class ChatsListRepositoryImpl(
         return searchManager.searchMessages(query, offset, limit)
     }
 
-    override fun toggleMuteChats(chatIds: Set<Long>, mute: Boolean) {
+    override suspend fun toggleMuteChats(chatIds: Set<Long>, mute: Boolean) {
         val muteFor = if (mute) Int.MAX_VALUE else 0
         chatIds.forEach { chatId ->
-            scope.launch(dispatchers.io) {
-                chatRemoteSource.muteChat(chatId, muteFor)
-                refreshChat(chatId)
-            }
+            chatRemoteSource.muteChat(chatId, muteFor)
+            refreshChat(chatId)
         }
     }
 
-    override fun toggleArchiveChats(chatIds: Set<Long>, archive: Boolean) {
+    override suspend fun toggleArchiveChats(chatIds: Set<Long>, archive: Boolean) {
         chatIds.forEach { chatId ->
-            scope.launch(dispatchers.io) {
-                chatRemoteSource.archiveChat(chatId, archive)
-                refreshChat(chatId)
-            }
+            chatRemoteSource.archiveChat(chatId, archive)
+            refreshChat(chatId)
         }
     }
 
-    override fun togglePinChats(chatIds: Set<Long>, pin: Boolean, folderId: Int) {
+    override suspend fun togglePinChats(chatIds: Set<Long>, pin: Boolean, folderId: Int) {
         val chatList: TdApi.ChatList = when (folderId) {
             -1 -> TdApi.ChatListMain()
             -2 -> TdApi.ChatListArchive()
@@ -727,23 +723,19 @@ class ChatsListRepositoryImpl(
         }
 
         chatIds.forEach { chatId ->
-            scope.launch(dispatchers.io) {
-                chatRemoteSource.toggleChatIsPinned(chatList, chatId, pin)
-                refreshChat(chatId)
-            }
+            chatRemoteSource.toggleChatIsPinned(chatList, chatId, pin)
+            refreshChat(chatId)
         }
     }
 
-    override fun toggleReadChats(chatIds: Set<Long>, markAsUnread: Boolean) {
+    override suspend fun toggleReadChats(chatIds: Set<Long>, markAsUnread: Boolean) {
         chatIds.forEach { chatId ->
-            scope.launch(dispatchers.io) {
-                if (markAsUnread) {
-                    chatRemoteSource.toggleChatIsMarkedAsUnread(chatId, true)
-                } else {
-                    chatRemoteSource.markChatAsRead(chatId)
-                }
-                refreshChat(chatId)
+            if (markAsUnread) {
+                chatRemoteSource.toggleChatIsMarkedAsUnread(chatId, true)
+            } else {
+                chatRemoteSource.markChatAsRead(chatId)
             }
+            refreshChat(chatId)
         }
     }
 
@@ -760,29 +752,23 @@ class ChatsListRepositoryImpl(
         markChatsAsRead(chatIds)
     }
 
-    override fun deleteChats(chatIds: Set<Long>) {
+    override suspend fun deleteChats(chatIds: Set<Long>) {
         chatIds.forEach { chatId ->
-            scope.launch(dispatchers.io) {
-                chatRemoteSource.deleteChat(chatId)
-                triggerUpdate(chatId)
-            }
+            chatRemoteSource.deleteChat(chatId)
+            triggerUpdate(chatId)
         }
     }
 
-    override fun leaveChats(chatIds: Set<Long>) {
+    override suspend fun leaveChats(chatIds: Set<Long>) {
         chatIds.forEach { chatId ->
-            scope.launch(dispatchers.io) {
-                chatRemoteSource.leaveChat(chatId)
-                refreshChat(chatId)
-            }
-        }
-    }
-
-    override fun leaveChat(chatId: Long) {
-        scope.launch(dispatchers.io) {
             chatRemoteSource.leaveChat(chatId)
             refreshChat(chatId)
         }
+    }
+
+    override suspend fun leaveChat(chatId: Long) {
+        chatRemoteSource.leaveChat(chatId)
+        refreshChat(chatId)
     }
 
     override fun setArchivePinned(pinned: Boolean) {
@@ -834,19 +820,15 @@ class ChatsListRepositoryImpl(
         refreshChat(chatId)
     }
 
-    override fun clearChatHistory(chatId: Long, revoke: Boolean) {
-        scope.launch(dispatchers.io) {
-            chatRemoteSource.clearChatHistory(chatId, revoke)
-            refreshChat(chatId)
-        }
+    override suspend fun clearChatHistory(chatId: Long, revoke: Boolean) {
+        chatRemoteSource.clearChatHistory(chatId, revoke)
+        refreshChat(chatId)
     }
 
-    override fun clearChatHistories(chatIds: Set<Long>, revoke: Boolean) {
+    override suspend fun clearChatHistories(chatIds: Set<Long>, revoke: Boolean) {
         chatIds.forEach { chatId ->
-            scope.launch(dispatchers.io) {
-                chatRemoteSource.clearChatHistory(chatId, revoke)
-                refreshChat(chatId)
-            }
+            chatRemoteSource.clearChatHistory(chatId, revoke)
+            refreshChat(chatId)
         }
     }
 
@@ -854,17 +836,13 @@ class ChatsListRepositoryImpl(
         return chatRemoteSource.getChatLink(chatId)
     }
 
-    override fun reportChat(chatId: Long, reason: String, messageIds: List<Long>) {
-        scope.launch(dispatchers.io) {
-            chatRemoteSource.reportChat(chatId, reason, messageIds)
-        }
+    override suspend fun reportChat(chatId: Long, reason: String, messageIds: List<Long>) {
+        chatRemoteSource.reportChat(chatId, reason, messageIds)
     }
 
-    override fun reportChats(chatIds: Set<Long>, reason: String, messageIds: List<Long>) {
+    override suspend fun reportChats(chatIds: Set<Long>, reason: String, messageIds: List<Long>) {
         chatIds.forEach { chatId ->
-            scope.launch(dispatchers.io) {
-                chatRemoteSource.reportChat(chatId, reason, messageIds)
-            }
+            chatRemoteSource.reportChat(chatId, reason, messageIds)
         }
     }
 

@@ -29,6 +29,7 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
+import org.monogram.presentation.features.chats.common.ChatActionState
 import java.io.File
 
 @Stable
@@ -364,6 +365,7 @@ interface ChatComponent {
         val searchDateFromEpochSeconds: Int? = null,
         val searchDateToEpochSeconds: Int? = null,
         val showReportDialog: Boolean = false,
+        val actionState: ChatActionState = ChatActionState.Idle,
         val isBot: Boolean = false,
         val botCommands: List<BotCommandModel> = emptyList(),
         val botMenuButton: BotMenuButtonModel = BotMenuButtonModel.Default,

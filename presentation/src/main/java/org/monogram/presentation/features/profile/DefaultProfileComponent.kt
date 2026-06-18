@@ -41,6 +41,8 @@ import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
+import org.monogram.presentation.features.chats.common.ChatActionState
+import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultProfileComponent(
@@ -71,6 +73,7 @@ class DefaultProfileComponent(
     private val gifRepository: GifRepository = container.repositories.gifRepository
     private val botPreferences: BotPreferencesProvider = container.preferences.botPreferencesProvider
     private val stringProvider = container.utils.stringProvider()
+    private val messageDisplayer = container.utils.messageDisplayer()
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
 
     private val scope = componentScope
@@ -837,7 +840,7 @@ class DefaultProfileComponent(
         val chat = _state.value.chat ?: return
         val shouldMute = !chat.isMuted
 
-        scope.launch {
+        runAction(ChatActionType.Mute) {
             chatOperationsRepository.toggleMuteChats(setOf(chatId), shouldMute)
             updateChat(chatId)
         }
@@ -862,7 +865,7 @@ class DefaultProfileComponent(
     override fun onToggleBlockUser() {
         val userId = _state.value.user?.id ?: return
         val shouldBlock = !_state.value.isBlocked
-        scope.launch {
+        runAction(if (shouldBlock) ChatActionType.BlockUser else ChatActionType.UnblockUser) {
             if (shouldBlock) {
                 privacyRepository.blockUser(userId)
             } else {
@@ -874,11 +877,8 @@ class DefaultProfileComponent(
     }
 
     override fun onDeleteChat() {
-        scope.launch {
+        runAction(ChatActionType.Delete, closeOnSuccess = true) {
             chatOperationsRepository.deleteChats(setOf(chatId))
-            withContext(Dispatchers.Main) {
-                onBackClicked()
-            }
         }
     }
 
@@ -954,28 +954,23 @@ class DefaultProfileComponent(
     }
 
     override fun onLeave() {
-        scope.launch {
+        runAction(ChatActionType.Leave, closeOnSuccess = true) {
             chatOperationsRepository.leaveChat(chatId)
             updateChat(chatId)
-            withContext(Dispatchers.Main) {
-                onBackClicked()
-            }
         }
     }
 
     override fun onJoinChat() {
-        scope.launch {
+        runAction(ChatActionType.Join) {
             messageRepository.joinChat(chatId)
             updateChat(chatId)
         }
     }
 
     override fun onReport(reason: String) {
-        scope.launch(Dispatchers.IO) {
+        runAction(ChatActionType.Report) {
             chatOperationsRepository.reportChat(chatId, reason)
-            withContext(Dispatchers.Main) {
-                _state.update { it.copy(isReportVisible = false) }
-            }
+            _state.update { it.copy(isReportVisible = false) }
         }
     }
 
@@ -1306,6 +1301,37 @@ class DefaultProfileComponent(
                     )
                 }
             }
+        }
+    }
+
+    private fun runAction(
+        action: ChatActionType,
+        closeOnSuccess: Boolean = false,
+        block: suspend () -> Unit
+    ) {
+        if (_state.value.actionState is ChatActionState.Pending) return
+        scope.launch {
+            _state.update { it.copy(actionState = ChatActionState.Pending(action)) }
+            runCatching { block() }
+                .onSuccess {
+                    _state.update { it.copy(actionState = ChatActionState.Success(action)) }
+                    if (closeOnSuccess) {
+                        onBackClicked()
+                    }
+                }
+                .onFailure { error ->
+                    val message = error.message ?: "Action failed"
+                    _state.update {
+                        it.copy(
+                            actionState = ChatActionState.Failure(
+                                action,
+                                message
+                            )
+                        )
+                    }
+                    messageDisplayer.show(message)
+                }
+            _state.update { it.copy(actionState = ChatActionState.Idle) }
         }
     }
 }

@@ -392,7 +392,9 @@ internal fun DefaultChatComponent.handleUnpinMessage(message: MessageModel) {
 }
 
 internal fun DefaultChatComponent.handleClearMessages() {
-    chatOperationsRepository.clearChatHistory(chatId, false)
+    scope.launch {
+        chatOperationsRepository.clearChatHistory(chatId, false)
+    }
 }
 
 internal fun DefaultChatComponent.handleSendScheduledNow(message: MessageModel) {

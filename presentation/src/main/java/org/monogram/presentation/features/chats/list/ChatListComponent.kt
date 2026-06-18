@@ -13,6 +13,7 @@ import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.domain.repository.ForwardTarget
 import org.monogram.presentation.core.util.AppPreferences
+import org.monogram.presentation.features.chats.common.ChatActionState
 
 interface ChatListComponent {
     val state: StateFlow<State>
@@ -118,7 +119,8 @@ interface ChatListComponent {
         val webAppBotName: String? = null,
         val webViewUrl: String? = null,
         val updateState: UpdateState = UpdateState.Idle,
-        val scrollPositions: Map<Int, Pair<Int, Int>> = emptyMap()
+        val scrollPositions: Map<Int, Pair<Int, Int>> = emptyMap(),
+        val actionState: ChatActionState = ChatActionState.Idle
     ) {
         val chats: List<ChatModel> get() = chatsByFolder[selectedFolderId].orEmpty()
         val isLoading: Boolean get() = isLoadingByFolder[selectedFolderId] ?: false

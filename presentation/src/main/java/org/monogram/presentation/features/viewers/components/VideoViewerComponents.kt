@@ -176,6 +176,7 @@ fun VideoPage(
 
     val dateFormatManager: DateFormatManager = koinInject()
     val timeFormat = dateFormatManager.getHourMinuteFormat()
+    val initialDeviceSettings = remember(context) { captureViewerDeviceSettings(context) }
 
     val currentOnDismiss by rememberUpdatedState(onDismiss)
     val currentOnToggleControls by rememberUpdatedState(onToggleControls)
@@ -297,6 +298,7 @@ fun VideoPage(
             lifecycleOwner.lifecycle.removeObserver(observer)
             exoPlayer.removeListener(listener)
             exoPlayer.release()
+            initialDeviceSettings.restore(context)
         }
     }
 

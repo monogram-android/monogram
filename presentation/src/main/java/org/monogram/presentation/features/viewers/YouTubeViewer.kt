@@ -93,6 +93,7 @@ import org.monogram.presentation.features.viewers.components.SeekFeedback
 import org.monogram.presentation.features.viewers.components.YouTubePlayerControlsUI
 import org.monogram.presentation.features.viewers.components.YouTubeSettingsMenu
 import org.monogram.presentation.features.viewers.components.baseQualityLabel
+import org.monogram.presentation.features.viewers.components.captureViewerDeviceSettings
 import org.monogram.presentation.features.viewers.components.enterPipMode
 import org.monogram.presentation.features.viewers.components.findActivity
 import org.monogram.presentation.features.viewers.components.normalizeYouTubeQualityCode
@@ -142,6 +143,7 @@ fun YouTubeViewer(
     val timeFormat = dateFormatManager.getHourMinuteFormat()
     val lifecycleOwner = LocalLifecycleOwner.current
     val playerState = remember { YouTubePlayerState() }
+    val initialDeviceSettings = remember(context) { captureViewerDeviceSettings(context) }
     var isInPipMode by remember { mutableStateOf(false) }
     var showControls by remember { mutableStateOf(true) }
     var showSettingsMenu by remember { mutableStateOf(false) }
@@ -369,6 +371,7 @@ fun YouTubeViewer(
                     show(WindowInsetsCompat.Type.systemBars())
                 }
             }
+            initialDeviceSettings.restore(context)
             webView.stopLoading()
             webView.onPause()
             webView.destroy()
@@ -576,9 +579,48 @@ fun YouTubeViewer(
                         )
                     }
                     .pointerInput(playerState.isLocked) {
+                        var dragOnLeft = false
+                        var dragOnRight = false
+                        var startBrightness = 0.5f
+                        var startVolume = 0
+                        var maxVolume = 1
+                        var accumulatedDragY = 0f
+                        var lastAppliedVolume = -1
                         detectVerticalDragGestures(
-                            onDragStart = { if (!playerState.isLocked) showGestureOverlay = true },
+                            onDragStart = { change ->
+                                accumulatedDragY = 0f
+                                if (!playerState.isLocked) {
+                                    showGestureOverlay = true
+                                    val width = size.width
+                                    dragOnLeft = change.x < width / 2
+                                    dragOnRight = !dragOnLeft
+
+                                    if (dragOnLeft) {
+                                        val brightness =
+                                            context.findActivity()?.window?.attributes?.screenBrightness
+                                        startBrightness =
+                                            (brightness?.takeIf { it != -1f } ?: 0.5f).coerceIn(
+                                                0f,
+                                                1f
+                                            )
+                                    }
+
+                                    if (dragOnRight) {
+                                        val audioManager =
+                                            context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                                        maxVolume =
+                                            audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                                .coerceAtLeast(1)
+                                        startVolume =
+                                            audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                        lastAppliedVolume = startVolume
+                                    }
+                                }
+                            },
                             onDragEnd = {
+                                dragOnLeft = false
+                                dragOnRight = false
+                                accumulatedDragY = 0f
                                 if (isLongPressing) {
                                     playerState.playbackSpeed = originalSpeed.floatValue
                                     isLongPressing = false
@@ -586,6 +628,9 @@ fun YouTubeViewer(
                                 showGestureOverlay = false
                             },
                             onDragCancel = {
+                                dragOnLeft = false
+                                dragOnRight = false
+                                accumulatedDragY = 0f
                                 if (isLongPressing) {
                                     playerState.playbackSpeed = originalSpeed.floatValue
                                     isLongPressing = false
@@ -594,36 +639,33 @@ fun YouTubeViewer(
                             }
                         ) { change, dragAmount ->
                             if (!playerState.isLocked && !isLongPressing) {
-                                val width = size.width
-                                val isLeft = change.position.x < width / 2
+                                accumulatedDragY += dragAmount
                                 val activity = context.findActivity()
 
-                                if (isLeft && activity != null) {
+                                if (dragOnLeft && activity != null) {
                                     val lp = activity.window.attributes
-                                    var newBrightness =
-                                        (lp.screenBrightness.takeIf { it != -1f }
-                                            ?: 0.5f) - (dragAmount / 1000f)
+                                    var newBrightness = startBrightness - (accumulatedDragY / 1000f)
                                     newBrightness = newBrightness.coerceIn(0f, 1f)
                                     lp.screenBrightness = newBrightness
                                     activity.window.attributes = lp
                                     gestureIcon = Icons.Rounded.BrightnessMedium
                                     gestureText = "${(newBrightness * 100).toInt()}%"
-                                } else {
+                                } else if (dragOnRight) {
                                     val audioManager =
                                         context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                                    val maxVol =
-                                        audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                                    val currentVol =
-                                        audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                    val delta = -(dragAmount / 50f)
-                                    val newVol = (currentVol + delta).coerceIn(0f, maxVol.toFloat())
-                                    audioManager.setStreamVolume(
-                                        AudioManager.STREAM_MUSIC,
-                                        newVol.toInt(),
-                                        0
-                                    )
+                                    val delta = (-accumulatedDragY / 50f).toInt()
+                                    val newVol = (startVolume + delta).coerceIn(0, maxVolume)
+                                    if (newVol != lastAppliedVolume) {
+                                        audioManager.setStreamVolume(
+                                            AudioManager.STREAM_MUSIC,
+                                            newVol,
+                                            0
+                                        )
+                                        lastAppliedVolume = newVol
+                                    }
                                     gestureIcon = Icons.AutoMirrored.Rounded.VolumeUp
-                                    gestureText = "${((newVol / maxVol) * 100).toInt()}%"
+                                    gestureText =
+                                        "${((newVol.toFloat() / maxVolume) * 100).toInt()}%"
                                 }
                             }
                         }

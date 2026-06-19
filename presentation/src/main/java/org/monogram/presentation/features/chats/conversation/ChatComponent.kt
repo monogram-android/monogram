@@ -30,6 +30,10 @@ import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.common.ChatActionState
+import org.monogram.presentation.features.share.IncomingShareRequest
+import org.monogram.presentation.features.share.PendingAttachment
+import org.monogram.presentation.features.share.PendingAttachmentKind
+import org.monogram.presentation.features.share.isDocument
 import java.io.File
 
 @Stable
@@ -232,6 +236,17 @@ interface ChatComponent {
     fun onLoadMoreInlineResults(offset: String)
     fun onSendInlineResult(resultId: String)
     fun onOpenAttachBot(botUserId: Long, fallbackName: String)
+    fun onStageAttachments(attachments: List<PendingAttachment>)
+    fun onClearPendingAttachments()
+    fun onConsumeInitialShare(requestId: Long)
+    fun onRemovePendingAttachment(path: String)
+    fun onReplacePendingAttachment(oldPath: String, attachment: PendingAttachment)
+    fun onSendPendingAttachments(
+        attachments: List<PendingAttachment>,
+        caption: String,
+        captionEntities: List<MessageEntity> = emptyList(),
+        sendOptions: MessageSendOptions = MessageSendOptions()
+    )
 
     @Stable
     data class State(
@@ -280,6 +295,9 @@ interface ChatComponent {
         val isDraftLinkPreviewLoading: Boolean = false,
         val draftLinkPreviewError: String? = null,
         val isDraftLinkPreviewDisabledForSend: Boolean = false,
+        val initialShare: IncomingShareRequest? = null,
+        val initialShareConsumed: Boolean = false,
+        val stagedAttachments: List<PendingAttachment> = emptyList(),
         val pinnedMessage: MessageModel? = null,
         val allPinnedMessages: List<MessageModel> = emptyList(),
         val showPinnedMessagesList: Boolean = false,
@@ -388,5 +406,15 @@ interface ChatComponent {
         val scheduledMessages: List<MessageModel> = emptyList(),
         val lastReadInboxMessageId: Long = 0L,
         val unreadSeparatorLastReadInboxMessageId: Long = 0L,
-    )
+    ) {
+        val pendingMediaPaths: List<String>
+            get() = stagedAttachments.filterNot(PendingAttachment::isDocument).map { it.localPath }
+
+        val pendingDocumentPaths: List<String>
+            get() = stagedAttachments.filter(PendingAttachment::isDocument).map { it.localPath }
+
+        val hasMixedPendingAttachments: Boolean
+            get() = stagedAttachments.any { it.kind == PendingAttachmentKind.DOCUMENT } &&
+                    stagedAttachments.any { it.kind != PendingAttachmentKind.DOCUMENT }
+    }
 }

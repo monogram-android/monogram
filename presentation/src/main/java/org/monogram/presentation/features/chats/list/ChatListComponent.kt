@@ -14,6 +14,7 @@ import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.domain.repository.ForwardTarget
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.features.chats.common.ChatActionState
+import org.monogram.presentation.features.share.ShareTarget
 
 interface ChatListComponent {
     val state: StateFlow<State>
@@ -56,6 +57,8 @@ interface ChatListComponent {
         commentText: String = "",
         commentEntities: List<MessageEntity> = emptyList()
     )
+    fun onShareTopicSelected(chatId: Long, topicId: Int?)
+    fun onDismissShareTopicPicker()
 
     fun onForwardTopicSelected(chatId: Long, topicId: Int?)
     fun onDismissForwardTopicPicker()
@@ -107,6 +110,7 @@ interface ChatListComponent {
         val isArchivePinned: Boolean = true,
         val isArchiveAlwaysVisible: Boolean = false,
         val isForwarding: Boolean = false,
+        val isShareTargetMode: Boolean = false,
         val isForwardSubmitInProgress: Boolean = false,
         val canLoadMoreMessages: Boolean = false,
         val instantViewUrl: String? = null,
@@ -133,6 +137,7 @@ interface ChatListComponent {
         val isArchivePinned: Boolean = true,
         val isArchiveAlwaysVisible: Boolean = false,
         val isForwarding: Boolean = false,
+        val isShareTargetMode: Boolean = false,
         val isForwardSubmitInProgress: Boolean = false,
         val instantViewUrl: String? = null,
         val isProxyEnabled: Boolean = false,
@@ -184,6 +189,7 @@ interface ChatListComponent {
         val forwardTopics: List<TopicModel> = emptyList(),
         val isLoadingForwardTopics: Boolean = false,
         val isForwardSubmitInProgress: Boolean = false,
+        val isShareTargetMode: Boolean = false,
         val allPinned: Boolean = false,
         val allMuted: Boolean = false,
         val canMarkUnread: Boolean = false,
@@ -201,4 +207,9 @@ interface ChatListComponent {
         val recentOthers: List<ChatModel> = emptyList(),
         val canLoadMoreMessages: Boolean = false
     )
+
+    sealed class ShareResult {
+        data class Selected(val target: ShareTarget) : ShareResult()
+        data object Cancelled : ShareResult()
+    }
 }

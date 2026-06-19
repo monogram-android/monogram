@@ -210,6 +210,8 @@ dependencies {
     implementation(project(":core"))
 
     baselineProfile(project(":baselineprofile"))
+
+    testImplementation(libs.junit)
 }
 
 tasks.withType(DependencyTask::class.java).configureEach {

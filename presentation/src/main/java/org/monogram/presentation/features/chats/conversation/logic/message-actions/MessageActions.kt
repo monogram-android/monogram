@@ -23,9 +23,17 @@ import org.monogram.presentation.features.chats.conversation.DefaultChatComponen
 import org.monogram.presentation.features.chats.conversation.editor.video.VideoQuality
 import org.monogram.presentation.features.chats.conversation.editor.video.VideoTrimRange
 import org.monogram.presentation.features.chats.conversation.editor.video.processVideo
+import org.monogram.presentation.features.share.PendingAttachment
+import org.monogram.presentation.features.share.PendingAttachmentKind
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+
+internal sealed interface PendingAttachmentSendPlan {
+    data class Single(val attachment: PendingAttachment) : PendingAttachmentSendPlan
+    data class Album(val attachments: List<PendingAttachment>) : PendingAttachmentSendPlan
+    data class Individual(val attachments: List<PendingAttachment>) : PendingAttachmentSendPlan
+}
 
 private fun DefaultChatComponent.shouldAutoScrollAfterSend(isAtBottom: Boolean): Boolean {
     return _state.value.rootMessage == null && !isAtBottom
@@ -81,6 +89,8 @@ internal fun DefaultChatComponent.handleSendPhoto(
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
     scope.launch {
+        val matchingAttachment =
+            _state.value.stagedAttachments.firstOrNull { it.localPath == photoPath }
         val shouldCompress = appPreferences.compressPhotos.value
 
         val finalPath = if (shouldCompress) {
@@ -114,6 +124,12 @@ internal fun DefaultChatComponent.handleSendPhoto(
         if (sendOptions.scheduleDate != null) {
             loadScheduledMessages()
         }
+        _state.update { state ->
+            state.copy(stagedAttachments = state.stagedAttachments.filterNot { it.localPath == photoPath })
+        }
+        if (sendOptions.scheduleDate == null) {
+            cleanupTempAttachments(listOfNotNull(matchingAttachment))
+        }
     }
 }
 
@@ -124,6 +140,8 @@ internal fun DefaultChatComponent.handleSendVideo(
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
     scope.launch {
+        val matchingAttachment =
+            _state.value.stagedAttachments.firstOrNull { it.localPath == videoPath }
         val shouldCompress = appPreferences.compressVideos.value
 
         val finalPath = if (shouldCompress) {
@@ -162,6 +180,12 @@ internal fun DefaultChatComponent.handleSendVideo(
         }
         if (sendOptions.scheduleDate != null) {
             loadScheduledMessages()
+        }
+        _state.update { state ->
+            state.copy(stagedAttachments = state.stagedAttachments.filterNot { it.localPath == videoPath })
+        }
+        if (sendOptions.scheduleDate == null) {
+            cleanupTempAttachments(listOfNotNull(matchingAttachment))
         }
     }
 }
@@ -213,6 +237,7 @@ internal fun DefaultChatComponent.handleSendDocument(
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
     scope.launch {
+        val matchingAttachment = _state.value.stagedAttachments.firstOrNull { it.localPath == path }
         val currentState = _state.value
         val replyId = currentState.replyMessage?.id
         val threadId = currentState.effectiveThreadId()
@@ -235,6 +260,12 @@ internal fun DefaultChatComponent.handleSendDocument(
         }
         if (sendOptions.scheduleDate != null) {
             loadScheduledMessages()
+        }
+        _state.update { state ->
+            state.copy(stagedAttachments = state.stagedAttachments.filterNot { it.localPath == path })
+        }
+        if (sendOptions.scheduleDate == null) {
+            cleanupTempAttachments(listOfNotNull(matchingAttachment))
         }
     }
 }
@@ -275,6 +306,7 @@ internal fun DefaultChatComponent.handleSendGifFile(
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
     scope.launch {
+        val matchingAttachment = _state.value.stagedAttachments.firstOrNull { it.localPath == path }
         val currentState = _state.value
         val replyId = currentState.replyMessage?.id
         val threadId = currentState.effectiveThreadId()
@@ -298,6 +330,12 @@ internal fun DefaultChatComponent.handleSendGifFile(
         if (sendOptions.scheduleDate != null) {
             loadScheduledMessages()
         }
+        _state.update { state ->
+            state.copy(stagedAttachments = state.stagedAttachments.filterNot { it.localPath == path })
+        }
+        if (sendOptions.scheduleDate == null) {
+            cleanupTempAttachments(listOfNotNull(matchingAttachment))
+        }
     }
 }
 
@@ -308,6 +346,7 @@ internal fun DefaultChatComponent.handleSendAlbum(
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
     scope.launch {
+        val matchingAttachments = _state.value.stagedAttachments.filter { it.localPath in paths }
         val compressPhotos = appPreferences.compressPhotos.value
         val compressVideos = appPreferences.compressVideos.value
 
@@ -362,6 +401,117 @@ internal fun DefaultChatComponent.handleSendAlbum(
         if (sendOptions.scheduleDate != null) {
             loadScheduledMessages()
         }
+        _state.update { state ->
+            state.copy(stagedAttachments = state.stagedAttachments.filterNot { it.localPath in paths })
+        }
+        if (sendOptions.scheduleDate == null) {
+            cleanupTempAttachments(matchingAttachments)
+        }
+    }
+}
+
+internal fun DefaultChatComponent.handleSendPendingAttachments(
+    attachments: List<PendingAttachment>,
+    caption: String,
+    captionEntities: List<MessageEntity>,
+    sendOptions: MessageSendOptions = MessageSendOptions()
+) {
+    when (val plan = resolvePendingAttachmentSendPlan(attachments) ?: return) {
+        is PendingAttachmentSendPlan.Album -> handleSendAlbum(
+            paths = plan.attachments.map { it.localPath },
+            caption = caption,
+            captionEntities = captionEntities,
+            sendOptions = sendOptions
+        )
+
+        is PendingAttachmentSendPlan.Single -> {
+            when (plan.attachment.kind) {
+                PendingAttachmentKind.PHOTO -> handleSendPhoto(
+                    photoPath = plan.attachment.localPath,
+                    caption = caption,
+                    captionEntities = captionEntities,
+                    sendOptions = sendOptions
+                )
+
+                PendingAttachmentKind.VIDEO -> handleSendVideo(
+                    videoPath = plan.attachment.localPath,
+                    caption = caption,
+                    captionEntities = captionEntities,
+                    sendOptions = sendOptions
+                )
+
+                PendingAttachmentKind.GIF -> handleSendGifFile(
+                    path = plan.attachment.localPath,
+                    caption = caption,
+                    captionEntities = captionEntities,
+                    sendOptions = sendOptions
+                )
+
+                PendingAttachmentKind.DOCUMENT -> handleSendDocument(
+                    path = plan.attachment.localPath,
+                    caption = caption,
+                    captionEntities = captionEntities,
+                    sendOptions = sendOptions
+                )
+            }
+        }
+
+        is PendingAttachmentSendPlan.Individual -> {
+            plan.attachments.forEachIndexed { index, attachment ->
+                val itemCaption = if (index == 0) caption else ""
+                val itemEntities = if (index == 0) captionEntities else emptyList()
+                when (attachment.kind) {
+                    PendingAttachmentKind.PHOTO -> handleSendPhoto(
+                        photoPath = attachment.localPath,
+                        caption = itemCaption,
+                        captionEntities = itemEntities,
+                        sendOptions = sendOptions
+                    )
+
+                    PendingAttachmentKind.VIDEO -> handleSendVideo(
+                        videoPath = attachment.localPath,
+                        caption = itemCaption,
+                        captionEntities = itemEntities,
+                        sendOptions = sendOptions
+                    )
+
+                    PendingAttachmentKind.GIF -> handleSendGifFile(
+                        path = attachment.localPath,
+                        caption = itemCaption,
+                        captionEntities = itemEntities,
+                        sendOptions = sendOptions
+                    )
+
+                    PendingAttachmentKind.DOCUMENT -> handleSendDocument(
+                        path = attachment.localPath,
+                        caption = itemCaption,
+                        captionEntities = itemEntities,
+                        sendOptions = sendOptions
+                    )
+                }
+            }
+        }
+    }
+}
+
+internal fun resolvePendingAttachmentSendPlan(
+    attachments: List<PendingAttachment>
+): PendingAttachmentSendPlan? {
+    if (attachments.isEmpty()) return null
+    if (attachments.size == 1) return PendingAttachmentSendPlan.Single(attachments.first())
+
+    val media = attachments.filter { it.kind != PendingAttachmentKind.DOCUMENT }
+    val hasDocuments = attachments.any { it.kind == PendingAttachmentKind.DOCUMENT }
+    val hasGifs = attachments.any { it.kind == PendingAttachmentKind.GIF }
+    val canSendAsAlbum = !hasDocuments &&
+            !hasGifs &&
+            media.size > 1 &&
+            media.all { it.kind.isAlbumMedia }
+
+    return if (canSendAsAlbum) {
+        PendingAttachmentSendPlan.Album(attachments)
+    } else {
+        PendingAttachmentSendPlan.Individual(attachments)
     }
 }
 

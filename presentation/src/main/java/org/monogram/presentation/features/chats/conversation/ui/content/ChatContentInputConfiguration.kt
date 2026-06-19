@@ -72,8 +72,9 @@ internal fun rememberChatInputBarState(
             isDraftLinkPreviewLoading = state.isDraftLinkPreviewLoading,
             draftLinkPreviewError = state.draftLinkPreviewError,
             isDraftLinkPreviewDisabledForSend = state.isDraftLinkPreviewDisabledForSend,
-            pendingMediaPaths = pendingMediaPaths,
-            pendingDocumentPaths = pendingDocumentPaths,
+            pendingAttachments = state.stagedAttachments,
+            pendingMediaPaths = state.pendingMediaPaths,
+            pendingDocumentPaths = state.pendingDocumentPaths,
             isClosed = state.topics.find { it.id.toLong() == state.currentTopicId }?.isClosed
                 ?: false,
             permissions = state.effectiveInputPermissions ?: state.permissions,
@@ -144,53 +145,12 @@ internal fun rememberChatInputBarActions(
             onDismissDraftLinkPreview = component::onDismissDraftLinkPreview,
             onRestoreDraftLinkPreview = component::onRestoreDraftLinkPreview,
             onTyping = component::onTyping,
-            onCancelMedia = { onSetPendingMediaPaths(emptyList()) },
-            onSendMedia = { paths, caption, captionEntities, options ->
-                if (options.sendAsDocument) {
-                    if (paths.size > 1) {
-                        component.onSendAlbum(paths, caption, captionEntities, options)
-                    } else {
-                        paths.firstOrNull()?.let {
-                            component.onSendDocument(it, caption, captionEntities, options)
-                        }
-                    }
-                } else if (paths.size > 1) {
-                    component.onSendAlbum(paths, caption, captionEntities, options)
-                } else {
-                    paths.firstOrNull()?.let {
-                        if (it.endsWith(".mp4")) {
-                            component.onSendVideo(it, caption, captionEntities, options)
-                        } else {
-                            component.onSendPhoto(it, caption, captionEntities, options)
-                        }
-                    }
-                }
-                onSetPendingMediaPaths(emptyList())
-                onSetPendingDocumentPaths(emptyList())
+            onCancelMedia = component::onClearPendingAttachments,
+            onSendAttachments = { attachments, caption, captionEntities, options ->
+                component.onSendPendingAttachments(attachments, caption, captionEntities, options)
             },
-            onSendDocuments = { paths, caption, captionEntities, options ->
-                paths.forEachIndexed { index, path ->
-                    component.onSendDocument(
-                        path,
-                        caption = if (index == 0) caption else "",
-                        captionEntities = if (index == 0) captionEntities else emptyList(),
-                        sendOptions = options
-                    )
-                }
-                onSetPendingDocumentPaths(emptyList())
-                onSetPendingMediaPaths(emptyList())
-            },
-            onMediaOrderChange = {
-                onSetPendingMediaPaths(it)
-                if (it.isNotEmpty()) {
-                    onSetPendingDocumentPaths(emptyList())
-                }
-            },
-            onDocumentOrderChange = {
-                onSetPendingDocumentPaths(it)
-                if (it.isNotEmpty()) {
-                    onSetPendingMediaPaths(emptyList())
-                }
+            onPendingAttachmentsChange = { attachments ->
+                component.onStageAttachments(attachments)
             },
             onMediaClick = onEditMediaPath,
             onDraftLinkPreviewAction = onDraftLinkPreviewAction,

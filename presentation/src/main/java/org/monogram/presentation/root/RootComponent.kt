@@ -8,19 +8,19 @@ import kotlinx.serialization.Serializable
 import org.monogram.domain.models.ChatFullInfoModel
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ProxyTypeModel
+import org.monogram.presentation.core.media.VideoPlayerPool
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.features.auth.AuthComponent
-import org.monogram.presentation.features.chats.list.ChatListComponent
 import org.monogram.presentation.features.chats.conversation.ChatComponent
-import org.monogram.presentation.core.media.VideoPlayerPool
 import org.monogram.presentation.features.chats.creation.NewChatComponent
-import org.monogram.presentation.settings.folders.FoldersComponent
+import org.monogram.presentation.features.chats.list.ChatListComponent
 import org.monogram.presentation.features.profile.ProfileComponent
 import org.monogram.presentation.features.profile.admin.AdminManageComponent
 import org.monogram.presentation.features.profile.admin.ChatEditComponent
 import org.monogram.presentation.features.profile.admin.ChatPermissionsComponent
 import org.monogram.presentation.features.profile.admin.MemberListComponent
 import org.monogram.presentation.features.profile.logs.ProfileLogsComponent
+import org.monogram.presentation.features.share.IncomingShareRequest
 import org.monogram.presentation.features.stickers.core.StickerSetUiModel
 import org.monogram.presentation.features.webview.WebViewComponent
 import org.monogram.presentation.settings.about.AboutComponent
@@ -28,6 +28,7 @@ import org.monogram.presentation.settings.adblock.AdBlockComponent
 import org.monogram.presentation.settings.chatSettings.ChatSettingsComponent
 import org.monogram.presentation.settings.dataStorage.DataStorageComponent
 import org.monogram.presentation.settings.debug.DebugComponent
+import org.monogram.presentation.settings.folders.FoldersComponent
 import org.monogram.presentation.settings.networkUsage.NetworkUsageComponent
 import org.monogram.presentation.settings.notifications.NotificationsComponent
 import org.monogram.presentation.settings.powersaving.PowerSavingComponent
@@ -67,6 +68,7 @@ interface RootComponent {
     fun unlockWithBiometrics()
     fun logout()
     fun navigateToChat(chatId: Long, messageId: Long? = null)
+    fun handleIncomingShare(request: IncomingShareRequest)
 
     sealed class Child {
         class StartupChild(val component: StartupComponent) : Child()

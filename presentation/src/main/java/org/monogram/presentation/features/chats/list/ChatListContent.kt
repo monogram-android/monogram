@@ -573,6 +573,7 @@ fun ChatListContent(component: ChatListComponent) {
     val topBarMode = remember(
         selectionState.selectedChatIds,
         uiState.isForwarding,
+        uiState.isShareTargetMode,
         foldersState.selectedFolderId,
         searchState.isSearchActive,
         currentUser,
@@ -584,6 +585,7 @@ fun ChatListContent(component: ChatListComponent) {
                 ChatListTopBarMode.Selection(isInArchive = foldersState.selectedFolderId == -2)
             }
 
+            uiState.isShareTargetMode -> ChatListTopBarMode.ShareTarget
             uiState.isForwarding -> ChatListTopBarMode.Forwarding
             foldersState.selectedFolderId == -2 && !searchState.isSearchActive -> ChatListTopBarMode.Archive
             else -> ChatListTopBarMode.Default(
@@ -616,6 +618,13 @@ fun ChatListContent(component: ChatListComponent) {
 
                         ChatListTopBarMode.Forwarding -> {
                             ForwardingModeTopBar(onBackClick = component::handleBack)
+                        }
+
+                        ChatListTopBarMode.ShareTarget -> {
+                            ForwardingModeTopBar(
+                                title = stringResource(R.string.action_share),
+                                onBackClick = component::handleBack
+                            )
                         }
 
                         ChatListTopBarMode.Archive -> {
@@ -757,7 +766,10 @@ fun ChatListContent(component: ChatListComponent) {
         floatingActionButton = {
             if (!isTablet) {
                 AnimatedVisibility(
-                    visible = !searchState.isSearchActive && foldersState.selectedFolderId != -2 && !uiState.isForwarding,
+                    visible = !searchState.isSearchActive &&
+                            foldersState.selectedFolderId != -2 &&
+                            !uiState.isForwarding &&
+                            !uiState.isShareTargetMode,
                     enter = scaleIn() + fadeIn(),
                     exit = scaleOut() + fadeOut()
                 ) {
@@ -788,6 +800,7 @@ fun ChatListContent(component: ChatListComponent) {
                 selectionState = selectionState,
                 selectedForwardChatIds = selectedForwardChatIds,
                 isForwarding = uiState.isForwarding,
+                isShareTargetMode = uiState.isShareTargetMode,
                 searchState = searchState,
                 visibleFolders = visibleFolders,
                 pagerState = pagerState,
@@ -809,8 +822,16 @@ fun ChatListContent(component: ChatListComponent) {
         title = selectionState.forwardTopicPickerChatTitle,
         topics = selectionState.forwardTopics,
         isLoading = selectionState.isLoadingForwardTopics,
-        onTopicSelected = component::onForwardTopicSelected,
-        onDismiss = component::onDismissForwardTopicPicker
+        onTopicSelected = if (uiState.isShareTargetMode) {
+            component::onShareTopicSelected
+        } else {
+            component::onForwardTopicSelected
+        },
+        onDismiss = if (uiState.isShareTargetMode) {
+            component::onDismissShareTopicPicker
+        } else {
+            component::onDismissForwardTopicPicker
+        }
     )
 
     ForwardConfirmationPanel(
@@ -1085,6 +1106,7 @@ fun ChatListContent(component: ChatListComponent) {
 private sealed interface ChatListTopBarMode {
     data class Selection(val isInArchive: Boolean) : ChatListTopBarMode
     data object Forwarding : ChatListTopBarMode
+    data object ShareTarget : ChatListTopBarMode
     data object Archive : ChatListTopBarMode
     data class Default(
         val user: UserModel?,
@@ -1221,6 +1243,7 @@ private fun ChatListBody(
     selectionState: ChatListComponent.SelectionState,
     selectedForwardChatIds: Set<Long>,
     isForwarding: Boolean,
+    isShareTargetMode: Boolean,
     searchState: ChatListComponent.SearchState,
     visibleFolders: List<FolderModel>,
     pagerState: PagerState,
@@ -1243,6 +1266,7 @@ private fun ChatListBody(
                 selectionState = selectionState,
                 selectedForwardChatIds = selectedForwardChatIds,
                 isForwarding = isForwarding,
+                isShareTargetMode = isShareTargetMode,
                 searchState = searchState,
                 firstFolderTransitionCompleted = firstFolderTransitionCompleted,
                 scrollStates = scrollStates,
@@ -1261,6 +1285,7 @@ private fun ChatListBody(
                 selectionState = selectionState,
                 selectedForwardChatIds = selectedForwardChatIds,
                 isForwarding = isForwarding,
+                isShareTargetMode = isShareTargetMode,
                 visibleFolders = visibleFolders,
                 pagerState = pagerState,
                 firstFolderTransitionCompleted = firstFolderTransitionCompleted,
@@ -1286,6 +1311,7 @@ private fun SearchOrArchiveContent(
     selectionState: ChatListComponent.SelectionState,
     selectedForwardChatIds: Set<Long>,
     isForwarding: Boolean,
+    isShareTargetMode: Boolean,
     searchState: ChatListComponent.SearchState,
     firstFolderTransitionCompleted: MutableMap<Int, Boolean>,
     scrollStates: MutableMap<Int, LazyListState>,
@@ -1491,7 +1517,9 @@ private fun SearchOrArchiveContent(
                         ChatListChatRow(
                             chat = chat,
                             currentUserId = currentUserId,
-                            isSelected = if (isForwarding) selectedForwardChatIds.contains(chat.id) else selectionState.selectedChatIds.contains(
+                            isSelected = if (isForwarding || isShareTargetMode) {
+                                selectedForwardChatIds.contains(chat.id)
+                            } else selectionState.selectedChatIds.contains(
                                 chat.id
                             ),
                             isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
@@ -1515,7 +1543,9 @@ private fun SearchOrArchiveContent(
                         ChatListChatRow(
                             chat = chat,
                             currentUserId = currentUserId,
-                            isSelected = if (isForwarding) selectedForwardChatIds.contains(chat.id) else selectionState.selectedChatIds.contains(
+                            isSelected = if (isForwarding || isShareTargetMode) {
+                                selectedForwardChatIds.contains(chat.id)
+                            } else selectionState.selectedChatIds.contains(
                                 chat.id
                             ),
                             isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
@@ -1566,7 +1596,9 @@ private fun SearchOrArchiveContent(
                     ChatListChatRow(
                         chat = chat,
                         currentUserId = currentUserId,
-                        isSelected = if (isForwarding) selectedForwardChatIds.contains(chat.id) else selectionState.selectedChatIds.contains(
+                        isSelected = if (isForwarding || isShareTargetMode) {
+                            selectedForwardChatIds.contains(chat.id)
+                        } else selectionState.selectedChatIds.contains(
                             chat.id
                         ),
                         isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
@@ -1606,6 +1638,7 @@ private fun FolderPagerContent(
     selectionState: ChatListComponent.SelectionState,
     selectedForwardChatIds: Set<Long>,
     isForwarding: Boolean,
+    isShareTargetMode: Boolean,
     visibleFolders: List<FolderModel>,
     pagerState: PagerState,
     firstFolderTransitionCompleted: MutableMap<Int, Boolean>,
@@ -1641,6 +1674,7 @@ private fun FolderPagerContent(
             selectionState = selectionState,
             selectedForwardChatIds = selectedForwardChatIds,
             isForwarding = isForwarding,
+            isShareTargetMode = isShareTargetMode,
             shouldAnimateFirstFolderTransition = firstFolderTransitionCompleted[folderId] != true,
             scrollStates = scrollStates,
             onMarkFirstTransitionComplete = { firstFolderTransitionCompleted[folderId] = true },
@@ -1667,6 +1701,7 @@ private fun FolderPageContent(
     selectionState: ChatListComponent.SelectionState,
     selectedForwardChatIds: Set<Long>,
     isForwarding: Boolean,
+    isShareTargetMode: Boolean,
     shouldAnimateFirstFolderTransition: Boolean,
     scrollStates: MutableMap<Int, LazyListState>,
     onMarkFirstTransitionComplete: () -> Unit,
@@ -1780,7 +1815,9 @@ private fun FolderPageContent(
                         ChatListChatRow(
                             chat = chat,
                             currentUserId = currentUserId,
-                            isSelected = if (isForwarding) selectedForwardChatIds.contains(chat.id) else selectionState.selectedChatIds.contains(
+                            isSelected = if (isForwarding || isShareTargetMode) {
+                                selectedForwardChatIds.contains(chat.id)
+                            } else selectionState.selectedChatIds.contains(
                                 chat.id
                             ),
                             isTabletSelected = isTablet && selectionState.activeChatId == chat.id,
@@ -1945,12 +1982,13 @@ private fun SelectionModeTopBar(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ForwardingModeTopBar(
+    title: String = stringResource(R.string.forward_to_title),
     onBackClick: () -> Unit
 ) {
     TopAppBar(
         title = {
             Text(
-                stringResource(R.string.forward_to_title),
+                title,
                 fontWeight = FontWeight.SemiBold,
                 style = MaterialTheme.typography.titleMedium
             )

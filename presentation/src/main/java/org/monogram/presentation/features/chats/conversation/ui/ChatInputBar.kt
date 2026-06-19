@@ -71,8 +71,8 @@ import org.monogram.presentation.features.chats.conversation.ui.inputbar.SlowMod
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.applyMentionSuggestion
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.buildEditingMessageTextValue
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.buildScheduledDateEpochSeconds
+import org.monogram.presentation.features.chats.conversation.ui.inputbar.copyUriToPendingAttachment
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.copyUriToTempDocumentPath
-import org.monogram.presentation.features.chats.conversation.ui.inputbar.copyUriToTempPath
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.declaredPermissions
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.extractEntities
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.hasAllPermissions
@@ -82,12 +82,28 @@ import org.monogram.presentation.features.chats.conversation.ui.inputbar.remembe
 import org.monogram.presentation.features.chats.conversation.ui.message.getEmojiFontFamily
 import org.monogram.presentation.features.gallery.GalleryScreen
 import org.monogram.presentation.features.gallery.components.PollComposerSheet
+import org.monogram.presentation.features.share.PendingAttachment
+import org.monogram.presentation.features.share.PendingAttachmentKind
 import java.util.Calendar
 import kotlin.math.ceil
 
 private enum class AttachmentPickerMode {
     Default,
     MediaOnly
+}
+
+private fun List<PendingAttachment>.mergeAttachments(newAttachments: List<PendingAttachment>): List<PendingAttachment> {
+    if (newAttachments.isEmpty()) return this
+    val merged = toMutableList()
+    newAttachments.forEach { incoming ->
+        val existingIndex = merged.indexOfFirst { it.localPath == incoming.localPath }
+        if (existingIndex >= 0) {
+            merged[existingIndex] = incoming
+        } else {
+            merged += incoming
+        }
+    }
+    return merged
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -331,6 +347,7 @@ internal fun ChatInputBar(
             microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
     )
+    val currentPendingAttachments = state.pendingAttachments
     val maxMessageLength by remember(
         state.pendingMediaPaths,
         state.pendingDocumentPaths,
@@ -348,14 +365,17 @@ internal fun ChatInputBar(
         derivedStateOf { currentMessageLength > maxMessageLength }
     }
     val canSendPendingAttachments by remember(
-        state.pendingMediaPaths,
-        state.pendingDocumentPaths,
+        currentPendingAttachments,
         canUseMediaPicker,
         canUseDocumentPicker
     ) {
         derivedStateOf {
-            (state.pendingMediaPaths.isNotEmpty() && canUseMediaPicker) ||
-                    (state.pendingDocumentPaths.isNotEmpty() && canUseDocumentPicker)
+            currentPendingAttachments.any {
+                when (it.kind) {
+                    PendingAttachmentKind.DOCUMENT -> canUseDocumentPicker
+                    else -> canUseMediaPicker
+                }
+            }
         }
     }
 
@@ -371,8 +391,7 @@ internal fun ChatInputBar(
         )
 
         val canSendNow = when {
-            state.pendingMediaPaths.isNotEmpty() && canUseMediaPicker -> true
-            state.pendingDocumentPaths.isNotEmpty() && canUseDocumentPicker -> true
+            currentPendingAttachments.isNotEmpty() && canSendPendingAttachments -> true
             state.editingMessage != null -> false
             canWriteText && !isTextEmpty -> true
             else -> false
@@ -382,19 +401,9 @@ internal fun ChatInputBar(
             return@sendWithOptions
         }
 
-        if (state.pendingMediaPaths.isNotEmpty() && canUseMediaPicker) {
-            actions.onSendMedia(
-                state.pendingMediaPaths,
-                textValue.text,
-                captionEntities,
-                effectiveSendOptions
-            )
-            textValue = TextFieldValue("")
-            knownCustomEmojis.clear()
-            sentInstantMessage = !isScheduling
-        } else if (state.pendingDocumentPaths.isNotEmpty() && canUseDocumentPicker) {
-            actions.onSendDocuments(
-                state.pendingDocumentPaths,
+        if (currentPendingAttachments.isNotEmpty() && canSendPendingAttachments) {
+            actions.onSendAttachments(
+                currentPendingAttachments,
                 textValue.text,
                 captionEntities,
                 effectiveSendOptions
@@ -564,7 +573,9 @@ internal fun ChatInputBar(
         } else if (state.pendingMediaPaths.isNotEmpty()) {
             actions.onCancelMedia()
         } else if (state.pendingDocumentPaths.isNotEmpty()) {
-            actions.onDocumentOrderChange(emptyList())
+            actions.onPendingAttachmentsChange(
+                currentPendingAttachments.filterNot { it.kind == PendingAttachmentKind.DOCUMENT }
+            )
         } else if (showGallery) {
             showGallery = false
         } else if (showPollComposer) {
@@ -646,10 +657,21 @@ internal fun ChatInputBar(
     val documentsPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
-        val localPaths = uris.mapNotNull { uri -> context.copyUriToTempDocumentPath(uri) }
-        if (localPaths.isNotEmpty()) {
-            actions.onDocumentOrderChange((state.pendingDocumentPaths + localPaths).distinct())
-            actions.onMediaOrderChange(emptyList())
+        val attachments = uris.mapNotNull { uri ->
+            context.copyUriToTempDocumentPath(uri)?.let { path ->
+                PendingAttachment(
+                    localPath = path,
+                    kind = PendingAttachmentKind.DOCUMENT,
+                    deleteAfterUse = true
+                )
+            }
+        }
+        if (attachments.isNotEmpty()) {
+            actions.onPendingAttachmentsChange(
+                currentPendingAttachments.mergeAttachments(
+                    attachments
+                )
+            )
         }
         attachmentPickerMode = AttachmentPickerMode.Default
     }
@@ -681,10 +703,11 @@ internal fun ChatInputBar(
     if (showCamera) {
         CameraScreen(
             onImageCaptured = { uri ->
-                val path = context.copyUriToTempPath(uri)
-                if (path != null) {
-                    actions.onMediaOrderChange((state.pendingMediaPaths + path).distinct())
-                    actions.onDocumentOrderChange(emptyList())
+                val attachment = context.copyUriToPendingAttachment(uri)
+                if (attachment != null) {
+                    actions.onPendingAttachmentsChange(
+                        currentPendingAttachments.mergeAttachments(listOf(attachment))
+                    )
                 }
                 showCamera = false
                 attachmentPickerMode = AttachmentPickerMode.Default
@@ -717,6 +740,7 @@ internal fun ChatInputBar(
                         draftLinkPreviewError = state.draftLinkPreviewError,
                         isDraftLinkPreviewDisabledForSend = state.isDraftLinkPreviewDisabledForSend,
                         attachments = ComposerAttachmentState(
+                            pendingAttachments = state.pendingAttachments,
                             pendingMediaPaths = state.pendingMediaPaths,
                             pendingDocumentPaths = state.pendingDocumentPaths,
                             scheduledMessagesCount = state.scheduledMessages.size
@@ -767,7 +791,11 @@ internal fun ChatInputBar(
                         onDismissDraftLinkPreview = actions.onDismissDraftLinkPreview,
                         onRestoreDraftLinkPreview = actions.onRestoreDraftLinkPreview,
                         onCancelMedia = actions.onCancelMedia,
-                        onCancelDocuments = { actions.onDocumentOrderChange(emptyList()) },
+                        onCancelDocuments = {
+                            actions.onPendingAttachmentsChange(
+                                currentPendingAttachments.filterNot { it.kind == PendingAttachmentKind.DOCUMENT }
+                            )
+                        },
                         onAddMedia = {
                             if (!canUseMediaPicker) return@ChatInputBarComposerSection
                             openStickerMenuAfterKeyboardClosed = false
@@ -782,18 +810,18 @@ internal fun ChatInputBar(
                             if (!canUseDocumentPicker) return@ChatInputBarComposerSection
                             documentsPickerLauncher.launch(arrayOf("*/*"))
                         },
-                        onMediaOrderChange = actions.onMediaOrderChange,
-                        onDocumentOrderChange = actions.onDocumentOrderChange,
+                        onPendingAttachmentsChange = actions.onPendingAttachmentsChange,
                         onMediaClick = actions.onMediaClick,
                         onDraftLinkPreviewAction = actions.onDraftLinkPreviewAction,
                         onPasteImages = { uris ->
                             if (!canUseMediaPicker || state.editingMessage != null) return@ChatInputBarComposerSection
-                            val localPaths = uris.mapNotNull { uri ->
-                                context.copyUriToTempPath(uri)
-                            }
-                            if (localPaths.isNotEmpty()) {
-                                actions.onMediaOrderChange((state.pendingMediaPaths + localPaths).distinct())
-                                actions.onDocumentOrderChange(emptyList())
+                            val attachments = uris.mapNotNull(context::copyUriToPendingAttachment)
+                            if (attachments.isNotEmpty()) {
+                                actions.onPendingAttachmentsChange(
+                                    currentPendingAttachments.mergeAttachments(
+                                        attachments
+                                    )
+                                )
                             }
                         },
                         onMentionClick = { user ->
@@ -1052,12 +1080,13 @@ internal fun ChatInputBar(
         ) {
             GalleryScreen(
                 onMediaSelected = { uris ->
-                    val localPaths = uris.mapNotNull { uri ->
-                        context.copyUriToTempPath(uri)
-                    }
-                    if (localPaths.isNotEmpty()) {
-                        actions.onMediaOrderChange((state.pendingMediaPaths + localPaths).distinct())
-                        actions.onDocumentOrderChange(emptyList())
+                    val attachments = uris.mapNotNull(context::copyUriToPendingAttachment)
+                    if (attachments.isNotEmpty()) {
+                        actions.onPendingAttachmentsChange(
+                            currentPendingAttachments.mergeAttachments(
+                                attachments
+                            )
+                        )
                     }
                     showGallery = false
                     attachmentPickerMode = AttachmentPickerMode.Default

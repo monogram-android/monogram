@@ -68,6 +68,8 @@ import org.monogram.presentation.features.chats.conversation.ui.message.PreviewI
 import org.monogram.presentation.features.chats.conversation.ui.message.PreviewVideoViewerRequest
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberChatMessageRenderDependencies
 import org.monogram.presentation.features.chats.conversation.ui.rememberVoicePlaybackController
+import org.monogram.presentation.features.share.PendingAttachment
+import org.monogram.presentation.features.share.PendingAttachmentKind
 
 internal fun shouldHideChatContentForViewportTransition(
     renderMode: ChatRenderMode,
@@ -118,16 +120,6 @@ fun ChatContent(
     var clickOffset by remember(conversationKey) { mutableStateOf(Offset.Zero) }
     var contentRect by remember { mutableStateOf(Rect.Zero) }
 
-    var pendingMediaPaths by rememberSaveable(conversationKey) {
-        mutableStateOf<List<String>>(
-            emptyList()
-        )
-    }
-    var pendingDocumentPaths by rememberSaveable(conversationKey) {
-        mutableStateOf<List<String>>(
-            emptyList()
-        )
-    }
     var editingPhotoPath by rememberSaveable(conversationKey) { mutableStateOf<String?>(null) }
     var editingVideoPath by rememberSaveable(conversationKey) { mutableStateOf<String?>(null) }
     var pendingBlockUserId by rememberSaveable(conversationKey) { mutableStateOf<Long?>(null) }
@@ -255,6 +247,19 @@ fun ChatContent(
 
     LaunchedEffect(isAnyViewerOpen, onSwipeBackBlockedChanged) {
         onSwipeBackBlockedChanged(isAnyViewerOpen)
+    }
+
+    LaunchedEffect(state.initialShare?.requestId, conversationKey) {
+        val share = state.initialShare ?: return@LaunchedEffect
+        if (state.initialShareConsumed) return@LaunchedEffect
+
+        if (share.attachments.isNotEmpty()) {
+            component.onStageAttachments(share.attachments)
+        }
+        if (share.text.isNotBlank() && state.draftText != share.text) {
+            component.onDraftChange(share.text)
+        }
+        component.onConsumeInitialShare(share.requestId)
     }
 
     DisposableEffect(onSwipeBackBlockedChanged) {
@@ -394,11 +399,35 @@ fun ChatContent(
                             state = state,
                             component = component,
                             chromeState = chromeState,
-                            pendingMediaPaths = pendingMediaPaths,
-                            pendingDocumentPaths = pendingDocumentPaths,
+                            pendingMediaPaths = state.pendingMediaPaths,
+                            pendingDocumentPaths = state.pendingDocumentPaths,
                             onDraftLinkPreviewAction = onLinkPreviewAction,
-                            onPendingMediaPathsChanged = { pendingMediaPaths = it },
-                            onPendingDocumentPathsChanged = { pendingDocumentPaths = it },
+                            onPendingMediaPathsChanged = { mediaPaths ->
+                                val documents =
+                                    state.stagedAttachments.filter { it.kind == PendingAttachmentKind.DOCUMENT }
+                                val media = mediaPaths.map { path ->
+                                    val existing =
+                                        state.stagedAttachments.firstOrNull { it.localPath == path }
+                                    existing ?: PendingAttachment(
+                                        localPath = path,
+                                        kind = if (path.endsWith(".mp4")) PendingAttachmentKind.VIDEO else PendingAttachmentKind.PHOTO
+                                    )
+                                }
+                                component.onStageAttachments(media + documents)
+                            },
+                            onPendingDocumentPathsChanged = { documentPaths ->
+                                val media =
+                                    state.stagedAttachments.filter { it.kind != PendingAttachmentKind.DOCUMENT }
+                                val documents = documentPaths.map { path ->
+                                    val existing =
+                                        state.stagedAttachments.firstOrNull { it.localPath == path }
+                                    existing ?: PendingAttachment(
+                                        localPath = path,
+                                        kind = PendingAttachmentKind.DOCUMENT
+                                    )
+                                }
+                                component.onStageAttachments(media + documents)
+                            },
                             onStartRecordingVideo = { isRecordingVideo = true },
                             onEditMediaPath = { path ->
                                 if (path.endsWith(".mp4")) {
@@ -516,11 +545,12 @@ fun ChatContent(
                 onClosePhotoEditor = { editingPhotoPath = null },
                 onSavePhotoEditor = { newPath ->
                     val path = editingPhotoPath ?: return@ChatContentOverlays
-                    val newList = pendingMediaPaths.toMutableList()
-                    val index = newList.indexOf(path)
-                    if (index != -1) {
-                        newList[index] = newPath
-                        pendingMediaPaths = newList
+                    val previous = state.stagedAttachments.firstOrNull { it.localPath == path }
+                    if (previous != null) {
+                        component.onReplacePendingAttachment(
+                            oldPath = path,
+                            attachment = previous.copy(localPath = newPath)
+                        )
                     }
                     editingPhotoPath = null
                 },
@@ -528,11 +558,12 @@ fun ChatContent(
                 onCloseVideoEditor = { editingVideoPath = null },
                 onSaveVideoEditor = { newPath ->
                     val path = editingVideoPath ?: return@ChatContentOverlays
-                    val newList = pendingMediaPaths.toMutableList()
-                    val index = newList.indexOf(path)
-                    if (index != -1) {
-                        newList[index] = newPath
-                        pendingMediaPaths = newList
+                    val previous = state.stagedAttachments.firstOrNull { it.localPath == path }
+                    if (previous != null) {
+                        component.onReplacePendingAttachment(
+                            oldPath = path,
+                            attachment = previous.copy(localPath = newPath)
+                        )
                     }
                     editingVideoPath = null
                 },

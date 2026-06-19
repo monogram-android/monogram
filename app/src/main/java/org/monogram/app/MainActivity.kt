@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
@@ -14,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.window.layout.WindowInfoTracker
 import com.arkivanov.decompose.ExperimentalDecomposeApi
 import com.arkivanov.decompose.retainedComponent
@@ -35,6 +37,7 @@ class MainActivity : FragmentActivity() {
     private lateinit var root: RootComponent
     private val appPreferences: AppPreferences by inject()
     private val appForegroundTracker: AppForegroundTracker by inject()
+    private lateinit var incomingShareIntentResolver: IncomingShareIntentResolver
 
     @Volatile
     private var keepSplashOnScreen: Boolean = true
@@ -64,6 +67,7 @@ class MainActivity : FragmentActivity() {
                 )
             )
         }
+        incomingShareIntentResolver = IncomingShareIntentResolver(this)
 
         handleIntent(intent)
 
@@ -98,10 +102,27 @@ class MainActivity : FragmentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         handleIntent(intent)
     }
 
     private fun handleIntent(intent: Intent) {
+        if (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE) {
+            lifecycleScope.launchWhenStarted {
+                val request = incomingShareIntentResolver.resolve(intent)
+                if (request != null) {
+                    root.handleIncomingShare(request)
+                } else {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Unable to share this content",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            return
+        }
+
         val data = intent.dataString
         if (data != null) {
             root.handleLink(data)

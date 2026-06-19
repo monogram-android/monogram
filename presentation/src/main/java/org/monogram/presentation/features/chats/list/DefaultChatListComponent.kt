@@ -50,6 +50,7 @@ import org.monogram.presentation.features.chats.common.ChatActionType
 import org.monogram.presentation.features.chats.common.ChatExitAction
 import org.monogram.presentation.features.chats.common.resolveChatActionPolicy
 import org.monogram.presentation.features.chats.common.resolveChatExitAction
+import org.monogram.presentation.features.share.ShareTarget
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultChatListComponent(
@@ -59,9 +60,12 @@ class DefaultChatListComponent(
     private val onSettingsClick: () -> Unit,
     private val onProxySettingsClick: () -> Unit,
     private val onConfirmForward: (ForwardRequest) -> Unit = {},
+    private val onShareTargetSelected: (ShareTarget) -> Unit = {},
+    private val onShareCancelled: () -> Unit = {},
     private val forwardingFromChatId: Long? = null,
     private val forwardingMessageIds: List<Long> = emptyList(),
     internal val isForwarding: Boolean = false,
+    internal val isShareTargetMode: Boolean = false,
     private val onNewChatClick: () -> Unit = {},
     private val onEditFoldersClick: () -> Unit = {},
     activeChatId: Value<Long>
@@ -86,6 +90,7 @@ class DefaultChatListComponent(
     internal val _state = MutableStateFlow(
         ChatListComponent.State(
             isForwarding = isForwarding,
+            isShareTargetMode = isShareTargetMode,
             isLoadingByFolder = mapOf(-1 to true)
         )
     )
@@ -124,6 +129,7 @@ class DefaultChatListComponent(
         isArchivePinned = isArchivePinned,
         isArchiveAlwaysVisible = isArchiveAlwaysVisible,
         isForwarding = isForwarding,
+        isShareTargetMode = isShareTargetMode,
         isForwardSubmitInProgress = isForwardSubmitInProgress,
         instantViewUrl = instantViewUrl,
         isProxyEnabled = isProxyEnabled,
@@ -170,6 +176,7 @@ class DefaultChatListComponent(
             forwardTopics = forwardTopics,
             isLoadingForwardTopics = isLoadingForwardTopics,
             isForwardSubmitInProgress = isForwardSubmitInProgress,
+            isShareTargetMode = isShareTargetMode,
             allPinned = allPinned,
             allMuted = allMuted,
             canMarkUnread = canMarkUnread,
@@ -423,6 +430,8 @@ class DefaultChatListComponent(
                     ChatListStore.Label.OpenProxySettings -> onProxySettingsClick()
                     ChatListStore.Label.OpenNewChat -> onNewChatClick()
                     is ChatListStore.Label.ConfirmForward -> onConfirmForward(label.request)
+                    is ChatListStore.Label.ShareTargetSelected -> onShareTargetSelected(label.target)
+                    ChatListStore.Label.CancelShareTarget -> onShareCancelled()
                     is ChatListStore.Label.EditFolders -> onEditFoldersClick()
                 }
             }
@@ -488,8 +497,10 @@ class DefaultChatListComponent(
 
     override fun onChatClicked(id: Long) = store.accept(ChatListStore.Intent.ChatClicked(id))
 
-    internal fun handleChatClicked(id: Long): ChatListStore.Label.OpenChat? {
-        if (_state.value.isForwarding) {
+    internal fun handleChatClicked(id: Long): ChatListStore.Label? {
+        if (_state.value.isShareTargetMode) {
+            return resolveShareTarget(id)
+        } else if (_state.value.isForwarding) {
             toggleForwardTarget(id)
             return null
         } else if (_state.value.selectedChatIds.isNotEmpty()) {
@@ -505,8 +516,10 @@ class DefaultChatListComponent(
 
     override fun onProfileClicked(id: Long) = store.accept(ChatListStore.Intent.ProfileClicked(id))
 
-    internal fun handleMessageClicked(chatId: Long, messageId: Long): ChatListStore.Label.OpenChat? {
-        if (_state.value.isForwarding) {
+    internal fun handleMessageClicked(chatId: Long, messageId: Long): ChatListStore.Label? {
+        if (_state.value.isShareTargetMode) {
+            return resolveShareTarget(chatId)
+        } else if (_state.value.isForwarding) {
             toggleForwardTarget(chatId)
             return null
         } else if (_state.value.selectedChatIds.isNotEmpty()) {
@@ -526,6 +539,7 @@ class DefaultChatListComponent(
     override fun onChatLongClicked(id: Long) = store.accept(ChatListStore.Intent.ChatLongClicked(id))
 
     internal fun handleChatLongClicked(id: Long) {
+        if (_state.value.isShareTargetMode) return
         toggleSelection(id)
     }
 
@@ -876,6 +890,31 @@ class DefaultChatListComponent(
         }
     }
 
+    override fun onShareTopicSelected(chatId: Long, topicId: Int?) =
+        store.accept(ChatListStore.Intent.ShareTopicSelected(chatId, topicId))
+
+    internal fun handleShareTopicSelected(
+        chatId: Long,
+        topicId: Int?
+    ): ChatListStore.Label.ShareTargetSelected {
+        handleDismissForwardTopicPicker()
+        return ChatListStore.Label.ShareTargetSelected(
+            ShareTarget(chatId = chatId, topicId = topicId?.toLong())
+        )
+    }
+
+    override fun onDismissShareTopicPicker() =
+        store.accept(ChatListStore.Intent.DismissShareTopicPicker)
+
+    internal fun handleDismissShareTopicPicker(): ChatListStore.Label.CancelShareTarget? {
+        if (!_state.value.isShareTargetMode) {
+            handleDismissForwardTopicPicker()
+            return null
+        }
+        handleDismissForwardTopicPicker()
+        return ChatListStore.Label.CancelShareTarget
+    }
+
     override fun onRemoveForwardTarget(target: ForwardTarget) =
         store.accept(ChatListStore.Intent.RemoveForwardTarget(target))
 
@@ -1009,10 +1048,18 @@ class DefaultChatListComponent(
             }
 
             state.value.forwardTopicPickerChatId != null -> {
-                handleDismissForwardTopicPicker()
+                if (state.value.isShareTargetMode) {
+                    handleDismissShareTopicPicker()
+                } else {
+                    handleDismissForwardTopicPicker()
+                }
                 true
             }
 
+            state.value.isShareTargetMode -> {
+                onShareCancelled()
+                true
+            }
             state.value.selectedForwardTargets.isNotEmpty() -> {
                 _state.update { it.copy(selectedForwardTargets = emptyList()) }
                 true
@@ -1159,6 +1206,15 @@ class DefaultChatListComponent(
             currentTargets + target
         }
         _state.update { it.copy(selectedForwardTargets = newTargets) }
+    }
+
+    private fun resolveShareTarget(id: Long): ChatListStore.Label? {
+        val chat = _state.value.resolveSelectedChats(setOf(id)).firstOrNull() ?: return null
+        if (chat.viewAsTopics) {
+            openForwardTopicPicker(chat)
+            return null
+        }
+        return ChatListStore.Label.ShareTargetSelected(ShareTarget(chatId = id))
     }
 
     private fun openForwardTopicPicker(chat: ChatModel) {

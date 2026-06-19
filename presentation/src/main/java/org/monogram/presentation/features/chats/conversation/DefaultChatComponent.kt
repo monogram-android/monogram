@@ -60,6 +60,7 @@ import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.componentScope
+import org.monogram.presentation.features.chats.conversation.logic.handleSendPendingAttachments
 import org.monogram.presentation.features.chats.conversation.logic.loadChatInfo
 import org.monogram.presentation.features.chats.conversation.logic.loadDraft
 import org.monogram.presentation.features.chats.conversation.logic.loadMessages
@@ -72,6 +73,8 @@ import org.monogram.presentation.features.chats.conversation.logic.refreshDraftL
 import org.monogram.presentation.features.chats.conversation.logic.setupMessageCollectors
 import org.monogram.presentation.features.chats.conversation.logic.setupPinnedMessageCollector
 import org.monogram.presentation.features.chats.conversation.logic.withUnreadSessionFromChat
+import org.monogram.presentation.features.share.IncomingShareRequest
+import org.monogram.presentation.features.share.PendingAttachment
 import org.monogram.presentation.root.AppComponentContext
 import org.monogram.presentation.settings.storage.CacheController
 import java.io.File
@@ -90,7 +93,10 @@ class DefaultChatComponent(
     private val onProfileClick: () -> Unit,
     private val onForward: (Long, List<Long>) -> Unit,
     private val onLink: (String) -> Unit,
-    private val initialMessageId: Long? = null
+    private val initialMessageId: Long? = null,
+    private val initialTopicId: Long? = null,
+    private val initialShare: IncomingShareRequest? = null,
+    private val onInitialShareConsumed: (Long) -> Unit = {}
 ) : ChatComponent, AppComponentContext by context {
 
     internal val wallpaperRepository: WallpaperRepository = container.repositories.wallpaperRepository
@@ -171,6 +177,8 @@ class DefaultChatComponent(
             fixLinkPreviews = appPreferences.fixLinkPreviews.value,
             isWhitelistedInAdBlock = appPreferences.adBlockWhitelistedChannels.value.contains(chatId),
             scrollToMessageId = initialMessageId,
+            currentTopicId = initialTopicId,
+            initialShare = initialShare,
             lastScrollPosition = cacheProvider.getChatScrollPosition(chatId),
             lastSavedViewport = cacheProvider.getChatViewport(chatId, null),
             isInstalledFromGooglePlay = distrManager.isInstalledFromGooglePlay(),
@@ -742,7 +750,71 @@ class DefaultChatComponent(
         }
     }
 
+    override fun onStageAttachments(attachments: List<PendingAttachment>) {
+        _state.update { it.copy(stagedAttachments = attachments) }
+    }
+
+    override fun onClearPendingAttachments() {
+        cleanupTempAttachments(_state.value.stagedAttachments)
+        _state.update { it.copy(stagedAttachments = emptyList()) }
+    }
+
+    override fun onConsumeInitialShare(requestId: Long) {
+        val current = _state.value.initialShare
+        if (current?.requestId != requestId) return
+        _state.update {
+            it.copy(
+                initialShareConsumed = true,
+                initialShare = null
+            )
+        }
+        onInitialShareConsumed(requestId)
+    }
+
+    override fun onRemovePendingAttachment(path: String) {
+        val current = _state.value.stagedAttachments
+        val removed = current.firstOrNull { it.localPath == path } ?: return
+        cleanupTempAttachments(listOf(removed))
+        _state.update {
+            it.copy(stagedAttachments = current.filterNot { attachment -> attachment.localPath == path })
+        }
+    }
+
+    override fun onReplacePendingAttachment(oldPath: String, attachment: PendingAttachment) {
+        val current = _state.value.stagedAttachments.toMutableList()
+        val index = current.indexOfFirst { it.localPath == oldPath }
+        if (index == -1) return
+        val previous = current[index]
+        current[index] = attachment
+        cleanupTempAttachments(listOf(previous), excludePaths = setOf(attachment.localPath))
+        _state.update { it.copy(stagedAttachments = current) }
+    }
+
+    override fun onSendPendingAttachments(
+        attachments: List<PendingAttachment>,
+        caption: String,
+        captionEntities: List<MessageEntity>,
+        sendOptions: MessageSendOptions
+    ) {
+        handleSendPendingAttachments(
+            attachments = attachments,
+            caption = caption,
+            captionEntities = captionEntities,
+            sendOptions = sendOptions
+        )
+    }
+
     override fun onClosePoll(messageId: Long) = store.accept(ChatStore.Intent.ClosePoll(messageId))
+
+    internal fun cleanupTempAttachments(
+        attachments: List<PendingAttachment>,
+        excludePaths: Set<String> = emptySet()
+    ) {
+        attachments.forEach { attachment ->
+            if (!attachment.deleteAfterUse || attachment.localPath in excludePaths) return@forEach
+            runCatching { File(attachment.localPath).deleteRecursively() }
+        }
+    }
 
     private fun scheduleViewportPersistence(threadId: Long?, viewport: ChatViewportCacheEntry) {
         val previous = when {

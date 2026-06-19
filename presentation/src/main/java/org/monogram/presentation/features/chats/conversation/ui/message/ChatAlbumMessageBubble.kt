@@ -52,6 +52,7 @@ fun ChatAlbumMessageBubble(
     onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit = {},
     onVideoClick: (MessageModel) -> Unit,
+    onDownloadVideo: (Int) -> Unit = {},
     onDocumentClick: (MessageModel) -> Unit = {},
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
@@ -217,6 +218,7 @@ fun ChatAlbumMessageBubble(
                     onPhotoClick = onPhotoClick,
                     onDownloadPhoto = onDownloadPhoto,
                     onVideoClick = onVideoClick,
+                    onDownloadVideo = onDownloadVideo,
                     onCancelDownload = onCancelDownload,
                     onLongClick = { tappedMessage, offset ->
                         if (onMessageLongPress != null) {

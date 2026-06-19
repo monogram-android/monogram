@@ -72,6 +72,7 @@ internal fun ChannelMessageBubbleContainer(
     onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit = {},
     onVideoClick: (MessageModel) -> Unit = {},
+    onDownloadVideo: (Int) -> Unit = {},
     onDocumentClick: (MessageModel) -> Unit = {},
     onAudioClick: (MessageModel) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
@@ -81,6 +82,7 @@ internal fun ChannelMessageBubbleContainer(
     onReactionClick: (Long, String) -> Unit = { _, _ -> },
     onReplyMarkupButtonClick: (Long, InlineKeyboardButtonModel) -> Unit = { _, _ -> },
     onStickerClick: (Long) -> Unit = {},
+    onDownloadSticker: (Int) -> Unit = {},
     onPollOptionClick: (Long, Int) -> Unit = { _, _ -> },
     onRetractVote: (Long) -> Unit = {},
     onShowVoters: (Long, Int) -> Unit = { _, _ -> },
@@ -312,6 +314,7 @@ internal fun ChannelMessageBubbleContainer(
                                 autoDownloadRoaming = appearance.autoDownloadRoaming,
                                 autoplayVideos = appearance.autoplayVideos,
                                 onVideoClick = onVideoClick,
+                                onDownloadVideo = onDownloadVideo,
                                 onCancelDownload = onCancelDownload,
                                 onLongClick = { offset ->
                                     (onMessageLongPressState ?: onReplyClickState)(
@@ -492,6 +495,7 @@ internal fun ChannelMessageBubbleContainer(
                                 onReplyClick = onGoToReply,
                                 onReactionClick = { onReactionClick(msg.id, it) },
                                 onStickerClick = { onStickerClick(content.setId) },
+                                onDownloadSticker = onDownloadSticker,
                                 onLongClick = {
                                     (onMessageLongPressState ?: onReplyClickState)(
                                         layoutTracker.bubblePosition,

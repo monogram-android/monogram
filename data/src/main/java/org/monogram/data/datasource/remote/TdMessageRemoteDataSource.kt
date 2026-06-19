@@ -116,8 +116,14 @@ class TdMessageRemoteDataSource(
     private val messageUpdateJobs = ConcurrentHashMap<Pair<Long, Long>, Job>()
     private val lastProgressMap = ConcurrentHashMap<Int, Int>()
     private val lastDownloadActiveMap = ConcurrentHashMap<Int, Boolean>()
+    private val lastCancelledEmissionAt = ConcurrentHashMap<Int, Long>()
 
     init {
+        fileDownloadQueue.setObserver(object : FileDownloadQueue.Observer {
+            override fun onDownloadCancelled(fileId: Int) {
+                emitCancelledForFile(fileId)
+            }
+        })
         scope.launch {
             for (task in sendQueue) {
                 try {
@@ -1880,20 +1886,7 @@ class TdMessageRemoteDataSource(
         } else if (isCancelled) {
             lastProgressMap.remove(file.id)
             Log.d("DownloadDebug", "td.downloadCancelled.emit: fileId=${file.id}")
-            val entries = fileIdToMessageMap[file.id]
-            if (!entries.isNullOrEmpty()) {
-                scope.launch {
-                    entries.forEach { (chatId, messageId) ->
-                        messageDownloadFlow.emit(
-                            MessageDownloadEvent.Cancelled(
-                                chatId = chatId,
-                                messageId = messageId,
-                                fileId = file.id
-                            )
-                        )
-                    }
-                }
-            }
+            emitCancelledForFile(file.id)
         }
 
         if (isUC) {
@@ -1979,6 +1972,31 @@ class TdMessageRemoteDataSource(
         refreshJobs.values.forEach { it.cancel() }; refreshJobs.clear()
         messageUpdateJobs.values.forEach { it.cancel() }; messageUpdateJobs.clear()
         lastProgressMap.clear()
+        fileDownloadQueue.setObserver(null)
+    }
+
+    private fun emitCancelledForFile(fileId: Int) {
+        if (fileId == 0) return
+        lastProgressMap.remove(fileId)
+        val now = System.currentTimeMillis()
+        val previous = lastCancelledEmissionAt[fileId]
+        if (previous != null && now - previous < 250L) return
+        lastCancelledEmissionAt[fileId] = now
+
+        val entries = fileIdToMessageMap[fileId]
+        if (!entries.isNullOrEmpty()) {
+            scope.launch {
+                entries.forEach { (chatId, messageId) ->
+                    messageDownloadFlow.emit(
+                        MessageDownloadEvent.Cancelled(
+                            chatId = chatId,
+                            messageId = messageId,
+                            fileId = fileId
+                        )
+                    )
+                }
+            }
+        }
     }
 
     private companion object {

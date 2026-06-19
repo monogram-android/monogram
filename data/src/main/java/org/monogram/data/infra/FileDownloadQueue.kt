@@ -29,6 +29,10 @@ class FileDownloadQueue(
     private val scope: CoroutineScope,
     private val dispatcherProvider: DispatcherProvider
 ) {
+    interface Observer {
+        fun onDownloadCancelled(fileId: Int)
+    }
+
     enum class DownloadType { VIDEO, GIF, STICKER, VIDEO_NOTE, DEFAULT }
 
     private data class DownloadRequest(
@@ -88,6 +92,9 @@ class FileDownloadQueue(
     private val stalledRecoveryCooldownMs = 12_000L
 
     private val trigger = Channel<Unit>(Channel.CONFLATED)
+
+    @Volatile
+    private var observer: Observer? = null
 
     init {
         scope.launch(dispatcherProvider.default) {
@@ -648,6 +655,10 @@ class FileDownloadQueue(
         }
     }
 
+    fun setObserver(observer: Observer?) {
+        this.observer = observer
+    }
+
     fun clearSuppression(fileId: Int) {
         if (suppressedAutoDownloadIds.remove(fileId)) {
             Log.d("DownloadDebug", "queue.suppression.cleared: fileId=$fileId")
@@ -671,6 +682,7 @@ class FileDownloadQueue(
 
     fun notifyDownloadCancelled(fileId: Int) {
         downloadWaiters.remove(fileId)?.cancel()
+        observer?.onDownloadCancelled(fileId)
     }
 
     fun notifyUploadComplete(fileId: Int) {

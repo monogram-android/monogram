@@ -85,6 +85,7 @@ fun VideoMessageBubble(
     autoDownloadRoaming: Boolean,
     autoplayVideos: Boolean,
     onVideoClick: (MessageModel) -> Unit,
+    onDownloadVideo: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
     onCancelDownload: (Int) -> Unit = {},
     onLongClick: (Offset) -> Unit,
@@ -111,6 +112,7 @@ fun VideoMessageBubble(
         content.minithumbnail?.let { namespacedCacheKey("chat_video_mini:${content.fileId}", it) }
     }
     var isAutoDownloadSuppressed by remember(msg.id, content.fileId) { mutableStateOf(false) }
+    val onDownloadVideoState by rememberUpdatedState(onDownloadVideo)
 
     LaunchedEffect(content.path, content.fileId) {
         if (!content.path.isNullOrBlank()) {
@@ -131,7 +133,7 @@ fun VideoMessageBubble(
                 else -> autoDownloadMobile
             }
             if (shouldDownload) {
-                onVideoClick(msg)
+                onDownloadVideoState(content.fileId)
             }
         }
     }
@@ -316,7 +318,7 @@ fun VideoMessageBubble(
                             onStartDownload = {
                                 isAutoDownloadSuppressed = false
                                 AutoDownloadSuppression.clear(content.fileId)
-                                onVideoClickState(msg)
+                                onDownloadVideoState(content.fileId)
                             }
                         )
                     }
@@ -335,7 +337,11 @@ fun VideoMessageBubble(
                         onOpenVideo = {
                             isAutoDownloadSuppressed = false
                             AutoDownloadSuppression.clear(content.fileId)
-                            onVideoClickState(msg)
+                            if (content.path.isNullOrBlank() && !content.supportsStreaming) {
+                                onDownloadVideoState(content.fileId)
+                            } else {
+                                onVideoClickState(msg)
+                            }
                         },
                         onLongClick = { anchor -> onLongClickState(anchor) }
                     )

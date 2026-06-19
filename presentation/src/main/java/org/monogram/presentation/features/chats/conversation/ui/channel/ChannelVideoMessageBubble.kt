@@ -56,11 +56,13 @@ import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
+import org.monogram.presentation.core.media.VideoStickerPlayer
+import org.monogram.presentation.core.media.VideoType
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppression
-import org.monogram.presentation.core.media.VideoStickerPlayer
-import org.monogram.presentation.core.media.VideoType
+import org.monogram.presentation.features.chats.conversation.ui.content.VideoTapAction
+import org.monogram.presentation.features.chats.conversation.ui.content.resolveVideoTapAction
 import org.monogram.presentation.features.chats.conversation.ui.message.BigEmojiContent
 import org.monogram.presentation.features.chats.conversation.ui.message.ForwardContent
 import org.monogram.presentation.features.chats.conversation.ui.message.MediaLoadingAction
@@ -86,6 +88,7 @@ fun ChannelVideoMessageBubble(
     isSameSenderBelow: Boolean = false,
     isSameSenderAbove: Boolean = false,
     onVideoClick: (MessageModel) -> Unit,
+    onDownloadVideo: (Int) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onLongClick: (Offset) -> Unit,
     onReplyClick: (MessageModel) -> Unit = {},
@@ -154,7 +157,7 @@ fun ChannelVideoMessageBubble(
                 downloadUtils.isRoaming() -> autoDownloadRoaming
                 else -> autoDownloadMobile
             }
-            if (shouldDownload) onVideoClick(msg)
+            if (shouldDownload) onDownloadVideo(content.fileId)
         }
     }
 
@@ -358,7 +361,9 @@ fun ChannelVideoMessageBubble(
                                     onIdleClick = {
                                         isAutoDownloadSuppressed = false
                                         AutoDownloadSuppression.clear(content.fileId)
-                                        onVideoClick(msg)
+                                        if (content.supportsStreaming) onVideoClick(msg) else onDownloadVideo(
+                                            content.fileId
+                                        )
                                     }
                                 )
                             }
@@ -382,7 +387,16 @@ fun ChannelVideoMessageBubble(
                                             } else {
                                                 isAutoDownloadSuppressed = false
                                                 AutoDownloadSuppression.clear(content.fileId)
-                                                onVideoClick(msg)
+                                                when (resolveVideoTapAction(
+                                                    content.path,
+                                                    content.supportsStreaming
+                                                )) {
+                                                    VideoTapAction.Download -> onDownloadVideo(
+                                                        content.fileId
+                                                    )
+
+                                                    VideoTapAction.Open -> onVideoClick(msg)
+                                                }
                                             }
                                         },
                                         onLongPress = { offset -> onLongClick(videoPosition + offset) }

@@ -1051,11 +1051,13 @@ private fun MessageBubbleSwitcher(
                     },
                     onDownloadPhoto = onPhotoDownload,
                     onVideoClick = {
-                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else handleVideoClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else handleVideoTap(
                             it,
+                            component::onDownloadFile,
                             onVideoClick
                         )
                     },
+                    onDownloadVideo = { component.onDownloadFile(it) },
                     onDocumentClick = {
                         if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else onDocumentClick(
                             it
@@ -1102,6 +1104,11 @@ private fun MessageBubbleSwitcher(
                         ) else component.onStickerClick(
                             it
                         )
+                    },
+                    onDownloadSticker = { fileId ->
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(
+                            sanitizedItem.message.id
+                        ) else component.onDownloadFile(fileId)
                     },
                     onPollOptionClick = { id, opt ->
                         if (behavior.isSelectionMode) component.onToggleMessageSelection(id) else component.onPollOptionClick(
@@ -1165,11 +1172,13 @@ private fun MessageBubbleSwitcher(
                     },
                     onDownloadPhoto = onPhotoDownload,
                     onVideoClick = {
-                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else handleVideoClick(
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else handleVideoTap(
                             it,
+                            component::onDownloadFile,
                             onVideoClick
                         )
                     },
+                    onDownloadVideo = { component.onDownloadFile(it) },
                     onDocumentClick = {
                         if (behavior.isSelectionMode) component.onToggleMessageSelection(it.id) else onDocumentClick(
                             it
@@ -1216,6 +1225,11 @@ private fun MessageBubbleSwitcher(
                         ) else component.onStickerClick(
                             it
                         )
+                    },
+                    onDownloadSticker = { fileId ->
+                        if (behavior.isSelectionMode) component.onToggleMessageSelection(
+                            sanitizedItem.message.id
+                        ) else component.onDownloadFile(fileId)
                     },
                     onPollOptionClick = { id, opt ->
                         if (behavior.isSelectionMode) component.onToggleMessageSelection(id) else component.onPollOptionClick(
@@ -1285,6 +1299,7 @@ private fun MessageBubbleSwitcher(
                         it,
                         sanitizedItem.messages,
                         onPhotoClick,
+                        component::onDownloadFile,
                         onVideoClick
                     )
                 },
@@ -1385,7 +1400,8 @@ private fun RootMessageSection(
                 senderGrouping = senderGrouping,
                 onPhotoClick = { handlePhotoClick(it, onPhotoClick) },
                 onDownloadPhoto = onPhotoDownload,
-                onVideoClick = { handleVideoClick(it, onVideoClick) },
+                onVideoClick = { handleVideoTap(it, component::onDownloadFile, onVideoClick) },
+                onDownloadVideo = { component.onDownloadFile(it) },
                 onDocumentClick = onDocumentClick,
                 onAudioClick = onAudioClick,
                 onCancelDownload = { component.onCancelDownloadFile(it) },
@@ -1394,6 +1410,7 @@ private fun RootMessageSection(
                 onReactionClick = { id, r -> component.onSendReaction(id, r) },
                 onReplyMarkupButtonClick = { id, btn -> component.onReplyMarkupButtonClick(id, btn, root.senderId) },
                 onStickerClick = { component.onStickerClick(it) },
+                onDownloadSticker = { component.onDownloadFile(it) },
                 onPollOptionClick = { id, opt -> component.onPollOptionClick(id, opt) },
                 onRetractVote = { component.onRetractVote(it) },
                 onShowVoters = { id, opt -> component.onShowVoters(id, opt) },
@@ -1415,7 +1432,8 @@ private fun RootMessageSection(
                 senderGrouping = senderGrouping,
                 onPhotoClick = { handlePhotoClick(it, onPhotoClick) },
                 onDownloadPhoto = onPhotoDownload,
-                onVideoClick = { handleVideoClick(it, onVideoClick) },
+                onVideoClick = { handleVideoTap(it, component::onDownloadFile, onVideoClick) },
+                onDownloadVideo = { component.onDownloadFile(it) },
                 onDocumentClick = onDocumentClick,
                 onAudioClick = onAudioClick,
                 onCancelDownload = { component.onCancelDownloadFile(it) },
@@ -1424,6 +1442,7 @@ private fun RootMessageSection(
                 onReactionClick = { id, r -> component.onSendReaction(id, r) },
                 onReplyMarkupButtonClick = { id, btn -> component.onReplyMarkupButtonClick(id, btn, root.senderId) },
                 onStickerClick = { component.onStickerClick(it) },
+                onDownloadSticker = { component.onDownloadFile(it) },
                 onPollOptionClick = { id, opt -> component.onPollOptionClick(id, opt) },
                 onRetractVote = { component.onRetractVote(it) },
                 onShowVoters = { id, opt -> component.onShowVoters(id, opt) },
@@ -1583,6 +1602,25 @@ private fun handleVideoClick(msg: MessageModel, onVideoClick: (MessageModel, Str
     }
 }
 
+private fun handleVideoTap(
+    msg: MessageModel,
+    onDownloadVideo: (Int) -> Unit,
+    onVideoClick: (MessageModel, String?, String?) -> Unit
+) {
+    when (val content = msg.content) {
+        is MessageContent.Video -> when (resolveVideoTapAction(
+            content.path,
+            content.supportsStreaming
+        )) {
+            VideoTapAction.Download -> onDownloadVideo(content.fileId)
+            VideoTapAction.Open -> onVideoClick(msg, content.path, content.caption)
+        }
+
+        is MessageContent.Gif -> onVideoClick(msg, content.path, content.caption)
+        else -> {}
+    }
+}
+
 private fun handleAlbumPhotoClick(
     clickedMsg: MessageModel,
     messages: List<MessageModel>,
@@ -1615,6 +1653,7 @@ private fun handleAlbumVideoClick(
     clickedMsg: MessageModel,
     messages: List<MessageModel>,
     onPhotoClick: (MessageModel, List<String>, List<String?>, List<Long>, Int) -> Unit,
+    onDownloadVideo: (Int) -> Unit,
     onVideoClick: (MessageModel, String?, String?) -> Unit
 ) {
     val videoContent = clickedMsg.content as? MessageContent.Video
@@ -1622,7 +1661,16 @@ private fun handleAlbumVideoClick(
     val supportsStreaming = videoContent?.supportsStreaming ?: false
     val path = (videoContent?.path ?: gifContent?.path)?.takeIf { it.isNotBlank() && File(it).exists() }
     val clickedCaption = clickedMsg.mediaCaption()
-    
+
+    if (videoContent != null && resolveVideoTapAction(
+            videoContent.path,
+            supportsStreaming
+        ) == VideoTapAction.Download
+    ) {
+        onDownloadVideo(videoContent.fileId)
+        return
+    }
+
     if (path == null && supportsStreaming) {
         onVideoClick(clickedMsg, null, clickedCaption)
         return
@@ -1690,6 +1738,22 @@ internal fun MessageModel.mediaCaption(): String? {
         is MessageContent.Video -> content.caption
         is MessageContent.Gif -> content.caption
         else -> null
+    }
+}
+
+internal enum class VideoTapAction {
+    Open,
+    Download
+}
+
+internal fun resolveVideoTapAction(
+    path: String?,
+    supportsStreaming: Boolean
+): VideoTapAction {
+    return if (path.isNullOrBlank() && !supportsStreaming) {
+        VideoTapAction.Download
+    } else {
+        VideoTapAction.Open
     }
 }
 

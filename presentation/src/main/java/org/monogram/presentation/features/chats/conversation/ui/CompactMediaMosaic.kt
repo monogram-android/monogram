@@ -78,6 +78,7 @@ fun CompactMediaMosaic(
     onPhotoClick: (MessageModel) -> Unit,
     onDownloadPhoto: (Int) -> Unit = {},
     onVideoClick: (MessageModel) -> Unit,
+    onDownloadVideo: (Int) -> Unit = {},
     onCancelDownload: (Int) -> Unit = {},
     onLongClick: (MessageModel, Offset) -> Unit,
     showTimestampOverlay: Boolean,
@@ -131,6 +132,7 @@ fun CompactMediaMosaic(
                         video = content,
                         autoplayVideos = autoplayVideos,
                         onVideoClick = onVideoClick,
+                        onDownloadVideo = onDownloadVideo,
                         onCancelDownload = onCancelDownload,
                         onLongClick = onLongClick,
                         contentScale = contentScale,
@@ -447,6 +449,7 @@ fun VideoItem(
     video: MessageContent.Video,
     autoplayVideos: Boolean,
     onVideoClick: (MessageModel) -> Unit,
+    onDownloadVideo: (Int) -> Unit,
     onCancelDownload: (Int) -> Unit,
     onLongClick: (MessageModel, Offset) -> Unit,
     autoDownloadMobile: Boolean,
@@ -486,7 +489,7 @@ fun VideoItem(
                 downloadUtils.isRoaming() -> autoDownloadRoaming
                 else -> autoDownloadMobile
             }
-            if (shouldDownload) onVideoClick(msg)
+            if (shouldDownload) onDownloadVideo(video.fileId)
         }
     }
 
@@ -631,7 +634,9 @@ fun VideoItem(
                                     } else {
                                         isAutoDownloadSuppressed = false
                                         AutoDownloadSuppression.clear(video.fileId)
-                                        onVideoClick(msg)
+                                        if (video.supportsStreaming) onVideoClick(msg) else onDownloadVideo(
+                                            video.fileId
+                                        )
                                     }
                                 },
                                 onLongPress = { offset -> onLongClick(msg, itemPosition + offset) }
@@ -661,7 +666,9 @@ fun VideoItem(
                         onIdleClick = {
                             isAutoDownloadSuppressed = false
                             AutoDownloadSuppression.clear(video.fileId)
-                            onVideoClick(msg)
+                            if (video.supportsStreaming) onVideoClick(msg) else onDownloadVideo(
+                                video.fileId
+                            )
                         }
                     )
                 }

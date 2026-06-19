@@ -43,6 +43,22 @@ import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.presentation.features.stickers.ui.view.StickerSkeleton
 import java.io.File
 
+internal fun resolveStickerTapAction(
+    path: String?,
+    pathExists: (String) -> Boolean = { File(it).exists() }
+): StickerTapAction {
+    return if (!path.isNullOrBlank() && pathExists(path)) {
+        StickerTapAction.OpenSet
+    } else {
+        StickerTapAction.Download
+    }
+}
+
+internal enum class StickerTapAction {
+    OpenSet,
+    Download
+}
+
 @OptIn(UnstableApi::class, ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -54,6 +70,7 @@ fun StickerMessageBubble(
     onReplyClick: (MessageModel) -> Unit = {},
     onReactionClick: (String) -> Unit = {},
     onStickerClick: (Long) -> Unit = {},
+    onDownloadSticker: (Int) -> Unit = {},
     onLongClick: () -> Unit = {},
     toProfile: (Long) -> Unit = {},
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
@@ -104,7 +121,10 @@ fun StickerMessageBubble(
                 .size(stickerSize.dp)
                 .combinedClickable(
                     onClick = {
-                        onStickerClick(content.setId)
+                        when (resolveStickerTapAction(content.path)) {
+                            StickerTapAction.OpenSet -> onStickerClick(content.setId)
+                            StickerTapAction.Download -> onDownloadSticker(content.fileId)
+                        }
                     },
                     onLongClick = onLongClick
                 )

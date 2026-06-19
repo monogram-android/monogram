@@ -83,6 +83,8 @@ import org.monogram.presentation.features.chats.conversation.ui.message.LinkPrev
 import org.monogram.presentation.features.chats.conversation.ui.message.buildAnnotatedMessageTextWithEmoji
 import org.monogram.presentation.features.chats.conversation.ui.message.rememberMessageInlineContent
 import org.monogram.presentation.features.chats.conversation.ui.message.resolveLinkPreview
+import org.monogram.presentation.features.share.PendingAttachment
+import org.monogram.presentation.features.share.PendingAttachmentKind
 import java.io.File
 import java.util.Collections
 
@@ -90,7 +92,7 @@ sealed class InputPreviewState {
     object None : InputPreviewState()
     data class Reply(val message: MessageModel) : InputPreviewState()
     data class Edit(val message: MessageModel) : InputPreviewState()
-    data class Media(val paths: List<String>) : InputPreviewState()
+    data class Attachments(val attachments: List<PendingAttachment>) : InputPreviewState()
     data class Documents(val paths: List<String>) : InputPreviewState()
 }
 
@@ -104,6 +106,7 @@ internal fun InputPreviewSection(
     isDraftLinkPreviewLoading: Boolean,
     draftLinkPreviewError: String?,
     isDraftLinkPreviewDisabledForSend: Boolean,
+    pendingAttachments: List<PendingAttachment>,
     pendingMediaPaths: List<String>,
     pendingDocumentPaths: List<String>,
     onCancelEdit: () -> Unit,
@@ -115,15 +118,20 @@ internal fun InputPreviewSection(
     onCancelDocuments: () -> Unit,
     onAddMedia: () -> Unit,
     onAddDocuments: () -> Unit,
-    onMediaOrderChange: (List<String>) -> Unit,
-    onDocumentOrderChange: (List<String>) -> Unit,
+    onPendingAttachmentsChange: (List<PendingAttachment>) -> Unit,
     onMediaClick: (String) -> Unit,
     onDraftLinkPreviewAction: (LinkPreviewAction) -> Unit = {}
 ) {
     val previewState =
-        remember(editingMessage, replyMessage, pendingMediaPaths, pendingDocumentPaths) {
+        remember(
+            editingMessage,
+            replyMessage,
+            pendingAttachments,
+            pendingMediaPaths,
+            pendingDocumentPaths
+        ) {
         when {
-            pendingMediaPaths.isNotEmpty() -> InputPreviewState.Media(pendingMediaPaths)
+            pendingAttachments.isNotEmpty() -> InputPreviewState.Attachments(pendingAttachments)
             pendingDocumentPaths.isNotEmpty() -> InputPreviewState.Documents(pendingDocumentPaths)
             editingMessage != null -> InputPreviewState.Edit(editingMessage)
             replyMessage != null -> InputPreviewState.Reply(replyMessage)
@@ -145,19 +153,18 @@ internal fun InputPreviewSection(
         when (state) {
             is InputPreviewState.Edit -> EditPreview(message = state.message, onCancel = onCancelEdit)
             is InputPreviewState.Reply -> ReplyPreview(message = state.message, onCancel = onCancelReply)
-            is InputPreviewState.Media -> MediaPreview(
-                paths = state.paths,
+            is InputPreviewState.Attachments -> AttachmentPreview(
+                attachments = state.attachments,
                 onCancel = onCancelMedia,
                 onAdd = onAddMedia,
+                onAddDocuments = onAddDocuments,
                 onRemove = { path ->
-                    val newList = pendingMediaPaths.toMutableList()
-                    newList.remove(path)
-                    onMediaOrderChange(newList)
+                    onPendingAttachmentsChange(pendingAttachments.filterNot { it.localPath == path })
                 },
                 onMove = { from, to ->
-                    val newList = pendingMediaPaths.toMutableList()
+                    val newList = pendingAttachments.toMutableList()
                     Collections.swap(newList, from, to)
-                    onMediaOrderChange(newList)
+                    onPendingAttachmentsChange(newList)
                 },
                 onMediaClick = onMediaClick
             )
@@ -168,7 +175,12 @@ internal fun InputPreviewSection(
                 onRemove = { path ->
                     val newList = pendingDocumentPaths.toMutableList()
                     newList.remove(path)
-                    onDocumentOrderChange(newList)
+                    onPendingAttachmentsChange(newList.map {
+                        PendingAttachment(
+                            it,
+                            PendingAttachmentKind.DOCUMENT
+                        )
+                    })
                 }
             )
 
@@ -981,10 +993,11 @@ private fun MessageContent.toPreviewContent(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MediaPreview(
-    paths: List<String>,
+private fun AttachmentPreview(
+    attachments: List<PendingAttachment>,
     onCancel: () -> Unit,
     onAdd: () -> Unit,
+    onAddDocuments: () -> Unit,
     onRemove: (String) -> Unit,
     onMove: (Int, Int) -> Unit,
     onMediaClick: (String) -> Unit = {}
@@ -993,6 +1006,10 @@ private fun MediaPreview(
     var dragOffset by remember { mutableStateOf(0f) }
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
+    val hasDocuments =
+        remember(attachments) { attachments.any { it.kind == PendingAttachmentKind.DOCUMENT } }
+    val hasVisualMedia =
+        remember(attachments) { attachments.any { it.kind != PendingAttachmentKind.DOCUMENT } }
 
     Column(
         modifier = Modifier
@@ -1007,7 +1024,11 @@ private fun MediaPreview(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = if (paths.size > 1) stringResource(R.string.action_send_items_count, paths.size) else stringResource(R.string.action_send_media),
+                text = if (attachments.size > 1) {
+                    stringResource(R.string.action_send_items_count, attachments.size)
+                } else {
+                    stringResource(R.string.action_send_media)
+                },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 4.dp)
@@ -1021,6 +1042,17 @@ private fun MediaPreview(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(text = stringResource(R.string.action_add))
+                }
+                if (hasVisualMedia && !hasDocuments) {
+                    TextButton(onClick = onAddDocuments) {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = stringResource(R.string.action_add))
+                    }
                 }
                 IconButton(onClick = onCancel, modifier = Modifier.size(24.dp)) {
                     Icon(
@@ -1041,8 +1073,8 @@ private fun MediaPreview(
             modifier = Modifier.fillMaxWidth()
         ) {
             itemsIndexed(
-                paths,
-                key = { index, path -> "media_preview_${path}_$index" }) { index, path ->
+                attachments,
+                key = { index, attachment -> "attachment_preview_${attachment.localPath}_$index" }) { index, attachment ->
                 val isDragging = draggingIndex == index
                 val scale by animateFloatAsState(
                     targetValue = if (isDragging) 1.1f else 1f,
@@ -1055,7 +1087,7 @@ private fun MediaPreview(
                         .size(80.dp)
                         .scale(scale)
                         .zIndex(if (isDragging) 1f else 0f)
-                        .pointerInput(paths) {
+                        .pointerInput(attachments) {
                             detectDragGesturesAfterLongPress(
                                 onDragStart = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -1073,7 +1105,7 @@ private fun MediaPreview(
                                         else -> index
                                     }
 
-                                    if (targetIndex in paths.indices && targetIndex != index) {
+                                    if (targetIndex in attachments.indices && targetIndex != index) {
                                         onMove(index, targetIndex)
                                         draggingIndex = targetIndex
                                         dragOffset = 0f
@@ -1091,24 +1123,48 @@ private fun MediaPreview(
                         }
                         .clip(RoundedCornerShape(8.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable { onMediaClick(path) }
+                        .clickable(enabled = attachment.kind != PendingAttachmentKind.DOCUMENT) {
+                            onMediaClick(attachment.localPath)
+                        }
                 ) {
-                    AsyncImage(
-                        model = File(path),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-
-                    if (path.endsWith(".mp4")) {
-                        Icon(
-                            imageVector = Icons.Default.PlayCircle,
-                            contentDescription = null,
-                            tint = Color.White,
+                    if (attachment.kind == PendingAttachmentKind.DOCUMENT) {
+                        Column(
                             modifier = Modifier
-                                .align(Alignment.Center)
-                                .size(24.dp)
+                                .fillMaxSize()
+                                .padding(8.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = File(attachment.localPath).name,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = formatFileSize(File(attachment.localPath).length()),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        AsyncImage(
+                            model = File(attachment.localPath),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
+
+                        if (attachment.kind == PendingAttachmentKind.VIDEO || attachment.kind == PendingAttachmentKind.GIF) {
+                            Icon(
+                                imageVector = Icons.Default.PlayCircle,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .size(24.dp)
+                            )
+                        }
                     }
 
                     Box(
@@ -1117,7 +1173,7 @@ private fun MediaPreview(
                             .padding(4.dp)
                             .size(20.dp)
                             .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                            .clickable { onRemove(path) },
+                            .clickable { onRemove(attachment.localPath) },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(

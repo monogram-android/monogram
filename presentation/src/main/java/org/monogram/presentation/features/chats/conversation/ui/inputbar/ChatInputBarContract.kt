@@ -19,6 +19,7 @@ import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.WebPage
 import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
+import org.monogram.presentation.features.share.PendingAttachment
 
 @Immutable
 data class ChatInputBarState(
@@ -33,6 +34,7 @@ data class ChatInputBarState(
     val isDraftLinkPreviewLoading: Boolean = false,
     val draftLinkPreviewError: String? = null,
     val isDraftLinkPreviewDisabledForSend: Boolean = false,
+    val pendingAttachments: List<PendingAttachment> = emptyList(),
     val pendingMediaPaths: List<String> = emptyList(),
     val pendingDocumentPaths: List<String> = emptyList(),
     val isClosed: Boolean = false,
@@ -75,10 +77,8 @@ internal data class ChatInputBarActions(
     val onRestoreDraftLinkPreview: () -> Unit = {},
     val onTyping: () -> Unit = {},
     val onCancelMedia: () -> Unit = {},
-    val onSendMedia: (List<String>, String, List<MessageEntity>, MessageSendOptions) -> Unit = { _, _, _, _ -> },
-    val onSendDocuments: (List<String>, String, List<MessageEntity>, MessageSendOptions) -> Unit = { _, _, _, _ -> },
-    val onMediaOrderChange: (List<String>) -> Unit = {},
-    val onDocumentOrderChange: (List<String>) -> Unit = {},
+    val onSendAttachments: (List<PendingAttachment>, String, List<MessageEntity>, MessageSendOptions) -> Unit = { _, _, _, _ -> },
+    val onPendingAttachmentsChange: (List<PendingAttachment>) -> Unit = {},
     val onMediaClick: (String) -> Unit = {},
     val onDraftLinkPreviewAction: (LinkPreviewAction) -> Unit = {},
     val onSendPoll: (PollDraft) -> Unit = {},
@@ -115,6 +115,7 @@ internal data class ChatInputBarCapabilities(
 
 @Immutable
 internal data class ComposerAttachmentState(
+    val pendingAttachments: List<PendingAttachment> = emptyList(),
     val pendingMediaPaths: List<String> = emptyList(),
     val pendingDocumentPaths: List<String> = emptyList(),
     val scheduledMessagesCount: Int = 0

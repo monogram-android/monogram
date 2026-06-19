@@ -4,6 +4,7 @@ import com.arkivanov.mvikotlin.core.store.Store
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.repository.ForwardRequest
 import org.monogram.domain.repository.ForwardTarget
+import org.monogram.presentation.features.share.ShareTarget
 
 interface ChatListStore : Store<ChatListStore.Intent, ChatListComponent.State, ChatListStore.Label> {
 
@@ -42,6 +43,8 @@ interface ChatListStore : Store<ChatListStore.Intent, ChatListComponent.State, C
 
         data class ForwardTopicSelected(val chatId: Long, val topicId: Int?) : Intent()
         object DismissForwardTopicPicker : Intent()
+        data class ShareTopicSelected(val chatId: Long, val topicId: Int?) : Intent()
+        object DismissShareTopicPicker : Intent()
         data class RemoveForwardTarget(val target: ForwardTarget) : Intent()
         object NewChatClicked : Intent()
         object ProxySettingsClicked : Intent()
@@ -67,6 +70,8 @@ interface ChatListStore : Store<ChatListStore.Intent, ChatListComponent.State, C
         object OpenProxySettings : Label()
         object OpenNewChat : Label()
         data class ConfirmForward(val request: ForwardRequest) : Label()
+        data class ShareTargetSelected(val target: ShareTarget) : Label()
+        object CancelShareTarget : Label()
         data class EditFolders(val folderId: Int? = null) : Label()
     }
 }

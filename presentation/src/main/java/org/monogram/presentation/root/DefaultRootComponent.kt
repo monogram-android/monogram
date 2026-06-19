@@ -70,6 +70,7 @@ import org.monogram.presentation.features.profile.admin.DefaultChatPermissionsCo
 import org.monogram.presentation.features.profile.admin.DefaultMemberListComponent
 import org.monogram.presentation.features.profile.admin.MemberListComponent
 import org.monogram.presentation.features.profile.logs.DefaultProfileLogsComponent
+import org.monogram.presentation.features.share.IncomingShareRequest
 import org.monogram.presentation.features.stickers.core.toUi
 import org.monogram.presentation.features.webview.DefaultWebViewComponent
 import org.monogram.presentation.settings.about.DefaultAboutComponent
@@ -142,6 +143,8 @@ class DefaultRootComponent(
 
     private val _activeChatId = MutableValue(0L)
     private val activeChatId: Value<Long> = _activeChatId
+    private val _pendingShare = MutableStateFlow<IncomingShareRequest?>(null)
+    private var lastConsumedShareRequestId: Long? = null
 
     override val childStack: Value<ChildStack<Config, RootComponent.Child>> = childStack(
         source = navigation,
@@ -170,8 +173,15 @@ class DefaultRootComponent(
                 val activeConfig = childStack.value.active.configuration
                 when (state) {
                     is AuthStep.Ready -> {
+                        tryResumePendingShare()
                         if (activeConfig is Config.Auth || activeConfig is Config.Startup) {
-                            navigation.replaceAll(Config.Chats())
+                            navigation.replaceAll(
+                                if (_pendingShare.value != null) {
+                                    Config.Chats(isShareTargetMode = true)
+                                } else {
+                                    Config.Chats()
+                                }
+                            )
                         }
                     }
 
@@ -474,6 +484,7 @@ class DefaultRootComponent(
         val savedPasscode = appPreferences.passcode.value
         return if (savedPasscode == passcode) {
             _isLocked.update { false }
+            tryResumePendingShare()
             true
         } else {
             false
@@ -482,6 +493,7 @@ class DefaultRootComponent(
 
     override fun unlockWithBiometrics() {
         _isLocked.update { false }
+        tryResumePendingShare()
     }
 
     override fun logout() {
@@ -502,9 +514,55 @@ class DefaultRootComponent(
     }
 
     override fun navigateToChat(chatId: Long, messageId: Long?) {
+        navigateToChat(
+            chatId = chatId,
+            messageId = messageId,
+            initialTopicId = null,
+            initialShare = null
+        )
+    }
+
+    override fun handleIncomingShare(request: IncomingShareRequest) {
+        _pendingShare.value = request
+        lastConsumedShareRequestId = null
+        tryResumePendingShare()
+    }
+
+    private fun tryResumePendingShare() {
+        val pendingShare = _pendingShare.value ?: return
+        if (_isLocked.value) return
+        if (authRepository.authState.value !is AuthStep.Ready) return
+
+        val activeConfig = childStack.value.active.configuration
+        if (activeConfig is Config.Chats && activeConfig.isShareTargetMode) {
+            return
+        }
+
+        if (activeConfig is Config.ChatDetail && activeConfig.initialShare?.requestId == pendingShare.requestId) {
+            return
+        }
+
+        navigation.bringToFront(Config.Chats(isShareTargetMode = true))
+    }
+
+    private fun navigateToChat(
+        chatId: Long,
+        messageId: Long?,
+        initialTopicId: Long?,
+        initialShare: IncomingShareRequest?
+    ) {
         navigation.navigate { stack ->
-            val newStack = stack.filterNot { it is Config.ChatDetail && it.chatId == chatId }
-            newStack + Config.ChatDetail(chatId, messageId)
+            val newStack = stack.filterNot {
+                it is Config.ChatDetail &&
+                        it.chatId == chatId &&
+                        it.initialTopicId == initialTopicId
+            }
+            newStack + Config.ChatDetail(
+                chatId = chatId,
+                messageId = messageId,
+                initialTopicId = initialTopicId,
+                initialShare = initialShare
+            )
         }
     }
 
@@ -561,7 +619,22 @@ class DefaultRootComponent(
                             }
                         }
                     },
+                    onShareTargetSelected = { target ->
+                        val pendingShare = _pendingShare.value ?: return@DefaultChatListComponent
+                        navigateToChat(
+                            chatId = target.chatId,
+                            messageId = null,
+                            initialTopicId = target.topicId,
+                            initialShare = pendingShare
+                        )
+                    },
+                    onShareCancelled = {
+                        _pendingShare.value = null
+                        lastConsumedShareRequestId = null
+                        navigation.popWhile { it !is Config.Chats }
+                    },
                     isForwarding = config.forwardingMessageIds != null,
+                    isShareTargetMode = config.isShareTargetMode,
                     forwardingFromChatId = config.fromChatId,
                     forwardingMessageIds = config.forwardingMessageIds.orEmpty(),
                     onNewChatClick = { navigation.bringToFront(Config.NewChat) },
@@ -594,6 +667,14 @@ class DefaultRootComponent(
                     },
                     onLink = { handleLink(it) },
                     initialMessageId = config.messageId,
+                    initialShare = config.initialShare,
+                    initialTopicId = config.initialTopicId,
+                    onInitialShareConsumed = { requestId ->
+                        if (_pendingShare.value?.requestId == requestId) {
+                            _pendingShare.value = null
+                            lastConsumedShareRequestId = requestId
+                        }
+                    },
                     toProfiles = { id -> navigation.bringToFront(Config.Profile(chatId = id)) }
                 )
             )
@@ -818,11 +899,20 @@ class DefaultRootComponent(
         @Parcelize @Serializable data class Chats(
             val fromChatId: Long? = null,
             val forwardingMessageIds: List<Long>? = null,
-            val activeChatId: Long? = null
+            val activeChatId: Long? = null,
+            val isShareTargetMode: Boolean = false
         ) : Config()
         @Parcelize @Serializable object NewChat : Config()
         @Parcelize @Serializable object SessionsConfig : Config()
-        @Parcelize @Serializable data class ChatDetail(val chatId: Long, val messageId: Long? = null) : Config()
+
+        @Parcelize
+        @Serializable
+        data class ChatDetail(
+            val chatId: Long,
+            val messageId: Long? = null,
+            val initialTopicId: Long? = null,
+            val initialShare: IncomingShareRequest? = null
+        ) : Config()
         @Parcelize @Serializable object Settings : Config()
         @Parcelize @Serializable object EditProfile : Config()
         @Parcelize @Serializable object Folders : Config()

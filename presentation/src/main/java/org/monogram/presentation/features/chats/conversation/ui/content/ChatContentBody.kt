@@ -66,13 +66,15 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.UserModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ExpressiveDefaults
+import org.monogram.presentation.core.util.copyUriToTempMediaFile
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ui.AdvancedCircularRecorderScreen
 import org.monogram.presentation.features.chats.conversation.ui.ChatInputBar
 import org.monogram.presentation.features.chats.conversation.ui.MessageListShimmer
 import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
+import org.monogram.presentation.features.share.PendingAttachment
+import org.monogram.presentation.features.share.PendingAttachmentKind
 import java.io.File
-import java.io.FileOutputStream
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -94,27 +96,21 @@ internal fun ChatContentBottomBar(
 
     val pickMedia =
         rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
-            val albumPaths = mutableListOf<String>()
-            uris.forEach { uri ->
-                val mimeType = context.contentResolver.getType(uri)
-                val extension = when {
-                    mimeType == "image/gif" -> "gif"
-                    mimeType?.startsWith("video/") == true -> "mp4"
-                    else -> "jpg"
-                }
-                val file = File(context.cacheDir, "temp_media_${System.nanoTime()}.$extension")
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(file).use { output -> input.copyTo(output) }
-                }
-                if (extension == "gif") {
-                    component.onSendGifFile(file.absolutePath)
-                } else {
-                    albumPaths.add(file.absolutePath)
-                }
+            val attachments = uris.mapNotNull { uri ->
+                val copied = context.copyUriToTempMediaFile(uri) ?: return@mapNotNull null
+                val path = copied.localPath
+                PendingAttachment(
+                    localPath = path,
+                    kind = when {
+                        path.endsWith(".gif") -> PendingAttachmentKind.GIF
+                        path.endsWith(".mp4") -> PendingAttachmentKind.VIDEO
+                        else -> PendingAttachmentKind.PHOTO
+                    },
+                    deleteAfterUse = true
+                )
             }
-            if (albumPaths.isNotEmpty()) {
-                onPendingMediaPathsChanged((pendingMediaPaths + albumPaths).distinct())
-                onPendingDocumentPathsChanged(emptyList())
+            if (attachments.isNotEmpty()) {
+                component.onStageAttachments((state.stagedAttachments + attachments).distinctBy { it.localPath })
             }
         }
 

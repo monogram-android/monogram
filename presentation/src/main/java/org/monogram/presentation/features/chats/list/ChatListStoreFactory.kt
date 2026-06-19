@@ -61,6 +61,13 @@ class ChatListStoreFactory(
                 )
 
                 Intent.DismissForwardTopicPicker -> component.handleDismissForwardTopicPicker()
+                is Intent.ShareTopicSelected -> component.handleShareTopicSelected(
+                    intent.chatId,
+                    intent.topicId
+                )?.let(::publish)
+
+                Intent.DismissShareTopicPicker -> component.handleDismissShareTopicPicker()
+                    ?.let(::publish)
                 is Intent.RemoveForwardTarget -> component.handleRemoveForwardTarget(intent.target)
                 Intent.NewChatClicked -> publish(Label.OpenNewChat)
                 Intent.ProxySettingsClicked -> publish(Label.OpenProxySettings)

@@ -51,6 +51,7 @@ import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.conversation.ui.message.BotCommandSuggestions
 import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
+import org.monogram.presentation.features.share.PendingAttachmentKind
 import org.monogram.presentation.features.stickers.ui.menu.StickerEmojiMenu
 
 @Composable
@@ -87,8 +88,7 @@ internal fun ChatInputBarComposerSection(
     onCancelDocuments: () -> Unit,
     onAddMedia: () -> Unit,
     onAddDocuments: () -> Unit,
-    onMediaOrderChange: (List<String>) -> Unit,
-    onDocumentOrderChange: (List<String>) -> Unit,
+    onPendingAttachmentsChange: (List<org.monogram.presentation.features.share.PendingAttachment>) -> Unit,
     onMediaClick: (String) -> Unit,
     onDraftLinkPreviewAction: (LinkPreviewAction) -> Unit,
     onPasteImages: (List<Uri>) -> Unit,
@@ -170,7 +170,7 @@ internal fun ChatInputBarComposerSection(
         InputBarSendButtonState(
             isTextEmpty = rowState.textValue.text.isBlank(),
             isEditing = rowState.editingMessage != null,
-            hasPendingAttachments = attachments.pendingMediaPaths.isNotEmpty() || attachments.pendingDocumentPaths.isNotEmpty(),
+            hasPendingAttachments = attachments.pendingAttachments.isNotEmpty(),
             isOverCharLimit = rowState.isOverMessageLimit,
             canWriteText = capabilities.canWriteText,
             canSendAttachments = canSendAttachments,
@@ -206,6 +206,7 @@ internal fun ChatInputBarComposerSection(
                 isDraftLinkPreviewLoading = isDraftLinkPreviewLoading,
                 draftLinkPreviewError = draftLinkPreviewError,
                 isDraftLinkPreviewDisabledForSend = isDraftLinkPreviewDisabledForSend,
+                pendingAttachments = attachments.pendingAttachments,
                 pendingMediaPaths = attachments.pendingMediaPaths,
                 pendingDocumentPaths = attachments.pendingDocumentPaths,
                 onCancelEdit = onCancelEdit,
@@ -217,8 +218,7 @@ internal fun ChatInputBarComposerSection(
                 onCancelDocuments = onCancelDocuments,
                 onAddMedia = onAddMedia,
                 onAddDocuments = onAddDocuments,
-                onMediaOrderChange = onMediaOrderChange,
-                onDocumentOrderChange = onDocumentOrderChange,
+                onPendingAttachmentsChange = onPendingAttachmentsChange,
                 onMediaClick = onMediaClick
             )
 
@@ -297,7 +297,7 @@ internal fun ChatInputBarComposerSection(
                 ComposerSendOptionsPopup(
                     expanded = rowState.showSendOptionsSheet,
                     scheduledMessagesCount = attachments.scheduledMessagesCount,
-                    showSendAsDocument = attachments.pendingMediaPaths.isNotEmpty(),
+                    showSendAsDocument = attachments.pendingAttachments.any { it.kind != PendingAttachmentKind.DOCUMENT },
                     onDismiss = onDismissSendOptions,
                     onSendAsDocument = onSendAsDocument,
                     onSendSilent = onSendSilent,

@@ -2,7 +2,6 @@ package org.monogram.presentation.features.chats.conversation.ui.inputbar
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.provider.OpenableColumns
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
@@ -15,8 +14,10 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.StickerFormat
 import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.UserModel
-import java.io.File
-import java.io.FileOutputStream
+import org.monogram.presentation.core.util.copyUriToTempDocumentFile
+import org.monogram.presentation.core.util.copyUriToTempMediaFile
+import org.monogram.presentation.features.share.PendingAttachment
+import org.monogram.presentation.features.share.PendingAttachmentKind
 
 internal data class InlineQueryInput(
     val botUsername: String,
@@ -180,54 +181,41 @@ internal fun Context.declaredPermissions(): Set<String> {
 }
 
 internal fun Context.copyUriToTempPath(uri: android.net.Uri): String? {
-    return try {
-        if (uri.scheme == "file") return uri.path
-        val mime = contentResolver.getType(uri).orEmpty()
-        val ext = when {
-            mime.contains("video") -> "mp4"
-            mime.contains("gif") -> "gif"
-            else -> "jpg"
-        }
-        val file = File(cacheDir, "attach_${System.nanoTime()}.$ext")
-        contentResolver.openInputStream(uri)?.use { input ->
-            FileOutputStream(file).use { output -> input.copyTo(output) }
-        } ?: return null
-        file.absolutePath
-    } catch (_: Exception) {
-        null
-    }
+    return copyUriToTempMediaFile(uri)?.localPath
 }
 
 internal fun Context.copyUriToTempDocumentPath(uri: android.net.Uri): String? {
-    return try {
-        if (uri.scheme == "file") return uri.path
+    return copyUriToTempDocumentFile(uri)?.localPath
+}
 
-        val displayName =
-            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                ?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                        if (index >= 0) cursor.getString(index) else null
-                    } else {
-                        null
-                    }
-                }
-                ?.trim()
-                .orEmpty()
+internal fun Context.copyUriToPendingAttachment(uri: android.net.Uri): PendingAttachment? {
+    val media = copyUriToTempMediaFile(uri)
+    if (media != null) {
+        val path = media.localPath
+        return PendingAttachment(
+            localPath = path,
+            kind = when {
+                media.mimeType == "image/gif" || path.endsWith(
+                    ".gif",
+                    ignoreCase = true
+                ) -> PendingAttachmentKind.GIF
 
-        val mime = contentResolver.getType(uri).orEmpty()
-        val safeName = when {
-            displayName.isNotBlank() -> displayName.replace(Regex("[\\\\/:*?\"<>|]"), "_")
-            mime.startsWith("application/pdf") -> "document_${System.nanoTime()}.pdf"
-            else -> "document_${System.nanoTime()}.bin"
-        }
-        val tempDir = File(cacheDir, "doc_${System.nanoTime()}").apply { mkdirs() }
-        val file = File(tempDir, safeName)
-        contentResolver.openInputStream(uri)?.use { input ->
-            FileOutputStream(file).use { output -> input.copyTo(output) }
-        } ?: return null
-        file.absolutePath
-    } catch (_: Exception) {
-        null
+                media.mimeType?.startsWith("video/") == true || path.endsWith(
+                    ".mp4",
+                    ignoreCase = true
+                ) -> PendingAttachmentKind.VIDEO
+
+                else -> PendingAttachmentKind.PHOTO
+            },
+            deleteAfterUse = true
+        )
+    }
+
+    return copyUriToTempDocumentFile(uri)?.localPath?.let { path ->
+        PendingAttachment(
+            localPath = path,
+            kind = PendingAttachmentKind.DOCUMENT,
+            deleteAfterUse = true
+        )
     }
 }

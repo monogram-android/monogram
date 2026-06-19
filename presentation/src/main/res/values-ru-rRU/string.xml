@@ -38,6 +38,16 @@
     <string name="telegram_channel_subtitle">Новости и обновления проекта</string>
     <string name="support_monogram_title">Поддержать разработку</string>
     <string name="support_monogram_subtitle">Помочь проекту развиваться</string>
+    <string name="support_mission_title">Проект энтузиастов</string>
+    <string name="support_thank_you_title">Спасибо за поддержку MonoGram</string>
+    <string name="support_thank_you_subtitle_with_count">Авторы благодарны Вам, проекту уже помогли %1$d человек</string>
+    <string name="support_block_subtitle_with_count">Проекту уже помогли %1$d человек</string>
+    <string name="supporters_count_loading">Загружается список поддержавших…</string>
+    <string name="support_boosty_link_title">Поддержка Boosty</string>
+    <string name="support_boosty_link_value">boosty.to/monogram</string>
+    <string name="support_crypto_link_title">Поддержка Crypto</string>
+    <string name="support_crypto_link_value">t.me/send?start=IVm03D7GNky7</string>
+    <string name="support_github_link_value">github.com/monogram-android/monogram</string>
     <string name="maintainers_section">Разработчики</string>
     <string name="role_developer">Разработчик</string>
     <string name="role_designer">Дизайнер</string>
@@ -349,7 +359,7 @@
     <!-- Settings -->
     <string name="qr_code_title">QR-код</string>
     <string name="action_share">Поделиться</string>
-    <string name="support_monogram_description">MonoGram — бесплатный проект с открытым исходным кодом. Ваша поддержка помогает нам развивать приложение и добавлять новые функции.</string>
+    <string name="support_monogram_description">MonoGram делают энтузиасты, денежная поддержка помогает развитию проекта</string>
     <string name="sponsor_sheet_description">Бейдж спонсора с сердцем выдаётся с уровня поддержки Advanced или при
         эквивалентной поддержке от 150 ₽ (примерно $1.96).
     </string>
@@ -362,6 +372,7 @@
     <string name="edit_profile_subtitle">Имя, информация о себе и фото профиля</string>
     <string name="enable_tme_links">Включить ссылки t.me</string>
     <string name="enable_tme_links_subtitle">Открывать ссылки Telegram внутри приложения</string>
+    <string name="section_support">Поддержка проекта</string>
     <string name="section_general">Общие настройки</string>
     <string name="chat_settings_title">Настройки чатов</string>
     <string name="chat_settings_subtitle">Темы, размер текста, видеоплеер</string>
@@ -384,16 +395,15 @@
     <string name="proxy_settings_subtitle">MTProto, SOCKS5, HTTP</string>
     <string name="telegram_premium_title">Telegram Premium</string>
     <string name="telegram_premium_subtitle">Эксклюзивные функции</string>
-    <string name="support_monogram_subtitle_settings">Помощь в развитии проекта</string>
     <string name="sponsor_profile_title">Поддержал MonoGram</string>
     <string name="sponsor_profile_subtitle">Этот пользователь поддерживает проект и помогает нам развиваться</string>
     <string name="about_subtitle_settings">Версия и информация о MonoGram</string>
     <string name="debug_title">Отладка</string>
     <string name="debug_subtitle">Параметры для разработчиков</string>
-    <string name="debug_sponsor_sheet_title">Показать окно спонсора</string>
-    <string name="debug_sponsor_sheet_subtitle">Открыть нижнюю панель с информацией о спонсоре</string>
-    <string name="debug_force_sponsor_sync_title">Принудительная синхронизация спонсоров</string>
-    <string name="debug_force_sponsor_sync_subtitle">Сейчас загрузить ID спонсоров из канала</string>
+    <string name="debug_sponsor_count_title">Количество поддержавших</string>
+    <string name="debug_force_sponsor_sync_title">Обновить список поддержавших</string>
+    <string name="debug_sponsor_sync_loading">Список поддержавших загружается</string>
+    <string name="debug_sponsor_sync_never">Синхронизации ещё не было</string>
     <string name="log_out_title">Выйти</string>
     <string name="log_out_subtitle">Завершить сеанс</string>
     <!-- Edit Profile -->

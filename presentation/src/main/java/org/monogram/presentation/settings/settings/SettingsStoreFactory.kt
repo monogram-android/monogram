@@ -43,9 +43,9 @@ class SettingsStoreFactory(
                 Intent.StickersClicked -> component.onStickersClicked()
                 Intent.AboutClicked -> component.onAboutClicked()
                 Intent.DebugClicked -> component.onDebugClicked()
-                Intent.SupportClicked -> component.onSupportClicked()
-                Intent.SupportDismissed -> component.onSupportDismissed()
-                Intent.ShowSupportClicked -> component.onShowSupportClicked()
+                Intent.BoostyClicked -> component.onBoostyClicked()
+                Intent.CryptoDonateClicked -> component.onCryptoDonateClicked()
+                Intent.GithubClicked -> component.onGithubClicked()
                 is Intent.UpdateState -> dispatch(Message.UpdateState(intent.state))
             }
         }

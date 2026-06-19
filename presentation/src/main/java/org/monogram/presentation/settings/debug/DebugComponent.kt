@@ -9,7 +9,6 @@ interface DebugComponent {
 
     fun onBackClicked()
     fun onCrashClicked()
-    fun onShowSponsorSheetClicked()
     fun onForceSponsorSyncClicked()
     fun onTestPushClicked()
     fun onDropDatabasesClicked()
@@ -35,6 +34,9 @@ interface DebugComponent {
         val unifiedPushLastPushAt: Long = 0L,
         val isGmsAvailable: Boolean = false,
         val isFcmAvailable: Boolean = false,
-        val isUnifiedPushDistributorAvailable: Boolean = false
+        val isUnifiedPushDistributorAvailable: Boolean = false,
+        val supportersCount: Int = 0,
+        val isSponsorsLoading: Boolean = true,
+        val sponsorLastSyncAt: Long = 0L
     )
 }

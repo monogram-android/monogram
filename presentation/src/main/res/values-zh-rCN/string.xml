@@ -363,16 +363,27 @@
     <string name="proxy_settings_subtitle">MTProto, SOCKS5, HTTP</string>
     <string name="telegram_premium_title">Telegram Premium</string>
     <string name="telegram_premium_subtitle">解锁专属功能</string>
-    <string name="support_monogram_subtitle_settings">帮助我们开发项目</string>
+    <string name="support_mission_title">爱好者项目</string>
+    <string name="support_thank_you_title">感谢你支持 MonoGram</string>
+    <string name="support_thank_you_subtitle_with_count">作者感谢你的支持，已有 %1$d 人帮助了项目</string>
+    <string name="support_block_subtitle_with_count">已有 %1$d 人帮助了项目</string>
+    <string name="supporters_count_loading">正在加载支持者列表…</string>
+    <string name="support_boosty_link_title">Boosty 支持</string>
+    <string name="support_boosty_link_value">boosty.to/monogram</string>
+    <string name="support_crypto_link_title">加密货币支持</string>
+    <string name="support_crypto_link_value">t.me/send?start=IVm03D7GNky7</string>
+    <string name="support_github_link_value">github.com/monogram-android/monogram</string>
+    <string name="section_support">支持项目</string>
     <string name="sponsor_profile_title">支持了 MonoGram</string>
     <string name="sponsor_profile_subtitle">该用户正在支持项目，帮助我们持续改进</string>
     <string name="about_subtitle_settings">MonoGram 版本和信息</string>
     <string name="debug_title">调试</string>
     <string name="debug_subtitle">调试选项</string>
-    <string name="debug_sponsor_sheet_title">显示赞助者弹窗</string>
-    <string name="debug_sponsor_sheet_subtitle">打开赞助者信息底部弹窗</string>
+    <string name="debug_sponsor_count_title">支持者数量</string>
     <string name="debug_force_sponsor_sync_title">强制同步赞助者</string>
     <string name="debug_force_sponsor_sync_subtitle">立即从频道拉取赞助者 ID</string>
+    <string name="debug_sponsor_sync_loading">支持者列表正在加载</string>
+    <string name="debug_sponsor_sync_never">尚未同步</string>
     <string name="log_out_title">退出登录</string>
     <string name="log_out_subtitle">断开账号连接</string>
     <!-- Edit Profile -->

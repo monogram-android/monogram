@@ -6,6 +6,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
@@ -16,6 +19,7 @@ import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.mapper.updateSponsorIds
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
+import org.monogram.domain.repository.SponsorState
 import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "SponsorSync"
@@ -35,10 +39,13 @@ class SponsorSyncManager(
     private val scope: CoroutineScope,
     private val gateway: TelegramGateway,
     private val sponsorDao: SponsorDao,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
 ) {
     private val started = AtomicBoolean(false)
     private val syncInProgress = AtomicBoolean(false)
+    private val _sponsorState = MutableStateFlow(SponsorState())
+    val sponsorState: StateFlow<SponsorState> = _sponsorState.asStateFlow()
 
     @Volatile
     private var sponsorChatId = SPONSOR_CHANNEL_ID
@@ -52,7 +59,7 @@ class SponsorSyncManager(
     fun start() {
         if (!started.compareAndSet(false, true)) return
 
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
             loadFromDatabase()
             watchTelegramUpdates()
 
@@ -86,7 +93,7 @@ class SponsorSyncManager(
     }
 
     fun forceSync() {
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
             syncOnce(force = true, reason = "manual")
         }
     }
@@ -94,6 +101,11 @@ class SponsorSyncManager(
     private suspend fun loadFromDatabase() {
         val cachedIds = sponsorDao.getAllIds().toSet()
         updateSponsorIds(cachedIds)
+        _sponsorState.value = _sponsorState.value.copy(
+            supporterIds = cachedIds,
+            supportersCount = cachedIds.size,
+            isLoaded = cachedIds.isNotEmpty()
+        )
         Log.d(TAG, "Loaded ${cachedIds.size} sponsor ids from DB")
     }
 
@@ -135,7 +147,7 @@ class SponsorSyncManager(
     }
 
     private fun watchTelegramUpdates() {
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
             gateway.updates.collect { update ->
                 when (update) {
                     is TdApi.UpdateConnectionState -> {
@@ -174,7 +186,7 @@ class SponsorSyncManager(
 
     private fun requestEventSync(reason: String, force: Boolean) {
         eventSyncJob?.cancel()
-        eventSyncJob = scope.launch(Dispatchers.IO) {
+        eventSyncJob = scope.launch(ioDispatcher) {
             delay(EVENT_DEBOUNCE_MS)
             syncOnce(force = force, reason = reason)
         }
@@ -184,6 +196,7 @@ class SponsorSyncManager(
         if (!syncInProgress.compareAndSet(false, true)) return SyncOutcome.BUSY
 
         try {
+            _sponsorState.value = _sponsorState.value.copy(isSyncInProgress = true)
             if (authRepository.authState.value !is AuthStep.Ready) {
                 Log.d(TAG, "Skipping sponsor sync: user is not authorized")
                 return SyncOutcome.SKIPPED
@@ -233,6 +246,12 @@ class SponsorSyncManager(
             if (parsedIds.isEmpty()) {
                 Log.w(TAG, "Parsed empty sponsor list, keeping existing ${oldIds.size} ids")
                 updateSponsorIds(oldIds)
+                _sponsorState.value = _sponsorState.value.copy(
+                    supporterIds = oldIds,
+                    supportersCount = oldIds.size,
+                    isLoaded = true,
+                    lastSyncAt = System.currentTimeMillis()
+                )
                 return SyncOutcome.SUCCESS
             }
 
@@ -247,6 +266,12 @@ class SponsorSyncManager(
             })
 
             updateSponsorIds(actualIds)
+            _sponsorState.value = _sponsorState.value.copy(
+                supporterIds = actualIds,
+                supportersCount = actualIds.size,
+                isLoaded = true,
+                lastSyncAt = now
+            )
 
             val added = actualIds - oldIds
             Log.d(
@@ -260,6 +285,7 @@ class SponsorSyncManager(
             Log.e(TAG, "Sponsor sync failed", t)
             return SyncOutcome.FAILED
         } finally {
+            _sponsorState.value = _sponsorState.value.copy(isSyncInProgress = false)
             syncInProgress.set(false)
         }
     }

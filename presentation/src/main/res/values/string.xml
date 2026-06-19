@@ -49,6 +49,16 @@
     <string name="telegram_channel_subtitle">Stay updated with the latest news and announcements</string>
     <string name="support_monogram_title">Support MonoGram</string>
     <string name="support_monogram_subtitle">Support the development and help us keep the project alive</string>
+    <string name="support_mission_title">Enthusiast project</string>
+    <string name="support_thank_you_title">Thank you for supporting MonoGram</string>
+    <string name="support_thank_you_subtitle_with_count">The authors are grateful to you, %1$d people already helped the project</string>
+    <string name="support_block_subtitle_with_count">%1$d people already helped the project</string>
+    <string name="supporters_count_loading">Loading supporters list…</string>
+    <string name="support_boosty_link_title">Boosty support</string>
+    <string name="support_boosty_link_value">boosty.to/monogram</string>
+    <string name="support_crypto_link_title">Crypto support</string>
+    <string name="support_crypto_link_value">t.me/send?start=IVm03D7GNky7</string>
+    <string name="support_github_link_value">github.com/monogram-android/monogram</string>
     <string name="maintainers_section">Maintainers</string>
     <string name="role_developer">Developer</string>
     <string name="role_designer">Icon &amp; Logo Designer</string>
@@ -589,8 +599,7 @@
     <!-- Settings -->
     <string name="qr_code_title">QR Code</string>
     <string name="action_share">Share</string>
-    <string name="support_monogram_description">MonoGram is a free and open-source project. Your support helps us to
-        keep it alive and develop new features.
+    <string name="support_monogram_description">Open source client by enthusiasts, your help keeps development going
     </string>
     <string name="sponsor_sheet_description">The sponsor badge with a heart is available from Advanced support level or
         an equivalent contribution of 150 RUB (about $1.96).
@@ -604,6 +613,7 @@
     <string name="edit_profile_subtitle">Change your name, bio, and profile photo</string>
     <string name="enable_tme_links">Enable t.me links</string>
     <string name="enable_tme_links_subtitle">Open Telegram links to open them in-app</string>
+    <string name="section_support">Support</string>
     <string name="section_general">General</string>
     <string name="chat_settings_title">Chat Settings</string>
     <string name="chat_settings_subtitle">Themes, text size, video player</string>
@@ -626,16 +636,15 @@
     <string name="proxy_settings_subtitle">MTProto, SOCKS5, HTTP</string>
     <string name="telegram_premium_title">Telegram Premium</string>
     <string name="telegram_premium_subtitle">Unlock exclusive features</string>
-    <string name="support_monogram_subtitle_settings">Help us develop the project</string>
     <string name="sponsor_profile_title">Supports MonoGram</string>
     <string name="sponsor_profile_subtitle">This user supports the project and helps us keep improving it</string>
     <string name="about_subtitle_settings">MonoGram version and info</string>
     <string name="debug_title">Debug</string>
     <string name="debug_subtitle">Debug options</string>
-    <string name="debug_sponsor_sheet_title">Show sponsor sheet</string>
-    <string name="debug_sponsor_sheet_subtitle">Open sponsor info bottom sheet</string>
-    <string name="debug_force_sponsor_sync_title">Force sponsor sync</string>
-    <string name="debug_force_sponsor_sync_subtitle">Fetch sponsor IDs from channel now</string>
+    <string name="debug_sponsor_count_title">Supporters count</string>
+    <string name="debug_force_sponsor_sync_title">Refresh supporters list</string>
+    <string name="debug_sponsor_sync_loading">Supporters list is loading</string>
+    <string name="debug_sponsor_sync_never">Never synced</string>
     <string name="debug_section_push_diagnostics">Push Diagnostics</string>
     <string name="debug_section_runtime_flags">Runtime Flags</string>
     <string name="debug_section_push_environment">Push Environment</string>

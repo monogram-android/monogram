@@ -3,8 +3,10 @@ package org.monogram.presentation.settings.debug
 import com.arkivanov.decompose.value.MutableValue
 import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 import java.io.File
@@ -16,7 +18,6 @@ class DefaultDebugComponent(
 
     private val messageDisplayer = container.utils.messageDisplayer()
     private val assetsManager = container.utils.assetsManager()
-    private val externalNavigator = container.utils.externalNavigator()
     private val distrManager = container.utils.distrManager()
     private val pushDebugRepository = container.repositories.pushDebugRepository
     private val sponsorRepository = container.repositories.sponsorRepository
@@ -53,6 +54,18 @@ class DefaultDebugComponent(
                 )
             }
         }.launchIn(scope)
+
+        scope.launch {
+            sponsorRepository.sponsorState.collectLatest { sponsorState ->
+                _state.update {
+                    it.copy(
+                        supportersCount = sponsorState.supportersCount,
+                        isSponsorsLoading = !sponsorState.isLoaded && sponsorState.supportersCount == 0,
+                        sponsorLastSyncAt = sponsorState.lastSyncAt
+                    )
+                }
+            }
+        }
     }
 
     override fun onBackClicked() {
@@ -61,10 +74,6 @@ class DefaultDebugComponent(
 
     override fun onCrashClicked() {
         throw RuntimeException("Test crash")
-    }
-
-    override fun onShowSponsorSheetClicked() {
-        externalNavigator.openUrl("https://boosty.to/monogram")
     }
 
     override fun onForceSponsorSyncClicked() {

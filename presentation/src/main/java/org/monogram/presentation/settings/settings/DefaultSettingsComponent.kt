@@ -8,8 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.monogram.domain.managers.DomainManager
-import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.ExternalNavigator
+import org.monogram.domain.repository.SponsorRepository
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.IDownloadUtils
@@ -37,9 +37,9 @@ class DefaultSettingsComponent(
 
     private val repository: UserRepository = container.repositories.userRepository
     private val userProfileEditRepository: UserProfileEditRepository = container.repositories.userProfileEditRepository
+    private val sponsorRepository: SponsorRepository = container.repositories.sponsorRepository
     private val externalNavigator: ExternalNavigator = container.utils.externalNavigator()
     private val domainManager: DomainManager = container.utils.domainManager()
-    private val preferences: AppPreferencesProvider = container.preferences.appPreferences
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
 
     private val _state = MutableValue(SettingsComponent.State())
@@ -49,27 +49,38 @@ class DefaultSettingsComponent(
     init {
         scope.launch {
             try {
-                val me = repository.getMe()
-                val link = if (me.username?.isNotEmpty() == true) "https://t.me/${me.username}" else ""
-
-                _state.update {
-                    it.copy(
-                        currentUser = me,
-                        qrContent = link
-                    )
-                }
-            } catch (e: Exception) {
+                repository.getMe()
+            } catch (_: Exception) {
                 _state.update { it.copy(currentUser = null) }
             }
         }
 
         scope.launch {
-            preferences.isSupportViewed.collectLatest { viewed ->
-                if (!viewed) {
-                    _state.update { it.copy(isSupportVisible = true) }
+            repository.currentUserFlow.collectLatest { me ->
+                val link =
+                    if (me?.username?.isNotEmpty() == true) "https://t.me/${me.username}" else ""
+                _state.update {
+                    it.copy(
+                        currentUser = me,
+                        qrContent = link,
+                        isCurrentUserSponsor = me?.id?.let(sponsorRepository.sponsorState.value.supporterIds::contains) == true
+                    )
                 }
             }
         }
+
+        scope.launch {
+            sponsorRepository.sponsorState.collectLatest { sponsorState ->
+                _state.update { state ->
+                    state.copy(
+                        isCurrentUserSponsor = state.currentUser?.id?.let(sponsorState.supporterIds::contains) == true,
+                        supportersCount = sponsorState.supportersCount,
+                        isSupportersLoading = !sponsorState.isLoaded && sponsorState.supportersCount == 0
+                    )
+                }
+            }
+        }
+
         checkLinkStatus()
     }
 
@@ -155,18 +166,16 @@ class DefaultSettingsComponent(
         onDebugClick()
     }
 
-    override fun onSupportClicked() {
+    override fun onBoostyClicked() {
         externalNavigator.openUrl("https://boosty.to/monogram")
-        onSupportDismissed()
     }
 
-    override fun onSupportDismissed() {
-        preferences.setSupportViewed(true)
-        _state.update { it.copy(isSupportVisible = false) }
+    override fun onCryptoDonateClicked() {
+        externalNavigator.openUrl("https://t.me/send?start=IVm03D7GNky7")
     }
 
-    override fun onShowSupportClicked() {
-        _state.update { it.copy(isSupportVisible = true) }
+    override fun onGithubClicked() {
+        externalNavigator.openUrl("https://github.com/monogram-android/monogram")
     }
 
     override fun onMoreOptionsClicked() {

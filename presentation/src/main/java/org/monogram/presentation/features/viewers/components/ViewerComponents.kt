@@ -2,6 +2,7 @@ package org.monogram.presentation.features.viewers.components
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.media.AudioManager
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -241,6 +242,36 @@ fun formatDuration(durationMs: Long): String {
 
 fun currentTime(timeFormat: String): String =
     SimpleDateFormat(timeFormat, Locale.getDefault()).format(Date())
+
+data class ViewerDeviceSettingsSnapshot(
+    val screenBrightness: Float?,
+    val musicVolume: Int?
+) {
+    fun restore(context: Context) {
+        screenBrightness?.let { brightness ->
+            context.findActivity()?.window?.let { window ->
+                val attributes = window.attributes
+                attributes.screenBrightness = brightness
+                window.attributes = attributes
+            }
+        }
+
+        musicVolume?.let { volume ->
+            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            audioManager?.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
+        }
+    }
+}
+
+fun captureViewerDeviceSettings(context: Context): ViewerDeviceSettingsSnapshot {
+    val activity = context.findActivity()
+    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+
+    return ViewerDeviceSettingsSnapshot(
+        screenBrightness = activity?.window?.attributes?.screenBrightness,
+        musicVolume = audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC)
+    )
+}
 
 fun Context.findActivity(): ComponentActivity? = when (this) {
     is ComponentActivity -> this

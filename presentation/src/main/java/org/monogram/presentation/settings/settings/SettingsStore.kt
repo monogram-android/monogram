@@ -25,9 +25,9 @@ interface SettingsStore : Store<SettingsStore.Intent, SettingsComponent.State, S
         object StickersClicked : Intent()
         object AboutClicked : Intent()
         object DebugClicked : Intent()
-        object SupportClicked : Intent()
-        object SupportDismissed : Intent()
-        object ShowSupportClicked : Intent()
+        object BoostyClicked : Intent()
+        object CryptoDonateClicked : Intent()
+        object GithubClicked : Intent()
         data class UpdateState(val state: SettingsComponent.State) : Intent()
     }
 

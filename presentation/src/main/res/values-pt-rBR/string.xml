@@ -367,16 +367,27 @@
     <string name="proxy_settings_subtitle">MTProto, SOCKS5, HTTP</string>
     <string name="telegram_premium_title">Telegram Premium</string>
     <string name="telegram_premium_subtitle">Desbloqueie recursos exclusivos</string>
-    <string name="support_monogram_subtitle_settings">Ajude a desenvolver o projeto</string>
+    <string name="support_mission_title">Projeto de entusiastas</string>
+    <string name="support_thank_you_title">Obrigado por apoiar o MonoGram</string>
+    <string name="support_thank_you_subtitle_with_count">Os autores agradecem a você, %1$d pessoas já ajudaram o projeto</string>
+    <string name="support_block_subtitle_with_count">%1$d pessoas já ajudaram o projeto</string>
+    <string name="supporters_count_loading">Carregando lista de apoiadores…</string>
+    <string name="support_boosty_link_title">Apoio no Boosty</string>
+    <string name="support_boosty_link_value">boosty.to/monogram</string>
+    <string name="support_crypto_link_title">Apoio com cripto</string>
+    <string name="support_crypto_link_value">t.me/send?start=IVm03D7GNky7</string>
+    <string name="support_github_link_value">github.com/monogram-android/monogram</string>
+    <string name="section_support">Apoio</string>
     <string name="sponsor_profile_title">Apoia o MonoGram</string>
     <string name="sponsor_profile_subtitle">Este usuário apoia o projeto e nos ajuda a melhorar</string>
     <string name="about_subtitle_settings">Versão e informações do MonoGram</string>
     <string name="debug_title">Depuração</string>
     <string name="debug_subtitle">Opções de depuração</string>
-    <string name="debug_sponsor_sheet_title">Mostrar ficha do patrocinador</string>
-    <string name="debug_sponsor_sheet_subtitle">Abrir ficha com informações do patrocinador</string>
+    <string name="debug_sponsor_count_title">Quantidade de apoiadores</string>
     <string name="debug_force_sponsor_sync_title">Forçar sincronização de patrocinadores</string>
     <string name="debug_force_sponsor_sync_subtitle">Buscar IDs de patrocinadores do canal agora</string>
+    <string name="debug_sponsor_sync_loading">A lista de apoiadores está carregando</string>
+    <string name="debug_sponsor_sync_never">Nunca sincronizado</string>
     <string name="log_out_title">Sair</string>
     <string name="log_out_subtitle">Desconectar da conta</string>
     <!-- Edit Profile -->

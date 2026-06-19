@@ -1,16 +1,12 @@
 package org.monogram.presentation.settings.debug
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BatteryAlert
@@ -34,103 +30,35 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.VisibilityOff
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
-import java.text.DateFormat
-import java.util.Date
 import org.monogram.domain.repository.PushProvider
 import org.monogram.domain.repository.UnifiedPushDebugStatus
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SectionHeader
 import org.monogram.presentation.core.ui.SettingsItem
+import java.text.DateFormat
+import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DebugContent(component: DebugComponent) {
     val state by component.state.subscribeAsState()
-    var isSponsorSheetVisible by remember { mutableStateOf(false) }
-
-    if (isSponsorSheetVisible) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { isSponsorSheetVisible = false },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 48.dp),
-                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Favorite,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = Color(0xFFFF6D66)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = stringResource(R.string.support_monogram_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.sponsor_sheet_description),
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-                Button(
-                    onClick = {
-                        component.onShowSponsorSheetClicked()
-                        isSponsorSheetVisible = false
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text(stringResource(R.string.action_support_boosty))
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                TextButton(
-                    onClick = { isSponsorSheetVisible = false },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.action_maybe_later))
-                }
-            }
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -340,16 +268,24 @@ fun DebugContent(component: DebugComponent) {
                 SectionHeader(stringResource(R.string.debug_section_sponsor))
                 SettingsItem(
                     icon = Icons.Rounded.Favorite,
-                    title = stringResource(R.string.debug_sponsor_sheet_title),
-                    subtitle = stringResource(R.string.debug_sponsor_sheet_subtitle),
+                    title = stringResource(R.string.debug_sponsor_count_title),
+                    subtitle = if (state.isSponsorsLoading) {
+                        stringResource(R.string.supporters_count_loading)
+                    } else {
+                        state.supportersCount.toString()
+                    },
                     iconBackgroundColor = Color(0xFFFF6D66),
                     position = ItemPosition.TOP,
-                    onClick = { isSponsorSheetVisible = true }
+                    onClick = { }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Sync,
                     title = stringResource(R.string.debug_force_sponsor_sync_title),
-                    subtitle = stringResource(R.string.debug_force_sponsor_sync_subtitle),
+                    subtitle = when {
+                        state.isSponsorsLoading -> stringResource(R.string.debug_sponsor_sync_loading)
+                        state.sponsorLastSyncAt > 0L -> state.sponsorLastSyncAt.toDebugTimestamp()
+                        else -> stringResource(R.string.debug_sponsor_sync_never)
+                    },
                     iconBackgroundColor = Color(0xFF00ACC1),
                     position = ItemPosition.BOTTOM,
                     onClick = component::onForceSponsorSyncClicked

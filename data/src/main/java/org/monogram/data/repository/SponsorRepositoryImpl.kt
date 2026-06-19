@@ -6,6 +6,8 @@ import org.monogram.domain.repository.SponsorRepository
 class SponsorRepositoryImpl(
     private val sponsorSyncManager: SponsorSyncManager
 ) : SponsorRepository {
+    override val sponsorState = sponsorSyncManager.sponsorState
+
     override fun forceSponsorSync() {
         sponsorSyncManager.forceSync()
     }

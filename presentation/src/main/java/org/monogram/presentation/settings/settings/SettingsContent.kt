@@ -76,7 +76,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
@@ -109,7 +108,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
@@ -328,62 +326,6 @@ fun SettingsContent(component: SettingsComponent) {
                         colors = ButtonDefaults.buttonColors(containerColor = QrDarkGreen),
                         shape = RoundedCornerShape(12.dp)
                     ) { Text(stringResource(R.string.action_share)) }
-                }
-            }
-        }
-    }
-
-    if (state.isSupportVisible) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = component::onSupportDismissed,
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 48.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Favorite,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = pinkColor
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = stringResource(R.string.support_monogram_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.sponsor_sheet_description),
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-                Button(
-                    onClick = component::onSupportClicked,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text(stringResource(R.string.action_support_boosty))
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                TextButton(
-                    onClick = component::onSupportDismissed,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(stringResource(R.string.action_maybe_later))
                 }
             }
         }
@@ -781,6 +723,67 @@ fun SettingsContent(component: SettingsComponent) {
                     }
 
                     item {
+                        SectionHeader(stringResource(R.string.section_support))
+                        if (state.isCurrentUserSponsor) {
+                            SettingsItem(
+                                icon = Icons.Rounded.Favorite,
+                                title = stringResource(R.string.support_thank_you_title),
+                                subtitle = if (state.isSupportersLoading) {
+                                    stringResource(R.string.supporters_count_loading)
+                                } else {
+                                    stringResource(
+                                        R.string.support_thank_you_subtitle_with_count,
+                                        state.supportersCount
+                                    )
+                                },
+                                iconBackgroundColor = pinkColor,
+                                position = ItemPosition.STANDALONE,
+                                onClick = component::onGithubClicked
+                            )
+                        } else {
+                            SettingsItem(
+                                icon = Icons.Rounded.Favorite,
+                                title = stringResource(R.string.support_monogram_title),
+                                subtitle = if (state.isSupportersLoading) {
+                                    stringResource(R.string.supporters_count_loading)
+                                } else {
+                                    stringResource(
+                                        R.string.support_block_subtitle_with_count,
+                                        state.supportersCount
+                                    )
+                                },
+                                iconBackgroundColor = pinkColor,
+                                position = ItemPosition.TOP,
+                                onClick = component::onGithubClicked
+                            )
+                            SettingsItem(
+                                icon = Icons.Rounded.Star,
+                                title = stringResource(R.string.support_mission_title),
+                                subtitle = stringResource(R.string.support_monogram_description),
+                                iconBackgroundColor = orangeColor,
+                                position = ItemPosition.MIDDLE,
+                                onClick = component::onGithubClicked
+                            )
+                            SettingsItem(
+                                icon = Icons.Rounded.Link,
+                                title = stringResource(R.string.support_boosty_link_title),
+                                subtitle = stringResource(R.string.support_boosty_link_value),
+                                iconBackgroundColor = blueColor,
+                                position = ItemPosition.MIDDLE,
+                                onClick = component::onBoostyClicked
+                            )
+                            SettingsItem(
+                                icon = Icons.Rounded.Link,
+                                title = stringResource(R.string.support_crypto_link_title),
+                                subtitle = stringResource(R.string.support_crypto_link_value),
+                                iconBackgroundColor = tealColor,
+                                position = ItemPosition.BOTTOM,
+                                onClick = component::onCryptoDonateClicked
+                            )
+                        }
+                    }
+
+                    item {
                         SectionHeader(stringResource(R.string.section_general))
                         SettingsItem(
                             icon = Icons.AutoMirrored.Rounded.Chat,
@@ -890,17 +893,9 @@ fun SettingsContent(component: SettingsComponent) {
                             title = stringResource(R.string.telegram_premium_title),
                             subtitle = stringResource(R.string.telegram_premium_subtitle),
                             iconBackgroundColor = purpleColor,
-                            position = ItemPosition.TOP,
+                            position = ItemPosition.STANDALONE,
                             onClick = component::onPremiumClicked,
                             modifier = Modifier.semantics { contentDescription = "SettingsPremium" }
-                        )
-                        SettingsItem(
-                            icon = Icons.Rounded.Favorite,
-                            title = stringResource(R.string.support_monogram_title),
-                            subtitle = stringResource(R.string.support_monogram_subtitle_settings),
-                            iconBackgroundColor = pinkColor,
-                            position = ItemPosition.BOTTOM,
-                            onClick = component::onShowSupportClicked
                         )
                     }
 

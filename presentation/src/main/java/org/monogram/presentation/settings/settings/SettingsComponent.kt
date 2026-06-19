@@ -28,9 +28,9 @@ interface SettingsComponent {
     fun onStickersClicked()
     fun onAboutClicked()
     fun onDebugClicked()
-    fun onSupportClicked()
-    fun onSupportDismissed()
-    fun onShowSupportClicked()
+    fun onBoostyClicked()
+    fun onCryptoDonateClicked()
+    fun onGithubClicked()
     fun onMoreOptionsClicked()
     fun onMoreOptionsDismissed()
     fun onSetEmojiStatus(customEmojiId: Long, statusPath: String?)
@@ -43,7 +43,9 @@ interface SettingsComponent {
         val isTMeLinkEnabled: Boolean = true,
         val isQrVisible: Boolean = false,
         val qrContent: String = "",
-        val isSupportVisible: Boolean = false,
+        val isCurrentUserSponsor: Boolean = false,
+        val supportersCount: Int = 0,
+        val isSupportersLoading: Boolean = true,
         val isMoreOptionsVisible: Boolean = false,
         val fullScreenImages: List<String>? = null,
         val fullScreenVideoPath: String? = null

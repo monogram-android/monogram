@@ -38,6 +38,10 @@ import com.arkivanov.decompose.extensions.compose.stack.animation.StackAnimation
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import com.arkivanov.decompose.router.stack.ChildStack
 import kotlinx.coroutines.launch
+import org.monogram.presentation.core.ui.ScreenSwipeBackAction
+import org.monogram.presentation.core.ui.ScreenSwipeBackState
+import org.monogram.presentation.features.chats.conversation.ChatRenderMode
+import org.monogram.presentation.features.chats.list.ChatListPreviewMode
 import org.monogram.presentation.root.RootComponent
 import kotlin.math.abs
 
@@ -46,11 +50,12 @@ import kotlin.math.abs
 fun MobileLayout(root: RootComponent) {
     val stack by root.childStack.subscribeAsState()
     val isDragToBackEnabled by root.appPreferences.isDragToBackEnabled.collectAsState()
+    val showAllChatsFolder by root.appPreferences.showAllChatsFolder.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val activeEntry = stack.active
     val previousEntry = stack.items.dropLast(1).lastOrNull()
     val stackKeysAreUnique = stack.items.map { it.key }.toSet().size == stack.items.size
-    val canRenderSwipePreview =
+    val canRenderStackPreview =
         stackKeysAreUnique &&
                 previousEntry != null &&
                 previousEntry.key != activeEntry.key &&
@@ -58,19 +63,30 @@ fun MobileLayout(root: RootComponent) {
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
     var isCompletingSwipeBack by remember { mutableStateOf(false) }
     var widthPx by remember { mutableFloatStateOf(0f) }
-    var isSwipeBackBlocked by remember { mutableStateOf(false) }
     var swipeBackActiveKey by remember { mutableStateOf<Any?>(null) }
     var suppressNextPopAnimation by remember { mutableStateOf(false) }
+    var activeScreenSwipeBackState by remember { mutableStateOf(ScreenSwipeBackState()) }
+    val archivePreviewMode = resolveArchivePreviewMode(activeEntry.instance, showAllChatsFolder)
+    val archivePreviewFolderId =
+        (archivePreviewMode as? ChatListPreviewMode.FolderPreview)?.folderId
+    val swipeBackResolution = resolveSwipeBack(
+        child = activeEntry.instance,
+        screenSwipeBackState = activeScreenSwipeBackState,
+        archivePreviewFolderId = archivePreviewFolderId,
+    )
+    val canRenderLocalPreview =
+        swipeBackResolution.preview == SwipeBackPreviewDescriptor.ChatForumList ||
+                swipeBackResolution.preview is SwipeBackPreviewDescriptor.ChatListFolder
     val canUseDragToBack =
         isDragToBackEnabled &&
-                previousEntry != null &&
                 stackKeysAreUnique &&
-                isSwipeBackSupported(activeEntry.instance) &&
-                !isSwipeBackBlocked
+                swipeBackResolution.isSupported &&
+                !swipeBackResolution.isBlocked &&
+                (previousEntry != null || canRenderLocalPreview)
     val dragProgress = if (widthPx > 0f) (dragOffsetX / widthPx).coerceIn(0f, 1f) else 0f
 
     LaunchedEffect(activeEntry.key, stackKeysAreUnique) {
-        isSwipeBackBlocked = false
+        activeScreenSwipeBackState = ScreenSwipeBackState()
         swipeBackActiveKey = null
         if (!stackKeysAreUnique) {
             dragOffsetX = 0f
@@ -89,10 +105,15 @@ fun MobileLayout(root: RootComponent) {
 
     val isSwipeBackActive =
         dragOffsetX > 0f &&
-                canRenderSwipePreview &&
+                (canRenderStackPreview || canRenderLocalPreview) &&
                 swipeBackActiveKey == activeEntry.key
     val retainedPreviousKey =
-        if (stackKeysAreUnique && previousEntry != null && previousEntry.key != activeEntry.key) {
+        if (
+            swipeBackResolution.preview == SwipeBackPreviewDescriptor.PreviousStackEntry &&
+            stackKeysAreUnique &&
+            previousEntry != null &&
+            previousEntry.key != activeEntry.key
+        ) {
             previousEntry.key
         } else {
             null
@@ -106,7 +127,7 @@ fun MobileLayout(root: RootComponent) {
             }
             .then(
                 if (canUseDragToBack) {
-                    Modifier.pointerInput(canUseDragToBack, activeEntry.key) {
+                    Modifier.pointerInput(canUseDragToBack, activeEntry.key, swipeBackResolution) {
                         awaitEachGesture {
                             if (size.width == 0) return@awaitEachGesture
 
@@ -152,8 +173,14 @@ fun MobileLayout(root: RootComponent) {
                                                 ) { value, _ ->
                                                     dragOffsetX = value
                                                 }
-                                                suppressNextPopAnimation = true
-                                                root.onBack()
+                                                commitSwipeBack(
+                                                    root = root,
+                                                    activeChild = activeEntry.instance,
+                                                    resolution = swipeBackResolution,
+                                                    onSuppressStackPopAnimation = {
+                                                        suppressNextPopAnimation = true
+                                                    },
+                                                )
                                                 dragOffsetX = 0f
                                                 isCompletingSwipeBack = false
                                                 swipeBackActiveKey = null
@@ -185,7 +212,7 @@ fun MobileLayout(root: RootComponent) {
                                         continue
                                     }
 
-                                    if (!canRenderSwipePreview) {
+                                    if (!canRenderStackPreview && !canRenderLocalPreview) {
                                         dragOffsetX = 0f
                                         break
                                     }
@@ -220,6 +247,33 @@ fun MobileLayout(root: RootComponent) {
                 }
             ),
     ) {
+        if (isSwipeBackActive && swipeBackResolution.preview != SwipeBackPreviewDescriptor.PreviousStackEntry) {
+            Box(
+                modifier = Modifier.mobileStackLayerModifier(
+                    role = StackLayerRole.LocalPreview,
+                    dragOffsetX = dragOffsetX,
+                    dragProgress = dragProgress,
+                    transitionProgress = 1f,
+                    isPop = false,
+                ),
+            ) {
+                RenderChild(
+                    child = activeEntry.instance,
+                    chatRenderModeOverride = when (swipeBackResolution.preview) {
+                        SwipeBackPreviewDescriptor.ChatForumList -> ChatRenderMode.ForumTopicSwipePreview
+                        else -> null
+                    },
+                    chatListPreviewMode = when (val preview = swipeBackResolution.preview) {
+                        is SwipeBackPreviewDescriptor.ChatListFolder -> ChatListPreviewMode.FolderPreview(
+                            preview.folderId
+                        )
+
+                        else -> ChatListPreviewMode.Active
+                    },
+                )
+            }
+        }
+
         Children(
             stack = stack,
             animation = mobileStackAnimation(
@@ -227,18 +281,31 @@ fun MobileLayout(root: RootComponent) {
                 dragProgress = dragProgress,
                 isSwipeBackActive = isSwipeBackActive,
                 stackKeysAreUnique = stackKeysAreUnique,
+                showRetainedPreviousChild = swipeBackResolution.preview == SwipeBackPreviewDescriptor.PreviousStackEntry,
+                showLocalPreviewBackdrop = swipeBackResolution.preview != SwipeBackPreviewDescriptor.PreviousStackEntry,
                 suppressNextPopAnimation = suppressNextPopAnimation,
                 onSuppressNextPopAnimationConsumed = {
                     suppressNextPopAnimation = false
                 },
             ),
         ) { child ->
+            val layerRole = resolveSwipeLayerRole(
+                child = child,
+                activeKey = activeEntry.key,
+                retainedPreviousKey = retainedPreviousKey,
+            )
+
             RenderChild(
                 child = child.instance,
-                isOverlay = child.key == retainedPreviousKey,
-                onSwipeBackBlockedChanged = { blocked ->
+                isOverlay = layerRole == StackLayerRole.RetainedPrevious,
+                chatRenderModeOverride = when (layerRole) {
+                    StackLayerRole.RetainedPrevious -> ChatRenderMode.SwipePreview
+                    else -> null
+                },
+                chatListPreviewMode = ChatListPreviewMode.Active,
+                onScreenSwipeBackStateChanged = { swipeState ->
                     if (stack.active.instance === child.instance) {
-                        isSwipeBackBlocked = blocked
+                        activeScreenSwipeBackState = swipeState
                     }
                 },
             )
@@ -246,36 +313,48 @@ fun MobileLayout(root: RootComponent) {
     }
 }
 
-private fun isSwipeBackSupported(child: RootComponent.Child): Boolean =
-    when (child) {
-        is RootComponent.Child.ChatDetailChild,
-        is RootComponent.Child.ProfileChild,
-        is RootComponent.Child.SettingsChild,
-        is RootComponent.Child.EditProfileChild,
-        is RootComponent.Child.SessionsChild,
-        is RootComponent.Child.FoldersChild,
-        is RootComponent.Child.ChatSettingsChild,
-        is RootComponent.Child.DataStorageChild,
-        is RootComponent.Child.StorageUsageChild,
-        is RootComponent.Child.NetworkUsageChild,
-        is RootComponent.Child.PremiumChild,
-        is RootComponent.Child.PrivacyChild,
-        is RootComponent.Child.AdBlockChild,
-        is RootComponent.Child.PowerSavingChild,
-        is RootComponent.Child.NotificationsChild,
-        is RootComponent.Child.ProxyChild,
-        is RootComponent.Child.ProfileLogsChild,
-        is RootComponent.Child.AdminManageChild,
-        is RootComponent.Child.ChatEditChild,
-        is RootComponent.Child.MemberListChild,
-        is RootComponent.Child.ChatPermissionsChild,
-        is RootComponent.Child.StickersChild,
-        is RootComponent.Child.AboutChild,
-        is RootComponent.Child.NewChatChild -> true
-        is RootComponent.Child.DebugChild -> true
-
-        else -> false
+private fun resolveSwipeLayerRole(
+    child: Child.Created<*, RootComponent.Child>,
+    activeKey: Any,
+    retainedPreviousKey: Any?,
+): StackLayerRole? {
+    return when {
+        child.key == retainedPreviousKey -> StackLayerRole.RetainedPrevious
+        child.key == activeKey -> StackLayerRole.Active
+        else -> null
     }
+}
+
+private fun commitSwipeBack(
+    root: RootComponent,
+    activeChild: RootComponent.Child,
+    resolution: SwipeBackResolution,
+    onSuppressStackPopAnimation: () -> Unit,
+) {
+    when (resolution.action) {
+        ScreenSwipeBackAction.StackPop -> {
+            onSuppressStackPopAnimation()
+            when (activeChild) {
+                is RootComponent.Child.ChatDetailChild -> activeChild.component.onBackClicked()
+                else -> root.onBack()
+            }
+        }
+
+        ScreenSwipeBackAction.LocalChatTopicClose -> {
+            when (activeChild) {
+                is RootComponent.Child.ChatDetailChild -> activeChild.component.onTopicClick(0)
+                else -> root.onBack()
+            }
+        }
+
+        ScreenSwipeBackAction.LocalChatListArchiveReturn -> {
+            when (activeChild) {
+                is RootComponent.Child.ChatsChild -> activeChild.component.handleBack()
+                else -> root.onBack()
+            }
+        }
+    }
+}
 
 @Composable
 private fun <C : Any, T : Any> mobileStackAnimation(
@@ -283,6 +362,8 @@ private fun <C : Any, T : Any> mobileStackAnimation(
     dragProgress: Float,
     isSwipeBackActive: Boolean,
     stackKeysAreUnique: Boolean,
+    showRetainedPreviousChild: Boolean,
+    showLocalPreviewBackdrop: Boolean,
     suppressNextPopAnimation: Boolean,
     onSuppressNextPopAnimationConsumed: () -> Unit,
 ): StackAnimation<C, T> {
@@ -328,7 +409,7 @@ private fun <C : Any, T : Any> mobileStackAnimation(
                 transition = null
             },
         )
-        val retainedPreviousChild = if (stackKeysAreUnique) {
+        val retainedPreviousChild = if (stackKeysAreUnique && showRetainedPreviousChild) {
             stack.items.dropLast(1).lastOrNull()
         } else {
             null
@@ -372,7 +453,7 @@ private fun <C : Any, T : Any> mobileStackAnimation(
 
         Box(modifier = modifier) {
             layers.forEach { layer ->
-                key(layer.child.key) {
+                key("${layer.child.key}:${layer.role}") {
                     StackLayerChild(
                         layer = layer,
                         dragOffsetX = if (isSwipeBackActive) dragOffsetX else 0f,
@@ -383,7 +464,9 @@ private fun <C : Any, T : Any> mobileStackAnimation(
                 }
             }
 
-            if (isSwipeBackActive && retainedPreviousChild != null) {
+            if (isSwipeBackActive &&
+                (retainedPreviousChild != null || showLocalPreviewBackdrop)
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -437,7 +520,7 @@ private fun Modifier.mobileStackLayerModifier(
 ): Modifier =
     fillMaxSize()
         .then(
-            if (role == StackLayerRole.RetainedPrevious) {
+            if (role == StackLayerRole.RetainedPrevious || role == StackLayerRole.LocalPreview) {
                 Modifier.clearAndSetSemantics {}
             } else {
                 Modifier
@@ -448,6 +531,7 @@ private fun Modifier.mobileStackLayerModifier(
                 StackLayerRole.Active,
                 StackLayerRole.TransitionIncoming -> 1f
 
+                StackLayerRole.LocalPreview,
                 StackLayerRole.RetainedPrevious,
                 StackLayerRole.TransitionOutgoing -> 0f
             },
@@ -459,7 +543,8 @@ private fun Modifier.mobileStackLayerModifier(
                     shadowElevation = if (dragOffsetX > 0f) 12f else 0f
                 }
 
-                StackLayerRole.RetainedPrevious -> {
+                StackLayerRole.RetainedPrevious,
+                StackLayerRole.LocalPreview -> {
                     translationX =
                         if (dragOffsetX > 0f) {
                             (dragProgress - 1f) * size.width * 0.08f
@@ -504,6 +589,7 @@ private data class StackLayer<C : Any, T : Any>(
 
 private enum class StackLayerRole {
     Active,
+    LocalPreview,
     RetainedPrevious,
     TransitionOutgoing,
     TransitionIncoming,

@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.UserModel
 import org.monogram.presentation.features.chats.conversation.ChatComponent
+import org.monogram.presentation.features.chats.conversation.ChatRenderMode
 import org.monogram.presentation.features.chats.conversation.ChatViewportPhase
 
 @Immutable
@@ -58,6 +59,38 @@ internal data class ChatContentBodyUiState(
     val isGroup: Boolean,
     val isChannel: Boolean
 )
+
+@Immutable
+internal data class ChatContentPreviewState(
+    val currentTopicId: Long?,
+    val rootMessage: MessageModel?,
+    val messageSource: List<MessageModel>,
+)
+
+@Composable
+internal fun rememberChatContentPreviewState(
+    state: ChatComponent.State,
+    renderMode: ChatRenderMode,
+): ChatContentPreviewState {
+    val previewCurrentTopicId =
+        if (renderMode == ChatRenderMode.ForumTopicSwipePreview) null else state.currentTopicId
+    val previewRootMessage =
+        if (renderMode == ChatRenderMode.ForumTopicSwipePreview) null else state.rootMessage
+    val previewMessages =
+        if (renderMode == ChatRenderMode.ForumTopicSwipePreview) emptyList() else state.messages
+
+    return remember(
+        previewCurrentTopicId,
+        previewRootMessage,
+        previewMessages,
+    ) {
+        ChatContentPreviewState(
+            currentTopicId = previewCurrentTopicId,
+            rootMessage = previewRootMessage,
+            messageSource = previewMessages,
+        )
+    }
+}
 
 internal fun shouldSuppressMessageEntryAnimations(
     showInitialLoading: Boolean,
@@ -137,13 +170,18 @@ internal fun rememberChatContentPermissionState(
 @Composable
 internal fun rememberChatMessagePresentationState(
     state: ChatComponent.State,
+    previewState: ChatContentPreviewState,
     selectedMessageId: Long?,
     transformedMessageTexts: Map<Long, String>
 ): ChatContentMessagePresentationState {
-    val rootMessageId = state.rootMessage?.id
-    val displayMessages by remember(state.messages, rootMessageId, transformedMessageTexts) {
+    val rootMessageId = previewState.rootMessage?.id
+    val displayMessages by remember(
+        previewState.messageSource,
+        rootMessageId,
+        transformedMessageTexts
+    ) {
         derivedStateOf {
-            state.messages.map { message ->
+            previewState.messageSource.map { message ->
                 val transformedText = transformedMessageTexts[message.id]
                 val transformedMessage = if (transformedText != null) {
                     message.withUpdatedTextContent(transformedText)
@@ -183,7 +221,7 @@ internal fun rememberChatMessagePresentationState(
         derivedStateOf { selectedMessageId?.let { id -> displayMessages.firstOrNull { it.id == id } } }
     }
     val isComments = rootMessageId != null
-    val isForumList = state.viewAsTopics && state.currentTopicId == null
+    val isForumList = state.viewAsTopics && previewState.currentTopicId == null
 
     return remember(
         displayMessages,
@@ -207,20 +245,21 @@ internal fun rememberChatMessagePresentationState(
 @Composable
 internal fun rememberChatMessageListState(
     state: ChatComponent.State,
+    previewState: ChatContentPreviewState,
     displayMessages: List<MessageModel>,
     canSendAnything: Boolean,
     showInitialLoading: Boolean
 ): ChatMessageListUiState {
     return remember(
         state.chatId,
-        state.currentTopicId,
+        previewState.currentTopicId,
         displayMessages,
         state.selectedMessageIds,
         state.unreadSeparatorCount,
         state.unreadSeparatorLastReadInboxMessageId,
         state.viewAsTopics,
         state.topics,
-        state.rootMessage,
+        previewState.rootMessage,
         state.isLoading,
         state.isLoadingOlder,
         state.isLoadingNewer,
@@ -251,14 +290,14 @@ internal fun rememberChatMessageListState(
     ) {
         ChatMessageListUiState(
             chatId = state.chatId,
-            currentTopicId = state.currentTopicId,
+            currentTopicId = previewState.currentTopicId,
             messages = displayMessages,
             selectedMessageIds = state.selectedMessageIds,
             unreadSeparatorCount = state.unreadSeparatorCount,
             unreadSeparatorLastReadInboxMessageId = state.unreadSeparatorLastReadInboxMessageId,
             viewAsTopics = state.viewAsTopics,
             topics = state.topics,
-            rootMessage = state.rootMessage,
+            rootMessage = previewState.rootMessage,
             isLoading = state.isLoading,
             isLoadingOlder = state.isLoadingOlder,
             isLoadingNewer = state.isLoadingNewer,
@@ -295,12 +334,13 @@ internal fun rememberChatMessageListState(
 
 @Composable
 internal fun rememberChatContentBodyUiState(
-    state: ChatComponent.State
+    state: ChatComponent.State,
+    previewState: ChatContentPreviewState,
 ): ChatContentBodyUiState {
     return remember(
         state.viewAsTopics,
-        state.currentTopicId,
-        state.rootMessage,
+        previewState.currentTopicId,
+        previewState.rootMessage,
         state.isSearchActive,
         state.searchQuery,
         state.searchResults,
@@ -315,7 +355,7 @@ internal fun rememberChatContentBodyUiState(
         state.isChannel
     ) {
         ChatContentBodyUiState(
-            showTopOverlayPadding = (state.viewAsTopics && state.currentTopicId == null) || state.rootMessage != null,
+            showTopOverlayPadding = (state.viewAsTopics && previewState.currentTopicId == null) || previewState.rootMessage != null,
             isSearchActive = state.isSearchActive,
             searchQuery = state.searchQuery,
             searchResults = state.searchResults,
@@ -334,11 +374,12 @@ internal fun rememberChatContentBodyUiState(
 
 @Composable
 internal fun rememberChatTopBarUiState(
-    state: ChatComponent.State
+    state: ChatComponent.State,
+    previewState: ChatContentPreviewState,
 ): ChatContentTopBarUiState {
     return remember(
-        state.currentTopicId,
-        state.rootMessage,
+        previewState.currentTopicId,
+        previewState.rootMessage,
         state.isGroup,
         state.isChannel,
         state.isAdmin,
@@ -367,8 +408,8 @@ internal fun rememberChatTopBarUiState(
         state.pinnedMessageCount
     ) {
         ChatContentTopBarUiState(
-            currentTopicId = state.currentTopicId,
-            rootMessage = state.rootMessage,
+            currentTopicId = previewState.currentTopicId,
+            rootMessage = previewState.rootMessage,
             isGroup = state.isGroup,
             isChannel = state.isChannel,
             isAdmin = state.isAdmin,

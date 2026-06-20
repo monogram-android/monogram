@@ -1,11 +1,13 @@
 package org.monogram.app.components
 
 import androidx.compose.runtime.Composable
+import org.monogram.presentation.core.ui.ScreenSwipeBackState
 import org.monogram.presentation.features.auth.AuthContent
 import org.monogram.presentation.features.chats.conversation.ChatContent
 import org.monogram.presentation.features.chats.conversation.ChatRenderMode
 import org.monogram.presentation.features.chats.creation.NewChatContent
 import org.monogram.presentation.features.chats.list.ChatListContent
+import org.monogram.presentation.features.chats.list.ChatListPreviewMode
 import org.monogram.presentation.features.profile.ProfileContent
 import org.monogram.presentation.features.profile.admin.AdminManageContent
 import org.monogram.presentation.features.profile.admin.ChatEditContent
@@ -38,17 +40,24 @@ import org.monogram.presentation.settings.storage.StorageUsageContent
 fun RenderChild(
     child: RootComponent.Child,
     isOverlay: Boolean = false,
-    onSwipeBackBlockedChanged: (Boolean) -> Unit = {},
+    chatRenderModeOverride: ChatRenderMode? = null,
+    chatListPreviewMode: ChatListPreviewMode = ChatListPreviewMode.Active,
+    onScreenSwipeBackStateChanged: (ScreenSwipeBackState) -> Unit = {},
 ) {
     when (child) {
         is RootComponent.Child.StartupChild -> StartupContent(child.component)
         is RootComponent.Child.AuthChild -> AuthContent(child.component)
-        is RootComponent.Child.ChatsChild -> ChatListContent(child.component)
+        is RootComponent.Child.ChatsChild -> ChatListContent(
+            component = child.component,
+            previewMode = chatListPreviewMode,
+            onSwipeBackStateChanged = onScreenSwipeBackStateChanged,
+        )
         is RootComponent.Child.NewChatChild -> NewChatContent(child.component)
         is RootComponent.Child.ChatDetailChild -> ChatContent(
             component = child.component,
-            renderMode = if (isOverlay) ChatRenderMode.SwipePreview else ChatRenderMode.Active,
-            onSwipeBackBlockedChanged = onSwipeBackBlockedChanged,
+            renderMode = chatRenderModeOverride
+                ?: if (isOverlay) ChatRenderMode.SwipePreview else ChatRenderMode.Active,
+            onSwipeBackStateChanged = onScreenSwipeBackStateChanged,
         )
 
         is RootComponent.Child.SettingsChild -> SettingsContent(child.component)

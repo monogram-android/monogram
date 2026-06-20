@@ -454,6 +454,7 @@ class DefaultChatListComponent(
             loadingByFolder[id] = true
             it.copy(
                 selectedFolderId = id,
+                lastNonArchiveFolderId = if (id != ARCHIVE_FOLDER_ID) id else it.lastNonArchiveFolderId,
                 isLoadingByFolder = loadingByFolder
             )
         }
@@ -1068,12 +1069,12 @@ class DefaultChatListComponent(
                 handleClearSelection()
                 true
             }
-            state.value.selectedFolderId == -2 -> {
+            state.value.selectedFolderId == ARCHIVE_FOLDER_ID -> {
                 handleFolderClicked(
-                    resolvePreferredFolderId(
+                    resolveArchiveReturnFolderId(
                         folders = _state.value.folders,
-                        currentFolderId = null,
-                        showAllChatsFolder = appPreferences.showAllChatsFolder.value
+                        showAllChatsFolder = appPreferences.showAllChatsFolder.value,
+                        lastNonArchiveFolderId = _state.value.lastNonArchiveFolderId,
                     )
                 )
                 true
@@ -1146,6 +1147,7 @@ class DefaultChatListComponent(
 
     companion object {
         private const val TAG = "PinnedUiDiag"
+        private const val ARCHIVE_FOLDER_ID = -2
         private const val PREFETCH_MAX_CANDIDATES = 6
         private const val PREFETCH_CONCURRENCY = 2
         private const val PREFETCH_PAGE_SIZE = 30

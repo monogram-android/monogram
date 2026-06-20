@@ -8,5 +8,6 @@ enum class ChatViewportPhase {
 
 enum class ChatRenderMode {
     Active,
-    SwipePreview
+    SwipePreview,
+    ForumTopicSwipePreview,
 }

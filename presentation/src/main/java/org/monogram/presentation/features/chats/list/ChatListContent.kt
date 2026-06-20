@@ -147,6 +147,7 @@ import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ConfirmationSheet
+import org.monogram.presentation.core.ui.ScreenSwipeBackState
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.chats.common.ChatActionState
 import org.monogram.presentation.features.chats.conversation.ui.content.ReportChatDialog
@@ -171,13 +172,29 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ChatListContent(component: ChatListComponent) {
+fun ChatListContent(
+    component: ChatListComponent,
+    previewMode: ChatListPreviewMode = ChatListPreviewMode.Active,
+    onSwipeBackStateChanged: (ScreenSwipeBackState) -> Unit = {},
+) {
     val stickerRepository: StickerRepository = koinInject()
     val uiState by component.uiState.collectAsState()
     val foldersState by component.foldersState.collectAsState()
     val chatsState by component.chatsState.collectAsState()
     val selectionState by component.selectionState.collectAsState()
     val searchState by component.searchState.collectAsState()
+    val showAllChatsFolder by component.appPreferences.showAllChatsFolder.collectAsState()
+
+    val isPreview = previewMode != ChatListPreviewMode.Active
+    val previewFolderId = (previewMode as? ChatListPreviewMode.FolderPreview)?.folderId
+    val effectiveSelectedFolderId = previewFolderId ?: foldersState.selectedFolderId
+    val effectiveSearchActive = if (isPreview) false else searchState.isSearchActive
+    val effectiveFoldersState = remember(foldersState, effectiveSelectedFolderId) {
+        foldersState.copy(selectedFolderId = effectiveSelectedFolderId)
+    }
+    val effectiveSearchState = remember(searchState, effectiveSearchActive) {
+        searchState.copy(isSearchActive = effectiveSearchActive)
+    }
 
     val scope = rememberCoroutineScope()
 
@@ -219,11 +236,11 @@ fun ChatListContent(component: ChatListComponent) {
         adaptiveInfo.windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) && isTabletInterfaceEnabled
 
     val isCustomBackHandlingEnabled =
-        searchState.isSearchActive ||
+        effectiveSearchState.isSearchActive ||
                 selectionState.selectedChatIds.isNotEmpty() ||
                 selectionState.selectedForwardTargets.isNotEmpty() ||
                 selectionState.forwardTopicPickerChatId != null ||
-                foldersState.selectedFolderId == -2 ||
+                effectiveFoldersState.selectedFolderId == -2 ||
                 uiState.isForwarding ||
                 uiState.instantViewUrl != null ||
                 uiState.webAppUrl != null ||
@@ -232,19 +249,44 @@ fun ChatListContent(component: ChatListComponent) {
                 showChatListActionsMenu ||
                 showSelectionActionsMenu
 
-    BackHandler(enabled = isCustomBackHandlingEnabled) {
-        if (showChatListActionsMenu) {
-            showChatListActionsMenu = false
-        } else if (showSelectionActionsMenu) {
-            showSelectionActionsMenu = false
-        } else if (showStatusMenu) {
-            showStatusMenu = false
-        } else {
-            component.handleBack()
+    LaunchedEffect(
+        fullState,
+        showAllChatsFolder,
+        showChatListActionsMenu,
+        showSelectionActionsMenu,
+        showStatusMenu,
+        previewMode,
+        onSwipeBackStateChanged,
+    ) {
+        val transientUiActive =
+            showChatListActionsMenu || showSelectionActionsMenu || showStatusMenu || isPreview
+        onSwipeBackStateChanged(
+            resolveChatListSwipeBackState(
+                state = fullState,
+                showAllChatsFolder = showAllChatsFolder,
+                hasTransientBlockingUi = transientUiActive,
+            )
+        )
+    }
+
+    DisposableEffect(onSwipeBackStateChanged) {
+        onDispose { onSwipeBackStateChanged(ScreenSwipeBackState()) }
+    }
+
+    if (!isPreview) {
+        BackHandler(enabled = isCustomBackHandlingEnabled) {
+            if (showChatListActionsMenu) {
+                showChatListActionsMenu = false
+            } else if (showSelectionActionsMenu) {
+                showSelectionActionsMenu = false
+            } else if (showStatusMenu) {
+                showStatusMenu = false
+            } else {
+                component.handleBack()
+            }
         }
     }
 
-    val showAllChatsFolder by component.appPreferences.showAllChatsFolder.collectAsState()
     val visibleFolders = remember(foldersState.folders, showAllChatsFolder) {
         val userFolders = foldersState.folders.filter { it.id >= 0 }
         if (showAllChatsFolder || userFolders.isEmpty()) {
@@ -255,21 +297,29 @@ fun ChatListContent(component: ChatListComponent) {
     }
 
     val pagerState = rememberPagerState(
-        initialPage = visibleFolders.indexOfFirst { it.id == foldersState.selectedFolderId }
+        initialPage = visibleFolders.indexOfFirst { it.id == effectiveFoldersState.selectedFolderId }
             .coerceAtLeast(0),
         pageCount = { visibleFolders.size }
     )
 
-    LaunchedEffect(foldersState.selectedFolderId, visibleFolders) {
+    LaunchedEffect(effectiveFoldersState.selectedFolderId, visibleFolders, isPreview) {
+        if (isPreview) return@LaunchedEffect
         val index =
-            visibleFolders.indexOfFirst { it.id == foldersState.selectedFolderId }.coerceAtLeast(0)
+            visibleFolders.indexOfFirst { it.id == effectiveFoldersState.selectedFolderId }
+                .coerceAtLeast(0)
         if (pagerState.currentPage != index) pagerState.animateScrollToPage(index)
     }
 
-    LaunchedEffect(pagerState.currentPage, visibleFolders, foldersState.selectedFolderId) {
+    LaunchedEffect(
+        pagerState.currentPage,
+        visibleFolders,
+        effectiveFoldersState.selectedFolderId,
+        isPreview
+    ) {
+        if (isPreview) return@LaunchedEffect
         if (visibleFolders.isNotEmpty() && pagerState.currentPage < visibleFolders.size) {
             val folderId = visibleFolders[pagerState.currentPage].id
-            if (foldersState.selectedFolderId != folderId && foldersState.selectedFolderId != -2) {
+            if (effectiveFoldersState.selectedFolderId != folderId && effectiveFoldersState.selectedFolderId != -2) {
                 component.onFolderClicked(folderId)
             }
         }
@@ -295,7 +345,8 @@ fun ChatListContent(component: ChatListComponent) {
 
     val isArchivePersistent = uiState.isArchivePinned && (uiState.isArchiveAlwaysVisible || isMainFolder)
     val canShowArchive = isArchivePersistent || isMainFolder
-    val currentFolderChats = foldersState.chatsByFolder[foldersState.selectedFolderId].orEmpty()
+    val currentFolderChats =
+        foldersState.chatsByFolder[effectiveFoldersState.selectedFolderId].orEmpty()
     val hasUnreadInCurrentFolder = remember(currentFolderChats) {
         currentFolderChats.any(::hasChatListUnreadState)
     }
@@ -340,11 +391,13 @@ fun ChatListContent(component: ChatListComponent) {
     }
 
     val isArchiveRevealed = archiveRevealPx > 0f && !isArchivePersistent
-    BackHandler(enabled = isArchiveRevealed) {
-        revealAnimationJob?.cancel()
-        revealAnimationJob = scope.launch {
-            animate(initialValue = archiveRevealPx, targetValue = 0f) { value, _ ->
-                archiveRevealPx = value
+    if (!isPreview) {
+        BackHandler(enabled = isArchiveRevealed) {
+            revealAnimationJob?.cancel()
+            revealAnimationJob = scope.launch {
+                animate(initialValue = archiveRevealPx, targetValue = 0f) { value, _ ->
+                    archiveRevealPx = value
+                }
             }
         }
     }
@@ -574,25 +627,25 @@ fun ChatListContent(component: ChatListComponent) {
         selectionState.selectedChatIds,
         uiState.isForwarding,
         uiState.isShareTargetMode,
-        foldersState.selectedFolderId,
-        searchState.isSearchActive,
+        effectiveFoldersState.selectedFolderId,
+        effectiveSearchState.isSearchActive,
         currentUser,
         uiState.connectionStatus,
         uiState.isProxyEnabled
     ) {
         when {
             selectionState.selectedChatIds.isNotEmpty() && !uiState.isForwarding -> {
-                ChatListTopBarMode.Selection(isInArchive = foldersState.selectedFolderId == -2)
+                ChatListTopBarMode.Selection(isInArchive = effectiveFoldersState.selectedFolderId == -2)
             }
 
             uiState.isShareTargetMode -> ChatListTopBarMode.ShareTarget
             uiState.isForwarding -> ChatListTopBarMode.Forwarding
-            foldersState.selectedFolderId == -2 && !searchState.isSearchActive -> ChatListTopBarMode.Archive
+            effectiveFoldersState.selectedFolderId == -2 && !effectiveSearchState.isSearchActive -> ChatListTopBarMode.Archive
             else -> ChatListTopBarMode.Default(
                 user = currentUser,
                 connectionStatus = uiState.connectionStatus,
                 isProxyEnabled = uiState.isProxyEnabled,
-                isSearchActive = searchState.isSearchActive
+                isSearchActive = effectiveSearchState.isSearchActive
             )
         }
     }
@@ -643,7 +696,7 @@ fun ChatListContent(component: ChatListComponent) {
                                 onRetryConnection = { component.retryConnection() },
                                 onProxySettingsClick = { component.onProxySettingsClicked() },
                                 isSearchActive = mode.isSearchActive,
-                                searchQuery = searchState.searchQuery,
+                                searchQuery = effectiveSearchState.searchQuery,
                                 onSearchQueryChange = component::onSearchQueryChange,
                                 onSearchToggle = component::onSearchToggle,
                                 onStatusClick = { anchorBounds ->
@@ -669,7 +722,8 @@ fun ChatListContent(component: ChatListComponent) {
                     }
                 }
 
-                val isMainView = !searchState.isSearchActive && foldersState.selectedFolderId != -2
+                val isMainView =
+                    !effectiveSearchState.isSearchActive && effectiveFoldersState.selectedFolderId != -2
 
                 if (isMainView) {
                     Box(
@@ -728,8 +782,16 @@ fun ChatListContent(component: ChatListComponent) {
                                 ) {
                                     ArchiveHeaderCard(
                                         isPinned = uiState.isArchivePinned,
-                                        onClick = { component.onFolderClicked(-2) },
-                                        onLongClick = { component.onArchivePinToggle() }
+                                        onClick = {
+                                            if (!isPreview) {
+                                                component.onFolderClicked(-2)
+                                            }
+                                        },
+                                        onLongClick = {
+                                            if (!isPreview) {
+                                                component.onArchivePinToggle()
+                                            }
+                                        }
                                     )
                                     Spacer(Modifier.height(6.dp))
                                 }
@@ -741,6 +803,7 @@ fun ChatListContent(component: ChatListComponent) {
                                     folders = visibleFolders,
                                     pagerState = pagerState,
                                     onTabClick = { index ->
+                                        if (isPreview) return@FolderTabs
                                         if (pagerState.currentPage == index) {
                                             val folderId = visibleFolders[index].id
                                             scope.launch {
@@ -752,10 +815,18 @@ fun ChatListContent(component: ChatListComponent) {
                                             }
                                         }
                                     },
-                                    onEditClick = { component.onEditFoldersClicked() },
-                                    onEditFolderClick = { folder -> component.onEditFolder(folder.id) },
-                                    onDeleteFolderClick = { folder -> component.onDeleteFolder(folder.id) },
-                                    onReorderFoldersClick = { component.onEditFoldersClicked() }
+                                    onEditClick = { if (!isPreview) component.onEditFoldersClicked() },
+                                    onEditFolderClick = { folder ->
+                                        if (!isPreview) component.onEditFolder(
+                                            folder.id
+                                        )
+                                    },
+                                    onDeleteFolderClick = { folder ->
+                                        if (!isPreview) component.onDeleteFolder(
+                                            folder.id
+                                        )
+                                    },
+                                    onReorderFoldersClick = { if (!isPreview) component.onEditFoldersClicked() }
                                 )
                             }
                         }
@@ -766,10 +837,11 @@ fun ChatListContent(component: ChatListComponent) {
         floatingActionButton = {
             if (!isTablet) {
                 AnimatedVisibility(
-                    visible = !searchState.isSearchActive &&
-                            foldersState.selectedFolderId != -2 &&
+                    visible = !effectiveSearchState.isSearchActive &&
+                            effectiveFoldersState.selectedFolderId != -2 &&
                             !uiState.isForwarding &&
-                            !uiState.isShareTargetMode,
+                            !uiState.isShareTargetMode &&
+                            !isPreview,
                     enter = scaleIn() + fadeIn(),
                     exit = scaleOut() + fadeOut()
                 ) {
@@ -795,13 +867,13 @@ fun ChatListContent(component: ChatListComponent) {
         ) {
             ChatListBody(
                 component = component,
-                foldersState = foldersState,
+                foldersState = effectiveFoldersState,
                 chatsState = chatsState,
                 selectionState = selectionState,
                 selectedForwardChatIds = selectedForwardChatIds,
                 isForwarding = uiState.isForwarding,
                 isShareTargetMode = uiState.isShareTargetMode,
-                searchState = searchState,
+                searchState = effectiveSearchState,
                 visibleFolders = visibleFolders,
                 pagerState = pagerState,
                 scrollStates = scrollStates,
@@ -811,6 +883,7 @@ fun ChatListContent(component: ChatListComponent) {
                 emojiFontFamily = emojiFontFamily,
                 messageLines = messageLines,
                 showPhotos = showPhotos,
+                interactionsEnabled = !isPreview,
                 onChatClicked = onChatClicked,
                 onChatLongClicked = onChatLongClicked
             )
@@ -1254,6 +1327,7 @@ private fun ChatListBody(
     emojiFontFamily: FontFamily,
     messageLines: Int,
     showPhotos: Boolean,
+    interactionsEnabled: Boolean,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1275,6 +1349,7 @@ private fun ChatListBody(
                 emojiFontFamily = emojiFontFamily,
                 messageLines = messageLines,
                 showPhotos = showPhotos,
+                interactionsEnabled = interactionsEnabled,
                 onChatClicked = onChatClicked,
                 onChatLongClicked = onChatLongClicked
             )
@@ -1295,6 +1370,7 @@ private fun ChatListBody(
                 emojiFontFamily = emojiFontFamily,
                 messageLines = messageLines,
                 showPhotos = showPhotos,
+                interactionsEnabled = interactionsEnabled,
                 onChatClicked = onChatClicked,
                 onChatLongClicked = onChatLongClicked
             )
@@ -1320,6 +1396,7 @@ private fun SearchOrArchiveContent(
     emojiFontFamily: FontFamily,
     messageLines: Int,
     showPhotos: Boolean,
+    interactionsEnabled: Boolean,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1338,7 +1415,7 @@ private fun SearchOrArchiveContent(
 
     RegisterScrollState(
         folderId = -2,
-        enabled = isArchivedView,
+        enabled = isArchivedView && interactionsEnabled,
         scrollState = scrollState,
         scrollStates = scrollStates,
         onSaveScrollPosition = component::updateScrollPosition
@@ -1376,7 +1453,8 @@ private fun SearchOrArchiveContent(
         }
     }
 
-    LaunchedEffect(isArchivedView, archivedChats.firstOrNull()?.id) {
+    LaunchedEffect(isArchivedView, archivedChats.firstOrNull()?.id, interactionsEnabled) {
+        if (!interactionsEnabled) return@LaunchedEffect
         if (isArchivedView && !scrollState.isScrollInProgress && scrollState.firstVisibleItemIndex <= 1) {
             scrollState.scrollToItem(0, 0)
         }
@@ -1386,9 +1464,10 @@ private fun SearchOrArchiveContent(
         isArchivedView,
         archivedChats.size,
         isArchivedLoading,
-        scrollState
+        scrollState,
+        interactionsEnabled,
     ) {
-        if (!isArchivedView || isArchivedLoading || archivedChats.isEmpty()) return@LaunchedEffect
+        if (!interactionsEnabled || !isArchivedView || isArchivedLoading || archivedChats.isEmpty()) return@LaunchedEffect
 
         snapshotFlow {
             val lastVisible = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
@@ -1402,8 +1481,13 @@ private fun SearchOrArchiveContent(
             }
     }
 
-    LaunchedEffect(messagePaginationKeys, searchState.canLoadMoreMessages, scrollState) {
-        if (!searchState.canLoadMoreMessages || messagePaginationKeys.isEmpty()) {
+    LaunchedEffect(
+        messagePaginationKeys,
+        searchState.canLoadMoreMessages,
+        scrollState,
+        interactionsEnabled
+    ) {
+        if (!interactionsEnabled || !searchState.canLoadMoreMessages || messagePaginationKeys.isEmpty()) {
             return@LaunchedEffect
         }
 
@@ -1648,6 +1732,7 @@ private fun FolderPagerContent(
     emojiFontFamily: FontFamily,
     messageLines: Int,
     showPhotos: Boolean,
+    interactionsEnabled: Boolean,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1683,6 +1768,7 @@ private fun FolderPagerContent(
             emojiFontFamily = emojiFontFamily,
             messageLines = messageLines,
             showPhotos = showPhotos,
+            interactionsEnabled = interactionsEnabled,
             onChatClicked = onChatClicked,
             onChatLongClicked = onChatLongClicked
         )
@@ -1710,6 +1796,7 @@ private fun FolderPageContent(
     emojiFontFamily: FontFamily,
     messageLines: Int,
     showPhotos: Boolean,
+    interactionsEnabled: Boolean,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1725,20 +1812,21 @@ private fun FolderPageContent(
 
     RegisterScrollState(
         folderId = folderId,
-        enabled = true,
+        enabled = interactionsEnabled,
         scrollState = scrollState,
         scrollStates = scrollStates,
         onSaveScrollPosition = component::updateScrollPosition
     )
 
-    LaunchedEffect(folderChats.firstOrNull()?.id) {
+    LaunchedEffect(folderChats.firstOrNull()?.id, interactionsEnabled) {
+        if (!interactionsEnabled) return@LaunchedEffect
         if (!scrollState.isScrollInProgress && scrollState.firstVisibleItemIndex <= 1) {
             scrollState.scrollToItem(0, 0)
         }
     }
 
-    LaunchedEffect(folderId, folderChats.size, isFolderLoading, scrollState) {
-        if (isFolderLoading || folderChats.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(folderId, folderChats.size, isFolderLoading, scrollState, interactionsEnabled) {
+        if (!interactionsEnabled || isFolderLoading || folderChats.isEmpty()) return@LaunchedEffect
 
         snapshotFlow {
             val lastVisible = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
@@ -1752,8 +1840,8 @@ private fun FolderPageContent(
             }
     }
 
-    LaunchedEffect(folderId, folderChats, isFolderLoading, scrollState) {
-        if (isFolderLoading || folderChats.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(folderId, folderChats, isFolderLoading, scrollState, interactionsEnabled) {
+        if (!interactionsEnabled || isFolderLoading || folderChats.isEmpty()) return@LaunchedEffect
 
         snapshotFlow {
             scrollState.layoutInfo.visibleItemsInfo

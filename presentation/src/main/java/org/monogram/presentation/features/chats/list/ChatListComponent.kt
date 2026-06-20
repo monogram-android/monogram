@@ -90,6 +90,7 @@ interface ChatListComponent {
         val chatsByFolder: Map<Int, List<ChatModel>> = emptyMap(),
         val folders: List<FolderModel> = emptyList(),
         val selectedFolderId: Int = -1,
+        val lastNonArchiveFolderId: Int? = null,
         val currentUser: UserModel? = null,
         val isLoadingByFolder: Map<Int, Boolean> = emptyMap(),
         val selectedChatIds: Set<Long> = emptySet(),

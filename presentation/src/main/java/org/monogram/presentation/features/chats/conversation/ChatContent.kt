@@ -45,6 +45,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowWidthSizeClass
+import org.monogram.presentation.core.ui.ScreenSwipeBackState
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.chats.conversation.ui.LocalVoicePlaybackController
 import org.monogram.presentation.features.chats.conversation.ui.content.ChatContentBackground
@@ -57,6 +58,7 @@ import org.monogram.presentation.features.chats.conversation.ui.content.extractT
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatChromeState
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatContentBodyUiState
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatContentPermissionState
+import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatContentPreviewState
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatMessageListState
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatMessagePresentationState
 import org.monogram.presentation.features.chats.conversation.ui.content.rememberChatSearchUiState
@@ -75,7 +77,7 @@ internal fun shouldHideChatContentForViewportTransition(
     renderMode: ChatRenderMode,
     viewportPhase: ChatViewportPhase
 ): Boolean {
-    return renderMode != ChatRenderMode.SwipePreview &&
+    return renderMode == ChatRenderMode.Active &&
             viewportPhase != ChatViewportPhase.Settled
 }
 
@@ -84,12 +86,18 @@ internal fun shouldHideChatContentForViewportTransition(
 fun ChatContent(
     component: ChatComponent,
     renderMode: ChatRenderMode = ChatRenderMode.Active,
-    onSwipeBackBlockedChanged: (Boolean) -> Unit = {},
+    onSwipeBackStateChanged: (ScreenSwipeBackState) -> Unit = {},
 ) {
     val state by component.state.collectAsState()
+    val previewState = rememberChatContentPreviewState(state, renderMode)
     val conversationKey =
-        remember(state.chatId, state.currentTopicId, state.currentMessageThreadId) {
-            "${state.chatId}:${state.currentMessageThreadId ?: state.currentTopicId ?: 0L}"
+        remember(
+            state.chatId,
+            previewState.currentTopicId,
+            state.currentMessageThreadId,
+            renderMode
+        ) {
+            "${state.chatId}:${state.currentMessageThreadId ?: previewState.currentTopicId ?: 0L}:$renderMode"
         }
     val scrollState = rememberSaveable(conversationKey, saver = LazyListState.Saver) {
         LazyListState()
@@ -158,13 +166,14 @@ fun ChatContent(
     val isDragged by scrollState.interactionSource.collectIsDraggedAsState()
     val messagePresentationState = rememberChatMessagePresentationState(
         state = state,
+        previewState = previewState,
         selectedMessageId = selectedMessageId,
         transformedMessageTexts = transformedMessageTexts
     )
-    val bodyUiState = rememberChatContentBodyUiState(state)
+    val bodyUiState = rememberChatContentBodyUiState(state, previewState)
     val searchUiState = rememberChatSearchUiState(state)
     val permissionState = rememberChatContentPermissionState(state)
-    val topBarUiState = rememberChatTopBarUiState(state)
+    val topBarUiState = rememberChatTopBarUiState(state, previewState)
     val chromeState = rememberChatChromeState(
         state = state,
         isRecordingVideo = isRecordingVideo,
@@ -174,15 +183,16 @@ fun ChatContent(
     )
     val messageListState = rememberChatMessageListState(
         state = state,
+        previewState = previewState,
         displayMessages = messagePresentationState.displayMessages,
         canSendAnything = permissionState.canSendAnything,
         showInitialLoading = showInitialLoading
     )
     val messageRenderDependencies by rememberChatMessageRenderDependencies(
-        messages = remember(messagePresentationState.displayMessages, state.rootMessage) {
+        messages = remember(messagePresentationState.displayMessages, previewState.rootMessage) {
             buildList {
                 addAll(messagePresentationState.displayMessages)
-                state.rootMessage?.let(::add)
+                previewState.rootMessage?.let(::add)
             }
         }
     )
@@ -245,8 +255,13 @@ fun ChatContent(
         }
     }
 
-    LaunchedEffect(isAnyViewerOpen, onSwipeBackBlockedChanged) {
-        onSwipeBackBlockedChanged(isAnyViewerOpen)
+    LaunchedEffect(state, isAnyViewerOpen, onSwipeBackStateChanged) {
+        onSwipeBackStateChanged(
+            resolveChatSwipeBackState(
+                state = state,
+                hasTransientBlockingOverlay = isAnyViewerOpen
+            )
+        )
     }
 
     LaunchedEffect(state.initialShare?.requestId, conversationKey) {
@@ -262,12 +277,12 @@ fun ChatContent(
         component.onConsumeInitialShare(share.requestId)
     }
 
-    DisposableEffect(onSwipeBackBlockedChanged) {
-        onDispose { onSwipeBackBlockedChanged(false) }
+    DisposableEffect(onSwipeBackStateChanged) {
+        onDispose { onSwipeBackStateChanged(ScreenSwipeBackState()) }
     }
 
     LaunchedEffect(renderMode, state.viewportPhase, conversationKey) {
-        if (renderMode == ChatRenderMode.SwipePreview) {
+        if (renderMode != ChatRenderMode.Active) {
             isVisible = true
         } else if (shouldHideChatContentForViewportTransition(renderMode, state.viewportPhase)) {
             isVisible = false
@@ -276,7 +291,7 @@ fun ChatContent(
 
     val effectsEnabled = renderMode == ChatRenderMode.Active
     val shouldAnimateContentEntrance = effectsEnabled && state.isChatAnimationsEnabled
-    val shouldShowContent = renderMode == ChatRenderMode.SwipePreview || isVisible
+    val shouldShowContent = renderMode != ChatRenderMode.Active || isVisible
     val chromeAlpha = 1f
     val messagesAlpha by animateFloatAsState(
         targetValue = if (shouldShowContent) 1f else 0f,

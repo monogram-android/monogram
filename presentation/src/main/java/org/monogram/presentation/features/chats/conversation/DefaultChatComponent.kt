@@ -57,6 +57,7 @@ import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.domain.repository.WallpaperRepository
+import org.monogram.presentation.core.ui.ScreenSwipeBackState
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.componentScope
@@ -193,6 +194,8 @@ class DefaultChatComponent(
     ).create()
 
     override val state: StateFlow<ChatComponent.State> = store.stateFlow
+    private val _swipeBackState = MutableStateFlow(resolveChatSwipeBackState(_state.value))
+    override val swipeBackState: StateFlow<ScreenSwipeBackState> = _swipeBackState
 
     private var availableWallpapers: List<WallpaperModel> = emptyList()
     internal var allMembers: List<UserModel> = emptyList()
@@ -265,6 +268,7 @@ class DefaultChatComponent(
         }
 
         _state.onEach {
+            _swipeBackState.value = resolveChatSwipeBackState(it)
             store.accept(ChatStore.Intent.UpdateState(it))
         }.launchIn(scope)
 

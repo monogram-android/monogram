@@ -27,6 +27,7 @@ import org.monogram.domain.repository.ChecklistDraft
 import org.monogram.domain.repository.InlineBotResultsModel
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.presentation.core.ui.ScreenSwipeBackState
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.common.ChatActionState
@@ -41,6 +42,7 @@ interface ChatComponent {
     val appPreferences: AppPreferences
     val stickerRepository: StickerRepository
     val state: StateFlow<State>
+    val swipeBackState: StateFlow<ScreenSwipeBackState>
     val repositoryMessage: MessageRepository
     val downloadUtils: IDownloadUtils
 

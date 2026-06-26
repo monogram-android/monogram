@@ -108,6 +108,7 @@ private fun isGenericSwipeBackSupported(child: RootComponent.Child): Boolean =
         is RootComponent.Child.ProfileLogsChild,
         is RootComponent.Child.AdminManageChild,
         is RootComponent.Child.ChatEditChild,
+        is RootComponent.Child.ContactEditChild,
         is RootComponent.Child.MemberListChild,
         is RootComponent.Child.ChatPermissionsChild,
         is RootComponent.Child.StickersChild,

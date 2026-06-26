@@ -573,6 +573,11 @@
     <string name="slow_mode_subtitle_format">Members can send one message every %1$s</string>
     <string name="protected_content_title">Protected content</string>
     <string name="protected_content_subtitle">Forwarding and saving are restricted</string>
+    <string name="permission_sign_messages">Sign messages</string>
+    <string name="permission_sign_messages_subtitle">Show the sender name on channel posts</string>
+    <string name="permission_join_to_send_messages">Join before sending</string>
+    <string name="permission_join_to_send_messages_subtitle">Require members to join before they can post</string>
+    <string name="topics_subtitle">Let members create and manage topics</string>
     <string name="private_forwards_title">Private forwards</string>
     <string name="private_forwards_subtitle">Forwarded messages hide profile link</string>
     <string name="chat_stats_subtitle">Chat Stats</string>
@@ -1297,10 +1302,14 @@
     <string name="contact_menu_edit_name">Edit Name</string>
     <string name="contact_menu_remove">Remove Contact</string>
     <string name="edit_contact_title">Edit Contact</string>
+    <string name="edit_contact_title_short">Edit</string>
     <string name="first_name_label">First Name</string>
     <string name="last_name_label">Last Name</string>
     <string name="remove_contact_title">Remove contact?</string>
     <string name="remove_contact_confirmation">Are you sure you want to remove %1$s from your contacts?</string>
+    <string name="contact_edit_first_name_required">First name is required</string>
+    <string name="contact_edit_save_failed">Failed to save contact</string>
+    <string name="contact_edit_remove_failed">Failed to remove contact</string>
     <string name="group_auto_delete_info">Automatically delete new messages sent in this group after a certain period of time.</string>
     <string name="add_photo_cd">Add photo</string>
     <string name="change_photo_cd">Change photo</string>
@@ -2502,6 +2511,9 @@
     <string name="action_clear_recent_emojis">Clear Emojis</string>
     <string name="action_add_contact">Add to contacts</string>
     <string name="action_remove_contact">Remove from contacts</string>
+    <string name="contact_edit_share_phone_title">Share phone number</string>
+    <string name="contact_edit_share_phone_subtitle">Let this contact see your number.</string>
+    <string name="contact_edit_share_phone_required">This contact needs your number to be shared.</string>
     <string name="action_mark_as_read">Mark as read</string>
     <string name="action_mark_as_unread">Mark as unread</string>
     <string name="folder_tab_edit">Edit</string>

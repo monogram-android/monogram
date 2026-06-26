@@ -394,10 +394,21 @@ class ConnectionManagerTest {
             chatId: Long,
             permissions: org.monogram.domain.models.ChatPermissionsModel
         ) = Unit
+        override suspend fun setChatHasProtectedContent(
+            chatId: Long,
+            hasProtectedContent: Boolean
+        ) = Unit
 
+        override suspend fun setChatSignMessages(chatId: Long, signMessages: Boolean) = Unit
+        override suspend fun setChatJoinToSendMessages(chatId: Long, joinToSendMessages: Boolean) =
+            Unit
+
+        override suspend fun setChatAvailableReactions(
+            chatId: Long,
+            availableReactions: List<String>
+        ) = Unit
         override suspend fun setChatSlowModeDelay(chatId: Long, slowModeDelay: Int) = Unit
         override suspend fun toggleChatIsForum(chatId: Long, isForum: Boolean) = Unit
-        override suspend fun toggleChatIsTranslatable(chatId: Long, isTranslatable: Boolean) = Unit
         override suspend fun getChatLink(chatId: Long): String? = null
         override suspend fun deleteFolder(folderId: Int) = Unit
         override suspend fun muteChat(chatId: Long, muteFor: Int) = Unit

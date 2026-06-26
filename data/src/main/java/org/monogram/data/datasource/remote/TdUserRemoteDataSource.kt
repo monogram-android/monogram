@@ -67,6 +67,17 @@ class TdUserRemoteDataSource(
         }
     }
 
+    override suspend fun getCloseFriendIds(): LongArray =
+        coRunCatching { gateway.execute(TdApi.GetCloseFriends()).userIds }.getOrDefault(longArrayOf())
+
+    override suspend fun setCloseFriendIds(userIds: LongArray) {
+        gateway.execute(TdApi.SetCloseFriends(userIds))
+    }
+
+    override suspend fun sharePhoneNumber(userId: Long) {
+        gateway.execute(TdApi.SharePhoneNumber(userId))
+    }
+
     override suspend fun searchPublicChat(username: String): TdApi.Chat? =
         coRunCatching { gateway.execute(TdApi.SearchPublicChat(username)) }.getOrNull()
 

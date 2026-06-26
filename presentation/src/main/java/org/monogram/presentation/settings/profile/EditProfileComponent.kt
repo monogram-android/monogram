@@ -5,6 +5,7 @@ import org.monogram.domain.models.BirthdateModel
 import org.monogram.domain.models.BusinessOpeningHoursModel
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.UserModel
+import org.monogram.presentation.features.editing.EditorScreenState
 
 interface EditProfileComponent {
     val state: Value<State>
@@ -24,6 +25,9 @@ interface EditProfileComponent {
     fun onReverseGeocode(lat: Double, lon: Double)
     fun onToggleUsername(username: String, active: Boolean)
     fun onReorderUsernames(usernames: List<String>)
+    fun onDismissDiscardChanges()
+    fun onConfirmDiscardChanges()
+    fun onDismissError()
 
     data class State(
         val user: UserModel? = null,
@@ -42,6 +46,7 @@ interface EditProfileComponent {
         val avatarPath: String? = null,
         val isLoading: Boolean = false,
         val error: String? = null,
+        val editor: EditorScreenState = EditorScreenState(),
         val showAvatarPicker: Boolean = false
     )
 

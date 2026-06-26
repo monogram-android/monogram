@@ -94,6 +94,7 @@ import org.monogram.data.repository.BotRepositoryImpl
 import org.monogram.data.repository.ChatInfoRepositoryImpl
 import org.monogram.data.repository.ChatStatisticsRepositoryImpl
 import org.monogram.data.repository.ChatsListRepositoryImpl
+import org.monogram.data.repository.ContactEditRepositoryImpl
 import org.monogram.data.repository.DraftLinkPreviewResolver
 import org.monogram.data.repository.EmojiRepositoryImpl
 import org.monogram.data.repository.GifRepositoryImpl
@@ -133,6 +134,7 @@ import org.monogram.domain.repository.ChatOperationsRepository
 import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.ChatSettingsRepository
 import org.monogram.domain.repository.ChatStatisticsRepository
+import org.monogram.domain.repository.ContactEditRepository
 import org.monogram.domain.repository.EmojiRepository
 import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.ForumTopicsRepository
@@ -341,6 +343,13 @@ val dataModule = module {
     single<UserProfileEditRepository> {
         UserProfileEditRepositoryImpl(
             remote = get()
+        )
+    }
+
+    single<ContactEditRepository> {
+        ContactEditRepositoryImpl(
+            userRepository = get(),
+            userRemoteDataSource = get()
         )
     }
 

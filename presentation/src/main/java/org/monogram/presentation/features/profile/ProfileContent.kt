@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,19 +25,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ExitToApp
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,7 +49,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.window.core.layout.WindowSizeClass
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.koin.compose.koinInject
@@ -67,8 +57,6 @@ import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
 import org.monogram.presentation.core.ui.ConfirmationSheet
-import org.monogram.presentation.core.ui.ItemPosition
-import org.monogram.presentation.core.ui.SettingsTextField
 import org.monogram.presentation.core.ui.rememberCollapsingToolbarScaffoldState
 import org.monogram.presentation.core.ui.rememberShimmerBrush
 import org.monogram.presentation.core.util.CountryManager
@@ -243,10 +231,6 @@ fun ProfileContent(component: ProfileComponent) {
     var showLeaveSheet by remember { mutableStateOf(false) }
     var showDeleteChatSheet by remember { mutableStateOf(false) }
     var showBlockSheet by remember { mutableStateOf(false) }
-    var showEditContactDialog by remember { mutableStateOf(false) }
-    var editContactFirstName by remember { mutableStateOf("") }
-    var editContactLastName by remember { mutableStateOf("") }
-
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.semantics { contentDescription = "ProfileContent" },
@@ -286,12 +270,7 @@ fun ProfileContent(component: ProfileComponent) {
                         }
                     },
                     onEdit = component::onEdit,
-                    onEditContact = {
-                        val currentUser = state.user ?: return@ProfileTopBar
-                        editContactFirstName = currentUser.firstName
-                        editContactLastName = currentUser.lastName.orEmpty()
-                        showEditContactDialog = true
-                    },
+                    onEditContact = component::onEditContact,
                     onToggleContact = component::onToggleContact,
                     onReport = if (!isActionPending) ({ component.onShowReport() }) else ({}),
                     onBlock = { showBlockSheet = true },
@@ -485,91 +464,6 @@ fun ProfileContent(component: ProfileComponent) {
                 onDismiss = { showBlockSheet = false },
                 isDestructive = !state.isBlocked
             )
-        }
-
-        if (showEditContactDialog && canEditContactTopBar && state.user != null) {
-            ModalBottomSheet(
-                onDismissRequest = { showEditContactDialog = false },
-                dragHandle = { BottomSheetDefaults.DragHandle() },
-                containerColor = MaterialTheme.colorScheme.background,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 32.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.edit_contact_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    SettingsTextField(
-                        value = editContactFirstName,
-                        onValueChange = { editContactFirstName = it },
-                        placeholder = stringResource(R.string.first_name_label),
-                        icon = Icons.Rounded.Person,
-                        position = ItemPosition.TOP,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    SettingsTextField(
-                        value = editContactLastName,
-                        onValueChange = { editContactLastName = it },
-                        placeholder = stringResource(R.string.last_name_label),
-                        icon = Icons.Rounded.Edit,
-                        position = ItemPosition.BOTTOM,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { showEditContactDialog = false },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.cancel_button),
-                                fontSize = 16.sp,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                            )
-                        }
-
-                        Button(
-                            onClick = {
-                                component.onEditContact(editContactFirstName, editContactLastName)
-                                showEditContactDialog = false
-                            },
-                            enabled = editContactFirstName.isNotBlank(),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.action_save),
-                                fontSize = 16.sp,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
         }
 
         if (state.miniAppUrl == null) {

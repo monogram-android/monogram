@@ -19,6 +19,7 @@ import org.monogram.presentation.features.profile.admin.AdminManageComponent
 import org.monogram.presentation.features.profile.admin.ChatEditComponent
 import org.monogram.presentation.features.profile.admin.ChatPermissionsComponent
 import org.monogram.presentation.features.profile.admin.MemberListComponent
+import org.monogram.presentation.features.profile.contact.ContactEditComponent
 import org.monogram.presentation.features.profile.logs.ProfileLogsComponent
 import org.monogram.presentation.features.share.IncomingShareRequest
 import org.monogram.presentation.features.stickers.core.StickerSetUiModel
@@ -94,6 +95,7 @@ interface RootComponent {
         class ProfileLogsChild(val component: ProfileLogsComponent) : Child()
         class AdminManageChild(val component: AdminManageComponent) : Child()
         class ChatEditChild(val component: ChatEditComponent) : Child()
+        class ContactEditChild(val component: ContactEditComponent) : Child()
         class MemberListChild(val component: MemberListComponent) : Child()
         class ChatPermissionsChild(val component: ChatPermissionsComponent) : Child()
         class PasscodeChild(val component: PasscodeComponent) : Child()

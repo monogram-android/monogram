@@ -55,6 +55,7 @@ class DefaultProfileComponent(
     private val onEditClicked: () -> Unit = {},
     private val onSendMessageClicked: (Long) -> Unit = {},
     private val onShowLogsClicked: (Long) -> Unit = {},
+    private val onEditContactClicked: (Long) -> Unit = {},
     private val onMemberClicked: (Long) -> Unit = {},
     private val onMemberLongClicked: (Long, Long) -> Unit = { _, _ -> }
 ) : ProfileComponent, AppComponentContext by context {
@@ -905,32 +906,9 @@ class DefaultProfileComponent(
         }
     }
 
-    override fun onEditContact(firstName: String, lastName: String) {
-        val user = _state.value.user ?: return
-        val trimmedFirstName = firstName.trim()
-        if (trimmedFirstName.isBlank()) return
-        val normalizedLastName = lastName.trim().ifBlank { null }
-
-        scope.launch {
-            runCatching {
-                userRepository.addContact(
-                    user.copy(
-                        firstName = trimmedFirstName,
-                        lastName = normalizedLastName,
-                        isContact = true
-                    )
-                )
-            }.onSuccess {
-                _state.update { current ->
-                    current.copy(
-                        user = current.user?.copy(
-                            firstName = trimmedFirstName,
-                            lastName = normalizedLastName
-                        )
-                    )
-                }
-            }
-        }
+    override fun onEditContact() {
+        val userId = _state.value.user?.id ?: return
+        onEditContactClicked(userId)
     }
 
     private fun isGroupOrChannelProfile(snapshot: ProfileComponent.State = _state.value): Boolean {
@@ -941,16 +919,7 @@ class DefaultProfileComponent(
 
     override fun onToggleContact() {
         val user = _state.value.user ?: return
-        scope.launch {
-            if (user.isContact) {
-                userRepository.removeContact(user.id)
-            } else {
-                userRepository.addContact(user)
-            }
-            _state.update { current ->
-                current.copy(user = current.user?.copy(isContact = !user.isContact))
-            }
-        }
+        onEditContactClicked(user.id)
     }
 
     override fun onLeave() {

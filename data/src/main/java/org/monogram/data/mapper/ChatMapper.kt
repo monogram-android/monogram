@@ -4,6 +4,7 @@ import org.drinkless.tdlib.TdApi
 import org.monogram.core.date.DateFormatManager
 import org.monogram.data.compat.extractTextDraft
 import org.monogram.data.db.model.ChatEntity
+import org.monogram.domain.models.ChatAvailableReactionsModel
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatType
 import org.monogram.domain.models.MessageEntity
@@ -69,10 +70,20 @@ class ChatMapper(
         description: String? = null,
         inviteLink: String? = null,
         hasAutomaticTranslation: Boolean = false,
-        personalAvatarPath: String? = null
+        personalAvatarPath: String? = null,
+        signMessages: Boolean = false,
+        joinToSendMessages: Boolean = false
     ): ChatModel {
         val permissions = chat.permissions.toDomainChatPermissions()
         val isChannel = chat.type.isChannelType()
+        val availableReactions = when (val reactions = chat.availableReactions) {
+            is TdApi.ChatAvailableReactionsSome -> ChatAvailableReactionsModel.Some(
+                reactions = reactions.reactions.mapNotNull { (it as? TdApi.ReactionTypeEmoji)?.emoji },
+                maxReactionCount = reactions.maxReactionCount
+            )
+
+            else -> ChatAvailableReactionsModel.All
+        }
 
         val draftText = chat.draftMessage?.extractTextDraft()
         val draftEntities = emptyList<MessageEntity>()
@@ -118,6 +129,9 @@ class ChatMapper(
             hasProtectedContent = chat.hasProtectedContent,
             isTranslatable = chat.isTranslatable,
             hasAutomaticTranslation = hasAutomaticTranslation,
+            signMessages = signMessages,
+            joinToSendMessages = joinToSendMessages,
+            availableReactions = availableReactions,
             messageAutoDeleteTime = chat.messageAutoDeleteTime,
             canBeDeletedOnlyForSelf = chat.canBeDeletedOnlyForSelf,
             canBeDeletedForAllUsers = chat.canBeDeletedForAllUsers,

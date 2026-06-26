@@ -18,9 +18,12 @@ interface ChatRemoteSource {
     suspend fun setChatDescription(chatId: Long, description: String)
     suspend fun setChatUsername(chatId: Long, username: String)
     suspend fun setChatPermissions(chatId: Long, permissions: ChatPermissionsModel)
+    suspend fun setChatHasProtectedContent(chatId: Long, hasProtectedContent: Boolean)
+    suspend fun setChatSignMessages(chatId: Long, signMessages: Boolean)
+    suspend fun setChatJoinToSendMessages(chatId: Long, joinToSendMessages: Boolean)
+    suspend fun setChatAvailableReactions(chatId: Long, availableReactions: List<String>)
     suspend fun setChatSlowModeDelay(chatId: Long, slowModeDelay: Int)
     suspend fun toggleChatIsForum(chatId: Long, isForum: Boolean)
-    suspend fun toggleChatIsTranslatable(chatId: Long, isTranslatable: Boolean)
     suspend fun getChatLink(chatId: Long): String?
     suspend fun deleteFolder(folderId: Int)
     suspend fun muteChat(chatId: Long, muteFor: Int)

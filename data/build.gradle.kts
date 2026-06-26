@@ -18,7 +18,7 @@ android {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
 
-        val localProperties: Properties by rootProject.extra
+        val localProperties = rootProject.extra["localProperties"] as Properties
 
         val apiId = localProperties.getProperty("API_ID", "0")
         val apiHash = localProperties.getProperty("API_HASH", "")

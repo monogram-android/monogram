@@ -1,5 +1,6 @@
 package org.monogram.domain.models
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -32,6 +33,9 @@ data class ChatModel(
     val hasProtectedContent: Boolean = false,
     val isTranslatable: Boolean = false,
     val hasAutomaticTranslation: Boolean = false,
+    val signMessages: Boolean = false,
+    val joinToSendMessages: Boolean = false,
+    val availableReactions: ChatAvailableReactionsModel = ChatAvailableReactionsModel.All,
     val messageAutoDeleteTime: Int = 0,
     val canBeDeletedOnlyForSelf: Boolean = false,
     val canBeDeletedForAllUsers: Boolean = false,
@@ -84,6 +88,21 @@ data class ChatModel(
 enum class ChatType {
     PRIVATE, BASIC_GROUP, SUPERGROUP, SECRET
 }
+
+@Serializable
+sealed class ChatAvailableReactionsModel {
+    @Serializable
+    @SerialName("all")
+    data object All : ChatAvailableReactionsModel()
+
+    @Serializable
+    @SerialName("some")
+    data class Some(
+        val reactions: List<String> = emptyList(),
+        val maxReactionCount: Int = 1
+    ) : ChatAvailableReactionsModel()
+}
+
 @Serializable
 data class ChatPermissionsModel(
     val canSendBasicMessages: Boolean = true,

@@ -69,6 +69,7 @@ import org.monogram.presentation.features.profile.admin.DefaultChatEditComponent
 import org.monogram.presentation.features.profile.admin.DefaultChatPermissionsComponent
 import org.monogram.presentation.features.profile.admin.DefaultMemberListComponent
 import org.monogram.presentation.features.profile.admin.MemberListComponent
+import org.monogram.presentation.features.profile.contact.DefaultContactEditComponent
 import org.monogram.presentation.features.profile.logs.DefaultProfileLogsComponent
 import org.monogram.presentation.features.share.IncomingShareRequest
 import org.monogram.presentation.features.stickers.core.toUi
@@ -756,6 +757,7 @@ class DefaultRootComponent(
                     },
                     onSendMessageClicked = { navigateToChat(it) },
                     onShowLogsClicked = { navigation.push(Config.ProfileLogs(it)) },
+                    onEditContactClicked = { navigation.push(Config.ContactEdit(it)) },
                     onMemberLongClicked = { chatId, userId -> navigation.push(Config.AdminManage(chatId, userId)) }
                 )
             )
@@ -827,8 +829,15 @@ class DefaultRootComponent(
                                 MemberListComponent.MemberListType.BLACKLIST
                             )
                         )
-                    },
-                    onManagePermissionsClicked = { navigation.push(Config.ChatPermissions(it)) }
+                    }
+                )
+            )
+
+            is Config.ContactEdit -> RootComponent.Child.ContactEditChild(
+                DefaultContactEditComponent(
+                    context = context,
+                    userId = config.userId,
+                    onBackClicked = { navigation.pop() }
                 )
             )
 
@@ -930,6 +939,9 @@ class DefaultRootComponent(
         @Parcelize @Serializable data class ProfileLogs(val chatId: Long) : Config()
         @Parcelize @Serializable data class AdminManage(val chatId: Long, val userId: Long) : Config()
         @Parcelize @Serializable data class ChatEdit(val chatId: Long) : Config()
+        @Parcelize
+        @Serializable
+        data class ContactEdit(val userId: Long) : Config()
         @Parcelize @Serializable data class MemberList(val chatId: Long, val type: MemberListComponent.MemberListType) : Config()
         @Parcelize @Serializable data class ChatPermissions(val chatId: Long) : Config()
         @Parcelize @Serializable object PasscodeConfig : Config()

@@ -41,6 +41,7 @@ import androidx.compose.material.icons.rounded.Business
 import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
@@ -68,6 +69,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -113,6 +116,7 @@ import org.monogram.domain.models.BusinessOpeningHoursIntervalModel
 import org.monogram.domain.models.BusinessOpeningHoursModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
+import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SectionHeader
 import org.monogram.presentation.core.ui.SettingsTextField
@@ -130,6 +134,13 @@ fun EditProfileContent(component: EditProfileComponent) {
     val state by component.state.subscribeAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.editor.error) {
+        val message = state.editor.error ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        component.onDismissError()
+    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -821,6 +832,7 @@ fun EditProfileContent(component: EditProfileComponent) {
 
     Scaffold(
         modifier = Modifier.semantics { contentDescription = "EditProfileContent" },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -847,7 +859,7 @@ fun EditProfileContent(component: EditProfileComponent) {
                                 .padding(end = 16.dp),
                         )
                     } else if (state.user != null) {
-                        IconButton(onClick = component::onSave) {
+                        IconButton(onClick = component::onSave, enabled = state.editor.canSave) {
                             Icon(
                                 Icons.Rounded.Check,
                                 contentDescription = stringResource(R.string.action_save),
@@ -1161,6 +1173,17 @@ fun EditProfileContent(component: EditProfileComponent) {
                 }
             }
         }
+    }
+
+    if (state.editor.showDiscardChangesDialog) {
+        ConfirmationSheet(
+            icon = Icons.Rounded.Delete,
+            title = stringResource(R.string.photo_editor_discard_title),
+            description = stringResource(R.string.photo_editor_discard_message),
+            confirmText = stringResource(R.string.photo_editor_discard_button),
+            onConfirm = component::onConfirmDiscardChanges,
+            onDismiss = component::onDismissDiscardChanges
+        )
     }
 }
 

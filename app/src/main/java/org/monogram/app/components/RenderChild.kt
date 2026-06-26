@@ -13,6 +13,7 @@ import org.monogram.presentation.features.profile.admin.AdminManageContent
 import org.monogram.presentation.features.profile.admin.ChatEditContent
 import org.monogram.presentation.features.profile.admin.ChatPermissionsContent
 import org.monogram.presentation.features.profile.admin.MemberListContent
+import org.monogram.presentation.features.profile.contact.ContactEditContent
 import org.monogram.presentation.features.profile.logs.ProfileLogsContent
 import org.monogram.presentation.features.webview.InternalWebView
 import org.monogram.presentation.root.RootComponent
@@ -78,6 +79,7 @@ fun RenderChild(
         is RootComponent.Child.ProfileLogsChild -> ProfileLogsContent(child.component)
         is RootComponent.Child.AdminManageChild -> AdminManageContent(child.component)
         is RootComponent.Child.ChatEditChild -> ChatEditContent(child.component)
+        is RootComponent.Child.ContactEditChild -> ContactEditContent(child.component)
         is RootComponent.Child.MemberListChild -> MemberListContent(child.component)
         is RootComponent.Child.ChatPermissionsChild -> ChatPermissionsContent(child.component)
         is RootComponent.Child.PasscodeChild -> PasscodeContent(child.component)

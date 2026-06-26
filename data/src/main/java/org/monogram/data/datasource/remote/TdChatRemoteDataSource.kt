@@ -84,13 +84,7 @@ class TdChatRemoteSource(
 
     override suspend fun setChatDescription(chatId: Long, description: String) {
         coRunCatching {
-            val chat = gateway.execute(TdApi.GetChat(chatId))
-            val groupId = when (val type = chat.type) {
-                is TdApi.ChatTypeSupergroup -> type.supergroupId
-                is TdApi.ChatTypeBasicGroup -> type.basicGroupId
-                else -> return
-            }
-            gateway.execute(TdApi.SetChatDescription(groupId, description))
+            gateway.execute(TdApi.SetChatDescription(chatId, description))
         }
     }
 
@@ -108,6 +102,48 @@ class TdChatRemoteSource(
         }
     }
 
+    override suspend fun setChatHasProtectedContent(chatId: Long, hasProtectedContent: Boolean) {
+        coRunCatching {
+            gateway.execute(TdApi.ToggleChatHasProtectedContent(chatId, hasProtectedContent))
+        }
+    }
+
+    override suspend fun setChatSignMessages(chatId: Long, signMessages: Boolean) {
+        coRunCatching {
+            val chat = gateway.execute(TdApi.GetChat(chatId))
+            val supergroupId = (chat.type as? TdApi.ChatTypeSupergroup)?.supergroupId ?: return
+            gateway.execute(TdApi.ToggleSupergroupSignMessages(supergroupId, signMessages, true))
+        }
+    }
+
+    override suspend fun setChatJoinToSendMessages(chatId: Long, joinToSendMessages: Boolean) {
+        coRunCatching {
+            val chat = gateway.execute(TdApi.GetChat(chatId))
+            val supergroupId = (chat.type as? TdApi.ChatTypeSupergroup)?.supergroupId ?: return
+            gateway.execute(
+                TdApi.ToggleSupergroupJoinToSendMessages(
+                    supergroupId,
+                    joinToSendMessages
+                )
+            )
+        }
+    }
+
+    override suspend fun setChatAvailableReactions(chatId: Long, availableReactions: List<String>) {
+        coRunCatching {
+            val chat = gateway.execute(TdApi.GetChat(chatId))
+            val reactionTypes =
+                availableReactions.map { TdApi.ReactionTypeEmoji(it) }.toTypedArray()
+            val reactions = if (availableReactions.isEmpty()) {
+                TdApi.ChatAvailableReactionsAll()
+            } else {
+                TdApi.ChatAvailableReactionsSome(reactionTypes.map { it as TdApi.ReactionType }
+                    .toTypedArray(), 3)
+            }
+            gateway.execute(TdApi.SetChatAvailableReactions(chatId, reactions))
+        }
+    }
+
     override suspend fun setChatSlowModeDelay(chatId: Long, slowModeDelay: Int) {
         coRunCatching {
             val chat = gateway.execute(TdApi.GetChat(chatId))
@@ -121,18 +157,6 @@ class TdChatRemoteSource(
             val chat = gateway.execute(TdApi.GetChat(chatId))
             val type = chat.type as? TdApi.ChatTypeSupergroup ?: return
             gateway.execute(TdApi.ToggleSupergroupIsForum(type.supergroupId, isForum, isForum))
-        }
-    }
-
-    override suspend fun toggleChatIsTranslatable(chatId: Long, isTranslatable: Boolean) {
-        coRunCatching {
-            val chat = gateway.execute(TdApi.GetChat(chatId))
-            if (chat.type is TdApi.ChatTypeSupergroup) {
-                val supergroupId = (chat.type as TdApi.ChatTypeSupergroup).supergroupId
-                gateway.execute(TdApi.ToggleSupergroupHasAutomaticTranslation(supergroupId, isTranslatable))
-            } else {
-                gateway.execute(TdApi.ToggleChatIsTranslatable(chatId, isTranslatable))
-            }
         }
     }
 

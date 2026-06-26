@@ -16,6 +16,9 @@ interface UserRemoteDataSource {
     suspend fun searchContacts(query: String): TdApi.Users?
     suspend fun addContact(userId: Long, contact: TdApi.ImportedContact, sharePhoneNumber: Boolean)
     suspend fun removeContacts(userIds: LongArray)
+    suspend fun getCloseFriendIds(): LongArray
+    suspend fun setCloseFriendIds(userIds: LongArray)
+    suspend fun sharePhoneNumber(userId: Long)
     suspend fun searchPublicChat(username: String): TdApi.Chat?
     suspend fun getChatMember(chatId: Long, userId: Long): TdApi.ChatMember?
     suspend fun getSupergroupMembers(

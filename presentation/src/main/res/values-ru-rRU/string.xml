@@ -336,6 +336,11 @@
     <string name="slow_mode_subtitle_format">Участники могут отправлять одно сообщение каждые %1$s</string>
     <string name="protected_content_title">Защищенный контент</string>
     <string name="protected_content_subtitle">Пересылка и сохранение ограничены</string>
+    <string name="permission_sign_messages">Подписывать сообщения</string>
+    <string name="permission_sign_messages_subtitle">Показывать имя автора под постами канала</string>
+    <string name="permission_join_to_send_messages">Только для участников</string>
+    <string name="permission_join_to_send_messages_subtitle">Писать смогут только вступившие участники</string>
+    <string name="topics_subtitle">Разрешить темы в этом чате</string>
     <string name="private_forwards_title">Приватная пересылка</string>
     <string name="private_forwards_subtitle">Пересланные сообщения скрывают ссылку на профиль</string>
     <string name="chat_stats_subtitle">Статистика</string>
@@ -976,10 +981,14 @@
     <string name="contact_menu_edit_name">Изменить имя</string>
     <string name="contact_menu_remove">Удалить контакт</string>
     <string name="edit_contact_title">Редактирование контакта</string>
+    <string name="edit_contact_title_short">Изменить</string>
     <string name="first_name_label">Имя</string>
     <string name="last_name_label">Фамилия</string>
     <string name="remove_contact_title">Удалить контакт?</string>
     <string name="remove_contact_confirmation">Вы уверены, что хотите удалить %1$s из контактов?</string>
+    <string name="contact_edit_first_name_required">Имя обязательно</string>
+    <string name="contact_edit_save_failed">Не удалось сохранить контакт</string>
+    <string name="contact_edit_remove_failed">Не удалось удалить контакт</string>
     <string name="group_auto_delete_info">Автоматически удалять новые сообщения в этой группе через определенное время.</string>
     <string name="add_photo_cd">Добавить фото</string>
     <string name="change_photo_cd">Изменить фото</string>
@@ -1930,6 +1939,9 @@
     <string name="action_clear_recent_emojis">Очистить эмодзи</string>
     <string name="action_add_contact">Добавить в контакты</string>
     <string name="action_remove_contact">Удалить из контактов</string>
+    <string name="contact_edit_share_phone_title">Поделиться номером</string>
+    <string name="contact_edit_share_phone_subtitle">Этот контакт будет видеть ваш номер.</string>
+    <string name="contact_edit_share_phone_required">Для этого контакта нужно открыть ваш номер.</string>
     <string name="action_mark_as_read">Пометить прочитанным</string>
     <string name="action_mark_as_unread">Пометить непрочитанным</string>
     <string name="folder_tab_edit">Изменить</string>

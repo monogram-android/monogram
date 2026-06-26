@@ -891,16 +891,28 @@ class ChatsListRepositoryImpl(
         chatRemoteSource.setChatPermissions(chatId, permissions)
     }
 
+    override suspend fun setChatHasProtectedContent(chatId: Long, hasProtectedContent: Boolean) {
+        chatRemoteSource.setChatHasProtectedContent(chatId, hasProtectedContent)
+    }
+
+    override suspend fun setChatSignMessages(chatId: Long, signMessages: Boolean) {
+        chatRemoteSource.setChatSignMessages(chatId, signMessages)
+    }
+
+    override suspend fun setChatJoinToSendMessages(chatId: Long, joinToSendMessages: Boolean) {
+        chatRemoteSource.setChatJoinToSendMessages(chatId, joinToSendMessages)
+    }
+
+    override suspend fun setChatAvailableReactions(chatId: Long, availableReactions: List<String>) {
+        chatRemoteSource.setChatAvailableReactions(chatId, availableReactions)
+    }
+
     override suspend fun setChatSlowModeDelay(chatId: Long, slowModeDelay: Int) {
         chatRemoteSource.setChatSlowModeDelay(chatId, slowModeDelay)
     }
 
     override suspend fun toggleChatIsForum(chatId: Long, isForum: Boolean) {
         chatRemoteSource.toggleChatIsForum(chatId, isForum)
-    }
-
-    override suspend fun toggleChatIsTranslatable(chatId: Long, isTranslatable: Boolean) {
-        chatRemoteSource.toggleChatIsTranslatable(chatId, isTranslatable)
     }
 
     override fun getDatabaseSize(): Long {

@@ -384,7 +384,6 @@
     <string name="debug_subtitle">Параметри для розробників</string>
     <string name="debug_sponsor_count_title">Кількість тих, хто підтримав</string>
     <string name="debug_force_sponsor_sync_title">Примусова синхронізація спонсорів</string>
-    <string name="debug_force_sponsor_sync_subtitle">Завантажити ID спонсорів із каналу зараз</string>
     <string name="debug_sponsor_sync_loading">Список тих, хто підтримав, завантажується</string>
     <string name="debug_sponsor_sync_never">Синхронізації ще не було</string>
     <string name="log_out_title">Вийти</string>

@@ -398,7 +398,6 @@
     <string name="debug_subtitle">Možnosti ladenia</string>
     <string name="debug_sponsor_count_title">Počet podporovateľov</string>
     <string name="debug_force_sponsor_sync_title">Vynútiť synchronizáciu sponzorov</string>
-    <string name="debug_force_sponsor_sync_subtitle">Načítať ID sponzorov z kanála teraz</string>
     <string name="debug_sponsor_sync_loading">Zoznam podporovateľov sa načítava</string>
     <string name="debug_sponsor_sync_never">Synchronizácia ešte neprebehla</string>
     <string name="log_out_title">Odhlásiť sa</string>

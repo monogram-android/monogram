@@ -381,7 +381,6 @@
     <string name="debug_subtitle">调试选项</string>
     <string name="debug_sponsor_count_title">支持者数量</string>
     <string name="debug_force_sponsor_sync_title">强制同步赞助者</string>
-    <string name="debug_force_sponsor_sync_subtitle">立即从频道拉取赞助者 ID</string>
     <string name="debug_sponsor_sync_loading">支持者列表正在加载</string>
     <string name="debug_sponsor_sync_never">尚未同步</string>
     <string name="log_out_title">退出登录</string>

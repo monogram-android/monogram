@@ -385,7 +385,6 @@
     <string name="debug_subtitle">Opções de depuração</string>
     <string name="debug_sponsor_count_title">Quantidade de apoiadores</string>
     <string name="debug_force_sponsor_sync_title">Forçar sincronização de patrocinadores</string>
-    <string name="debug_force_sponsor_sync_subtitle">Buscar IDs de patrocinadores do canal agora</string>
     <string name="debug_sponsor_sync_loading">A lista de apoiadores está carregando</string>
     <string name="debug_sponsor_sync_never">Nunca sincronizado</string>
     <string name="log_out_title">Sair</string>

@@ -373,7 +373,6 @@
     <string name="debug_subtitle">Կարգաբերման տարբերակներ</string>
     <string name="debug_sponsor_count_title">Աջակցողների քանակը</string>
     <string name="debug_force_sponsor_sync_title">Ստիպողաբար համաժամեցնել հովանավորներին</string>
-    <string name="debug_force_sponsor_sync_subtitle">Այժմ ներբեռնել հովանավորների ID-ները ալիքից</string>
     <string name="debug_sponsor_sync_loading">Աջակցողների ցուցակը բեռնվում է</string>
     <string name="debug_sponsor_sync_never">Համաժամեցում դեռ չի եղել</string>
     <string name="log_out_title">Դուրս գալ</string>

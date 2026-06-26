@@ -384,7 +384,6 @@
     <string name="debug_subtitle">Opciones de depuración</string>
     <string name="debug_sponsor_count_title">Cantidad de colaboradores</string>
     <string name="debug_force_sponsor_sync_title">Forzar sincronización de patrocinador</string>
-    <string name="debug_force_sponsor_sync_subtitle">Obtener IDs de patrocinador del canal ahora</string>
     <string name="debug_sponsor_sync_loading">La lista de colaboradores se está cargando</string>
     <string name="debug_sponsor_sync_never">Nunca se sincronizó</string>
     <string name="log_out_title">Cerrar Sesión</string>

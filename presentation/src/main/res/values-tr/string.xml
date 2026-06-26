@@ -381,7 +381,6 @@
     <string name="debug_subtitle">Hata ayıklama seçenekleri</string>
     <string name="debug_sponsor_count_title">Destekçi sayısı</string>
     <string name="debug_force_sponsor_sync_title">Sponsor senkronizasyonunu zorla</string>
-    <string name="debug_force_sponsor_sync_subtitle">Sponsor ID\'lerini şimdi kanaldan çek</string>
     <string name="debug_sponsor_sync_loading">Destekçi listesi yükleniyor</string>
     <string name="debug_sponsor_sync_never">Henüz senkronize edilmedi</string>
     <string name="debug_section_push_diagnostics">Push Tanılama</string>

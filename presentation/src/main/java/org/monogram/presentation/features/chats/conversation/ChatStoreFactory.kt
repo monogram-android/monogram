@@ -33,6 +33,7 @@ import org.monogram.presentation.features.chats.conversation.logic.handleDismiss
 import org.monogram.presentation.features.chats.conversation.logic.handleDownloadFile
 import org.monogram.presentation.features.chats.conversation.logic.handleDownloadHighRes
 import org.monogram.presentation.features.chats.conversation.logic.handleDraftChange
+import org.monogram.presentation.features.chats.conversation.logic.handleHidePinnedMessage
 import org.monogram.presentation.features.chats.conversation.logic.handleInlineQueryChange
 import org.monogram.presentation.features.chats.conversation.logic.handleJoinChat
 import org.monogram.presentation.features.chats.conversation.logic.handleKeyboardButtonClick
@@ -75,6 +76,7 @@ import org.monogram.presentation.features.chats.conversation.logic.handleSendSch
 import org.monogram.presentation.features.chats.conversation.logic.handleSendSticker
 import org.monogram.presentation.features.chats.conversation.logic.handleSendVideo
 import org.monogram.presentation.features.chats.conversation.logic.handleSendVoice
+import org.monogram.presentation.features.chats.conversation.logic.handleShowPinnedMessage
 import org.monogram.presentation.features.chats.conversation.logic.handleShowVoters
 import org.monogram.presentation.features.chats.conversation.logic.handleStickerClick
 import org.monogram.presentation.features.chats.conversation.logic.handleToggleChecklistTask
@@ -242,6 +244,10 @@ class ChatStoreFactory(
                 is Intent.PinMessage -> component.handlePinMessage(intent.message)
 
                 is Intent.UnpinMessage -> component.handleUnpinMessage(intent.message)
+
+                is Intent.HidePinnedMessage -> component.handleHidePinnedMessage()
+
+                is Intent.ShowPinnedMessage -> component.handleShowPinnedMessage()
 
                 is Intent.PinnedMessageClick -> component.handlePinnedMessageClick(intent.message)
                 is Intent.ShowAllPinnedMessages -> {

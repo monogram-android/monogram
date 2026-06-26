@@ -53,6 +53,7 @@ import org.monogram.domain.repository.InlineBotRepository
 import org.monogram.domain.repository.MessageDisplayer
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.PaymentRepository
+import org.monogram.domain.repository.PinnedMessageVisibilityRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.UserRepository
@@ -114,6 +115,8 @@ class DefaultChatComponent(
     internal val chatOperationsRepository: ChatOperationsRepository = container.repositories.chatOperationsRepository
     internal val forumTopicsRepository: ForumTopicsRepository = container.repositories.forumTopicsRepository
     override val repositoryMessage: MessageRepository = container.repositories.messageRepository
+    internal val pinnedMessageVisibilityRepository: PinnedMessageVisibilityRepository =
+        container.repositories.pinnedMessageVisibilityRepository
     internal val inlineBotRepository: InlineBotRepository = container.repositories.inlineBotRepository
     internal val paymentRepository: PaymentRepository = container.repositories.paymentRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
@@ -259,6 +262,12 @@ class DefaultChatComponent(
         appPreferences.adBlockWhitelistedChannels
             .onEach { channels ->
                 _state.update { it.copy(isWhitelistedInAdBlock = channels.contains(chatId)) }
+            }
+            .launchIn(scope)
+
+        pinnedMessageVisibilityRepository.observeHidden(chatId)
+            .onEach { hidden ->
+                _state.update { it.copy(isPinnedMessageHidden = hidden) }
             }
             .launchIn(scope)
 
@@ -500,6 +509,10 @@ class DefaultChatComponent(
     override fun onPinMessage(message: MessageModel) = store.accept(ChatStore.Intent.PinMessage(message))
 
     override fun onUnpinMessage(message: MessageModel) = store.accept(ChatStore.Intent.UnpinMessage(message))
+
+    override fun onHidePinnedMessage() = store.accept(ChatStore.Intent.HidePinnedMessage)
+
+    override fun onShowPinnedMessage() = store.accept(ChatStore.Intent.ShowPinnedMessage)
 
     override fun onPinnedMessageClick(message: MessageModel?) =
         store.accept(ChatStore.Intent.PinnedMessageClick(message))

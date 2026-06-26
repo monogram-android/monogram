@@ -24,8 +24,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.rounded.FormatListBulleted
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -194,7 +194,7 @@ private fun ShowAllButton(
         modifier = Modifier.size(40.dp)
     ) {
         Icon(
-            imageVector = Icons.Rounded.FormatListBulleted,
+            imageVector = Icons.AutoMirrored.Rounded.FormatListBulleted,
             contentDescription = stringResource(R.string.pinned_show_all),
             modifier = Modifier.size(22.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant

@@ -166,6 +166,26 @@ class TdMessageRemoteDataSource(
         }
     }
 
+    override suspend fun getChatSponsoredMessages(chatId: Long): TdApi.SponsoredMessages? {
+        return safeExecute(TdApi.GetChatSponsoredMessages(chatId))
+    }
+
+    override suspend fun clickChatSponsoredMessage(
+        chatId: Long,
+        messageId: Long,
+        isMediaClick: Boolean,
+        fromFullscreen: Boolean
+    ): TdApi.Ok? {
+        return safeExecute(
+            TdApi.ClickChatSponsoredMessage(
+                chatId,
+                messageId,
+                isMediaClick,
+                fromFullscreen
+            )
+        )
+    }
+
     suspend fun getChat(chatId: Long): TdApi.Chat? {
         cache.getChat(chatId)?.let { return it }
         val deferred = chatRequests.getOrPut(chatId) {

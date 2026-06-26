@@ -11,6 +11,10 @@ class MessageFileCoordinator(
         fileDownloadQueue.registry.register(fileId, chatId, messageId)
     }
 
+    override fun registerSponsoredFileForMessage(fileId: Int, chatId: Long, messageId: Long) {
+        fileDownloadQueue.registry.registerSponsored(fileId, chatId, messageId)
+    }
+
     override fun enqueueDownload(
         fileId: Int,
         priority: Int,

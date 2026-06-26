@@ -18,6 +18,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageViewerModel
 import org.monogram.domain.models.PollDraft
+import org.monogram.domain.models.SponsoredMessagesFeedModel
 import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.models.TopicModel
 import org.monogram.domain.models.UserModel
@@ -222,6 +223,7 @@ interface ChatComponent {
     fun onReplyMarkupButtonClick(messageId: Long, button: KeyboardButtonModel, botUserId: Long)
 
     fun onLinkClick(url: String)
+    fun onChannelSponsoredMessageClick(messageId: Long, url: String, isMediaClick: Boolean)
 
     fun onOpenInvoice(slug: String? = null, messageId: Long? = null)
     fun onDismissInvoice(status: String)
@@ -411,6 +413,8 @@ interface ChatComponent {
         val scheduledMessages: List<MessageModel> = emptyList(),
         val lastReadInboxMessageId: Long = 0L,
         val unreadSeparatorLastReadInboxMessageId: Long = 0L,
+        val channelSponsoredMessages: SponsoredMessagesFeedModel? = null,
+        val showSponsoredMessagesForPremium: Boolean = false,
     ) {
         val pendingMediaPaths: List<String>
             get() = stagedAttachments.filterNot(PendingAttachment::isDocument).map { it.localPath }

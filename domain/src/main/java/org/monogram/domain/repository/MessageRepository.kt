@@ -13,6 +13,7 @@ import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageUploadProgressEvent
 import org.monogram.domain.models.MessageViewerModel
 import org.monogram.domain.models.PollDraft
+import org.monogram.domain.models.SponsoredMessagesFeedModel
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.InstantViewModel
 
@@ -262,6 +263,13 @@ interface MessageRepository :
     suspend fun getWebPageInstantView(url: String, forceFull: Boolean = false): InstantViewModel?
     suspend fun getFullRichMessage(chatId: Long, messageId: Long): MessageContent.RichMessage?
     suspend fun getDraftLinkPreview(request: DraftLinkPreviewRequest): DraftLinkPreview?
+    suspend fun getChannelSponsoredMessages(chatId: Long): SponsoredMessagesFeedModel?
+    suspend fun clickChannelSponsoredMessage(
+        chatId: Long,
+        messageId: Long,
+        isMediaClick: Boolean,
+        fromFullscreen: Boolean = false
+    )
 
     suspend fun searchMessages(
         chatId: Long,

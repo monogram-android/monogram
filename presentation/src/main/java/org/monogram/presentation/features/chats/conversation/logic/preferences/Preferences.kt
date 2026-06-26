@@ -144,6 +144,10 @@ internal fun DefaultChatComponent.observePreferences(availableWallpapers: List<W
         _state.update { it.copy(showReactions = value) }
     }.launchIn(scope)
 
+    appPreferences.showSponsoredMessagesForPremium.onEach { value ->
+        _state.update { it.copy(showSponsoredMessagesForPremium = value) }
+    }.launchIn(scope)
+
     combine(appPreferences.isChatAnimationsEnabled, appPreferences.isPowerSavingMode) { enabled, powerSaving ->
         if (powerSaving) false else enabled
     }.onEach { value ->

@@ -545,6 +545,7 @@ class ConnectionManagerTest {
         override val chatListMessageLines = MutableStateFlow(2)
         override val showChatListPhotos = MutableStateFlow(true)
         override val showReactions = MutableStateFlow(true)
+        override val showSponsoredMessagesForPremium = MutableStateFlow(false)
         override val privateChatsNotifications = MutableStateFlow(true)
         override val groupsNotifications = MutableStateFlow(true)
         override val channelsNotifications = MutableStateFlow(true)
@@ -591,6 +592,10 @@ class ConnectionManagerTest {
 
         override fun setAutoBestProxyEnabled(enabled: Boolean) {
             isAutoBestProxyEnabled.value = enabled
+        }
+
+        override fun setShowSponsoredMessagesForPremium(enabled: Boolean) {
+            showSponsoredMessagesForPremium.value = enabled
         }
 
         override fun setProxyNetworkMode(networkType: ProxyNetworkType, mode: ProxyNetworkMode) {

@@ -6,11 +6,17 @@ class FileMessageRegistry {
     val fileIdToMessageMap = ConcurrentHashMap<Int, MutableSet<Pair<Long, Long>>>()
     private val messageToFileMap = ConcurrentHashMap<Pair<Long, Long>, MutableSet<Int>>()
     val standaloneFileIds = ConcurrentHashMap.newKeySet<Int>()
+    val sponsoredFileIds = ConcurrentHashMap.newKeySet<Int>()
 
     fun register(fileId: Int, chatId: Long, messageId: Long) {
         val key = chatId to messageId
         fileIdToMessageMap.computeIfAbsent(fileId) { ConcurrentHashMap.newKeySet() }.add(key)
         messageToFileMap.computeIfAbsent(key) { ConcurrentHashMap.newKeySet() }.add(fileId)
+    }
+
+    fun registerSponsored(fileId: Int, chatId: Long, messageId: Long) {
+        register(fileId, chatId, messageId)
+        sponsoredFileIds.add(fileId)
     }
 
     fun removeMessages(chatId: Long, messageIds: List<Long>) {
@@ -19,7 +25,10 @@ class FileMessageRegistry {
             messageToFileMap.remove(key)?.forEach { fileId ->
                 fileIdToMessageMap[fileId]?.let { set ->
                     set.remove(key)
-                    if (set.isEmpty()) fileIdToMessageMap.remove(fileId)
+                    if (set.isEmpty()) {
+                        fileIdToMessageMap.remove(fileId)
+                        sponsoredFileIds.remove(fileId)
+                    }
                 }
             }
         }
@@ -35,7 +44,10 @@ class FileMessageRegistry {
                 fileIds.forEach { fileId ->
                     fileIdToMessageMap[fileId]?.let { set ->
                         set.remove(key)
-                        if (set.isEmpty()) fileIdToMessageMap.remove(fileId)
+                        if (set.isEmpty()) {
+                            fileIdToMessageMap.remove(fileId)
+                            sponsoredFileIds.remove(fileId)
+                        }
                     }
                 }
                 it.remove()

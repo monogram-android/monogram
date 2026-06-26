@@ -396,6 +396,7 @@ internal fun calculateAlignmentDelta(
 internal fun buildViewportSnapshot(
     scrollState: LazyListState,
     groupedMessages: List<GroupedMessageItem>,
+    conversationItems: List<ConversationListItem>,
     isComments: Boolean,
     isLatestLoaded: Boolean,
     isLoadingOlder: Boolean,
@@ -425,12 +426,24 @@ internal fun buildViewportSnapshot(
     )
     val info = scrollState.layoutInfo
     val anchorItem = info.visibleItemsInfo.firstOrNull { itemInfo ->
-        val groupedIndex = lazyIndexToGroupedIndex(itemInfo.index, leadingItems)
-        groupedIndex in groupedMessages.indices
+        when (
+            conversationItems.getOrNull(
+                lazyIndexToGroupedIndex(itemInfo.index, leadingItems)
+            )
+        ) {
+            is ConversationListItem.Grouped -> true
+            else -> false
+        }
     } ?: return null
 
-    val groupedIndex = lazyIndexToGroupedIndex(anchorItem.index, leadingItems)
-    val anchorMessageId = groupedMessages.getOrNull(groupedIndex)?.firstMessageId ?: return null
+    val anchorMessageId = when (
+        val item = conversationItems.getOrNull(
+            lazyIndexToGroupedIndex(anchorItem.index, leadingItems)
+        )
+    ) {
+        is ConversationListItem.Grouped -> item.groupedMessageItem.firstMessageId
+        else -> null
+    } ?: return null
 
     return ChatViewportCacheEntry(
         anchorMessageId = anchorMessageId,

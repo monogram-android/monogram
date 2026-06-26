@@ -2519,4 +2519,8 @@
     <string name="about_exdev">Ex-Developer</string>
     <string name="about_contributors">Contributors</string>
     <string name="about_contributors_summary">And a big thank you to everyone else who contributed to the development</string>
+    <string name="premium_show_sponsored_messages_title">Show ads</string>
+    <string name="premium_show_sponsored_messages_subtitle">Show sponsored messages again in channel feeds</string>
+    <string name="chat_sponsored_label">Sponsored</string>
+    <string name="chat_recommended_label">Recommended</string>
 </resources>

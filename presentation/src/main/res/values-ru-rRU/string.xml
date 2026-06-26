@@ -2344,6 +2344,10 @@
     <string name="about_exdev">Бывший разработчик</string>
     <string name="about_contributors">Участники проекта</string>
     <string name="about_contributors_summary">И огромное спасибо всем остальным, кто внес свой вклад в развитие</string>
+    <string name="premium_show_sponsored_messages_title">Показывать рекламу</string>
+    <string name="premium_show_sponsored_messages_subtitle">Снова показывать рекламные сообщения в ленте каналов</string>
+    <string name="chat_sponsored_label">Реклама</string>
+    <string name="chat_recommended_label">Рекомендованный</string>
     <string name="action_create_checklist">Чек-лист</string>
     <string name="checklist_create_title">Чек-лист</string>
     <string name="checklist_create_section_main">Название</string>

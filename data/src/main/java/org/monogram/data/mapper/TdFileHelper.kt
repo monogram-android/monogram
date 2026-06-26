@@ -64,6 +64,12 @@ class TdFileHelper(
         }
     }
 
+    fun registerSponsoredCachedFile(fileId: Int, chatId: Long, messageId: Long) {
+        if (fileId != 0) {
+            fileApi.registerSponsoredFileForMessage(fileId, chatId, messageId)
+        }
+    }
+
     fun enqueueDownload(
         fileId: Int,
         priority: Int,

@@ -2,6 +2,8 @@ package org.monogram.presentation.features.chats.conversation.ui.content
 
 import androidx.compose.runtime.Immutable
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.SponsoredMessageModel
+import org.monogram.domain.models.SponsoredMessagesFeedModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -31,6 +33,29 @@ sealed class GroupedMessageItem {
             is Single -> "msg_${message.id}"
             is Album -> "album_${albumId}_${firstMessageId}_${lastMessageId}"
         }
+}
+
+@Immutable
+sealed interface ConversationListItem {
+    val lazyItemKey: String
+
+    @Immutable
+    data class Grouped(
+        val groupedIndex: Int,
+        val groupedMessageItem: GroupedMessageItem
+    ) : ConversationListItem {
+        override val lazyItemKey: String
+            get() = groupedMessageItem.lazyItemKey
+    }
+
+    @Immutable
+    data class Sponsored(
+        val sponsoredIndex: Int,
+        val sponsoredMessage: SponsoredMessageModel
+    ) : ConversationListItem {
+        override val lazyItemKey: String
+            get() = "channel_sponsored_message_${sponsoredMessage.messageId}"
+    }
 }
 
 fun groupMessagesByAlbum(messages: List<MessageModel>): List<GroupedMessageItem> {
@@ -99,5 +124,102 @@ fun shouldShowDate(current: MessageModel, older: MessageModel?): Boolean {
 
     if (older == null) return true
     return !fmt.format(Date(msgTimestamp)).equals(fmt.format(Date(older.date.toLong() * 1000)))
+}
+
+internal fun buildConversationListItems(
+    groupedMessages: List<GroupedMessageItem>,
+    sponsoredFeed: SponsoredMessagesFeedModel?
+): List<ConversationListItem> {
+    val sponsoredMessages = sponsoredFeed?.messages.orEmpty()
+    if (groupedMessages.isEmpty() && sponsoredMessages.isEmpty()) return emptyList()
+    if (sponsoredMessages.isEmpty()) {
+        return groupedMessages.mapIndexed { index, item ->
+            ConversationListItem.Grouped(
+                groupedIndex = index,
+                groupedMessageItem = item
+            )
+        }
+    }
+
+    val messagesBetween = sponsoredFeed?.messagesBetween ?: 0
+    if (messagesBetween <= 0) {
+        return buildList {
+            sponsoredMessages.forEachIndexed { sponsoredIndex, sponsoredMessage ->
+                add(
+                    ConversationListItem.Sponsored(
+                        sponsoredIndex = sponsoredIndex,
+                        sponsoredMessage = sponsoredMessage
+                    )
+                )
+            }
+            groupedMessages.forEachIndexed { groupedIndex, item ->
+                add(
+                    ConversationListItem.Grouped(
+                        groupedIndex = groupedIndex,
+                        groupedMessageItem = item
+                    )
+                )
+            }
+        }
+    }
+
+    return buildList {
+        add(
+            ConversationListItem.Sponsored(
+                sponsoredIndex = 0,
+                sponsoredMessage = sponsoredMessages.first()
+            )
+        )
+
+        var nextSponsoredIndex = 1
+        var messagesSinceLastSponsored = 0
+
+        groupedMessages.forEachIndexed { groupedIndex, item ->
+            add(
+                ConversationListItem.Grouped(
+                    groupedIndex = groupedIndex,
+                    groupedMessageItem = item
+                )
+            )
+            messagesSinceLastSponsored += item.messageCount()
+
+            if (
+                nextSponsoredIndex < sponsoredMessages.size &&
+                messagesSinceLastSponsored >= messagesBetween
+            ) {
+                add(
+                    ConversationListItem.Sponsored(
+                        sponsoredIndex = nextSponsoredIndex,
+                        sponsoredMessage = sponsoredMessages[nextSponsoredIndex]
+                    )
+                )
+                nextSponsoredIndex += 1
+                messagesSinceLastSponsored = 0
+            }
+        }
+    }
+}
+
+internal fun buildGroupedLazyIndexByFirstMessageId(
+    conversationItems: List<ConversationListItem>,
+    leadingItemsCount: Int
+): Map<Long, Int> {
+    return buildMap {
+        conversationItems.forEachIndexed { conversationIndex, item ->
+            if (item is ConversationListItem.Grouped) {
+                put(
+                    item.groupedMessageItem.firstMessageId,
+                    conversationIndex + leadingItemsCount
+                )
+            }
+        }
+    }
+}
+
+internal fun GroupedMessageItem.messageCount(): Int {
+    return when (this) {
+        is GroupedMessageItem.Single -> 1
+        is GroupedMessageItem.Album -> messages.size
+    }
 }
 

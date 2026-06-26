@@ -45,6 +45,13 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         sendCopy: Boolean = false
     )
     suspend fun getMessage(chatId: Long, messageId: Long): TdApi.Message?
+    suspend fun getChatSponsoredMessages(chatId: Long): TdApi.SponsoredMessages?
+    suspend fun clickChatSponsoredMessage(
+        chatId: Long,
+        messageId: Long,
+        isMediaClick: Boolean,
+        fromFullscreen: Boolean = false
+    ): TdApi.Ok?
     suspend fun getMessageThread(chatId: Long, messageId: Long): TdApi.MessageThreadInfo?
     suspend fun getMessages(chatId: Long, fromMessageId: Long, offset: Int, limit: Int, threadId: Long?): TdApi.Messages?
     suspend fun getChatHistory(chatId: Long, fromMessageId: Long, offset: Int, limit: Int): TdApi.Messages?

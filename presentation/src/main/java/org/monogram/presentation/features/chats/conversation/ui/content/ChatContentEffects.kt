@@ -120,6 +120,25 @@ internal fun ChatContentEffects(
     val isViewportSettled = effectsEnabled && state.viewportPhase == ChatViewportPhase.Settled
     val firstGroupedMessageId = groupedMessages.firstOrNull()?.firstMessageId
     val lastGroupedMessageId = groupedMessages.lastOrNull()?.firstMessageId
+    val conversationItems = remember(
+        groupedMessages,
+        state.channelSponsoredMessages,
+        isComments
+    ) {
+        if (isComments) {
+            groupedMessages.mapIndexed { index, item ->
+                ConversationListItem.Grouped(
+                    groupedIndex = index,
+                    groupedMessageItem = item
+                )
+            }
+        } else {
+            buildConversationListItems(
+                groupedMessages = groupedMessages,
+                sponsoredFeed = state.channelSponsoredMessages?.takeIf { it.messages.isNotEmpty() }
+            )
+        }
+    }
     var followLatestArmed by remember { mutableStateOf(false) }
     var previousLastGroupedMessageId by remember { mutableStateOf<Long?>(null) }
     suspend fun consumeScrollCommandAndSettle() {
@@ -199,7 +218,8 @@ internal fun ChatContentEffects(
         isComments,
         groupedMessages.size,
         firstGroupedMessageId,
-        lastGroupedMessageId
+        lastGroupedMessageId,
+        conversationItems
     ) {
         if (!effectsEnabled) return@LaunchedEffect
         val command = state.pendingScrollCommand ?: return@LaunchedEffect
@@ -211,6 +231,10 @@ internal fun ChatContentEffects(
             isLoadingNewer = state.isLoadingNewer,
             isAtBottom = state.isAtBottom,
             hasMessages = groupedMessages.isNotEmpty()
+        )
+        val groupedLazyIndexByFirstMessageId = buildGroupedLazyIndexByFirstMessageId(
+            conversationItems = conversationItems,
+            leadingItemsCount = leadingItems
         )
 
         when (command) {
@@ -228,7 +252,9 @@ internal fun ChatContentEffects(
                         )
                         ?: -1
                     if (groupedIndex >= 0) {
-                        val targetIndex = groupedIndexToLazyIndex(groupedIndex, leadingItems)
+                        val targetIndex = groupedLazyIndexByFirstMessageId[
+                            groupedMessages[groupedIndex].firstMessageId
+                        ] ?: groupedIndexToLazyIndex(groupedIndex, leadingItems)
                         scrollState.restoreViewportAtIndex(
                             targetIndex = targetIndex,
                             anchorOffsetPx = command.anchorOffsetPx
@@ -251,7 +277,9 @@ internal fun ChatContentEffects(
                     )
                     ?: -1
                 if (groupedIndex >= 0) {
-                    val targetIndex = groupedIndexToLazyIndex(groupedIndex, leadingItems)
+                    val targetIndex = groupedLazyIndexByFirstMessageId[
+                        groupedMessages[groupedIndex].firstMessageId
+                    ] ?: groupedIndexToLazyIndex(groupedIndex, leadingItems)
                     scrollState.scrollToMessageIndex(
                         index = targetIndex,
                         align = command.align,
@@ -396,6 +424,7 @@ internal fun ChatContentEffects(
         groupedMessages.size,
         firstGroupedMessageId,
         lastGroupedMessageId,
+        conversationItems,
         isComments,
         state.isLatestLoaded,
         state.isLoadingOlder,
@@ -407,6 +436,7 @@ internal fun ChatContentEffects(
             buildViewportSnapshot(
                 scrollState = scrollState,
                 groupedMessages = groupedMessages,
+                conversationItems = conversationItems,
                 isComments = isComments,
                 isLatestLoaded = state.isLatestLoaded,
                 isLoadingOlder = state.isLoadingOlder,
@@ -430,6 +460,7 @@ internal fun ChatContentEffects(
         groupedMessages.size,
         firstGroupedMessageId,
         lastGroupedMessageId,
+        conversationItems,
         isComments,
         state.currentTopicId,
         state.isLatestLoaded,
@@ -442,6 +473,7 @@ internal fun ChatContentEffects(
             val viewport = buildViewportSnapshot(
                 scrollState = scrollState,
                 groupedMessages = groupedMessages,
+                conversationItems = conversationItems,
                 isComments = isComments,
                 isLatestLoaded = state.isLatestLoaded,
                 isLoadingOlder = state.isLoadingOlder,
@@ -461,7 +493,8 @@ internal fun ChatContentEffects(
         scrollState,
         groupedMessages.size,
         firstGroupedMessageId,
-        lastGroupedMessageId
+        lastGroupedMessageId,
+        conversationItems
     ) {
         if (!isViewportSettled) return@LaunchedEffect
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
@@ -482,8 +515,15 @@ internal fun ChatContentEffects(
                     val maxIndex = visibleItems.maxOf { it.index }
 
                     visibleItems.forEach { item ->
-                        val groupedIndex = lazyIndexToGroupedIndex(item.index, leadingItemsCount)
-                        groupedMessages.getOrNull(groupedIndex)?.let { grouped ->
+                        val grouped = when (
+                            val conversationItem = conversationItems.getOrNull(
+                                lazyIndexToGroupedIndex(item.index, leadingItemsCount)
+                            )
+                        ) {
+                            is ConversationListItem.Grouped -> conversationItem.groupedMessageItem
+                            else -> null
+                        }
+                        grouped?.let { grouped ->
                             when (grouped) {
                                 is GroupedMessageItem.Single -> visibleIds.add(grouped.message.id)
                                 is GroupedMessageItem.Album -> grouped.messages.forEach { message ->
@@ -497,8 +537,15 @@ internal fun ChatContentEffects(
                     val nearbyEnd = maxIndex + 5
                     for (index in nearbyStart..nearbyEnd) {
                         if (index in minIndex..maxIndex) continue
-                        val groupedIndex = lazyIndexToGroupedIndex(index, leadingItemsCount)
-                        groupedMessages.getOrNull(groupedIndex)?.let { grouped ->
+                        val grouped = when (
+                            val conversationItem = conversationItems.getOrNull(
+                                lazyIndexToGroupedIndex(index, leadingItemsCount)
+                            )
+                        ) {
+                            is ConversationListItem.Grouped -> conversationItem.groupedMessageItem
+                            else -> null
+                        }
+                        grouped?.let { grouped ->
                             when (grouped) {
                                 is GroupedMessageItem.Single -> nearbyIds.add(grouped.message.id)
                                 is GroupedMessageItem.Album -> grouped.messages.forEach { message ->

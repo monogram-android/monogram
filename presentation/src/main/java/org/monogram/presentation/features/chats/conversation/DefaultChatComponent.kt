@@ -70,8 +70,10 @@ import org.monogram.presentation.features.chats.conversation.logic.loadPinnedMes
 import org.monogram.presentation.features.chats.conversation.logic.loadScheduledMessages
 import org.monogram.presentation.features.chats.conversation.logic.loadWallpapers
 import org.monogram.presentation.features.chats.conversation.logic.observePreferences
+import org.monogram.presentation.features.chats.conversation.logic.observeSponsoredMessagePolicy
 import org.monogram.presentation.features.chats.conversation.logic.observeUserUpdates
 import org.monogram.presentation.features.chats.conversation.logic.refreshDraftLinkPreviewOnPhotoDownloadIfNeeded
+import org.monogram.presentation.features.chats.conversation.logic.refreshSponsoredMessageAfterMediaDownload
 import org.monogram.presentation.features.chats.conversation.logic.setupMessageCollectors
 import org.monogram.presentation.features.chats.conversation.logic.setupPinnedMessageCollector
 import org.monogram.presentation.features.chats.conversation.logic.withUnreadSessionFromChat
@@ -148,6 +150,7 @@ class DefaultChatComponent(
     internal val pendingSenderRefreshes = ConcurrentHashMap.newKeySet<Long>()
     internal val senderRefreshRequestedAtMs = ConcurrentHashMap<Long, Long>()
     internal var chatInfoObserversStarted: Boolean = false
+    internal var sponsoredMessageLoadingJob: Job? = null
 
     internal var lastLoadedOlderId: Long = 0L
     internal var lastLoadedNewerId: Long = 0L
@@ -249,6 +252,7 @@ class DefaultChatComponent(
         setupPinnedMessageCollector()
         observeUserUpdates()
         observeCurrentUser()
+        observeSponsoredMessagePolicy()
         cacheProvider.attachBots
             .onEach { bots ->
                 _state.update {
@@ -285,6 +289,18 @@ class DefaultChatComponent(
             .filterIsInstance<org.monogram.domain.models.FileDownloadEvent.Completed>()
             .onEach { event ->
                 refreshDraftLinkPreviewOnPhotoDownloadIfNeeded(event.fileId)
+            }
+            .launchIn(scope)
+
+        repositoryMessage.messageDownloadFlow
+            .filterIsInstance<org.monogram.domain.models.MessageDownloadEvent.Completed>()
+            .onEach { event ->
+                if (event.chatId != chatId) return@onEach
+                refreshSponsoredMessageAfterMediaDownload(
+                    messageId = event.messageId,
+                    fileId = event.fileId,
+                    path = event.path
+                )
             }
             .launchIn(scope)
     }
@@ -726,6 +742,24 @@ class DefaultChatComponent(
         store.accept(ChatStore.Intent.KeyboardButtonClick(messageId, button, botUserId))
 
     override fun onLinkClick(url: String) = store.accept(ChatStore.Intent.LinkClick(url))
+
+    override fun onChannelSponsoredMessageClick(
+        messageId: Long,
+        url: String,
+        isMediaClick: Boolean
+    ) {
+        scope.launch {
+            runCatching {
+                repositoryMessage.clickChannelSponsoredMessage(
+                    chatId = chatId,
+                    messageId = messageId,
+                    isMediaClick = isMediaClick,
+                    fromFullscreen = false
+                )
+            }
+            onLink(url)
+        }
+    }
 
     override fun onOpenInvoice(slug: String?, messageId: Long?) =
         store.accept(ChatStore.Intent.OpenInvoice(slug, messageId))

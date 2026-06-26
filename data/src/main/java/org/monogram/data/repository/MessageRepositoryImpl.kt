@@ -33,6 +33,7 @@ import org.monogram.data.db.model.TextCompositionStyleEntity
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.mapper.MessageMapper
+import org.monogram.data.mapper.SponsoredMessageMapper
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.data.mapper.map
 import org.monogram.data.mapper.toDomain
@@ -54,6 +55,7 @@ import org.monogram.domain.models.MessageSendOptions
 import org.monogram.domain.models.MessageSenderModel
 import org.monogram.domain.models.MessageViewerModel
 import org.monogram.domain.models.PollDraft
+import org.monogram.domain.models.SponsoredMessagesFeedModel
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.webapp.InstantViewModel
 import org.monogram.domain.models.webapp.InvoiceModel
@@ -72,7 +74,7 @@ import org.monogram.domain.repository.SearchChatMessagesResult
 import org.monogram.domain.repository.TextCompositionStyleModel
 import java.io.File
 
-class MessageRepositoryImpl(
+internal class MessageRepositoryImpl(
     private val context: Context,
     private val gateway: TelegramGateway,
     private val updates: UpdateDispatcher,
@@ -80,6 +82,7 @@ class MessageRepositoryImpl(
     private val messageRemoteDataSource: MessageRemoteDataSource,
     private val cache: ChatCache,
     private val fileHelper: TdFileHelper,
+    private val sponsoredMessageMapper: SponsoredMessageMapper,
     private val fileDataSource: FileDataSource,
     private val fxEmbedRemoteDataSource: FxEmbedRemoteDataSource,
     private val draftLinkPreviewResolver: DraftLinkPreviewResolver,
@@ -1037,6 +1040,35 @@ class MessageRepositoryImpl(
             "repo td preview result success=${preview != null} resolvedUrl=${preview?.resolvedUrl}"
         )
         return preview
+    }
+
+    override suspend fun getChannelSponsoredMessages(chatId: Long): SponsoredMessagesFeedModel? {
+        return withContext(dispatcherProvider.io) {
+            val result = messageRemoteDataSource.getChatSponsoredMessages(chatId)
+            if (result == null) return@withContext null
+            val mapped = result.messages.map { sponsoredMessageMapper.map(chatId, it) }
+            if (mapped.isEmpty()) return@withContext null
+            SponsoredMessagesFeedModel(
+                messages = mapped,
+                messagesBetween = result.messagesBetween
+            )
+        }
+    }
+
+    override suspend fun clickChannelSponsoredMessage(
+        chatId: Long,
+        messageId: Long,
+        isMediaClick: Boolean,
+        fromFullscreen: Boolean
+    ) {
+        withContext(dispatcherProvider.io) {
+            messageRemoteDataSource.clickChatSponsoredMessage(
+                chatId = chatId,
+                messageId = messageId,
+                isMediaClick = isMediaClick,
+                fromFullscreen = fromFullscreen
+            )
+        }
     }
 
     override suspend fun searchMessages(

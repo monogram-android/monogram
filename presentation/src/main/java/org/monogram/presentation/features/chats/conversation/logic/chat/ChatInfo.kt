@@ -182,6 +182,7 @@ private fun DefaultChatComponent.updateBaseChatState(chat: ChatModel) {
             viewAsTopics = chat.viewAsTopics,
             isMuted = chat.isMuted,
             canDeleteChat = chat.canBeDeletedOnlyForSelf || chat.canBeDeletedForAllUsers,
+            channelSponsoredMessages = if (chat.viewAsTopics) null else currentState.channelSponsoredMessages
         ).withUnreadSessionFromChat(
             chatUnreadCount = chat.unreadCount,
             chatLastReadInboxMessageId = chat.lastReadInboxMessageId

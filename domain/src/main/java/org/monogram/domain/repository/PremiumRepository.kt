@@ -9,4 +9,5 @@ interface PremiumRepository {
     suspend fun getPremiumState(): PremiumStateModel?
     suspend fun getPremiumFeatures(source: PremiumSource): List<PremiumFeatureType>
     suspend fun getPremiumLimit(limitType: PremiumLimitType): Int
+    suspend fun setSponsoredMessagesEnabled(enabled: Boolean)
 }

@@ -27,4 +27,8 @@ class PremiumRepositoryImpl(
         val tdType = limitType.toApi() ?: return 0
         return remote.getPremiumLimit(tdType)?.premiumValue ?: 0
     }
+
+    override suspend fun setSponsoredMessagesEnabled(enabled: Boolean) {
+        remote.setSponsoredMessagesEnabled(enabled)
+    }
 }

@@ -3,14 +3,49 @@ package org.monogram.presentation.settings.premium
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.Campaign
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Face
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material.icons.rounded.Verified
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -32,6 +67,8 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
 import org.monogram.presentation.core.ui.ExpressiveDefaults
+import org.monogram.presentation.core.ui.ItemPosition
+import org.monogram.presentation.core.ui.SettingsSwitchTile
 import org.monogram.presentation.core.ui.TelegramStarInteractive
 import org.monogram.presentation.core.ui.rememberCollapsingToolbarScaffoldState
 import org.monogram.presentation.core.util.ScrollStrategy
@@ -173,6 +210,24 @@ fun PremiumContent(component: PremiumComponent) {
 
                     items(state.features) { feature ->
                         PremiumFeatureItem(feature)
+                    }
+
+                    if (state.isPremium) {
+                        item {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                SettingsSwitchTile(
+                                    icon = Icons.Rounded.Campaign,
+                                    title = stringResource(R.string.premium_show_sponsored_messages_title),
+                                    subtitle = stringResource(R.string.premium_show_sponsored_messages_subtitle),
+                                    checked = state.showSponsoredMessagesForPremium,
+                                    iconColor = Color(0xFF00BFA5),
+                                    position = ItemPosition.STANDALONE,
+                                    onCheckedChange = component::onShowSponsoredMessagesChanged
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
                     }
                 }
             }

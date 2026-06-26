@@ -2,6 +2,7 @@ package org.monogram.data.datasource.remote
 
 interface MessageFileApi {
     fun registerFileForMessage(fileId: Int, chatId: Long, messageId: Long)
+    fun registerSponsoredFileForMessage(fileId: Int, chatId: Long, messageId: Long)
     fun enqueueDownload(
         fileId: Int,
         priority: Int = 1,

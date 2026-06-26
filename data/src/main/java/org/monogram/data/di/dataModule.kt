@@ -78,6 +78,7 @@ import org.monogram.data.mapper.ChatMapper
 import org.monogram.data.mapper.CustomEmojiLoader
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.NetworkMapper
+import org.monogram.data.mapper.SponsoredMessageMapper
 import org.monogram.data.mapper.StorageMapper
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.data.mapper.WebPageMapper
@@ -655,6 +656,7 @@ val dataModule = module {
             messageRemoteDataSource = get(),
             cache = get(),
             fileHelper = get(),
+            sponsoredMessageMapper = get(),
             fileDataSource = get(),
             fxEmbedRemoteDataSource = get(),
             draftLinkPreviewResolver = get(),
@@ -665,6 +667,13 @@ val dataModule = module {
             stickerPathDao = get(),
             keyValueDao = get(),
             textCompositionStyleDao = get()
+        )
+    }
+
+    single {
+        SponsoredMessageMapper(
+            fileHelper = get(),
+            contentMapper = get()
         )
     }
 

@@ -127,6 +127,10 @@ class TdUserRemoteDataSource(
     override suspend fun getPremiumLimit(limitType: TdApi.PremiumLimitType): TdApi.PremiumLimit? =
         coRunCatching { gateway.execute(TdApi.GetPremiumLimit(limitType)) }.getOrNull()
 
+    override suspend fun setSponsoredMessagesEnabled(enabled: Boolean) {
+        coRunCatching { gateway.execute(TdApi.ToggleHasSponsoredMessagesEnabled(enabled)) }
+    }
+
     override suspend fun getBotFullInfo(userId: Long): TdApi.UserFullInfo? {
         if (userId == 0L) return null
         return coRunCatching { gateway.execute(TdApi.GetUserFullInfo(userId)) }.getOrNull()

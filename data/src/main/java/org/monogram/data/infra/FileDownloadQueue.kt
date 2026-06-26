@@ -695,6 +695,7 @@ class FileDownloadQueue(
 
     private fun isStillRelevant(fileId: Int): Boolean {
         if (manualDownloadIds.contains(fileId)) return true
+        if (registry.sponsoredFileIds.contains(fileId)) return true
         if (registry.standaloneFileIds.contains(fileId)) return true
         val type = fileDownloadTypes[fileId]
         if (type == DownloadType.STICKER || type == DownloadType.VIDEO_NOTE) return true

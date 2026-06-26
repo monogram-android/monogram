@@ -90,6 +90,8 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.SponsoredMessageModel
+import org.monogram.domain.models.SponsoredMessagesFeedModel
 import org.monogram.domain.models.TopicModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
@@ -120,6 +122,7 @@ data class ChatMessageListUiState(
     val selectedMessageIds: Set<Long>,
     val unreadSeparatorCount: Int,
     val unreadSeparatorLastReadInboxMessageId: Long,
+    val channelSponsoredMessages: SponsoredMessagesFeedModel?,
     val viewAsTopics: Boolean,
     val topics: List<TopicModel>,
     val rootMessage: MessageModel?,
@@ -162,6 +165,13 @@ data class ChatMessageListUiState(
 
     val isChannelFeed: Boolean
         get() = isChannel && currentTopicId == null
+
+    val sponsoredMessages: List<SponsoredMessageModel>
+        get() = if (!isComments && !isForumList && isChannelFeed) {
+            channelSponsoredMessages?.messages.orEmpty()
+        } else {
+            emptyList()
+        }
 }
 
 internal fun shouldShowUnreadSeparator(
@@ -248,6 +258,25 @@ internal fun ChatContentList(
     val loadTriggerThrottleMs = 350L
     val groupedMessageIds =
         remember(groupedMessages) { groupedMessages.map(GroupedMessageItem::firstMessageId) }
+    val conversationItems = remember(
+        groupedMessages,
+        state.channelSponsoredMessages,
+        isComments
+    ) {
+        if (isComments) {
+            groupedMessages.mapIndexed { index, item ->
+                ConversationListItem.Grouped(
+                    groupedIndex = index,
+                    groupedMessageItem = item
+                )
+            }
+        } else {
+            buildConversationListItems(
+                groupedMessages = groupedMessages,
+                sponsoredFeed = state.channelSponsoredMessages?.takeIf { it.messages.isNotEmpty() }
+            )
+        }
+    }
     val visibleMessageReadReportingContext = remember(
         state.chatId,
         state.currentTopicId,
@@ -303,7 +332,8 @@ internal fun ChatContentList(
         showNavPadding,
         state.isLoadingOlder,
         state.isLoadingNewer,
-        state.isAtBottom
+        state.isAtBottom,
+        conversationItems
     ) {
         derivedStateOf {
             val leadingItems = chatContentLeadingItemsCount(
@@ -315,8 +345,17 @@ internal fun ChatContentList(
                 hasMessages = groupedMessages.isNotEmpty()
             )
             scrollState.layoutInfo.visibleItemsInfo.mapNotNull { visibleItem ->
-                val groupedIndex = lazyIndexToGroupedIndex(visibleItem.index, leadingItems)
-                groupedMessages.getOrNull(groupedIndex)?.firstMessageId
+                when (
+                    val item = conversationItems.getOrNull(
+                        lazyIndexToGroupedIndex(
+                            lazyIndex = visibleItem.index,
+                            leadingItemsCount = leadingItems
+                        )
+                    )
+                ) {
+                    is ConversationListItem.Grouped -> item.groupedMessageItem.firstMessageId
+                    else -> null
+                }
             }.toSet()
         }
     }
@@ -329,7 +368,8 @@ internal fun ChatContentList(
         topOverlayPadding,
         state.isLoadingOlder,
         state.isLoadingNewer,
-        state.isAtBottom
+        state.isAtBottom,
+        conversationItems
     ) {
         derivedStateOf {
             if (!scrollState.isScrollInProgress || groupedMessages.isEmpty()) {
@@ -350,7 +390,7 @@ internal fun ChatContentList(
             }
             val anchor = layoutInfo.visibleItemsInfo
                 .topAnchoredGroupedItem(
-                    groupedMessages = groupedMessages,
+                    conversationItems = conversationItems,
                     leadingItemsCount = leadingItems,
                     viewportTopOffset = viewportTopOffset
                 )
@@ -410,7 +450,8 @@ internal fun ChatContentList(
         scrollState,
         groupedMessages.size,
         isComments,
-        state.isViewportSettled
+        state.isViewportSettled,
+        conversationItems
     ) {
         if (!state.isViewportSettled) return@LaunchedEffect
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo }
@@ -425,13 +466,32 @@ internal fun ChatContentList(
                 val currentState = latestState
                 if (currentState.isLoading || currentState.isLoadingOlder || currentState.isLoadingNewer) return@collect
 
+                val groupedLastLazyIndex = if (groupedMessages.isEmpty()) {
+                    -1
+                } else {
+                    val leadingItems = chatContentLeadingItemsCount(
+                        isComments = isComments,
+                        showNavPadding = showNavPadding,
+                        isLoadingOlder = currentState.isLoadingOlder,
+                        isLoadingNewer = currentState.isLoadingNewer,
+                        isAtBottom = currentState.isAtBottom,
+                        hasMessages = groupedMessages.isNotEmpty()
+                    )
+                    val lastConversationIndex =
+                        conversationItems.indexOfLast { it is ConversationListItem.Grouped }
+                    if (lastConversationIndex >= 0) {
+                        leadingItems + lastConversationIndex
+                    } else {
+                        -1
+                    }
+                }
                 val olderPreloadThreshold = 2
                 val newerPreloadThreshold = 8
                 val nearStartForOlder = firstVisibleIndex <= olderPreloadThreshold
                 val nearStartForNewer = firstVisibleIndex <= newerPreloadThreshold
-                val nearEnd = lastVisibleIndex >= (groupedMessages.size - 3).coerceAtLeast(0)
+                val nearEnd = lastVisibleIndex >= (groupedLastLazyIndex - 2).coerceAtLeast(0)
                 val nearEndForNewer =
-                    lastVisibleIndex >= (groupedMessages.size - (newerPreloadThreshold + 1)).coerceAtLeast(
+                    lastVisibleIndex >= (groupedLastLazyIndex - newerPreloadThreshold).coerceAtLeast(
                         0
                     )
                 val now = SystemClock.uptimeMillis()
@@ -607,74 +667,112 @@ internal fun ChatContentList(
                     }
                 }
                 itemsIndexed(
-                    items = groupedMessages,
+                    items = conversationItems,
                     key = { _, item -> item.lazyItemKey },
                     contentType = { _, item ->
                         when (item) {
-                            is GroupedMessageItem.Single -> "single"
-                            is GroupedMessageItem.Album -> "album"
+                            is ConversationListItem.Grouped -> when (item.groupedMessageItem) {
+                                is GroupedMessageItem.Single -> "single"
+                                is GroupedMessageItem.Album -> "album"
+                            }
+
+                            is ConversationListItem.Sponsored -> "sponsored"
                         }
                     }
                 ) { index, item ->
-                    val olderMsg = remember(groupedMessages, index) {
-                        getMessageAt(
-                            groupedMessages,
-                            index + 1
-                        )
-                    }
-                    val newerMsg = remember(groupedMessages, index) {
-                        getMessageAt(
-                            groupedMessages,
-                            index - 1
-                        )
-                    }
+                    when (item) {
+                        is ConversationListItem.Sponsored -> {
+                            ChannelSponsoredMessageRow(
+                                sponsoredMessage = item.sponsoredMessage,
+                                onCardClick = {
+                                    component.onChannelSponsoredMessageClick(
+                                        messageId = item.sponsoredMessage.messageId,
+                                        url = item.sponsoredMessage.sponsor.url,
+                                        isMediaClick = false
+                                    )
+                                },
+                                onMediaClick = {
+                                    component.onChannelSponsoredMessageClick(
+                                        messageId = item.sponsoredMessage.messageId,
+                                        url = item.sponsoredMessage.sponsor.url,
+                                        isMediaClick = true
+                                    )
+                                }
+                            )
+                        }
 
-                    MessageRowItem(
-                        item = item,
-                        appearance = appearance,
-                        component = component,
-                        olderMsg = olderMsg,
-                        newerMsg = newerMsg,
-                        behavior = state.toBehaviorConfig(
-                            isSelectionMode = state.selectedMessageIds.isNotEmpty(),
-                            isAnyViewerOpen = isAnyViewerOpen
-                        ),
-                        uiFlags = MessageRowUiFlags(
-                            isSelected = isItemSelected(item, state.selectedMessageIds),
-                            showUnreadSeparator = shouldShowUnreadSeparator(
-                                isComments = isComments,
-                                unreadBoundaryIndex = unreadBoundaryIndex,
-                                unreadSeparatorCount = state.unreadSeparatorCount,
-                                itemIndex = index
-                            ),
-                            unreadCount = state.unreadSeparatorCount,
-                            shouldReportPosition = item.lastMessageId == selectedMessageId
-                        ),
-                        highlightRequest = highlightRequestForItem(item, state.highlightRequest),
-                        isTargetVisibleInViewport = item.firstMessageId in visibleGroupedMessageIds,
-                        canReportVisibleMessagesAsRead = canReportVisibleMessagesAsRead,
-                        rootMessageId = state.rootMessage?.id,
-                        onPhotoClick = onPhotoClick,
-                        onPhotoDownload = onPhotoDownload,
-                        onVideoClick = onVideoClick,
-                        onDocumentClick = onDocumentClick,
-                        onAudioClick = onAudioClick,
-                        onMessageOptionsClick = onMessageOptionsClick,
-                        onGoToReply = onGoToReply,
-                        onMessagePositionChange = onMessagePositionChange,
-                        onViaBotClick = onViaBotClick,
-                        toProfile = toProfile,
-                        onForwardOriginClick = onForwardOriginClick,
-                        onChecklistTaskToggle = onChecklistTaskToggle,
-                        onChecklistEdit = onChecklistEdit,
-                        onPaidMediaBuy = onPaidMediaBuy,
-                        onLinkPreviewAction = onLinkPreviewAction,
-                        isChatAnimationsEnabled = state.isChatAnimationsEnabled,
-                        isScrolling = isScrolling,
-                        isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
-                        onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
-                        downloadUtils = downloadUtils
-                    )
+                        is ConversationListItem.Grouped -> {
+                            val groupedItem = item.groupedMessageItem
+                            val groupedIndex = item.groupedIndex
+                            val olderMsg = remember(groupedMessages, groupedIndex) {
+                                getMessageAt(
+                                    groupedMessages,
+                                    groupedIndex + 1
+                                )
+                            }
+                            val newerMsg = remember(groupedMessages, groupedIndex) {
+                                getMessageAt(
+                                    groupedMessages,
+                                    groupedIndex - 1
+                                )
+                            }
+
+                            MessageRowItem(
+                                item = groupedItem,
+                                appearance = appearance,
+                                component = component,
+                                olderMsg = olderMsg,
+                                newerMsg = newerMsg,
+                                behavior = state.toBehaviorConfig(
+                                    isSelectionMode = state.selectedMessageIds.isNotEmpty(),
+                                    isAnyViewerOpen = isAnyViewerOpen
+                                ),
+                                uiFlags = MessageRowUiFlags(
+                                    isSelected = isItemSelected(
+                                        groupedItem,
+                                        state.selectedMessageIds
+                                    ),
+                                    showUnreadSeparator = shouldShowUnreadSeparator(
+                                        isComments = isComments,
+                                        unreadBoundaryIndex = unreadBoundaryIndex,
+                                        unreadSeparatorCount = state.unreadSeparatorCount,
+                                        itemIndex = groupedIndex
+                                    ),
+                                    unreadCount = state.unreadSeparatorCount,
+                                    shouldReportPosition = groupedItem.lastMessageId == selectedMessageId
+                                ),
+                                highlightRequest = highlightRequestForItem(
+                                    groupedItem,
+                                    state.highlightRequest
+                                ),
+                                isTargetVisibleInViewport = groupedItem.firstMessageId in visibleGroupedMessageIds,
+                                canReportVisibleMessagesAsRead = canReportVisibleMessagesAsRead,
+                                rootMessageId = state.rootMessage?.id,
+                                onPhotoClick = onPhotoClick,
+                                onPhotoDownload = onPhotoDownload,
+                                onVideoClick = onVideoClick,
+                                onDocumentClick = onDocumentClick,
+                                onAudioClick = onAudioClick,
+                                onMessageOptionsClick = onMessageOptionsClick,
+                                onGoToReply = onGoToReply,
+                                onMessagePositionChange = onMessagePositionChange,
+                                onViaBotClick = onViaBotClick,
+                                toProfile = toProfile,
+                                onForwardOriginClick = onForwardOriginClick,
+                                onChecklistTaskToggle = onChecklistTaskToggle,
+                                onChecklistEdit = onChecklistEdit,
+                                onPaidMediaBuy = onPaidMediaBuy,
+                                onLinkPreviewAction = onLinkPreviewAction,
+                                isChatAnimationsEnabled = state.isChatAnimationsEnabled,
+                                isScrolling = isScrolling,
+                                isEntryAnimationPending = pendingEntryAnimationIds.containsKey(
+                                    groupedItem.firstMessageId
+                                ),
+                                onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
+                                downloadUtils = downloadUtils
+                            )
+                        }
+                    }
                 }
             }
 
@@ -1765,16 +1863,20 @@ private fun GroupedMessageItem.mainTimestamp(): Int {
 }
 
 private fun List<LazyListItemInfo>.topAnchoredGroupedItem(
-    groupedMessages: List<GroupedMessageItem>,
+    conversationItems: List<ConversationListItem>,
     leadingItemsCount: Int,
     viewportTopOffset: Int
 ): GroupedMessageItem? {
     return this
         .sortedBy(LazyListItemInfo::offset)
         .mapNotNull { itemInfo ->
-            val groupedIndex = lazyIndexToGroupedIndex(itemInfo.index, leadingItemsCount)
-            groupedMessages.getOrNull(groupedIndex)?.let { groupedItem ->
-                itemInfo to groupedItem
+            when (
+                val item = conversationItems.getOrNull(
+                    lazyIndexToGroupedIndex(itemInfo.index, leadingItemsCount)
+                )
+            ) {
+                is ConversationListItem.Grouped -> itemInfo to item.groupedMessageItem
+                else -> null
             }
         }
         .minByOrNull { (itemInfo, _) ->
@@ -1785,7 +1887,6 @@ private fun List<LazyListItemInfo>.topAnchoredGroupedItem(
         }
         ?.second
 }
-
 
 @Composable
 fun TopicsList(

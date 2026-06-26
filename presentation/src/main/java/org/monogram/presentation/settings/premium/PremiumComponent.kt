@@ -11,6 +11,7 @@ import org.monogram.domain.models.PremiumLimitType
 import org.monogram.domain.models.PremiumSource
 import org.monogram.domain.repository.PremiumRepository
 import org.monogram.domain.repository.UserRepository
+import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -18,12 +19,14 @@ interface PremiumComponent {
     val state: Value<State>
     fun onBackClicked()
     fun onSubscribeClicked()
+    fun onShowSponsoredMessagesChanged(enabled: Boolean)
 
     data class State(
         val features: List<PremiumFeature> = emptyList(),
         val isLoading: Boolean = false,
         val isPremium: Boolean = false,
-        val statusText: String? = null
+        val statusText: String? = null,
+        val showSponsoredMessagesForPremium: Boolean = false
     )
 
     data class PremiumFeature(
@@ -41,6 +44,7 @@ class DefaultPremiumComponent(
 
     private val userRepository: UserRepository = container.repositories.userRepository
     private val premiumRepository: PremiumRepository = container.repositories.premiumRepository
+    private val appPreferences: AppPreferences = container.preferences.appPreferences
     private val stringProvider = container.utils.stringProvider()
     private val scope = componentScope
 
@@ -53,6 +57,12 @@ class DefaultPremiumComponent(
                 _state.update { it.copy(isPremium = user.isPremium) }
             }
         }.launchIn(scope)
+
+        appPreferences.showSponsoredMessagesForPremium
+            .onEach { enabled ->
+                _state.update { it.copy(showSponsoredMessagesForPremium = enabled) }
+            }
+            .launchIn(scope)
 
         loadPremiumState()
     }
@@ -178,5 +188,14 @@ class DefaultPremiumComponent(
     }
 
     override fun onSubscribeClicked() {
+    }
+
+    override fun onShowSponsoredMessagesChanged(enabled: Boolean) {
+        appPreferences.setShowSponsoredMessagesForPremium(enabled)
+        scope.launch {
+            runCatching {
+                premiumRepository.setSponsoredMessagesEnabled(enabled)
+            }
+        }
     }
 }

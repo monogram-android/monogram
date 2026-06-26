@@ -39,6 +39,7 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.NetworkStatisticsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.PaymentRepository
+import org.monogram.domain.repository.PinnedMessageVisibilityRepository
 import org.monogram.domain.repository.PremiumRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.ProfilePhotoRepository
@@ -55,10 +56,10 @@ import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.domain.repository.WebAppRepository
-import org.monogram.presentation.core.util.AppPreferences
-import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.media.ExoPlayerCache
 import org.monogram.presentation.core.media.VideoPlayerPool
+import org.monogram.presentation.core.util.AppPreferences
+import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.settings.storage.CacheController
 
 interface AppContainer {
@@ -89,6 +90,7 @@ interface RepositoriesContainer {
     val chatEventLogRepository: ChatEventLogRepository
     val messageAiRepository: MessageAiRepository
     val paymentRepository: PaymentRepository
+    val pinnedMessageVisibilityRepository: PinnedMessageVisibilityRepository
     val fileRepository: FileRepository
     val webAppRepository: WebAppRepository
     val userRepository: UserRepository

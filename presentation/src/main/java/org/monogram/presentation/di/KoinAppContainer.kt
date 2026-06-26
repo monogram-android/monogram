@@ -40,6 +40,7 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.NetworkStatisticsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.PaymentRepository
+import org.monogram.domain.repository.PinnedMessageVisibilityRepository
 import org.monogram.domain.repository.PremiumRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.ProfilePhotoRepository
@@ -56,10 +57,10 @@ import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.domain.repository.WebAppRepository
-import org.monogram.presentation.core.util.AppPreferences
-import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.media.ExoPlayerCache
 import org.monogram.presentation.core.media.VideoPlayerPool
+import org.monogram.presentation.core.util.AppPreferences
+import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.settings.storage.CacheController
 
 class KoinAppContainer(koin: Koin) : AppContainer {
@@ -90,6 +91,7 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val chatEventLogRepository: ChatEventLogRepository by lazy { koin.get() }
     override val messageAiRepository: MessageAiRepository by lazy { koin.get() }
     override val paymentRepository: PaymentRepository by lazy { koin.get() }
+    override val pinnedMessageVisibilityRepository: PinnedMessageVisibilityRepository by lazy { koin.get() }
     override val fileRepository: FileRepository by lazy { koin.get() }
     override val webAppRepository: WebAppRepository by lazy { koin.get() }
     override val userRepository: UserRepository by lazy { koin.get() }

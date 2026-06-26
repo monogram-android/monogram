@@ -1658,6 +1658,7 @@
     <string name="pinned_messages">Pinned Messages</string>
     <string name="pinned_message">Pinned Message</string>
     <string name="pinned_show_all">Show all pinned</string>
+    <string name="menu_show_pin">Show pin</string>
     <string name="pinned_unpin">Unpin</string>
     <string name="pinned_close">Close</string>
     <plurals name="pinned_count">

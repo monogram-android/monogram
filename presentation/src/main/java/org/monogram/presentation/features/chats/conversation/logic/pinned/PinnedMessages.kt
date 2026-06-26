@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
 
@@ -14,6 +15,7 @@ internal fun DefaultChatComponent.loadPinnedMessage() {
         val threadId = activeThreadId()
         val targetChatId = activeThreadChatId()
         try {
+            val previousState = _state.value
             val pinned = repositoryMessage.getPinnedMessage(targetChatId, threadId)
             val count = repositoryMessage.getPinnedMessageCount(targetChatId, threadId)
             Log.d(
@@ -21,15 +23,28 @@ internal fun DefaultChatComponent.loadPinnedMessage() {
                 "loadPinnedMessage: chatId=$chatId, targetChatId=$targetChatId, threadId=$threadId, pinnedId=${pinned?.id}, count=$count"
             )
             _state.update {
-                it.copy(
+                previousState.applyPinnedMessageRefresh(
                     pinnedMessage = pinned,
-                    pinnedMessageCount = count,
-                    pinnedMessageIndex = 0
+                    pinnedMessageCount = count
                 )
             }
         } catch (e: Exception) {
             Log.e("DefaultChatComponent", "Error loading pinned message", e)
         }
+    }
+}
+
+internal fun DefaultChatComponent.handleHidePinnedMessage() {
+    scope.launch {
+        pinnedMessageVisibilityRepository.hide(chatId)
+        _state.update { it.copy(isPinnedMessageHidden = true) }
+    }
+}
+
+internal fun DefaultChatComponent.handleShowPinnedMessage() {
+    scope.launch {
+        pinnedMessageVisibilityRepository.show(chatId)
+        _state.update { it.copy(isPinnedMessageHidden = false) }
     }
 }
 
@@ -127,4 +142,22 @@ internal fun DefaultChatComponent.handlePinnedMessageClick(message: MessageModel
 
 private fun DefaultChatComponent.jumpToMessage(message: MessageModel) {
     scrollToMessage(message.id)
+}
+
+internal fun ChatComponent.State.hidePinnedMessage(): ChatComponent.State =
+    copy(isPinnedMessageHidden = true)
+
+internal fun ChatComponent.State.showPinnedMessage(): ChatComponent.State =
+    copy(isPinnedMessageHidden = false)
+
+internal fun ChatComponent.State.applyPinnedMessageRefresh(
+    pinnedMessage: MessageModel?,
+    pinnedMessageCount: Int
+): ChatComponent.State {
+    return copy(
+        pinnedMessage = pinnedMessage,
+        pinnedMessageCount = pinnedMessageCount,
+        pinnedMessageIndex = 0,
+        isPinnedMessageHidden = isPinnedMessageHidden
+    )
 }

@@ -405,7 +405,8 @@ internal fun rememberChatTopBarUiState(
         state.isMember,
         state.canDeleteChat,
         state.pinnedMessage,
-        state.pinnedMessageCount
+        state.pinnedMessageCount,
+        state.isPinnedMessageHidden
     ) {
         ChatContentTopBarUiState(
             currentTopicId = previewState.currentTopicId,
@@ -435,7 +436,8 @@ internal fun rememberChatTopBarUiState(
             isMember = state.isMember,
             canDeleteChat = state.canDeleteChat,
             pinnedMessage = if (state.isSearchActive) null else state.pinnedMessage,
-            pinnedMessageCount = if (state.isSearchActive) 0 else state.pinnedMessageCount
+            pinnedMessageCount = if (state.isSearchActive) 0 else state.pinnedMessageCount,
+            isPinnedMessageHidden = state.isPinnedMessageHidden
         )
     }
 }

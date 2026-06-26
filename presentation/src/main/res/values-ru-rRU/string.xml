@@ -1196,6 +1196,7 @@
     <string name="pinned_messages">Закреплённые сообщения</string>
     <string name="pinned_message">Закреплённое сообщение</string>
     <string name="pinned_show_all">Показать все закреплённые</string>
+    <string name="menu_show_pin">Показать пин</string>
     <string name="pinned_unpin">Открепить</string>
     <string name="pinned_close">Закрыть</string>
     <plurals name="pinned_count">

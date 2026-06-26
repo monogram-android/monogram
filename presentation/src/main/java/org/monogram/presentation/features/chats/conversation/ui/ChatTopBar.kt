@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Report
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -98,6 +99,7 @@ fun ChatTopBar(
     onReport: (() -> Unit)? = null,
     onCopyLink: (() -> Unit)? = null,
     onManageMembers: (() -> Unit)? = null,
+    onShowPinnedMessage: (() -> Unit)? = null,
     showBack: Boolean = true,
     personalAvatarPath: String? = null,
     isTablet: Boolean = currentWindowAdaptiveInfo().windowSizeClass.isWidthAtLeastBreakpoint(
@@ -382,6 +384,16 @@ fun ChatTopBar(
                         onClick = {
                             showMenu = false
                             onManageMembers()
+                        }
+                    )
+                }
+                if (onShowPinnedMessage != null) {
+                    MenuOptionRow(
+                        icon = Icons.Rounded.PushPin,
+                        title = stringResource(R.string.menu_show_pin),
+                        onClick = {
+                            showMenu = false
+                            onShowPinnedMessage()
                         }
                     )
                 }

@@ -123,6 +123,8 @@ interface ChatComponent {
     fun onRestoreDraftLinkPreview()
     fun onPinMessage(message: MessageModel)
     fun onUnpinMessage(message: MessageModel)
+    fun onHidePinnedMessage()
+    fun onShowPinnedMessage()
     fun onPinnedMessageClick(message: MessageModel? = null)
     fun onShowAllPinnedMessages()
     fun onDismissPinnedMessages()
@@ -304,6 +306,7 @@ interface ChatComponent {
         val allPinnedMessages: List<MessageModel> = emptyList(),
         val showPinnedMessagesList: Boolean = false,
         val isLoadingPinnedMessages: Boolean = false,
+        val isPinnedMessageHidden: Boolean = false,
         val pinnedMessageCount: Int = 0,
         val pinnedMessageIndex: Int = 0,
         val scrollToMessageId: Long? = null,

@@ -102,6 +102,7 @@ import org.monogram.data.repository.LocationRepositoryImpl
 import org.monogram.data.repository.MessageRepositoryImpl
 import org.monogram.data.repository.NetworkStatisticsRepositoryImpl
 import org.monogram.data.repository.NotificationSettingsRepositoryImpl
+import org.monogram.data.repository.PinnedMessageVisibilityRepositoryImpl
 import org.monogram.data.repository.PollRepositoryImpl
 import org.monogram.data.repository.PremiumRepositoryImpl
 import org.monogram.data.repository.PrivacyRepositoryImpl
@@ -143,6 +144,7 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.NetworkStatisticsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.PaymentRepository
+import org.monogram.domain.repository.PinnedMessageVisibilityRepository
 import org.monogram.domain.repository.PlayerDataSourceFactory
 import org.monogram.domain.repository.PollRepository
 import org.monogram.domain.repository.PremiumRepository
@@ -663,6 +665,12 @@ val dataModule = module {
             stickerPathDao = get(),
             keyValueDao = get(),
             textCompositionStyleDao = get()
+        )
+    }
+
+    single<PinnedMessageVisibilityRepository> {
+        PinnedMessageVisibilityRepositoryImpl(
+            keyValueDao = get()
         )
     }
 

@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Report
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -62,7 +61,6 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.TopicModel
 import org.monogram.domain.models.UserModel
 import org.monogram.presentation.R
-import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.core.ui.ExpressiveDefaults
 import org.monogram.presentation.core.util.rememberUserStatusText
 import org.monogram.presentation.features.chats.common.ChatActionScreenContext
@@ -104,8 +102,30 @@ data class ChatContentTopBarUiState(
     val isMember: Boolean,
     val canDeleteChat: Boolean,
     val pinnedMessage: MessageModel?,
-    val pinnedMessageCount: Int
+    val pinnedMessageCount: Int,
+    val isPinnedMessageHidden: Boolean
 )
+
+internal fun shouldShowPinnedMessageBar(
+    topBarState: ChatContentTopBarUiState,
+    isSelectionMode: Boolean
+): Boolean {
+    return topBarState.pinnedMessage != null &&
+            !topBarState.isPinnedMessageHidden &&
+            !isSelectionMode &&
+            topBarState.rootMessage == null
+}
+
+internal fun shouldShowPinnedMessageAction(
+    topBarState: ChatContentTopBarUiState,
+    isSelectionMode: Boolean
+): Boolean {
+    return topBarState.pinnedMessage != null &&
+            topBarState.isPinnedMessageHidden &&
+            !isSelectionMode &&
+            topBarState.rootMessage == null &&
+            !topBarState.isSearchActive
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -143,9 +163,11 @@ fun ChatContentTopBar(
     val exitAction = actionPolicy.exitAction
     val canReportChat = actionPolicy.canReport
     val isActionPending = componentState.actionState is ChatActionState.Pending
+    val onShowPinnedMessage = if (shouldShowPinnedMessageAction(topBarState, isSelectionMode)) {
+        component::onShowPinnedMessage
+    } else null
 
     var showDeleteSheet by rememberSaveable { mutableStateOf(false) }
-    var pendingUnpinMessage by remember { mutableStateOf<MessageModel?>(null) }
     val iconButtonShapes = ExpressiveDefaults.iconButtonShapes()
 
     if (showDeleteSheet) {
@@ -157,20 +179,6 @@ fun ChatContentTopBar(
                 component.onDeleteSelectedMessages(revoke = revoke)
                 showDeleteSheet = false
             }
-        )
-    }
-
-    pendingUnpinMessage?.let { pinnedToUnpin ->
-        ConfirmationSheet(
-            icon = Icons.Rounded.PushPin,
-            title = stringResource(R.string.unpin_message_title),
-            description = stringResource(R.string.unpin_message_confirmation),
-            confirmText = stringResource(R.string.action_unpin),
-            onConfirm = {
-                component.onUnpinMessage(pinnedToUnpin)
-                pendingUnpinMessage = null
-            },
-            onDismiss = { pendingUnpinMessage = null }
         )
     }
 
@@ -402,13 +410,14 @@ fun ChatContentTopBar(
                     onManageMembers = if (isMainChat && topBarState.isGroup && (topBarState.isAdmin || topBarState.permissions.canInviteUsers)) {
                         { component.onProfileClicked() }
                     } else null,
+                    onShowPinnedMessage = onShowPinnedMessage,
                     showBack = showBack,
                     personalAvatarPath = topBarState.chatPersonalAvatar
                 )
             }
         }
 
-        val showPinned = topBarState.pinnedMessage != null && !isSelectionMode && topBarState.rootMessage == null
+        val showPinned = shouldShowPinnedMessageBar(topBarState, isSelectionMode)
         AnimatedVisibility(
             visible = showPinned,
             enter = expandVertically(),
@@ -418,7 +427,7 @@ fun ChatContentTopBar(
                 PinnedMessageBar(
                     message = pinned,
                     count = topBarState.pinnedMessageCount,
-                    onClose = { pendingUnpinMessage = pinned },
+                    onClose = component::onHidePinnedMessage,
                     onClick = { onPinnedMessageClick(pinned) },
                     onShowAll = { component.onShowAllPinnedMessages() }
                 )

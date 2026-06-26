@@ -98,6 +98,8 @@ interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Lab
         object RestoreDraftLinkPreview : Intent()
         data class PinMessage(val message: MessageModel) : Intent()
         data class UnpinMessage(val message: MessageModel) : Intent()
+        object HidePinnedMessage : Intent()
+        object ShowPinnedMessage : Intent()
         data class PinnedMessageClick(val message: MessageModel? = null) : Intent()
         object ShowAllPinnedMessages : Intent()
         object DismissPinnedMessages : Intent()

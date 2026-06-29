@@ -16,6 +16,12 @@ internal sealed interface InitialChatScrollTarget {
     data class Comments(val command: ChatScrollCommand) : InitialChatScrollTarget
 }
 
+internal fun InitialChatScrollTarget.perfTargetName(): String = when (this) {
+    is InitialChatScrollTarget.AroundMessage -> "around"
+    is InitialChatScrollTarget.Bottom -> "bottom"
+    is InitialChatScrollTarget.Comments -> "comments"
+}
+
 internal fun resolveInitialChatScrollTarget(
     explicitMessageId: Long?,
     savedViewport: ChatViewportCacheEntry?,

@@ -18,6 +18,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
+import org.monogram.core.perf.ChatOpenPerfBridge
+import org.monogram.core.perf.ChatOpenPerfDebug
+import org.monogram.data.BuildConfig
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.compat.buildInputAnimation
 import org.monogram.data.compat.buildInputDocument
@@ -206,17 +209,29 @@ class TdMessageRemoteDataSource(
 
     override suspend fun getMessagesOlder(chatId: Long, fromMessageId: Long, limit: Int, threadId: Long?): OlderMessagesPage {
         if (fromMessageId == 0L) {
-            val messages = loadMessages(chatId, fromMessageId, 0, limit, threadId)
+            val batch = loadMessageBatch(
+                chatId = chatId,
+                fromMessageId = fromMessageId,
+                offset = 0,
+                limit = limit,
+                threadId = threadId
+            )
             val page = OlderMessagesPage(
-                messages = messages,
-                reachedOldest = messages.isEmpty(),
+                messages = batch.models,
+                reachedOldest = batch.models.isEmpty(),
                 isRemote = true
             )
             return page
         }
 
-        val messages = loadMessages(chatId, fromMessageId, 0, limit + 1, threadId)
-        val filtered = messages.filter { it.id != fromMessageId }.take(limit)
+        val batch = loadMessageBatch(
+            chatId = chatId,
+            fromMessageId = fromMessageId,
+            offset = 0,
+            limit = limit + 1,
+            threadId = threadId
+        )
+        val filtered = batch.models.filter { it.id != fromMessageId }.take(limit)
         val page = OlderMessagesPage(
             messages = filtered,
             reachedOldest = filtered.isEmpty(),
@@ -225,12 +240,96 @@ class TdMessageRemoteDataSource(
         return page
     }
 
+    override suspend fun getRemoteMessagesOlder(
+        chatId: Long,
+        fromMessageId: Long,
+        limit: Int,
+        threadId: Long?
+    ): RemoteOlderMessagesPage {
+        if (fromMessageId == 0L) {
+            val batch = loadMessageBatch(
+                chatId = chatId,
+                fromMessageId = fromMessageId,
+                offset = 0,
+                limit = limit,
+                threadId = threadId,
+                options = MessageMapOptions(
+                    resolveReplyPreviewFromNetwork = false,
+                    allowAutoDownload = false
+                )
+            )
+            return RemoteOlderMessagesPage(
+                rawMessages = batch.rawMessages,
+                models = batch.models,
+                reachedOldest = batch.models.isEmpty()
+            )
+        }
+
+        val batch = loadMessageBatch(
+            chatId = chatId,
+            fromMessageId = fromMessageId,
+            offset = 0,
+            limit = limit + 1,
+            threadId = threadId,
+            options = MessageMapOptions(
+                resolveReplyPreviewFromNetwork = false,
+                allowAutoDownload = false
+            )
+        )
+        val filteredPairs = batch.rawMessages.zip(batch.models)
+            .filter { (_, model) -> model.id != fromMessageId }
+            .take(limit)
+        return RemoteOlderMessagesPage(
+            rawMessages = filteredPairs.map { it.first },
+            models = filteredPairs.map { it.second },
+            reachedOldest = filteredPairs.isEmpty()
+        )
+    }
+
     override suspend fun getMessagesNewer(chatId: Long, fromMessageId: Long, limit: Int, threadId: Long?): List<MessageModel> {
-        return loadMessages(chatId, fromMessageId, -limit, limit, threadId)
+        return getRemoteMessagesNewer(chatId, fromMessageId, limit, threadId).models
     }
 
     override suspend fun getMessagesAround(chatId: Long, messageId: Long, limit: Int, threadId: Long?): List<MessageModel> {
-        return loadMessages(chatId, messageId, -limit / 2, limit, threadId)
+        return getRemoteMessagesAround(chatId, messageId, limit, threadId).models
+    }
+
+    override suspend fun getRemoteMessagesNewer(
+        chatId: Long,
+        fromMessageId: Long,
+        limit: Int,
+        threadId: Long?
+    ): RemoteMessageBatch {
+        return loadMessageBatch(
+            chatId = chatId,
+            fromMessageId = fromMessageId,
+            offset = -limit,
+            limit = limit,
+            threadId = threadId,
+            options = MessageMapOptions(
+                resolveReplyPreviewFromNetwork = false,
+                allowAutoDownload = false
+            )
+        )
+    }
+
+    override suspend fun getRemoteMessagesAround(
+        chatId: Long,
+        messageId: Long,
+        limit: Int,
+        threadId: Long?
+    ): RemoteMessageBatch {
+        return loadMessageBatch(
+            chatId = chatId,
+            fromMessageId = messageId,
+            offset = -limit / 2,
+            limit = limit,
+            threadId = threadId,
+            options = MessageMapOptions(
+                resolveReplyPreviewFromNetwork = false,
+                allowAutoDownload = false
+            )
+        )
     }
 
     override suspend fun getChatPinnedMessage(chatId: Long): TdApi.Message? =
@@ -531,7 +630,26 @@ class TdMessageRemoteDataSource(
         }
     }
 
-    private suspend fun loadMessages(chatId: Long, fromMessageId: Long, offset: Int, limit: Int, threadId: Long? = null): List<MessageModel> = withContext(dispatcherProvider.io) {
+    private suspend fun loadMessageBatch(
+        chatId: Long,
+        fromMessageId: Long,
+        offset: Int,
+        limit: Int,
+        threadId: Long? = null,
+        options: MessageMapOptions = MessageMapOptions()
+    ): RemoteMessageBatch = withContext(dispatcherProvider.io) {
+        ChatOpenPerfBridge.recordHistoryRequest(chatId, threadId)
+        if (BuildConfig.DEBUG) {
+            Log.d(
+                ChatOpenPerfDebug.TAG,
+                ChatOpenPerfDebug.buildLogMessage(
+                    chatId = chatId,
+                    threadId = threadId,
+                    event = "chat_history_request_start",
+                    anchorId = fromMessageId
+                )
+            )
+        }
         val historyResult = getChatHistoryInternal(chatId, fromMessageId, offset, limit, threadId)
             ?: throw IllegalStateException(
                 "Failed to load history for chatId=$chatId fromMessageId=$fromMessageId offset=$offset limit=$limit threadId=$threadId"
@@ -544,11 +662,19 @@ class TdMessageRemoteDataSource(
             is TdApi.MessageThreadInfo -> historyResult.messages
             else -> emptyArray()
         }
-        messages.map { msg ->
+        val models = messages.map { msg ->
             cache.putMessage(msg)
             async {
                 try {
-                    withTimeout(5000) { messageMapper.mapMessageToModelSync(msg, lastReadInbox, lastReadOutbox, isChatOpen = true) }
+                    withTimeout(5000) {
+                        messageMapper.mapMessageToModelSync(
+                            msg = msg,
+                            inboxLimit = lastReadInbox,
+                            outboxLimit = lastReadOutbox,
+                            isChatOpen = true,
+                            options = options
+                        )
+                    }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -557,6 +683,23 @@ class TdMessageRemoteDataSource(
                 }
             }
         }.awaitAll()
+        RemoteMessageBatch(
+            rawMessages = messages.toList(),
+            models = models
+        )
+            .also {
+                if (BuildConfig.DEBUG) {
+                    Log.d(
+                        ChatOpenPerfDebug.TAG,
+                        ChatOpenPerfDebug.buildLogMessage(
+                            chatId = chatId,
+                            threadId = threadId,
+                            event = "chat_history_request_end",
+                            anchorId = fromMessageId
+                        )
+                    )
+                }
+            }
     }
 
     private suspend fun getChatHistoryInternal(chatId: Long, fromMessageId: Long, offset: Int, limit: Int, threadId: Long? = null): TdApi.Object? {

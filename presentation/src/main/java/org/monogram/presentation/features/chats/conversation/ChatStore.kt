@@ -18,7 +18,6 @@ import java.io.File
 interface ChatStore : Store<ChatStore.Intent, ChatComponent.State, ChatStore.Label> {
 
     sealed class Intent {
-        data class UpdateState(val state: ChatComponent.State) : Intent()
         data class SendMessage(
             val text: String,
             val entities: List<MessageEntity> = emptyList(),

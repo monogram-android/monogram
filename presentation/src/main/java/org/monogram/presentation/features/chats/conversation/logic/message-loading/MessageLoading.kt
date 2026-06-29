@@ -7,9 +7,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.monogram.core.perf.ChatOpenPerfBridge
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageDownloadEvent
 import org.monogram.domain.models.MessageModel
@@ -19,12 +21,15 @@ import org.monogram.domain.models.UserModel
 import org.monogram.domain.repository.ReadUpdate
 import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppression
 import org.monogram.presentation.features.chats.conversation.ChatComponent
+import org.monogram.presentation.features.chats.conversation.ChatConversationLog
 import org.monogram.presentation.features.chats.conversation.ChatScrollCommand
 import org.monogram.presentation.features.chats.conversation.ChatViewportPhase
+import org.monogram.presentation.features.chats.conversation.ConversationLoadSession
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 import org.monogram.presentation.features.chats.conversation.ScrollAlign
 import java.io.File
 import kotlin.math.abs
+import kotlin.time.Duration.Companion.milliseconds
 
 
 private const val PAGE_SIZE = 50
@@ -283,13 +288,23 @@ private fun MessageModel.hasUnresolvableCachedMedia(): Boolean {
     }
 }
 
-internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
+internal fun DefaultChatComponent.loadMessages(
+    force: Boolean = false,
+    loadSource: String = "manual"
+) {
     val state = _state.value
     if (state.isLoading) return
     if (!force && state.messages.size >= PAGE_SIZE && state.currentTopicId == null) return
 
     cancelAllLoadingJobs()
     messageLoadingJob = scope.launch {
+        val openStartedAt = System.currentTimeMillis()
+        ChatConversationLog.logViewportState(
+            event = "load_messages_reset_before",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "source=$loadSource force=$force"
+        )
         _state.update {
             it.copy(
                 isLoading = true,
@@ -299,6 +314,12 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
                 viewportPhase = ChatViewportPhase.Initializing
             )
         }
+        ChatConversationLog.logViewportState(
+            event = "load_messages_started",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "source=$loadSource force=$force"
+        )
 
         try {
             val currentState = _state.value
@@ -307,24 +328,31 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
             val isComments = currentState.rootMessage != null
             val savedViewport = cacheProvider.getChatViewport(chatId, threadId)
             _state.update { it.copy(lastSavedViewport = savedViewport) }
+            val sessionSnapshot = ChatOpenPerfBridge.startSession(
+                chatId = chatId,
+                threadId = threadId,
+                source = loadSource,
+                target = "resolving"
+            )
+            activeLoadSession = ConversationLoadSession(
+                sessionId = sessionSnapshot.sessionId,
+                source = loadSource,
+                target = "resolving"
+            )
 
             val unreadSeparatorCount = currentState.unreadSeparatorCount
             val unreadSeparatorLastReadInboxMessageId =
                 currentState.unreadSeparatorLastReadInboxMessageId
-            val firstUnreadId =
-                unreadSeparatorLastReadInboxMessageId.takeIf { unreadSeparatorCount > 0 }
-                    ?.let { lastRead ->
-                        if (unreadSeparatorCount > 0) {
-                            repositoryMessage.getMessagesNewer(targetChatId, lastRead, 1, threadId)
-                        .firstOrNull()?.id
+            val firstUnreadId = unreadSeparatorLastReadInboxMessageId
+                .takeIf { unreadSeparatorCount > 0 }
+                ?.let { lastRead ->
+                    repositoryMessage.getMessagesNewer(targetChatId, lastRead, 1, threadId)
+                        .firstOrNull()
+                        ?.id
                         ?: lastRead.takeIf { it > 0L }
-                } else {
-                    null
                 }
-            }
 
-            when (
-                val target = resolveInitialChatScrollTarget(
+            val target = resolveInitialChatScrollTarget(
                     explicitMessageId = currentState.scrollToMessageId,
                     savedViewport = savedViewport,
                     firstUnreadMessageId = firstUnreadId,
@@ -332,7 +360,27 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
                     backfillUnreadThreshold = PAGE_SIZE,
                     isComments = isComments
                 )
-            ) {
+            ChatConversationLog.logViewportState(
+                event = "load_messages_target_resolved",
+                state = _state.value,
+                componentInstanceId = componentInstanceId,
+                extra = "source=$loadSource target=${target.perfTargetName()} targetChatId=$targetChatId savedAnchor=${savedViewport?.anchorMessageId ?: 0L} firstUnreadId=${firstUnreadId ?: 0L}"
+            )
+            ChatOpenPerfBridge.updateTarget(chatId, threadId, target.perfTargetName())
+            activeLoadSession = ConversationLoadSession(
+                sessionId = sessionSnapshot.sessionId,
+                source = loadSource,
+                target = target.perfTargetName()
+            )
+            ChatConversationLog.logPerf(
+                component = this@loadMessages,
+                phase = "chat_open_total_start",
+                source = loadSource,
+                target = target.perfTargetName(),
+                anchorId = savedViewport?.anchorMessageId
+            )
+
+            when (target) {
                 is InitialChatScrollTarget.AroundMessage -> {
                     loadAroundMessage(
                         chatId = targetChatId,
@@ -371,9 +419,26 @@ internal fun DefaultChatComponent.loadMessages(force: Boolean = false) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            ChatConversationLog.logViewportState(
+                event = "load_messages_failed",
+                state = _state.value,
+                componentInstanceId = componentInstanceId,
+                extra = "source=$loadSource error=${e.javaClass.simpleName}"
+            )
             Log.e("DefaultChatComponent", "Failed to load messages", e)
         } finally {
+            ChatConversationLog.logPerf(
+                component = this@loadMessages,
+                phase = "chat_open_total_end",
+                durationMs = System.currentTimeMillis() - openStartedAt
+            )
             _state.update { it.copy(isLoading = false) }
+            ChatConversationLog.logViewportState(
+                event = "load_messages_finished",
+                state = _state.value,
+                componentInstanceId = componentInstanceId,
+                extra = "source=$loadSource"
+            )
         }
     }
 }
@@ -411,6 +476,12 @@ internal suspend fun DefaultChatComponent.loadComments(
                 viewportPhase = ChatViewportPhase.Restoring
             )
         }
+        ChatConversationLog.logViewportState(
+            event = "load_comments_restore",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "messages=${messages.size} reachedOldest=$reachedOldest command=${scrollCommand.javaClass.simpleName}"
+        )
     }
 }
 
@@ -437,6 +508,12 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
         }
         updateMessages(cachedMessages, replace = true)
         refreshCachedSenderProfiles(cachedMessages)
+        ChatConversationLog.logViewportState(
+            event = "load_bottom_cached_preview",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "targetChatId=$targetChatId cachedMessages=${cachedMessages.size}"
+        )
     }
 
     val olderPage = repositoryMessage.getMessagesOlder(targetChatId, 0, PAGE_SIZE, threadId)
@@ -466,6 +543,12 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
         val shouldReplaceCachedPreview = !hasCachedPreview || messages.isNotEmpty()
         updateMessages(messages, replace = shouldReplaceCachedPreview)
         refreshCachedSenderProfiles(messages)
+        ChatConversationLog.logViewportState(
+            event = "load_bottom_remote_applied",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "targetChatId=$targetChatId remoteMessages=${messages.size} replace=${shouldReplaceCachedPreview} reachedOldest=${olderPage.reachedOldest}"
+        )
     } else {
         _state.update {
             it.copy(
@@ -476,6 +559,12 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
                 highlightRequest = null
             )
         }
+        ChatConversationLog.logViewportState(
+            event = "load_bottom_remote_same_as_cache",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "targetChatId=$targetChatId remoteMessages=${messages.size}"
+        )
     }
     if (scrollCommand != null) {
         _state.update {
@@ -484,10 +573,12 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
                 viewportPhase = ChatViewportPhase.Restoring
             )
         }
-    }
-    if (!isRemoteSameAsCachedPreview && !isOldestLoaded) {
-        delay(100)
-        loadMoreMessages()
+        ChatConversationLog.logViewportState(
+            event = "load_bottom_restore",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "command=${scrollCommand.javaClass.simpleName}"
+        )
     }
 }
 
@@ -521,6 +612,12 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
         }
         updateMessages(cachedMessages, replace = true)
         refreshCachedSenderProfiles(cachedMessages)
+        ChatConversationLog.logViewportState(
+            event = "load_around_cached_preview",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "targetMessageId=$messageId cachedMessages=${cachedMessages.size}"
+        )
         if (scrollCommand != null) {
             _state.update {
                 it.copy(
@@ -528,6 +625,12 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
                     viewportPhase = ChatViewportPhase.Restoring
                 )
             }
+            ChatConversationLog.logViewportState(
+                event = "load_around_cached_restore",
+                state = _state.value,
+                componentInstanceId = componentInstanceId,
+                extra = "command=${scrollCommand.javaClass.simpleName} targetMessageId=$messageId"
+            )
         }
     }
 
@@ -544,6 +647,12 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
         }
         updateMessages(messages, replace = !hasTargetPreview)
         refreshCachedSenderProfiles(messages)
+        ChatConversationLog.logViewportState(
+            event = "load_around_remote_applied",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "targetMessageId=$messageId remoteMessages=${messages.size} replace=${!hasTargetPreview}"
+        )
         if (!hasTargetPreview && scrollCommand != null) {
             _state.update {
                 it.copy(
@@ -551,23 +660,39 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
                     viewportPhase = ChatViewportPhase.Restoring
                 )
             }
+            ChatConversationLog.logViewportState(
+                event = "load_around_remote_restore",
+                state = _state.value,
+                componentInstanceId = componentInstanceId,
+                extra = "command=${scrollCommand.javaClass.simpleName} targetMessageId=$messageId"
+            )
         }
-        delay(100)
-        loadMoreMessages()
         if (backfillNewerAfterInitialLoad) {
-            backfillNewerMessages(maxPages = 3)
-        } else {
-            loadNewerMessages()
+            ChatConversationLog.logViewportState(
+                event = "load_around_schedule_backfill",
+                state = _state.value,
+                componentInstanceId = componentInstanceId,
+                extra = "targetMessageId=$messageId maxPages=3"
+            )
+            scheduleUnreadBackfill(maxPages = 3)
         }
     } else if (hasTargetPreview) {
-        delay(100)
-        loadMoreMessages()
         if (backfillNewerAfterInitialLoad) {
-            backfillNewerMessages(maxPages = 3)
-        } else {
-            loadNewerMessages()
+            ChatConversationLog.logViewportState(
+                event = "load_around_schedule_backfill_from_cache_only",
+                state = _state.value,
+                componentInstanceId = componentInstanceId,
+                extra = "targetMessageId=$messageId maxPages=3"
+            )
+            scheduleUnreadBackfill(maxPages = 3)
         }
     } else {
+        ChatConversationLog.logViewportState(
+            event = "load_around_fallback",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "targetMessageId=$messageId hasTargetPreview=$hasTargetPreview rootMessage=${_state.value.rootMessage?.id ?: 0L}"
+        )
         if (_state.value.rootMessage != null && threadId != null) {
             loadComments(
                 targetChatId = chatId,
@@ -589,6 +714,41 @@ private suspend fun DefaultChatComponent.backfillNewerMessages(maxPages: Int) {
         if (_state.value.isLatestLoaded) return
         val reachedLatest = loadNewerMessagesPage()
         if (reachedLatest) return
+    }
+}
+
+internal fun DefaultChatComponent.scheduleUnreadBackfill(maxPages: Int) {
+    unreadBackfillJob?.cancel()
+    ChatConversationLog.logViewportState(
+        event = "schedule_unread_backfill",
+        state = _state.value,
+        componentInstanceId = componentInstanceId,
+        extra = "maxPages=$maxPages"
+    )
+    unreadBackfillJob = scope.launch {
+        while (true) {
+            val state = _state.value
+            if (state.viewportPhase == ChatViewportPhase.Settled) break
+            if (!isActive || state.isAtBottom || state.isLoading || state.isLoadingOlder || state.isLoadingNewer) {
+                ChatConversationLog.logViewportState(
+                    event = "schedule_unread_backfill_abort",
+                    state = state,
+                    componentInstanceId = componentInstanceId,
+                    extra = "maxPages=$maxPages"
+                )
+                return@launch
+            }
+            delay(50.milliseconds)
+        }
+        ChatConversationLog.logViewportState(
+            event = "schedule_unread_backfill_run",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "maxPages=$maxPages unreadSeparatorCount=${_state.value.unreadSeparatorCount}"
+        )
+        if (_state.value.unreadSeparatorCount > PAGE_SIZE) {
+            backfillNewerMessages(maxPages = maxPages)
+        }
     }
 }
 
@@ -802,6 +962,12 @@ private suspend fun DefaultChatComponent.loadNewerMessagesPage(): Boolean {
 
 internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
     val currentState = _state.value
+    ChatConversationLog.logViewportState(
+        event = "scroll_to_message_requested",
+        state = currentState,
+        componentInstanceId = componentInstanceId,
+        extra = "messageId=$messageId alreadyLoaded=${currentState.messages.any { it.id == messageId }}"
+    )
     if (currentState.messages.any { it.id == messageId }) {
         queueJumpToLoadedMessage(
             messageId = messageId,
@@ -814,6 +980,12 @@ internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
 
     cancelAllLoadingJobs()
     messageLoadingJob = scope.launch {
+        ChatConversationLog.logViewportState(
+            event = "scroll_to_message_reset_before",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "messageId=$messageId"
+        )
         _state.update {
             it.copy(
                 isLoading = true,
@@ -824,6 +996,12 @@ internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
                 highlightRequest = null
             )
         }
+        ChatConversationLog.logViewportState(
+            event = "scroll_to_message_reload_start",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "messageId=$messageId"
+        )
         try {
             loadAroundMessage(
                 messageId = messageId,
@@ -840,9 +1018,21 @@ internal fun DefaultChatComponent.scrollToMessageInternal(messageId: Long) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            ChatConversationLog.logViewportState(
+                event = "scroll_to_message_reload_failed",
+                state = _state.value,
+                componentInstanceId = componentInstanceId,
+                extra = "messageId=$messageId error=${e.javaClass.simpleName}"
+            )
             Log.e("DefaultChatComponent", "Failed to scroll to message", e)
         } finally {
             _state.update { it.copy(isLoading = false) }
+            ChatConversationLog.logViewportState(
+                event = "scroll_to_message_reload_finish",
+                state = _state.value,
+                componentInstanceId = componentInstanceId,
+                extra = "messageId=$messageId"
+            )
         }
     }
 }
@@ -852,14 +1042,30 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
     val threadId = currentState.effectiveThreadId()
     val isComments = currentState.rootMessage != null
     val targetChatId = currentState.effectiveThreadChatId(chatId)
+    ChatConversationLog.logViewportState(
+        event = "scroll_to_bottom_requested",
+        state = currentState,
+        componentInstanceId = componentInstanceId,
+        extra = "isComments=$isComments"
+    )
     if (currentState.messages.isNotEmpty() && currentState.isLatestLoaded) {
         _state.update { it.enqueueRuntimeScrollToBottom(animated = true) }
+        ChatConversationLog.logViewportState(
+            event = "scroll_to_bottom_runtime_enqueued",
+            state = _state.value,
+            componentInstanceId = componentInstanceId
+        )
         return
     }
     if (currentState.messages.isNotEmpty() && !currentState.isLatestLoaded) {
         if (loadNewerJob?.isActive == true || currentState.isLoadingNewer) return
         loadNewerJob = scope.launch {
             _state.update { it.copy(isLoadingNewer = true) }
+            ChatConversationLog.logViewportState(
+                event = "scroll_to_bottom_load_newer_start",
+                state = _state.value,
+                componentInstanceId = componentInstanceId
+            )
             try {
                 var reachedLatest = false
                 repeat(20) {
@@ -871,8 +1077,19 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
                 }
                 if (reachedLatest || _state.value.isLatestLoaded) {
                     _state.update { it.enqueueRuntimeScrollToBottom(animated = true) }
+                    ChatConversationLog.logViewportState(
+                        event = "scroll_to_bottom_load_newer_enqueued",
+                        state = _state.value,
+                        componentInstanceId = componentInstanceId
+                    )
                 }
             } catch (e: Exception) {
+                ChatConversationLog.logViewportState(
+                    event = "scroll_to_bottom_load_newer_failed",
+                    state = _state.value,
+                    componentInstanceId = componentInstanceId,
+                    extra = "error=${e.javaClass.simpleName}"
+                )
                 Log.e(
                     "DefaultChatComponent",
                     "Failed to load newer messages before scroll to bottom",
@@ -882,6 +1099,11 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
             } finally {
                 inFlightNewerAnchorId = 0L
                 _state.update { it.copy(isLoadingNewer = false) }
+                ChatConversationLog.logViewportState(
+                    event = "scroll_to_bottom_load_newer_finish",
+                    state = _state.value,
+                    componentInstanceId = componentInstanceId
+                )
             }
         }
         return
@@ -889,6 +1111,12 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
     if (currentState.isLoading) return
     cancelAllLoadingJobs()
     messageLoadingJob = scope.launch {
+        ChatConversationLog.logViewportState(
+            event = "scroll_to_bottom_reset_before",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "isComments=$isComments"
+        )
         _state.update {
             it.copy(
                 isLoading = true,
@@ -898,6 +1126,12 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
                 viewportPhase = ChatViewportPhase.Initializing
             )
         }
+        ChatConversationLog.logViewportState(
+            event = "scroll_to_bottom_reload_start",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "isComments=$isComments"
+        )
         try {
             if (isComments && threadId != null) {
                 loadComments(
@@ -915,9 +1149,20 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            ChatConversationLog.logViewportState(
+                event = "scroll_to_bottom_reload_failed",
+                state = _state.value,
+                componentInstanceId = componentInstanceId,
+                extra = "error=${e.javaClass.simpleName}"
+            )
             Log.e("DefaultChatComponent", "Failed to scroll to bottom", e)
         } finally {
             _state.update { it.copy(isLoading = false) }
+            ChatConversationLog.logViewportState(
+                event = "scroll_to_bottom_reload_finish",
+                state = _state.value,
+                componentInstanceId = componentInstanceId
+            )
         }
     }
 }
@@ -1601,7 +1846,19 @@ internal fun DefaultChatComponent.loadDraft() {
 
 internal fun DefaultChatComponent.handleTopicClick(topicId: Int) {
     val id = if (topicId == 0) null else topicId.toLong()
+    ChatConversationLog.logViewportState(
+        event = "topic_click",
+        state = _state.value,
+        componentInstanceId = componentInstanceId,
+        extra = "topicId=$topicId resolvedTopicId=${id ?: 0L}"
+    )
     resetSearchState(isSearchActive = false)
+    ChatConversationLog.logViewportState(
+        event = "topic_click_reset_before",
+        state = _state.value,
+        componentInstanceId = componentInstanceId,
+        extra = "topicId=$topicId resolvedTopicId=${id ?: 0L}"
+    )
     _state.update {
         it.copy(
             currentTopicId = id,
@@ -1616,6 +1873,12 @@ internal fun DefaultChatComponent.handleTopicClick(topicId: Int) {
             viewportPhase = ChatViewportPhase.Initializing
         )
     }
+    ChatConversationLog.logViewportState(
+        event = "topic_click_state_reset",
+        state = _state.value,
+        componentInstanceId = componentInstanceId,
+        extra = "topicId=$topicId"
+    )
     if (topicId != 0) {
         scope.launch {
             forumTopicsRepository.markForumTopicAsRead(chatId, topicId)
@@ -1626,9 +1889,21 @@ internal fun DefaultChatComponent.handleTopicClick(topicId: Int) {
 
 internal fun DefaultChatComponent.handleCommentsClick(messageId: Long) {
     scope.launch {
+        ChatConversationLog.logViewportState(
+            event = "comments_click",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "messageId=$messageId"
+        )
         val message = _state.value.messages.find { it.id == messageId }
         val threadContext = repositoryMessage.getMessageThreadContext(chatId, messageId)
         resetSearchState(isSearchActive = false)
+        ChatConversationLog.logViewportState(
+            event = "comments_click_reset_before",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "messageId=$messageId threadChatId=${threadContext?.chatId ?: 0L} threadId=${threadContext?.threadId ?: messageId}"
+        )
         _state.update {
             it.copy(
                 currentTopicId = messageId,
@@ -1643,6 +1918,12 @@ internal fun DefaultChatComponent.handleCommentsClick(messageId: Long) {
                 viewportPhase = ChatViewportPhase.Initializing
             )
         }
+        ChatConversationLog.logViewportState(
+            event = "comments_click_state_reset",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "messageId=$messageId threadChatId=${threadContext?.chatId ?: 0L} threadId=${threadContext?.threadId ?: messageId}"
+        )
         loadComments(
             targetChatId = threadContext?.chatId ?: chatId,
             threadId = threadContext?.threadId ?: messageId,

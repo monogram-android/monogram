@@ -259,6 +259,13 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         threadId: Long? = null
     ): OlderMessagesPage
 
+    suspend fun getRemoteMessagesOlder(
+        chatId: Long,
+        fromMessageId: Long,
+        limit: Int,
+        threadId: Long? = null
+    ): RemoteOlderMessagesPage
+
     suspend fun getMessagesNewer(
         chatId: Long,
         fromMessageId: Long,
@@ -266,12 +273,26 @@ interface MessageRemoteDataSource : DraftLinkPreviewRemoteDataSource {
         threadId: Long? = null
     ): List<MessageModel>
 
+    suspend fun getRemoteMessagesNewer(
+        chatId: Long,
+        fromMessageId: Long,
+        limit: Int,
+        threadId: Long? = null
+    ): RemoteMessageBatch
+
     suspend fun getMessagesAround(
         chatId: Long,
         messageId: Long,
         limit: Int,
         threadId: Long? = null
     ): List<MessageModel>
+
+    suspend fun getRemoteMessagesAround(
+        chatId: Long,
+        messageId: Long,
+        limit: Int,
+        threadId: Long? = null
+    ): RemoteMessageBatch
 
     suspend fun getPinnedMessageModel(chatId: Long, threadId: Long? = null): MessageModel?
     suspend fun getAllPinnedMessages(chatId: Long, threadId: Long? = null): List<MessageModel>

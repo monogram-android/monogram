@@ -3,10 +3,77 @@ package org.monogram.presentation.features.chats.conversation.ui.content
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.monogram.presentation.features.chats.conversation.ChatRenderMode
 import org.monogram.presentation.features.chats.conversation.ChatScrollCommand
 import org.monogram.presentation.features.chats.conversation.ChatViewportPhase
+import org.monogram.presentation.features.chats.conversation.updateChatContentVisibilityLatch
 
 class ChatContentRuntimePolicyTest {
+    @Test
+    fun `updateChatContentVisibilityLatch keeps active chat visible after first settle through reopen sequence`() {
+        val afterFirstSettle = updateChatContentVisibilityLatch(
+            previousVisible = false,
+            renderMode = ChatRenderMode.Active,
+            viewportPhase = ChatViewportPhase.Settled
+        )
+        val afterCloseInfo = updateChatContentVisibilityLatch(
+            previousVisible = afterFirstSettle,
+            renderMode = ChatRenderMode.Active,
+            viewportPhase = ChatViewportPhase.Restoring
+        )
+        val afterReopenInfo = updateChatContentVisibilityLatch(
+            previousVisible = afterCloseInfo,
+            renderMode = ChatRenderMode.Active,
+            viewportPhase = ChatViewportPhase.Initializing
+        )
+
+        assertTrue(afterFirstSettle)
+        assertTrue(afterCloseInfo)
+        assertTrue(afterReopenInfo)
+    }
+
+    @Test
+    fun `shouldAutoSettleViewportAfterContentReady settles cached chat content while remote load continues`() {
+        assertTrue(
+            shouldAutoSettleViewportAfterContentReady(
+                viewportPhase = ChatViewportPhase.Initializing,
+                pendingScrollCommand = null,
+                hasMessages = true,
+                viewAsTopics = false,
+                currentTopicId = null,
+                topicsCount = 0
+            )
+        )
+    }
+
+    @Test
+    fun `shouldAutoSettleViewportAfterContentReady waits for pending scroll command`() {
+        assertFalse(
+            shouldAutoSettleViewportAfterContentReady(
+                viewportPhase = ChatViewportPhase.Restoring,
+                pendingScrollCommand = ChatScrollCommand.ScrollToBottom(animated = false),
+                hasMessages = true,
+                viewAsTopics = false,
+                currentTopicId = null,
+                topicsCount = 0
+            )
+        )
+    }
+
+    @Test
+    fun `shouldAutoSettleViewportAfterContentReady ignores empty initializing state`() {
+        assertFalse(
+            shouldAutoSettleViewportAfterContentReady(
+                viewportPhase = ChatViewportPhase.Initializing,
+                pendingScrollCommand = null,
+                hasMessages = false,
+                viewAsTopics = false,
+                currentTopicId = null,
+                topicsCount = 0
+            )
+        )
+    }
+
     @Test
     fun `shouldSuppressMessageEntryAnimations only depends on initial loading and viewport lifecycle`() {
         assertFalse(

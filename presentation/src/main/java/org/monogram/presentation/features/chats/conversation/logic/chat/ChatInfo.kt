@@ -16,6 +16,7 @@ import org.monogram.domain.models.UserTypeEnum
 import org.monogram.domain.repository.ChatMemberStatus
 import org.monogram.presentation.features.chats.common.ChatActionState
 import org.monogram.presentation.features.chats.common.ChatActionType
+import org.monogram.presentation.features.chats.conversation.ChatConversationLog
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
 
 internal fun DefaultChatComponent.loadChatInfo() {
@@ -77,6 +78,12 @@ internal fun DefaultChatComponent.loadChatInfo() {
                     loadTopics()
                 }
             } else if (wasTopics) {
+                ChatConversationLog.logState(
+                    stream = ChatConversationLog.STREAM_VIEWPORT,
+                    event = "chat_info_topics_disabled_reload_messages",
+                    state = _state.value,
+                    componentInstanceId = componentInstanceId
+                )
                 loadMessages()
             }
         }
@@ -217,7 +224,7 @@ internal fun DefaultChatComponent.handleAddToAdBlockWhitelist() {
     if (chatId in current) return
 
     appPreferences.setAdBlockWhitelistedChannels(current + chatId)
-    loadMessages(force = true)
+    _state.update { it.copy(isWhitelistedInAdBlock = true) }
 }
 
 internal fun DefaultChatComponent.handleRemoveFromAdBlockWhitelist() {
@@ -225,7 +232,7 @@ internal fun DefaultChatComponent.handleRemoveFromAdBlockWhitelist() {
     if (chatId !in current) return
 
     appPreferences.setAdBlockWhitelistedChannels(current - chatId)
-    loadMessages(force = true)
+    _state.update { it.copy(isWhitelistedInAdBlock = false) }
 }
 
 internal fun DefaultChatComponent.handleClearHistory() {

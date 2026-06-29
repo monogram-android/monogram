@@ -2,6 +2,8 @@ package org.monogram.presentation.features.chats.conversation.logic
 
 
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -156,9 +158,12 @@ internal fun DefaultChatComponent.observePreferences(availableWallpapers: List<W
 
     combine(appPreferences.isAdBlockEnabled, appPreferences.adBlockKeywords) { enabled, keywords ->
         enabled to keywords
-    }.onEach {
-        if (_state.value.isChannel) {
-            loadMessages()
+    }
+        .distinctUntilChanged()
+        .drop(1)
+        .onEach {
+            if (_state.value.isChannel && _state.value.messages.isNotEmpty()) {
+                loadMessages(force = true, loadSource = "preferences_reload")
         }
     }.launchIn(scope)
 }

@@ -73,12 +73,16 @@ import org.monogram.presentation.features.chats.conversation.ui.rememberVoicePla
 import org.monogram.presentation.features.share.PendingAttachment
 import org.monogram.presentation.features.share.PendingAttachmentKind
 
-internal fun shouldHideChatContentForViewportTransition(
+internal fun updateChatContentVisibilityLatch(
+    previousVisible: Boolean,
     renderMode: ChatRenderMode,
     viewportPhase: ChatViewportPhase
 ): Boolean {
-    return renderMode == ChatRenderMode.Active &&
-            viewportPhase != ChatViewportPhase.Settled
+    return when (renderMode) {
+        ChatRenderMode.Active -> previousVisible || viewportPhase == ChatViewportPhase.Settled
+        ChatRenderMode.SwipePreview,
+        ChatRenderMode.ForumTopicSwipePreview -> true
+    }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -89,6 +93,8 @@ fun ChatContent(
     onSwipeBackStateChanged: (ScreenSwipeBackState) -> Unit = {},
 ) {
     val state by component.state.collectAsState()
+    val uiInstanceId = remember { ChatConversationLog.nextUiInstanceId() }
+    val componentInstanceId = (component as? DefaultChatComponent)?.componentInstanceId
     val previewState = rememberChatContentPreviewState(state, renderMode)
     val conversationKey =
         remember(
@@ -114,7 +120,13 @@ fun ChatContent(
                 isTabletInterfaceEnabled
 
     var isVisible by remember(conversationKey) {
-        mutableStateOf(!shouldHideChatContentForViewportTransition(renderMode, state.viewportPhase))
+        mutableStateOf(
+            updateChatContentVisibilityLatch(
+                previousVisible = false,
+                renderMode = renderMode,
+                viewportPhase = state.viewportPhase
+            )
+        )
     }
     var showInitialLoading by remember(conversationKey) { mutableStateOf(false) }
     var isRecordingVideo by remember(conversationKey) { mutableStateOf(false) }
@@ -281,12 +293,42 @@ fun ChatContent(
         onDispose { onSwipeBackStateChanged(ScreenSwipeBackState()) }
     }
 
-    LaunchedEffect(renderMode, state.viewportPhase, conversationKey) {
-        if (renderMode != ChatRenderMode.Active) {
-            isVisible = true
-        } else if (shouldHideChatContentForViewportTransition(renderMode, state.viewportPhase)) {
-            isVisible = false
+    DisposableEffect(conversationKey) {
+        ChatConversationLog.logState(
+            stream = ChatConversationLog.STREAM_VIEWPORT,
+            event = "ui_attach",
+            state = state,
+            componentInstanceId = componentInstanceId,
+            uiInstanceId = uiInstanceId,
+            extra = "conversationKey=$conversationKey renderMode=$renderMode"
+        )
+        onDispose {
+            ChatConversationLog.logState(
+                stream = ChatConversationLog.STREAM_VIEWPORT,
+                event = "ui_dispose",
+                state = state,
+                componentInstanceId = componentInstanceId,
+                uiInstanceId = uiInstanceId,
+                extra = "conversationKey=$conversationKey renderMode=$renderMode"
+            )
         }
+    }
+
+    LaunchedEffect(renderMode, state.viewportPhase, conversationKey) {
+        val previousVisible = isVisible
+        isVisible = updateChatContentVisibilityLatch(
+            previousVisible = isVisible,
+            renderMode = renderMode,
+            viewportPhase = state.viewportPhase
+        )
+        ChatConversationLog.logState(
+            stream = ChatConversationLog.STREAM_VIEWPORT,
+            event = "visibility_latch",
+            state = state,
+            componentInstanceId = componentInstanceId,
+            uiInstanceId = uiInstanceId,
+            extra = "conversationKey=$conversationKey renderMode=$renderMode previousVisible=$previousVisible nextVisible=$isVisible"
+        )
     }
 
     val effectsEnabled = renderMode == ChatRenderMode.Active
@@ -313,6 +355,8 @@ fun ChatContent(
         isComments = messagePresentationState.isComments,
         isForumList = messagePresentationState.isForumList,
         effectsEnabled = effectsEnabled,
+        componentInstanceId = componentInstanceId,
+        uiInstanceId = uiInstanceId,
         isDragged = isDragged,
         isRecordingVideo = isRecordingVideo,
         showInitialLoading = showInitialLoading,

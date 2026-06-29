@@ -1,10 +1,16 @@
 package org.monogram.presentation.features.chats.conversation.ui.content
 
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.features.chats.conversation.ui.message.prefersExpandedBubbleWidth
+import org.monogram.presentation.features.chats.conversation.ui.message.resolveMediaBubbleAspectRatio
+import org.monogram.presentation.features.chats.conversation.ui.message.resolveMediaBubbleHeight
+import org.monogram.presentation.features.chats.conversation.ui.message.resolveMediaBubbleWidth
 
 class ChatMediaHelpersTest {
     @Test
@@ -126,6 +132,37 @@ class ChatMediaHelpersTest {
         assertEquals(
             emptyList<AlbumMediaEntry>(),
             buildAlbumMediaEntries(listOf(audio, document)) { true })
+    }
+
+    @Test
+    fun `chat media bubbles prefer expanded width for photos videos and gifs`() {
+        assertTrue(
+            MessageContent.Photo(path = null, width = 100, height = 200)
+                .prefersExpandedBubbleWidth()
+        )
+        assertTrue(
+            MessageContent.Video(path = null, width = 100, height = 200, duration = 1)
+                .prefersExpandedBubbleWidth()
+        )
+        assertTrue(
+            MessageContent.Gif(path = null, width = 100, height = 200).prefersExpandedBubbleWidth()
+        )
+    }
+
+    @Test
+    fun `portrait media uses full bubble width and clamps by max height`() {
+        val aspectRatio = resolveMediaBubbleAspectRatio(mediaWidth = 600, mediaHeight = 1600)
+        val resolvedWidth = resolveMediaBubbleWidth(320.dp)
+        val resolvedHeight = resolveMediaBubbleHeight(
+            containerWidth = 320.dp,
+            aspectRatio = aspectRatio,
+            minHeight = 160.dp,
+            maxHeight = 320.dp
+        )
+
+        assertEquals(0.5f, aspectRatio, 0.0001f)
+        assertEquals(294.4.dp, resolvedWidth)
+        assertEquals(320.dp, resolvedHeight)
     }
 
     private fun message(content: MessageContent, id: Long = 1L): MessageModel =

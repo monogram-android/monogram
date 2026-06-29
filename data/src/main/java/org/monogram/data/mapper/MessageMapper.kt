@@ -1,5 +1,6 @@
 package org.monogram.data.mapper
 
+import android.util.Log
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -7,7 +8,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.perf.ChatOpenPerfBridge
+import org.monogram.core.perf.ChatOpenPerfDebug
+import org.monogram.data.BuildConfig
 import org.monogram.data.chats.ChatCache
+import org.monogram.data.datasource.remote.MessageMapOptions
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.mapper.message.ContentMappingContext
 import org.monogram.data.mapper.message.MessageContentMapper
@@ -47,7 +52,8 @@ class MessageMapper internal constructor(
     suspend fun mapMessageToModel(
         msg: TdApi.Message,
         isChatOpen: Boolean = false,
-        isReply: Boolean = false
+        isReply: Boolean = false,
+        options: MessageMapOptions = MessageMapOptions()
     ): MessageModel = coroutineScope {
         withTimeoutOrNull(MESSAGE_MAP_TIMEOUT_MS) {
             val sender = senderResolver.resolveSender(msg)
@@ -55,14 +61,15 @@ class MessageMapper internal constructor(
             val (replyToMsgId, replyToMsg) = resolveReplyInfo(
                 msg = msg,
                 isChatOpen = isChatOpen,
-                isReply = isReply
+                isReply = isReply,
+                options = options
             )
 
             val forwardInfo = resolveForwardInfo(msg)
             val views = msg.interactionInfo?.viewCount
             val replyCount = msg.interactionInfo?.replyInfo?.replyCount ?: 0
             val sendingState = resolveSendingState(msg)
-            val reactions = resolveReactions(msg, isReply, isChatOpen)
+            val reactions = resolveReactions(msg, isReply, isChatOpen, options)
             val threadId = resolveThreadId(msg)
             val viaBotName = resolveViaBotName(msg)
 
@@ -80,6 +87,7 @@ class MessageMapper internal constructor(
                 mediaAlbumId = msg.mediaAlbumId,
                 sendingState = sendingState,
                 isChatOpen = isChatOpen,
+                mapOptions = options,
                 readDate = 0,
                 reactions = reactions,
                 isSenderVerified = sender.isSenderVerified,
@@ -95,7 +103,7 @@ class MessageMapper internal constructor(
                 senderStatusEmojiId = sender.senderStatusEmojiId,
                 senderStatusEmojiPath = sender.senderStatusEmojiPath
             )
-        } ?: mapMessageToModelFallback(msg, isChatOpen, isReply)
+        } ?: mapMessageToModelFallback(msg, isChatOpen, isReply, options)
     }
 
     suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int {
@@ -126,10 +134,11 @@ class MessageMapper internal constructor(
         inboxLimit: Long,
         outboxLimit: Long,
         isChatOpen: Boolean = false,
-        isReply: Boolean = false
+        isReply: Boolean = false,
+        options: MessageMapOptions = MessageMapOptions()
     ): MessageModel {
         val isRead = if (msg.isOutgoing) msg.id <= outboxLimit else msg.id <= inboxLimit
-        val baseModel = mapMessageToModel(msg, isChatOpen, isReply)
+        val baseModel = mapMessageToModel(msg, isChatOpen, isReply, options)
         return baseModel.copy(isRead = isRead)
     }
 
@@ -147,6 +156,7 @@ class MessageMapper internal constructor(
         mediaAlbumId: Long = 0L,
         sendingState: MessageSendingState? = null,
         isChatOpen: Boolean = false,
+        mapOptions: MessageMapOptions = MessageMapOptions(),
         readDate: Int = 0,
         reactions: List<MessageReactionModel> = emptyList(),
         isSenderVerified: Boolean = false,
@@ -162,7 +172,9 @@ class MessageMapper internal constructor(
         senderStatusEmojiId: Long = 0L,
         senderStatusEmojiPath: String? = null
     ): MessageModel {
-        val networkAutoDownload = isChatOpen && fileHelper.isNetworkAutoDownloadEnabled()
+        val networkAutoDownload = isChatOpen &&
+                mapOptions.allowAutoDownload &&
+                fileHelper.isNetworkAutoDownloadEnabled()
         val isActuallyUploading = msg.sendingState is TdApi.MessageSendingStatePending
 
         val content = contentMapper.mapContent(
@@ -245,15 +257,40 @@ class MessageMapper internal constructor(
     private suspend fun resolveReplyInfo(
         msg: TdApi.Message,
         isChatOpen: Boolean,
-        isReply: Boolean
+        isReply: Boolean,
+        options: MessageMapOptions
     ): Pair<Long?, MessageModel?> {
         if (isReply || msg.replyTo == null) return null to null
         val replyTo = msg.replyTo
         if (replyTo !is TdApi.MessageReplyToMessage) return null to null
 
         val replyToMsgId = replyTo.messageId
+        if (!options.resolveReplyPreviewFromNetwork) {
+            val cachedReply = cache.getMessage(msg.chatId, replyToMsgId)
+            val cachedReplyModel = cachedReply?.let {
+                mapMessageToModel(
+                    msg = it,
+                    isChatOpen = false,
+                    isReply = true,
+                    options = options
+                ).copy(replyToMsg = null, replyToMsgId = null)
+            }
+            return replyToMsgId to cachedReplyModel
+        }
         val repliedMessage = try {
             withTimeout(500) {
+                ChatOpenPerfBridge.recordReplyFetch(msg.chatId, resolveThreadId(msg))
+                if (BuildConfig.DEBUG) {
+                    Log.d(
+                        ChatOpenPerfDebug.TAG,
+                        ChatOpenPerfDebug.buildLogMessage(
+                            chatId = msg.chatId,
+                            threadId = resolveThreadId(msg),
+                            event = "chat_reply_fetch",
+                            anchorId = replyToMsgId
+                        )
+                    )
+                }
                 cache.getMessage(msg.chatId, replyToMsgId)
                     ?: gateway.execute(TdApi.GetMessage(msg.chatId, replyToMsgId)).also { cache.putMessage(it) }
             }
@@ -265,7 +302,8 @@ class MessageMapper internal constructor(
             mapMessageToModel(
                 msg = it,
                 isChatOpen = isChatOpen,
-                isReply = true
+                isReply = true,
+                options = options
             ).copy(replyToMsg = null, replyToMsgId = null)
         }
 
@@ -365,7 +403,8 @@ class MessageMapper internal constructor(
     private suspend fun resolveReactions(
         msg: TdApi.Message,
         isReply: Boolean,
-        isChatOpen: Boolean
+        isChatOpen: Boolean,
+        options: MessageMapOptions
     ): List<MessageReactionModel> {
         if (isReply) return emptyList()
         val reactionItems = msg.interactionInfo?.reactions?.reactions ?: return emptyList()
@@ -442,7 +481,9 @@ class MessageMapper internal constructor(
                                     emojiId = emojiId,
                                     chatId = msg.chatId,
                                     messageId = msg.id,
-                                    autoDownload = isChatOpen && fileHelper.isNetworkAutoDownloadEnabled()
+                                    autoDownload = isChatOpen &&
+                                            options.allowAutoDownload &&
+                                            fileHelper.isNetworkAutoDownloadEnabled()
                                 )
                                 path = customEmojiLoader.getPathIfValid(emojiId)
                             }
@@ -492,7 +533,8 @@ class MessageMapper internal constructor(
     private fun mapMessageToModelFallback(
         msg: TdApi.Message,
         isChatOpen: Boolean,
-        isReply: Boolean
+        isReply: Boolean,
+        options: MessageMapOptions
     ): MessageModel {
         val sender = senderResolver.resolveFallbackSender(msg)
         return createMessageModel(
@@ -501,6 +543,7 @@ class MessageMapper internal constructor(
             senderId = sender.senderId,
             senderAvatar = sender.senderAvatar,
             isChatOpen = isChatOpen,
+            mapOptions = options,
             isReply = isReply,
             senderPersonalAvatar = sender.senderPersonalAvatar,
             senderCustomTitle = sender.senderCustomTitle,

@@ -108,10 +108,10 @@ class ChatStoreFactory(
             reducer = ReducerImpl
         ) {}
 
-    private inner class ExecutorImpl : CoroutineExecutor<Intent, Nothing, ChatComponent.State, Message, Label>() {
+    private inner class ExecutorImpl :
+        CoroutineExecutor<Intent, Nothing, ChatComponent.State, Nothing, Label>() {
         override fun executeIntent(intent: Intent) {
             when (intent) {
-                is Intent.UpdateState -> dispatch(Message.UpdateState(intent.state))
                 is Intent.SendMessage -> component.handleSendMessage(intent.text, intent.entities, intent.sendOptions)
                 is Intent.SendSticker -> component.handleSendSticker(intent.stickerPath)
                 is Intent.SendPhoto -> component.handleSendPhoto(
@@ -471,14 +471,7 @@ class ChatStoreFactory(
             .toList()
     }
 
-    private object ReducerImpl : Reducer<ChatComponent.State, Message> {
-        override fun ChatComponent.State.reduce(msg: Message): ChatComponent.State =
-            when (msg) {
-                is Message.UpdateState -> msg.state
-            }
-    }
-
-    sealed class Message {
-        data class UpdateState(val state: ChatComponent.State) : Message()
+    private object ReducerImpl : Reducer<ChatComponent.State, Nothing> {
+        override fun ChatComponent.State.reduce(msg: Nothing): ChatComponent.State = this
     }
 }

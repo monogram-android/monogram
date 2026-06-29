@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import org.monogram.presentation.features.chats.conversation.ChatComponent
+import org.monogram.presentation.features.chats.conversation.ChatConversationLog
 import org.monogram.presentation.features.chats.conversation.ChatScrollCommand
 import org.monogram.presentation.features.chats.conversation.ChatViewportPhase
 import org.monogram.presentation.features.chats.conversation.DefaultChatComponent
@@ -91,6 +92,19 @@ internal fun shouldRetainBottomAlignmentAfterContentChange(
     return abs(delta) > alignmentTolerancePx
 }
 
+internal fun shouldAutoSettleViewportAfterContentReady(
+    viewportPhase: ChatViewportPhase,
+    pendingScrollCommand: ChatScrollCommand?,
+    hasMessages: Boolean,
+    viewAsTopics: Boolean,
+    currentTopicId: Long?,
+    topicsCount: Int
+): Boolean {
+    if (viewportPhase == ChatViewportPhase.Settled) return false
+    if (pendingScrollCommand != null) return false
+    return hasMessages || (viewAsTopics && currentTopicId == null && topicsCount > 0)
+}
+
 @Composable
 internal fun ChatContentEffects(
     component: ChatComponent,
@@ -101,6 +115,8 @@ internal fun ChatContentEffects(
     isComments: Boolean,
     isForumList: Boolean,
     effectsEnabled: Boolean,
+    componentInstanceId: String?,
+    uiInstanceId: String,
     isDragged: Boolean,
     isRecordingVideo: Boolean,
     showInitialLoading: Boolean,
@@ -142,13 +158,35 @@ internal fun ChatContentEffects(
     var followLatestArmed by remember { mutableStateOf(false) }
     var previousLastGroupedMessageId by remember { mutableStateOf<Long?>(null) }
     suspend fun consumeScrollCommandAndSettle() {
+        ChatConversationLog.logState(
+            stream = ChatConversationLog.STREAM_VIEWPORT,
+            event = "effects_consume_scroll_command",
+            state = latestUiState.value,
+            componentInstanceId = componentInstanceId,
+            uiInstanceId = uiInstanceId,
+            extra = "pending=${latestUiState.value.pendingScrollCommand?.javaClass?.simpleName ?: "none"}"
+        )
         component.onScrollCommandConsumed()
         withFrameNanos { }
+        ChatConversationLog.logState(
+            stream = ChatConversationLog.STREAM_VIEWPORT,
+            event = "effects_settle_after_scroll_command",
+            state = latestUiState.value,
+            componentInstanceId = componentInstanceId,
+            uiInstanceId = uiInstanceId
+        )
         component.onViewportSettled()
     }
 
     LaunchedEffect(effectsEnabled, state.viewportPhase) {
         if (!isViewportSettled) return@LaunchedEffect
+        ChatConversationLog.logState(
+            stream = ChatConversationLog.STREAM_VIEWPORT,
+            event = "effects_viewport_settled_visible",
+            state = state,
+            componentInstanceId = componentInstanceId,
+            uiInstanceId = uiInstanceId
+        )
         onVisible()
         if (state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null) {
             component.onDismissVideo()
@@ -159,20 +197,37 @@ internal fun ChatContentEffects(
         effectsEnabled,
         state.viewportPhase,
         state.pendingScrollCommand,
-        state.isLoading,
         state.messages.size,
         state.topics.size,
         state.viewAsTopics,
         state.currentTopicId
     ) {
         if (!effectsEnabled) return@LaunchedEffect
-        if (state.viewportPhase == ChatViewportPhase.Settled || state.pendingScrollCommand != null || state.isLoading) {
-            return@LaunchedEffect
-        }
-        val hasContent = state.messages.isNotEmpty() ||
-                (state.viewAsTopics && state.currentTopicId == null && state.topics.isNotEmpty())
-        if (!hasContent) return@LaunchedEffect
+        val shouldAutoSettle = shouldAutoSettleViewportAfterContentReady(
+            viewportPhase = state.viewportPhase,
+            pendingScrollCommand = state.pendingScrollCommand,
+            hasMessages = state.messages.isNotEmpty(),
+            viewAsTopics = state.viewAsTopics,
+            currentTopicId = state.currentTopicId,
+            topicsCount = state.topics.size
+        )
+        ChatConversationLog.logState(
+            stream = ChatConversationLog.STREAM_VIEWPORT,
+            event = "effects_auto_settle_check",
+            state = state,
+            componentInstanceId = componentInstanceId,
+            uiInstanceId = uiInstanceId,
+            extra = "effectsEnabled=$effectsEnabled shouldAutoSettle=$shouldAutoSettle"
+        )
+        if (!shouldAutoSettle) return@LaunchedEffect
         withFrameNanos { }
+        ChatConversationLog.logState(
+            stream = ChatConversationLog.STREAM_VIEWPORT,
+            event = "effects_auto_settle_fire",
+            state = state,
+            componentInstanceId = componentInstanceId,
+            uiInstanceId = uiInstanceId
+        )
         component.onViewportSettled()
     }
 

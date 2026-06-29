@@ -6,7 +6,6 @@ import com.arkivanov.essenty.lifecycle.doOnResume
 import com.arkivanov.essenty.lifecycle.doOnStart
 import com.arkivanov.essenty.lifecycle.doOnStop
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
-import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -14,15 +13,17 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import org.monogram.core.DispatcherProvider
+import org.monogram.core.perf.ChatOpenPerfBridge
 import org.monogram.domain.managers.DistrManager
 import org.monogram.domain.models.BotMenuButtonModel
 import org.monogram.domain.models.ChatPermissionsModel
@@ -62,6 +63,8 @@ import org.monogram.presentation.core.ui.ScreenSwipeBackState
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.componentScope
+import org.monogram.presentation.features.chats.conversation.logic.buildChatInitialLoadKey
+import org.monogram.presentation.features.chats.conversation.logic.effectiveThreadId
 import org.monogram.presentation.features.chats.conversation.logic.handleSendPendingAttachments
 import org.monogram.presentation.features.chats.conversation.logic.loadChatInfo
 import org.monogram.presentation.features.chats.conversation.logic.loadDraft
@@ -76,6 +79,7 @@ import org.monogram.presentation.features.chats.conversation.logic.refreshDraftL
 import org.monogram.presentation.features.chats.conversation.logic.refreshSponsoredMessageAfterMediaDownload
 import org.monogram.presentation.features.chats.conversation.logic.setupMessageCollectors
 import org.monogram.presentation.features.chats.conversation.logic.setupPinnedMessageCollector
+import org.monogram.presentation.features.chats.conversation.logic.shouldStartInitialLoad
 import org.monogram.presentation.features.chats.conversation.logic.withUnreadSessionFromChat
 import org.monogram.presentation.features.share.IncomingShareRequest
 import org.monogram.presentation.features.share.PendingAttachment
@@ -87,6 +91,37 @@ import kotlin.math.abs
 
 private const val VIEWPORT_PERSIST_DEBOUNCE_MS = 750L
 private const val VIEWPORT_OFFSET_DELTA_THRESHOLD_PX = 8
+
+internal fun shouldRepairUnexpectedChatReset(
+    previousState: ChatComponent.State?,
+    nextState: ChatComponent.State
+): Boolean {
+    return previousState != null &&
+            previousState.messages.isNotEmpty() &&
+            previousState.currentTopicId == null &&
+            previousState.currentMessageThreadId == null &&
+            previousState.rootMessage == null &&
+            nextState.viewportPhase == ChatViewportPhase.Initializing &&
+            nextState.isLoading &&
+            nextState.messages.isEmpty() &&
+            nextState.currentTopicId == null &&
+            nextState.currentMessageThreadId == null &&
+            nextState.rootMessage == null &&
+            nextState.isAtBottom
+}
+
+internal fun repairUnexpectedChatReset(
+    previousState: ChatComponent.State,
+    resetState: ChatComponent.State
+): ChatComponent.State {
+    return previousState.copy(
+        isLoading = resetState.isLoading,
+        isOldestLoaded = resetState.isOldestLoaded,
+        isLatestLoaded = resetState.isLatestLoaded,
+        pendingScrollCommand = resetState.pendingScrollCommand,
+        lastSavedViewport = resetState.lastSavedViewport
+    )
+}
 
 class DefaultChatComponent(
     context: AppComponentContext,
@@ -102,6 +137,8 @@ class DefaultChatComponent(
     private val initialShare: IncomingShareRequest? = null,
     private val onInitialShareConsumed: (Long) -> Unit = {}
 ) : ChatComponent, AppComponentContext by context {
+
+    internal val componentInstanceId: String = ChatConversationLog.nextComponentInstanceId(chatId)
 
     internal val wallpaperRepository: WallpaperRepository = container.repositories.wallpaperRepository
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
@@ -136,7 +173,6 @@ class DefaultChatComponent(
     var draftSaveJob: Job? = null
     var draftLinkPreviewJob: Job? = null
     var draftLinkPreviewDebounceJob: Job? = null
-    private var autoLoadJob: Job? = null
     private var mentionJob: Job? = null
     private var viewportPersistenceJob: Job? = null
     private var pendingViewportToPersist: ChatViewportCacheEntry? = null
@@ -151,6 +187,10 @@ class DefaultChatComponent(
     internal val senderRefreshRequestedAtMs = ConcurrentHashMap<Long, Long>()
     internal var chatInfoObserversStarted: Boolean = false
     internal var sponsoredMessageLoadingJob: Job? = null
+    internal var unreadBackfillJob: Job? = null
+    internal var lastStartedLoadKey: ChatInitialLoadKey? = null
+    internal var hasStartedInitialLoadForContext: Boolean = false
+    internal var activeLoadSession: ConversationLoadSession? = null
 
     internal var lastLoadedOlderId: Long = 0L
     internal var lastLoadedNewerId: Long = 0L
@@ -199,7 +239,7 @@ class DefaultChatComponent(
         component = this
     ).create()
 
-    override val state: StateFlow<ChatComponent.State> = store.stateFlow
+    override val state: StateFlow<ChatComponent.State> = _state
     private val _swipeBackState = MutableStateFlow(resolveChatSwipeBackState(_state.value))
     override val swipeBackState: StateFlow<ScreenSwipeBackState> = _swipeBackState
 
@@ -207,6 +247,12 @@ class DefaultChatComponent(
     internal var allMembers: List<UserModel> = emptyList()
 
     init {
+        ChatConversationLog.logViewport(
+            chatId = chatId,
+            threadId = initialTopicId,
+            event = "component_init",
+            componentInstanceId = componentInstanceId
+        )
         setupLifecycle()
         setupCollectors()
         initialLoad()
@@ -214,23 +260,43 @@ class DefaultChatComponent(
 
     private fun setupLifecycle() {
         lifecycle.doOnStart {
-            startAutoLoad()
+            ChatConversationLog.logViewportState(
+                event = "lifecycle_start",
+                state = _state.value,
+                componentInstanceId = componentInstanceId
+            )
+            requestInitialLoad(source = "lifecycle_start")
         }
 
         lifecycle.doOnStop {
-            autoLoadJob?.cancel()
+            ChatConversationLog.logViewportState(
+                event = "lifecycle_stop",
+                state = _state.value,
+                componentInstanceId = componentInstanceId
+            )
+            unreadBackfillJob?.cancel()
             flushViewportPersistence()
         }
 
         lifecycle.doOnResume {
+            ChatConversationLog.logViewportState(
+                event = "lifecycle_resume",
+                state = _state.value,
+                componentInstanceId = componentInstanceId
+            )
             loadChatInfo()
-            handleResume(initialMessageId)
+            handleResume()
         }
 
         scope.launch {
             try {
                 awaitCancellation()
             } finally {
+                ChatConversationLog.logViewportState(
+                    event = "component_dispose",
+                    state = _state.value,
+                    componentInstanceId = componentInstanceId
+                )
                 repositoryMessage.closeChat(chatId)
             }
         }
@@ -264,6 +330,7 @@ class DefaultChatComponent(
             .launchIn(scope)
 
         appPreferences.adBlockWhitelistedChannels
+            .drop(1)
             .onEach { channels ->
                 _state.update { it.copy(isWhitelistedInAdBlock = channels.contains(chatId)) }
             }
@@ -282,8 +349,52 @@ class DefaultChatComponent(
 
         _state.onEach {
             _swipeBackState.value = resolveChatSwipeBackState(it)
-            store.accept(ChatStore.Intent.UpdateState(it))
         }.launchIn(scope)
+
+        var repairingUnexpectedReset = false
+        var previousTracedState: ChatComponent.State? = null
+        _state
+            .distinctUntilChanged { old, new ->
+                old.viewportPhase == new.viewportPhase &&
+                        old.pendingScrollCommand == new.pendingScrollCommand &&
+                        old.isLoading == new.isLoading &&
+                        old.isLoadingOlder == new.isLoadingOlder &&
+                        old.isLoadingNewer == new.isLoadingNewer &&
+                        old.messages.size == new.messages.size &&
+                        old.topics.size == new.topics.size &&
+                        old.isAtBottom == new.isAtBottom &&
+                        old.isLatestLoaded == new.isLatestLoaded &&
+                        old.isOldestLoaded == new.isOldestLoaded &&
+                        old.currentTopicId == new.currentTopicId &&
+                        old.currentMessageThreadId == new.currentMessageThreadId
+            }
+            .onEach { state ->
+                val previousState = previousTracedState
+                if (!repairingUnexpectedReset && shouldRepairUnexpectedChatReset(
+                        previousState,
+                        state
+                    )
+                ) {
+                    val nonNullPreviousState = requireNotNull(previousState)
+                    ChatConversationLog.logViewportState(
+                        event = "unexpected_reset_repair",
+                        state = state,
+                        componentInstanceId = componentInstanceId,
+                        extra = "restoringMessages=${nonNullPreviousState.messages.size} restoringViewport=${nonNullPreviousState.viewportPhase}"
+                    )
+                    repairingUnexpectedReset = true
+                    _state.update { repairUnexpectedChatReset(nonNullPreviousState, state) }
+                    repairingUnexpectedReset = false
+                    return@onEach
+                }
+                ChatConversationLog.logViewportState(
+                    event = "state",
+                    state = state,
+                    componentInstanceId = componentInstanceId
+                )
+                previousTracedState = state
+            }
+            .launchIn(scope)
 
         repositoryMessage.fileDownloadFlow
             .filterIsInstance<org.monogram.domain.models.FileDownloadEvent.Completed>()
@@ -307,6 +418,12 @@ class DefaultChatComponent(
 
     private fun initialLoad() {
         scope.launch {
+            ChatConversationLog.logViewport(
+                chatId = chatId,
+                threadId = _state.value.currentMessageThreadId ?: _state.value.currentTopicId,
+                event = "initial_load_start",
+                componentInstanceId = componentInstanceId
+            )
             chatListRepository.getChatById(chatId)?.let { chat ->
                 if (chat.unreadCount > 0) {
                     _state.update {
@@ -318,6 +435,12 @@ class DefaultChatComponent(
                 }
             }
             repositoryMessage.openChat(chatId)
+            ChatConversationLog.logViewport(
+                chatId = chatId,
+                threadId = _state.value.currentMessageThreadId ?: _state.value.currentTopicId,
+                event = "open_chat_called",
+                componentInstanceId = componentInstanceId
+            )
             withContext(Dispatchers.Main) {
                 loadChatInfo()
                 loadDraft()
@@ -328,27 +451,7 @@ class DefaultChatComponent(
         }
     }
 
-    private fun startAutoLoad() {
-        autoLoadJob?.cancel()
-        autoLoadJob = scope.launch {
-            while (isActive) {
-                val currentState = _state.value
-                if (
-                    initialMessageId == null &&
-                    currentState.messages.isEmpty() &&
-                    !currentState.isLoading &&
-                    !currentState.isLoadingOlder &&
-                    !currentState.isLoadingNewer
-                ) {
-                    Log.d("DefaultChatComponent", "Auto-loading messages...")
-                    loadMessages()
-                }
-                delay(5000)
-            }
-        }
-    }
-
-    private fun handleResume(initialMessageId: Long?) {
+    private fun handleResume() {
         val currentState = _state.value
         if (currentState.isLoading || currentState.isLoadingOlder || currentState.isLoadingNewer) return
 
@@ -356,11 +459,46 @@ class DefaultChatComponent(
             if (initialMessageId != null) {
                 scrollToMessage(initialMessageId)
             } else if (currentState.messages.isEmpty()) {
-                loadMessages()
+                requestInitialLoad(source = "lifecycle_resume")
             }
         } else if (currentState.messages.isEmpty() && currentState.currentTopicId == null) {
-            loadMessages()
+            requestInitialLoad(source = "lifecycle_resume")
         }
+    }
+
+    internal fun requestInitialLoad(source: String) {
+        val currentState = _state.value
+        if (currentState.isLoading || currentState.isLoadingOlder || currentState.isLoadingNewer) return
+
+        val savedViewport = cacheProvider.getChatViewport(chatId, currentState.effectiveThreadId())
+        val loadKey = buildChatInitialLoadKey(
+            chatId = chatId,
+            effectiveThreadId = currentState.effectiveThreadId(),
+            initialMessageId = initialMessageId,
+            savedViewport = savedViewport,
+            firstUnreadMessageId = currentState.unreadSeparatorLastReadInboxMessageId.takeIf {
+                currentState.unreadSeparatorCount > 0
+            },
+            rootMessageId = currentState.rootMessage?.id
+        )
+        if (!shouldStartInitialLoad(lastStartedLoadKey, loadKey, hasStartedInitialLoadForContext)) {
+            return
+        }
+        lastStartedLoadKey = loadKey
+        hasStartedInitialLoadForContext = true
+        ChatConversationLog.logViewportState(
+            event = "request_initial_load",
+            state = currentState,
+            componentInstanceId = componentInstanceId,
+            extra = "source=$source savedViewportAnchor=${savedViewport?.anchorMessageId ?: 0L}"
+        )
+        ChatConversationLog.logPerf(
+            component = this,
+            phase = "initial_load_trigger",
+            source = source,
+            anchorId = savedViewport?.anchorMessageId
+        )
+        loadMessages(loadSource = source)
     }
 
     private fun loadMembers() {
@@ -542,12 +680,31 @@ class DefaultChatComponent(
     override fun onScrollCommandConsumed() = store.accept(ChatStore.Intent.ScrollCommandConsumed)
 
     override fun onViewportSettled() {
+        val before = _state.value.viewportPhase
+        val currentThreadId = _state.value.effectiveThreadId()
+        val sessionId = activeLoadSession?.sessionId
+        ChatConversationLog.logViewportState(
+            event = "on_viewport_settled_before",
+            state = _state.value,
+            componentInstanceId = componentInstanceId
+        )
         _state.update {
             if (it.viewportPhase == ChatViewportPhase.Settled) {
                 it
             } else {
                 it.copy(viewportPhase = ChatViewportPhase.Settled)
             }
+        }
+        ChatConversationLog.logViewportState(
+            event = "on_viewport_settled_after",
+            state = _state.value,
+            componentInstanceId = componentInstanceId,
+            extra = "before=$before sessionId=${sessionId ?: "none"}"
+        )
+        if (before != ChatViewportPhase.Settled) {
+            ChatConversationLog.logPerf(component = this, phase = "viewport_settled")
+            ChatOpenPerfBridge.clearSession(chatId, currentThreadId, sessionId)
+            activeLoadSession = null
         }
     }
 

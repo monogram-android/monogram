@@ -255,6 +255,14 @@ internal fun ChatContentList(
     val latestState by rememberUpdatedState(state)
     var lastOlderLoadTriggerUptimeMs by remember { mutableLongStateOf(0L) }
     var lastNewerLoadTriggerUptimeMs by remember { mutableLongStateOf(0L) }
+    var lastOlderAnchorTriggerId by remember(
+        state.chatId,
+        state.currentTopicId
+    ) { mutableStateOf<Long?>(null) }
+    var lastNewerAnchorTriggerId by remember(
+        state.chatId,
+        state.currentTopicId
+    ) { mutableStateOf<Long?>(null) }
     val loadTriggerThrottleMs = 350L
     val groupedMessageIds =
         remember(groupedMessages) { groupedMessages.map(GroupedMessageItem::firstMessageId) }
@@ -495,30 +503,56 @@ internal fun ChatContentList(
                         0
                     )
                 val now = SystemClock.uptimeMillis()
+                val olderAnchorId = if (isComments) {
+                    currentState.messages.firstOrNull { it.id > 0 }?.id
+                } else {
+                    currentState.messages.lastOrNull { it.id > 0 }?.id
+                }
+                val newerAnchorId = if (isComments) {
+                    currentState.messages.lastOrNull { it.id > 0 }?.id
+                } else {
+                    currentState.messages.firstOrNull { it.id > 0 }?.id
+                }
+                val decision = decideEdgeLoad(
+                    isComments = isComments,
+                    isOldestLoaded = currentState.isOldestLoaded,
+                    isLatestLoaded = currentState.isLatestLoaded,
+                    isAtBottom = currentState.isAtBottom,
+                    nearOlderEdge = if (isComments) nearStartForOlder else nearEnd,
+                    nearNewerEdge = if (isComments) nearEndForNewer else nearStartForNewer,
+                    olderAnchorId = olderAnchorId,
+                    newerAnchorId = newerAnchorId,
+                    lastOlderAnchorId = lastOlderAnchorTriggerId,
+                    lastNewerAnchorId = lastNewerAnchorTriggerId
+                )
 
                 if (isComments) {
                     if (!scrollState.isScrollInProgress) return@collect
 
-                    if (nearStartForOlder && !currentState.isOldestLoaded) {
+                    if (decision.shouldLoadOlder) {
                         if (now - lastOlderLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
                             lastOlderLoadTriggerUptimeMs = now
+                            lastOlderAnchorTriggerId = decision.nextOlderAnchorId
                             component.loadMore()
                         }
-                    } else if (nearEndForNewer && !currentState.isLatestLoaded) {
+                    } else if (decision.shouldLoadNewer) {
                         if (now - lastNewerLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
                             lastNewerLoadTriggerUptimeMs = now
+                            lastNewerAnchorTriggerId = decision.nextNewerAnchorId
                             component.loadNewer()
                         }
                     }
                 } else {
-                    if (nearEnd && !currentState.isOldestLoaded) {
+                    if (decision.shouldLoadOlder) {
                         if (now - lastOlderLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
                             lastOlderLoadTriggerUptimeMs = now
+                            lastOlderAnchorTriggerId = decision.nextOlderAnchorId
                             component.loadMore()
                         }
-                    } else if (nearStartForNewer && !currentState.isAtBottom && !currentState.isLatestLoaded) {
+                    } else if (decision.shouldLoadNewer) {
                         if (now - lastNewerLoadTriggerUptimeMs >= loadTriggerThrottleMs) {
                             lastNewerLoadTriggerUptimeMs = now
+                            lastNewerAnchorTriggerId = decision.nextNewerAnchorId
                             component.loadNewer()
                         }
                     }

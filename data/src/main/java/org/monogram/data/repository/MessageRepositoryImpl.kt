@@ -1,6 +1,7 @@
 package org.monogram.data.repository
 
 import android.content.Context
+import android.os.Trace
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 import org.monogram.core.DispatcherProvider
+import org.monogram.core.perf.ChatOpenPerfBridge
+import org.monogram.core.perf.ChatOpenPerfDebug
+import org.monogram.data.BuildConfig
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.compat.buildDraftMessageTextContent
 import org.monogram.data.compat.buildTdChatPermissions
@@ -625,9 +629,20 @@ internal class MessageRepositoryImpl(
             }
 
             try {
-                val remotePage = messageRemoteDataSource.getMessagesOlder(chatId, fromMessageId, limit, threadId)
-                persistRemoteMessages(chatId, remotePage.messages)
-                remotePage
+                traceSection("chat_history_tdlib") {
+                    val remotePage = messageRemoteDataSource.getRemoteMessagesOlder(
+                        chatId,
+                        fromMessageId,
+                        limit,
+                        threadId
+                    )
+                    persistRemoteBatch(chatId, remotePage.rawMessages, remotePage.models, threadId)
+                    OlderMessagesPage(
+                        messages = remotePage.models,
+                        reachedOldest = remotePage.reachedOldest,
+                        isRemote = remotePage.isRemote
+                    )
+                }
             } catch (e: Exception) {
                 val fallbackMessages = if (cached.isNotEmpty()) {
                     cached
@@ -657,9 +672,21 @@ internal class MessageRepositoryImpl(
     ): List<MessageModel> =
         withContext(dispatcherProvider.io) {
             try {
-                val remoteMessages = messageRemoteDataSource.getMessagesNewer(chatId, fromMessageId, limit, threadId)
-                persistRemoteMessages(chatId, remoteMessages)
-                remoteMessages
+                traceSection("chat_history_tdlib") {
+                    val remoteBatch = messageRemoteDataSource.getRemoteMessagesNewer(
+                        chatId,
+                        fromMessageId,
+                        limit,
+                        threadId
+                    )
+                    persistRemoteBatch(
+                        chatId,
+                        remoteBatch.rawMessages,
+                        remoteBatch.models,
+                        threadId
+                    )
+                    remoteBatch.models
+                }
             } catch (e: Exception) {
                 chatLocalDataSource.getMessagesNewer(chatId, fromMessageId, limit)
                     .let { mapLocalMessages(it) }
@@ -694,9 +721,21 @@ internal class MessageRepositoryImpl(
     ): List<MessageModel> =
         withContext(dispatcherProvider.io) {
             try {
-                val remoteMessages = messageRemoteDataSource.getMessagesAround(chatId, messageId, limit, threadId)
-                persistRemoteMessages(chatId, remoteMessages)
-                remoteMessages
+                traceSection("chat_history_tdlib") {
+                    val remoteBatch = messageRemoteDataSource.getRemoteMessagesAround(
+                        chatId,
+                        messageId,
+                        limit,
+                        threadId
+                    )
+                    persistRemoteBatch(
+                        chatId,
+                        remoteBatch.rawMessages,
+                        remoteBatch.models,
+                        threadId
+                    )
+                    remoteBatch.models
+                }
             } catch (e: Exception) {
                 val local = chatLocalDataSource.getMessagesAround(chatId, messageId, limit)
                 mapLocalMessages(local)
@@ -1774,23 +1813,51 @@ internal class MessageRepositoryImpl(
         }
     }
 
-    private fun persistRemoteMessages(chatId: Long, remoteMessages: List<MessageModel>) {
+    private fun persistRemoteBatch(
+        chatId: Long,
+        rawMessages: List<TdApi.Message>,
+        remoteMessages: List<MessageModel>,
+        threadId: Long?
+    ) {
         scope.launch(dispatcherProvider.io) {
+            if (remoteMessages.isEmpty() || rawMessages.isEmpty()) return@launch
             val existingById = chatLocalDataSource
                 .getMessagesByIds(chatId, remoteMessages.map { it.id })
                 .associateBy { it.id }
-            val entities = remoteMessages.mapNotNull { model ->
-                val existing = existingById[model.id]
+            var skippedCount = 0
+            val entities = rawMessages.zip(remoteMessages).mapNotNull { (rawMessage, model) ->
+                val existing = existingById[rawMessage.id]
                 if (existing != null && existing.isSamePersistedMessage(model)) {
+                    skippedCount += 1
                     return@mapNotNull null
                 }
-                messageRemoteDataSource.getMessage(model.chatId, model.id)?.let { message ->
-                    messageMapper.mapToEntity(message, ::resolveSenderName)
-                }
+                messageMapper.mapToEntity(rawMessage, ::resolveSenderName)
             }
             if (entities.isNotEmpty()) {
-                chatLocalDataSource.insertMessages(entities)
+                traceSection("chat_history_persist") {
+                    chatLocalDataSource.insertMessages(entities)
+                }
             }
+            ChatOpenPerfBridge.recordPersist(chatId, threadId, entities.size, skippedCount)
+            if (BuildConfig.DEBUG) {
+                Log.d(
+                    ChatOpenPerfDebug.TAG,
+                    ChatOpenPerfDebug.buildLogMessage(
+                        chatId = chatId,
+                        threadId = threadId,
+                        event = "chat_history_persist_end"
+                    )
+                )
+            }
+        }
+    }
+
+    private inline fun <T> traceSection(section: String, block: () -> T): T {
+        Trace.beginSection(section)
+        return try {
+            block()
+        } finally {
+            Trace.endSection()
         }
     }
 

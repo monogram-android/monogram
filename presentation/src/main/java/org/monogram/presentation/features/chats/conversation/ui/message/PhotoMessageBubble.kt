@@ -3,15 +3,13 @@ package org.monogram.presentation.features.chats.conversation.ui.message
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
@@ -129,19 +127,24 @@ fun PhotoMessageBubble(
     var imagePosition by remember { mutableStateOf(Offset.Zero) }
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
     var isMediaSpoilerRevealed by remember { mutableStateOf(!content.hasSpoiler) }
+    val mediaRatio = remember(content.width, content.height) {
+        resolveMediaBubbleAspectRatio(content.width, content.height)
+    }
 
-    Column(
-        modifier = modifier.width(IntrinsicSize.Max),
-        horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
-    ) {
-        Surface(
-            shape = bubbleShape,
-            color = if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+    BoxWithConstraints(modifier = modifier) {
+        val bubbleWidth = resolveMediaBubbleWidth(maxWidth)
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
         ) {
-            Column(modifier = Modifier
-                .widthIn(max = 280.dp)
+            Surface(
+                modifier = Modifier.width(bubbleWidth),
+                shape = bubbleShape,
+                color = if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
             ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                 if (isGroup && !isOutgoing && !isSameSenderAbove) {
                     Box(
                         modifier = Modifier
@@ -181,41 +184,36 @@ fun PhotoMessageBubble(
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 160.dp, max = 320.dp)
-                        .aspectRatio(
-                            if (content.width > 0 && content.height > 0)
-                                (content.width.toFloat() / content.height.toFloat()).coerceIn(
-                                    0.5f,
-                                    2f
-                                )
-                            else 1f
-                        )
-                        .clipToBounds()
-                        .onGloballyPositioned { imagePosition = it.positionInWindow() }
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onTap = {
-                                    if (content.hasSpoiler) {
-                                        isMediaSpoilerRevealed = !isMediaSpoilerRevealed
-                                    } else if (content.isDownloading) {
-                                        AutoDownloadSuppression.suppress(content.fileId)
-                                        onCancelDownload(content.fileId)
-                                    } else {
-                                        AutoDownloadSuppression.clear(content.fileId)
-                                        if (hasPath) {
-                                            onPhotoClick(msg)
-                                        } else {
-                                            onDownloadPhoto(content.fileId)
-                                        }
-                                    }
-                                },
-                                onLongPress = { offset -> onLongClick(imagePosition + offset) }
-                            )
-                        }
-                ) {
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val mediaHeight = resolveMediaBubbleHeight(bubbleWidth, mediaRatio)
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(mediaHeight)
+                                .clipToBounds()
+                                .onGloballyPositioned { imagePosition = it.positionInWindow() }
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = {
+                                            if (content.hasSpoiler) {
+                                                isMediaSpoilerRevealed = !isMediaSpoilerRevealed
+                                            } else if (content.isDownloading) {
+                                                AutoDownloadSuppression.suppress(content.fileId)
+                                                onCancelDownload(content.fileId)
+                                            } else {
+                                                AutoDownloadSuppression.clear(content.fileId)
+                                                if (hasPath) {
+                                                    onPhotoClick(msg)
+                                                } else {
+                                                    onDownloadPhoto(content.fileId)
+                                                }
+                                            }
+                                        },
+                                        onLongPress = { offset -> onLongClick(imagePosition + offset) }
+                                    )
+                                }
+                        ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -308,6 +306,7 @@ fun PhotoMessageBubble(
                         }
                     }
                 }
+                    }
 
                 if (content.caption.isNotEmpty()) {
                     val timeColor = if (isOutgoing)
@@ -367,14 +366,15 @@ fun PhotoMessageBubble(
                     }
                 }
             }
-        }
+            }
 
-        if (showReactions) {
-            MessageReactionsView(
-                reactions = msg.reactions,
-                onReactionClick = onReactionClick,
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
+            if (showReactions) {
+                MessageReactionsView(
+                    reactions = msg.reactions,
+                    onReactionClick = onReactionClick,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
         }
     }
 }

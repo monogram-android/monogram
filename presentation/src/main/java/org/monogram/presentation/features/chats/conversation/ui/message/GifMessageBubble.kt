@@ -7,18 +7,16 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -61,12 +59,12 @@ import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.presentation.R
+import org.monogram.presentation.core.media.VideoStickerPlayer
+import org.monogram.presentation.core.media.VideoType
 import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.namespacedCacheKey
 import org.monogram.presentation.features.chats.conversation.AutoDownloadSuppression
-import org.monogram.presentation.core.media.VideoStickerPlayer
-import org.monogram.presentation.core.media.VideoType
 
 @OptIn(UnstableApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -154,19 +152,24 @@ fun GifMessageBubble(
     var gifPosition by remember { mutableStateOf(Offset.Zero) }
     val revealedSpoilers = remember { mutableStateListOf<Int>() }
     var isMediaSpoilerRevealed by remember { mutableStateOf(!content.hasSpoiler) }
+    val mediaRatio = remember(content.width, content.height) {
+        resolveMediaBubbleAspectRatio(content.width, content.height)
+    }
 
-    Column(
-        modifier = modifier.width(IntrinsicSize.Max),
-        horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
-    ) {
-        Surface(
-            shape = bubbleShape,
-            color = if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+    BoxWithConstraints(modifier = modifier) {
+        val bubbleWidth = resolveMediaBubbleWidth(maxWidth)
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
         ) {
-            Column(modifier = Modifier
-                .widthIn(min = 160.dp, max = 320.dp)
+            Surface(
+                modifier = Modifier.width(bubbleWidth),
+                shape = bubbleShape,
+                color = if (isOutgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
             ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                 msg.forwardInfo?.let { forward ->
                     Box(
                         modifier = Modifier
@@ -194,22 +197,21 @@ fun GifMessageBubble(
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 160.dp, max = 360.dp)
-                        .aspectRatio(
-                            if (content.width > 0 && content.height > 0)
-                                (content.width.toFloat() / content.height.toFloat()).coerceIn(
-                                    0.5f,
-                                    2f
-                                )
-                            else 1f
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val mediaHeight = resolveMediaBubbleHeight(
+                            containerWidth = bubbleWidth,
+                            aspectRatio = mediaRatio,
+                            maxHeight = 360.dp
                         )
-                        .clipToBounds()
-                        .onGloballyPositioned { gifPosition = it.positionInWindow() }
 
-                ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(mediaHeight)
+                                .clipToBounds()
+                                .onGloballyPositioned { gifPosition = it.positionInWindow() }
+
+                        ) {
                     if (!stablePath.isNullOrBlank()) {
                             if (autoplayGifs) {
                                 VideoStickerPlayer(
@@ -388,6 +390,7 @@ fun GifMessageBubble(
                         }
                     }
                 }
+                    }
 
                 if (content.caption.isNotEmpty()) {
                     val timeColor =
@@ -471,14 +474,15 @@ fun GifMessageBubble(
                     }
                 }
             }
-        }
+            }
 
-        if (showReactions) {
-            MessageReactionsView(
-                reactions = msg.reactions,
-                onReactionClick = onReactionClick,
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
+            if (showReactions) {
+                MessageReactionsView(
+                    reactions = msg.reactions,
+                    onReactionClick = onReactionClick,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
         }
     }
 }

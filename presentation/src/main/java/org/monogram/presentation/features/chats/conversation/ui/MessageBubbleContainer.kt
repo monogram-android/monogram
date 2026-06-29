@@ -58,6 +58,7 @@ import org.monogram.presentation.features.chats.conversation.ui.message.VenueMes
 import org.monogram.presentation.features.chats.conversation.ui.message.VideoMessageBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.VideoNoteBubble
 import org.monogram.presentation.features.chats.conversation.ui.message.VoiceMessageBubble
+import org.monogram.presentation.features.chats.conversation.ui.message.prefersExpandedBubbleWidth
 
 @Composable
 internal fun MessageBubbleContainer(
@@ -159,6 +160,9 @@ internal fun MessageBubbleContainer(
             )
         }
     }
+    val contentPrefersExpandedWidth = remember(msg.content) {
+        msg.content.prefersExpandedBubbleWidth()
+    }
 
     MessageBubbleGestureLayer(
         modifier = Modifier.padding(top = topSpacing),
@@ -220,7 +224,13 @@ internal fun MessageBubbleContainer(
                     ) {
                         MessageBubbleContentHost(
                             modifier = Modifier
-                                .width(IntrinsicSize.Max)
+                                .then(
+                                    if (contentPrefersExpandedWidth) {
+                                        Modifier.fillMaxWidth()
+                                    } else {
+                                        Modifier.width(IntrinsicSize.Max)
+                                    }
+                                )
                                 .widthIn(max = maxWidth),
                             msg = msg,
                             newerMsg = newerMsg,
@@ -493,9 +503,16 @@ private fun MessageContentSelector(
     val finalMsg = remember(msg, appearance.showReactions) {
         if (appearance.showReactions) msg else msg.copy(reactions = emptyList())
     }
+    val contentPrefersExpandedWidth = remember(finalMsg.content) {
+        finalMsg.content.prefersExpandedBubbleWidth()
+    }
 
     Column(
-        modifier = Modifier.width(IntrinsicSize.Max),
+        modifier = if (contentPrefersExpandedWidth) {
+            Modifier.fillMaxWidth()
+        } else {
+            Modifier.width(IntrinsicSize.Max)
+        },
         horizontalAlignment = if (isOutgoing) Alignment.End else Alignment.Start
     ) {
         when (val content = finalMsg.content) {
@@ -667,6 +684,7 @@ private fun MessageContentSelector(
                     onReactionClick = { onReactionClick(msg.id, it) },
                     toProfile = toProfile,
                     onForwardOriginClick = onForwardOriginClick,
+                    modifier = Modifier.fillMaxWidth(),
                     downloadUtils = downloadUtils,
                     isAnyViewerOpen = isAnyViewerOpen
                 )

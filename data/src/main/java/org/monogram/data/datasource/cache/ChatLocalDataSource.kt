@@ -25,6 +25,7 @@ interface ChatLocalDataSource {
     suspend fun getMessagesByIds(chatId: Long, messageIds: List<Long>): List<MessageEntity>
     suspend fun insertMessage(message: MessageEntity)
     suspend fun insertMessages(messages: List<MessageEntity>)
+    suspend fun replaceMessage(message: MessageEntity)
     suspend fun replaceMessageId(chatId: Long, oldMessageId: Long, message: MessageEntity)
     suspend fun markAsRead(chatId: Long, upToMessageId: Long)
     suspend fun updateMessageContent(

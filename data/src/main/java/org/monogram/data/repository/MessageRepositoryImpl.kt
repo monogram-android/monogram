@@ -207,8 +207,7 @@ internal class MessageRepositoryImpl(
     private suspend fun processCachedUpdate(update: TdApi.Update) {
         when (update) {
             is TdApi.UpdateNewMessage -> {
-                val entity = messageMapper.mapToEntity(update.message, ::resolveSenderName)
-                chatLocalDataSource.insertMessage(entity)
+                persistMappedMessage(update.message)
             }
 
             is TdApi.UpdateMessageSendSucceeded -> {
@@ -220,22 +219,19 @@ internal class MessageRepositoryImpl(
                 )
             }
 
+            is TdApi.UpdateMessageSendFailed -> {
+                val entity = messageMapper.mapToEntity(update.message, ::resolveSenderName)
+                chatLocalDataSource.replaceMessageId(
+                    chatId = update.message.chatId,
+                    oldMessageId = update.oldMessageId,
+                    message = entity
+                )
+            }
+
             is TdApi.UpdateMessageContent -> {
+                if (refreshPersistedMessage(update.chatId, update.messageId)) return
+
                 val extracted = messageMapper.extractCachedContent(update.newContent)
-
-                if (update.newContent is TdApi.MessagePhoto && extracted.text.isBlank()) {
-                    val refreshed = messageRemoteDataSource.getMessage(update.chatId, update.messageId)
-                    if (refreshed != null) {
-                        chatLocalDataSource.insertMessage(
-                            messageMapper.mapToEntity(
-                                refreshed,
-                                ::resolveSenderName
-                            )
-                        )
-                        return
-                    }
-                }
-
                 chatLocalDataSource.updateMessageContent(
                     chatId = update.chatId,
                     messageId = update.messageId,
@@ -249,18 +245,11 @@ internal class MessageRepositoryImpl(
             }
 
             is TdApi.UpdateMessageEdited -> {
-                val updated = messageRemoteDataSource.getMessage(update.chatId, update.messageId)
-                if (updated != null) {
-                    chatLocalDataSource.insertMessage(
-                        messageMapper.mapToEntity(
-                            updated,
-                            ::resolveSenderName
-                        )
-                    )
-                }
+                refreshPersistedMessage(update.chatId, update.messageId)
             }
 
             is TdApi.UpdateMessageInteractionInfo -> {
+                if (refreshPersistedMessage(update.chatId, update.messageId)) return
                 chatLocalDataSource.updateInteractionInfo(
                     chatId = update.chatId,
                     messageId = update.messageId,
@@ -268,6 +257,42 @@ internal class MessageRepositoryImpl(
                     forwardCount = update.interactionInfo?.forwardCount ?: 0,
                     replyCount = update.interactionInfo?.replyInfo?.replyCount ?: 0
                 )
+            }
+
+            is TdApi.UpdateMessageReaction,
+            is TdApi.UpdateMessageReactions,
+            is TdApi.UpdateMessageUnreadReactions,
+            is TdApi.UpdateMessageFactCheck,
+            is TdApi.UpdateMessageSuggestedPostInfo,
+            is TdApi.UpdateMessageIsPinned,
+            is TdApi.UpdateMessageContainsUnreadPollVotes,
+            is TdApi.UpdateMessageLiveLocationViewed,
+            is TdApi.UpdateMessageContentOpened -> {
+                val chatId = when (update) {
+                    is TdApi.UpdateMessageReaction -> update.chatId
+                    is TdApi.UpdateMessageReactions -> update.chatId
+                    is TdApi.UpdateMessageUnreadReactions -> update.chatId
+                    is TdApi.UpdateMessageFactCheck -> update.chatId
+                    is TdApi.UpdateMessageSuggestedPostInfo -> update.chatId
+                    is TdApi.UpdateMessageIsPinned -> update.chatId
+                    is TdApi.UpdateMessageContainsUnreadPollVotes -> update.chatId
+                    is TdApi.UpdateMessageLiveLocationViewed -> update.chatId
+                    is TdApi.UpdateMessageContentOpened -> update.chatId
+                    else -> 0L
+                }
+                val messageId = when (update) {
+                    is TdApi.UpdateMessageReaction -> update.messageId
+                    is TdApi.UpdateMessageReactions -> update.messageId
+                    is TdApi.UpdateMessageUnreadReactions -> update.messageId
+                    is TdApi.UpdateMessageFactCheck -> update.messageId
+                    is TdApi.UpdateMessageSuggestedPostInfo -> update.messageId
+                    is TdApi.UpdateMessageIsPinned -> update.messageId
+                    is TdApi.UpdateMessageContainsUnreadPollVotes -> update.messageId
+                    is TdApi.UpdateMessageLiveLocationViewed -> update.messageId
+                    is TdApi.UpdateMessageContentOpened -> update.messageId
+                    else -> 0L
+                }
+                refreshPersistedMessage(chatId, messageId)
             }
 
             is TdApi.UpdateChatReadInbox -> {
@@ -294,6 +319,18 @@ internal class MessageRepositoryImpl(
                 textCompositionStyleDao.replaceAll(styles.map { it.toEntity() })
             }
         }
+    }
+
+    private suspend fun persistMappedMessage(message: TdApi.Message) {
+        chatLocalDataSource.replaceMessage(
+            messageMapper.mapToEntity(message, ::resolveSenderName)
+        )
+    }
+
+    private suspend fun refreshPersistedMessage(chatId: Long, messageId: Long): Boolean {
+        val refreshed = messageRemoteDataSource.getMessage(chatId, messageId) ?: return false
+        persistMappedMessage(refreshed)
+        return true
     }
 
     override suspend fun openChat(chatId: Long) {

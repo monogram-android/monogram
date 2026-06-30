@@ -4,14 +4,18 @@ import org.drinkless.tdlib.TdApi
 import org.monogram.data.chats.ChatCache
 import org.monogram.data.mapper.SenderNameResolver
 import org.monogram.data.mapper.TdFileHelper
+import org.monogram.data.mapper.toDomainReplyMarkup
 import org.monogram.data.mapper.toPageBlock
+import org.monogram.data.mapper.toPayload
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.ForwardOriginType
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageReactionModel
 import org.monogram.domain.models.PollType
+import org.monogram.domain.models.ReactionSender
 import org.monogram.domain.models.webapp.PageBlock
 import org.monogram.domain.models.webapp.RichText
 import org.monogram.domain.repository.StringProvider
@@ -91,6 +95,29 @@ internal class MessagePersistenceMapper(
         val replyToMessageId = (msg.replyTo as? TdApi.MessageReplyToMessage)?.messageId ?: 0L
         val replyToPreview = buildReplyPreview(msg)
         val forwardOrigin = msg.forwardInfo?.origin?.let(::extractForwardOrigin)
+        val cachedSenderUser = senderId.takeIf { it > 0L }?.let(cache::getUser)
+        val cachedSenderFullInfo = senderId.takeIf { it > 0L }?.let(cache::getUserFullInfo)
+        val senderPersonalAvatarPath = cachedSenderFullInfo
+            ?.personalPhoto
+            ?.sizes
+            ?.firstOrNull()
+            ?.photo
+            ?.let(fileHelper::resolveLocalFilePath)
+        val senderStatusEmojiId = when (val type = cachedSenderUser?.emojiStatus?.type) {
+            is TdApi.EmojiStatusTypeCustomEmoji -> type.customEmojiId
+            is TdApi.EmojiStatusTypeUpgradedGift -> type.modelCustomEmojiId
+            else -> 0L
+        }
+        val senderStatusEmojiPath: String? = null
+        val viaBotName = msg.viaBotUserId
+            .takeIf { it != 0L }
+            ?.let(cache::getUser)
+            ?.let { user ->
+                user.usernames?.editableUsername ?: user.firstName?.takeIf { it.isNotBlank() }
+            }
+        val isServiceMessage = content.type == "service"
+        val hasInteraction = msg.interactionInfo != null
+        val reactions = resolveReactions(msg)
 
         return MessageDbEntity(
             id = msg.id,
@@ -107,18 +134,53 @@ internal class MessagePersistenceMapper(
             date = resolveMessageDate(msg),
             isOutgoing = msg.isOutgoing,
             isRead = false,
+            replyMarkupData = msg.replyMarkup
+                ?.toDomainReplyMarkup()
+                ?.toPayload()
+                ?.encode(),
+            reactionsData = reactions
+                ?.takeIf { it.reactions.isNotEmpty() }
+                ?.encode(),
             replyToMessageId = replyToMessageId,
             replyToPreview = replyToPreview?.let(::encodeReplyPreview),
             replyToPreviewType = replyToPreview?.contentType,
             replyToPreviewText = replyToPreview?.text,
             replyToPreviewSenderName = replyToPreview?.senderName,
             replyCount = msg.interactionInfo?.replyInfo?.replyCount ?: 0,
+            threadId = resolveThreadId(msg),
+            viaBotUserId = msg.viaBotUserId,
+            viaBotName = viaBotName,
+            senderPersonalAvatarPath = senderPersonalAvatarPath,
+            senderCustomTitle = null,
+            isSenderAdmin = false,
+            isSenderVerified = cachedSenderUser?.verificationStatus?.isVerified ?: false,
+            isSenderPremium = cachedSenderUser?.isPremium ?: false,
+            senderStatusEmojiId = senderStatusEmojiId,
+            senderStatusEmojiPath = senderStatusEmojiPath,
             forwardFromName = forwardOrigin?.fromName,
             forwardFromId = forwardOrigin?.fromId ?: 0L,
             forwardOriginChatId = forwardOrigin?.originChatId,
             forwardOriginMessageId = forwardOrigin?.originMessageId,
             forwardDate = msg.forwardInfo?.date ?: 0,
             editDate = msg.editDate,
+            canBeEdited = msg.isOutgoing && !isServiceMessage,
+            canBeForwarded = !isServiceMessage,
+            canBeDeletedOnlyForSelf = true,
+            canBeDeletedForAllUsers = msg.isOutgoing,
+            canBeSaved = msg.canBeSaved,
+            canGetMessageThread = msg.interactionInfo?.replyInfo != null,
+            canGetStatistics = hasInteraction,
+            canGetRevenueStatistics = false,
+            canGetMediaStatistics = false,
+            canGetReadReceipts = hasInteraction,
+            canGetViewers = hasInteraction,
+            readDate = 0,
+            hasUnreadMention = msg.containsUnreadMention,
+            hasUnreadReactions = !msg.unreadReactions.isNullOrEmpty(),
+            isPinned = msg.isPinned,
+            containsUnreadPollVotes = msg.containsUnreadPollVotes,
+            suggestedPostInfoData = msg.suggestedPostInfo?.toDomain()?.toPayload()?.encode(),
+            factCheckData = msg.factCheck?.toDomain()?.toPayload()?.encode(),
             mediaAlbumId = msg.mediaAlbumId,
             entities = entitiesEncoded,
             viewCount = msg.interactionInfo?.viewCount ?: 0,
@@ -339,6 +401,11 @@ internal class MessagePersistenceMapper(
         val meta = decodeMeta(entity.contentMeta)
         val mediaFileId = entity.mediaFileId.takeIf { it != 0 } ?: 0
         entity.mediaPath?.takeIf { it.isNotBlank() }
+        val replyMarkup = decodeReplyMarkupPayload(entity.replyMarkupData)?.toDomain()
+        val reactions = decodeReactionsPayload(entity.reactionsData)?.toDomain().orEmpty()
+        val factCheck = decodeFactCheckPayload(entity.factCheckData)?.toDomain()
+        val suggestedPostInfo =
+            decodeSuggestedPostInfoPayload(entity.suggestedPostInfoData)?.toDomain()
         val replyToMsgId = entity.replyToMessageId.takeIf { it != 0L }
         val replyPreview = resolveReplyPreview(entity)
         val replyPreviewModel =
@@ -361,17 +428,19 @@ internal class MessagePersistenceMapper(
             cachedSenderChat != null -> fileHelper.resolveLocalFilePath(cachedSenderChat.photo?.small)
             else -> null
         }
-        val resolvedSenderPersonalAvatar = cache.getUserFullInfo(entity.senderId)
-            ?.personalPhoto
-            ?.sizes
-            ?.firstOrNull()
-            ?.photo
-            ?.let { fileHelper.resolveLocalFilePath(it) }
+        val resolvedSenderPersonalAvatar = entity.senderPersonalAvatarPath
+            ?.takeIf { it.isNotBlank() }
+            ?: cache.getUserFullInfo(entity.senderId)
+                ?.personalPhoto
+                ?.sizes
+                ?.firstOrNull()
+                ?.photo
+                ?.let { fileHelper.resolveLocalFilePath(it) }
 
         val senderStatusEmojiId = when (val type = cachedSenderUser?.emojiStatus?.type) {
             is TdApi.EmojiStatusTypeCustomEmoji -> type.customEmojiId
             is TdApi.EmojiStatusTypeUpgradedGift -> type.modelCustomEmojiId
-            else -> 0L
+            else -> entity.senderStatusEmojiId
         }
 
         val forwardInfo = entity.forwardFromName
@@ -623,6 +692,8 @@ internal class MessagePersistenceMapper(
             senderId = entity.senderId,
             senderAvatar = resolvedSenderAvatar,
             senderPersonalAvatar = resolvedSenderPersonalAvatar,
+            senderCustomTitle = entity.senderCustomTitle,
+            isSenderAdmin = entity.isSenderAdmin,
             isRead = entity.isRead,
             replyToMsgId = replyToMsgId,
             replyToMsg = replyPreviewModel,
@@ -631,10 +702,34 @@ internal class MessagePersistenceMapper(
             editDate = entity.editDate,
             views = entity.viewCount,
             viewCount = entity.viewCount,
+            readDate = entity.readDate,
+            reactions = reactions,
             replyCount = entity.replyCount,
-            isSenderVerified = cachedSenderUser?.verificationStatus?.isVerified ?: false,
-            isSenderPremium = cachedSenderUser?.isPremium ?: false,
-            senderStatusEmojiId = senderStatusEmojiId
+            isSenderVerified = entity.isSenderVerified || (cachedSenderUser?.verificationStatus?.isVerified == true),
+            threadId = entity.threadId,
+            canBeEdited = entity.canBeEdited,
+            canBeForwarded = entity.canBeForwarded,
+            canBeDeletedOnlyForSelf = entity.canBeDeletedOnlyForSelf,
+            canBeDeletedForAllUsers = entity.canBeDeletedForAllUsers,
+            canBeSaved = entity.canBeSaved,
+            canGetMessageThread = entity.canGetMessageThread,
+            canGetStatistics = entity.canGetStatistics,
+            canGetRevenueStatistics = entity.canGetRevenueStatistics,
+            canGetMediaStatistics = entity.canGetMediaStatistics,
+            canGetReadReceipts = entity.canGetReadReceipts,
+            canGetViewers = entity.canGetViewers,
+            replyMarkup = replyMarkup,
+            viaBotUserId = entity.viaBotUserId,
+            viaBotName = entity.viaBotName,
+            isSenderPremium = entity.isSenderPremium || (cachedSenderUser?.isPremium == true),
+            senderStatusEmojiId = senderStatusEmojiId,
+            senderStatusEmojiPath = entity.senderStatusEmojiPath,
+            isPinned = entity.isPinned,
+            hasUnreadMention = entity.hasUnreadMention,
+            hasUnreadReactions = entity.hasUnreadReactions,
+            containsUnreadPollVotes = entity.containsUnreadPollVotes,
+            factCheck = factCheck,
+            suggestedPostInfo = suggestedPostInfo
         )
     }
 
@@ -914,6 +1009,65 @@ internal class MessagePersistenceMapper(
         }
     }
 
+    private fun resolveReactions(msg: TdApi.Message): ReactionsPayload? {
+        val reactions = msg.interactionInfo?.reactions?.reactions.orEmpty().mapNotNull { reaction ->
+            val recentSenders = reaction.recentSenderIds.orEmpty().map { sender ->
+                when (sender) {
+                    is TdApi.MessageSenderUser -> {
+                        val user = cache.getUser(sender.userId)
+                        ReactionSender(
+                            id = sender.userId,
+                            name = SenderNameResolver.fromPartsOrBlank(
+                                user?.firstName,
+                                user?.lastName
+                            ),
+                            avatar = user?.profilePhoto?.small?.let(fileHelper::resolveLocalFilePath)
+                        )
+                    }
+
+                    is TdApi.MessageSenderChat -> {
+                        val chat = cache.getChat(sender.chatId)
+                        ReactionSender(
+                            id = sender.chatId,
+                            name = chat?.title.orEmpty(),
+                            avatar = chat?.photo?.small?.let(fileHelper::resolveLocalFilePath)
+                        )
+                    }
+
+                    else -> ReactionSender(0L)
+                }
+            }
+
+            when (val type = reaction.type) {
+                is TdApi.ReactionTypeEmoji -> MessageReactionModel(
+                    emoji = type.emoji,
+                    count = reaction.totalCount,
+                    isChosen = reaction.isChosen,
+                    recentSenders = recentSenders
+                )
+
+                is TdApi.ReactionTypeCustomEmoji -> MessageReactionModel(
+                    customEmojiId = type.customEmojiId,
+                    count = reaction.totalCount,
+                    isChosen = reaction.isChosen,
+                    recentSenders = recentSenders
+                )
+
+                else -> null
+            }
+        }
+
+        return reactions.takeIf { it.isNotEmpty() }?.toPayload()
+    }
+
+    private fun resolveThreadId(msg: TdApi.Message): Long? {
+        return when (val topic = msg.topicId) {
+            is TdApi.MessageTopicForum -> topic.forumTopicId.toLong()
+            is TdApi.MessageTopicThread -> topic.messageThreadId
+            else -> null
+        }
+    }
+
     private fun encodeEntities(content: TdApi.MessageContent): String? {
         val formatted = when (content) {
             is TdApi.MessageText -> content.text
@@ -1005,36 +1159,6 @@ internal class MessagePersistenceMapper(
             } ?: return@mapNotNull null
 
             MessageEntity(offset = offset, length = length, type = type)
-        }
-    }
-
-    private fun Array<TdApi.TextEntity>?.toDomainEntities(): List<MessageEntity> {
-        if (isNullOrEmpty()) return emptyList()
-        return mapNotNull { entity ->
-            val type = when (val entityType = entity.type) {
-                is TdApi.TextEntityTypeBold -> MessageEntityType.Bold
-                is TdApi.TextEntityTypeItalic -> MessageEntityType.Italic
-                is TdApi.TextEntityTypeUnderline -> MessageEntityType.Underline
-                is TdApi.TextEntityTypeStrikethrough -> MessageEntityType.Strikethrough
-                is TdApi.TextEntityTypeSpoiler -> MessageEntityType.Spoiler
-                is TdApi.TextEntityTypeCode -> MessageEntityType.Code
-                is TdApi.TextEntityTypePre -> MessageEntityType.Pre()
-                is TdApi.TextEntityTypePreCode -> MessageEntityType.Pre(entityType.language)
-                is TdApi.TextEntityTypeTextUrl -> MessageEntityType.TextUrl(entityType.url)
-                is TdApi.TextEntityTypeMention -> MessageEntityType.Mention
-                is TdApi.TextEntityTypeMentionName -> MessageEntityType.TextMention(entityType.userId)
-                is TdApi.TextEntityTypeHashtag -> MessageEntityType.Hashtag
-                is TdApi.TextEntityTypeBotCommand -> MessageEntityType.BotCommand
-                is TdApi.TextEntityTypeUrl -> MessageEntityType.Url
-                is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email
-                is TdApi.TextEntityTypePhoneNumber -> MessageEntityType.PhoneNumber
-                is TdApi.TextEntityTypeBankCardNumber -> MessageEntityType.BankCardNumber
-                is TdApi.TextEntityTypeCustomEmoji -> MessageEntityType.CustomEmoji(entityType.customEmojiId)
-                is TdApi.TextEntityTypeBlockQuote -> MessageEntityType.BlockQuote
-                is TdApi.TextEntityTypeExpandableBlockQuote -> MessageEntityType.BlockQuoteExpandable
-                else -> MessageEntityType.Other(entityType.javaClass.simpleName)
-            }
-            MessageEntity(entity.offset, entity.length, type)
         }
     }
 

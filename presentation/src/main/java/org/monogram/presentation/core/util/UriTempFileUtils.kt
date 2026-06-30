@@ -19,11 +19,7 @@ fun Context.copyUriToTempMediaFile(uri: Uri): CopiedUriFile? {
         uri = uri,
         directoryName = "shared_media",
         fallbackFileName = { mimeType ->
-            val extension = when {
-                mimeType?.contains("video") == true -> "mp4"
-                mimeType?.contains("gif") == true -> "gif"
-                else -> "jpg"
-            }
+            val extension = resolveMediaExtension(mimeType)
             "attach_${System.nanoTime()}.$extension"
         }
     )
@@ -34,14 +30,54 @@ fun Context.copyUriToTempDocumentFile(uri: Uri): CopiedUriFile? {
         uri = uri,
         directoryName = "shared_documents",
         fallbackFileName = { mimeType ->
-            when {
-                mimeType?.startsWith("application/pdf") == true ->
-                    "document_${System.nanoTime()}.pdf"
-
-                else -> "document_${System.nanoTime()}.bin"
-            }
+            "document_${System.nanoTime()}.${resolveDocumentExtension(mimeType)}"
         }
     )
+}
+
+internal fun resolveMediaExtension(mimeType: String?): String {
+    val normalizedMimeType = mimeType?.substringBefore(';')?.trim()?.lowercase()
+    return when {
+        normalizedMimeType.isNullOrBlank() -> "jpg"
+        normalizedMimeType == "image/gif" -> "gif"
+        normalizedMimeType.startsWith("video/") -> resolveKnownSubtype(normalizedMimeType) ?: "mp4"
+        normalizedMimeType.startsWith("image/") -> resolveExtensionFromMimeType(normalizedMimeType)
+            ?: "jpg"
+
+        else -> resolveExtensionFromMimeType(normalizedMimeType) ?: "jpg"
+    }
+}
+
+internal fun resolveDocumentExtension(mimeType: String?): String {
+    if (mimeType.isNullOrBlank()) return "bin"
+    return resolveExtensionFromMimeType(mimeType) ?: "bin"
+}
+
+private fun resolveExtensionFromMimeType(mimeType: String): String? {
+    return when (val normalizedMimeType = mimeType.substringBefore(';').trim().lowercase()) {
+        "image/jpeg" -> "jpg"
+        "image/png" -> "png"
+        "image/webp" -> "webp"
+        "image/heic" -> "heic"
+        "image/heif" -> "heif"
+        "image/avif" -> "avif"
+        "application/pdf" -> "pdf"
+        else -> resolveKnownSubtype(normalizedMimeType)
+    }
+}
+
+private fun resolveKnownSubtype(mimeType: String): String? {
+    val normalizedMimeType = mimeType.substringBefore(';').trim().lowercase()
+    val subtype = normalizedMimeType.substringAfter('/', "")
+    if (subtype.isBlank()) return null
+    if (subtype == "unknown" || subtype == "octet-stream") return null
+    return when (subtype) {
+        "jpeg" -> "jpg"
+        "svg+xml" -> "svg"
+        else -> subtype.takeIf { candidate ->
+            candidate.all { it.isLetterOrDigit() || it == '+' || it == '-' || it == '.' }
+        }?.substringBefore('+')
+    }
 }
 
 fun Context.copyUriToTempFile(

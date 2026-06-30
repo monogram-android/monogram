@@ -2,6 +2,8 @@ package org.monogram.data.datasource.cache
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.data.db.model.ChatEntity
 import org.monogram.data.db.model.MessageEntity
@@ -77,6 +79,48 @@ class InMemoryChatLocalDataSourceTest {
         assertEquals(listOf(30L, 40L), result.map { it.id })
     }
 
+    @Test
+    fun `replaceMessage preserves ordering and replaces rich fields`() = runBlocking {
+        val source = InMemoryChatLocalDataSource()
+        source.insertMessage(
+            message(
+                id = 100L,
+                chatId = 1L,
+                content = "old",
+                date = 100,
+                replyMarkupData = "markup-old",
+                reactionsData = "reactions-old",
+                isPinned = false,
+                hasUnreadReactions = false
+            )
+        )
+        source.insertMessage(message(id = 200L, chatId = 1L, content = "newer", date = 200))
+
+        source.replaceMessage(
+            message(
+                id = 100L,
+                chatId = 1L,
+                content = "updated",
+                date = 100,
+                replyMarkupData = "markup-new",
+                reactionsData = "reactions-new",
+                isPinned = true,
+                hasUnreadReactions = true
+            )
+        )
+
+        val result = source.getLatestMessages(chatId = 1L, limit = 10)
+        val replaced = result.last { it.id == 100L }
+
+        assertEquals(listOf(200L, 100L), result.map { it.id })
+        assertEquals("updated", replaced.content)
+        assertEquals("markup-new", replaced.replyMarkupData)
+        assertEquals("reactions-new", replaced.reactionsData)
+        assertTrue(replaced.isPinned)
+        assertTrue(replaced.hasUnreadReactions)
+        assertFalse(replaced.replyMarkupData == "markup-old")
+    }
+
     private fun chat(id: Long, order: Long, isPinned: Boolean): ChatEntity =
         ChatEntity(
             id = id,
@@ -96,7 +140,16 @@ class InMemoryChatLocalDataSourceTest {
             onlineCount = 0
         )
 
-    private fun message(id: Long, chatId: Long, content: String, date: Int = 100): MessageEntity =
+    private fun message(
+        id: Long,
+        chatId: Long,
+        content: String,
+        date: Int = 100,
+        replyMarkupData: String? = null,
+        reactionsData: String? = null,
+        isPinned: Boolean = false,
+        hasUnreadReactions: Boolean = false
+    ): MessageEntity =
         MessageEntity(
             id = id,
             chatId = chatId,
@@ -105,6 +158,10 @@ class InMemoryChatLocalDataSourceTest {
             content = content,
             date = date,
             isOutgoing = true,
-            isRead = false
+            isRead = false,
+            replyMarkupData = replyMarkupData,
+            reactionsData = reactionsData,
+            isPinned = isPinned,
+            hasUnreadReactions = hasUnreadReactions
         )
 }

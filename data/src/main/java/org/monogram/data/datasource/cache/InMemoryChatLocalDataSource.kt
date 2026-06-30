@@ -128,6 +128,10 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
         messages.forEach { insertMessage(it) }
     }
 
+    override suspend fun replaceMessage(message: MessageEntity) {
+        insertMessage(message)
+    }
+
     override suspend fun replaceMessageId(
         chatId: Long,
         oldMessageId: Long,

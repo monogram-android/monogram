@@ -46,8 +46,39 @@ data class MessageModel(
     val viaBotName: String? = null,
     val isSenderPremium: Boolean = false,
     val senderStatusEmojiId: Long = 0L,
-    val senderStatusEmojiPath: String? = null
+    val senderStatusEmojiPath: String? = null,
+    val isPinned: Boolean = false,
+    val hasUnreadMention: Boolean = false,
+    val hasUnreadReactions: Boolean = false,
+    val containsUnreadPollVotes: Boolean = false,
+    val factCheck: FactCheckModel? = null,
+    val suggestedPostInfo: SuggestedPostInfoModel? = null
 )
+
+data class FactCheckModel(
+    val text: String,
+    val entities: List<MessageEntity> = emptyList(),
+    val countryCode: String? = null
+)
+
+data class SuggestedPostInfoModel(
+    val price: SuggestedPostPriceModel? = null,
+    val sendDate: Int = 0,
+    val state: SuggestedPostStateModel = SuggestedPostStateModel.PENDING,
+    val canBeApproved: Boolean = false,
+    val canBeDeclined: Boolean = false
+)
+
+sealed interface SuggestedPostPriceModel {
+    data class Star(val starCount: Long) : SuggestedPostPriceModel
+    data class Ton(val toncoinCentCount: Long) : SuggestedPostPriceModel
+}
+
+enum class SuggestedPostStateModel {
+    PENDING,
+    APPROVED,
+    DECLINED
+}
 
 data class ForwardInfo(
     val date: Int,

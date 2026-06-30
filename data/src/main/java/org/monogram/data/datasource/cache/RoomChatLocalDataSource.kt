@@ -68,6 +68,8 @@ class RoomChatLocalDataSource(
 
     override suspend fun insertMessages(messages: List<MessageEntity>) = messageDao.insertMessages(messages)
 
+    override suspend fun replaceMessage(message: MessageEntity) = messageDao.insertMessage(message)
+
     override suspend fun replaceMessageId(
         chatId: Long,
         oldMessageId: Long,

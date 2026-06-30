@@ -1,7 +1,14 @@
 package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
-import org.monogram.domain.models.*
+import org.monogram.data.mapper.message.ReplyMarkupPayload
+import org.monogram.domain.models.InlineKeyboardButtonModel
+import org.monogram.domain.models.InlineKeyboardButtonType
+import org.monogram.domain.models.KeyboardButtonModel
+import org.monogram.domain.models.KeyboardButtonType
+import org.monogram.domain.models.ReplyMarkupModel
+import org.monogram.data.mapper.message.toDomain as payloadToDomain
+import org.monogram.data.mapper.message.toPayload as domainToPayload
 
 internal fun TdApi.ReplyMarkup?.toDomainReplyMarkup(): ReplyMarkupModel? {
     return when (this) {
@@ -70,3 +77,7 @@ internal fun TdApi.ReplyMarkup?.toDomainReplyMarkup(): ReplyMarkupModel? {
         else -> null
     }
 }
+
+internal fun ReplyMarkupModel.toPayload(): ReplyMarkupPayload = domainToPayload()
+
+internal fun ReplyMarkupPayload.toDomainReplyMarkup(): ReplyMarkupModel = payloadToDomain()

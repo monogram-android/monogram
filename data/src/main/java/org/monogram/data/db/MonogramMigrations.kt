@@ -349,6 +349,41 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_35_36 = object : Migration(35, 36) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.addColumn("messages", "replyMarkupData", "TEXT")
+            db.addColumn("messages", "reactionsData", "TEXT")
+            db.addColumn("messages", "threadId", "INTEGER")
+            db.addColumn("messages", "viaBotUserId", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "viaBotName", "TEXT")
+            db.addColumn("messages", "senderPersonalAvatarPath", "TEXT")
+            db.addColumn("messages", "senderCustomTitle", "TEXT")
+            db.addColumn("messages", "isSenderAdmin", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "isSenderVerified", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "isSenderPremium", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "senderStatusEmojiId", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "senderStatusEmojiPath", "TEXT")
+            db.addColumn("messages", "canBeEdited", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "canBeForwarded", "INTEGER NOT NULL DEFAULT 1")
+            db.addColumn("messages", "canBeDeletedOnlyForSelf", "INTEGER NOT NULL DEFAULT 1")
+            db.addColumn("messages", "canBeDeletedForAllUsers", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "canBeSaved", "INTEGER NOT NULL DEFAULT 1")
+            db.addColumn("messages", "canGetMessageThread", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "canGetStatistics", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "canGetRevenueStatistics", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "canGetMediaStatistics", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "canGetReadReceipts", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "canGetViewers", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "readDate", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "hasUnreadMention", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "hasUnreadReactions", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "isPinned", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "containsUnreadPollVotes", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumn("messages", "suggestedPostInfoData", "TEXT")
+            db.addColumn("messages", "factCheckData", "TEXT")
+        }
+    }
+
     private fun SupportSQLiteDatabase.addColumn(table: String, column: String, definition: String) {
         execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
     }

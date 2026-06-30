@@ -18,6 +18,8 @@ import org.monogram.data.mapper.message.ContentMappingContext
 import org.monogram.data.mapper.message.MessageContentMapper
 import org.monogram.data.mapper.message.MessagePersistenceMapper
 import org.monogram.data.mapper.message.MessageSenderResolver
+import org.monogram.data.mapper.message.toDomain
+import org.monogram.domain.models.FactCheckModel
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.ForwardOriginType
 import org.monogram.domain.models.MessageContent
@@ -25,6 +27,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageReactionModel
 import org.monogram.domain.models.MessageSendingState
 import org.monogram.domain.models.ReactionSender
+import org.monogram.domain.models.SuggestedPostInfoModel
 import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.UserRepository
 
@@ -72,6 +75,8 @@ class MessageMapper internal constructor(
             val reactions = resolveReactions(msg, isReply, isChatOpen, options)
             val threadId = resolveThreadId(msg)
             val viaBotName = resolveViaBotName(msg)
+            val factCheck = msg.factCheck?.toDomain()
+            val suggestedPostInfo = msg.suggestedPostInfo?.toDomain()
 
             createMessageModel(
                 msg = msg,
@@ -101,7 +106,9 @@ class MessageMapper internal constructor(
                 isSenderAdmin = sender.isSenderAdmin,
                 isSenderPremium = sender.isSenderPremium,
                 senderStatusEmojiId = sender.senderStatusEmojiId,
-                senderStatusEmojiPath = sender.senderStatusEmojiPath
+                senderStatusEmojiPath = sender.senderStatusEmojiPath,
+                factCheck = factCheck,
+                suggestedPostInfo = suggestedPostInfo
             )
         } ?: mapMessageToModelFallback(msg, isChatOpen, isReply, options)
     }
@@ -170,7 +177,9 @@ class MessageMapper internal constructor(
         isSenderAdmin: Boolean = false,
         isSenderPremium: Boolean = false,
         senderStatusEmojiId: Long = 0L,
-        senderStatusEmojiPath: String? = null
+        senderStatusEmojiPath: String? = null,
+        factCheck: FactCheckModel? = null,
+        suggestedPostInfo: SuggestedPostInfoModel? = null
     ): MessageModel {
         val networkAutoDownload = isChatOpen &&
                 mapOptions.allowAutoDownload &&
@@ -235,7 +244,13 @@ class MessageMapper internal constructor(
             viaBotName = viaBotName,
             isSenderPremium = isSenderPremium,
             senderStatusEmojiId = senderStatusEmojiId,
-            senderStatusEmojiPath = senderStatusEmojiPath
+            senderStatusEmojiPath = senderStatusEmojiPath,
+            isPinned = msg.isPinned,
+            hasUnreadMention = msg.containsUnreadMention,
+            hasUnreadReactions = !msg.unreadReactions.isNullOrEmpty(),
+            containsUnreadPollVotes = msg.containsUnreadPollVotes,
+            factCheck = factCheck,
+            suggestedPostInfo = suggestedPostInfo
         )
     }
 

@@ -217,6 +217,8 @@ class SwipeBackResolverTest {
             override fun onOpenWebView(url: String) = unsupported()
             override fun onDismissWebView() = unsupported()
             override fun onUpdateClicked() = unsupported()
+            override fun onProjectChannelSubscribe() = unsupported()
+            override fun onProjectChannelLater() = unsupported()
             override fun handleBack(): Boolean = unsupported()
             override fun onVisibleChatIdsChanged(ids: List<Long>) = unsupported()
             override fun updateScrollPosition(folderId: Int, index: Int, offset: Int) =

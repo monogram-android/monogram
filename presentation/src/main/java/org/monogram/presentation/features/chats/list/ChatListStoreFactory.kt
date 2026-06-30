@@ -81,6 +81,8 @@ class ChatListStoreFactory(
                 is Intent.OpenWebView -> component.handleOpenWebView(intent.url)
                 Intent.DismissWebView -> component.handleDismissWebView()
                 Intent.UpdateClicked -> component.handleUpdateClicked()?.let(::publish)
+                Intent.ProjectChannelSubscribe -> component.handleProjectChannelSubscribe()
+                Intent.ProjectChannelLater -> component.handleProjectChannelLater()
                 is Intent.VisibleChatIdsChanged -> component.handleVisibleChatIdsChanged(intent.ids)
                 is Intent.UpdateScrollPosition -> component.handleUpdateScrollPosition(
                     intent.folderId,

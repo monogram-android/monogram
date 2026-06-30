@@ -184,6 +184,7 @@ fun ChatListContent(
     val selectionState by component.selectionState.collectAsState()
     val searchState by component.searchState.collectAsState()
     val showAllChatsFolder by component.appPreferences.showAllChatsFolder.collectAsState()
+    val isProjectChannelPromoDismissed by component.appPreferences.isProjectChannelPromoDismissed.collectAsState()
 
     val isPreview = previewMode != ChatListPreviewMode.Active
     val previewFolderId = (previewMode as? ChatListPreviewMode.FolderPreview)?.folderId
@@ -195,6 +196,16 @@ fun ChatListContent(
     val effectiveSearchState = remember(searchState, effectiveSearchActive) {
         searchState.copy(isSearchActive = effectiveSearchActive)
     }
+    val showProjectChannelPromo = shouldShowProjectChannelPromo(
+        subscriptionState = uiState.projectChannelSubscriptionState,
+        isDismissed = isProjectChannelPromoDismissed,
+        isPreview = isPreview,
+        isSearchActive = effectiveSearchState.isSearchActive,
+        selectedFolderId = effectiveFoldersState.selectedFolderId,
+        isForwarding = uiState.isForwarding,
+        isShareTargetMode = uiState.isShareTargetMode,
+        hasSelection = selectionState.selectedChatIds.isNotEmpty()
+    )
 
     val scope = rememberCoroutineScope()
 
@@ -884,6 +895,10 @@ fun ChatListContent(
                 messageLines = messageLines,
                 showPhotos = showPhotos,
                 interactionsEnabled = !isPreview,
+                showProjectChannelPromo = showProjectChannelPromo,
+                isProjectChannelJoinInProgress = uiState.isProjectChannelJoinInProgress,
+                onProjectChannelSubscribe = component::onProjectChannelSubscribe,
+                onProjectChannelLater = component::onProjectChannelLater,
                 onChatClicked = onChatClicked,
                 onChatLongClicked = onChatLongClicked
             )
@@ -1328,6 +1343,10 @@ private fun ChatListBody(
     messageLines: Int,
     showPhotos: Boolean,
     interactionsEnabled: Boolean,
+    showProjectChannelPromo: Boolean,
+    isProjectChannelJoinInProgress: Boolean,
+    onProjectChannelSubscribe: () -> Unit,
+    onProjectChannelLater: () -> Unit,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1371,6 +1390,10 @@ private fun ChatListBody(
                 messageLines = messageLines,
                 showPhotos = showPhotos,
                 interactionsEnabled = interactionsEnabled,
+                showProjectChannelPromo = showProjectChannelPromo,
+                isProjectChannelJoinInProgress = isProjectChannelJoinInProgress,
+                onProjectChannelSubscribe = onProjectChannelSubscribe,
+                onProjectChannelLater = onProjectChannelLater,
                 onChatClicked = onChatClicked,
                 onChatLongClicked = onChatLongClicked
             )
@@ -1733,6 +1756,10 @@ private fun FolderPagerContent(
     messageLines: Int,
     showPhotos: Boolean,
     interactionsEnabled: Boolean,
+    showProjectChannelPromo: Boolean,
+    isProjectChannelJoinInProgress: Boolean,
+    onProjectChannelSubscribe: () -> Unit,
+    onProjectChannelLater: () -> Unit,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1769,6 +1796,10 @@ private fun FolderPagerContent(
             messageLines = messageLines,
             showPhotos = showPhotos,
             interactionsEnabled = interactionsEnabled,
+            showProjectChannelPromo = showProjectChannelPromo && folderId == foldersState.selectedFolderId,
+            isProjectChannelJoinInProgress = isProjectChannelJoinInProgress,
+            onProjectChannelSubscribe = onProjectChannelSubscribe,
+            onProjectChannelLater = onProjectChannelLater,
             onChatClicked = onChatClicked,
             onChatLongClicked = onChatLongClicked
         )
@@ -1797,6 +1828,10 @@ private fun FolderPageContent(
     messageLines: Int,
     showPhotos: Boolean,
     interactionsEnabled: Boolean,
+    showProjectChannelPromo: Boolean,
+    isProjectChannelJoinInProgress: Boolean,
+    onProjectChannelSubscribe: () -> Unit,
+    onProjectChannelLater: () -> Unit,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1828,8 +1863,10 @@ private fun FolderPageContent(
     LaunchedEffect(folderId, folderChats.size, isFolderLoading, scrollState, interactionsEnabled) {
         if (!interactionsEnabled || isFolderLoading || folderChats.isEmpty()) return@LaunchedEffect
 
+        val headerItemsCount = if (showProjectChannelPromo) 1 else 0
         snapshotFlow {
-            val lastVisible = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            val lastVisible = (scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                ?: -1) - headerItemsCount
             lastVisible >= folderChats.lastIndex - 5
         }
             .distinctUntilChanged()
@@ -1843,9 +1880,10 @@ private fun FolderPageContent(
     LaunchedEffect(folderId, folderChats, isFolderLoading, scrollState, interactionsEnabled) {
         if (!interactionsEnabled || isFolderLoading || folderChats.isEmpty()) return@LaunchedEffect
 
+        val headerItemsCount = if (showProjectChannelPromo) 1 else 0
         snapshotFlow {
             scrollState.layoutInfo.visibleItemsInfo
-                .mapNotNull { item -> folderChats.getOrNull(item.index)?.id }
+                .mapNotNull { item -> folderChats.getOrNull(item.index - headerItemsCount)?.id }
                 .distinct()
         }
             .distinctUntilChanged()
@@ -1893,6 +1931,17 @@ private fun FolderPageContent(
                         end = if (isTablet) 4.dp else 0.dp
                     )
                 ) {
+                    if (showProjectChannelPromo) {
+                        item {
+                            ProjectChannelPromoCard(
+                                isJoining = isProjectChannelJoinInProgress,
+                                onSubscribe = onProjectChannelSubscribe,
+                                onLater = onProjectChannelLater,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
                     if (folderChats.isEmpty() && hasFolderLoadState && !isFolderLoading) {
                         item {
                             EmptyStateView(modifier = Modifier.fillParentMaxSize())
@@ -2600,6 +2649,69 @@ private fun ArchiveModeTopBar(
 }
 
 @Composable
+private fun ProjectChannelPromoCard(
+    isJoining: Boolean,
+    onSubscribe: () -> Unit,
+    onLater: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.project_channel_promo_badge),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+            )
+            Text(
+                text = stringResource(R.string.project_channel_promo_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = stringResource(R.string.project_channel_promo_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = onLater,
+                    enabled = !isJoining
+                ) {
+                    Text(text = stringResource(R.string.project_channel_promo_later))
+                }
+                Button(
+                    onClick = onSubscribe,
+                    enabled = !isJoining
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (isJoining) {
+                                R.string.project_channel_promo_subscribing
+                            } else {
+                                R.string.project_channel_promo_subscribe
+                            }
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun rememberManagedChatListState(
     stateKey: String,
     restoredPosition: Pair<Int, Int>?
@@ -2619,4 +2731,24 @@ private fun hasChatListUnreadState(chat: ChatModel): Boolean {
             chat.isMarkedAsUnread ||
             chat.unreadMentionCount > 0 ||
             chat.unreadReactionCount > 0
+}
+
+internal fun shouldShowProjectChannelPromo(
+    subscriptionState: ChatListComponent.ProjectChannelSubscriptionState,
+    isDismissed: Boolean,
+    isPreview: Boolean,
+    isSearchActive: Boolean,
+    selectedFolderId: Int,
+    isForwarding: Boolean,
+    isShareTargetMode: Boolean,
+    hasSelection: Boolean
+): Boolean {
+    return !isDismissed &&
+            !isPreview &&
+            !isSearchActive &&
+            selectedFolderId != -2 &&
+            !isForwarding &&
+            !isShareTargetMode &&
+            !hasSelection &&
+            subscriptionState == ChatListComponent.ProjectChannelSubscriptionState.NOT_SUBSCRIBED
 }

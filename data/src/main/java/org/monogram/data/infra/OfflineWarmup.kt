@@ -76,7 +76,7 @@ class OfflineWarmup(
                 userIds.add(chat.privateUserId)
             }
             chat.messageSenderId?.takeIf { it > 0 }?.let { userIds.add(it) }
-            messageDao.getLatestMessages(chat.id, 20)
+            messageDao.getMainChatLatestMessages(chat.id, 20)
                 .asSequence()
                 .map { it.senderId }
                 .filter { it > 0L }
@@ -205,7 +205,7 @@ class OfflineWarmup(
     private suspend fun warmupMessages(chats: List<ChatEntity>) {
         val targetChats = chats.take(30)
         for (chat in targetChats) {
-            val alreadyCachedCount = messageDao.getLatestMessages(chat.id, 25).size
+            val alreadyCachedCount = messageDao.getMainChatLatestMessages(chat.id, 25).size
             if (alreadyCachedCount >= 25) {
                 continue
             }

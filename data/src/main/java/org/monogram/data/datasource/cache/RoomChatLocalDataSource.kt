@@ -47,19 +47,59 @@ class RoomChatLocalDataSource(
 
     override fun getMessagesForChat(chatId: Long): Flow<List<MessageEntity>> = messageDao.getMessagesForChat(chatId)
 
-    override suspend fun getMessagesOlder(chatId: Long, fromMessageId: Long, limit: Int) = messageDao.getMessagesOlder(chatId, fromMessageId, limit)
+    override suspend fun getMessagesOlder(
+        chatId: Long,
+        fromMessageId: Long,
+        limit: Int,
+        threadId: Long?
+    ) =
+        if (threadId == null) {
+            messageDao.getMainChatMessagesOlder(chatId, fromMessageId, limit)
+        } else {
+            messageDao.getThreadMessagesOlder(chatId, threadId, fromMessageId, limit)
+        }
 
-    override suspend fun getMessagesNewer(chatId: Long, fromMessageId: Long, limit: Int) = messageDao.getMessagesNewer(chatId, fromMessageId, limit)
+    override suspend fun getMessagesNewer(
+        chatId: Long,
+        fromMessageId: Long,
+        limit: Int,
+        threadId: Long?
+    ) =
+        if (threadId == null) {
+            messageDao.getMainChatMessagesNewer(chatId, fromMessageId, limit)
+        } else {
+            messageDao.getThreadMessagesNewer(chatId, threadId, fromMessageId, limit)
+        }
 
-    override suspend fun getMessagesAround(chatId: Long, messageId: Long, limit: Int) =
-        messageDao.getMessagesAround(
-            chatId = chatId,
-            messageId = messageId,
-            olderLimit = (limit + 1) / 2,
-            newerLimit = limit / 2
-        )
+    override suspend fun getMessagesAround(
+        chatId: Long,
+        messageId: Long,
+        limit: Int,
+        threadId: Long?
+    ) =
+        if (threadId == null) {
+            messageDao.getMainChatMessagesAround(
+                chatId = chatId,
+                messageId = messageId,
+                olderLimit = (limit + 1) / 2,
+                newerLimit = limit / 2
+            )
+        } else {
+            messageDao.getThreadMessagesAround(
+                chatId = chatId,
+                threadId = threadId,
+                messageId = messageId,
+                olderLimit = (limit + 1) / 2,
+                newerLimit = limit / 2
+            )
+        }
 
-    override suspend fun getLatestMessages(chatId: Long, limit: Int) = messageDao.getLatestMessages(chatId, limit)
+    override suspend fun getLatestMessages(chatId: Long, limit: Int, threadId: Long?) =
+        if (threadId == null) {
+            messageDao.getMainChatLatestMessages(chatId, limit)
+        } else {
+            messageDao.getThreadLatestMessages(chatId, threadId, limit)
+        }
 
     override suspend fun getMessagesByIds(chatId: Long, messageIds: List<Long>) =
         if (messageIds.isEmpty()) emptyList() else messageDao.getMessagesByIds(chatId, messageIds)

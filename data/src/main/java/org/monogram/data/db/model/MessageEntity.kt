@@ -9,6 +9,8 @@ import androidx.room.Index
     indices = [
         Index(value = ["chatId", "date"]),
         Index(value = ["chatId", "id"]),
+        Index(value = ["chatId", "threadId", "date"]),
+        Index(value = ["chatId", "threadId", "id"]),
         Index(value = ["createdAt"])
     ]
 )

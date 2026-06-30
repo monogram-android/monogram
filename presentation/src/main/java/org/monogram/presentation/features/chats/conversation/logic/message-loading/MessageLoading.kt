@@ -494,7 +494,7 @@ private suspend fun DefaultChatComponent.loadBottomMessages(
     lastLoadedNewerId = 0L
 
     var hasCachedPreview = false
-    val cachedMessages = repositoryMessage.getCachedMessages(targetChatId, PAGE_SIZE)
+    val cachedMessages = repositoryMessage.getCachedMessages(targetChatId, PAGE_SIZE, threadId)
     if (cachedMessages.isNotEmpty()) {
         hasCachedPreview = true
         _state.update {
@@ -598,7 +598,8 @@ private suspend fun DefaultChatComponent.loadAroundMessage(
     lastLoadedOlderId = 0L
     lastLoadedNewerId = 0L
     var hasTargetPreview = false
-    val cachedMessages = repositoryMessage.getCachedMessagesAround(chatId, messageId, PAGE_SIZE)
+    val cachedMessages =
+        repositoryMessage.getCachedMessagesAround(chatId, messageId, PAGE_SIZE, threadId)
     if (cachedMessages.any { it.id == messageId }) {
         hasTargetPreview = true
         _state.update {

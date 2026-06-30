@@ -448,6 +448,14 @@ class AppPreferences(
     private val _isSupportViewed = MutableStateFlow(prefs.getBoolean(KEY_SUPPORT_VIEWED, false))
     override val isSupportViewed: StateFlow<Boolean> = _isSupportViewed
 
+    private val _isProjectChannelPromoDismissed =
+        MutableStateFlow(prefs.getBoolean(KEY_PROJECT_CHANNEL_PROMO_DISMISSED, false))
+    val isProjectChannelPromoDismissed: StateFlow<Boolean> = _isProjectChannelPromoDismissed
+
+    private val _isProjectChannelSubscribed =
+        MutableStateFlow(prefs.getBoolean(KEY_PROJECT_CHANNEL_SUBSCRIBED, false))
+    val isProjectChannelSubscribed: StateFlow<Boolean> = _isProjectChannelSubscribed
+
     init {
         if (_adBlockKeywords.value.isEmpty()) {
             externalScope.launch {
@@ -1223,6 +1231,8 @@ class AppPreferences(
         _proxyNetworkRules.value = readProxyNetworkRules()
         _userProxyBackups.value = emptySet()
         _isPermissionRequested.value = false
+        _isProjectChannelPromoDismissed.value = false
+        _isProjectChannelSubscribed.value = false
     }
 
     override fun clearSecurePreferences() {
@@ -1234,6 +1244,16 @@ class AppPreferences(
     override fun setSupportViewed(viewed: Boolean) {
         prefs.edit().putBoolean(KEY_SUPPORT_VIEWED, viewed).apply()
         _isSupportViewed.value = viewed
+    }
+
+    fun setProjectChannelPromoDismissed(dismissed: Boolean) {
+        prefs.edit().putBoolean(KEY_PROJECT_CHANNEL_PROMO_DISMISSED, dismissed).apply()
+        _isProjectChannelPromoDismissed.value = dismissed
+    }
+
+    fun setProjectChannelSubscribed(subscribed: Boolean) {
+        prefs.edit().putBoolean(KEY_PROJECT_CHANNEL_SUBSCRIBED, subscribed).apply()
+        _isProjectChannelSubscribed.value = subscribed
     }
 
     private fun loadPushProvider(): PushProvider {
@@ -1386,5 +1406,7 @@ class AppPreferences(
 
         private const val KEY_PERMISSION_REQUESTED = "permission_requested"
         private const val KEY_SUPPORT_VIEWED = "support_viewed"
+        private const val KEY_PROJECT_CHANNEL_PROMO_DISMISSED = "project_channel_promo_dismissed"
+        private const val KEY_PROJECT_CHANNEL_SUBSCRIBED = "project_channel_subscribed"
     }
 }

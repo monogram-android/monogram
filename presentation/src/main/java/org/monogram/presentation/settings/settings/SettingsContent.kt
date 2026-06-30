@@ -908,14 +908,16 @@ fun SettingsContent(component: SettingsComponent) {
                             position = ItemPosition.TOP,
                             onClick = component::onAboutClicked
                         )
-                        SettingsItem(
-                            icon = Icons.Rounded.BugReport,
-                            title = stringResource(R.string.debug_title),
-                            subtitle = stringResource(R.string.debug_subtitle),
-                            iconBackgroundColor = Color.Gray,
-                            position = ItemPosition.MIDDLE,
-                            onClick = component::onDebugClicked
-                        )
+                        if (state.isProjectChannelSubscribed) {
+                            SettingsItem(
+                                icon = Icons.Rounded.BugReport,
+                                title = stringResource(R.string.debug_title),
+                                subtitle = stringResource(R.string.debug_subtitle),
+                                iconBackgroundColor = Color.Gray,
+                                position = ItemPosition.MIDDLE,
+                                onClick = component::onDebugClicked
+                            )
+                        }
                         SettingsItem(
                             icon = Icons.AutoMirrored.Rounded.ExitToApp,
                             title = stringResource(R.string.log_out_title),

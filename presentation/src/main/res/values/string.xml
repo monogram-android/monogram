@@ -2535,4 +2535,10 @@
     <string name="premium_show_sponsored_messages_subtitle">Show sponsored messages again in channel feeds</string>
     <string name="chat_sponsored_label">Sponsored</string>
     <string name="chat_recommended_label">Recommended</string>
+    <string name="project_channel_promo_badge">Monogram updates</string>
+    <string name="project_channel_promo_title">Stay in the loop with Monogram</string>
+    <string name="project_channel_promo_body">Subscribe to our channel to receive news about releases, fixes, and useful app features!</string>
+    <string name="project_channel_promo_later">Later</string>
+    <string name="project_channel_promo_subscribe">Subscribe</string>
+    <string name="project_channel_promo_subscribing">Subscribing...</string>
 </resources>

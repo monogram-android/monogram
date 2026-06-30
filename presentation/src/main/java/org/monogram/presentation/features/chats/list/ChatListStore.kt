@@ -58,6 +58,8 @@ interface ChatListStore : Store<ChatListStore.Intent, ChatListComponent.State, C
         data class OpenWebView(val url: String) : Intent()
         object DismissWebView : Intent()
         object UpdateClicked : Intent()
+        object ProjectChannelSubscribe : Intent()
+        object ProjectChannelLater : Intent()
         data class VisibleChatIdsChanged(val ids: List<Long>) : Intent()
         data class UpdateScrollPosition(val folderId: Int, val index: Int, val offset: Int) : Intent()
         data class UpdateState(val state: ChatListComponent.State) : Intent()

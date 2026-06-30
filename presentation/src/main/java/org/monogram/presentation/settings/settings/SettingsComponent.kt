@@ -46,6 +46,7 @@ interface SettingsComponent {
         val isCurrentUserSponsor: Boolean = false,
         val supportersCount: Int = 0,
         val isSupportersLoading: Boolean = true,
+        val isProjectChannelSubscribed: Boolean = false,
         val isMoreOptionsVisible: Boolean = false,
         val fullScreenImages: List<String>? = null,
         val fullScreenVideoPath: String? = null

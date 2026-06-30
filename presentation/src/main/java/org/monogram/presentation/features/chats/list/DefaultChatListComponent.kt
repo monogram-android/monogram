@@ -91,6 +91,7 @@ class DefaultChatListComponent(
         ChatListComponent.State(
             isForwarding = isForwarding,
             isShareTargetMode = isShareTargetMode,
+            projectChannelSubscriptionState = appPreferences.projectChannelSubscriptionState(),
             isLoadingByFolder = mapOf(-1 to true)
         )
     )
@@ -125,6 +126,8 @@ class DefaultChatListComponent(
 
     private fun ChatListComponent.State.toUiState() = ChatListComponent.UiState(
         currentUser = currentUser,
+        projectChannelSubscriptionState = projectChannelSubscriptionState,
+        isProjectChannelJoinInProgress = isProjectChannelJoinInProgress,
         connectionStatus = connectionStatus,
         isArchivePinned = isArchivePinned,
         isArchiveAlwaysVisible = isArchiveAlwaysVisible,
@@ -275,8 +278,9 @@ class DefaultChatListComponent(
 
         repositoryUser.currentUserFlow
             .onEach { user ->
+                _state.update { it.copy(currentUser = user) }
                 if (user != null) {
-                    _state.update { it.copy(currentUser = user) }
+                    refreshProjectChannelSubscription()
                 }
             }
             .launchIn(scope)
@@ -306,6 +310,7 @@ class DefaultChatListComponent(
                     newChatsByFolder[update.folderId] = normalizedList
                     it.copy(chatsByFolder = newChatsByFolder)
                 }
+                syncProjectChannelSubscriptionFromChats(normalizedList)
             }
             .launchIn(scope)
 
@@ -349,6 +354,14 @@ class DefaultChatListComponent(
         appPreferences.enabledProxyId
             .onEach { enabledProxyId ->
                 _state.update { it.copy(isProxyEnabled = enabledProxyId != null) }
+            }
+            .launchIn(scope)
+
+        appPreferences.isProjectChannelSubscribed
+            .onEach { subscribed ->
+                _state.update {
+                    it.copy(projectChannelSubscriptionState = subscribed.toProjectChannelSubscriptionState())
+                }
             }
             .launchIn(scope)
 
@@ -1007,6 +1020,46 @@ class DefaultChatListComponent(
 
     override fun onUpdateClicked() = store.accept(ChatListStore.Intent.UpdateClicked)
 
+    override fun onProjectChannelSubscribe() =
+        store.accept(ChatListStore.Intent.ProjectChannelSubscribe)
+
+    internal fun handleProjectChannelSubscribe() {
+        if (_state.value.isProjectChannelJoinInProgress) return
+        if (_state.value.projectChannelSubscriptionState == ChatListComponent.ProjectChannelSubscriptionState.SUBSCRIBED) {
+            return
+        }
+
+        _state.update { it.copy(isProjectChannelJoinInProgress = true) }
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                messageRepository.joinChat(PROJECT_CHANNEL_CHAT_ID)
+                appPreferences.setProjectChannelPromoDismissed(false)
+            }.onSuccess {
+                val chat = runCatching {
+                    chatListRepository.getChatById(PROJECT_CHANNEL_CHAT_ID)
+                }.getOrNull()
+
+                if (chat != null) {
+                    syncProjectChannelSubscriptionFromChat(chat, clearJoinInProgress = true)
+                } else {
+                    _state.update { it.copy(isProjectChannelJoinInProgress = false) }
+                    refreshProjectChannelSubscription()
+                }
+            }.onFailure { error ->
+                _state.update { it.copy(isProjectChannelJoinInProgress = false) }
+                messageDisplayer.show(error.message ?: "Unable to subscribe right now")
+                refreshProjectChannelSubscription()
+            }
+        }
+    }
+
+    override fun onProjectChannelLater() =
+        store.accept(ChatListStore.Intent.ProjectChannelLater)
+
+    internal fun handleProjectChannelLater() {
+        appPreferences.setProjectChannelPromoDismissed(true)
+    }
+
     internal fun handleUpdateClicked(): ChatListStore.Label.OpenSettings? {
         val currentState = _state.value.updateState
         when (currentState) {
@@ -1134,6 +1187,47 @@ class DefaultChatListComponent(
         }
     }
 
+    private fun refreshProjectChannelSubscription() {
+        scope.launch(Dispatchers.IO) {
+            val chat = runCatching {
+                chatListRepository.getChatById(PROJECT_CHANNEL_CHAT_ID)
+            }.getOrNull()
+
+            if (chat != null) {
+                syncProjectChannelSubscriptionFromChat(chat)
+                return@launch
+            }
+
+            val currentState = _state.value.projectChannelSubscriptionState
+            if (currentState == ChatListComponent.ProjectChannelSubscriptionState.SUBSCRIBED) {
+                appPreferences.setProjectChannelSubscribed(true)
+            }
+        }
+    }
+
+    private fun syncProjectChannelSubscriptionFromChats(chats: List<ChatModel>) {
+        chats.firstOrNull { it.id == PROJECT_CHANNEL_CHAT_ID }
+            ?.let(::syncProjectChannelSubscriptionFromChat)
+    }
+
+    private fun syncProjectChannelSubscriptionFromChat(
+        chat: ChatModel,
+        clearJoinInProgress: Boolean = false
+    ) {
+        val subscribed = chat.isMember
+        appPreferences.setProjectChannelSubscribed(subscribed)
+        _state.update {
+            it.copy(
+                projectChannelSubscriptionState = subscribed.toProjectChannelSubscriptionState(),
+                isProjectChannelJoinInProgress = if (subscribed || clearJoinInProgress) {
+                    false
+                } else {
+                    it.isProjectChannelJoinInProgress
+                }
+            )
+        }
+    }
+
     override fun updateScrollPosition(folderId: Int, index: Int, offset: Int) =
         store.accept(ChatListStore.Intent.UpdateScrollPosition(folderId, index, offset))
 
@@ -1148,6 +1242,7 @@ class DefaultChatListComponent(
     companion object {
         private const val TAG = "PinnedUiDiag"
         private const val ARCHIVE_FOLDER_ID = -2
+        private const val PROJECT_CHANNEL_CHAT_ID = -1003768707135L
         private const val PREFETCH_MAX_CANDIDATES = 6
         private const val PREFETCH_CONCURRENCY = 2
         private const val PREFETCH_PAGE_SIZE = 30
@@ -1310,4 +1405,16 @@ internal fun normalizeFolderChats(chats: List<ChatModel>): List<ChatModel> {
         }
     }
     return if (normalized.size == chats.size) chats else normalized
+}
+
+private fun AppPreferences.projectChannelSubscriptionState(): ChatListComponent.ProjectChannelSubscriptionState {
+    return isProjectChannelSubscribed.value.toProjectChannelSubscriptionState()
+}
+
+private fun Boolean.toProjectChannelSubscriptionState(): ChatListComponent.ProjectChannelSubscriptionState {
+    return if (this) {
+        ChatListComponent.ProjectChannelSubscriptionState.SUBSCRIBED
+    } else {
+        ChatListComponent.ProjectChannelSubscriptionState.NOT_SUBSCRIBED
+    }
 }

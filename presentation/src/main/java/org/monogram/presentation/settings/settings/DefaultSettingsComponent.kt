@@ -12,6 +12,7 @@ import org.monogram.domain.repository.ExternalNavigator
 import org.monogram.domain.repository.SponsorRepository
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
+import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
 import org.monogram.presentation.core.util.componentScope
@@ -40,6 +41,7 @@ class DefaultSettingsComponent(
     private val sponsorRepository: SponsorRepository = container.repositories.sponsorRepository
     private val externalNavigator: ExternalNavigator = container.utils.externalNavigator()
     private val domainManager: DomainManager = container.utils.domainManager()
+    private val appPreferences: AppPreferences = container.preferences.appPreferences
     override val downloadUtils: IDownloadUtils = container.utils.downloadUtils()
 
     private val _state = MutableValue(SettingsComponent.State())
@@ -78,6 +80,12 @@ class DefaultSettingsComponent(
                         isSupportersLoading = !sponsorState.isLoaded && sponsorState.supportersCount == 0
                     )
                 }
+            }
+        }
+
+        scope.launch {
+            appPreferences.isProjectChannelSubscribed.collectLatest { subscribed ->
+                _state.update { it.copy(isProjectChannelSubscribed = subscribed) }
             }
         }
 

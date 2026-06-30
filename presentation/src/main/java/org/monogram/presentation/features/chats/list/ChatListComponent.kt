@@ -79,6 +79,8 @@ interface ChatListComponent {
     fun onDismissWebView()
 
     fun onUpdateClicked()
+    fun onProjectChannelSubscribe()
+    fun onProjectChannelLater()
 
     fun handleBack(): Boolean
 
@@ -92,6 +94,8 @@ interface ChatListComponent {
         val selectedFolderId: Int = -1,
         val lastNonArchiveFolderId: Int? = null,
         val currentUser: UserModel? = null,
+        val projectChannelSubscriptionState: ProjectChannelSubscriptionState = ProjectChannelSubscriptionState.UNKNOWN,
+        val isProjectChannelJoinInProgress: Boolean = false,
         val isLoadingByFolder: Map<Int, Boolean> = emptyMap(),
         val selectedChatIds: Set<Long> = emptySet(),
         val selectedForwardTargets: List<ForwardTarget> = emptyList(),
@@ -134,6 +138,8 @@ interface ChatListComponent {
     @Immutable
     data class UiState(
         val currentUser: UserModel? = null,
+        val projectChannelSubscriptionState: ProjectChannelSubscriptionState = ProjectChannelSubscriptionState.UNKNOWN,
+        val isProjectChannelJoinInProgress: Boolean = false,
         val connectionStatus: ConnectionStatus = ConnectionStatus.Connected,
         val isArchivePinned: Boolean = true,
         val isArchiveAlwaysVisible: Boolean = false,
@@ -212,5 +218,11 @@ interface ChatListComponent {
     sealed class ShareResult {
         data class Selected(val target: ShareTarget) : ShareResult()
         data object Cancelled : ShareResult()
+    }
+
+    enum class ProjectChannelSubscriptionState {
+        UNKNOWN,
+        NOT_SUBSCRIBED,
+        SUBSCRIBED
     }
 }

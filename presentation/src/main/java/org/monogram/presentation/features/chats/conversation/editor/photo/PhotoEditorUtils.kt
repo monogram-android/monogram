@@ -1,25 +1,32 @@
 package org.monogram.presentation.features.chats.conversation.editor.photo
 
 import android.content.Context
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.RectF
+import android.graphics.Typeface
 import androidx.annotation.StringRes
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.IntSize
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withTranslation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.monogram.presentation.R
 import java.io.File
 import java.io.FileOutputStream
-import java.util.*
+import java.util.UUID
+import kotlin.math.abs
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint as AndroidPaint
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.withTranslation
 
 data class DrawnPath(
     val path: Path,
@@ -42,6 +49,9 @@ data class ImageFilter(
     @StringRes val nameRes: Int,
     val colorMatrix: ColorMatrix
 )
+
+private const val PhotoEditorFloatTolerance = 0.001f
+private const val EditedPhotoExportQuality = 95
 
 fun getPresetFilters(): List<ImageFilter> {
     return listOf(
@@ -108,6 +118,34 @@ fun getPresetFilters(): List<ImageFilter> {
             )
         )
     )
+}
+
+fun hasMeaningfulPhotoEdits(
+    paths: List<DrawnPath>,
+    textElements: List<TextElement>,
+    filter: ImageFilter?,
+    cropRect: Rect,
+    defaultCropRect: Rect,
+    imageRotation: Float,
+    imageScale: Float,
+    imageOffset: Offset
+): Boolean {
+    return paths.isNotEmpty() ||
+            textElements.isNotEmpty() ||
+            filter != null ||
+            (cropRect != Rect.Zero && cropRect != defaultCropRect) ||
+            !imageRotation.isApproximatelyZero() ||
+            !imageScale.isApproximately(1f) ||
+            !imageOffset.isApproximatelyZero()
+}
+
+private fun Float.isApproximately(other: Float): Boolean =
+    abs(this - other) <= PhotoEditorFloatTolerance
+
+private fun Float.isApproximatelyZero(): Boolean = isApproximately(0f)
+
+private fun Offset.isApproximatelyZero(): Boolean {
+    return x.isApproximatelyZero() && y.isApproximatelyZero()
 }
 
 suspend fun saveImage(
@@ -239,7 +277,7 @@ suspend fun saveImage(
 
         val file = File(context.cacheDir, "edited_${System.currentTimeMillis()}.jpg")
         FileOutputStream(file).use { out ->
-            resultBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+            resultBitmap.compress(Bitmap.CompressFormat.JPEG, EditedPhotoExportQuality, out)
         }
 
         bitmap.recycle()

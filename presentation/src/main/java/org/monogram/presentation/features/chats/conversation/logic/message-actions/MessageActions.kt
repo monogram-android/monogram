@@ -28,6 +28,16 @@ import org.monogram.presentation.features.share.PendingAttachmentKind
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import kotlin.math.max
+import kotlin.math.roundToInt
+
+private const val MaxCompressedPhotoLongSide = 3840
+
+internal data class PhotoCompressionProfile(
+    val targetWidth: Int,
+    val targetHeight: Int,
+    val quality: Int
+)
 
 internal sealed interface PendingAttachmentSendPlan {
     data class Single(val attachment: PendingAttachment) : PendingAttachmentSendPlan
@@ -522,13 +532,25 @@ private fun DefaultChatComponent.compressPhotoForUpload(photoPath: String): Stri
         if (normalizedBitmap !== sourceBitmap) {
             sourceBitmap.recycle()
         }
+        val compressionProfile = resolvePhotoCompressionProfile(
+            width = normalizedBitmap.width,
+            height = normalizedBitmap.height
+        )
+        val bitmapForUpload = normalizedBitmap.scaleForCompression(compressionProfile)
 
         val compressedFile = File(
             cacheController.getCacheDir(),
             "compressed_photo_${System.currentTimeMillis()}.jpg"
         )
         FileOutputStream(compressedFile).use { out ->
-            normalizedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+            bitmapForUpload.compress(
+                Bitmap.CompressFormat.JPEG,
+                compressionProfile.quality,
+                out
+            )
+        }
+        if (bitmapForUpload !== normalizedBitmap && !bitmapForUpload.isRecycled) {
+            bitmapForUpload.recycle()
         }
         if (!normalizedBitmap.isRecycled) {
             normalizedBitmap.recycle()
@@ -537,6 +559,37 @@ private fun DefaultChatComponent.compressPhotoForUpload(photoPath: String): Stri
     } catch (_: Exception) {
         null
     }
+}
+
+internal fun resolvePhotoCompressionProfile(width: Int, height: Int): PhotoCompressionProfile {
+    val safeWidth = width.coerceAtLeast(1)
+    val safeHeight = height.coerceAtLeast(1)
+    val longestSide = max(safeWidth, safeHeight)
+    val resizeScale = if (longestSide > MaxCompressedPhotoLongSide) {
+        MaxCompressedPhotoLongSide / longestSide.toFloat()
+    } else {
+        1f
+    }
+    val targetWidth = (safeWidth * resizeScale).roundToInt().coerceAtLeast(1)
+    val targetHeight = (safeHeight * resizeScale).roundToInt().coerceAtLeast(1)
+    val targetPixels = targetWidth.toLong() * targetHeight.toLong()
+    val quality = when {
+        targetPixels <= 2_000_000L -> 92
+        targetPixels <= 4_000_000L -> 90
+        targetPixels <= 8_000_000L -> 88
+        else -> 85
+    }
+
+    return PhotoCompressionProfile(
+        targetWidth = targetWidth,
+        targetHeight = targetHeight,
+        quality = quality
+    )
+}
+
+private fun Bitmap.scaleForCompression(profile: PhotoCompressionProfile): Bitmap {
+    if (width == profile.targetWidth && height == profile.targetHeight) return this
+    return Bitmap.createScaledBitmap(this, profile.targetWidth, profile.targetHeight, true)
 }
 
 private fun Bitmap.applyExifOrientation(path: String): Bitmap {

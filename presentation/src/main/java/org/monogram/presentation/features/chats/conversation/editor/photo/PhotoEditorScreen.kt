@@ -14,19 +14,66 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Brush
+import androidx.compose.material.icons.rounded.CleaningServices
+import androidx.compose.material.icons.rounded.Crop
+import androidx.compose.material.icons.rounded.TextFields
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -43,8 +90,24 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.presentation.R
-import org.monogram.presentation.features.chats.conversation.editor.photo.components.*
-import org.monogram.presentation.features.chats.conversation.editor.photo.crop.*
+import org.monogram.presentation.features.chats.conversation.editor.photo.components.DrawControls
+import org.monogram.presentation.features.chats.conversation.editor.photo.components.EditorTopBar
+import org.monogram.presentation.features.chats.conversation.editor.photo.components.FilterControls
+import org.monogram.presentation.features.chats.conversation.editor.photo.components.TextEntryDialog
+import org.monogram.presentation.features.chats.conversation.editor.photo.components.TransformControls
+import org.monogram.presentation.features.chats.conversation.editor.photo.components.normalizeRotationDegrees
+import org.monogram.presentation.features.chats.conversation.editor.photo.components.rotateClockwiseAnimationTarget
+import org.monogram.presentation.features.chats.conversation.editor.photo.crop.CropOverlay
+import org.monogram.presentation.features.chats.conversation.editor.photo.crop.CropScrim
+import org.monogram.presentation.features.chats.conversation.editor.photo.crop.calculateScalarTransformedBounds
+import org.monogram.presentation.features.chats.conversation.editor.photo.crop.calculateTargetFillRect
+import org.monogram.presentation.features.chats.conversation.editor.photo.crop.clampOffsetToCoverCrop
+import org.monogram.presentation.features.chats.conversation.editor.photo.crop.constrainCropRectToImage
+import org.monogram.presentation.features.chats.conversation.editor.photo.crop.fitContentInBounds
+import org.monogram.presentation.features.chats.conversation.editor.photo.crop.minimumScaleToCoverCrop
+import org.monogram.presentation.features.chats.conversation.editor.photo.crop.offsetForRotationAroundAnchor
+import org.monogram.presentation.features.chats.conversation.editor.photo.crop.offsetForZoomAroundAnchor
+import org.monogram.presentation.features.chats.conversation.editor.photo.crop.rememberCropEditorState
 import java.io.File
 
 enum class EditorTool(val labelRes: Int, val icon: ImageVector) {
@@ -307,13 +370,16 @@ fun PhotoEditorScreen(
 
     val hasChanges by remember {
         derivedStateOf {
-            paths.isNotEmpty() ||
-                    textElements.isNotEmpty() ||
-                    currentFilter != null ||
-                    (cropState.cropRect != Rect.Zero && cropState.cropRect != cropState.defaultCropRect) ||
-                    normalizeRotationDegrees(imageRotation) != 0f ||
-                    imageScale != 1f ||
-                    imageOffset != Offset.Zero
+            hasMeaningfulPhotoEdits(
+                paths = paths,
+                textElements = textElements,
+                filter = currentFilter,
+                cropRect = cropState.cropRect,
+                defaultCropRect = cropState.defaultCropRect,
+                imageRotation = normalizeRotationDegrees(imageRotation),
+                imageScale = imageScale,
+                imageOffset = imageOffset
+            )
         }
     }
 
@@ -336,6 +402,10 @@ fun PhotoEditorScreen(
                 onClose = handleBack,
                 onSave = {
                     if (!isSaving) {
+                        if (!hasChanges) {
+                            onSave(imagePath)
+                            return@EditorTopBar
+                        }
                         scope.launch {
                             isSaving = true
                             val result = saveImage(
@@ -529,7 +599,12 @@ fun PhotoEditorScreen(
                                             val y1 = change.previousPosition.y
                                             val x2 = change.position.x
                                             val y2 = change.position.y
-                                            cur.path.quadraticTo(x1, y1, (x1 + x2) / 2, (y1 + y2) / 2)
+                                            cur.path.quadraticTo(
+                                                x1,
+                                                y1,
+                                                (x1 + x2) / 2,
+                                                (y1 + y2) / 2
+                                            )
                                             paths.add(paths.removeAt(index))
                                         }
                                     )
@@ -610,7 +685,11 @@ fun PhotoEditorScreen(
                                 Box(
                                     modifier = Modifier
                                         .matchParentSize()
-                                        .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                        .border(
+                                            1.dp,
+                                            Color.White.copy(alpha = 0.5f),
+                                            RoundedCornerShape(4.dp)
+                                        )
                                 )
                             }
                         }

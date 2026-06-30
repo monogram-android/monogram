@@ -659,7 +659,7 @@ internal class MessageRepositoryImpl(
     ): OlderMessagesPage =
         withContext(dispatcherProvider.io) {
             val cached = if (fromMessageId == 0L) {
-                val cachedEntities = chatLocalDataSource.getLatestMessages(chatId, limit)
+                val cachedEntities = chatLocalDataSource.getLatestMessages(chatId, limit, threadId)
                 mapLocalMessages(cachedEntities)
             } else {
                 emptyList()
@@ -684,7 +684,8 @@ internal class MessageRepositoryImpl(
                 val fallbackMessages = if (cached.isNotEmpty()) {
                     cached
                 } else {
-                    val local = chatLocalDataSource.getMessagesOlder(chatId, fromMessageId, limit)
+                    val local =
+                        chatLocalDataSource.getMessagesOlder(chatId, fromMessageId, limit, threadId)
                     mapLocalMessages(local)
                 }
                 OlderMessagesPage(
@@ -695,9 +696,13 @@ internal class MessageRepositoryImpl(
             }
         }
 
-    override suspend fun getCachedMessages(chatId: Long, limit: Int): List<MessageModel> =
+    override suspend fun getCachedMessages(
+        chatId: Long,
+        limit: Int,
+        threadId: Long?
+    ): List<MessageModel> =
         withContext(dispatcherProvider.io) {
-            val local = chatLocalDataSource.getLatestMessages(chatId, limit)
+            val local = chatLocalDataSource.getLatestMessages(chatId, limit, threadId)
             mapLocalMessages(local)
         }
 
@@ -725,7 +730,7 @@ internal class MessageRepositoryImpl(
                     remoteBatch.models
                 }
             } catch (e: Exception) {
-                chatLocalDataSource.getMessagesNewer(chatId, fromMessageId, limit)
+                chatLocalDataSource.getMessagesNewer(chatId, fromMessageId, limit, threadId)
                     .let { mapLocalMessages(it) }
             }
         }
@@ -733,20 +738,22 @@ internal class MessageRepositoryImpl(
     override suspend fun getCachedMessagesNewer(
         chatId: Long,
         fromMessageId: Long,
-        limit: Int
+        limit: Int,
+        threadId: Long?
     ): List<MessageModel> =
         withContext(dispatcherProvider.io) {
-            chatLocalDataSource.getMessagesNewer(chatId, fromMessageId, limit)
+            chatLocalDataSource.getMessagesNewer(chatId, fromMessageId, limit, threadId)
                 .let { mapLocalMessages(it) }
         }
 
     override suspend fun getCachedMessagesAround(
         chatId: Long,
         messageId: Long,
-        limit: Int
+        limit: Int,
+        threadId: Long?
     ): List<MessageModel> =
         withContext(dispatcherProvider.io) {
-            chatLocalDataSource.getMessagesAround(chatId, messageId, limit)
+            chatLocalDataSource.getMessagesAround(chatId, messageId, limit, threadId)
                 .let { mapLocalMessages(it) }
         }
 
@@ -774,7 +781,8 @@ internal class MessageRepositoryImpl(
                     remoteBatch.models
                 }
             } catch (e: Exception) {
-                val local = chatLocalDataSource.getMessagesAround(chatId, messageId, limit)
+                val local =
+                    chatLocalDataSource.getMessagesAround(chatId, messageId, limit, threadId)
                 mapLocalMessages(local)
             }
         }

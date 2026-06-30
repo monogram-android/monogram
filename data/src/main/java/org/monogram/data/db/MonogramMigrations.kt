@@ -384,6 +384,17 @@ object MonogramMigrations {
         }
     }
 
+    val MIGRATION_36_37 = object : Migration(36, 37) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_messages_chatId_threadId_date` ON `messages` (`chatId`, `threadId`, `date`)"
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_messages_chatId_threadId_id` ON `messages` (`chatId`, `threadId`, `id`)"
+            )
+        }
+    }
+
     private fun SupportSQLiteDatabase.addColumn(table: String, column: String, definition: String) {
         execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
     }

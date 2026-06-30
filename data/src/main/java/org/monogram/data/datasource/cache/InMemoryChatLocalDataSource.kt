@@ -74,15 +74,25 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
         messages.getOrPut(chatId) { MutableStateFlow(emptyMap()) }
             .map { it.values.sortedByDescending { msg -> msg.date } }
 
-    override suspend fun getMessagesOlder(chatId: Long, fromMessageId: Long, limit: Int): List<MessageEntity> {
-        val chatMessages = messages[chatId]?.value?.values ?: return emptyList()
+    override suspend fun getMessagesOlder(
+        chatId: Long,
+        fromMessageId: Long,
+        limit: Int,
+        threadId: Long?
+    ): List<MessageEntity> {
+        val chatMessages = scopedMessages(chatId, threadId)
         return chatMessages.filter { it.id < fromMessageId }
             .sortedByDescending { it.date }
             .take(limit)
     }
 
-    override suspend fun getMessagesNewer(chatId: Long, fromMessageId: Long, limit: Int): List<MessageEntity> {
-        val chatMessages = messages[chatId]?.value?.values ?: return emptyList()
+    override suspend fun getMessagesNewer(
+        chatId: Long,
+        fromMessageId: Long,
+        limit: Int,
+        threadId: Long?
+    ): List<MessageEntity> {
+        val chatMessages = scopedMessages(chatId, threadId)
         return chatMessages.filter { it.id > fromMessageId }
             .sortedBy { it.date }
             .take(limit)
@@ -91,9 +101,10 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
     override suspend fun getMessagesAround(
         chatId: Long,
         messageId: Long,
-        limit: Int
+        limit: Int,
+        threadId: Long?
     ): List<MessageEntity> {
-        val chatMessages = messages[chatId]?.value?.values ?: return emptyList()
+        val chatMessages = scopedMessages(chatId, threadId)
         val olderLimit = (limit + 1) / 2
         val newerLimit = limit - olderLimit
         val olderAndTarget = chatMessages.filter { it.id <= messageId }
@@ -106,8 +117,12 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
             .sortedByDescending { it.date }
     }
 
-    override suspend fun getLatestMessages(chatId: Long, limit: Int): List<MessageEntity> {
-        val chatMessages = messages[chatId]?.value?.values ?: return emptyList()
+    override suspend fun getLatestMessages(
+        chatId: Long,
+        limit: Int,
+        threadId: Long?
+    ): List<MessageEntity> {
+        val chatMessages = scopedMessages(chatId, threadId)
         return chatMessages.sortedByDescending { it.date }.take(limit)
     }
 
@@ -281,5 +296,10 @@ class InMemoryChatLocalDataSource : ChatLocalDataSource {
         messages.values.forEach { flow ->
             flow.update { it.filterValues { msg -> msg.createdAt >= timestamp } }
         }
+    }
+
+    private fun scopedMessages(chatId: Long, threadId: Long?): List<MessageEntity> {
+        val chatMessages = messages[chatId]?.value?.values ?: return emptyList()
+        return chatMessages.filter { message -> message.threadId == threadId }
     }
 }

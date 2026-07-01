@@ -73,7 +73,7 @@ import org.monogram.presentation.features.chats.conversation.ui.ChatInputBar
 import org.monogram.presentation.features.chats.conversation.ui.MessageListShimmer
 import org.monogram.presentation.features.chats.conversation.ui.message.LinkPreviewAction
 import org.monogram.presentation.features.share.PendingAttachment
-import org.monogram.presentation.features.share.PendingAttachmentKind
+import org.monogram.presentation.features.share.inferPendingAttachmentKind
 import java.io.File
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -101,11 +101,10 @@ internal fun ChatContentBottomBar(
                 val path = copied.localPath
                 PendingAttachment(
                     localPath = path,
-                    kind = when {
-                        path.endsWith(".gif") -> PendingAttachmentKind.GIF
-                        path.endsWith(".mp4") -> PendingAttachmentKind.VIDEO
-                        else -> PendingAttachmentKind.PHOTO
-                    },
+                    kind = inferPendingAttachmentKind(
+                        localPath = path,
+                        mimeType = copied.mimeType
+                    ),
                     deleteAfterUse = true
                 )
             }

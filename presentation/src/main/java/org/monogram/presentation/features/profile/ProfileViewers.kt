@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.profile
 
 import android.content.ClipData
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -29,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
@@ -63,6 +65,9 @@ fun ProfileViewers(
 
 @Composable
 private fun InstantViewOverlay(state: ProfileComponent.State, component: ProfileComponent) {
+    val context = LocalContext.current
+    val openErrorMessage = context.getString(R.string.instant_view_open_error)
+
     AnimatedVisibility(
         visible = state.instantViewUrl != null,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -74,7 +79,11 @@ private fun InstantViewOverlay(state: ProfileComponent.State, component: Profile
                 messageRepository = component.messageRepository,
                 fileRepository = component.messageRepository,
                 onDismiss = { component.onDismissInstantView() },
-                onOpenWebView = { component.onOpenWebView(it) }
+                onOpenWebView = { component.onOpenWebView(it) },
+                onOpenError = {
+                    Toast.makeText(context, openErrorMessage, Toast.LENGTH_SHORT).show()
+                    component.onDismissInstantView()
+                }
             )
         }
     }

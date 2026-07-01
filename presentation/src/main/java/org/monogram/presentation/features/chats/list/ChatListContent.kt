@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.chats.list
 
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -1058,7 +1059,15 @@ fun ChatListContent(
                 messageRepository = koinInject(),
                 fileRepository = koinInject(),
                 onDismiss = { component.onDismissInstantView() },
-                onOpenWebView = { component.onOpenWebView(it) }
+                onOpenWebView = { component.onOpenWebView(it) },
+                onOpenError = {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.instant_view_open_error),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    component.onDismissInstantView()
+                }
             )
         }
     }

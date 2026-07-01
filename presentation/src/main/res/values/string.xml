@@ -2333,6 +2333,7 @@
     <string name="instant_view_views_count">%d views</string>
     <string name="instant_view_copy_link">Copy Link</string>
     <string name="instant_view_open_in_browser">Open in Browser</string>
+    <string name="instant_view_open_error">Unable to open article</string>
     <string name="instant_view_search">Search</string>
     <string name="instant_view_text_size">Text Size</string>
     <string name="instant_view_play_video">Play Video</string>

@@ -150,6 +150,7 @@ import org.monogram.presentation.features.instantview.components.containsText
 import org.monogram.presentation.features.instantview.components.renderRichText
 import org.monogram.presentation.features.instantview.components.renderedTextOrNull
 import org.monogram.presentation.features.instantview.components.resolvePathForViewer
+import org.monogram.presentation.features.instantview.components.richTextPlainText
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.viewers.ImageViewer
 import org.monogram.presentation.features.viewers.VideoViewer
@@ -392,11 +393,17 @@ fun InstantViewer(
                                 itemsIndexed(
                                     items = blocks,
                                     key = { index, block -> instantViewBlockKey(index, block) }
-                                ) { _, block ->
+                                ) { index, block ->
                                     InstantViewBlock(
                                         block = block,
                                         textSizeMultiplier = textSizeMultiplier,
                                         searchQuery = searchQuery,
+                                        stateKeyPrefix = "instant_view:${
+                                            instantViewBlockKey(
+                                                index,
+                                                block
+                                            )
+                                        }",
                                         onOpenPhotoFullscreen = openPhotoFullscreen,
                                         onOpenVideoFullscreen = openVideoFullscreen,
                                         onOpenFileExternally = openFileExternally
@@ -534,21 +541,51 @@ fun InstantViewer(
     }
 }
 
-private fun instantViewBlockKey(index: Int, block: PageBlock): String {
-    return "${block::class.qualifiedName}:${block.hashCode()}:$index"
+internal fun instantViewBlockKey(index: Int, block: PageBlock): String {
+    return "${block::class.qualifiedName}:$index:${block.stableBlockSignature()}"
 }
+
+internal fun PageBlock.stableBlockSignature(): String {
+    return when (this) {
+        is PageBlock.PhotoBlock -> "photo:${photo.fileId}:${url}"
+        is PageBlock.VideoBlock -> "video:${video.fileId}:${caption.stableCaptionSignature()}:${video.duration}"
+        is PageBlock.AnimationBlock -> "animation:${animation.fileId}:${caption.stableCaptionSignature()}:${animation.duration}"
+        is PageBlock.AudioBlock -> "audio:${audio.fileId}:${audio.title.orEmpty()}"
+        is PageBlock.Embedded -> "embedded:$url:${posterPhoto?.fileId ?: 0}"
+        is PageBlock.EmbeddedPost -> "embedded_post:$author:$date:${authorPhoto?.fileId ?: 0}"
+        is PageBlock.Details -> "details:${richTextPlainText(header)}:${pageBlocks.joinToString("|") { it.stableBlockSignature() }}"
+        is PageBlock.Collage -> "collage:${caption.stableCaptionSignature()}:${
+            pageBlocks.joinToString(
+                "|"
+            ) { it.stableBlockSignature() }
+        }"
+
+        is PageBlock.Slideshow -> "slideshow:${caption.stableCaptionSignature()}:${
+            pageBlocks.joinToString(
+                "|"
+            ) { it.stableBlockSignature() }
+        }"
+
+        is PageBlock.Cover -> "cover:${cover.stableBlockSignature()}"
+        else -> "${this::class.qualifiedName}:${toString()}"
+    }
+}
+
+private fun PageBlockCaption.stableCaptionSignature(): String = renderedTextOrNull().orEmpty()
 
 @Composable
 fun InstantViewBlock(
     block: PageBlock,
     textSizeMultiplier: Float,
     searchQuery: String = "",
+    stateKeyPrefix: String = "instant_view_block",
     onOpenPhotoFullscreen: (WebPage.Photo, PageBlockCaption) -> Unit = { _, _ -> },
     onOpenVideoFullscreen: (String?, Int, Boolean, String?) -> Unit = { _, _, _, _ -> },
     onOpenFileExternally: (String?, Int) -> Unit = { _, _ -> }
 ) {
     val onUrlClick = LocalOnUrlClick.current
     LocalUriHandler.current
+    val blockStateKey = "$stateKeyPrefix:${block.stableBlockSignature()}"
     when (block) {
         is PageBlock.Title -> RichTextView(
             richText = block.title,
@@ -727,7 +764,7 @@ fun InstantViewBlock(
                         .fillMaxWidth()
                         .aspectRatio(block.video.width.toFloat() / block.video.height.toFloat())
                         .clip(RoundedCornerShape(12.dp)),
-                    stateKey = "video:${block.hashCode()}",
+                    stateKey = "video:$blockStateKey",
                     durationSeconds = block.video.duration,
                     previewPath = block.video.thumbnailPath,
                     previewFileId = block.video.thumbnailFileId,
@@ -757,7 +794,7 @@ fun InstantViewBlock(
                         .fillMaxWidth()
                         .aspectRatio(block.animation.width.toFloat() / block.animation.height.toFloat())
                         .clip(RoundedCornerShape(12.dp)),
-                    stateKey = "animation:${block.hashCode()}",
+                    stateKey = "animation:$blockStateKey",
                     durationSeconds = block.animation.duration,
                     previewPath = block.animation.thumbnailPath,
                     previewFileId = block.animation.thumbnailFileId,
@@ -906,11 +943,12 @@ fun InstantViewBlock(
                         }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
-                    block.pageBlocks.forEach { innerBlock ->
+                    block.pageBlocks.forEachIndexed { index, innerBlock ->
                         InstantViewBlock(
                             block = innerBlock,
                             textSizeMultiplier = textSizeMultiplier,
                             searchQuery = searchQuery,
+                            stateKeyPrefix = "$blockStateKey:list:$index",
                             onOpenPhotoFullscreen = onOpenPhotoFullscreen,
                             onOpenVideoFullscreen = onOpenVideoFullscreen,
                             onOpenFileExternally = onOpenFileExternally
@@ -992,11 +1030,12 @@ fun InstantViewBlock(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        item.pageBlocks.forEach { innerBlock ->
+                        item.pageBlocks.forEachIndexed { index, innerBlock ->
                             InstantViewBlock(
                                 block = innerBlock,
                                 textSizeMultiplier = textSizeMultiplier,
                                 searchQuery = searchQuery,
+                                stateKeyPrefix = "$blockStateKey:list_item:$index",
                                 onOpenPhotoFullscreen = onOpenPhotoFullscreen,
                                 onOpenVideoFullscreen = onOpenVideoFullscreen,
                                 onOpenFileExternally = onOpenFileExternally
@@ -1011,6 +1050,7 @@ fun InstantViewBlock(
             block = block.cover,
             textSizeMultiplier = textSizeMultiplier,
             searchQuery = searchQuery,
+            stateKeyPrefix = "$blockStateKey:cover",
             onOpenPhotoFullscreen = onOpenPhotoFullscreen,
             onOpenVideoFullscreen = onOpenVideoFullscreen,
             onOpenFileExternally = onOpenFileExternally
@@ -1018,7 +1058,9 @@ fun InstantViewBlock(
         is PageBlock.Details -> {
             val shouldForceOpen =
                 searchQuery.isNotBlank() && block.pageBlocks.any { it.containsText(searchQuery) }
-            var isOpen by rememberSaveable(block.hashCode()) { mutableStateOf(block.isOpen || shouldForceOpen) }
+            var isOpen by rememberSaveable(blockStateKey) {
+                mutableStateOf(block.isOpen || shouldForceOpen)
+            }
 
             LaunchedEffect(shouldForceOpen) {
                 if (shouldForceOpen) isOpen = true
@@ -1059,11 +1101,12 @@ fun InstantViewBlock(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            block.pageBlocks.forEach { innerBlock ->
+                            block.pageBlocks.forEachIndexed { index, innerBlock ->
                                 InstantViewBlock(
                                     block = innerBlock,
                                     textSizeMultiplier = textSizeMultiplier,
                                     searchQuery = searchQuery,
+                                    stateKeyPrefix = "$blockStateKey:details:$index",
                                     onOpenPhotoFullscreen = onOpenPhotoFullscreen,
                                     onOpenVideoFullscreen = onOpenVideoFullscreen,
                                     onOpenFileExternally = onOpenFileExternally
@@ -1077,11 +1120,12 @@ fun InstantViewBlock(
 
         is PageBlock.Collage -> {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                block.pageBlocks.forEach { innerBlock ->
+                block.pageBlocks.forEachIndexed { index, innerBlock ->
                     InstantViewBlock(
                         block = innerBlock,
                         textSizeMultiplier = textSizeMultiplier,
                         searchQuery = searchQuery,
+                        stateKeyPrefix = "$blockStateKey:collage:$index",
                         onOpenPhotoFullscreen = onOpenPhotoFullscreen,
                         onOpenVideoFullscreen = onOpenVideoFullscreen,
                         onOpenFileExternally = onOpenFileExternally
@@ -1093,11 +1137,12 @@ fun InstantViewBlock(
 
         is PageBlock.Slideshow -> {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                block.pageBlocks.forEach { innerBlock ->
+                block.pageBlocks.forEachIndexed { index, innerBlock ->
                     InstantViewBlock(
                         block = innerBlock,
                         textSizeMultiplier = textSizeMultiplier,
                         searchQuery = searchQuery,
+                        stateKeyPrefix = "$blockStateKey:slideshow:$index",
                         onOpenPhotoFullscreen = onOpenPhotoFullscreen,
                         onOpenVideoFullscreen = onOpenVideoFullscreen,
                         onOpenFileExternally = onOpenFileExternally

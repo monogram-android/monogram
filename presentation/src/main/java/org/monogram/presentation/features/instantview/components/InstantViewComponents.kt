@@ -65,7 +65,7 @@ fun RichTextView(
 ) {
     val onUrlClick = LocalOnUrlClick.current
     val linkColor = MaterialTheme.colorScheme.primary
-    val annotatedString = renderRichText(richText, linkColor)
+    val annotatedString = remember(richText, linkColor) { renderRichText(richText, linkColor) }
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     val scaledStyle = style.copy(

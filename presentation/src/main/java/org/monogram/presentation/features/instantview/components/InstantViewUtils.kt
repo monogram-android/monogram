@@ -322,8 +322,8 @@ fun RichText.containsText(query: String): Boolean {
 
 fun PageBlockCaption.renderedTextOrNull(): String? {
     val text = buildString {
-        renderRichText(this@renderedTextOrNull.text).text.takeIf { it.isNotBlank() }?.let(::append)
-        renderRichText(this@renderedTextOrNull.credit).text.takeIf { it.isNotBlank() }
+        richTextPlainText(this@renderedTextOrNull.text).takeIf { it.isNotBlank() }?.let(::append)
+        richTextPlainText(this@renderedTextOrNull.credit).takeIf { it.isNotBlank() }
             ?.let { credit ->
                 if (isNotEmpty()) append("\n")
                 append(credit)
@@ -331,6 +331,8 @@ fun PageBlockCaption.renderedTextOrNull(): String? {
     }
     return text.ifBlank { null }
 }
+
+fun richTextPlainText(richText: RichText): String = renderRichText(richText).text
 
 suspend fun FileRepository.resolvePathForViewer(
     fileId: Int,

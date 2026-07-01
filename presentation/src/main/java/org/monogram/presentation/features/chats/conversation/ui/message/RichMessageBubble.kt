@@ -13,12 +13,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -26,16 +22,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
 import org.monogram.domain.models.ForwardInfo
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.WebPage
 import org.monogram.domain.models.webapp.PageBlock
 import org.monogram.domain.repository.FileRepository
-import org.monogram.domain.repository.MessageRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.features.instantview.InstantViewBlock
@@ -64,52 +57,10 @@ internal fun RichMessageBubble(
     onForwardOriginClick: (ForwardInfo) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val messageRepository: MessageRepository = koinInject()
-    val fileRepository: FileRepository = koinInject()
-    val dateFormatManager: DateFormatManager = koinInject()
+    val fileRepository: FileRepository = org.koin.compose.koinInject()
+    val dateFormatManager: DateFormatManager = org.koin.compose.koinInject()
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
-
-    var displayedContent by remember(content.chatId, content.messageId) {
-        mutableStateOf(content)
-    }
-
-    fun mergeRichContent(
-        current: MessageContent.RichMessage,
-        incoming: MessageContent.RichMessage
-    ): MessageContent.RichMessage {
-        if (current.isFull && !incoming.isFull && incoming.blocks.isEmpty()) return current
-        if (incoming.isFull) return incoming
-        if (incoming.blocks.isNotEmpty()) return incoming
-        return current
-    }
-
-    LaunchedEffect(content) {
-        displayedContent = mergeRichContent(displayedContent, content)
-        if (!content.isFull) {
-            messageRepository.getFullRichMessage(content.chatId, content.messageId)?.let { full ->
-                displayedContent = mergeRichContent(displayedContent, full)
-            }
-        }
-    }
-
-    LaunchedEffect(content.chatId, content.messageId) {
-        messageRepository.messageEditedFlow
-            .filter { it.chatId == content.chatId && it.id == content.messageId }
-            .collect { updatedMessage ->
-                val updatedContent =
-                    updatedMessage.content as? MessageContent.RichMessage ?: return@collect
-                displayedContent = mergeRichContent(displayedContent, updatedContent)
-                if (!updatedContent.isFull) {
-                    launch {
-                        messageRepository.getFullRichMessage(content.chatId, content.messageId)
-                            ?.let { full ->
-                                displayedContent = mergeRichContent(displayedContent, full)
-                            }
-                    }
-                }
-            }
-    }
 
     fun openRichPhoto(photo: WebPage.Photo, caption: String?, sourceUrl: String) {
         if (onLinkPreviewAction == null) return
@@ -176,6 +127,16 @@ internal fun RichMessageBubble(
         if (isOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
     val timeColor = contentColor.copy(alpha = 0.7f)
     val timeText = formatTime(msg.date, dateFormatManager.getHourMinuteFormat())
+    val renderModels = remember(msg.id, content.blocks) {
+        content.blocks.mapIndexed { index, block ->
+            RichBlockRenderModel(
+                block = block,
+                sourceUrl = block.richSourceUrl(),
+                caption = block.richCaptionOrNull(),
+                stateKeyPrefix = "message:${msg.id}:block:$index"
+            )
+        }
+    }
 
     Column(
         modifier = modifier
@@ -218,23 +179,20 @@ internal fun RichMessageBubble(
                     LocalOnUrlClick provides { url -> uriHandler.openUri(normalizeUrl(url)) },
                     LocalFileRepository provides fileRepository
                 ) {
-                    if (!displayedContent.isFull && displayedContent.blocks.isEmpty()) {
+                    if (!content.isFull && content.blocks.isEmpty()) {
                         RichMessagePlaceholder()
                     } else {
-                        displayedContent.blocks.forEach { block ->
+                        renderModels.forEach { renderModel ->
                             InstantViewBlock(
-                                block = block,
+                                block = renderModel.block,
                                 textSizeMultiplier = (fontSize / 16f).coerceIn(0.75f, 1.5f),
+                                stateKeyPrefix = renderModel.stateKeyPrefix,
                                 onOpenPhotoFullscreen = { photo, caption ->
                                     openRichPhoto(
                                         photo = photo,
-                                        caption = caption.renderedTextOrNull(),
-                                        sourceUrl = when (block) {
-                                            is PageBlock.PhotoBlock -> block.url
-                                            is PageBlock.Embedded -> block.url
-                                            is PageBlock.EmbeddedPost -> block.url
-                                            else -> ""
-                                        }
+                                        caption = renderModel.caption
+                                            ?: caption.renderedTextOrNull(),
+                                        sourceUrl = renderModel.sourceUrl
                                     )
                                 },
                                 onOpenVideoFullscreen = { path, fileId, supportsStreaming, caption ->
@@ -243,12 +201,7 @@ internal fun RichMessageBubble(
                                         fileId = fileId,
                                         supportsStreaming = supportsStreaming,
                                         caption = caption,
-                                        sourceUrl = when (block) {
-                                            is PageBlock.PhotoBlock -> block.url
-                                            is PageBlock.Embedded -> block.url
-                                            is PageBlock.EmbeddedPost -> block.url
-                                            else -> ""
-                                        }
+                                        sourceUrl = renderModel.sourceUrl
                                     )
                                 }
                             )
@@ -275,6 +228,35 @@ internal fun RichMessageBubble(
         )
     }
 }
+
+private data class RichBlockRenderModel(
+    val block: PageBlock,
+    val sourceUrl: String,
+    val caption: String?,
+    val stateKeyPrefix: String
+)
+
+private fun PageBlock.richSourceUrl(): String =
+    when (this) {
+        is PageBlock.PhotoBlock -> url
+        is PageBlock.Embedded -> url
+        is PageBlock.EmbeddedPost -> url
+        else -> ""
+    }
+
+private fun PageBlock.richCaptionOrNull(): String? =
+    when (this) {
+        is PageBlock.PhotoBlock -> caption.renderedTextOrNull()
+        is PageBlock.VideoBlock -> caption.renderedTextOrNull()
+        is PageBlock.AnimationBlock -> caption.renderedTextOrNull()
+        is PageBlock.AudioBlock -> caption.renderedTextOrNull()
+        is PageBlock.Embedded -> caption.renderedTextOrNull()
+        is PageBlock.EmbeddedPost -> caption.renderedTextOrNull()
+        is PageBlock.Collage -> caption.renderedTextOrNull()
+        is PageBlock.Slideshow -> caption.renderedTextOrNull()
+        is PageBlock.MapBlock -> caption.renderedTextOrNull()
+        else -> null
+    }
 
 @Composable
 private fun RichMessagePlaceholder() {

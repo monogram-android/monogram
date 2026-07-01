@@ -196,6 +196,20 @@ internal data class VisibleMessageReadReportingState(
     val isEnabled: Boolean
 )
 
+@Immutable
+private data class MessageRowRenderState(
+    val item: GroupedMessageItem,
+    val olderMsg: MessageModel?,
+    val newerMsg: MessageModel?,
+    val behavior: MessageRowBehaviorConfig,
+    val uiFlags: MessageRowUiFlags,
+    val highlightRequest: MessageHighlightRequest?,
+    val isTargetVisibleInViewport: Boolean,
+    val canReportVisibleMessagesAsRead: Boolean,
+    val rootMessageId: Long?,
+    val isEntryAnimationPending: Boolean
+)
+
 internal fun updateVisibleMessageReadReportingState(
     previousState: VisibleMessageReadReportingState?,
     nextContext: VisibleMessageReadReportingContext,
@@ -560,6 +574,46 @@ internal fun ChatContentList(
             }
     }
 
+    LaunchedEffect(
+        scrollState,
+        conversationItems,
+        groupedMessages,
+        state.isViewportSettled
+    ) {
+        if (!state.isViewportSettled || groupedMessages.isEmpty()) return@LaunchedEffect
+        snapshotFlow { scrollState.layoutInfo.visibleItemsInfo.map(LazyListItemInfo::index) }
+            .filter { it.isNotEmpty() }
+            .distinctUntilChanged()
+            .collect { visibleLazyIndices ->
+                val leadingItems = chatContentLeadingItemsCount(
+                    isComments = isComments,
+                    showNavPadding = showNavPadding,
+                    isLoadingOlder = state.isLoadingOlder,
+                    isLoadingNewer = state.isLoadingNewer,
+                    isAtBottom = state.isAtBottom,
+                    hasMessages = groupedMessages.isNotEmpty()
+                )
+                val visibleGroupedIndices = visibleLazyIndices.mapNotNull { lazyIndex ->
+                    val groupedIndex = lazyIndexToGroupedIndex(lazyIndex, leadingItems)
+                    groupedIndex.takeIf { it in groupedMessages.indices }
+                }
+                if (visibleGroupedIndices.isEmpty()) return@collect
+                val firstVisibleGroupedIndex = visibleGroupedIndices.minOrNull() ?: return@collect
+                val lastVisibleGroupedIndex = visibleGroupedIndices.maxOrNull() ?: return@collect
+                val nearbyStart = (firstVisibleGroupedIndex - 3).coerceAtLeast(0)
+                val nearbyEnd =
+                    (lastVisibleGroupedIndex + 3).coerceAtMost(groupedMessages.lastIndex)
+                val visibleIds =
+                    visibleGroupedIndices.mapTo(linkedSetOf()) { groupedMessages[it].firstMessageId }
+                val nearbyIds =
+                    (nearbyStart..nearbyEnd).mapTo(linkedSetOf()) { groupedMessages[it].firstMessageId }
+                component.onMessageViewportChanged(
+                    visibleMessageIds = visibleIds,
+                    nearbyMessageIds = nearbyIds
+                )
+            }
+    }
+
     if (state.viewAsTopics && state.currentTopicId == null) {
         TopicsList(
             topics = state.topics,
@@ -628,44 +682,53 @@ internal fun ChatContentList(
                         }
                     }
                 ) { index, item ->
-                    val olderMsg = remember(groupedMessages, index) {
-                        getMessageAt(
-                            groupedMessages,
-                            index - 1
-                        )
-                    }
-                    val newerMsg = remember(groupedMessages, index) {
-                        getMessageAt(
-                            groupedMessages,
-                            index + 1
+                    val rowState = remember(
+                        groupedMessages,
+                        index,
+                        state.selectedMessageIds,
+                        state.unreadSeparatorCount,
+                        unreadBoundaryIndex,
+                        state.highlightRequest,
+                        visibleGroupedMessageIds,
+                        canReportVisibleMessagesAsRead,
+                        state.rootMessage?.id,
+                        pendingEntryAnimationIds,
+                        isAnyViewerOpen
+                    ) {
+                        MessageRowRenderState(
+                            item = item,
+                            olderMsg = getMessageAt(groupedMessages, index - 1),
+                            newerMsg = getMessageAt(groupedMessages, index + 1),
+                            behavior = state.toBehaviorConfig(
+                                isSelectionMode = state.selectedMessageIds.isNotEmpty(),
+                                isAnyViewerOpen = isAnyViewerOpen
+                            ),
+                            uiFlags = MessageRowUiFlags(
+                                isSelected = isItemSelected(item, state.selectedMessageIds),
+                                showUnreadSeparator = shouldShowUnreadSeparator(
+                                    isComments = isComments,
+                                    unreadBoundaryIndex = unreadBoundaryIndex,
+                                    unreadSeparatorCount = state.unreadSeparatorCount,
+                                    itemIndex = index
+                                ),
+                                unreadCount = state.unreadSeparatorCount,
+                                shouldReportPosition = item.lastMessageId == selectedMessageId
+                            ),
+                            highlightRequest = highlightRequestForItem(
+                                item,
+                                state.highlightRequest
+                            ),
+                            isTargetVisibleInViewport = item.firstMessageId in visibleGroupedMessageIds,
+                            canReportVisibleMessagesAsRead = canReportVisibleMessagesAsRead,
+                            rootMessageId = state.rootMessage?.id,
+                            isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId)
                         )
                     }
 
                     MessageRowItem(
-                        item = item,
+                        rowState = rowState,
                         appearance = appearance,
                         component = component,
-                        olderMsg = olderMsg,
-                        newerMsg = newerMsg,
-                        behavior = state.toBehaviorConfig(
-                            isSelectionMode = state.selectedMessageIds.isNotEmpty(),
-                            isAnyViewerOpen = isAnyViewerOpen
-                        ),
-                        uiFlags = MessageRowUiFlags(
-                            isSelected = isItemSelected(item, state.selectedMessageIds),
-                            showUnreadSeparator = shouldShowUnreadSeparator(
-                                isComments = isComments,
-                                unreadBoundaryIndex = unreadBoundaryIndex,
-                                unreadSeparatorCount = state.unreadSeparatorCount,
-                                itemIndex = index
-                            ),
-                            unreadCount = state.unreadSeparatorCount,
-                            shouldReportPosition = item.lastMessageId == selectedMessageId
-                        ),
-                        highlightRequest = highlightRequestForItem(item, state.highlightRequest),
-                        isTargetVisibleInViewport = item.firstMessageId in visibleGroupedMessageIds,
-                        canReportVisibleMessagesAsRead = canReportVisibleMessagesAsRead,
-                        rootMessageId = state.rootMessage?.id,
                         onPhotoClick = onPhotoClick,
                         onPhotoDownload = onPhotoDownload,
                         onVideoClick = onVideoClick,
@@ -683,7 +746,6 @@ internal fun ChatContentList(
                         onLinkPreviewAction = onLinkPreviewAction,
                         isChatAnimationsEnabled = state.isChatAnimationsEnabled,
                         isScrolling = isScrolling,
-                        isEntryAnimationPending = pendingEntryAnimationIds.containsKey(item.firstMessageId),
                         onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
                         downloadUtils = downloadUtils
                     )
@@ -738,50 +800,58 @@ internal fun ChatContentList(
                         is ConversationListItem.Grouped -> {
                             val groupedItem = item.groupedMessageItem
                             val groupedIndex = item.groupedIndex
-                            val olderMsg = remember(groupedMessages, groupedIndex) {
-                                getMessageAt(
-                                    groupedMessages,
-                                    groupedIndex + 1
-                                )
-                            }
-                            val newerMsg = remember(groupedMessages, groupedIndex) {
-                                getMessageAt(
-                                    groupedMessages,
-                                    groupedIndex - 1
+                            val rowState = remember(
+                                groupedMessages,
+                                groupedIndex,
+                                state.selectedMessageIds,
+                                state.unreadSeparatorCount,
+                                unreadBoundaryIndex,
+                                state.highlightRequest,
+                                visibleGroupedMessageIds,
+                                canReportVisibleMessagesAsRead,
+                                state.rootMessage?.id,
+                                pendingEntryAnimationIds,
+                                isAnyViewerOpen
+                            ) {
+                                MessageRowRenderState(
+                                    item = groupedItem,
+                                    olderMsg = getMessageAt(groupedMessages, groupedIndex + 1),
+                                    newerMsg = getMessageAt(groupedMessages, groupedIndex - 1),
+                                    behavior = state.toBehaviorConfig(
+                                        isSelectionMode = state.selectedMessageIds.isNotEmpty(),
+                                        isAnyViewerOpen = isAnyViewerOpen
+                                    ),
+                                    uiFlags = MessageRowUiFlags(
+                                        isSelected = isItemSelected(
+                                            groupedItem,
+                                            state.selectedMessageIds
+                                        ),
+                                        showUnreadSeparator = shouldShowUnreadSeparator(
+                                            isComments = isComments,
+                                            unreadBoundaryIndex = unreadBoundaryIndex,
+                                            unreadSeparatorCount = state.unreadSeparatorCount,
+                                            itemIndex = groupedIndex
+                                        ),
+                                        unreadCount = state.unreadSeparatorCount,
+                                        shouldReportPosition = groupedItem.lastMessageId == selectedMessageId
+                                    ),
+                                    highlightRequest = highlightRequestForItem(
+                                        groupedItem,
+                                        state.highlightRequest
+                                    ),
+                                    isTargetVisibleInViewport = groupedItem.firstMessageId in visibleGroupedMessageIds,
+                                    canReportVisibleMessagesAsRead = canReportVisibleMessagesAsRead,
+                                    rootMessageId = state.rootMessage?.id,
+                                    isEntryAnimationPending = pendingEntryAnimationIds.containsKey(
+                                        groupedItem.firstMessageId
+                                    )
                                 )
                             }
 
                             MessageRowItem(
-                                item = groupedItem,
+                                rowState = rowState,
                                 appearance = appearance,
                                 component = component,
-                                olderMsg = olderMsg,
-                                newerMsg = newerMsg,
-                                behavior = state.toBehaviorConfig(
-                                    isSelectionMode = state.selectedMessageIds.isNotEmpty(),
-                                    isAnyViewerOpen = isAnyViewerOpen
-                                ),
-                                uiFlags = MessageRowUiFlags(
-                                    isSelected = isItemSelected(
-                                        groupedItem,
-                                        state.selectedMessageIds
-                                    ),
-                                    showUnreadSeparator = shouldShowUnreadSeparator(
-                                        isComments = isComments,
-                                        unreadBoundaryIndex = unreadBoundaryIndex,
-                                        unreadSeparatorCount = state.unreadSeparatorCount,
-                                        itemIndex = groupedIndex
-                                    ),
-                                    unreadCount = state.unreadSeparatorCount,
-                                    shouldReportPosition = groupedItem.lastMessageId == selectedMessageId
-                                ),
-                                highlightRequest = highlightRequestForItem(
-                                    groupedItem,
-                                    state.highlightRequest
-                                ),
-                                isTargetVisibleInViewport = groupedItem.firstMessageId in visibleGroupedMessageIds,
-                                canReportVisibleMessagesAsRead = canReportVisibleMessagesAsRead,
-                                rootMessageId = state.rootMessage?.id,
                                 onPhotoClick = onPhotoClick,
                                 onPhotoDownload = onPhotoDownload,
                                 onVideoClick = onVideoClick,
@@ -799,9 +869,6 @@ internal fun ChatContentList(
                                 onLinkPreviewAction = onLinkPreviewAction,
                                 isChatAnimationsEnabled = state.isChatAnimationsEnabled,
                                 isScrolling = isScrolling,
-                                isEntryAnimationPending = pendingEntryAnimationIds.containsKey(
-                                    groupedItem.firstMessageId
-                                ),
                                 onEntryAnimationConsumed = { pendingEntryAnimationIds.remove(it) },
                                 downloadUtils = downloadUtils
                             )
@@ -907,17 +974,9 @@ private fun PagingLoadingIndicator() {
 
 @Composable
 private fun MessageRowItem(
-    item: GroupedMessageItem,
+    rowState: MessageRowRenderState,
     appearance: MessageAppearanceConfig,
     component: ChatComponent,
-    olderMsg: MessageModel?,
-    newerMsg: MessageModel?,
-    behavior: MessageRowBehaviorConfig,
-    uiFlags: MessageRowUiFlags,
-    highlightRequest: MessageHighlightRequest?,
-    isTargetVisibleInViewport: Boolean,
-    canReportVisibleMessagesAsRead: Boolean,
-    rootMessageId: Long?,
     onPhotoClick: (MessageModel, List<String>, List<String?>, List<Long>, Int) -> Unit,
     onPhotoDownload: (Int) -> Unit,
     onVideoClick: (MessageModel, String?, String?) -> Unit,
@@ -935,10 +994,19 @@ private fun MessageRowItem(
     onLinkPreviewAction: (LinkPreviewAction) -> Unit,
     isChatAnimationsEnabled: Boolean,
     isScrolling: Boolean,
-    isEntryAnimationPending: Boolean,
     onEntryAnimationConsumed: (Long) -> Unit,
     downloadUtils: IDownloadUtils
 ) {
+    val item = rowState.item
+    val olderMsg = rowState.olderMsg
+    val newerMsg = rowState.newerMsg
+    val behavior = rowState.behavior
+    val uiFlags = rowState.uiFlags
+    val highlightRequest = rowState.highlightRequest
+    val isTargetVisibleInViewport = rowState.isTargetVisibleInViewport
+    val canReportVisibleMessagesAsRead = rowState.canReportVisibleMessagesAsRead
+    val rootMessageId = rowState.rootMessageId
+    val isEntryAnimationPending = rowState.isEntryAnimationPending
     val mainMsg = remember(item) {
         if (item is GroupedMessageItem.Single) item.message else (item as GroupedMessageItem.Album).messages.last()
     }

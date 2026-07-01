@@ -40,7 +40,7 @@ fun MessageReactionsView(
     onReactionClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     emojiFontFamily: FontFamily = LocalMessageRenderDependencies.current.emojiFontFamily,
-    customEmojiPathsById: Map<Long, String?> = LocalMessageRenderDependencies.current.customEmojiPaths
+    customEmojiPathsById: Map<Long, String?> = rememberReactionCustomEmojiPaths(reactions)
 ) {
     if (reactions.isEmpty()) return
 
@@ -61,6 +61,19 @@ fun MessageReactionsView(
             }
         }
     }
+}
+
+@Composable
+private fun rememberReactionCustomEmojiPaths(
+    reactions: List<MessageReactionModel>
+): Map<Long, String?> {
+    val dependencies = LocalMessageRenderDependencies.current
+    val requests = remember(reactions) { collectCustomEmojiRequests(reactions = reactions) }
+    val resolved by dependencies.customEmojiResolver.resolve(
+        customEmojiIds = requests.ids,
+        explicitPaths = requests.explicitPaths
+    )
+    return resolved
 }
 
 @OptIn(ExperimentalFoundationApi::class)

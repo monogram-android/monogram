@@ -34,7 +34,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Person
@@ -99,7 +98,6 @@ fun AccountMenu(
     onDismiss: () -> Unit,
     onSavedMessagesClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onHelpClick: () -> Unit,
     onUpdateClick: () -> Unit = {},
     onProfileClick: () -> Unit = {},
     onBotClick: (AttachMenuBotModel) -> Unit = {}
@@ -402,17 +400,6 @@ fun AccountMenu(
                                 }
                             }
 
-                            SettingsItem(
-                                icon = Icons.AutoMirrored.Outlined.HelpOutline,
-                                iconBackgroundColor = menuIconColor,
-                                title = stringResource(R.string.menu_help_feedback),
-                                subtitle = stringResource(R.string.menu_help_feedback_subtitle),
-                                position = ItemPosition.BOTTOM,
-                                onClick = {
-                                    onHelpClick()
-                                    animateDismiss()
-                                }
-                            )
                         }
 
                         MenuFooter(

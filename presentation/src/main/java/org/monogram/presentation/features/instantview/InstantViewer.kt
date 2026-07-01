@@ -166,7 +166,8 @@ fun InstantViewer(
     messageRepository: MessageRepository,
     fileRepository: FileRepository,
     onDismiss: () -> Unit,
-    onOpenWebView: (String) -> Unit
+    onOpenWebView: (String) -> Unit,
+    onOpenError: () -> Unit = onDismiss
 ) {
     val urlStack = remember { mutableStateListOf(url) }
     val currentUrl = urlStack.lastOrNull() ?: url
@@ -224,16 +225,13 @@ fun InstantViewer(
 
     LaunchedEffect(currentUrl) {
         isLoading = true
-        val result = messageRepository.getWebPageInstantView(currentUrl)
-        if (result == null) {
-            onOpenWebView(normalizeUrl(currentUrl))
-            if (urlStack.size > 1) {
-                urlStack.removeAt(urlStack.size - 1)
-            } else {
-                onDismiss()
-            }
+        val resolvedInstantView = runCatching {
+            messageRepository.getWebPageInstantView(currentUrl)
+        }.getOrNull()
+        if (resolvedInstantView != null) {
+            instantView = resolvedInstantView
         } else {
-            instantView = result
+            onOpenError()
         }
         isLoading = false
     }

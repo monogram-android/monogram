@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.chats.conversation.ui.content
 
 import android.content.ClipData
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,9 +14,11 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.Clipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ui.message.PreviewImageViewerRequest
 import org.monogram.presentation.features.chats.conversation.ui.message.PreviewVideoViewerRequest
@@ -75,6 +78,9 @@ internal fun ChatContentViewersInternal(
 
 @Composable
 internal fun InstantViewOverlay(state: ChatComponent.State, component: ChatComponent) {
+    val context = LocalContext.current
+    val openErrorMessage = context.getString(R.string.instant_view_open_error)
+
     AnimatedVisibility(
         visible = state.instantViewUrl != null,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -86,7 +92,11 @@ internal fun InstantViewOverlay(state: ChatComponent.State, component: ChatCompo
                 messageRepository = component.repositoryMessage,
                 fileRepository = component.repositoryMessage,
                 onDismiss = { component.onDismissInstantView() },
-                onOpenWebView = { component.onOpenWebView(it) }
+                onOpenWebView = { component.onOpenWebView(it) },
+                onOpenError = {
+                    Toast.makeText(context, openErrorMessage, Toast.LENGTH_SHORT).show()
+                    component.onDismissInstantView()
+                }
             )
         }
     }

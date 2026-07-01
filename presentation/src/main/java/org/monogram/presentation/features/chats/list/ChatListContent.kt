@@ -591,9 +591,6 @@ fun ChatListContent(
                 currentUser?.id?.let { component.onChatClicked(it) }
             },
             onSettingsClick = { component.onSettingsClicked() },
-            onHelpClick = {
-                component.onOpenInstantView("https://telegram.org/faq#general-questions")
-            },
             onProfileClick = {
                 currentUser?.id?.let { component.onProfileClicked(it) }
             },

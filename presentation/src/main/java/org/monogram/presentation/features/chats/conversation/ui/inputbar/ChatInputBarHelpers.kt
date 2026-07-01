@@ -18,6 +18,7 @@ import org.monogram.presentation.core.util.copyUriToTempDocumentFile
 import org.monogram.presentation.core.util.copyUriToTempMediaFile
 import org.monogram.presentation.features.share.PendingAttachment
 import org.monogram.presentation.features.share.PendingAttachmentKind
+import org.monogram.presentation.features.share.inferPendingAttachmentKind
 
 internal data class InlineQueryInput(
     val botUsername: String,
@@ -194,19 +195,10 @@ internal fun Context.copyUriToPendingAttachment(uri: android.net.Uri): PendingAt
         val path = media.localPath
         return PendingAttachment(
             localPath = path,
-            kind = when {
-                media.mimeType == "image/gif" || path.endsWith(
-                    ".gif",
-                    ignoreCase = true
-                ) -> PendingAttachmentKind.GIF
-
-                media.mimeType?.startsWith("video/") == true || path.endsWith(
-                    ".mp4",
-                    ignoreCase = true
-                ) -> PendingAttachmentKind.VIDEO
-
-                else -> PendingAttachmentKind.PHOTO
-            },
+            kind = inferPendingAttachmentKind(
+                localPath = path,
+                mimeType = media.mimeType
+            ),
             deleteAfterUse = true
         )
     }

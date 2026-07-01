@@ -72,6 +72,7 @@ import org.monogram.presentation.features.chats.conversation.ui.message.remember
 import org.monogram.presentation.features.chats.conversation.ui.rememberVoicePlaybackController
 import org.monogram.presentation.features.share.PendingAttachment
 import org.monogram.presentation.features.share.PendingAttachmentKind
+import org.monogram.presentation.features.share.inferPendingAttachmentKind
 
 internal fun updateChatContentVisibilityLatch(
     previousVisible: Boolean,
@@ -469,7 +470,7 @@ fun ChatContent(
                                         state.stagedAttachments.firstOrNull { it.localPath == path }
                                     existing ?: PendingAttachment(
                                         localPath = path,
-                                        kind = if (path.endsWith(".mp4")) PendingAttachmentKind.VIDEO else PendingAttachmentKind.PHOTO
+                                        kind = inferPendingAttachmentKind(path)
                                     )
                                 }
                                 component.onStageAttachments(media + documents)
@@ -489,7 +490,11 @@ fun ChatContent(
                             },
                             onStartRecordingVideo = { isRecordingVideo = true },
                             onEditMediaPath = { path ->
-                                if (path.endsWith(".mp4")) {
+                                val existingKind =
+                                    state.stagedAttachments.firstOrNull { it.localPath == path }?.kind
+                                if ((existingKind
+                                        ?: inferPendingAttachmentKind(path)) == PendingAttachmentKind.VIDEO
+                                ) {
                                     editingVideoPath = path
                                 } else {
                                     editingPhotoPath = path

@@ -47,3 +47,35 @@ val PendingAttachment.isDocument: Boolean
 
 val PendingAttachment.isMedia: Boolean
     get() = !isDocument
+
+private val VIDEO_ATTACHMENT_EXTENSIONS = setOf(
+    "mp4",
+    "mov",
+    "m4v",
+    "webm",
+    "mkv",
+    "3gp",
+    "avi"
+)
+
+fun inferPendingAttachmentKind(
+    localPath: String,
+    mimeType: String? = null
+): PendingAttachmentKind {
+    val normalizedMimeType = mimeType
+        ?.substringBefore(';')
+        ?.trim()
+        ?.lowercase()
+    if (normalizedMimeType == "image/gif") return PendingAttachmentKind.GIF
+    if (normalizedMimeType?.startsWith("video/") == true) return PendingAttachmentKind.VIDEO
+
+    val normalizedPath = localPath.lowercase()
+    return when {
+        normalizedPath.endsWith(".gif") -> PendingAttachmentKind.GIF
+        VIDEO_ATTACHMENT_EXTENSIONS.any { extension ->
+            normalizedPath.endsWith(".$extension")
+        } -> PendingAttachmentKind.VIDEO
+
+        else -> PendingAttachmentKind.PHOTO
+    }
+}

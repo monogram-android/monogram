@@ -77,6 +77,7 @@ import org.monogram.domain.repository.ProfileMediaFilter
 import org.monogram.domain.repository.SearchChatMessagesResult
 import org.monogram.domain.repository.TextCompositionStyleModel
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 internal class MessageRepositoryImpl(
     private val context: Context,
@@ -98,11 +99,15 @@ internal class MessageRepositoryImpl(
     private val keyValueDao: KeyValueDao,
     private val textCompositionStyleDao: TextCompositionStyleDao
 ) : MessageRepository {
+    private data class RichMessageCacheKey(val chatId: Long, val messageId: Long)
+
     private val fixedDraftLinkPreviewFetcher = FixedDraftLinkPreviewFetcher(
         draftLinkPreviewResolver = draftLinkPreviewResolver,
         draftLinkPreviewRemoteDataSource = messageRemoteDataSource,
         fixedPreviewRemoteDataSource = fxEmbedRemoteDataSource
     )
+    private val fullRichMessageCache =
+        ConcurrentHashMap<RichMessageCacheKey, MessageContent.RichMessage>()
 
     private val _textCompositionStyles = MutableStateFlow<List<TextCompositionStyleModel>>(emptyList())
     private val hardResetFlagKey = "cache_hard_reset_v2"
@@ -173,6 +178,18 @@ internal class MessageRepositoryImpl(
                         fileId = event.fileId,
                         path = event.path
                     )
+                }
+            }
+        }
+
+        scope.launch(dispatcherProvider.io) {
+            messageEditedFlow.collect { message ->
+                val key = RichMessageCacheKey(chatId = message.chatId, messageId = message.id)
+                val richContent = message.content as? MessageContent.RichMessage
+                when {
+                    richContent == null -> fullRichMessageCache.remove(key)
+                    richContent.isFull -> fullRichMessageCache[key] = richContent
+                    else -> fullRichMessageCache.remove(key)
                 }
             }
         }
@@ -1083,8 +1100,14 @@ internal class MessageRepositoryImpl(
         chatId: Long,
         messageId: Long
     ): MessageContent.RichMessage? {
-        return messageRemoteDataSource.getFullRichMessage(chatId, messageId)
+        val key = RichMessageCacheKey(chatId = chatId, messageId = messageId)
+        fullRichMessageCache[key]?.let { return it }
+        val resolved = messageRemoteDataSource.getFullRichMessage(chatId, messageId)
             ?.toDomainRichMessage(chatId = chatId, messageId = messageId)
+        if (resolved != null) {
+            fullRichMessageCache[key] = resolved
+        }
+        return resolved
     }
 
     override suspend fun getDraftLinkPreview(request: DraftLinkPreviewRequest): DraftLinkPreview? {

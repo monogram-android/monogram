@@ -132,6 +132,7 @@ interface ChatComponent {
     fun onScrollToMessageConsumed()
     fun onScrollCommandConsumed()
     fun onViewportSettled()
+    fun onMessageViewportChanged(visibleMessageIds: Set<Long>, nearbyMessageIds: Set<Long>)
     fun onScrollToBottom()
     fun onDownloadFile(fileId: Int)
     fun onDownloadHighRes(messageId: Long)

@@ -1666,6 +1666,7 @@ internal fun DefaultChatComponent.setupMessageCollectors() {
                         else -> mediaSafeMessage
                     }
                 }
+                handleEditedRichMessage(message)
             }
         }
         .launchIn(scope)
@@ -1830,6 +1831,10 @@ private inline fun DefaultChatComponent.updateMessageContent(
             }
         }
     }
+}
+
+internal fun DefaultChatComponent.handleEditedRichMessage(message: MessageModel) {
+    richMessageCoordinator.onMessageEdited(message)
 }
 
 internal fun DefaultChatComponent.loadDraft() {

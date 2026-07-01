@@ -12,13 +12,13 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
-import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
-import org.monogram.domain.models.MessageModel
+import org.monogram.domain.models.MessageReactionModel
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.coRunCatching
@@ -26,8 +26,26 @@ import org.monogram.presentation.core.util.coRunCatching
 @Immutable
 data class MessageRenderDependencies(
     val emojiFontFamily: FontFamily = FontFamily.Default,
-    val customEmojiPaths: Map<Long, String?> = emptyMap()
+    val customEmojiResolver: CustomEmojiPathResolver = EmptyCustomEmojiPathResolver
 )
+
+fun interface CustomEmojiPathResolver {
+    @Composable
+    fun resolve(
+        customEmojiIds: Set<Long>,
+        explicitPaths: Map<Long, String?>
+    ): State<Map<Long, String?>>
+}
+
+private object EmptyCustomEmojiPathResolver : CustomEmojiPathResolver {
+    @Composable
+    override fun resolve(
+        customEmojiIds: Set<Long>,
+        explicitPaths: Map<Long, String?>
+    ): State<Map<Long, String?>> = remember(explicitPaths) {
+        androidx.compose.runtime.mutableStateOf(explicitPaths)
+    }
+}
 
 internal val LocalMessageRenderDependencies = staticCompositionLocalOf {
     MessageRenderDependencies()
@@ -35,7 +53,6 @@ internal val LocalMessageRenderDependencies = staticCompositionLocalOf {
 
 @Composable
 internal fun rememberChatMessageRenderDependencies(
-    messages: List<MessageModel>,
     appPreferences: AppPreferences = koinInject(),
     stickerRepository: StickerRepository = koinInject()
 ): State<MessageRenderDependencies> {
@@ -60,34 +77,55 @@ internal fun rememberChatMessageRenderDependencies(
             }
         }
     }
-    val requests = remember(messages) { collectCustomEmojiRequests(messages) }
+
+    val resolver = remember(stickerRepository, customEmojiFileIdsById) {
+        CustomEmojiPathResolver { customEmojiIds, explicitPaths ->
+            resolveCustomEmojiPaths(
+                customEmojiIds = customEmojiIds,
+                explicitPaths = explicitPaths,
+                customEmojiFileIdsById = customEmojiFileIdsById,
+                stickerRepository = stickerRepository
+            )
+        }
+    }
+
+    return remember(emojiFontFamily, resolver) {
+        androidx.compose.runtime.mutableStateOf(
+            MessageRenderDependencies(
+                emojiFontFamily = emojiFontFamily,
+                customEmojiResolver = resolver
+            )
+        )
+    }
+}
+
+@Composable
+private fun resolveCustomEmojiPaths(
+    customEmojiIds: Set<Long>,
+    explicitPaths: Map<Long, String?>,
+    customEmojiFileIdsById: Map<Long, Long>,
+    stickerRepository: StickerRepository
+): State<Map<Long, String?>> {
+    val stableIds = remember(customEmojiIds) { customEmojiIds.toSet() }
+    val stableExplicitPaths = remember(explicitPaths) { explicitPaths.toMap() }
     return produceState(
-        initialValue = MessageRenderDependencies(
-            emojiFontFamily = emojiFontFamily,
-            customEmojiPaths = requests.explicitPaths
-        ),
-        emojiFontFamily,
-        requests,
+        initialValue = stableExplicitPaths,
+        stableIds,
+        stableExplicitPaths,
         customEmojiFileIdsById,
         stickerRepository
     ) {
-        value = MessageRenderDependencies(
-            emojiFontFamily = emojiFontFamily,
-            customEmojiPaths = requests.explicitPaths
-        )
-
+        value = stableExplicitPaths
         coroutineScope {
-            requests.ids.forEach { customEmojiId ->
+            stableIds.forEach { customEmojiId ->
                 launch {
-                    val resolvedFlow =
+                    val resolvedFlow: Flow<String?> =
                         customEmojiFileIdsById[customEmojiId]?.let(stickerRepository::getStickerFile)
                             ?: stickerRepository.getCustomEmojiFile(customEmojiId)
                     resolvedFlow.collectLatest { resolvedPath ->
-                        val nextPath = resolvedPath ?: requests.explicitPaths[customEmojiId]
-                        if (value.customEmojiPaths[customEmojiId] != nextPath) {
-                            value = value.copy(
-                                customEmojiPaths = value.customEmojiPaths + (customEmojiId to nextPath)
-                            )
+                        val nextPath = resolvedPath ?: stableExplicitPaths[customEmojiId]
+                        if (value[customEmojiId] != nextPath) {
+                            value = value + (customEmojiId to nextPath)
                         }
                     }
                 }
@@ -96,48 +134,33 @@ internal fun rememberChatMessageRenderDependencies(
     }
 }
 
-@Immutable
-private data class CustomEmojiRequests(
+internal data class CustomEmojiRequests(
     val ids: Set<Long>,
     val explicitPaths: Map<Long, String?>
 )
 
-private fun collectCustomEmojiRequests(messages: List<MessageModel>): CustomEmojiRequests {
+internal fun collectCustomEmojiRequests(
+    entities: List<MessageEntity> = emptyList(),
+    reactions: List<MessageReactionModel> = emptyList()
+): CustomEmojiRequests {
     val ids = LinkedHashSet<Long>()
     val explicitPaths = LinkedHashMap<Long, String?>()
 
-    fun appendEntities(entities: List<MessageEntity>) {
-        entities.forEach { entity ->
-            val type = entity.type as? MessageEntityType.CustomEmoji ?: return@forEach
-            ids += type.emojiId
-            if (type.path != null) {
-                explicitPaths[type.emojiId] = type.path
-            }
+    entities.forEach { entity ->
+        val type = entity.type as? MessageEntityType.CustomEmoji ?: return@forEach
+        ids += type.emojiId
+        if (type.path != null) {
+            explicitPaths[type.emojiId] = type.path
         }
     }
 
-    messages.forEach { message ->
-        when (val content = message.content) {
-            is MessageContent.Text -> appendEntities(content.entities)
-            is MessageContent.Photo -> appendEntities(content.entities)
-            is MessageContent.Video -> appendEntities(content.entities)
-            is MessageContent.Document -> appendEntities(content.entities)
-            is MessageContent.Audio -> appendEntities(content.entities)
-            is MessageContent.Gif -> appendEntities(content.entities)
-            else -> Unit
-        }
-
-        message.reactions.forEach { reaction ->
-            val customEmojiId = reaction.customEmojiId ?: return@forEach
-            ids += customEmojiId
-            if (reaction.customEmojiPath != null) {
-                explicitPaths[customEmojiId] = reaction.customEmojiPath
-            }
+    reactions.forEach { reaction ->
+        val customEmojiId = reaction.customEmojiId ?: return@forEach
+        ids += customEmojiId
+        if (reaction.customEmojiPath != null) {
+            explicitPaths[customEmojiId] = reaction.customEmojiPath
         }
     }
 
-    return CustomEmojiRequests(
-        ids = ids,
-        explicitPaths = explicitPaths
-    )
+    return CustomEmojiRequests(ids = ids, explicitPaths = explicitPaths)
 }

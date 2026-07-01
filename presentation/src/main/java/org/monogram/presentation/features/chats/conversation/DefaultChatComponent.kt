@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.monogram.core.DispatcherProvider
 import org.monogram.core.perf.ChatOpenPerfBridge
@@ -33,6 +34,7 @@ import org.monogram.domain.models.ForwardOriginType
 import org.monogram.domain.models.GifModel
 import org.monogram.domain.models.InlineKeyboardButtonModel
 import org.monogram.domain.models.KeyboardButtonModel
+import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.MessageSendOptions
@@ -91,6 +93,7 @@ import kotlin.math.abs
 
 private const val VIEWPORT_PERSIST_DEBOUNCE_MS = 750L
 private const val VIEWPORT_OFFSET_DELTA_THRESHOLD_PX = 8
+private const val RICH_PREFETCH_PARALLELISM = 3
 
 internal fun shouldRepairUnexpectedChatReset(
     previousState: ChatComponent.State?,
@@ -121,6 +124,147 @@ internal fun repairUnexpectedChatReset(
         pendingScrollCommand = resetState.pendingScrollCommand,
         lastSavedViewport = resetState.lastSavedViewport
     )
+}
+
+internal data class RichMessageKey(val chatId: Long, val messageId: Long)
+
+internal fun mergeRichContent(
+    current: MessageContent.RichMessage,
+    incoming: MessageContent.RichMessage
+): MessageContent.RichMessage {
+    if (current.isFull && !incoming.isFull && incoming.blocks.isEmpty()) return current
+    if (incoming.isFull) return incoming
+    if (incoming.blocks.isNotEmpty()) return incoming
+    return current
+}
+
+internal fun mergeRichMessageIntoModel(
+    current: MessageModel,
+    incoming: MessageContent.RichMessage
+): MessageModel {
+    val currentContent = current.content as? MessageContent.RichMessage ?: return current
+    val merged = mergeRichContent(currentContent, incoming)
+    return if (merged == currentContent) current else current.copy(content = merged)
+}
+
+internal fun DefaultChatComponent.applyResolvedRichMessage(
+    messageId: Long,
+    richMessage: MessageContent.RichMessage
+) {
+    scope.launch {
+        messageMutex.withLock {
+            val targetMessageId = remappedMessageIds[messageId] ?: messageId
+            _state.update { currentState ->
+                val currentMessages = currentState.messages.toMutableList()
+                val index = currentMessages.indexOfFirst { it.id == targetMessageId }
+                if (index == -1) return@update currentState
+                val currentMessage = currentMessages[index]
+                val updatedMessage = mergeRichMessageIntoModel(currentMessage, richMessage)
+                if (updatedMessage == currentMessage) {
+                    currentState
+                } else {
+                    currentMessages[index] = updatedMessage
+                    currentState.copy(messages = currentMessages)
+                }
+            }
+        }
+    }
+}
+
+internal data class RichViewportPrefetchDecision(
+    val fetchNow: List<RichMessageKey>,
+    val visibleCandidates: Set<RichMessageKey>,
+    val nearbyCandidates: Set<RichMessageKey>
+)
+
+internal fun decideRichViewportPrefetch(
+    visibleMessages: List<MessageModel>,
+    nearbyMessages: List<MessageModel>,
+    resolvedMessageIds: Set<RichMessageKey>,
+    inFlightMessageIds: Set<RichMessageKey>,
+    maxNearbyFetches: Int = RICH_PREFETCH_PARALLELISM
+): RichViewportPrefetchDecision {
+    fun MessageModel.partialRichKeyOrNull(): RichMessageKey? {
+        val content = content as? MessageContent.RichMessage ?: return null
+        if (content.isFull) return null
+        return RichMessageKey(chatId = chatId, messageId = id)
+    }
+
+    val visibleCandidates =
+        visibleMessages.mapNotNullTo(linkedSetOf(), MessageModel::partialRichKeyOrNull)
+    val nearbyCandidates =
+        nearbyMessages.mapNotNullTo(linkedSetOf(), MessageModel::partialRichKeyOrNull)
+    val fetchVisible =
+        visibleCandidates.filterNot { it in resolvedMessageIds || it in inFlightMessageIds }
+    val fetchNearby = nearbyCandidates
+        .filterNot { it in visibleCandidates || it in resolvedMessageIds || it in inFlightMessageIds }
+        .take(maxNearbyFetches.coerceAtLeast(0))
+    return RichViewportPrefetchDecision(
+        fetchNow = fetchVisible + fetchNearby,
+        visibleCandidates = visibleCandidates,
+        nearbyCandidates = nearbyCandidates
+    )
+}
+
+internal class RichMessageCoordinator(
+    private val component: DefaultChatComponent
+) {
+    private val inFlightMessageIds = ConcurrentHashMap.newKeySet<RichMessageKey>()
+    private val resolvedMessageIds = ConcurrentHashMap.newKeySet<RichMessageKey>()
+
+    fun onViewportChanged(visibleMessageIds: Set<Long>, nearbyMessageIds: Set<Long>) {
+        if (component._state.value.viewportPhase != ChatViewportPhase.Settled) return
+        val messages = component._state.value.messages
+        if (messages.isEmpty()) return
+        val visibleMessages = messages.filter { it.id in visibleMessageIds }
+        val nearbyMessages = messages.filter { it.id in nearbyMessageIds }
+        val decision = decideRichViewportPrefetch(
+            visibleMessages = visibleMessages,
+            nearbyMessages = nearbyMessages,
+            resolvedMessageIds = resolvedMessageIds,
+            inFlightMessageIds = inFlightMessageIds
+        )
+        decision.fetchNow.take(RICH_PREFETCH_PARALLELISM).forEach(::request)
+    }
+
+    fun onMessageEdited(message: MessageModel) {
+        val content = message.content as? MessageContent.RichMessage ?: return
+        val key = RichMessageKey(chatId = message.chatId, messageId = message.id)
+        if (content.isFull) {
+            resolvedMessageIds += key
+            component.scope.launch {
+                component.applyResolvedRichMessage(message.id, content)
+            }
+            return
+        }
+        resolvedMessageIds.remove(key)
+        if (component._state.value.viewportPhase == ChatViewportPhase.Settled) {
+            request(key)
+        }
+    }
+
+    private fun request(key: RichMessageKey) {
+        if (!inFlightMessageIds.add(key)) return
+        component.scope.launch(component.dispatcherProvider.io) {
+            ChatConversationLog.logViewport(
+                chatId = key.chatId,
+                threadId = component._state.value.currentTopicId,
+                event = "rich_fetch_requested",
+                componentInstanceId = component.componentInstanceId,
+                extra = "messageId=${key.messageId}"
+            )
+            runCatching {
+                component.repositoryMessage.getFullRichMessage(key.chatId, key.messageId)
+            }.onSuccess { richMessage ->
+                if (richMessage != null) {
+                    resolvedMessageIds += key
+                    component.applyResolvedRichMessage(key.messageId, richMessage)
+                }
+            }.also {
+                inFlightMessageIds.remove(key)
+            }
+        }
+    }
 }
 
 class DefaultChatComponent(
@@ -191,6 +335,7 @@ class DefaultChatComponent(
     internal var lastStartedLoadKey: ChatInitialLoadKey? = null
     internal var hasStartedInitialLoadForContext: Boolean = false
     internal var activeLoadSession: ConversationLoadSession? = null
+    internal val richMessageCoordinator = RichMessageCoordinator(this)
 
     internal var lastLoadedOlderId: Long = 0L
     internal var lastLoadedNewerId: Long = 0L
@@ -706,6 +851,16 @@ class DefaultChatComponent(
             ChatOpenPerfBridge.clearSession(chatId, currentThreadId, sessionId)
             activeLoadSession = null
         }
+    }
+
+    override fun onMessageViewportChanged(
+        visibleMessageIds: Set<Long>,
+        nearbyMessageIds: Set<Long>
+    ) {
+        richMessageCoordinator.onViewportChanged(
+            visibleMessageIds = visibleMessageIds,
+            nearbyMessageIds = nearbyMessageIds
+        )
     }
 
     override fun onScrollToBottom() = store.accept(ChatStore.Intent.ScrollToBottom)

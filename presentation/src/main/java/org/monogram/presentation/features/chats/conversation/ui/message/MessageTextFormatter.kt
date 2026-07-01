@@ -8,6 +8,7 @@ import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,11 +59,24 @@ private fun rememberResolvedCustomEmojiPaths(
 }
 
 @Composable
+private fun rememberRowCustomEmojiPaths(
+    entities: List<MessageEntity>
+): Map<Long, String?> {
+    val dependencies = LocalMessageRenderDependencies.current
+    val requests = remember(entities) { collectCustomEmojiRequests(entities = entities) }
+    val resolved by dependencies.customEmojiResolver.resolve(
+        customEmojiIds = requests.ids,
+        explicitPaths = requests.explicitPaths
+    )
+    return resolved
+}
+
+@Composable
 fun rememberMessageInlineContent(
     entities: List<MessageEntity>,
     fontSize: Float,
     isBigEmoji: Boolean = false,
-    customEmojiPaths: Map<Long, String?> = LocalMessageRenderDependencies.current.customEmojiPaths
+    customEmojiPaths: Map<Long, String?> = rememberRowCustomEmojiPaths(entities)
 ): Map<String, InlineTextContent> {
     val emojiEntities =
         entities.filter { it.type is MessageEntityType.CustomEmoji }.sortedBy { it.offset }
@@ -97,7 +111,7 @@ fun rememberMessageTextRenderData(
     isOutgoing: Boolean = false,
     revealedSpoilers: List<Int> = emptyList(),
     emojiFontFamily: FontFamily = LocalMessageRenderDependencies.current.emojiFontFamily,
-    customEmojiPaths: Map<Long, String?> = LocalMessageRenderDependencies.current.customEmojiPaths
+    customEmojiPaths: Map<Long, String?> = rememberRowCustomEmojiPaths(entities)
 ): MessageTextRenderData {
     val bigEmoji = remember(text, entities, allowBigEmoji) {
         allowBigEmoji && isBigEmoji(text, entities)

@@ -201,14 +201,7 @@ fun ChatContent(
         canSendAnything = permissionState.canSendAnything,
         showInitialLoading = showInitialLoading
     )
-    val messageRenderDependencies by rememberChatMessageRenderDependencies(
-        messages = remember(messagePresentationState.displayMessages, previewState.rootMessage) {
-            buildList {
-                addAll(messagePresentationState.displayMessages)
-                previewState.rootMessage?.let(::add)
-            }
-        }
-    )
+    val messageRenderDependencies by rememberChatMessageRenderDependencies()
     val voicePlaybackController = rememberVoicePlaybackController()
 
     val isAnyViewerOpen by remember(

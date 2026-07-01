@@ -21,7 +21,7 @@ interface PowerSavingComponent {
 
     data class State(
         val isChatAnimationsEnabled: Boolean = true,
-        val backgroundServiceEnabled: Boolean = true,
+        val backgroundServiceEnabled: Boolean = false,
         val isPowerSavingModeEnabled: Boolean = false,
         val isWakeLockEnabled: Boolean = false,
         val batteryOptimizationEnabled: Boolean = false

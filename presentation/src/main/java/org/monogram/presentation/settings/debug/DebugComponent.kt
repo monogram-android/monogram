@@ -18,7 +18,7 @@ interface DebugComponent {
 
     data class State(
         val pushProvider: PushProvider = PushProvider.FCM,
-        val backgroundServiceEnabled: Boolean = true,
+        val backgroundServiceEnabled: Boolean = false,
         val hideForegroundNotification: Boolean = false,
         val isPowerSavingMode: Boolean = false,
         val isWakeLockEnabled: Boolean = false,

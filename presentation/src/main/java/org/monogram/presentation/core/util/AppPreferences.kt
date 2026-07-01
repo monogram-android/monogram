@@ -270,7 +270,7 @@ class AppPreferences(
     private val _pinnedMessagesNotifications = MutableStateFlow(prefs.getBoolean(KEY_PINNED_MESSAGES, true))
     override val pinnedMessagesNotifications: StateFlow<Boolean> = _pinnedMessagesNotifications
 
-    private val _backgroundServiceEnabled = MutableStateFlow(prefs.getBoolean(KEY_BACKGROUND_SERVICE_ENABLED, true))
+    private val _backgroundServiceEnabled = MutableStateFlow(prefs.getBoolean(KEY_BACKGROUND_SERVICE_ENABLED, false))
     override val backgroundServiceEnabled: StateFlow<Boolean> = _backgroundServiceEnabled
 
     private val _isPowerSavingMode = MutableStateFlow(prefs.getBoolean(KEY_POWER_SAVING_MODE, false))
@@ -1195,7 +1195,7 @@ class AppPreferences(
         _inAppPreview.value = true
         _contactJoinedNotifications.value = true
         _pinnedMessagesNotifications.value = true
-        _backgroundServiceEnabled.value = true
+        _backgroundServiceEnabled.value = false
         _isPowerSavingMode.value = false
         _isWakeLockEnabled.value = false
         _hideForegroundNotification.value = false

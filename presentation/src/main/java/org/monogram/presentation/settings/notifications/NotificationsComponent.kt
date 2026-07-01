@@ -57,7 +57,7 @@ interface NotificationsComponent {
         val inAppPreview: Boolean = true,
         val contactJoined: Boolean = true,
         val pinnedMessages: Boolean = true,
-        val backgroundServiceEnabled: Boolean = true,
+        val backgroundServiceEnabled: Boolean = false,
         val hideForegroundNotification: Boolean = false,
         val vibrationPattern: String = "default",
         val priority: Int = 1,
@@ -300,7 +300,7 @@ class DefaultNotificationsComponent(
         onInAppPreviewToggled(true)
         onContactJoinedToggled(true)
         onPinnedMessagesToggled(true)
-        onBackgroundServiceToggled(true)
+        onBackgroundServiceToggled(false)
         onHideForegroundNotificationToggled(false)
         onVibrationPatternChanged("default")
         onPriorityChanged(1)

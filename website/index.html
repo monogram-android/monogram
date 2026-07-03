@@ -40,17 +40,21 @@
           </span>
         </a>
 
-        <div class="top-bar__controls">
-          <div class="top-bar__utilities">
-            <a class="mw-button mw-button--tonal top-bar__button" href="https://github.com/monogram-android/monogram" target="_blank" rel="noopener noreferrer" data-i18n="cta.github">
-              GitHub
-            </a>
+        <nav class="top-nav" aria-label="Primary navigation" data-i18n-attr="aria-label:nav.primary">
+          <a class="top-nav__link" href="#releases" data-i18n="nav.releases">Releases</a>
+          <a class="top-nav__link" href="#screenshots" data-i18n="nav.screenshots">Screenshots</a>
+          <a class="top-nav__link" href="https://t.me/monogram_discuss" target="_blank" rel="noopener noreferrer" data-i18n="nav.community">Community</a>
+        </nav>
 
-            <div class="lang-switch" aria-label="Language switcher" data-i18n-attr="aria-label:lang.switcher">
-              <button class="lang-switch__button is-active" type="button" data-lang="en">EN</button>
-              <button class="lang-switch__button" type="button" data-lang="ru">RU</button>
-              <button class="lang-switch__button" type="button" data-lang="zh">中文</button>
-            </div>
+        <div class="top-bar__actions">
+          <a class="mw-button mw-button--tonal top-bar__button" href="https://github.com/monogram-android/monogram" target="_blank" rel="noopener noreferrer" data-i18n="cta.github">
+            GitHub
+          </a>
+
+          <div class="lang-switch" aria-label="Language switcher" data-i18n-attr="aria-label:lang.switcher">
+            <button class="lang-switch__button is-active" type="button" data-lang="en">EN</button>
+            <button class="lang-switch__button" type="button" data-lang="ru">RU</button>
+            <button class="lang-switch__button" type="button" data-lang="zh">中文</button>
           </div>
         </div>
       </div>
@@ -74,17 +78,43 @@
               </a>
             </div>
 
-            <div class="release-meta" data-reveal hidden>
-              <div class="release-meta__item">
-                <span class="release-meta__label" data-i18n="release.versionLabel">Version</span>
-                <strong data-release-version></strong>
+            <section class="release-strip" id="releases" data-releases data-reveal hidden>
+              <div class="release-strip__header">
+                <p class="release-strip__eyebrow" data-i18n="release.eyebrow">Builds</p>
+                <h2 class="release-strip__title" data-i18n="release.heading">Latest two releases</h2>
               </div>
-              <div class="release-meta__item">
-                <span class="release-meta__label" data-i18n="release.updatedLabel">Updated</span>
-                <time data-release-date datetime=""></time>
+
+              <div class="release-strip__grid">
+                <article class="release-card" data-release-slot="latest">
+                  <div class="release-card__row">
+                    <span class="release-card__badge" data-release-slot-label="latest" data-i18n="release.latestCard">Latest</span>
+                    <a class="release-card__link" href="https://github.com/monogram-android/monogram/releases" data-release-slot-link="latest" target="_blank" rel="noopener noreferrer" data-i18n="release.download">
+                      Open release
+                    </a>
+                  </div>
+                  <strong class="release-card__version" data-release-slot-version="latest"></strong>
+                  <div class="release-card__meta">
+                    <span class="release-card__label" data-i18n="release.updatedLabel">Updated</span>
+                    <time data-release-slot-date="latest" datetime=""></time>
+                  </div>
+                </article>
+
+                <article class="release-card" data-release-slot="previous">
+                  <div class="release-card__row">
+                    <span class="release-card__badge release-card__badge--muted" data-release-slot-label="previous" data-i18n="release.previousCard">Previous</span>
+                    <a class="release-card__link" href="https://github.com/monogram-android/monogram/releases" data-release-slot-link="previous" target="_blank" rel="noopener noreferrer" data-i18n="release.download">
+                      Open release
+                    </a>
+                  </div>
+                  <strong class="release-card__version" data-release-slot-version="previous"></strong>
+                  <div class="release-card__meta">
+                    <span class="release-card__label" data-i18n="release.updatedLabel">Updated</span>
+                    <time data-release-slot-date="previous" datetime=""></time>
+                  </div>
+                </article>
               </div>
-              <p class="release-meta__state" data-release-channel data-i18n="release.latest">Latest release</p>
-            </div>
+            </section>
+
           </div>
 
           <div class="hero__visual" aria-hidden="true" data-reveal>
@@ -113,6 +143,7 @@
             </div>
           </div>
         </div>
+
       </section>
 
       <section class="section screenshots" id="screenshots">
@@ -154,7 +185,7 @@
     </main>
 
     <footer class="footer">
-      <p data-i18n="footer.text">Unofficial Telegram client for Android</p>
+      <p data-i18n="footer.text">MonoGram</p>
       <div class="footer__links">
         <a href="https://github.com/monogram-android/monogram" target="_blank" rel="noopener noreferrer">GitHub</a>
         <a href="https://t.me/monogram_android" target="_blank" rel="noopener noreferrer">Telegram</a>

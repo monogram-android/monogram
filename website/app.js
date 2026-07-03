@@ -9,14 +9,11 @@ const root = document.documentElement;
 const topBar = document.querySelector(".top-bar");
 const revealNodes = document.querySelectorAll("[data-reveal]");
 const latestReleaseNodes = document.querySelectorAll("[data-latest-release]");
-const releaseMeta = document.querySelector(".release-meta");
-const releaseVersionNodes = document.querySelectorAll("[data-release-version]");
-const releaseDateNodes = document.querySelectorAll("[data-release-date]");
-const releaseChannelNodes = document.querySelectorAll("[data-release-channel]");
+const releasesBlock = document.querySelector("[data-releases]");
 const langButtons = document.querySelectorAll("[data-lang]");
 
 let currentLang = "en";
-let currentRelease = null;
+let currentReleases = [];
 let hasAnimatedRelease = false;
 
 function safeStorageGet(key) {
@@ -69,6 +66,16 @@ function setLatestReleaseTargets(url) {
   });
 }
 
+function getReleaseSlotNodes(slot) {
+  return {
+    container: document.querySelector(`[data-release-slot="${slot}"]`),
+    label: document.querySelector(`[data-release-slot-label="${slot}"]`),
+    link: document.querySelector(`[data-release-slot-link="${slot}"]`),
+    version: document.querySelector(`[data-release-slot-version="${slot}"]`),
+    date: document.querySelector(`[data-release-slot-date="${slot}"]`)
+  };
+}
+
 function formatReleaseDate(value, lang) {
   const date = new Date(value);
 
@@ -116,43 +123,63 @@ function applyTranslations(lang) {
   document.title = dictionary["meta.title"];
 }
 
-function renderRelease() {
-  if (!releaseMeta || !currentRelease) {
+function renderReleaseCards() {
+  if (!releasesBlock) {
     return;
   }
 
-  const dictionary = getDictionary(currentLang);
-  const formattedDate = formatReleaseDate(currentRelease.publishedAt, currentLang);
-  const stateKey = currentRelease.prerelease ? "release.preview" : "release.latest";
+  const slots = [
+    { key: "latest", release: currentReleases[0] || null, labelKey: "release.latestCard" },
+    { key: "previous", release: currentReleases[1] || null, labelKey: "release.previousCard" }
+  ];
 
-  releaseVersionNodes.forEach((node) => {
-    node.textContent = currentRelease.version;
-  });
+  slots.forEach(({ key, release, labelKey }) => {
+    const slotNodes = getReleaseSlotNodes(key);
 
-  releaseDateNodes.forEach((node) => {
-    node.textContent = formattedDate;
-    node.setAttribute("datetime", currentRelease.publishedAt);
-  });
+    if (!slotNodes.container) {
+      return;
+    }
 
-  releaseChannelNodes.forEach((node) => {
-    node.textContent = dictionary[stateKey];
+    const isVisible = Boolean(release);
+    slotNodes.container.hidden = !isVisible;
+
+    if (!isVisible) {
+      return;
+    }
+
+    if (slotNodes.label) {
+      slotNodes.label.textContent = getDictionary(currentLang)[labelKey];
+    }
+
+    if (slotNodes.link instanceof HTMLAnchorElement) {
+      slotNodes.link.href = release.url || RELEASE_URL;
+    }
+
+    if (slotNodes.version) {
+      slotNodes.version.textContent = release.version;
+    }
+
+    if (slotNodes.date) {
+      slotNodes.date.textContent = formatReleaseDate(release.publishedAt, currentLang);
+      slotNodes.date.setAttribute("datetime", release.publishedAt);
+    }
   });
 }
 
 function setReleaseVisibility(isVisible) {
-  if (!releaseMeta) {
+  if (!releasesBlock) {
     return;
   }
 
-  releaseMeta.hidden = !isVisible;
+  releasesBlock.hidden = !isVisible;
 
   if (isVisible) {
-    releaseMeta.classList.add("is-visible");
+    releasesBlock.classList.add("is-visible");
 
     if (!hasAnimatedRelease) {
-      releaseMeta.classList.remove("is-appearing");
-      void releaseMeta.offsetWidth;
-      releaseMeta.classList.add("is-appearing");
+      releasesBlock.classList.remove("is-appearing");
+      void releasesBlock.offsetWidth;
+      releasesBlock.classList.add("is-appearing");
       hasAnimatedRelease = true;
     }
   }
@@ -169,7 +196,7 @@ function updateLanguageButtons(lang) {
 function applyLanguage(lang) {
   currentLang = translations[lang] ? lang : "en";
   applyTranslations(currentLang);
-  renderRelease();
+  renderReleaseCards();
   updateLanguageButtons(currentLang);
   safeStorageSet(LANG_KEY, currentLang);
 }
@@ -227,25 +254,27 @@ async function loadLatestRelease() {
       throw new Error("GitHub API returned an unexpected payload.");
     }
 
-    const release = releases
+    const publishedReleases = releases
       .filter((item) => item && !item.draft && item.published_at)
-      .sort((left, right) => new Date(right.published_at) - new Date(left.published_at))[0];
+      .sort((left, right) => new Date(right.published_at) - new Date(left.published_at))
+      .slice(0, 2)
+      .map((release) => ({
+        version: (release.tag_name || release.name || "").replace(/^v/i, ""),
+        publishedAt: release.published_at,
+        prerelease: Boolean(release.prerelease),
+        url: release.html_url || RELEASE_URL
+      }));
 
-    if (!release) {
+    if (publishedReleases.length === 0) {
       throw new Error("No published releases were found.");
     }
 
-    currentRelease = {
-      version: (release.tag_name || release.name || "").replace(/^v/i, ""),
-      publishedAt: release.published_at,
-      prerelease: Boolean(release.prerelease)
-    };
-
-    setLatestReleaseTargets(release.html_url || RELEASE_URL);
+    currentReleases = publishedReleases;
+    setLatestReleaseTargets(publishedReleases[0].url || RELEASE_URL);
     setReleaseVisibility(true);
-    renderRelease();
+    renderReleaseCards();
   } catch (error) {
-    currentRelease = null;
+    currentReleases = [];
     setLatestReleaseTargets(RELEASE_URL);
     setReleaseVisibility(false);
     console.warn("Unable to load latest release metadata.", error);

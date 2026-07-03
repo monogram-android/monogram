@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Monogram for Android with a calm Material 3 interface, latest release link, and project Telegram channel"
+      data-i18n-attr="content:meta.description"
+    >
+    <meta name="theme-color" content="#f6f3fb">
+    <title data-i18n="meta.title">Monogram for Android</title>
+    <link rel="icon" href="./logo.png" type="image/png">
+    <link rel="apple-touch-icon" href="./logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./translations.js" defer></script>
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-i18n="nav.skip">Skip to content</a>
+
+    <header class="top-bar" data-elevated="false">
+      <div class="top-bar__inner">
+        <a class="brand" href="#top" aria-label="Monogram">
+          <img
+            class="brand__logo"
+            src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/monogram.png"
+            alt="Monogram logo"
+            data-i18n-attr="alt:brand.logoAlt"
+          >
+          <span class="brand__text">
+            <strong>Monogram</strong>
+            <span data-i18n="brand.tagline">Telegram for Android</span>
+          </span>
+        </a>
+
+        <div class="top-bar__controls">
+          <div class="top-bar__utilities">
+            <a class="mw-button mw-button--tonal top-bar__button" href="https://github.com/monogram-android/monogram" target="_blank" rel="noopener noreferrer" data-i18n="cta.github">
+              GitHub
+            </a>
+
+            <div class="lang-switch" aria-label="Language switcher" data-i18n-attr="aria-label:lang.switcher">
+              <button class="lang-switch__button is-active" type="button" data-lang="en">EN</button>
+              <button class="lang-switch__button" type="button" data-lang="ru">RU</button>
+              <button class="lang-switch__button" type="button" data-lang="zh">中文</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero section" id="top">
+        <div class="hero-shell">
+          <div class="hero__copy" data-reveal>
+            <h1 data-i18n="hero.title">Monogram</h1>
+            <p class="hero__lede" data-i18n="hero.lede">
+              A fast and elegant unofficial Telegram client for Android built with Jetpack Compose, Material Design 3, and TDLib
+            </p>
+
+            <div class="hero__actions">
+              <a class="mw-button mw-button--filled" href="https://github.com/monogram-android/monogram/releases" data-latest-release target="_blank" rel="noopener noreferrer" data-i18n="cta.download">
+                Download latest version
+              </a>
+              <a class="mw-button mw-button--outlined" href="https://t.me/monogram_android" target="_blank" rel="noopener noreferrer" data-i18n="cta.telegram">
+                Telegram channel
+              </a>
+            </div>
+
+            <div class="release-meta" data-reveal hidden>
+              <div class="release-meta__item">
+                <span class="release-meta__label" data-i18n="release.versionLabel">Version</span>
+                <strong data-release-version></strong>
+              </div>
+              <div class="release-meta__item">
+                <span class="release-meta__label" data-i18n="release.updatedLabel">Updated</span>
+                <time data-release-date datetime=""></time>
+              </div>
+              <p class="release-meta__state" data-release-channel data-i18n="release.latest">Latest release</p>
+            </div>
+          </div>
+
+          <div class="hero__visual" aria-hidden="true" data-reveal>
+            <div class="device-cluster">
+              <figure class="device-frame device-frame--left">
+                <img
+                  src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/2.png"
+                  alt=""
+                  loading="lazy"
+                >
+              </figure>
+              <figure class="device-frame device-frame--center">
+                <img
+                  src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/3.png"
+                  alt=""
+                  fetchpriority="high"
+                >
+              </figure>
+              <figure class="device-frame device-frame--right">
+                <img
+                  src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/4.png"
+                  alt=""
+                  loading="lazy"
+                >
+              </figure>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section screenshots" id="screenshots">
+        <div class="gallery" aria-label="App screenshots" data-i18n-attr="aria-label:screenshots.label">
+          <figure class="gallery__item" data-reveal>
+            <img
+              src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/1.png"
+              alt="Monogram home screen"
+              data-i18n-attr="alt:screenshots.homeAlt"
+              loading="lazy"
+            >
+          </figure>
+          <figure class="gallery__item" data-reveal>
+            <img
+              src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/2.png"
+              alt="Monogram chat list screen"
+              data-i18n-attr="alt:screenshots.listAlt"
+              loading="lazy"
+            >
+          </figure>
+          <figure class="gallery__item" data-reveal>
+            <img
+              src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/3.png"
+              alt="Monogram chat screen"
+              data-i18n-attr="alt:screenshots.chatAlt"
+              loading="lazy"
+            >
+          </figure>
+          <figure class="gallery__item" data-reveal>
+            <img
+              src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/4.png"
+              alt="Monogram settings screen"
+              data-i18n-attr="alt:screenshots.settingsAlt"
+              loading="lazy"
+            >
+          </figure>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p data-i18n="footer.text">Unofficial Telegram client for Android</p>
+      <div class="footer__links">
+        <a href="https://github.com/monogram-android/monogram" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://t.me/monogram_android" target="_blank" rel="noopener noreferrer">Telegram</a>
+      </div>
+    </footer>
+  </body>
+</html>

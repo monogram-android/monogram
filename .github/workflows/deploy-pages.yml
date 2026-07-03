@@ -6,6 +6,9 @@ on:
       - main
       - master
       - develop
+    paths:
+      - "website/**"
+      - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -30,7 +33,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: .
+          path: website
 
   deploy:
     needs: build

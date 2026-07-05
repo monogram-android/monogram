@@ -3,9 +3,13 @@ document.documentElement.classList.add("motion-ready");
 const RELEASE_URL = "https://github.com/monogram-android/monogram/releases";
 const RELEASES_API_URL = "https://api.github.com/repos/monogram-android/monogram/releases?per_page=10";
 const LANG_KEY = "monogram-site-language";
+const LIGHT_THEME_COLOR = "#f6f3fb";
+const DARK_THEME_COLOR = "#060708";
 const translations = window.MONOGRAM_TRANSLATIONS || {};
 
 const root = document.documentElement;
+const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+const systemThemeQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
 const topBar = document.querySelector(".top-bar");
 const revealNodes = document.querySelectorAll("[data-reveal]");
 const latestReleaseNodes = document.querySelectorAll("[data-latest-release]");
@@ -14,7 +18,6 @@ const langButtons = document.querySelectorAll("[data-lang]");
 
 let currentLang = "en";
 let currentReleases = [];
-let hasAnimatedRelease = false;
 
 function safeStorageGet(key) {
   try {
@@ -48,6 +51,43 @@ function detectPreferredLanguage() {
 
 function getDictionary(lang) {
   return translations[lang] || translations.en;
+}
+
+function detectSystemTheme() {
+  return systemThemeQuery && systemThemeQuery.matches ? "dark" : "light";
+}
+
+function updateThemeColor(theme) {
+  if (themeColorMeta) {
+    themeColorMeta.setAttribute("content", theme === "dark" ? DARK_THEME_COLOR : LIGHT_THEME_COLOR);
+  }
+}
+
+function applySystemTheme() {
+  const theme = detectSystemTheme();
+  root.dataset.theme = theme;
+  updateThemeColor(theme);
+}
+
+function setupSystemTheme() {
+  applySystemTheme();
+
+  if (!systemThemeQuery) {
+    return;
+  }
+
+  const handleThemeChange = () => {
+    applySystemTheme();
+  };
+
+  if ("addEventListener" in systemThemeQuery) {
+    systemThemeQuery.addEventListener("change", handleThemeChange);
+    return;
+  }
+
+  if ("addListener" in systemThemeQuery) {
+    systemThemeQuery.addListener(handleThemeChange);
+  }
 }
 
 function updateTopBar() {
@@ -171,18 +211,18 @@ function setReleaseVisibility(isVisible) {
     return;
   }
 
-  releasesBlock.hidden = !isVisible;
-
   if (isVisible) {
-    releasesBlock.classList.add("is-visible");
-
-    if (!hasAnimatedRelease) {
-      releasesBlock.classList.remove("is-appearing");
-      void releasesBlock.offsetWidth;
-      releasesBlock.classList.add("is-appearing");
-      hasAnimatedRelease = true;
-    }
+    releasesBlock.hidden = false;
+    releasesBlock.classList.remove("is-visible");
+    void releasesBlock.offsetWidth;
+    requestAnimationFrame(() => {
+      releasesBlock.classList.add("is-visible");
+    });
+    return;
   }
+
+  releasesBlock.classList.remove("is-visible");
+  releasesBlock.hidden = true;
 }
 
 function updateLanguageButtons(lang) {
@@ -271,8 +311,8 @@ async function loadLatestRelease() {
 
     currentReleases = publishedReleases;
     setLatestReleaseTargets(publishedReleases[0].url || RELEASE_URL);
-    setReleaseVisibility(true);
     renderReleaseCards();
+    setReleaseVisibility(true);
   } catch (error) {
     currentReleases = [];
     setLatestReleaseTargets(RELEASE_URL);
@@ -281,6 +321,7 @@ async function loadLatestRelease() {
   }
 }
 
+setupSystemTheme();
 updateTopBar();
 setupLanguageSwitcher();
 setupRevealAnimations();

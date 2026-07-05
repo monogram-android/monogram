@@ -5,10 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta
       name="description"
-      content="Monogram for Android with a calm Material 3 interface, latest release link, and project Telegram channel"
+      content="Fast, polished unofficial Telegram client for Android with Material 3 design and TDLib under the hood"
       data-i18n-attr="content:meta.description"
     >
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Monogram for Android" data-i18n-attr="content:meta.title">
+    <meta
+      property="og:description"
+      content="Fast, polished unofficial Telegram client for Android with Material 3 design and TDLib under the hood"
+      data-i18n-attr="content:meta.description"
+    >
+    <meta property="og:url" content="https://monogram-android.github.io/monogram/">
+    <meta property="og:site_name" content="Monogram">
+    <meta property="og:image" content="https://monogram-android.github.io/monogram/preview.png">
+    <meta
+      property="og:image:alt"
+      content="Monogram preview showing the Android chat list on a phone screen with the Monogram logo"
+      data-i18n-attr="content:meta.previewAlt"
+    >
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Monogram for Android" data-i18n-attr="content:meta.title">
+    <meta
+      name="twitter:description"
+      content="Fast, polished unofficial Telegram client for Android with Material 3 design and TDLib under the hood"
+      data-i18n-attr="content:meta.description"
+    >
+    <meta name="twitter:image" content="https://monogram-android.github.io/monogram/preview.png">
+    <meta
+      name="twitter:image:alt"
+      content="Monogram preview showing the Android chat list on a phone screen with the Monogram logo"
+      data-i18n-attr="content:meta.previewAlt"
+    >
     <meta name="theme-color" content="#f6f3fb">
+    <meta name="color-scheme" content="light dark">
+    <script>
+      (() => {
+        const root = document.documentElement;
+        const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+
+        root.dataset.theme = prefersDark ? "dark" : "light";
+
+        if (themeColor) {
+          themeColor.setAttribute("content", prefersDark ? "#060708" : "#f6f3fb");
+        }
+      })();
+    </script>
     <title data-i18n="meta.title">Monogram for Android</title>
     <link rel="icon" href="./logo.png" type="image/png">
     <link rel="apple-touch-icon" href="./logo.png">

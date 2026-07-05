@@ -1,7 +1,8 @@
 window.MONOGRAM_TRANSLATIONS = {
   en: {
     "meta.title": "Monogram for Android",
-    "meta.description": "Monogram for Android with a calm Material 3 interface, latest release link, and project Telegram channel",
+    "meta.description": "Fast, polished unofficial Telegram client for Android with Material 3 design and TDLib under the hood",
+    "meta.previewAlt": "Monogram preview showing the Android chat list on a phone screen with the Monogram logo",
     "nav.skip": "Skip to content",
     "nav.primary": "Primary navigation",
     "nav.releases": "Releases",
@@ -33,7 +34,8 @@ window.MONOGRAM_TRANSLATIONS = {
   },
   ru: {
     "meta.title": "Monogram для Android",
-    "meta.description": "Monogram для Android с спокойным интерфейсом в духе Material 3, актуальным релизом и Telegram-каналом проекта",
+    "meta.description": "Быстрый и аккуратный неофициальный Telegram-клиент для Android с дизайном Material 3 и TDLib под капотом",
+    "meta.previewAlt": "Превью Monogram: список чатов Android-приложения на экране телефона и логотип Monogram",
     "nav.skip": "Перейти к содержимому",
     "nav.primary": "Основная навигация",
     "nav.releases": "Релизы",
@@ -65,7 +67,8 @@ window.MONOGRAM_TRANSLATIONS = {
   },
   zh: {
     "meta.title": "Monogram Android 版",
-    "meta.description": "Monogram Android 版采用简洁的 Material 3 风格，提供最新版本下载入口和项目 Telegram 频道",
+    "meta.description": "快速精致的 Android 非官方 Telegram 客户端，采用 Material 3 设计，并基于 TDLib 构建",
+    "meta.previewAlt": "Monogram 预览图，展示手机屏幕上的 Android 聊天列表和 Monogram 标志",
     "nav.skip": "跳转到内容",
     "nav.primary": "主导航",
     "nav.releases": "版本",

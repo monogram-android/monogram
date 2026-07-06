@@ -117,34 +117,12 @@ p {
   outline-offset: 4px;
 }
 
-.skip-link {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 30;
-  padding: 10px 14px;
-  color: var(--md-sys-color-on-primary);
-  background: var(--md-sys-color-primary);
-  border-radius: 999px;
-  transform: translateY(-140%);
-  transition: transform 160ms ease;
-}
-
-.skip-link:focus {
-  transform: translateY(0);
-}
-
 .top-bar {
   position: sticky;
   top: 0;
   z-index: 20;
   min-height: var(--top-bar-height);
   padding: 18px 0 12px;
-  transition: background-color 180ms ease;
-}
-
-.top-bar[data-scrolled="true"] {
-  background: color-mix(in srgb, var(--md-sys-color-surface) 88%, transparent);
 }
 
 .top-bar__inner,
@@ -164,10 +142,6 @@ p {
   background: color-mix(in srgb, var(--md-sys-color-surface-container-low) 94%, transparent);
   border-radius: 24px;
   transition: background-color 180ms ease;
-}
-
-.top-bar[data-scrolled="true"] .top-bar__inner {
-  background: var(--md-sys-color-surface-container-low);
 }
 
 .brand {
@@ -354,7 +328,7 @@ md-filter-chip.lang-switch__chip::part(selected-icon) {
 
 .hero {
   min-height: calc(100svh - var(--top-bar-height));
-  padding-top: 20px;
+  padding-top: 14px;
 }
 
 .screenshots {
@@ -471,8 +445,8 @@ md-filter-chip.lang-switch__chip::part(selected-icon) {
 }
 
 .button-icon-circle--telegram {
-  color: #ffffff;
-  background: #229ed9;
+  color: #f6fbff;
+  background: #5a9fc2;
 }
 
 .button-icon-circle--release {
@@ -992,7 +966,7 @@ md-filter-chip.lang-switch__chip::part(selected-icon) {
   }
 
   .hero {
-    padding-top: 8px;
+    padding-top: 4px;
   }
 
   .hero-shell {

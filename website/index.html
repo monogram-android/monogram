@@ -17,7 +17,7 @@
     >
     <meta property="og:url" content="https://monogram-android.github.io/monogram/">
     <meta property="og:site_name" content="Monogram">
-    <meta property="og:image" content="https://monogram-android.github.io/monogram/preview.png">
+    <meta property="og:image" content="https://monogram-android.github.io/monogram/assets/images/preview.png">
     <meta
       property="og:image:alt"
       content="Monogram preview showing the Android chat list on a phone screen with the Monogram logo"
@@ -30,13 +30,13 @@
       content="Fast, polished unofficial Telegram client for Android with Material 3 design and TDLib under the hood"
       data-i18n-attr="content:meta.description"
     >
-    <meta name="twitter:image" content="https://monogram-android.github.io/monogram/preview.png">
+    <meta name="twitter:image" content="https://monogram-android.github.io/monogram/assets/images/preview.png">
     <meta
       name="twitter:image:alt"
       content="Monogram preview showing the Android chat list on a phone screen with the Monogram logo"
       data-i18n-attr="content:meta.previewAlt"
     >
-    <meta name="theme-color" content="#f6f3fb">
+    <meta name="theme-color" content="#f3f4f8">
     <meta name="color-scheme" content="light dark">
     <script>
       (() => {
@@ -47,32 +47,43 @@
         root.dataset.theme = prefersDark ? "dark" : "light";
 
         if (themeColor) {
-          themeColor.setAttribute("content", prefersDark ? "#060708" : "#f6f3fb");
+          themeColor.setAttribute("content", prefersDark ? "#111417" : "#f3f4f8");
         }
       })();
     </script>
     <title data-i18n="meta.title">Monogram for Android</title>
-    <link rel="icon" href="./logo.png" type="image/png">
-    <link rel="apple-touch-icon" href="./logo.png">
+    <link rel="icon" href="./assets/images/favicon.png" type="image/png" sizes="64x64">
+    <link rel="apple-touch-icon" href="./assets/images/logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="./styles.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "@material/web/": "https://esm.run/@material/web/"
+        }
+      }
+    </script>
+    <script type="module">
+      import "@material/web/all.js";
+      import "@material/web/typography/md-typescale-styles.js";
+    </script>
     <script src="./translations.js" defer></script>
     <script src="./app.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main" data-i18n="nav.skip">Skip to content</a>
 
-    <header class="top-bar" data-elevated="false">
+    <header class="top-bar" data-scrolled="false">
       <div class="top-bar__inner">
         <a class="brand" href="#top" aria-label="Monogram">
           <img
             class="brand__logo"
-            src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/monogram.png"
+            src="./assets/images/logo.png"
             alt="Monogram logo"
             data-i18n-attr="alt:brand.logoAlt"
           >
@@ -82,22 +93,38 @@
           </span>
         </a>
 
-        <nav class="top-nav" aria-label="Primary navigation" data-i18n-attr="aria-label:nav.primary">
-          <a class="top-nav__link" href="#releases" data-i18n="nav.releases">Releases</a>
-          <a class="top-nav__link" href="#screenshots" data-i18n="nav.screenshots">Screenshots</a>
-          <a class="top-nav__link" href="https://t.me/monogram_discuss" target="_blank" rel="noopener noreferrer" data-i18n="nav.community">Community</a>
-        </nav>
-
         <div class="top-bar__actions">
-          <a class="mw-button mw-button--tonal top-bar__button" href="https://github.com/monogram-android/monogram" target="_blank" rel="noopener noreferrer" data-i18n="cta.github">
-            GitHub
-          </a>
+          <md-text-button class="top-bar__button top-bar__icon-button" href="https://github.com/monogram-android/monogram" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository" data-i18n-attr="aria-label:cta.githubAria">
+            <span class="top-bar__button-icon icon icon--github" aria-hidden="true"></span>
+          </md-text-button>
 
-          <div class="lang-switch" aria-label="Language switcher" data-i18n-attr="aria-label:lang.switcher">
-            <button class="lang-switch__button is-active" type="button" data-lang="en">EN</button>
-            <button class="lang-switch__button" type="button" data-lang="ru">RU</button>
-            <button class="lang-switch__button" type="button" data-lang="zh">中文</button>
-          </div>
+          <md-chip-set class="lang-switch" aria-label="Language switcher" data-i18n-attr="aria-label:lang.switcher">
+            <md-filter-chip
+              class="lang-switch__chip"
+              data-lang="en"
+              label="EN"
+              selected
+              aria-label="English"
+              aria-pressed="true"
+              data-i18n-attr="aria-label:lang.option.en"
+            ></md-filter-chip>
+            <md-filter-chip
+              class="lang-switch__chip"
+              data-lang="ru"
+              label="RU"
+              aria-label="Russian"
+              aria-pressed="false"
+              data-i18n-attr="aria-label:lang.option.ru"
+            ></md-filter-chip>
+            <md-filter-chip
+              class="lang-switch__chip"
+              data-lang="zh"
+              label="中文"
+              aria-label="Chinese"
+              aria-pressed="false"
+              data-i18n-attr="aria-label:lang.option.zh"
+            ></md-filter-chip>
+          </md-chip-set>
         </div>
       </div>
     </header>
@@ -105,77 +132,119 @@
     <main id="main">
       <section class="hero section" id="top">
         <div class="hero-shell">
-          <div class="hero__copy" data-reveal>
-            <h1 data-i18n="hero.title">Monogram</h1>
-            <p class="hero__lede" data-i18n="hero.lede">
-              A fast and elegant unofficial Telegram client for Android built with Jetpack Compose, Material Design 3, and TDLib
-            </p>
+          <div class="hero__stack">
+            <div class="hero__copy" data-reveal>
+              <h1 class="md-typescale-display-large" data-i18n="hero.title">Monogram</h1>
+              <p class="hero__lede md-typescale-body-large" data-i18n="hero.lede">
+                A fast and elegant unofficial Telegram client for Android built with Jetpack Compose, Material Design 3, and TDLib
+              </p>
 
-            <div class="hero__actions">
-              <a class="mw-button mw-button--filled" href="https://github.com/monogram-android/monogram/releases" data-latest-release target="_blank" rel="noopener noreferrer" data-i18n="cta.download">
-                Download latest version
-              </a>
-              <a class="mw-button mw-button--outlined" href="https://t.me/monogram_android" target="_blank" rel="noopener noreferrer" data-i18n="cta.telegram">
-                Telegram channel
-              </a>
+              <div class="hero__actions">
+                <div class="hero-action-panel">
+                  <md-filled-button class="hero-action-panel__download" href="https://github.com/monogram-android/monogram/releases" data-latest-release target="_blank" rel="noopener noreferrer">
+                    <span class="button-icon-circle button-icon-circle--primary" slot="icon" aria-hidden="true">
+                      <span class="icon icon--download" aria-hidden="true"></span>
+                    </span>
+                    <span data-i18n="cta.download">Download latest version</span>
+                  </md-filled-button>
+                  <div class="hero-action-panel__telegram-card">
+                    <div class="hero-action-panel__telegram-links">
+                      <md-filled-tonal-button class="hero-action-panel__telegram-link" href="https://t.me/monogram_android" target="_blank" rel="noopener noreferrer" has-icon>
+                        <span class="button-icon-circle button-icon-circle--telegram" slot="icon" aria-hidden="true">
+                          <span class="icon icon--telegram" aria-hidden="true"></span>
+                        </span>
+                        <span data-i18n="cta.telegramChannelShort">Channel</span>
+                      </md-filled-tonal-button>
+                      <md-filled-tonal-button class="hero-action-panel__telegram-link" href="https://t.me/monogram_discuss" target="_blank" rel="noopener noreferrer" has-icon>
+                        <span class="button-icon-circle button-icon-circle--telegram" slot="icon" aria-hidden="true">
+                          <span class="icon icon--telegram" aria-hidden="true"></span>
+                        </span>
+                        <span data-i18n="cta.telegramChatShort">Chat</span>
+                      </md-filled-tonal-button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <section class="release-strip" id="releases" data-releases data-reveal hidden>
-              <div class="release-strip__header">
-                <p class="release-strip__eyebrow" data-i18n="release.eyebrow">Builds</p>
-                <h2 class="release-strip__title" data-i18n="release.heading">Latest two releases</h2>
-              </div>
-
-              <div class="release-strip__grid">
-                <article class="release-card" data-release-slot="latest">
-                  <div class="release-card__row">
-                    <span class="release-card__badge" data-release-slot-label="latest" data-i18n="release.latestCard">Latest</span>
-                    <a class="release-card__link" href="https://github.com/monogram-android/monogram/releases" data-release-slot-link="latest" target="_blank" rel="noopener noreferrer" data-i18n="release.download">
-                      Open release
-                    </a>
+            <section class="release-panel" id="releases" data-releases data-reveal hidden>
+              <div class="release-list" aria-live="polite">
+                <article class="release-row release-row--primary" data-release-slot="latest">
+                  <div class="release-row__top">
+                    <p class="release-row__label md-typescale-label-large" data-release-slot-label="latest" data-i18n="release.latestCard">Latest</p>
                   </div>
-                  <strong class="release-card__version" data-release-slot-version="latest"></strong>
-                  <div class="release-card__meta">
-                    <span class="release-card__label" data-i18n="release.updatedLabel">Updated</span>
-                    <time data-release-slot-date="latest" datetime=""></time>
+                  <div class="release-row__copy">
+                    <strong class="release-row__version md-typescale-title-large" data-release-slot-version="latest"></strong>
                   </div>
+                  <div class="release-row__meta">
+                    <p class="release-row__date md-typescale-body-medium">
+                      <span data-i18n="release.updatedLabel">Updated</span>
+                      <time data-release-slot-date="latest" datetime=""></time>
+                    </p>
+                  </div>
+                  <a class="release-row__link" href="https://github.com/monogram-android/monogram/releases" data-release-slot-link="latest" target="_blank" rel="noopener noreferrer" aria-label="Open release" data-i18n-attr="aria-label:release.download">
+                    <span class="button-icon-circle button-icon-circle--release" aria-hidden="true">
+                      <span class="icon icon--external-link" aria-hidden="true"></span>
+                    </span>
+                  </a>
                 </article>
 
-                <article class="release-card" data-release-slot="previous">
-                  <div class="release-card__row">
-                    <span class="release-card__badge release-card__badge--muted" data-release-slot-label="previous" data-i18n="release.previousCard">Previous</span>
-                    <a class="release-card__link" href="https://github.com/monogram-android/monogram/releases" data-release-slot-link="previous" target="_blank" rel="noopener noreferrer" data-i18n="release.download">
-                      Open release
+                <div class="release-list__secondary">
+                  <article class="release-row release-row--secondary" data-release-slot="previous">
+                    <div class="release-row__copy">
+                      <strong class="release-row__version md-typescale-title-large" data-release-slot-version="previous"></strong>
+                    </div>
+                    <div class="release-row__meta">
+                      <p class="release-row__date md-typescale-body-medium">
+                        <span data-i18n="release.updatedLabel">Updated</span>
+                        <time data-release-slot-date="previous" datetime=""></time>
+                      </p>
+                    </div>
+                    <a class="release-row__link" href="https://github.com/monogram-android/monogram/releases" data-release-slot-link="previous" target="_blank" rel="noopener noreferrer" aria-label="Open release" data-i18n-attr="aria-label:release.download">
+                      <span class="button-icon-circle button-icon-circle--release" aria-hidden="true">
+                        <span class="icon icon--external-link" aria-hidden="true"></span>
+                      </span>
                     </a>
-                  </div>
-                  <strong class="release-card__version" data-release-slot-version="previous"></strong>
-                  <div class="release-card__meta">
-                    <span class="release-card__label" data-i18n="release.updatedLabel">Updated</span>
-                    <time data-release-slot-date="previous" datetime=""></time>
-                  </div>
-                </article>
+                  </article>
+
+                  <article class="release-row release-row--secondary" data-release-slot="earlier">
+                    <div class="release-row__copy">
+                      <strong class="release-row__version md-typescale-title-large" data-release-slot-version="earlier"></strong>
+                    </div>
+                    <div class="release-row__meta">
+                      <p class="release-row__date md-typescale-body-medium">
+                        <span data-i18n="release.updatedLabel">Updated</span>
+                        <time data-release-slot-date="earlier" datetime=""></time>
+                      </p>
+                    </div>
+                    <a class="release-row__link" href="https://github.com/monogram-android/monogram/releases" data-release-slot-link="earlier" target="_blank" rel="noopener noreferrer" aria-label="Open release" data-i18n-attr="aria-label:release.download">
+                      <span class="button-icon-circle button-icon-circle--release" aria-hidden="true">
+                        <span class="icon icon--external-link" aria-hidden="true"></span>
+                      </span>
+                    </a>
+                  </article>
+                </div>
               </div>
             </section>
-
           </div>
 
           <div class="hero__visual" aria-hidden="true" data-reveal>
-            <div class="device-cluster">
-              <figure class="device-frame device-frame--left">
+            <div class="hero-stage">
+              <figure class="hero-shot hero-shot--left">
                 <img
                   src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/2.png"
                   alt=""
                   loading="lazy"
                 >
               </figure>
-              <figure class="device-frame device-frame--center">
+              <figure class="hero-shot hero-shot--main">
                 <img
                   src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/3.png"
                   alt=""
                   fetchpriority="high"
                 >
               </figure>
-              <figure class="device-frame device-frame--right">
+              <figure class="hero-shot hero-shot--right">
                 <img
                   src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/4.png"
                   alt=""
@@ -185,53 +254,47 @@
             </div>
           </div>
         </div>
-
       </section>
 
       <section class="section screenshots" id="screenshots">
-        <div class="gallery" aria-label="App screenshots" data-i18n-attr="aria-label:screenshots.label">
-          <figure class="gallery__item" data-reveal>
-            <img
-              src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/1.png"
-              alt="Monogram home screen"
-              data-i18n-attr="alt:screenshots.homeAlt"
-              loading="lazy"
-            >
-          </figure>
-          <figure class="gallery__item" data-reveal>
-            <img
-              src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/2.png"
-              alt="Monogram chat list screen"
-              data-i18n-attr="alt:screenshots.listAlt"
-              loading="lazy"
-            >
-          </figure>
-          <figure class="gallery__item" data-reveal>
-            <img
-              src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/3.png"
-              alt="Monogram chat screen"
-              data-i18n-attr="alt:screenshots.chatAlt"
-              loading="lazy"
-            >
-          </figure>
-          <figure class="gallery__item" data-reveal>
-            <img
-              src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/4.png"
-              alt="Monogram settings screen"
-              data-i18n-attr="alt:screenshots.settingsAlt"
-              loading="lazy"
-            >
-          </figure>
+        <div class="screenshots__panel" data-reveal>
+          <div class="gallery" aria-label="App screenshots" data-i18n-attr="aria-label:screenshots.label">
+            <figure class="gallery__item">
+              <img
+                src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/1.png"
+                alt="Monogram home screen"
+                data-i18n-attr="alt:screenshots.homeAlt"
+                loading="lazy"
+              >
+            </figure>
+            <figure class="gallery__item">
+              <img
+                src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/2.png"
+                alt="Monogram chat list screen"
+                data-i18n-attr="alt:screenshots.listAlt"
+                loading="lazy"
+              >
+            </figure>
+            <figure class="gallery__item">
+              <img
+                src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/3.png"
+                alt="Monogram chat screen"
+                data-i18n-attr="alt:screenshots.chatAlt"
+                loading="lazy"
+              >
+            </figure>
+            <figure class="gallery__item">
+              <img
+                src="https://raw.githubusercontent.com/monogram-android/monogram/develop/documents/4.png"
+                alt="Monogram settings screen"
+                data-i18n-attr="alt:screenshots.settingsAlt"
+                loading="lazy"
+              >
+            </figure>
+          </div>
         </div>
       </section>
     </main>
 
-    <footer class="footer">
-      <p data-i18n="footer.text">MonoGram</p>
-      <div class="footer__links">
-        <a href="https://github.com/monogram-android/monogram" target="_blank" rel="noopener noreferrer">GitHub</a>
-        <a href="https://t.me/monogram_android" target="_blank" rel="noopener noreferrer">Telegram</a>
-      </div>
-    </footer>
   </body>
 </html>

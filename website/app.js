@@ -3,8 +3,8 @@ document.documentElement.classList.add("motion-ready");
 const RELEASE_URL = "https://github.com/monogram-android/monogram/releases";
 const RELEASES_API_URL = "https://api.github.com/repos/monogram-android/monogram/releases?per_page=10";
 const LANG_KEY = "monogram-site-language";
-const LIGHT_THEME_COLOR = "#f6f3fb";
-const DARK_THEME_COLOR = "#060708";
+const LIGHT_THEME_COLOR = "#f3f4f8";
+const DARK_THEME_COLOR = "#111417";
 const translations = window.MONOGRAM_TRANSLATIONS || {};
 
 const root = document.documentElement;
@@ -14,7 +14,7 @@ const topBar = document.querySelector(".top-bar");
 const revealNodes = document.querySelectorAll("[data-reveal]");
 const latestReleaseNodes = document.querySelectorAll("[data-latest-release]");
 const releasesBlock = document.querySelector("[data-releases]");
-const langButtons = document.querySelectorAll("[data-lang]");
+const langChips = document.querySelectorAll("[data-lang]");
 
 let currentLang = "en";
 let currentReleases = [];
@@ -50,7 +50,7 @@ function detectPreferredLanguage() {
 }
 
 function getDictionary(lang) {
-  return translations[lang] || translations.en;
+  return translations[lang] || translations.en || {};
 }
 
 function detectSystemTheme() {
@@ -95,13 +95,13 @@ function updateTopBar() {
     return;
   }
 
-  topBar.dataset.elevated = window.scrollY > 10 ? "true" : "false";
+  topBar.dataset.scrolled = window.scrollY > 10 ? "true" : "false";
 }
 
 function setLatestReleaseTargets(url) {
   latestReleaseNodes.forEach((node) => {
-    if (node instanceof HTMLAnchorElement) {
-      node.href = url || RELEASE_URL;
+    if (node instanceof HTMLElement) {
+      node.setAttribute("href", url || RELEASE_URL);
     }
   });
 }
@@ -148,9 +148,13 @@ function applyTranslations(lang) {
   });
 
   document.querySelectorAll("[data-i18n-attr]").forEach((node) => {
-    const pairs = node.getAttribute("data-i18n-attr").split(",");
+    const rawValue = node.getAttribute("data-i18n-attr");
 
-    pairs.forEach((pair) => {
+    if (!rawValue) {
+      return;
+    }
+
+    rawValue.split(",").forEach((pair) => {
       const [attribute, key] = pair.split(":").map((part) => part.trim());
 
       if (attribute && key && dictionary[key]) {
@@ -160,17 +164,18 @@ function applyTranslations(lang) {
   });
 
   root.lang = lang === "zh" ? "zh-CN" : lang;
-  document.title = dictionary["meta.title"];
+  document.title = dictionary["meta.title"] || "Monogram for Android";
 }
 
-function renderReleaseCards() {
+function renderReleaseRows() {
   if (!releasesBlock) {
     return;
   }
 
   const slots = [
     { key: "latest", release: currentReleases[0] || null, labelKey: "release.latestCard" },
-    { key: "previous", release: currentReleases[1] || null, labelKey: "release.previousCard" }
+    { key: "previous", release: currentReleases[1] || null, labelKey: null },
+    { key: "earlier", release: currentReleases[2] || null, labelKey: null }
   ];
 
   slots.forEach(({ key, release, labelKey }) => {
@@ -187,12 +192,12 @@ function renderReleaseCards() {
       return;
     }
 
-    if (slotNodes.label) {
-      slotNodes.label.textContent = getDictionary(currentLang)[labelKey];
+    if (slotNodes.label && labelKey) {
+      slotNodes.label.textContent = getDictionary(currentLang)[labelKey] || "";
     }
 
-    if (slotNodes.link instanceof HTMLAnchorElement) {
-      slotNodes.link.href = release.url || RELEASE_URL;
+    if (slotNodes.link instanceof HTMLElement) {
+      slotNodes.link.setAttribute("href", release.url || RELEASE_URL);
     }
 
     if (slotNodes.version) {
@@ -204,6 +209,7 @@ function renderReleaseCards() {
       slotNodes.date.setAttribute("datetime", release.publishedAt);
     }
   });
+
 }
 
 function setReleaseVisibility(isVisible) {
@@ -225,26 +231,26 @@ function setReleaseVisibility(isVisible) {
   releasesBlock.hidden = true;
 }
 
-function updateLanguageButtons(lang) {
-  langButtons.forEach((button) => {
-    const isActive = button.dataset.lang === lang;
-    button.classList.toggle("is-active", isActive);
-    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+function updateLanguageChips(lang) {
+  langChips.forEach((chip) => {
+    const isActive = chip.getAttribute("data-lang") === lang;
+    chip.toggleAttribute("selected", isActive);
+    chip.setAttribute("aria-pressed", isActive ? "true" : "false");
   });
 }
 
 function applyLanguage(lang) {
   currentLang = translations[lang] ? lang : "en";
   applyTranslations(currentLang);
-  renderReleaseCards();
-  updateLanguageButtons(currentLang);
+  renderReleaseRows();
+  updateLanguageChips(currentLang);
   safeStorageSet(LANG_KEY, currentLang);
 }
 
 function setupLanguageSwitcher() {
-  langButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      applyLanguage(button.dataset.lang || "en");
+  langChips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      applyLanguage(chip.getAttribute("data-lang") || "en");
     });
   });
 }
@@ -297,7 +303,7 @@ async function loadLatestRelease() {
     const publishedReleases = releases
       .filter((item) => item && !item.draft && item.published_at)
       .sort((left, right) => new Date(right.published_at) - new Date(left.published_at))
-      .slice(0, 2)
+      .slice(0, 3)
       .map((release) => ({
         version: (release.tag_name || release.name || "").replace(/^v/i, ""),
         publishedAt: release.published_at,
@@ -311,7 +317,7 @@ async function loadLatestRelease() {
 
     currentReleases = publishedReleases;
     setLatestReleaseTargets(publishedReleases[0].url || RELEASE_URL);
-    renderReleaseCards();
+    renderReleaseRows();
     setReleaseVisibility(true);
   } catch (error) {
     currentReleases = [];

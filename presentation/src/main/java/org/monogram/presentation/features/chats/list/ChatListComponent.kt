@@ -10,6 +10,7 @@ import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.TopicModel
 import org.monogram.domain.models.UpdateState
 import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.stories.ActiveStoryListModel
 import org.monogram.domain.repository.ConnectionStatus
 import org.monogram.domain.repository.ForwardTarget
 import org.monogram.presentation.core.util.AppPreferences
@@ -23,6 +24,7 @@ interface ChatListComponent {
     val chatsState: StateFlow<ChatsState>
     val selectionState: StateFlow<SelectionState>
     val searchState: StateFlow<SearchState>
+    val storiesState: StateFlow<StoriesState>
 
     val appPreferences: AppPreferences
 
@@ -74,6 +76,9 @@ interface ChatListComponent {
 
     fun onOpenWebApp(url: String, botUserId: Long, botName: String)
     fun onDismissWebApp()
+    fun onShareToStory(mediaUrl: String, text: String?, widgetLink: String?)
+    fun onStoryClicked(chatId: Long, storyId: Int? = null)
+    fun onAddStoryClicked()
 
     fun onOpenWebView(url: String)
     fun onDismissWebView()
@@ -213,6 +218,12 @@ interface ChatListComponent {
         val recentUsers: List<ChatModel> = emptyList(),
         val recentOthers: List<ChatModel> = emptyList(),
         val canLoadMoreMessages: Boolean = false
+    )
+
+    @Immutable
+    data class StoriesState(
+        val mainActiveStories: List<ActiveStoryListModel> = emptyList(),
+        val archiveActiveStories: List<ActiveStoryListModel> = emptyList()
     )
 
     sealed class ShareResult {

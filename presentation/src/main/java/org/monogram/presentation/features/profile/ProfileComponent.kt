@@ -9,6 +9,7 @@ import org.monogram.domain.models.ChatStatisticsModel
 import org.monogram.domain.models.GroupMemberModel
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.stories.ActiveStoryListModel
 import org.monogram.domain.repository.ChatMemberStatus
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.presentation.core.util.IDownloadUtils
@@ -42,6 +43,7 @@ interface ProfileComponent {
     fun onLoadMoreMedia()
     fun onOpenMiniApp(url: String, name: String, chatId: Long)
     fun onDismissMiniApp()
+    fun onShareToStory(mediaUrl: String, text: String?, widgetLink: String?)
     fun onToggleMute()
     fun onEdit()
     fun onShowQRCode()
@@ -83,6 +85,9 @@ interface ProfileComponent {
 
     fun onLocationClick(lat: Double, lon: Double, address: String)
     fun onDismissLocation()
+    fun onOpenStories()
+    fun onOpenStoryArchive()
+    fun onCreateStory()
 
     data class State(
         val chatId: Long,
@@ -158,7 +163,8 @@ interface ProfileComponent {
         val pendingMiniAppUrl: String? = null,
         val pendingMiniAppName: String? = null,
 
-        val selectedLocation: LocationData? = null
+        val selectedLocation: LocationData? = null,
+        val activeStoryList: ActiveStoryListModel? = null
     ) {
         val selectedTab: ProfileTabSpec?
             get() = visibleTabs.firstOrNull { it.key == selectedTabKey }

@@ -23,6 +23,7 @@ import org.monogram.presentation.features.profile.contact.ContactEditComponent
 import org.monogram.presentation.features.profile.logs.ProfileLogsComponent
 import org.monogram.presentation.features.share.IncomingShareRequest
 import org.monogram.presentation.features.stickers.core.StickerSetUiModel
+import org.monogram.presentation.features.stories.StoriesHostComponent
 import org.monogram.presentation.features.webview.WebViewComponent
 import org.monogram.presentation.settings.about.AboutComponent
 import org.monogram.presentation.settings.adblock.AdBlockComponent
@@ -49,6 +50,7 @@ interface RootComponent {
     val stickerSetToPreview: StateFlow<StickerPreviewState>
     val proxyToConfirm: StateFlow<ProxyConfirmState>
     val chatToConfirmJoin: StateFlow<ChatConfirmJoinState>
+    val storiesHost: StoriesHostComponent
     val isLocked: StateFlow<Boolean>
     val isBiometricEnabled: StateFlow<Boolean>
     val videoPlayerPool: VideoPlayerPool

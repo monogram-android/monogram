@@ -13,5 +13,6 @@ interface ChatListRepository {
     fun refresh()
     fun refreshOnResume()
     suspend fun getChatById(chatId: Long): ChatModel?
+    suspend fun isChatArchived(chatId: Long): Boolean?
     fun retryConnection()
 }

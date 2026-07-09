@@ -173,6 +173,7 @@ interface ChatComponent {
 
     fun onOpenMiniApp(url: String, name: String, botUserId: Long = 0L)
     fun onDismissMiniApp()
+    fun onShareToStory(mediaUrl: String, text: String?, widgetLink: String?)
     fun onAcceptMiniAppTOS()
     fun onDismissMiniAppTOS()
 

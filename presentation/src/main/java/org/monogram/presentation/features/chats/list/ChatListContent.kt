@@ -58,6 +58,7 @@ import androidx.compose.material.icons.automirrored.rounded.ExitToApp
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Close
@@ -167,6 +168,9 @@ import org.monogram.presentation.features.instantview.InstantViewer
 import org.monogram.presentation.features.stickers.ui.menu.ActionMenuPopup
 import org.monogram.presentation.features.stickers.ui.menu.EmojisGrid
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
+import org.monogram.presentation.features.stories.StoriesStrip
+import org.monogram.presentation.features.stories.StoryStripItemUiModel
+import org.monogram.presentation.features.stories.shouldShowStoriesStrip
 import org.monogram.presentation.features.webapp.MiniAppViewer
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -184,6 +188,7 @@ fun ChatListContent(
     val chatsState by component.chatsState.collectAsState()
     val selectionState by component.selectionState.collectAsState()
     val searchState by component.searchState.collectAsState()
+    val storiesState by component.storiesState.collectAsState()
     val showAllChatsFolder by component.appPreferences.showAllChatsFolder.collectAsState()
     val isProjectChannelPromoDismissed by component.appPreferences.isProjectChannelPromoDismissed.collectAsState()
 
@@ -854,14 +859,26 @@ fun ChatListContent(
                     enter = scaleIn() + fadeIn(),
                     exit = scaleOut() + fadeOut()
                 ) {
-                    ExtendedFloatingActionButton(
-                        onClick = { component.onNewChatClicked() },
-                        icon = { Icon(Icons.Rounded.Edit, null) },
-                        text = { Text(stringResource(R.string.new_chat_fab)) },
-                        expanded = isFabExpanded,
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (effectiveFoldersState.selectedFolderId == -1) {
+                            ExtendedFloatingActionButton(
+                                onClick = component::onAddStoryClicked,
+                                icon = { Icon(Icons.Rounded.Add, null) },
+                                text = { Text(stringResource(R.string.story_create)) },
+                                expanded = isFabExpanded,
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                        ExtendedFloatingActionButton(
+                            onClick = { component.onNewChatClicked() },
+                            icon = { Icon(Icons.Rounded.Edit, null) },
+                            text = { Text(stringResource(R.string.new_chat_fab)) },
+                            expanded = isFabExpanded,
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
 
             }
@@ -897,6 +914,8 @@ fun ChatListContent(
                 isProjectChannelJoinInProgress = uiState.isProjectChannelJoinInProgress,
                 onProjectChannelSubscribe = component::onProjectChannelSubscribe,
                 onProjectChannelLater = component::onProjectChannelLater,
+                mainActiveStories = storiesState.mainActiveStories,
+                archiveActiveStories = storiesState.archiveActiveStories,
                 onChatClicked = onChatClicked,
                 onChatLongClicked = onChatLongClicked
             )
@@ -1087,6 +1106,7 @@ fun ChatListContent(
                 baseUrl = webAppUrl ?: "",
                 botName = botName ?: stringResource(R.string.mini_app_default_name),
                 webAppRepository = koinInject(),
+                onShareToStory = component::onShareToStory,
                 onDismiss = { component.onDismissWebApp() }
             )
         }
@@ -1353,6 +1373,8 @@ private fun ChatListBody(
     isProjectChannelJoinInProgress: Boolean,
     onProjectChannelSubscribe: () -> Unit,
     onProjectChannelLater: () -> Unit,
+    mainActiveStories: List<org.monogram.domain.models.stories.ActiveStoryListModel>,
+    archiveActiveStories: List<org.monogram.domain.models.stories.ActiveStoryListModel>,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1375,6 +1397,7 @@ private fun ChatListBody(
                 messageLines = messageLines,
                 showPhotos = showPhotos,
                 interactionsEnabled = interactionsEnabled,
+                archiveActiveStories = archiveActiveStories,
                 onChatClicked = onChatClicked,
                 onChatLongClicked = onChatLongClicked
             )
@@ -1400,6 +1423,7 @@ private fun ChatListBody(
                 isProjectChannelJoinInProgress = isProjectChannelJoinInProgress,
                 onProjectChannelSubscribe = onProjectChannelSubscribe,
                 onProjectChannelLater = onProjectChannelLater,
+                activeStories = mainActiveStories,
                 onChatClicked = onChatClicked,
                 onChatLongClicked = onChatLongClicked
             )
@@ -1426,6 +1450,7 @@ private fun SearchOrArchiveContent(
     messageLines: Int,
     showPhotos: Boolean,
     interactionsEnabled: Boolean,
+    archiveActiveStories: List<org.monogram.domain.models.stories.ActiveStoryListModel>,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1451,6 +1476,21 @@ private fun SearchOrArchiveContent(
     )
 
     val archivedChats = if (isArchivedView) chatsState.chats else emptyList()
+    val archiveStoryStripItems = remember(archivedChats, archiveActiveStories) {
+        archiveActiveStories.mapNotNull { storyList ->
+            val chat =
+                archivedChats.firstOrNull { it.id == storyList.chatId } ?: return@mapNotNull null
+            StoryStripItemUiModel(
+                chatId = chat.id,
+                title = chat.title,
+                avatarPath = chat.avatarPath,
+                activeStories = storyList
+            )
+        }
+    }
+    val hasArchiveStoriesStrip = isArchivedView &&
+            shouldShowStoriesStrip(selectedFolderId = -2, isSearchActive = false) &&
+            archiveStoryStripItems.isNotEmpty()
     val isArchivedLoading = isArchivedView && chatsState.isLoading
     val hasArchivedLoadState = isArchivedView && (
             foldersState.isLoadingByFolder.containsKey(-2) || chatsState.chats.isNotEmpty()
@@ -1493,14 +1533,16 @@ private fun SearchOrArchiveContent(
         isArchivedView,
         archivedChats.size,
         isArchivedLoading,
+        hasArchiveStoriesStrip,
         scrollState,
         interactionsEnabled,
     ) {
         if (!interactionsEnabled || !isArchivedView || isArchivedLoading || archivedChats.isEmpty()) return@LaunchedEffect
 
+        val headerItemsCount = if (hasArchiveStoriesStrip) 1 else 0
         snapshotFlow {
             val lastVisible = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            lastVisible >= archivedChats.lastIndex - 5
+            (lastVisible - headerItemsCount) >= archivedChats.lastIndex - 5
         }
             .distinctUntilChanged()
             .collect { shouldLoad ->
@@ -1699,6 +1741,15 @@ private fun SearchOrArchiveContent(
                     }
                 }
             } else {
+                if (hasArchiveStoriesStrip) {
+                    item {
+                        StoriesStrip(
+                            items = archiveStoryStripItems,
+                            onStoryClick = component::onStoryClicked
+                        )
+                    }
+                }
+
                 if (archivedChats.isEmpty() && hasArchivedLoadState && !isArchivedLoading) {
                     item {
                         EmptyStateView(modifier = Modifier.fillParentMaxSize())
@@ -1766,6 +1817,7 @@ private fun FolderPagerContent(
     isProjectChannelJoinInProgress: Boolean,
     onProjectChannelSubscribe: () -> Unit,
     onProjectChannelLater: () -> Unit,
+    activeStories: List<org.monogram.domain.models.stories.ActiveStoryListModel>,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1806,6 +1858,7 @@ private fun FolderPagerContent(
             isProjectChannelJoinInProgress = isProjectChannelJoinInProgress,
             onProjectChannelSubscribe = onProjectChannelSubscribe,
             onProjectChannelLater = onProjectChannelLater,
+            activeStories = activeStories,
             onChatClicked = onChatClicked,
             onChatLongClicked = onChatLongClicked
         )
@@ -1838,9 +1891,23 @@ private fun FolderPageContent(
     isProjectChannelJoinInProgress: Boolean,
     onProjectChannelSubscribe: () -> Unit,
     onProjectChannelLater: () -> Unit,
+    activeStories: List<org.monogram.domain.models.stories.ActiveStoryListModel>,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
+    val storyStripItems = remember(activeStories, folderChats) {
+        activeStories.mapNotNull { storyList ->
+            val chat =
+                folderChats.firstOrNull { it.id == storyList.chatId } ?: return@mapNotNull null
+            StoryStripItemUiModel(
+                chatId = chat.id,
+                title = chat.title,
+                avatarPath = chat.avatarPath,
+                activeStories = storyList
+            )
+        }
+    }
+    val hasStoriesStrip = shouldShowStoriesStrip(folderId, false) && storyStripItems.isNotEmpty()
     val shouldHoldInitialFolderContent = folderId > 0 &&
             shouldAnimateFirstFolderTransition &&
             isFolderLoading
@@ -1866,10 +1933,20 @@ private fun FolderPageContent(
         }
     }
 
-    LaunchedEffect(folderId, folderChats.size, isFolderLoading, scrollState, interactionsEnabled) {
+    LaunchedEffect(
+        folderId,
+        folderChats.size,
+        isFolderLoading,
+        hasStoriesStrip,
+        scrollState,
+        interactionsEnabled
+    ) {
         if (!interactionsEnabled || isFolderLoading || folderChats.isEmpty()) return@LaunchedEffect
 
-        val headerItemsCount = if (showProjectChannelPromo) 1 else 0
+        val headerItemsCount = listOf(
+            showProjectChannelPromo,
+            hasStoriesStrip
+        ).count { it }
         snapshotFlow {
             val lastVisible = (scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
                 ?: -1) - headerItemsCount
@@ -1883,10 +1960,20 @@ private fun FolderPageContent(
             }
     }
 
-    LaunchedEffect(folderId, folderChats, isFolderLoading, scrollState, interactionsEnabled) {
+    LaunchedEffect(
+        folderId,
+        folderChats,
+        isFolderLoading,
+        hasStoriesStrip,
+        scrollState,
+        interactionsEnabled
+    ) {
         if (!interactionsEnabled || isFolderLoading || folderChats.isEmpty()) return@LaunchedEffect
 
-        val headerItemsCount = if (showProjectChannelPromo) 1 else 0
+        val headerItemsCount = listOf(
+            showProjectChannelPromo,
+            hasStoriesStrip
+        ).count { it }
         snapshotFlow {
             scrollState.layoutInfo.visibleItemsInfo
                 .mapNotNull { item -> folderChats.getOrNull(item.index - headerItemsCount)?.id }
@@ -1937,6 +2024,15 @@ private fun FolderPageContent(
                         end = if (isTablet) 4.dp else 0.dp
                     )
                 ) {
+                    if (hasStoriesStrip) {
+                        item {
+                            StoriesStrip(
+                                items = storyStripItems,
+                                onStoryClick = component::onStoryClicked
+                            )
+                        }
+                    }
+
                     if (showProjectChannelPromo) {
                         item {
                             ProjectChannelPromoCard(

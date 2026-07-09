@@ -66,6 +66,7 @@ class MiniAppState(
     val botPreferences: BotPreferencesProvider,
     val userRepository: UserRepository,
     initialThemeParams: ThemeParams,
+    val onShareToStory: (String, String?, String?) -> Unit,
     val onDismiss: () -> Unit
 ) {
     var themeParams by mutableStateOf(initialThemeParams)
@@ -500,7 +501,9 @@ class MiniAppState(
             }
         }
 
-        override fun onShareToStory(mediaUrl: String, text: String?, widgetLink: JSONObject?) {}
+        override fun onShareToStory(mediaUrl: String, text: String?, widgetLink: JSONObject?) {
+            onShareToStory(mediaUrl, text, widgetLink?.toString())
+        }
 
         override fun onOpenPopup(
             title: String?,
@@ -978,6 +981,7 @@ fun rememberMiniAppState(
     botPreferences: BotPreferencesProvider,
     userRepository: UserRepository,
     themeParams: ThemeParams,
+    onShareToStory: (String, String?, String?) -> Unit,
     onDismiss: () -> Unit
 ) = remember(botUserId) {
     MiniAppState(
@@ -990,6 +994,7 @@ fun rememberMiniAppState(
         botPreferences,
         userRepository,
         themeParams,
+        onShareToStory,
         onDismiss
     )
 }

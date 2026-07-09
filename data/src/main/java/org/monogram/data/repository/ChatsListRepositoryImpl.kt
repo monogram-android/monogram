@@ -688,6 +688,22 @@ class ChatsListRepositoryImpl(
         }.getOrNull()
     }
 
+    override suspend fun isChatArchived(chatId: Long): Boolean? {
+        val chatObj = cache.getChat(chatId)
+            ?: chatLocalDataSource.getChat(chatId)?.let { entity ->
+                cache.putChatFromEntity(entity)
+                persistenceManager.rememberSavedEntity(entity)
+                cache.getChat(chatId)
+            }
+            ?: remoteDataSource.getChat(chatId)?.also { chat ->
+                cache.putChat(chat)
+                persistenceManager.scheduleChatSave(chat.id)
+            }
+            ?: return null
+
+        return chatObj.positions.any { it.list is TdApi.ChatListArchive }
+    }
+
     override suspend fun searchChats(query: String): List<ChatModel> {
         return searchManager.searchChats(query)
     }

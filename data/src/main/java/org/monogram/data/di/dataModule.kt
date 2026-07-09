@@ -116,6 +116,7 @@ import org.monogram.data.repository.SessionRepositoryImpl
 import org.monogram.data.repository.SponsorRepositoryImpl
 import org.monogram.data.repository.StickerRepositoryImpl
 import org.monogram.data.repository.StorageRepositoryImpl
+import org.monogram.data.repository.StoryRepositoryImpl
 import org.monogram.data.repository.StreamingRepositoryImpl
 import org.monogram.data.repository.UpdateRepositoryImpl
 import org.monogram.data.repository.UserProfileEditRepositoryImpl
@@ -160,6 +161,7 @@ import org.monogram.domain.repository.SessionRepository
 import org.monogram.domain.repository.SponsorRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StorageRepository
+import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StreamingRepository
 import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.UpdateRepository
@@ -830,6 +832,15 @@ val dataModule = module {
 
     single<LinkHandlerRepository> {
         LinkHandlerRepositoryImpl(get(), get(), get(), get(), get())
+    }
+
+    single<StoryRepository> {
+        StoryRepositoryImpl(
+            gateway = get(),
+            updates = get(),
+            scope = get(),
+            fileDataSource = get()
+        )
     }
 
     single<StreamingRepository> {

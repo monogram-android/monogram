@@ -52,6 +52,7 @@ import org.monogram.domain.repository.SessionRepository
 import org.monogram.domain.repository.SponsorRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StorageRepository
+import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
@@ -116,6 +117,7 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val proxyRepository: ProxyRepository by lazy { koin.get() }
     override val proxyDiagnosticsRepository: ProxyDiagnosticsRepository by lazy { koin.get() }
     override val stickerRepository: StickerRepository by lazy { koin.get() }
+    override val storyRepository: StoryRepository by lazy { koin.get() }
     override val gifRepository: GifRepository by lazy { koin.get() }
     override val emojiRepository: EmojiRepository by lazy { koin.get() }
     override val updateRepository: UpdateRepository by lazy { koin.get() }

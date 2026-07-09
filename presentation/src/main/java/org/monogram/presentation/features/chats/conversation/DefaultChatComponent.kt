@@ -279,7 +279,8 @@ class DefaultChatComponent(
     private val initialMessageId: Long? = null,
     private val initialTopicId: Long? = null,
     private val initialShare: IncomingShareRequest? = null,
-    private val onInitialShareConsumed: (Long) -> Unit = {}
+    private val onInitialShareConsumed: (Long) -> Unit = {},
+    private val onShareToStoryRequested: (String, String?, String?) -> Unit = { _, _, _ -> }
 ) : ChatComponent, AppComponentContext by context {
 
     internal val componentInstanceId: String = ChatConversationLog.nextComponentInstanceId(chatId)
@@ -981,6 +982,9 @@ class DefaultChatComponent(
         store.accept(ChatStore.Intent.OpenMiniApp(url, name, botUserId))
 
     override fun onDismissMiniApp() = store.accept(ChatStore.Intent.DismissMiniApp)
+    override fun onShareToStory(mediaUrl: String, text: String?, widgetLink: String?) {
+        onShareToStoryRequested(mediaUrl, text, widgetLink)
+    }
     override fun onAcceptMiniAppTOS() = store.accept(ChatStore.Intent.AcceptMiniAppTOS)
     override fun onDismissMiniAppTOS() = store.accept(ChatStore.Intent.DismissMiniAppTOS)
 

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,12 +24,19 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ExitToApp
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -98,6 +106,7 @@ fun ProfileContent(component: ProfileComponent) {
     val chat = state.chat
     val user = state.user
     val isCurrentUserProfile = user != null && state.currentUser?.id == user.id
+    val canManageStories = isCurrentUserProfile || chat?.isAdmin == true
     val isInitialLoading = state.isLoading && chat == null && user == null
 
     val avatarPath = remember(state.chat, state.user, state.personalAvatarPath) {
@@ -366,6 +375,16 @@ fun ProfileContent(component: ProfileComponent) {
                                     showLinkedChat = state.chatId < 0
                                 )
                             } else {
+                                if (canManageStories || state.activeStoryList != null) {
+                                    ProfileStoriesCard(
+                                        canManageStories = canManageStories,
+                                        storyCount = state.activeStoryList?.stories?.size ?: 0,
+                                        onOpenStories = component::onOpenStories,
+                                        onOpenArchive = component::onOpenStoryArchive,
+                                        onCreateStory = component::onCreateStory
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                }
                                 ProfileInfoSection(
                                     state = state,
                                     localClipboard = localClipboard,
@@ -502,6 +521,77 @@ fun ProfileContent(component: ProfileComponent) {
                 location = location,
                 onDismiss = component::onDismissLocation
             )
+        }
+    }
+}
+
+@Composable
+private fun ProfileStoriesCard(
+    canManageStories: Boolean,
+    storyCount: Int,
+    onOpenStories: () -> Unit,
+    onOpenArchive: () -> Unit,
+    onCreateStory: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.profile_feature_stories_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = if (storyCount > 0) {
+                    stringResource(R.string.story_profile_count, storyCount)
+                } else {
+                    stringResource(R.string.profile_feature_stories_subtitle)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (storyCount > 0) {
+                    FilterChip(
+                        selected = false,
+                        onClick = onOpenStories,
+                        label = { Text(text = stringResource(R.string.story_open)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Rounded.PlayArrow,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                }
+                if (canManageStories) {
+                    FilterChip(
+                        selected = false,
+                        onClick = onCreateStory,
+                        label = { Text(text = stringResource(R.string.story_create)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Rounded.Add,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = onOpenArchive,
+                        label = { Text(text = stringResource(R.string.story_archive)) },
+                        leadingIcon = {
+                            Icon(Icons.Rounded.Archive, contentDescription = null)
+                        }
+                    )
+                }
+            }
         }
     }
 }

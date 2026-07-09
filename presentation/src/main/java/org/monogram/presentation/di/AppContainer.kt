@@ -51,6 +51,7 @@ import org.monogram.domain.repository.SessionRepository
 import org.monogram.domain.repository.SponsorRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StorageRepository
+import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
@@ -115,6 +116,7 @@ interface RepositoriesContainer {
     val proxyRepository: ProxyRepository
     val proxyDiagnosticsRepository: ProxyDiagnosticsRepository
     val stickerRepository: StickerRepository
+    val storyRepository: StoryRepository
     val gifRepository: GifRepository
     val emojiRepository: EmojiRepository
     val updateRepository: UpdateRepository

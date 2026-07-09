@@ -73,6 +73,8 @@ import org.monogram.presentation.features.profile.contact.DefaultContactEditComp
 import org.monogram.presentation.features.profile.logs.DefaultProfileLogsComponent
 import org.monogram.presentation.features.share.IncomingShareRequest
 import org.monogram.presentation.features.stickers.core.toUi
+import org.monogram.presentation.features.stories.DefaultStoriesHostComponent
+import org.monogram.presentation.features.stories.StoriesHostComponent
 import org.monogram.presentation.features.webview.DefaultWebViewComponent
 import org.monogram.presentation.settings.about.DefaultAboutComponent
 import org.monogram.presentation.settings.adblock.DefaultAdBlockComponent
@@ -116,6 +118,7 @@ class DefaultRootComponent(
 
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
+    override val storiesHost: StoriesHostComponent = DefaultStoriesHostComponent(this)
 
     private val navigation = StackNavigation<Config>()
     private val scope = componentScope
@@ -260,7 +263,11 @@ class DefaultRootComponent(
     }
 
     override fun onBack() {
-        navigation.pop()
+        if (storiesHost.state.value.isVisible) {
+            storiesHost.dismiss()
+        } else {
+            navigation.pop()
+        }
     }
 
     override fun onSettingsClick() {
@@ -294,6 +301,13 @@ class DefaultRootComponent(
             is LinkAction.OpenChat -> navigateToChat(action.chatId)
             is LinkAction.OpenUser -> navigation.bringToFront(Config.Profile(action.userId))
             is LinkAction.OpenMessage -> navigateToChat(action.chatId, action.messageId)
+            is LinkAction.OpenStory -> storiesHost.openChatStories(action.chatId, action.storyId)
+            is LinkAction.OpenStoryAlbum -> storiesHost.openStoryAlbum(
+                action.chatId,
+                action.albumId
+            )
+
+            is LinkAction.OpenNewStory -> openOwnStoryComposer(preferredMediaType = action.mediaType)
 
             is LinkAction.OpenSettings -> {
                 val config = when (action.settingsType) {
@@ -481,6 +495,42 @@ class DefaultRootComponent(
         }
     }
 
+    private fun openStoryComposer(
+        chatId: Long,
+        preferredMediaType: org.monogram.domain.models.stories.StoryMediaType? = null,
+        initialSourcePath: String? = null,
+        initialCaption: String = "",
+        widgetLink: String? = null
+    ) {
+        scope.launch {
+            storiesHost.openComposer(
+                chatId = chatId,
+                preferredMediaType = preferredMediaType,
+                initialSourcePath = initialSourcePath,
+                initialCaption = initialCaption,
+                widgetLink = widgetLink
+            )
+        }
+    }
+
+    private fun openOwnStoryComposer(
+        preferredMediaType: org.monogram.domain.models.stories.StoryMediaType? = null,
+        initialSourcePath: String? = null,
+        initialCaption: String = "",
+        widgetLink: String? = null
+    ) {
+        scope.launch {
+            val me = userRepository.getMe() ?: return@launch
+            openStoryComposer(
+                chatId = me.id,
+                preferredMediaType = preferredMediaType,
+                initialSourcePath = initialSourcePath,
+                initialCaption = initialCaption,
+                widgetLink = widgetLink
+            )
+        }
+    }
+
     override fun unlock(passcode: String): Boolean {
         val savedPasscode = appPreferences.passcode.value
         return if (savedPasscode == passcode) {
@@ -588,6 +638,19 @@ class DefaultRootComponent(
                     },
                     onSettingsClick = { navigation.bringToFront(Config.Settings) },
                     onProxySettingsClick = { navigation.bringToFront(Config.Proxy) },
+                    onShareToStory = { mediaUrl, text, widgetLink ->
+                        openOwnStoryComposer(
+                            initialSourcePath = mediaUrl,
+                            initialCaption = text.orEmpty(),
+                            widgetLink = widgetLink
+                        )
+                    },
+                    onStorySelect = { chatId, storyId ->
+                        storiesHost.openChatStories(chatId, storyId)
+                    },
+                    onAddStory = {
+                        openOwnStoryComposer()
+                    },
                     onConfirmForward = { request ->
                         if (config.forwardingMessageIds != null) {
                             scope.launch {
@@ -676,6 +739,13 @@ class DefaultRootComponent(
                             lastConsumedShareRequestId = requestId
                         }
                     },
+                    onShareToStoryRequested = { mediaUrl, text, widgetLink ->
+                        openOwnStoryComposer(
+                            initialSourcePath = mediaUrl,
+                            initialCaption = text.orEmpty(),
+                            widgetLink = widgetLink
+                        )
+                    },
                     toProfiles = { id -> navigation.bringToFront(Config.Profile(chatId = id)) }
                 )
             )
@@ -758,7 +828,33 @@ class DefaultRootComponent(
                     onSendMessageClicked = { navigateToChat(it) },
                     onShowLogsClicked = { navigation.push(Config.ProfileLogs(it)) },
                     onEditContactClicked = { navigation.push(Config.ContactEdit(it)) },
-                    onMemberLongClicked = { chatId, userId -> navigation.push(Config.AdminManage(chatId, userId)) }
+                    onMemberLongClicked = { chatId, userId ->
+                        navigation.push(
+                            Config.AdminManage(
+                                chatId,
+                                userId
+                            )
+                        )
+                    },
+                    onOpenStoriesClicked = { targetChatId, storyId ->
+                        storiesHost.openChatStories(targetChatId, storyId)
+                    },
+                    onOpenStoryArchiveClicked = { targetChatId ->
+                        storiesHost.openChatStories(
+                            targetChatId,
+                            listType = org.monogram.domain.models.stories.StoryListType.ARCHIVE
+                        )
+                    },
+                    onCreateStoryClicked = { targetChatId ->
+                        openStoryComposer(targetChatId)
+                    },
+                    onShareToStoryRequested = { mediaUrl, text, widgetLink ->
+                        openOwnStoryComposer(
+                            initialSourcePath = mediaUrl,
+                            initialCaption = text.orEmpty(),
+                            widgetLink = widgetLink
+                        )
+                    }
                 )
             )
             is Config.Premium -> RootComponent.Child.PremiumChild(

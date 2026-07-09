@@ -145,6 +145,7 @@ private fun MiniAppOverlay(state: ProfileComponent.State, component: ProfileComp
                 botName = title,
                 botAvatarPath = state.chat?.avatarPath ?: state.user?.avatarPath,
                 webAppRepository = component.messageRepository,
+                onShareToStory = component::onShareToStory,
                 onDismiss = { component.onDismissMiniApp() }
             )
         }

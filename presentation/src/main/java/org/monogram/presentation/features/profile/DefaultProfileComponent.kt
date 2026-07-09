@@ -37,6 +37,7 @@ import org.monogram.domain.repository.LocationRepository
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.ProfilePhotoRepository
+import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
@@ -57,7 +58,11 @@ class DefaultProfileComponent(
     private val onShowLogsClicked: (Long) -> Unit = {},
     private val onEditContactClicked: (Long) -> Unit = {},
     private val onMemberClicked: (Long) -> Unit = {},
-    private val onMemberLongClicked: (Long, Long) -> Unit = { _, _ -> }
+    private val onMemberLongClicked: (Long, Long) -> Unit = { _, _ -> },
+    private val onOpenStoriesClicked: (Long, Int?) -> Unit = { _, _ -> },
+    private val onOpenStoryArchiveClicked: (Long) -> Unit = {},
+    private val onCreateStoryClicked: (Long) -> Unit = {},
+    private val onShareToStoryRequested: (String, String?, String?) -> Unit = { _, _, _ -> }
 ) : ProfileComponent, AppComponentContext by context {
 
     private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
@@ -72,6 +77,7 @@ class DefaultProfileComponent(
     override val messageRepository: MessageRepository = container.repositories.messageRepository
     private val locationRepository: LocationRepository = container.repositories.locationRepository
     private val gifRepository: GifRepository = container.repositories.gifRepository
+    private val storyRepository: StoryRepository = container.repositories.storyRepository
     private val botPreferences: BotPreferencesProvider = container.preferences.botPreferencesProvider
     private val stringProvider = container.utils.stringProvider()
     private val messageDisplayer = container.utils.messageDisplayer()
@@ -181,6 +187,19 @@ class DefaultProfileComponent(
         userRepository.currentUserFlow
             .onEach { user ->
                 _state.update { it.copy(currentUser = user) }
+            }
+            .launchIn(scope)
+
+        storyRepository.activeStories
+            .onEach { activeStories ->
+                _state.update {
+                    it.copy(
+                        activeStoryList = activeStories.values
+                            .asSequence()
+                            .flatMap { lists -> lists.asSequence() }
+                            .firstOrNull { list -> list.chatId == chatId }
+                    )
+                }
             }
             .launchIn(scope)
     }
@@ -837,6 +856,10 @@ class DefaultProfileComponent(
         _state.update { it.copy(miniAppUrl = null, miniAppName = null) }
     }
 
+    override fun onShareToStory(mediaUrl: String, text: String?, widgetLink: String?) {
+        onShareToStoryRequested(mediaUrl, text, widgetLink)
+    }
+
     override fun onToggleMute() {
         val chat = _state.value.chat ?: return
         val shouldMute = !chat.isMuted
@@ -1158,6 +1181,19 @@ class DefaultProfileComponent(
 
     override fun onDismissLocation() {
         _state.update { it.copy(selectedLocation = null) }
+    }
+
+    override fun onOpenStories() {
+        val firstStoryId = _state.value.activeStoryList?.stories?.firstOrNull()?.storyId
+        onOpenStoriesClicked(chatId, firstStoryId)
+    }
+
+    override fun onOpenStoryArchive() {
+        onOpenStoryArchiveClicked(chatId)
+    }
+
+    override fun onCreateStory() {
+        onCreateStoryClicked(chatId)
     }
 
     private suspend fun enrichInteractionPreviews(stats: ChatStatisticsModel): ChatStatisticsModel {

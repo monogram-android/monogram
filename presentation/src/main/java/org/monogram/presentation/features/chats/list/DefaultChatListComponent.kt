@@ -37,6 +37,7 @@ import org.monogram.domain.repository.ForwardOptions
 import org.monogram.domain.repository.ForwardRequest
 import org.monogram.domain.repository.ForwardTarget
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
@@ -62,6 +63,9 @@ class DefaultChatListComponent(
     private val onConfirmForward: (ForwardRequest) -> Unit = {},
     private val onShareTargetSelected: (ShareTarget) -> Unit = {},
     private val onShareCancelled: () -> Unit = {},
+    private val onShareToStory: (String, String?, String?) -> Unit = { _, _, _ -> },
+    private val onStorySelect: (Long, Int?) -> Unit = { _, _ -> },
+    private val onAddStory: () -> Unit = {},
     private val forwardingFromChatId: Long? = null,
     private val forwardingMessageIds: List<Long> = emptyList(),
     internal val isForwarding: Boolean = false,
@@ -84,6 +88,7 @@ class DefaultChatListComponent(
     private val botRepository: BotRepository = container.repositories.botRepository
     private val attachMenuBotRepository: AttachMenuBotRepository = container.repositories.attachMenuBotRepository
     private val updateRepository: UpdateRepository = container.repositories.updateRepository
+    private val storyRepository: StoryRepository = container.repositories.storyRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     private val messageDisplayer = container.utils.messageDisplayer()
 
@@ -100,6 +105,7 @@ class DefaultChatListComponent(
     private val _chatsState = MutableStateFlow(_state.value.toChatsState())
     private val _selectionState = MutableStateFlow(_state.value.toSelectionState())
     private val _searchState = MutableStateFlow(_state.value.toSearchState())
+    private val _storiesState = MutableStateFlow(ChatListComponent.StoriesState())
 
     private val store = instanceKeeper.getStore {
         ChatListStoreFactory(
@@ -115,6 +121,8 @@ class DefaultChatListComponent(
     override val chatsState: StateFlow<ChatListComponent.ChatsState> = _chatsState.asStateFlow()
     override val selectionState: StateFlow<ChatListComponent.SelectionState> = _selectionState.asStateFlow()
     override val searchState: StateFlow<ChatListComponent.SearchState> = _searchState.asStateFlow()
+    override val storiesState: StateFlow<ChatListComponent.StoriesState> =
+        _storiesState.asStateFlow()
 
     private val scope = componentScope
     private var searchJob: Job? = null
@@ -123,6 +131,7 @@ class DefaultChatListComponent(
     private var hasSeenResume = false
     private val prefetchSemaphore = Semaphore(PREFETCH_CONCURRENCY)
     private val messagePrefetchTimestamps = mutableMapOf<Long, Long>()
+    private val storyPrefetchChatIds = mutableSetOf<Long>()
 
     private fun ChatListComponent.State.toUiState() = ChatListComponent.UiState(
         currentUser = currentUser,
@@ -311,6 +320,8 @@ class DefaultChatListComponent(
                     it.copy(chatsByFolder = newChatsByFolder)
                 }
                 syncProjectChannelSubscriptionFromChats(normalizedList)
+                prefetchStoryListsForChats(update.folderId, normalizedList)
+                refreshStoriesState("folder_${update.folderId}")
             }
             .launchIn(scope)
 
@@ -419,10 +430,22 @@ class DefaultChatListComponent(
             }
             .launchIn(scope)
 
+        storyRepository.activeStories
+            .onEach { activeStories ->
+                Log.d(
+                    STORY_TAG,
+                    "story repository update main=${activeStories[org.monogram.domain.models.stories.StoryListType.MAIN].orEmpty().size} " +
+                            "archive=${activeStories[org.monogram.domain.models.stories.StoryListType.ARCHIVE].orEmpty().size}"
+                )
+                refreshStoriesState("repository")
+            }
+            .launchIn(scope)
+
         scope.launch {
             if (!isTelemtBuild) {
                 updateRepository.checkForUpdates()
             }
+            refreshStoriesState("init")
         }
 
         _state.onEach {
@@ -994,6 +1017,18 @@ class DefaultChatListComponent(
         }
     }
 
+    override fun onShareToStory(mediaUrl: String, text: String?, widgetLink: String?) {
+        onShareToStory.invoke(mediaUrl, text, widgetLink)
+    }
+
+    override fun onStoryClicked(chatId: Long, storyId: Int?) {
+        onStorySelect(chatId, storyId)
+    }
+
+    override fun onAddStoryClicked() {
+        onAddStory()
+    }
+
     override fun onDismissWebApp() = store.accept(ChatListStore.Intent.DismissWebApp)
 
     internal fun handleDismissWebApp() {
@@ -1205,6 +1240,92 @@ class DefaultChatListComponent(
         }
     }
 
+    private fun prefetchStoryListsForChats(folderId: Int, chats: List<ChatModel>) {
+        val hintedChats = chats.asSequence()
+            .filter { it.activeStoryId != 0 || !it.activeStoryStateType.isNullOrBlank() }
+            .filter { chat ->
+                storyRepository.activeStories.value.values
+                    .asSequence()
+                    .flatMap(List<org.monogram.domain.models.stories.ActiveStoryListModel>::asSequence)
+                    .none { active -> active.chatId == chat.id }
+            }
+            .filter { chat -> storyPrefetchChatIds.add(chat.id) }
+            .take(STORY_PREFETCH_MAX)
+            .toList()
+
+        if (hintedChats.isEmpty()) return
+
+        scope.launch(Dispatchers.IO) {
+            hintedChats.forEach { chat ->
+                Log.d(
+                    STORY_TAG,
+                    "prefetch story list folder=$folderId chatId=${chat.id} hintType=${chat.activeStoryStateType} hintId=${chat.activeStoryId}"
+                )
+                coRunCatching {
+                    storyRepository.getChatActiveStories(chat.id)
+                }.onFailure { error ->
+                    Log.d(
+                        STORY_TAG,
+                        "prefetch story list failed chatId=${chat.id}: ${error.message}"
+                    )
+                }
+            }
+            refreshStoriesState("prefetch_$folderId")
+        }
+    }
+
+    private fun refreshStoriesState(reason: String) {
+        scope.launch(Dispatchers.IO) {
+            val repositoryStories = storyRepository.activeStories.value
+            val activeStories =
+                repositoryStories[org.monogram.domain.models.stories.StoryListType.MAIN].orEmpty()
+            val archiveFolderChatIds = _state.value.chatsByFolder[ARCHIVE_FOLDER_ID]
+                .orEmpty()
+                .mapTo(mutableSetOf()) { it.id }
+            val localChatIndex = LinkedHashMap<Long, ChatModel>()
+            _state.value.chatsByFolder.values.forEach { chats ->
+                chats.forEach { chat -> localChatIndex.putIfAbsent(chat.id, chat) }
+            }
+
+            val resolvedStories = activeStories.mapNotNull { storyList ->
+                val chat = localChatIndex[storyList.chatId] ?: chatListRepository.getChatById(
+                    storyList.chatId
+                )
+                if (chat == null) {
+                    Log.d(
+                        STORY_TAG,
+                        "story chat metadata missing chatId=${storyList.chatId} reason=$reason"
+                    )
+                    null
+                } else {
+                    val isArchived = when {
+                        storyList.chatId in archiveFolderChatIds -> true
+                        else -> chatListRepository.isChatArchived(storyList.chatId)
+                            ?: chat.isArchived
+                    }
+                    Triple(chat, storyList, isArchived)
+                }
+            }
+
+            val mainStories = resolvedStories
+                .filterNot { (_, _, isArchived) -> isArchived }
+                .map { (_, stories, _) -> stories }
+            val archiveStories = resolvedStories
+                .filter { (_, _, isArchived) -> isArchived }
+                .map { (_, stories, _) -> stories }
+
+            Log.d(
+                STORY_TAG,
+                "refreshStoriesState reason=$reason total=${activeStories.size} main=${mainStories.size} archived=${archiveStories.size} archiveFolderIds=${archiveFolderChatIds.size}"
+            )
+
+            _storiesState.value = ChatListComponent.StoriesState(
+                mainActiveStories = mainStories,
+                archiveActiveStories = archiveStories
+            )
+        }
+    }
+
     private fun syncProjectChannelSubscriptionFromChats(chats: List<ChatModel>) {
         chats.firstOrNull { it.id == PROJECT_CHANNEL_CHAT_ID }
             ?.let(::syncProjectChannelSubscriptionFromChat)
@@ -1241,12 +1362,14 @@ class DefaultChatListComponent(
 
     companion object {
         private const val TAG = "PinnedUiDiag"
+        private const val STORY_TAG = "StoriesDiag"
         private const val ARCHIVE_FOLDER_ID = -2
         private const val PROJECT_CHANNEL_CHAT_ID = -1003768707135L
         private const val PREFETCH_MAX_CANDIDATES = 6
         private const val PREFETCH_CONCURRENCY = 2
         private const val PREFETCH_PAGE_SIZE = 30
         private const val PREFETCH_TTL_MS = 60_000L
+        private const val STORY_PREFETCH_MAX = 12
     }
 
     private fun toggleSelection(id: Long) {

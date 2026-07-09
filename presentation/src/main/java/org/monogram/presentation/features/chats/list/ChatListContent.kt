@@ -345,25 +345,62 @@ fun ChatListContent(
     val density = LocalDensity.current
     val tabsHeight = if (visibleFolders.size > 1) 56.dp else 10.dp
     val archiveItemHeight = 78.dp
+    val storiesHeaderHeight = 124.dp
     val tabsHeightPx = with(density) { tabsHeight.toPx() }
     val archiveItemHeightPx = with(density) { archiveItemHeight.toPx() }
+    val storiesHeaderHeightPx = with(density) { storiesHeaderHeight.toPx() }
 
     var headerOffsetPx by remember { mutableFloatStateOf(0f) }
     var archiveRevealPx by remember { mutableFloatStateOf(0f) }
+    var storiesOffsetPx by remember { mutableFloatStateOf(0f) }
+    var tabsOffsetPx by remember { mutableFloatStateOf(0f) }
 
     var revealAnimationJob by remember { mutableStateOf<Job?>(null) }
     var headerAnimationJob by remember { mutableStateOf<Job?>(null) }
+    var storiesAnimationJob by remember { mutableStateOf<Job?>(null) }
+    var tabsAnimationJob by remember { mutableStateOf<Job?>(null) }
 
     var hasVibrated by remember { mutableStateOf(false) }
     var canRevealArchive by remember { mutableStateOf(true) }
 
     val currentFolder = visibleFolders.getOrNull(pagerState.currentPage)
     val isMainFolder = currentFolder?.id == -1
+    val isMainView =
+        !effectiveSearchState.isSearchActive && effectiveFoldersState.selectedFolderId != -2
 
-    val isArchivePersistent = uiState.isArchivePinned && (uiState.isArchiveAlwaysVisible || isMainFolder)
-    val canShowArchive = isArchivePersistent || isMainFolder
+    val isArchivePersistent =
+        uiState.isArchivePinned && (uiState.isArchiveAlwaysVisible || isMainView)
+    val canShowArchive = isArchivePersistent || isMainView
     val currentFolderChats =
         foldersState.chatsByFolder[effectiveFoldersState.selectedFolderId].orEmpty()
+    val storyIndexChats = remember(foldersState.chatsByFolder) {
+        LinkedHashMap<Long, ChatModel>().apply {
+            foldersState.chatsByFolder.values.forEach { chats ->
+                chats.forEach { chat -> putIfAbsent(chat.id, chat) }
+            }
+        }
+    }
+    val mainStoryStripItems = remember(storyIndexChats, storiesState.mainActiveStories) {
+        storiesState.mainActiveStories.mapNotNull { storyList ->
+            val chat = storyIndexChats[storyList.chatId] ?: return@mapNotNull null
+            StoryStripItemUiModel(
+                chatId = chat.id,
+                title = chat.title,
+                avatarPath = chat.avatarPath,
+                activeStories = storyList
+            )
+        }
+    }
+    val hasMainStoriesStrip = isMainView && mainStoryStripItems.isNotEmpty()
+    val showCreateStoryStripButton = shouldShowCreateStoryStripButton(
+        selectedFolderId = effectiveFoldersState.selectedFolderId,
+        hasVisibleStories = hasMainStoriesStrip
+    )
+    val showCreateStoryFab = shouldShowCreateStoryFab(
+        selectedFolderId = effectiveFoldersState.selectedFolderId,
+        areMainStoriesLoaded = storiesState.isMainStoriesLoaded,
+        hasVisibleStories = hasMainStoriesStrip
+    )
     val hasUnreadInCurrentFolder = remember(currentFolderChats) {
         currentFolderChats.any(::hasChatListUnreadState)
     }
@@ -408,6 +445,8 @@ fun ChatListContent(
     }
 
     val isArchiveRevealed = archiveRevealPx > 0f && !isArchivePersistent
+    val hasCollapsibleStories = hasMainStoriesStrip
+    val hasCollapsibleFolderTabs = visibleFolders.size > 1
     if (!isPreview) {
         BackHandler(enabled = isArchiveRevealed) {
             revealAnimationJob?.cancel()
@@ -419,12 +458,22 @@ fun ChatListContent(
         }
     }
 
-    val nestedScrollConnection = remember(isArchivePersistent, canShowArchive, uiState.isArchiveAlwaysVisible, tabsHeightPx) {
+    val nestedScrollConnection = remember(
+        isArchivePersistent,
+        canShowArchive,
+        uiState.isArchiveAlwaysVisible,
+        storiesHeaderHeightPx,
+        hasCollapsibleStories,
+        tabsHeightPx,
+        hasCollapsibleFolderTabs
+    ) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (source == NestedScrollSource.UserInput) {
                     revealAnimationJob?.cancel()
                     headerAnimationJob?.cancel()
+                    storiesAnimationJob?.cancel()
+                    tabsAnimationJob?.cancel()
                 }
 
                 val delta = available.y
@@ -438,6 +487,27 @@ fun ChatListContent(
                         if (newReveal == 0f) hasVibrated = false
 
                         return Offset(0f, newReveal - oldReveal)
+                    }
+
+                    if (hasCollapsibleStories && storiesOffsetPx > -storiesHeaderHeightPx) {
+                        val oldStoriesOffset = storiesOffsetPx
+                        val newStoriesOffset =
+                            (oldStoriesOffset + delta).coerceIn(-storiesHeaderHeightPx, 0f)
+                        storiesOffsetPx = newStoriesOffset
+
+                        if (abs(newStoriesOffset - oldStoriesOffset) > 0.5f) {
+                            return Offset(0f, newStoriesOffset - oldStoriesOffset)
+                        }
+                    }
+
+                    if (hasCollapsibleFolderTabs && tabsOffsetPx > -tabsHeightPx) {
+                        val oldTabsOffset = tabsOffsetPx
+                        val newTabsOffset = (oldTabsOffset + delta).coerceIn(-tabsHeightPx, 0f)
+                        tabsOffsetPx = newTabsOffset
+
+                        if (abs(newTabsOffset - oldTabsOffset) > 0.5f) {
+                            return Offset(0f, newTabsOffset - oldTabsOffset)
+                        }
                     }
 
                     val maxHide = if (isArchivePersistent) {
@@ -458,6 +528,20 @@ fun ChatListContent(
                         return Offset(0f, newOffset - oldOffset)
                     }
                 } else {
+                    if (hasCollapsibleFolderTabs && tabsOffsetPx < 0f) {
+                        val oldTabsOffset = tabsOffsetPx
+                        val newTabsOffset = (oldTabsOffset + delta).coerceAtMost(0f)
+                        tabsOffsetPx = newTabsOffset
+                        return Offset(0f, newTabsOffset - oldTabsOffset)
+                    }
+
+                    if (hasCollapsibleStories && storiesOffsetPx < 0f) {
+                        val oldStoriesOffset = storiesOffsetPx
+                        val newStoriesOffset = (oldStoriesOffset + delta).coerceAtMost(0f)
+                        storiesOffsetPx = newStoriesOffset
+                        return Offset(0f, newStoriesOffset - oldStoriesOffset)
+                    }
+
                     if (headerOffsetPx < 0f) {
                         if (source == NestedScrollSource.UserInput) {
                             canRevealArchive = false
@@ -487,12 +571,28 @@ fun ChatListContent(
                 if (source == NestedScrollSource.UserInput) {
                     revealAnimationJob?.cancel()
                     headerAnimationJob?.cancel()
+                    storiesAnimationJob?.cancel()
+                    tabsAnimationJob?.cancel()
                 }
 
                 val delta = available.y
                 if (delta > 0) {
                     if (source == NestedScrollSource.UserInput && (consumed.y > 0f || headerOffsetPx < 0f)) {
                         canRevealArchive = false
+                    }
+
+                    if (hasCollapsibleFolderTabs && tabsOffsetPx < 0f) {
+                        val oldTabsOffset = tabsOffsetPx
+                        val newTabsOffset = (oldTabsOffset + delta).coerceAtMost(0f)
+                        tabsOffsetPx = newTabsOffset
+                        return Offset(0f, newTabsOffset - oldTabsOffset)
+                    }
+
+                    if (hasCollapsibleStories && storiesOffsetPx < 0f) {
+                        val oldStoriesOffset = storiesOffsetPx
+                        val newStoriesOffset = (oldStoriesOffset + delta).coerceAtMost(0f)
+                        storiesOffsetPx = newStoriesOffset
+                        return Offset(0f, newStoriesOffset - oldStoriesOffset)
                     }
 
                     if (headerOffsetPx < 0f) {
@@ -521,6 +621,28 @@ fun ChatListContent(
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 canRevealArchive = true
+
+                if (hasCollapsibleStories &&
+                    storiesOffsetPx < 0f &&
+                    storiesOffsetPx > -storiesHeaderHeightPx
+                ) {
+                    val target =
+                        if (storiesOffsetPx > -storiesHeaderHeightPx / 2) 0f else -storiesHeaderHeightPx
+                    storiesAnimationJob = scope.launch {
+                        animate(initialValue = storiesOffsetPx, targetValue = target) { value, _ ->
+                            storiesOffsetPx = value
+                        }
+                    }
+                }
+
+                if (hasCollapsibleFolderTabs && tabsOffsetPx < 0f && tabsOffsetPx > -tabsHeightPx) {
+                    val target = if (tabsOffsetPx > -tabsHeightPx / 2) 0f else -tabsHeightPx
+                    tabsAnimationJob = scope.launch {
+                        animate(initialValue = tabsOffsetPx, targetValue = target) { value, _ ->
+                            tabsOffsetPx = value
+                        }
+                    }
+                }
 
                 if (canShowArchive && !isArchivePersistent && archiveRevealPx > 0f && archiveRevealPx < archiveItemHeightPx) {
                     val target = if (archiveRevealPx > archiveItemHeightPx / 2) archiveItemHeightPx else 0f
@@ -553,7 +675,13 @@ fun ChatListContent(
         }
     }
 
-    val isFabExpanded by remember { derivedStateOf { headerOffsetPx > -10f } }
+    val isFabExpanded by remember {
+        derivedStateOf {
+            headerOffsetPx > -10f &&
+                    storiesOffsetPx > -10f &&
+                    tabsOffsetPx > -10f
+        }
+    }
 
     var cachedStatusEmojiPath by remember(uiState.currentUser?.id) {
         mutableStateOf(uiState.currentUser?.statusEmojiPath)
@@ -663,7 +791,6 @@ fun ChatListContent(
             )
         }
     }
-
     Scaffold(
         containerColor = if (isTablet) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.nestedScroll(nestedScrollConnection),
@@ -736,9 +863,6 @@ fun ChatListContent(
                     }
                 }
 
-                val isMainView =
-                    !effectiveSearchState.isSearchActive && effectiveFoldersState.selectedFolderId != -2
-
                 if (isMainView) {
                     Box(
                         modifier = Modifier
@@ -746,15 +870,18 @@ fun ChatListContent(
                             .height(with(density) {
                                 val visibleArchiveHeight = if (isArchivePersistent) {
                                     (archiveItemHeightPx + headerOffsetPx).coerceAtLeast(0f)
-                                } else if (isMainFolder) {
+                                } else if (isMainView) {
                                     archiveRevealPx
                                 } else {
                                     0f
                                 }
-                                val visibleTabsHeight = tabsHeightPx
-                                (visibleArchiveHeight + visibleTabsHeight).toDp()
-                            })
-                            .clip(RoundedCornerShape(bottomStart = 0.dp, bottomEnd = 0.dp)),
+                                val visibleStoriesHeight = if (hasMainStoriesStrip) {
+                                    (storiesHeaderHeightPx + storiesOffsetPx).coerceAtLeast(0f)
+                                } else {
+                                    0f
+                                }
+                                (visibleArchiveHeight + visibleStoriesHeight).toDp()
+                            }),
                         contentAlignment = Alignment.TopCenter
                     ) {
                         Column(Modifier.fillMaxWidth()) {
@@ -765,7 +892,7 @@ fun ChatListContent(
                                         if (isArchivePersistent) {
                                             (archiveItemHeightPx + headerOffsetPx).coerceAtLeast(0f)
                                                 .toDp()
-                                        } else if (isMainFolder) {
+                                        } else if (isMainView) {
                                             archiveRevealPx.toDp()
                                         } else {
                                             0.dp
@@ -777,7 +904,7 @@ fun ChatListContent(
                                                 0f,
                                                 1f
                                             )
-                                        } else if (isMainFolder) {
+                                        } else if (isMainView) {
                                             (archiveRevealPx / archiveItemHeightPx).coerceIn(0f, 1f)
                                         } else {
                                             0f
@@ -807,41 +934,38 @@ fun ChatListContent(
                                             }
                                         }
                                     )
-                                    Spacer(Modifier.height(6.dp))
+                                    Spacer(Modifier.height(10.dp))
                                 }
                             }
 
-                            if (visibleFolders.size > 1) {
-                                FolderTabs(
-                                    modifier = Modifier,
-                                    folders = visibleFolders,
-                                    pagerState = pagerState,
-                                    onTabClick = { index ->
-                                        if (isPreview) return@FolderTabs
-                                        if (pagerState.currentPage == index) {
-                                            val folderId = visibleFolders[index].id
-                                            scope.launch {
-                                                scrollStates[folderId]?.animateScrollToItem(0)
-                                            }
-                                        } else {
-                                            scope.launch {
-                                                pagerState.animateScrollToPage(index)
-                                            }
+                            if (hasMainStoriesStrip) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(with(density) {
+                                            (storiesHeaderHeightPx + storiesOffsetPx).coerceAtLeast(
+                                                0f
+                                            )
+                                                .toDp()
+                                        })
+                                        .graphicsLayer {
+                                            alpha =
+                                                ((storiesHeaderHeightPx + storiesOffsetPx) / storiesHeaderHeightPx)
+                                                    .coerceIn(0f, 1f)
+                                            clip = true
                                         }
-                                    },
-                                    onEditClick = { if (!isPreview) component.onEditFoldersClicked() },
-                                    onEditFolderClick = { folder ->
-                                        if (!isPreview) component.onEditFolder(
-                                            folder.id
-                                        )
-                                    },
-                                    onDeleteFolderClick = { folder ->
-                                        if (!isPreview) component.onDeleteFolder(
-                                            folder.id
-                                        )
-                                    },
-                                    onReorderFoldersClick = { if (!isPreview) component.onEditFoldersClicked() }
-                                )
+                                ) {
+                                    StoriesStrip(
+                                        items = mainStoryStripItems,
+                                        onStoryClick = component::onStoryClicked,
+                                        showAddStoryButton = showCreateStoryStripButton && !isPreview,
+                                        onAddStoryClick = if (isPreview) null else component::onAddStoryClicked,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(storiesHeaderHeight)
+                                            .offset { IntOffset(0, storiesOffsetPx.roundToInt()) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -860,7 +984,7 @@ fun ChatListContent(
                     exit = scaleOut() + fadeOut()
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (effectiveFoldersState.selectedFolderId == -1) {
+                        if (showCreateStoryFab) {
                             ExtendedFloatingActionButton(
                                 onClick = component::onAddStoryClicked,
                                 icon = { Icon(Icons.Rounded.Add, null) },
@@ -891,34 +1015,90 @@ fun ChatListContent(
             shape = if (isTablet) RoundedCornerShape(16.dp) else RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
             color = if (isTablet) Color.Transparent else MaterialTheme.colorScheme.surface
         ) {
-            ChatListBody(
-                component = component,
-                foldersState = effectiveFoldersState,
-                chatsState = chatsState,
-                selectionState = selectionState,
-                selectedForwardChatIds = selectedForwardChatIds,
-                isForwarding = uiState.isForwarding,
-                isShareTargetMode = uiState.isShareTargetMode,
-                searchState = effectiveSearchState,
-                visibleFolders = visibleFolders,
-                pagerState = pagerState,
-                scrollStates = scrollStates,
-                firstFolderTransitionCompleted = firstFolderTransitionCompleted,
-                currentUserId = uiState.currentUser?.id,
-                isTablet = isTablet,
-                emojiFontFamily = emojiFontFamily,
-                messageLines = messageLines,
-                showPhotos = showPhotos,
-                interactionsEnabled = !isPreview,
-                showProjectChannelPromo = showProjectChannelPromo,
-                isProjectChannelJoinInProgress = uiState.isProjectChannelJoinInProgress,
-                onProjectChannelSubscribe = component::onProjectChannelSubscribe,
-                onProjectChannelLater = component::onProjectChannelLater,
-                mainActiveStories = storiesState.mainActiveStories,
-                archiveActiveStories = storiesState.archiveActiveStories,
-                onChatClicked = onChatClicked,
-                onChatLongClicked = onChatLongClicked
-            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (isMainView) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(with(density) {
+                                (tabsHeightPx + tabsOffsetPx).coerceAtLeast(0f).toDp()
+                            })
+                            .graphicsLayer {
+                                alpha =
+                                    ((tabsHeightPx + tabsOffsetPx) / tabsHeightPx).coerceIn(0f, 1f)
+                                clip = true
+                            }
+                    ) {
+                        if (visibleFolders.size > 1) {
+                            FolderTabs(
+                                modifier = Modifier.offset {
+                                    IntOffset(
+                                        0,
+                                        tabsOffsetPx.roundToInt()
+                                    )
+                                },
+                                folders = visibleFolders,
+                                pagerState = pagerState,
+                                onTabClick = { index ->
+                                    if (isPreview) return@FolderTabs
+                                    if (pagerState.currentPage == index) {
+                                        val folderId = visibleFolders[index].id
+                                        scope.launch {
+                                            scrollStates[folderId]?.animateScrollToItem(0)
+                                        }
+                                    } else {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(index)
+                                        }
+                                    }
+                                },
+                                onEditClick = { if (!isPreview) component.onEditFoldersClicked() },
+                                onEditFolderClick = { folder ->
+                                    if (!isPreview) component.onEditFolder(
+                                        folder.id
+                                    )
+                                },
+                                onDeleteFolderClick = { folder ->
+                                    if (!isPreview) component.onDeleteFolder(
+                                        folder.id
+                                    )
+                                },
+                                onReorderFoldersClick = { if (!isPreview) component.onEditFoldersClicked() }
+                            )
+                        }
+                    }
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    ChatListBody(
+                        component = component,
+                        foldersState = effectiveFoldersState,
+                        chatsState = chatsState,
+                        selectionState = selectionState,
+                        selectedForwardChatIds = selectedForwardChatIds,
+                        isForwarding = uiState.isForwarding,
+                        isShareTargetMode = uiState.isShareTargetMode,
+                        searchState = effectiveSearchState,
+                        visibleFolders = visibleFolders,
+                        pagerState = pagerState,
+                        scrollStates = scrollStates,
+                        firstFolderTransitionCompleted = firstFolderTransitionCompleted,
+                        currentUserId = uiState.currentUser?.id,
+                        isTablet = isTablet,
+                        emojiFontFamily = emojiFontFamily,
+                        messageLines = messageLines,
+                        showPhotos = showPhotos,
+                        interactionsEnabled = !isPreview,
+                        showProjectChannelPromo = showProjectChannelPromo,
+                        isProjectChannelJoinInProgress = uiState.isProjectChannelJoinInProgress,
+                        onProjectChannelSubscribe = component::onProjectChannelSubscribe,
+                        onProjectChannelLater = component::onProjectChannelLater,
+                        archiveActiveStories = storiesState.archiveActiveStories,
+                        onChatClicked = onChatClicked,
+                        onChatLongClicked = onChatLongClicked
+                    )
+                }
+            }
         }
     }
 
@@ -1373,7 +1553,6 @@ private fun ChatListBody(
     isProjectChannelJoinInProgress: Boolean,
     onProjectChannelSubscribe: () -> Unit,
     onProjectChannelLater: () -> Unit,
-    mainActiveStories: List<org.monogram.domain.models.stories.ActiveStoryListModel>,
     archiveActiveStories: List<org.monogram.domain.models.stories.ActiveStoryListModel>,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
@@ -1423,7 +1602,6 @@ private fun ChatListBody(
                 isProjectChannelJoinInProgress = isProjectChannelJoinInProgress,
                 onProjectChannelSubscribe = onProjectChannelSubscribe,
                 onProjectChannelLater = onProjectChannelLater,
-                activeStories = mainActiveStories,
                 onChatClicked = onChatClicked,
                 onChatLongClicked = onChatLongClicked
             )
@@ -1817,7 +1995,6 @@ private fun FolderPagerContent(
     isProjectChannelJoinInProgress: Boolean,
     onProjectChannelSubscribe: () -> Unit,
     onProjectChannelLater: () -> Unit,
-    activeStories: List<org.monogram.domain.models.stories.ActiveStoryListModel>,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1858,7 +2035,6 @@ private fun FolderPagerContent(
             isProjectChannelJoinInProgress = isProjectChannelJoinInProgress,
             onProjectChannelSubscribe = onProjectChannelSubscribe,
             onProjectChannelLater = onProjectChannelLater,
-            activeStories = activeStories,
             onChatClicked = onChatClicked,
             onChatLongClicked = onChatLongClicked
         )
@@ -1891,23 +2067,9 @@ private fun FolderPageContent(
     isProjectChannelJoinInProgress: Boolean,
     onProjectChannelSubscribe: () -> Unit,
     onProjectChannelLater: () -> Unit,
-    activeStories: List<org.monogram.domain.models.stories.ActiveStoryListModel>,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
-    val storyStripItems = remember(activeStories, folderChats) {
-        activeStories.mapNotNull { storyList ->
-            val chat =
-                folderChats.firstOrNull { it.id == storyList.chatId } ?: return@mapNotNull null
-            StoryStripItemUiModel(
-                chatId = chat.id,
-                title = chat.title,
-                avatarPath = chat.avatarPath,
-                activeStories = storyList
-            )
-        }
-    }
-    val hasStoriesStrip = shouldShowStoriesStrip(folderId, false) && storyStripItems.isNotEmpty()
     val shouldHoldInitialFolderContent = folderId > 0 &&
             shouldAnimateFirstFolderTransition &&
             isFolderLoading
@@ -1937,16 +2099,12 @@ private fun FolderPageContent(
         folderId,
         folderChats.size,
         isFolderLoading,
-        hasStoriesStrip,
         scrollState,
         interactionsEnabled
     ) {
         if (!interactionsEnabled || isFolderLoading || folderChats.isEmpty()) return@LaunchedEffect
 
-        val headerItemsCount = listOf(
-            showProjectChannelPromo,
-            hasStoriesStrip
-        ).count { it }
+        val headerItemsCount = if (showProjectChannelPromo) 1 else 0
         snapshotFlow {
             val lastVisible = (scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
                 ?: -1) - headerItemsCount
@@ -1964,16 +2122,12 @@ private fun FolderPageContent(
         folderId,
         folderChats,
         isFolderLoading,
-        hasStoriesStrip,
         scrollState,
         interactionsEnabled
     ) {
         if (!interactionsEnabled || isFolderLoading || folderChats.isEmpty()) return@LaunchedEffect
 
-        val headerItemsCount = listOf(
-            showProjectChannelPromo,
-            hasStoriesStrip
-        ).count { it }
+        val headerItemsCount = if (showProjectChannelPromo) 1 else 0
         snapshotFlow {
             scrollState.layoutInfo.visibleItemsInfo
                 .mapNotNull { item -> folderChats.getOrNull(item.index - headerItemsCount)?.id }
@@ -2018,21 +2172,12 @@ private fun FolderPageContent(
                         .fillMaxSize()
                         .semantics { contentDescription = "ChatList" },
                     contentPadding = PaddingValues(
-                        top = 12.dp,
+                        top = 8.dp,
                         bottom = 88.dp,
                         start = if (isTablet) 4.dp else 0.dp,
                         end = if (isTablet) 4.dp else 0.dp
                     )
                 ) {
-                    if (hasStoriesStrip) {
-                        item {
-                            StoriesStrip(
-                                items = storyStripItems,
-                                onStoryClick = component::onStoryClicked
-                            )
-                        }
-                    }
-
                     if (showProjectChannelPromo) {
                         item {
                             ProjectChannelPromoCard(
@@ -2853,4 +2998,19 @@ internal fun shouldShowProjectChannelPromo(
             !isShareTargetMode &&
             !hasSelection &&
             subscriptionState == ChatListComponent.ProjectChannelSubscriptionState.NOT_SUBSCRIBED
+}
+
+internal fun shouldShowCreateStoryFab(
+    selectedFolderId: Int,
+    areMainStoriesLoaded: Boolean,
+    hasVisibleStories: Boolean
+): Boolean {
+    return selectedFolderId != -2 && areMainStoriesLoaded && !hasVisibleStories
+}
+
+internal fun shouldShowCreateStoryStripButton(
+    selectedFolderId: Int,
+    hasVisibleStories: Boolean
+): Boolean {
+    return selectedFolderId != -2 && hasVisibleStories
 }

@@ -26,7 +26,10 @@ import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatType
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.UpdateState
+import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.repository.AttachMenuBotRepository
+import org.monogram.domain.repository.AuthRepository
+import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.BotRepository
 import org.monogram.domain.repository.ChatFolderRepository
 import org.monogram.domain.repository.ChatListRepository
@@ -76,6 +79,7 @@ class DefaultChatListComponent(
 ) : ChatListComponent, AppComponentContext by context {
     private val isTelemtBuild = BuildConfig.ENABLE_TELEMT_DNS
 
+    private val authRepository: AuthRepository = container.repositories.authRepository
     private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     private val chatFolderRepository: ChatFolderRepository = container.repositories.chatFolderRepository
     private val chatSearchRepository: ChatSearchRepository = container.repositories.chatSearchRepository
@@ -128,6 +132,7 @@ class DefaultChatListComponent(
     private var searchJob: Job? = null
     private var isFetchingMoreMessages = false
     private var nextMessagesOffset = ""
+    private var hasRequestedStoryLists = false
     private var hasSeenResume = false
     private val prefetchSemaphore = Semaphore(PREFETCH_CONCURRENCY)
     private val messagePrefetchTimestamps = mutableMapOf<Long, Long>()
@@ -434,10 +439,40 @@ class DefaultChatListComponent(
             .onEach { activeStories ->
                 Log.d(
                     STORY_TAG,
-                    "story repository update main=${activeStories[org.monogram.domain.models.stories.StoryListType.MAIN].orEmpty().size} " +
-                            "archive=${activeStories[org.monogram.domain.models.stories.StoryListType.ARCHIVE].orEmpty().size}"
+                    "story repository update main=${activeStories[StoryListType.MAIN].orEmpty().size} " +
+                            "archive=${activeStories[StoryListType.ARCHIVE].orEmpty().size}"
                 )
                 refreshStoriesState("repository")
+            }
+            .launchIn(scope)
+
+        storyRepository.storyListChatCounts
+            .onEach { counts ->
+                Log.d(
+                    STORY_TAG,
+                    "story list counts update main=${counts[StoryListType.MAIN]} archive=${counts[StoryListType.ARCHIVE]}"
+                )
+                refreshStoriesState("counts")
+            }
+            .launchIn(scope)
+
+        authRepository.authState
+            .onEach { authState ->
+                when (authState) {
+                    is AuthStep.Ready -> {
+                        if (!hasRequestedStoryLists) {
+                            hasRequestedStoryLists = true
+                            scope.launch(Dispatchers.IO) {
+                                storyRepository.loadActiveStories(StoryListType.MAIN)
+                                storyRepository.loadActiveStories(StoryListType.ARCHIVE)
+                            }
+                        }
+                    }
+
+                    else -> {
+                        hasRequestedStoryLists = false
+                    }
+                }
             }
             .launchIn(scope)
 
@@ -1277,8 +1312,8 @@ class DefaultChatListComponent(
     private fun refreshStoriesState(reason: String) {
         scope.launch(Dispatchers.IO) {
             val repositoryStories = storyRepository.activeStories.value
-            val activeStories =
-                repositoryStories[org.monogram.domain.models.stories.StoryListType.MAIN].orEmpty()
+            val storyListChatCounts = storyRepository.storyListChatCounts.value
+            val activeStories = repositoryStories[StoryListType.MAIN].orEmpty()
             val archiveFolderChatIds = _state.value.chatsByFolder[ARCHIVE_FOLDER_ID]
                 .orEmpty()
                 .mapTo(mutableSetOf()) { it.id }
@@ -1313,15 +1348,21 @@ class DefaultChatListComponent(
             val archiveStories = resolvedStories
                 .filter { (_, _, isArchived) -> isArchived }
                 .map { (_, stories, _) -> stories }
+            val isMainStoriesLoaded = storyListChatCounts.containsKey(StoryListType.MAIN) ||
+                    repositoryStories.containsKey(StoryListType.MAIN)
+            val isArchiveStoriesLoaded = storyListChatCounts.containsKey(StoryListType.ARCHIVE) ||
+                    repositoryStories.containsKey(StoryListType.ARCHIVE)
 
             Log.d(
                 STORY_TAG,
-                "refreshStoriesState reason=$reason total=${activeStories.size} main=${mainStories.size} archived=${archiveStories.size} archiveFolderIds=${archiveFolderChatIds.size}"
+                "refreshStoriesState reason=$reason total=${activeStories.size} main=${mainStories.size} archived=${archiveStories.size} archiveFolderIds=${archiveFolderChatIds.size} mainLoaded=$isMainStoriesLoaded archiveLoaded=$isArchiveStoriesLoaded"
             )
 
             _storiesState.value = ChatListComponent.StoriesState(
                 mainActiveStories = mainStories,
-                archiveActiveStories = archiveStories
+                archiveActiveStories = archiveStories,
+                isMainStoriesLoaded = isMainStoriesLoaded,
+                isArchiveStoriesLoaded = isArchiveStoriesLoaded
             )
         }
     }

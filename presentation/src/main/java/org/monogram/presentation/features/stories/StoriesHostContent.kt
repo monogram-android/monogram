@@ -120,6 +120,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -175,6 +176,8 @@ fun StoriesHostContent(component: StoriesHostComponent) {
 fun StoriesStrip(
     items: List<StoryStripItemUiModel>,
     onStoryClick: (Long, Int?) -> Unit,
+    showAddStoryButton: Boolean = false,
+    onAddStoryClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (items.isEmpty()) return
@@ -184,6 +187,11 @@ fun StoriesStrip(
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        if (showAddStoryButton && onAddStoryClick != null) {
+            item(key = "story_add") {
+                AddStoryStripTile(onClick = onAddStoryClick)
+            }
+        }
         items(items, key = { it.chatId }) { item ->
             StoryStripTile(
                 title = item.title,
@@ -1594,7 +1602,49 @@ private fun StoryStripTile(
         }
         Text(
             text = title,
+            modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.labelMedium,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun AddStoryStripTile(
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(80.dp)
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.secondary),
+            modifier = Modifier.size(70.dp)
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+        Text(
+            text = stringResource(R.string.story_create),
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.labelMedium,
+            textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )

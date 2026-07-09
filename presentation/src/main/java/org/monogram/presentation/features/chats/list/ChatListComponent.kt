@@ -223,7 +223,9 @@ interface ChatListComponent {
     @Immutable
     data class StoriesState(
         val mainActiveStories: List<ActiveStoryListModel> = emptyList(),
-        val archiveActiveStories: List<ActiveStoryListModel> = emptyList()
+        val archiveActiveStories: List<ActiveStoryListModel> = emptyList(),
+        val isMainStoriesLoaded: Boolean = false,
+        val isArchiveStoriesLoaded: Boolean = false
     )
 
     sealed class ShareResult {

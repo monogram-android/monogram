@@ -12,18 +12,22 @@ import org.json.JSONObject
 import org.monogram.data.datasource.FileDataSource
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
+import org.monogram.data.mapper.StoryInteractionMapper
 import org.monogram.data.mapper.StoryMapper
 import org.monogram.data.mapper.StoryMapper.toDomainStoryListType
 import org.monogram.data.mapper.StoryMapper.toTdPrivacy
 import org.monogram.data.mapper.StoryMapper.toTdStoryList
 import org.monogram.domain.models.stories.ActiveStoryListModel
 import org.monogram.domain.models.stories.StoryComposerDraftModel
+import org.monogram.domain.models.stories.StoryInteractionPageModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryMediaModel
 import org.monogram.domain.models.stories.StoryMediaType
 import org.monogram.domain.models.stories.StoryModel
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryPostResultModel
+import org.monogram.domain.models.stories.StoryReactionModel
+import org.monogram.domain.models.stories.StoryStatisticsModel
 import org.monogram.domain.models.stories.StoryStealthModeModel
 import org.monogram.domain.repository.StoryRepository
 
@@ -151,6 +155,62 @@ class StoryRepositoryImpl(
         return runCatching {
             StoryMapper.mapPostCapability(gateway.execute(TdApi.CanPostStory(chatId)))
         }.getOrElse { StoryPostCapabilityModel.Unknown(it.message ?: "Unable to check capability") }
+    }
+
+    override suspend fun getStoryStatistics(
+        chatId: Long,
+        storyId: Int,
+        isDark: Boolean
+    ): StoryStatisticsModel? {
+        return runCatching {
+            StoryInteractionMapper.mapStoryStatistics(
+                gateway.execute(TdApi.GetStoryStatistics(chatId, storyId, isDark))
+            )
+        }.getOrNull()
+    }
+
+    override suspend fun setStoryReaction(
+        chatId: Long,
+        storyId: Int,
+        reaction: StoryReactionModel
+    ): Boolean {
+        return runCatching {
+            gateway.execute(
+                TdApi.SetStoryReaction(
+                    chatId,
+                    storyId,
+                    reaction.toTdReactionType(),
+                    true
+                )
+            )
+            true
+        }.getOrDefault(false)
+    }
+
+    override suspend fun getStoryInteractions(
+        storyId: Int,
+        offset: String,
+        limit: Int,
+        query: String,
+        onlyContacts: Boolean,
+        preferForwards: Boolean,
+        preferWithReaction: Boolean
+    ): StoryInteractionPageModel? {
+        return runCatching {
+            StoryInteractionMapper.mapStoryInteractions(
+                gateway.execute(
+                    TdApi.GetStoryInteractions(
+                        storyId,
+                        query,
+                        onlyContacts,
+                        preferForwards,
+                        preferWithReaction,
+                        offset,
+                        limit
+                    )
+                )
+            )
+        }.getOrNull()
     }
 
     override suspend fun postStory(
@@ -384,6 +444,15 @@ class StoryRepositoryImpl(
                     "tg://"
                 )
             }
+        }
+    }
+
+    private fun StoryReactionModel.toTdReactionType(): TdApi.ReactionType {
+        return when {
+            emoji != null -> TdApi.ReactionTypeEmoji(emoji)
+            customEmojiId != null -> TdApi.ReactionTypeCustomEmoji(customEmojiId ?: 0L)
+            isPaid -> TdApi.ReactionTypePaid()
+            else -> TdApi.ReactionTypeEmoji("❤")
         }
     }
 

@@ -3,10 +3,13 @@ package org.monogram.domain.repository
 import kotlinx.coroutines.flow.StateFlow
 import org.monogram.domain.models.stories.ActiveStoryListModel
 import org.monogram.domain.models.stories.StoryComposerDraftModel
+import org.monogram.domain.models.stories.StoryInteractionPageModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryModel
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryPostResultModel
+import org.monogram.domain.models.stories.StoryReactionModel
+import org.monogram.domain.models.stories.StoryStatisticsModel
 import org.monogram.domain.models.stories.StoryStealthModeModel
 
 interface StoryRepository {
@@ -28,6 +31,27 @@ interface StoryRepository {
     suspend fun openStory(chatId: Long, storyId: Int)
     suspend fun closeStory(chatId: Long, storyId: Int)
     suspend fun canPostStory(chatId: Long): StoryPostCapabilityModel
+    suspend fun getStoryStatistics(
+        chatId: Long,
+        storyId: Int,
+        isDark: Boolean
+    ): StoryStatisticsModel?
+
+    suspend fun setStoryReaction(
+        chatId: Long,
+        storyId: Int,
+        reaction: StoryReactionModel
+    ): Boolean
+
+    suspend fun getStoryInteractions(
+        storyId: Int,
+        offset: String,
+        limit: Int,
+        query: String = "",
+        onlyContacts: Boolean = false,
+        preferForwards: Boolean = false,
+        preferWithReaction: Boolean = false
+    ): StoryInteractionPageModel?
     suspend fun postStory(chatId: Long, draft: StoryComposerDraftModel): StoryPostResultModel
     suspend fun editStory(chatId: Long, storyId: Int, draft: StoryComposerDraftModel): Boolean
     suspend fun deleteStory(chatId: Long, storyId: Int): Boolean

@@ -1,5 +1,7 @@
 package org.monogram.domain.models.stories
 
+import org.monogram.domain.models.StatisticsGraphModel
+
 data class ActiveStoryListModel(
     val chatId: Long,
     val listType: StoryListType,
@@ -25,6 +27,7 @@ data class StoryModel(
     val media: StoryMediaModel,
     val privacy: StoryPrivacySettingsModel,
     val albumIds: List<Int> = emptyList(),
+    val areas: List<StoryAreaModel> = emptyList(),
     val linkUrls: List<String> = emptyList(),
     val isBeingPosted: Boolean = false,
     val isBeingEdited: Boolean = false,
@@ -43,6 +46,50 @@ data class StoryModel(
     val isRead: Boolean = false
 )
 
+data class StoryAreaModel(
+    val position: StoryAreaPositionModel,
+    val type: StoryAreaTypeModel
+)
+
+data class StoryAreaPositionModel(
+    val xPercentage: Double,
+    val yPercentage: Double,
+    val widthPercentage: Double,
+    val heightPercentage: Double,
+    val rotationAngle: Double,
+    val cornerRadiusPercentage: Double
+)
+
+sealed class StoryAreaTypeModel {
+    data class Location(val label: String) : StoryAreaTypeModel()
+    data class Venue(val title: String, val address: String? = null) : StoryAreaTypeModel()
+    data class SuggestedReaction(
+        val reaction: StoryReactionModel,
+        val totalCount: Int,
+        val isDark: Boolean,
+        val isFlipped: Boolean
+    ) : StoryAreaTypeModel()
+
+    data class Message(val chatId: Long, val messageId: Long) : StoryAreaTypeModel()
+    data class Link(val url: String) : StoryAreaTypeModel()
+    data class Weather(
+        val temperature: Double,
+        val emoji: String,
+        val backgroundColorArgb: Int
+    ) : StoryAreaTypeModel()
+
+    data class UpgradedGift(val giftName: String) : StoryAreaTypeModel()
+}
+
+data class StoryReactionModel(
+    val emoji: String? = null,
+    val customEmojiId: Long? = null,
+    val isPaid: Boolean = false
+) {
+    val isCustomEmoji: Boolean
+        get() = customEmojiId != null
+}
+
 data class StoryMediaModel(
     val type: StoryMediaType,
     val path: String?,
@@ -57,9 +104,14 @@ data class StoryViewerItemModel(
     val storyId: Int
 )
 
+data class StoryComposerMediaItemModel(
+    val sourcePath: String,
+    val mediaType: StoryMediaType
+)
+
 data class StoryComposerDraftModel(
-    val sourcePath: String = "",
-    val mediaType: StoryMediaType = StoryMediaType.PHOTO,
+    val mediaItems: List<StoryComposerMediaItemModel> = emptyList(),
+    val selectedMediaIndex: Int = 0,
     val caption: String = "",
     val privacy: StoryPrivacySettingsModel = StoryPrivacySettingsModel(mode = StoryPrivacyMode.EVERYONE),
     val activePeriodSeconds: Int = DEFAULT_ACTIVE_PERIOD_SECONDS,
@@ -68,7 +120,19 @@ data class StoryComposerDraftModel(
     val widgetLink: String? = null
 ) {
     val isValid: Boolean
-        get() = sourcePath.isNotBlank()
+        get() = mediaItems.isNotEmpty()
+
+    val currentMedia: StoryComposerMediaItemModel?
+        get() = mediaItems.getOrNull(selectedMediaIndex) ?: mediaItems.firstOrNull()
+
+    val sourcePath: String
+        get() = currentMedia?.sourcePath.orEmpty()
+
+    val mediaType: StoryMediaType
+        get() = currentMedia?.mediaType ?: StoryMediaType.PHOTO
+
+    val mediaCount: Int
+        get() = mediaItems.size
 
     companion object {
         const val DEFAULT_ACTIVE_PERIOD_SECONDS = 24 * 60 * 60
@@ -87,6 +151,46 @@ data class StoryStealthModeModel(
 ) {
     val isActive: Boolean
         get() = activeUntilDate > 0
+}
+
+data class StoryStatisticsModel(
+    val storyInteractionGraph: StatisticsGraphModel,
+    val storyReactionGraph: StatisticsGraphModel
+)
+
+data class StoryInteractionModel(
+    val actorId: Long,
+    val actorType: StoryInteractionActorType,
+    val interactionDate: Int,
+    val type: StoryInteractionTypeModel,
+    val reaction: String? = null,
+    val forwardChatId: Long? = null,
+    val forwardMessageId: Long? = null,
+    val repostStoryId: Int? = null,
+    val actorTitle: String? = null,
+    val actorAvatarPath: String? = null
+)
+
+data class StoryInteractionPageModel(
+    val totalCount: Int,
+    val totalForwardCount: Int,
+    val totalReactionCount: Int,
+    val interactions: List<StoryInteractionModel>,
+    val nextOffset: String = ""
+) {
+    val canLoadMore: Boolean
+        get() = nextOffset.isNotBlank()
+}
+
+enum class StoryInteractionActorType {
+    USER,
+    CHAT
+}
+
+enum class StoryInteractionTypeModel {
+    VIEW,
+    FORWARD,
+    REPOST
 }
 
 sealed class StoryPostCapabilityModel {

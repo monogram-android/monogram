@@ -2,6 +2,9 @@ package org.monogram.data.mapper
 
 import org.drinkless.tdlib.TdApi
 import org.monogram.domain.models.stories.ActiveStoryListModel
+import org.monogram.domain.models.stories.StoryAreaModel
+import org.monogram.domain.models.stories.StoryAreaPositionModel
+import org.monogram.domain.models.stories.StoryAreaTypeModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryMediaModel
 import org.monogram.domain.models.stories.StoryMediaType
@@ -9,6 +12,7 @@ import org.monogram.domain.models.stories.StoryModel
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryPrivacyMode
 import org.monogram.domain.models.stories.StoryPrivacySettingsModel
+import org.monogram.domain.models.stories.StoryReactionModel
 import org.monogram.domain.models.stories.StoryStealthModeModel
 import org.monogram.domain.models.stories.StorySummaryModel
 
@@ -47,6 +51,7 @@ object StoryMapper {
             media = mediaOverride ?: story.content.toDomainMedia(),
             privacy = story.privacySettings.toDomainPrivacy(),
             albumIds = story.albumIds?.toList().orEmpty(),
+            areas = story.areas.orEmpty().mapNotNull(::mapStoryArea),
             linkUrls = story.areas.orEmpty()
                 .mapNotNull { area -> (area.type as? TdApi.StoryAreaTypeLink)?.url },
             isBeingPosted = story.isBeingPosted,
@@ -145,6 +150,71 @@ object StoryMapper {
             )
 
             else -> StoryPrivacySettingsModel(mode = StoryPrivacyMode.EVERYONE)
+        }
+    }
+
+    private fun mapStoryArea(area: TdApi.StoryArea?): StoryAreaModel? {
+        area ?: return null
+        val position = area.position ?: return null
+        val type = mapStoryAreaType(area.type) ?: return null
+        return StoryAreaModel(
+            position = StoryAreaPositionModel(
+                xPercentage = position.xPercentage,
+                yPercentage = position.yPercentage,
+                widthPercentage = position.widthPercentage,
+                heightPercentage = position.heightPercentage,
+                rotationAngle = position.rotationAngle,
+                cornerRadiusPercentage = position.cornerRadiusPercentage
+            ),
+            type = type
+        )
+    }
+
+    private fun mapStoryAreaType(type: TdApi.StoryAreaType?): StoryAreaTypeModel? {
+        return when (type) {
+            is TdApi.StoryAreaTypeLocation -> StoryAreaTypeModel.Location(
+                label = listOfNotNull(
+                    type.address?.street?.takeIf { it.isNotBlank() },
+                    type.address?.city?.takeIf { it.isNotBlank() },
+                    type.address?.state?.takeIf { it.isNotBlank() }
+                ).firstOrNull().orEmpty().ifBlank { "Location" }
+            )
+
+            is TdApi.StoryAreaTypeVenue -> StoryAreaTypeModel.Venue(
+                title = type.venue?.title.orEmpty().ifBlank { "Venue" },
+                address = type.venue?.address?.takeIf { it.isNotBlank() }
+            )
+
+            is TdApi.StoryAreaTypeSuggestedReaction -> StoryAreaTypeModel.SuggestedReaction(
+                reaction = type.reactionType.toDomainReaction(),
+                totalCount = type.totalCount,
+                isDark = type.isDark,
+                isFlipped = type.isFlipped
+            )
+
+            is TdApi.StoryAreaTypeMessage -> StoryAreaTypeModel.Message(
+                chatId = type.chatId,
+                messageId = type.messageId
+            )
+
+            is TdApi.StoryAreaTypeLink -> StoryAreaTypeModel.Link(type.url)
+            is TdApi.StoryAreaTypeWeather -> StoryAreaTypeModel.Weather(
+                temperature = type.temperature,
+                emoji = type.emoji,
+                backgroundColorArgb = type.backgroundColor
+            )
+
+            is TdApi.StoryAreaTypeUpgradedGift -> StoryAreaTypeModel.UpgradedGift(type.giftName)
+            else -> null
+        }
+    }
+
+    private fun TdApi.ReactionType?.toDomainReaction(): StoryReactionModel {
+        return when (this) {
+            is TdApi.ReactionTypeEmoji -> StoryReactionModel(emoji = emoji)
+            is TdApi.ReactionTypeCustomEmoji -> StoryReactionModel(customEmojiId = customEmojiId)
+            is TdApi.ReactionTypePaid -> StoryReactionModel(isPaid = true)
+            else -> StoryReactionModel()
         }
     }
 

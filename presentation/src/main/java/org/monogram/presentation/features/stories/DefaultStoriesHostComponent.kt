@@ -8,11 +8,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.monogram.domain.models.stories.ActiveStoryListModel
 import org.monogram.domain.models.stories.StoryComposerDraftModel
+import org.monogram.domain.models.stories.StoryComposerMediaItemModel
+import org.monogram.domain.models.stories.StoryInteractionActorType
+import org.monogram.domain.models.stories.StoryInteractionModel
+import org.monogram.domain.models.stories.StoryInteractionPageModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryMediaType
 import org.monogram.domain.models.stories.StoryModel
+import org.monogram.domain.models.stories.StoryPostResultModel
 import org.monogram.domain.models.stories.StoryPrivacyMode
 import org.monogram.domain.models.stories.StoryPrivacySettingsModel
+import org.monogram.domain.models.stories.StoryReactionModel
+import org.monogram.domain.repository.AppPreferencesProvider
 import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.ChatListRepository
@@ -28,17 +35,29 @@ class DefaultStoriesHostComponent(
     private val storyRepository: StoryRepository = container.repositories.storyRepository
     private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     private val userRepository: UserRepository = container.repositories.userRepository
+    private val appPreferences: AppPreferencesProvider =
+        container.preferences.appPreferencesProvider
     private val messageDisplayer = container.utils.messageDisplayer()
+    private val clipManager = container.utils.clipManager
+    private val externalNavigator = container.utils.externalNavigator()
+    private val stringProvider = container.utils.stringProvider()
     private val scope = componentScope
     private var hasLoadedActiveStories = false
     private var storyLoadJob: Job? = null
     private var storyRefreshJob: Job? = null
+    private var storyMediaLoadingMessageJob: Job? = null
+    private var storyMediaLoadingMessageKey: Pair<Long, Int>? = null
     private val chatPresentationCache = mutableMapOf<Long, ChatPresentation>()
 
-    private val _state = MutableStateFlow(StoriesHostComponent.State())
+    private val _state = MutableStateFlow(createDefaultState())
     override val state = _state.asStateFlow()
 
     init {
+        scope.launch {
+            appPreferences.storyMediaStretchEnabled.collect { enabled ->
+                _state.value = _state.value.copy(isStoryMediaStretchEnabled = enabled)
+            }
+        }
         scope.launch {
             Log.d(TAG, "initializing stories host")
             authRepository.authState
@@ -75,9 +94,20 @@ class DefaultStoriesHostComponent(
             currentStory = null,
             activeListType = listType,
             canManageStories = false,
+            composerMode = StoryComposerMode.CREATE,
+            editingStoryId = null,
             inlineError = null,
-            showInlineVideo = false
+            isSubmitting = false,
+            isStoryStatisticsVisible = false,
+            isStoryStatisticsLoading = false,
+            storyStatistics = null,
+            isStoryInteractionsVisible = false,
+            isStoryInteractionsLoading = false,
+            storyInteractionsPage = null,
+            showInlineVideo = false,
+            showStoryMediaLoadingMessage = false
         )
+        syncStoryMediaLoadingMessage()
         Log.d(TAG, "viewer placeholder shown chatId=$chatId listType=$listType")
         storyLoadJob = scope.launch {
             Log.d(TAG, "openChatStories chatId=$chatId storyId=$storyId listType=$listType")
@@ -123,8 +153,10 @@ class DefaultStoriesHostComponent(
                 currentStory = story,
                 canManageStories = chatPresentation.canManageStories,
                 inlineError = null,
-                showInlineVideo = false
+                showInlineVideo = false,
+                showStoryMediaLoadingMessage = false
             )
+            syncStoryMediaLoadingMessage()
             scheduleStoryRefreshIfNeeded(item, story)
         }
     }
@@ -142,9 +174,20 @@ class DefaultStoriesHostComponent(
             currentStory = null,
             activeListType = StoryListType.MAIN,
             canManageStories = false,
+            composerMode = StoryComposerMode.CREATE,
+            editingStoryId = null,
             inlineError = null,
-            showInlineVideo = false
+            isSubmitting = false,
+            isStoryStatisticsVisible = false,
+            isStoryStatisticsLoading = false,
+            storyStatistics = null,
+            isStoryInteractionsVisible = false,
+            isStoryInteractionsLoading = false,
+            storyInteractionsPage = null,
+            showInlineVideo = false,
+            showStoryMediaLoadingMessage = false
         )
+        syncStoryMediaLoadingMessage()
         Log.d(TAG, "viewer placeholder shown for album chatId=$chatId albumId=$albumId")
         scope.launch {
             Log.d(TAG, "openStoryAlbum chatId=$chatId albumId=$albumId")
@@ -170,8 +213,10 @@ class DefaultStoriesHostComponent(
                 currentStory = stories.first(),
                 canManageStories = canManageStories(chatId),
                 inlineError = null,
-                showInlineVideo = false
+                showInlineVideo = false,
+                showStoryMediaLoadingMessage = false
             )
+            syncStoryMediaLoadingMessage()
             scheduleStoryRefreshIfNeeded(items.first(), stories.first())
         }
     }
@@ -183,31 +228,74 @@ class DefaultStoriesHostComponent(
         initialCaption: String,
         widgetLink: String?
     ) {
+        showComposer(
+            chatId = chatId,
+            composerMode = StoryComposerMode.CREATE,
+            editingStoryId = null,
+            draft = createComposerDraft(
+                preferredMediaType = preferredMediaType,
+                initialSourcePath = initialSourcePath,
+                initialCaption = initialCaption,
+                widgetLink = widgetLink
+            )
+        )
+    }
+
+    override fun editCurrentStory() {
+        val current = _state.value
+        val story = current.currentStory ?: return
+        val mediaPath = resolveStoryEditableMediaPath(story)
+        if (!story.canBeEdited || mediaPath == null) {
+            _state.value = current.copy(inlineError = "This story can't be edited yet")
+            return
+        }
+
+        showComposer(
+            chatId = story.posterChatId,
+            composerMode = StoryComposerMode.EDIT,
+            editingStoryId = story.id,
+            draft = createEditComposerDraft(story, mediaPath)
+        )
+    }
+
+    private fun showComposer(
+        chatId: Long,
+        composerMode: StoryComposerMode,
+        editingStoryId: Int?,
+        draft: StoryComposerDraftModel
+    ) {
         storyRefreshJob?.cancel()
+        syncStoryMediaLoadingMessage(disableOnly = true)
         _state.value = _state.value.copy(
             mode = StoriesHostComponent.Mode.Composer,
-            isLoading = true,
+            isLoading = composerMode == StoryComposerMode.CREATE,
             chatId = chatId,
             chatTitle = "",
             chatAvatarPath = null,
             canManageStories = false,
-            composerDraft = StoryComposerDraftModel(
-                sourcePath = initialSourcePath.orEmpty(),
-                mediaType = preferredMediaType ?: inferMediaType(initialSourcePath),
-                caption = initialCaption,
-                widgetLink = widgetLink
-            ),
+            composerMode = composerMode,
+            editingStoryId = editingStoryId,
+            composerDraft = draft,
             postCapability = null,
             inlineError = null,
-            showMediaPicker = initialSourcePath.isNullOrBlank(),
-            showCamera = false,
             isSubmitting = false,
-            showInlineVideo = false
+            isStoryStatisticsVisible = false,
+            isStoryStatisticsLoading = false,
+            storyStatistics = null,
+            isStoryInteractionsVisible = false,
+            isStoryInteractionsLoading = false,
+            storyInteractionsPage = null,
+            showMediaPicker = !draft.isValid,
+            showCamera = false,
+            showInlineVideo = false,
+            showStoryMediaLoadingMessage = false
         )
         Log.d(TAG, "composer placeholder shown chatId=$chatId")
         scope.launch {
-            val capability = storyRepository.canPostStory(chatId)
-            Log.d(TAG, "openComposer chatId=$chatId capability=$capability")
+            val capability =
+                if (composerMode == StoryComposerMode.CREATE) storyRepository.canPostStory(chatId)
+                else null
+            Log.d(TAG, "openComposer chatId=$chatId mode=$composerMode capability=$capability")
             _state.value = _state.value.copy(
                 mode = StoriesHostComponent.Mode.Composer,
                 isLoading = false,
@@ -215,18 +303,16 @@ class DefaultStoriesHostComponent(
                 chatTitle = resolveChatTitle(chatId),
                 chatAvatarPath = resolveChatAvatar(chatId),
                 canManageStories = canManageStories(chatId),
-                composerDraft = StoryComposerDraftModel(
-                    sourcePath = initialSourcePath.orEmpty(),
-                    mediaType = preferredMediaType ?: inferMediaType(initialSourcePath),
-                    caption = initialCaption,
-                    widgetLink = widgetLink
-                ),
+                composerMode = composerMode,
+                editingStoryId = editingStoryId,
+                composerDraft = draft,
                 postCapability = capability,
                 inlineError = null,
-                showMediaPicker = initialSourcePath.isNullOrBlank(),
+                showMediaPicker = !draft.isValid,
                 showCamera = false,
                 isSubmitting = false,
-                showInlineVideo = false
+                showInlineVideo = false,
+                showStoryMediaLoadingMessage = false
             )
         }
     }
@@ -234,12 +320,23 @@ class DefaultStoriesHostComponent(
     override fun dismiss() {
         storyLoadJob?.cancel()
         storyRefreshJob?.cancel()
+        syncStoryMediaLoadingMessage(disableOnly = true)
+        val current = _state.value
+        if (
+            current.mode == StoriesHostComponent.Mode.Composer &&
+            current.composerMode == StoryComposerMode.EDIT &&
+            current.currentStory != null &&
+            current.viewerItems.isNotEmpty()
+        ) {
+            _state.value = restoreViewerState(current)
+            return
+        }
         scope.launch {
             state.value.currentStory?.let {
                 storyRepository.closeStory(it.posterChatId, it.id)
             }
         }
-        _state.value = StoriesHostComponent.State()
+        _state.value = createDefaultState()
     }
 
     override fun nextStory() {
@@ -271,14 +368,37 @@ class DefaultStoriesHostComponent(
     }
 
     override fun attachMedia(path: String, mediaType: StoryMediaType) {
+        val currentDraft = _state.value.composerDraft
+        val mediaItem = StoryComposerMediaItemModel(
+            sourcePath = path,
+            mediaType = mediaType
+        )
         _state.value = _state.value.copy(
-            composerDraft = _state.value.composerDraft.copy(
-                sourcePath = path,
-                mediaType = mediaType
-            ),
+            composerDraft = currentDraft.replaceCurrentMedia(mediaItem),
             showMediaPicker = false,
             showCamera = false,
             inlineError = null
+        )
+    }
+
+    override fun attachMedia(items: List<StoryComposerMediaItemModel>) {
+        if (items.isEmpty()) return
+        val resolvedItems = if (_state.value.composerMode == StoryComposerMode.EDIT) {
+            items.take(1)
+        } else {
+            items
+        }
+        _state.value = _state.value.copy(
+            composerDraft = _state.value.composerDraft.replaceAllMedia(resolvedItems),
+            showMediaPicker = false,
+            showCamera = false,
+            inlineError = null
+        )
+    }
+
+    override fun selectComposerMedia(index: Int) {
+        _state.value = _state.value.copy(
+            composerDraft = _state.value.composerDraft.selectMedia(index)
         )
     }
 
@@ -320,7 +440,7 @@ class DefaultStoriesHostComponent(
         )
     }
 
-    override fun submitStory() {
+    override fun saveStory() {
         val current = _state.value
         val chatId = current.chatId ?: return
         if (!current.composerDraft.isValid) {
@@ -330,19 +450,44 @@ class DefaultStoriesHostComponent(
 
         _state.value = current.copy(isSubmitting = true, inlineError = null)
         scope.launch {
-            Log.d(TAG, "submitStory chatId=$chatId mediaType=${current.composerDraft.mediaType}")
-            when (val result = storyRepository.postStory(chatId, _state.value.composerDraft)) {
-                is org.monogram.domain.models.stories.StoryPostResultModel.Success -> {
-                    Log.d(TAG, "submitStory success chatId=$chatId storyId=${result.story.id}")
-                    _state.value = StoriesHostComponent.State()
+            Log.d(
+                TAG,
+                "saveStory chatId=$chatId mode=${current.composerMode} mediaCount=${current.composerDraft.mediaCount} mediaType=${current.composerDraft.mediaType}"
+            )
+            when (
+                val result = saveStoryDraft(
+                    storyRepository = storyRepository,
+                    chatId = chatId,
+                    composerMode = current.composerMode,
+                    editingStoryId = current.editingStoryId,
+                    draft = _state.value.composerDraft
+                )
+            ) {
+                is StorySaveOutcome.Created -> {
+                    Log.d(TAG, "saveStory create success chatId=$chatId storyId=${result.story.id}")
+                    result.message?.let(messageDisplayer::show)
+                    _state.value = createDefaultState()
                     openChatStories(chatId, result.story.id)
                 }
 
-                is org.monogram.domain.models.stories.StoryPostResultModel.Failure -> {
-                    Log.d(TAG, "submitStory failed chatId=$chatId message=${result.message}")
+                is StorySaveOutcome.Edited -> {
+                    Log.d(TAG, "saveStory edit success chatId=$chatId storyId=${result.storyId}")
+                    val listType = current.activeListType
+                    _state.value = restoreViewerState(
+                        _state.value.copy(
+                            isSubmitting = false,
+                            composerMode = StoryComposerMode.CREATE,
+                            editingStoryId = null
+                        )
+                    )
+                    openChatStories(chatId, result.storyId, listType)
+                }
+
+                is StorySaveOutcome.Failed -> {
+                    Log.d(TAG, "saveStory failed chatId=$chatId message=${result.message}")
                     _state.value = _state.value.copy(
                         isSubmitting = false,
-                        inlineError = result.message.ifBlank { "Failed to publish story" }
+                        inlineError = result.message
                     )
                 }
             }
@@ -394,6 +539,149 @@ class DefaultStoriesHostComponent(
         }
     }
 
+    override fun showStoryStatistics() {
+        val story = _state.value.currentStory ?: return
+        if (!story.canGetStatistics) return
+
+        _state.value = _state.value.copy(
+            isStoryStatisticsVisible = true,
+            isStoryStatisticsLoading = true,
+            storyStatistics = null,
+            inlineError = null
+        )
+        scope.launch {
+            val statistics = storyRepository.getStoryStatistics(
+                chatId = story.posterChatId,
+                storyId = story.id,
+                isDark = false
+            )
+            if (statistics == null) {
+                _state.value = _state.value.copy(
+                    isStoryStatisticsVisible = false,
+                    isStoryStatisticsLoading = false,
+                    storyStatistics = null,
+                    inlineError = "Failed to load story statistics"
+                )
+            } else {
+                _state.value = _state.value.copy(
+                    isStoryStatisticsVisible = true,
+                    isStoryStatisticsLoading = false,
+                    storyStatistics = statistics,
+                    inlineError = null
+                )
+            }
+        }
+    }
+
+    override fun dismissStoryStatistics() {
+        _state.value = _state.value.copy(
+            isStoryStatisticsVisible = false,
+            isStoryStatisticsLoading = false,
+            storyStatistics = null
+        )
+    }
+
+    override fun showStoryInteractions() {
+        val story = _state.value.currentStory ?: return
+        if (!story.canGetInteractions) return
+
+        _state.value = _state.value.copy(
+            isStoryInteractionsVisible = true,
+            isStoryInteractionsLoading = true,
+            storyInteractionsPage = null,
+            inlineError = null
+        )
+        scope.launch {
+            val rawPage = storyRepository.getStoryInteractions(
+                storyId = story.id,
+                offset = "",
+                limit = STORY_INTERACTIONS_PAGE_SIZE
+            )
+            val page = rawPage?.let { enrichStoryInteractions(it) }
+            if (page == null) {
+                _state.value = _state.value.copy(
+                    isStoryInteractionsVisible = false,
+                    isStoryInteractionsLoading = false,
+                    storyInteractionsPage = null,
+                    inlineError = "Failed to load story interactions"
+                )
+            } else {
+                _state.value = _state.value.copy(
+                    isStoryInteractionsVisible = true,
+                    isStoryInteractionsLoading = false,
+                    storyInteractionsPage = page,
+                    inlineError = null
+                )
+            }
+        }
+    }
+
+    override fun dismissStoryInteractions() {
+        _state.value = _state.value.copy(
+            isStoryInteractionsVisible = false,
+            isStoryInteractionsLoading = false,
+            storyInteractionsPage = null
+        )
+    }
+
+    override fun loadMoreStoryInteractions() {
+        val current = _state.value
+        val story = current.currentStory ?: return
+        val page = current.storyInteractionsPage ?: return
+        if (current.isStoryInteractionsLoading || !page.canLoadMore || !story.canGetInteractions) {
+            return
+        }
+
+        _state.value = current.copy(isStoryInteractionsLoading = true, inlineError = null)
+        scope.launch {
+            val rawNextPage = storyRepository.getStoryInteractions(
+                storyId = story.id,
+                offset = page.nextOffset,
+                limit = STORY_INTERACTIONS_PAGE_SIZE
+            )
+            val nextPage = rawNextPage?.let { enrichStoryInteractions(it) }
+            if (nextPage == null) {
+                _state.value = _state.value.copy(
+                    isStoryInteractionsLoading = false,
+                    inlineError = "Failed to load more story interactions"
+                )
+            } else {
+                _state.value = _state.value.copy(
+                    isStoryInteractionsLoading = false,
+                    storyInteractionsPage = page.mergeWith(nextPage),
+                    inlineError = null
+                )
+            }
+        }
+    }
+
+    override fun openStoryLink(url: String) {
+        externalNavigator.openUrl(url)
+    }
+
+    override fun copyStoryLink(url: String) {
+        clipManager.copyToClipboard("story_link", url)
+        messageDisplayer.show(stringProvider.getString("link_copied"))
+    }
+
+    override fun setStoryReaction(reaction: StoryReactionModel) {
+        val story = _state.value.currentStory ?: return
+        scope.launch {
+            val success = storyRepository.setStoryReaction(
+                chatId = story.posterChatId,
+                storyId = story.id,
+                reaction = reaction
+            )
+            if (!success) {
+                _state.value = _state.value.copy(inlineError = "Failed to send story reaction")
+            }
+        }
+    }
+
+    override fun setStoryMediaStretchEnabled(enabled: Boolean) {
+        appPreferences.setStoryMediaStretchEnabled(enabled)
+    }
+
     override fun dismissInlineVideo() {
         _state.value = _state.value.copy(showInlineVideo = false)
     }
@@ -418,9 +706,20 @@ class DefaultStoriesHostComponent(
             currentStory = null,
             isLoading = true,
             canManageStories = cachedPresentation?.canManageStories ?: false,
+            composerMode = StoryComposerMode.CREATE,
+            editingStoryId = null,
             inlineError = null,
-            showInlineVideo = false
+            isSubmitting = false,
+            isStoryStatisticsVisible = false,
+            isStoryStatisticsLoading = false,
+            storyStatistics = null,
+            isStoryInteractionsVisible = false,
+            isStoryInteractionsLoading = false,
+            storyInteractionsPage = null,
+            showInlineVideo = false,
+            showStoryMediaLoadingMessage = false
         )
+        syncStoryMediaLoadingMessage()
         current.currentStory?.let { previousStory ->
             scope.launch {
                 storyRepository.closeStory(previousStory.posterChatId, previousStory.id)
@@ -438,8 +737,10 @@ class DefaultStoriesHostComponent(
                 isLoading = story.requiresMediaRefresh(),
                 canManageStories = chatPresentation.canManageStories,
                 inlineError = if (story == null) "Unable to load story" else null,
-                showInlineVideo = false
+                showInlineVideo = false,
+                showStoryMediaLoadingMessage = false
             )
+            syncStoryMediaLoadingMessage()
             scheduleStoryRefreshIfNeeded(item, story)
         }
     }
@@ -487,25 +788,59 @@ class DefaultStoriesHostComponent(
                     _state.value = _state.value.copy(
                         currentStory = refreshed,
                         isLoading = refreshed.requiresMediaRefresh(),
-                        inlineError = null
+                        inlineError = null,
+                        showStoryMediaLoadingMessage = false
                     )
+                    syncStoryMediaLoadingMessage()
                 }
                 if (refreshed?.requiresMediaRefresh() == false) {
                     return@launch
                 }
             }
+        }
+    }
 
-            val current = _state.value
-            if (
+    private fun syncStoryMediaLoadingMessage(disableOnly: Boolean = false) {
+        val current = _state.value
+        val currentItem = current.viewerItems.getOrNull(current.viewerIndex)
+        val shouldTrack = !disableOnly &&
                 current.mode == StoriesHostComponent.Mode.Viewer &&
-                current.chatId == item.chatId &&
-                current.viewerItems.getOrNull(current.viewerIndex)?.storyId == item.storyId &&
+                current.isLoading &&
+                currentItem != null &&
                 current.currentStory.requiresMediaRefresh()
+
+        if (!shouldTrack) {
+            storyMediaLoadingMessageJob?.cancel()
+            storyMediaLoadingMessageJob = null
+            storyMediaLoadingMessageKey = null
+            if (current.showStoryMediaLoadingMessage) {
+                _state.value = current.copy(showStoryMediaLoadingMessage = false)
+            }
+            return
+        }
+
+        val loadingKey = currentItem.chatId to currentItem.storyId
+        if (storyMediaLoadingMessageKey == loadingKey && storyMediaLoadingMessageJob?.isActive == true) {
+            return
+        }
+
+        storyMediaLoadingMessageJob?.cancel()
+        storyMediaLoadingMessageKey = loadingKey
+        if (current.showStoryMediaLoadingMessage) {
+            _state.value = current.copy(showStoryMediaLoadingMessage = false)
+        }
+        storyMediaLoadingMessageJob = scope.launch {
+            delay(60_000)
+            val latest = _state.value
+            val latestItem = latest.viewerItems.getOrNull(latest.viewerIndex)
+            if (
+                latest.mode == StoriesHostComponent.Mode.Viewer &&
+                latest.isLoading &&
+                latestItem?.chatId == loadingKey.first &&
+                latestItem.storyId == loadingKey.second &&
+                latest.currentStory.requiresMediaRefresh()
             ) {
-                _state.value = current.copy(
-                    isLoading = false,
-                    inlineError = "Media is still loading"
-                )
+                _state.value = latest.copy(showStoryMediaLoadingMessage = true)
             }
         }
     }
@@ -542,6 +877,48 @@ class DefaultStoriesHostComponent(
         return me?.id == chatId || chat?.isAdmin == true
     }
 
+    private suspend fun enrichStoryInteractions(
+        page: StoryInteractionPageModel
+    ): StoryInteractionPageModel {
+        val enrichedInteractions = mutableListOf<StoryInteractionModel>()
+        for (interaction in page.interactions) {
+            enrichedInteractions += enrichStoryInteraction(interaction)
+        }
+        return page.copy(
+            interactions = enrichedInteractions
+        )
+    }
+
+    private suspend fun enrichStoryInteraction(
+        interaction: StoryInteractionModel
+    ): StoryInteractionModel {
+        return when (interaction.actorType) {
+            StoryInteractionActorType.USER -> {
+                val user = userRepository.getUser(interaction.actorId)
+                val fullName = listOfNotNull(user?.firstName, user?.lastName)
+                    .joinToString(" ")
+                    .trim()
+                val fallbackTitle = user?.username
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { "@$it" }
+                    ?: interaction.actorId.toString()
+                interaction.copy(
+                    actorTitle = fullName.ifBlank { interaction.actorTitle ?: fallbackTitle },
+                    actorAvatarPath = user?.avatarPath
+                )
+            }
+
+            StoryInteractionActorType.CHAT -> {
+                val chat = chatListRepository.getChatById(interaction.actorId)
+                interaction.copy(
+                    actorTitle = chat?.title?.ifBlank { interaction.actorId.toString() }
+                        ?: interaction.actorId.toString(),
+                    actorAvatarPath = chat?.avatarPath
+                )
+            }
+        }
+    }
+
     private fun inferMediaType(sourcePath: String?): StoryMediaType {
         val normalized = sourcePath.orEmpty().lowercase()
         return if (
@@ -556,9 +933,220 @@ class DefaultStoriesHostComponent(
         }
     }
 
+    private fun createDefaultState(): StoriesHostComponent.State {
+        return StoriesHostComponent.State(
+            isStoryMediaStretchEnabled = appPreferences.storyMediaStretchEnabled.value
+        )
+    }
+
     companion object {
         private const val TAG = "StoriesHostDiag"
+        private const val STORY_INTERACTIONS_PAGE_SIZE = 50
     }
+}
+
+internal fun createComposerDraft(
+    preferredMediaType: StoryMediaType? = null,
+    initialSourcePath: String? = null,
+    initialCaption: String = "",
+    widgetLink: String? = null
+): StoryComposerDraftModel {
+    val mediaItems = initialSourcePath
+        ?.takeIf { it.isNotBlank() }
+        ?.let { path ->
+            listOf(
+                StoryComposerMediaItemModel(
+                    sourcePath = path,
+                    mediaType = preferredMediaType ?: inferStoryComposerMediaType(path)
+                )
+            )
+        }
+        .orEmpty()
+    return StoryComposerDraftModel(
+        mediaItems = mediaItems,
+        caption = initialCaption,
+        widgetLink = widgetLink
+    )
+}
+
+internal fun createEditComposerDraft(
+    story: StoryModel,
+    mediaPath: String
+): StoryComposerDraftModel {
+    return StoryComposerDraftModel(
+        mediaItems = listOf(
+            StoryComposerMediaItemModel(
+                sourcePath = mediaPath,
+                mediaType = story.media.type
+            )
+        ),
+        caption = story.caption,
+        privacy = story.privacy,
+        widgetLink = story.linkUrls.firstOrNull()
+    )
+}
+
+internal fun resolveStoryEditableMediaPath(story: StoryModel?): String? {
+    return story?.media?.path?.takeIf { it.isNotBlank() }
+}
+
+private fun restoreViewerState(state: StoriesHostComponent.State): StoriesHostComponent.State {
+    return state.copy(
+        mode = StoriesHostComponent.Mode.Viewer,
+        isLoading = false,
+        composerMode = StoryComposerMode.CREATE,
+        editingStoryId = null,
+        postCapability = null,
+        inlineError = null,
+        isSubmitting = false,
+        isStoryStatisticsVisible = false,
+        isStoryStatisticsLoading = false,
+        storyStatistics = null,
+        isStoryInteractionsVisible = false,
+        isStoryInteractionsLoading = false,
+        storyInteractionsPage = null,
+        showMediaPicker = false,
+        showCamera = false
+    )
+}
+
+private fun StoryInteractionPageModel.mergeWith(
+    nextPage: StoryInteractionPageModel
+): StoryInteractionPageModel {
+    return copy(
+        totalCount = nextPage.totalCount,
+        totalForwardCount = nextPage.totalForwardCount,
+        totalReactionCount = nextPage.totalReactionCount,
+        interactions = interactions + nextPage.interactions,
+        nextOffset = nextPage.nextOffset
+    )
+}
+
+internal sealed class StorySaveOutcome {
+    data class Created(
+        val story: StoryModel,
+        val message: String? = null
+    ) : StorySaveOutcome()
+
+    data class Edited(val storyId: Int) : StorySaveOutcome()
+    data class Failed(val message: String) : StorySaveOutcome()
+}
+
+internal suspend fun saveStoryDraft(
+    storyRepository: StoryRepository,
+    chatId: Long,
+    composerMode: StoryComposerMode,
+    editingStoryId: Int?,
+    draft: StoryComposerDraftModel
+): StorySaveOutcome {
+    return when (composerMode) {
+        StoryComposerMode.CREATE -> {
+            val mediaItems = draft.mediaItems
+            if (mediaItems.isEmpty()) {
+                StorySaveOutcome.Failed("Pick a photo or video first")
+            } else {
+                var lastStory: StoryModel? = null
+                var createdCount = 0
+                for (mediaItem in mediaItems) {
+                    when (val result =
+                        storyRepository.postStory(chatId, draft.forSingleMedia(mediaItem))) {
+                        is StoryPostResultModel.Success -> {
+                            lastStory = result.story
+                            createdCount += 1
+                        }
+
+                        is StoryPostResultModel.Failure -> {
+                            if (lastStory != null && createdCount > 0) {
+                                return StorySaveOutcome.Created(
+                                    story = lastStory,
+                                    message = "Published $createdCount stories. ${result.message.ifBlank { "Stopped before the remaining items" }}"
+                                )
+                            }
+                            return StorySaveOutcome.Failed(
+                                result.message.ifBlank { "Failed to publish story" }
+                            )
+                        }
+                    }
+                }
+
+                StorySaveOutcome.Created(
+                    story = lastStory ?: return StorySaveOutcome.Failed("Failed to publish story"),
+                    message = if (createdCount > 1) {
+                        "Published $createdCount stories"
+                    } else {
+                        null
+                    }
+                )
+            }
+        }
+
+        StoryComposerMode.EDIT -> {
+            val storyId = editingStoryId
+                ?: return StorySaveOutcome.Failed("Missing story to edit")
+            if (storyRepository.editStory(chatId, storyId, draft)) {
+                StorySaveOutcome.Edited(storyId)
+            } else {
+                StorySaveOutcome.Failed("Failed to save story")
+            }
+        }
+    }
+}
+
+private fun inferStoryComposerMediaType(sourcePath: String?): StoryMediaType {
+    val normalized = sourcePath.orEmpty().lowercase()
+    return if (
+        normalized.endsWith(".mp4") ||
+        normalized.endsWith(".mov") ||
+        normalized.endsWith(".webm") ||
+        normalized.endsWith(".mkv")
+    ) {
+        StoryMediaType.VIDEO
+    } else {
+        StoryMediaType.PHOTO
+    }
+}
+
+private fun StoryComposerDraftModel.replaceCurrentMedia(
+    mediaItem: StoryComposerMediaItemModel
+): StoryComposerDraftModel {
+    if (mediaItems.isEmpty()) {
+        return copy(
+            mediaItems = listOf(mediaItem),
+            selectedMediaIndex = 0
+        )
+    }
+
+    val safeIndex = selectedMediaIndex.coerceIn(0, mediaItems.lastIndex)
+    val updatedItems = mediaItems.toMutableList().apply {
+        this[safeIndex] = mediaItem
+    }
+    return copy(
+        mediaItems = updatedItems,
+        selectedMediaIndex = safeIndex
+    )
+}
+
+private fun StoryComposerDraftModel.replaceAllMedia(
+    items: List<StoryComposerMediaItemModel>
+): StoryComposerDraftModel {
+    return copy(
+        mediaItems = items,
+        selectedMediaIndex = 0
+    )
+}
+
+private fun StoryComposerDraftModel.selectMedia(index: Int): StoryComposerDraftModel {
+    if (mediaItems.isEmpty()) return copy(selectedMediaIndex = 0)
+    return copy(selectedMediaIndex = index.coerceIn(0, mediaItems.lastIndex))
+}
+
+private fun StoryComposerDraftModel.forSingleMedia(
+    mediaItem: StoryComposerMediaItemModel
+): StoryComposerDraftModel {
+    return copy(
+        mediaItems = listOf(mediaItem),
+        selectedMediaIndex = 0
+    )
 }
 
 internal fun buildViewerItems(activeStories: List<ActiveStoryListModel>): List<StoryViewerUiModel> {

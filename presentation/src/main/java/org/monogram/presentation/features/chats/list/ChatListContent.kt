@@ -7,9 +7,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -150,6 +152,7 @@ import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.Avatar
 import org.monogram.presentation.core.ui.ConfirmationSheet
 import org.monogram.presentation.core.ui.ScreenSwipeBackState
+import org.monogram.presentation.core.ui.shimmerBackground
 import org.monogram.presentation.core.util.LocalTabletInterfaceEnabled
 import org.monogram.presentation.features.chats.common.ChatActionState
 import org.monogram.presentation.features.chats.conversation.ui.content.ReportChatDialog
@@ -190,6 +193,7 @@ fun ChatListContent(
     val searchState by component.searchState.collectAsState()
     val storiesState by component.storiesState.collectAsState()
     val showAllChatsFolder by component.appPreferences.showAllChatsFolder.collectAsState()
+    val showStoriesBlock by component.appPreferences.showStoriesBlock.collectAsState()
     val isProjectChannelPromoDismissed by component.appPreferences.isProjectChannelPromoDismissed.collectAsState()
 
     val isPreview = previewMode != ChatListPreviewMode.Active
@@ -391,7 +395,21 @@ fun ChatListContent(
             )
         }
     }
-    val hasMainStoriesStrip = isMainView && mainStoryStripItems.isNotEmpty()
+    val hasMainStoryItems = isMainView && mainStoryStripItems.isNotEmpty()
+    val storiesHeaderMode = remember(
+        showStoriesBlock,
+        isMainView,
+        storiesState.isMainStoriesLoaded,
+        hasMainStoryItems
+    ) {
+        resolveStoriesHeaderMode(
+            showStoriesBlock = showStoriesBlock,
+            isStoriesContextVisible = isMainView,
+            isStoriesLoaded = storiesState.isMainStoriesLoaded,
+            hasStoryItems = hasMainStoryItems
+        )
+    }
+    val hasMainStoriesStrip = storiesHeaderMode == StoriesHeaderMode.Stories
     val showCreateStoryStripButton = shouldShowCreateStoryStripButton(
         selectedFolderId = effectiveFoldersState.selectedFolderId,
         hasVisibleStories = hasMainStoriesStrip
@@ -399,7 +417,7 @@ fun ChatListContent(
     val showCreateStoryFab = shouldShowCreateStoryFab(
         selectedFolderId = effectiveFoldersState.selectedFolderId,
         areMainStoriesLoaded = storiesState.isMainStoriesLoaded,
-        hasVisibleStories = hasMainStoriesStrip
+        hasVisibleStories = hasMainStoryItems
     )
     val hasUnreadInCurrentFolder = remember(currentFolderChats) {
         currentFolderChats.any(::hasChatListUnreadState)
@@ -445,7 +463,7 @@ fun ChatListContent(
     }
 
     val isArchiveRevealed = archiveRevealPx > 0f && !isArchivePersistent
-    val hasCollapsibleStories = hasMainStoriesStrip
+    val hasCollapsibleStories = storiesHeaderMode != StoriesHeaderMode.Hidden
     val hasCollapsibleFolderTabs = visibleFolders.size > 1
     if (!isPreview) {
         BackHandler(enabled = isArchiveRevealed) {
@@ -682,6 +700,21 @@ fun ChatListContent(
                     tabsOffsetPx > -10f
         }
     }
+    val storiesVisibilityProgress by animateFloatAsState(
+        targetValue = if (storiesHeaderMode == StoriesHeaderMode.Hidden) 0f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "StoriesHeaderVisibilityProgress"
+    )
+
+    LaunchedEffect(storiesHeaderMode, storiesVisibilityProgress) {
+        if (storiesHeaderMode == StoriesHeaderMode.Hidden && storiesVisibilityProgress <= 0.001f) {
+            storiesAnimationJob?.cancel()
+            storiesOffsetPx = 0f
+        }
+    }
 
     var cachedStatusEmojiPath by remember(uiState.currentUser?.id) {
         mutableStateOf(uiState.currentUser?.statusEmojiPath)
@@ -876,7 +909,11 @@ fun ChatListContent(
                                     0f
                                 }
                                 val visibleStoriesHeight = if (hasMainStoriesStrip) {
-                                    (storiesHeaderHeightPx + storiesOffsetPx).coerceAtLeast(0f)
+                                    (storiesHeaderHeightPx + storiesOffsetPx).coerceAtLeast(0f) *
+                                            storiesVisibilityProgress
+                                } else if (storiesVisibilityProgress > 0f) {
+                                    (storiesHeaderHeightPx + storiesOffsetPx).coerceAtLeast(0f) *
+                                            storiesVisibilityProgress
                                 } else {
                                     0f
                                 }
@@ -938,33 +975,87 @@ fun ChatListContent(
                                 }
                             }
 
-                            if (hasMainStoriesStrip) {
+                            if (storiesHeaderMode != StoriesHeaderMode.Hidden || storiesVisibilityProgress > 0f) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(with(density) {
-                                            (storiesHeaderHeightPx + storiesOffsetPx).coerceAtLeast(
-                                                0f
-                                            )
-                                                .toDp()
+                                            val rawVisibleHeight = when (storiesHeaderMode) {
+                                                StoriesHeaderMode.Stories ->
+                                                    (storiesHeaderHeightPx + storiesOffsetPx).coerceAtLeast(
+                                                        0f
+                                                    )
+
+                                                StoriesHeaderMode.Skeleton ->
+                                                    (storiesHeaderHeightPx + storiesOffsetPx).coerceAtLeast(
+                                                        0f
+                                                    )
+
+                                                StoriesHeaderMode.Hidden -> storiesHeaderHeightPx
+                                            }
+                                            (rawVisibleHeight * storiesVisibilityProgress).toDp()
                                         })
                                         .graphicsLayer {
+                                            val rawVisibleHeight = when (storiesHeaderMode) {
+                                                StoriesHeaderMode.Stories ->
+                                                    (storiesHeaderHeightPx + storiesOffsetPx).coerceAtLeast(
+                                                        0f
+                                                    )
+
+                                                StoriesHeaderMode.Skeleton ->
+                                                    (storiesHeaderHeightPx + storiesOffsetPx).coerceAtLeast(
+                                                        0f
+                                                    )
+
+                                                StoriesHeaderMode.Hidden -> storiesHeaderHeightPx
+                                            }
                                             alpha =
-                                                ((storiesHeaderHeightPx + storiesOffsetPx) / storiesHeaderHeightPx)
+                                                ((rawVisibleHeight / storiesHeaderHeightPx) * storiesVisibilityProgress)
                                                     .coerceIn(0f, 1f)
                                             clip = true
                                         }
                                 ) {
-                                    StoriesStrip(
-                                        items = mainStoryStripItems,
-                                        onStoryClick = component::onStoryClicked,
-                                        showAddStoryButton = showCreateStoryStripButton && !isPreview,
-                                        onAddStoryClick = if (isPreview) null else component::onAddStoryClicked,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(storiesHeaderHeight)
-                                            .offset { IntOffset(0, storiesOffsetPx.roundToInt()) }
-                                    )
+                                    AnimatedContent(
+                                        targetState = storiesHeaderMode,
+                                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                                        label = "StoriesHeaderContent"
+                                    ) { mode ->
+                                        when (mode) {
+                                            StoriesHeaderMode.Stories -> {
+                                                StoriesStrip(
+                                                    items = mainStoryStripItems,
+                                                    onStoryClick = component::onStoryClicked,
+                                                    showAddStoryButton = showCreateStoryStripButton && !isPreview,
+                                                    onAddStoryClick = if (isPreview) null else component::onAddStoryClicked,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(storiesHeaderHeight)
+                                                        .offset {
+                                                            IntOffset(
+                                                                0,
+                                                                storiesOffsetPx.roundToInt()
+                                                            )
+                                                        }
+                                                )
+                                            }
+
+                                            StoriesHeaderMode.Skeleton -> {
+                                                StoriesStripSkeleton(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(storiesHeaderHeight)
+                                                        .offset {
+                                                            IntOffset(
+                                                                0,
+                                                                storiesOffsetPx.roundToInt()
+                                                            )
+                                                        }
+                                                )
+                                            }
+
+                                            StoriesHeaderMode.Hidden -> Unit
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1094,6 +1185,8 @@ fun ChatListContent(
                         onProjectChannelSubscribe = component::onProjectChannelSubscribe,
                         onProjectChannelLater = component::onProjectChannelLater,
                         archiveActiveStories = storiesState.archiveActiveStories,
+                        areArchiveStoriesLoaded = storiesState.isArchiveStoriesLoaded,
+                        showStoriesBlock = showStoriesBlock,
                         onChatClicked = onChatClicked,
                         onChatLongClicked = onChatLongClicked
                     )
@@ -1554,6 +1647,8 @@ private fun ChatListBody(
     onProjectChannelSubscribe: () -> Unit,
     onProjectChannelLater: () -> Unit,
     archiveActiveStories: List<org.monogram.domain.models.stories.ActiveStoryListModel>,
+    areArchiveStoriesLoaded: Boolean,
+    showStoriesBlock: Boolean,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1577,6 +1672,8 @@ private fun ChatListBody(
                 showPhotos = showPhotos,
                 interactionsEnabled = interactionsEnabled,
                 archiveActiveStories = archiveActiveStories,
+                areArchiveStoriesLoaded = areArchiveStoriesLoaded,
+                showStoriesBlock = showStoriesBlock,
                 onChatClicked = onChatClicked,
                 onChatLongClicked = onChatLongClicked
             )
@@ -1629,6 +1726,8 @@ private fun SearchOrArchiveContent(
     showPhotos: Boolean,
     interactionsEnabled: Boolean,
     archiveActiveStories: List<org.monogram.domain.models.stories.ActiveStoryListModel>,
+    areArchiveStoriesLoaded: Boolean,
+    showStoriesBlock: Boolean,
     onChatClicked: (Long) -> Unit,
     onChatLongClicked: (Long) -> Unit
 ) {
@@ -1666,9 +1765,21 @@ private fun SearchOrArchiveContent(
             )
         }
     }
-    val hasArchiveStoriesStrip = isArchivedView &&
-            shouldShowStoriesStrip(selectedFolderId = -2, isSearchActive = false) &&
-            archiveStoryStripItems.isNotEmpty()
+    val archiveStoriesHeaderMode = remember(
+        showStoriesBlock,
+        isArchivedView,
+        areArchiveStoriesLoaded,
+        archiveStoryStripItems.isNotEmpty()
+    ) {
+        resolveStoriesHeaderMode(
+            showStoriesBlock = showStoriesBlock,
+            isStoriesContextVisible = isArchivedView &&
+                    shouldShowStoriesStrip(selectedFolderId = -2, isSearchActive = false),
+            isStoriesLoaded = areArchiveStoriesLoaded,
+            hasStoryItems = archiveStoryStripItems.isNotEmpty()
+        )
+    }
+    val hasArchiveStoriesStrip = archiveStoriesHeaderMode == StoriesHeaderMode.Stories
     val isArchivedLoading = isArchivedView && chatsState.isLoading
     val hasArchivedLoadState = isArchivedView && (
             foldersState.isLoadingByFolder.containsKey(-2) || chatsState.chats.isNotEmpty()
@@ -1919,12 +2030,28 @@ private fun SearchOrArchiveContent(
                     }
                 }
             } else {
-                if (hasArchiveStoriesStrip) {
+                if (archiveStoriesHeaderMode != StoriesHeaderMode.Hidden) {
                     item {
-                        StoriesStrip(
-                            items = archiveStoryStripItems,
-                            onStoryClick = component::onStoryClicked
-                        )
+                        AnimatedContent(
+                            targetState = archiveStoriesHeaderMode,
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "ArchiveStoriesHeaderContent"
+                        ) { mode ->
+                            when (mode) {
+                                StoriesHeaderMode.Stories -> {
+                                    StoriesStrip(
+                                        items = archiveStoryStripItems,
+                                        onStoryClick = component::onStoryClicked
+                                    )
+                                }
+
+                                StoriesHeaderMode.Skeleton -> {
+                                    StoriesStripSkeleton(modifier = Modifier.fillMaxWidth())
+                                }
+
+                                StoriesHeaderMode.Hidden -> Unit
+                            }
+                        }
                     }
                 }
 
@@ -3013,4 +3140,53 @@ internal fun shouldShowCreateStoryStripButton(
     hasVisibleStories: Boolean
 ): Boolean {
     return selectedFolderId != -2 && hasVisibleStories
+}
+
+private enum class StoriesHeaderMode {
+    Hidden,
+    Skeleton,
+    Stories
+}
+
+private fun resolveStoriesHeaderMode(
+    showStoriesBlock: Boolean,
+    isStoriesContextVisible: Boolean,
+    isStoriesLoaded: Boolean,
+    hasStoryItems: Boolean
+): StoriesHeaderMode {
+    if (!showStoriesBlock || !isStoriesContextVisible) return StoriesHeaderMode.Hidden
+    if (hasStoryItems) return StoriesHeaderMode.Stories
+    if (!isStoriesLoaded) return StoriesHeaderMode.Skeleton
+    return StoriesHeaderMode.Hidden
+}
+
+@Composable
+private fun StoriesStripSkeleton(modifier: Modifier = Modifier) {
+    LazyRow(
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        itemsIndexed(List(6) { it }, key = { _, index -> "story_skeleton_$index" }) { index, _ ->
+            Column(
+                modifier = Modifier.width(72.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .clip(CircleShape)
+                        .shimmerBackground(CircleShape)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(if (index % 2 == 0) 0.82f else 0.66f)
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .shimmerBackground(RoundedCornerShape(999.dp))
+                )
+            }
+        }
+    }
 }

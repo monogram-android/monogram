@@ -29,7 +29,8 @@ import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
 class DefaultStoriesHostComponent(
-    context: AppComponentContext
+    context: AppComponentContext,
+    private val onProfileClicked: (Long) -> Unit = {}
 ) : StoriesHostComponent, AppComponentContext by context {
     private val authRepository: AuthRepository = container.repositories.authRepository
     private val storyRepository: StoryRepository = container.repositories.storyRepository
@@ -655,6 +656,11 @@ class DefaultStoriesHostComponent(
         }
     }
 
+    override fun openProfile(chatId: Long) {
+        dismiss()
+        onProfileClicked(chatId)
+    }
+
     override fun openStoryLink(url: String) {
         externalNavigator.openUrl(url)
     }
@@ -662,6 +668,20 @@ class DefaultStoriesHostComponent(
     override fun copyStoryLink(url: String) {
         clipManager.copyToClipboard("story_link", url)
         messageDisplayer.show(stringProvider.getString("link_copied"))
+    }
+
+    override fun copyCurrentStoryLink() {
+        val story = _state.value.currentStory ?: return
+        scope.launch {
+            val username = resolvePublicStoryUsername(story.posterChatId)
+            if (username == null) {
+                messageDisplayer.show(stringProvider.getString("story_public_link_unavailable"))
+                return@launch
+            }
+
+            clipManager.copyToClipboard("story_link", buildPublicStoryLink(username, story.id))
+            messageDisplayer.show(stringProvider.getString("link_copied"))
+        }
     }
 
     override fun setStoryReaction(reaction: StoryReactionModel) {
@@ -875,6 +895,17 @@ class DefaultStoriesHostComponent(
         val me = userRepository.getMe()
         val chat = chatListRepository.getChatById(chatId)
         return me?.id == chatId || chat?.isAdmin == true
+    }
+
+    private suspend fun resolvePublicStoryUsername(chatId: Long): String? {
+        val chat = chatListRepository.getChatById(chatId)
+        val chatUsername = chat?.username?.takeIf { it.isNotBlank() }
+            ?: chat?.usernames?.activeUsernames?.firstOrNull { it.isNotBlank() }
+        if (chatUsername != null) return chatUsername
+
+        val user = userRepository.getUser(chatId)
+        return user?.username?.takeIf { it.isNotBlank() }
+            ?: user?.usernames?.activeUsernames?.firstOrNull { it.isNotBlank() }
     }
 
     private suspend fun enrichStoryInteractions(
@@ -1181,3 +1212,7 @@ private data class ChatPresentation(
     val avatarPath: String?,
     val canManageStories: Boolean
 )
+
+private fun buildPublicStoryLink(username: String, storyId: Int): String {
+    return "https://t.me/$username/s/$storyId"
+}

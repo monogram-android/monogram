@@ -4,6 +4,11 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.net.Uri
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.view.PixelCopy
+import android.view.SurfaceView
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
@@ -71,6 +76,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.createBitmap
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -107,6 +113,7 @@ internal fun StoryViewerScaffoldComponent(
     var isVideoBuffering by remember(story?.id) { mutableStateOf(story?.media?.type == StoryMediaType.VIDEO) }
     var isVideoPlaying by remember(story?.id) { mutableStateOf(false) }
     var isLinksSheetVisible by remember(story?.id) { mutableStateOf(false) }
+    var playerView by remember(story?.id) { mutableStateOf<PlayerView?>(null) }
     var selectedSuggestedReaction by remember(story?.id) {
         mutableStateOf<org.monogram.domain.models.stories.StoryReactionModel?>(
             null
@@ -183,7 +190,8 @@ internal fun StoryViewerScaffoldComponent(
                         else -> Unit
                     }
                 },
-                selectedReaction = selectedSuggestedReaction
+                selectedReaction = selectedSuggestedReaction,
+                onPlayerViewChanged = { playerView = it }
             )
         }
 
@@ -249,6 +257,7 @@ internal fun StoryViewerScaffoldComponent(
                 }
             },
             onMediaScaleToggle = component::setStoryMediaStretchEnabled,
+            onProfileClick = state.chatId?.let { chatId -> { component.openProfile(chatId) } },
             onLinks = { isLinksSheetVisible = true },
             onEdit = component::editCurrentStory,
             onArchive = component::moveCurrentStoryToArchive,
@@ -257,7 +266,42 @@ internal fun StoryViewerScaffoldComponent(
             onDelete = component::deleteCurrentStory,
             onDownload = {
                 resolveStoryDownloadPath(story)?.let(downloadUtils::saveFileToDownloads)
-            }
+            },
+            onCopyMedia = {
+                when {
+                    story == null -> Unit
+                    story.media.type == StoryMediaType.PHOTO -> {
+                        resolveStoryDownloadPath(story)?.let(downloadUtils::copyImageToClipboard)
+                    }
+
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> {
+                        val surfaceView = playerView?.videoSurfaceView as? SurfaceView
+                        if (surfaceView != null && surfaceView.width > 0 && surfaceView.height > 0) {
+                            val bitmap = createBitmap(surfaceView.width, surfaceView.height)
+                            PixelCopy.request(
+                                surfaceView,
+                                bitmap,
+                                { result ->
+                                    if (result == PixelCopy.SUCCESS) {
+                                        downloadUtils.copyBitmapToClipboard(bitmap)
+                                    } else {
+                                        resolveStoryDownloadPath(story)
+                                            ?.let(downloadUtils::copyImageToClipboard)
+                                    }
+                                },
+                                Handler(Looper.getMainLooper())
+                            )
+                        } else {
+                            resolveStoryDownloadPath(story)?.let(downloadUtils::copyImageToClipboard)
+                        }
+                    }
+
+                    else -> {
+                        resolveStoryDownloadPath(story)?.let(downloadUtils::copyImageToClipboard)
+                    }
+                }
+            },
+            onCopyStoryLink = component::copyCurrentStoryLink
         )
 
         if (isLinksSheetVisible && !story?.linkUrls.isNullOrEmpty()) {
@@ -282,7 +326,8 @@ internal fun StoryViewerScaffoldComponent(
                 page = state.storyInteractionsPage,
                 isLoading = state.isStoryInteractionsLoading,
                 onDismiss = component::dismissStoryInteractions,
-                onLoadMore = component::loadMoreStoryInteractions
+                onLoadMore = component::loadMoreStoryInteractions,
+                onInteractionClick = component::openProfile
             )
         }
     }
@@ -320,7 +365,8 @@ private fun StoryMediaScene(
     onVideoPlayingChange: (Boolean) -> Unit,
     onVideoCompleted: () -> Unit,
     onStoryAreaClick: (StoryAreaTypeModel) -> Unit,
-    selectedReaction: org.monogram.domain.models.stories.StoryReactionModel?
+    selectedReaction: org.monogram.domain.models.stories.StoryReactionModel?,
+    onPlayerViewChanged: (PlayerView?) -> Unit
 ) {
     val story = page.story
     val mediaContentScale = if (isMediaScaledToFill) ContentScale.Crop else ContentScale.Fit
@@ -412,7 +458,8 @@ private fun StoryMediaScene(
                             onProgress = onVideoProgress,
                             onBufferingChange = onVideoBufferingChange,
                             onPlayingChange = onVideoPlayingChange,
-                            onCompleted = onVideoCompleted
+                            onCompleted = onVideoCompleted,
+                            onPlayerViewChanged = onPlayerViewChanged
                         )
                     } else if (previewModel != null) {
                         AsyncImage(
@@ -964,7 +1011,8 @@ internal fun StoryInlineVideoPlayer(
     onProgress: (Float) -> Unit,
     onBufferingChange: (Boolean) -> Unit,
     onPlayingChange: (Boolean) -> Unit,
-    onCompleted: () -> Unit
+    onCompleted: () -> Unit,
+    onPlayerViewChanged: (PlayerView?) -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -1011,6 +1059,7 @@ internal fun StoryInlineVideoPlayer(
         exoPlayer.addListener(listener)
 
         onDispose {
+            onPlayerViewChanged(null)
             lifecycleOwner.lifecycle.removeObserver(observer)
             exoPlayer.removeListener(listener)
             exoPlayer.release()
@@ -1070,11 +1119,12 @@ internal fun StoryInlineVideoPlayer(
                     useController = false
                     this.resizeMode = resizeMode
                     player = exoPlayer
-                }
+                }.also(onPlayerViewChanged)
             },
             update = { view ->
                 view.player = exoPlayer
                 view.resizeMode = resizeMode
+                onPlayerViewChanged(view)
             },
             modifier = Modifier.fillMaxSize()
         )

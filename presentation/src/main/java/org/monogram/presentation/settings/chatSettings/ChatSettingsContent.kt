@@ -917,6 +917,15 @@ fun ChatSettingsContent(component: ChatSettingsComponent) {
                     )
                 }
                 SettingsSwitchTile(
+                    icon = Icons.AutoMirrored.Rounded.StickyNote2,
+                    title = stringResource(R.string.show_stories_block_title),
+                    subtitle = stringResource(R.string.show_stories_block_subtitle),
+                    checked = state.showStoriesBlock,
+                    iconColor = pinkColor,
+                    position = ItemPosition.MIDDLE,
+                    onCheckedChange = component::onShowStoriesBlockChanged
+                )
+                SettingsSwitchTile(
                     icon = Icons.Rounded.Link,
                     title = stringResource(R.string.show_link_previews_title),
                     subtitle = stringResource(R.string.show_link_previews_subtitle),

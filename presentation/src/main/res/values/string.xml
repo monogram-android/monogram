@@ -565,7 +565,6 @@
     <string name="profile_badge_admin">Admin</string>
     <string name="profile_feature_stories_title">Profile stories</string>
     <string name="profile_feature_stories_subtitle">You can publish stories from your profile</string>
-    <string name="story_strip_add">Your story</string>
     <string name="story_compose_title">New story</string>
     <string name="story_edit_title">Edit story</string>
     <string name="story_pick_media">Pick</string>
@@ -584,10 +583,7 @@
     <string name="story_publish">Publish story</string>
     <string name="story_publish_short">Publish</string>
     <string name="story_posting">Publishing…</string>
-    <string name="story_save">Save story</string>
     <string name="story_saving">Saving…</string>
-    <string name="story_previous">Previous</string>
-    <string name="story_next">Next</string>
     <string name="story_viewer_unavailable">Story unavailable</string>
     <string name="story_open">Open stories</string>
     <string name="story_create">Create story</string>
@@ -620,7 +616,6 @@
     <string name="story_photo_editor_title">Photo editor</string>
     <string name="story_video_editor_title">Video editor</string>
     <string name="story_details_title">Story details</string>
-    <string name="story_audience_timing_title">Audience and timing</string>
     <string name="story_audience_timing_subtitle">Keep the main controls compact and close to the preview</string>
     <string name="story_play">Play</string>
     <string name="story_pause">Pause</string>
@@ -1081,6 +1076,8 @@
     <string name="pin_archived_chats_subtitle">Keep archived chats at the top of the list</string>
     <string name="always_show_pinned_archive_title">Always Show Pinned Archive</string>
     <string name="always_show_pinned_archive_subtitle">Keep pinned archive visible even when scrolling</string>
+    <string name="show_stories_block_title">Show Stories Block</string>
+    <string name="show_stories_block_subtitle">Display stories above the chat list and in archive</string>
     <string name="show_link_previews_title">Show Link Previews</string>
     <string name="show_link_previews_subtitle">Display previews for links in messages</string>
     <string name="fix_link_previews_title">Fix Link Previews</string>
@@ -2000,9 +1997,11 @@
     <string name="action_download">Download</string>
     <string name="action_download_video">Download Video</string>
     <string name="action_copy_image">Copy Image</string>
+    <string name="action_copy_frame">Copy Frame</string>
     <string name="action_copy_text">Copy Text</string>
     <string name="action_copy_link">Copy Link</string>
     <string name="action_copy_link_time">Copy Link with Time</string>
+    <string name="story_public_link_unavailable">Public link unavailable for this story</string>
     <string name="action_forward">Forward</string>
     <string name="action_save_gifs">Save to GIFs</string>
     <string name="action_save_gallery">Save to Gallery</string>

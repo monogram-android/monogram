@@ -6,22 +6,11 @@ import android.content.ContextWrapper
 import android.net.Uri
 import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
@@ -149,42 +139,15 @@ private fun StoriesOverlay(
     state: StoriesHostComponent.State,
     component: StoriesHostComponent
 ) {
-    AnimatedVisibility(
-        visible = state.isVisible,
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .zIndex(200f),
-        enter = fadeIn(tween(180)) +
-                scaleIn(
-                    initialScale = 0.96f,
-                    animationSpec = spring(dampingRatio = 0.92f, stiffness = 420f)
-                ) +
-                slideInVertically(
-                    initialOffsetY = { it / 10 },
-                    animationSpec = tween(220, easing = FastOutSlowInEasing)
-                ),
-        exit = fadeOut(tween(160)) +
-                scaleOut(
-                    targetScale = 0.98f,
-                    animationSpec = tween(160, easing = FastOutSlowInEasing)
-                ) +
-                slideOutVertically(
-                    targetOffsetY = { it / 14 },
-                    animationSpec = tween(180, easing = FastOutSlowInEasing)
-                )
+            .zIndex(200f)
     ) {
-        AnimatedContent(
-            targetState = state.mode,
-            transitionSpec = {
-                fadeIn(tween(180)) togetherWith fadeOut(tween(120))
-            },
-            label = "stories_mode_switch"
-        ) { mode ->
-            when (mode) {
-                StoriesHostComponent.Mode.Viewer -> StoryViewerOverlay(state, component)
-                StoriesHostComponent.Mode.Composer -> StoryComposerOverlay(state, component)
-                StoriesHostComponent.Mode.Hidden -> Unit
-            }
+        when (state.mode) {
+            StoriesHostComponent.Mode.Viewer -> StoryViewerOverlay(state, component)
+            StoriesHostComponent.Mode.Composer -> StoryComposerOverlay(state, component)
+            StoriesHostComponent.Mode.Hidden -> Unit
         }
     }
 }
@@ -249,13 +212,16 @@ internal fun StoryViewerChrome(
     onMuteToggle: () -> Unit,
     onReactionClick: () -> Unit,
     onMediaScaleToggle: (Boolean) -> Unit,
+    onProfileClick: (() -> Unit)?,
     onLinks: () -> Unit,
     onEdit: () -> Unit,
     onArchive: () -> Unit,
     onRestore: () -> Unit,
     onStatistics: () -> Unit,
     onDelete: () -> Unit,
-    onDownload: () -> Unit
+    onDownload: () -> Unit,
+    onCopyMedia: () -> Unit,
+    onCopyStoryLink: () -> Unit
 ) {
     StoryViewerChromeComponent(
         state = state,
@@ -272,13 +238,16 @@ internal fun StoryViewerChrome(
         onMuteToggle = onMuteToggle,
         onReactionClick = onReactionClick,
         onMediaScaleToggle = onMediaScaleToggle,
+        onProfileClick = onProfileClick,
         onLinks = onLinks,
         onEdit = onEdit,
         onArchive = onArchive,
         onRestore = onRestore,
         onStatistics = onStatistics,
         onDelete = onDelete,
-        onDownload = onDownload
+        onDownload = onDownload,
+        onCopyMedia = onCopyMedia,
+        onCopyStoryLink = onCopyStoryLink
     )
 }
 
@@ -304,13 +273,15 @@ internal fun StoryInteractionsSheet(
     page: StoryInteractionPageModel?,
     isLoading: Boolean,
     onDismiss: () -> Unit,
-    onLoadMore: () -> Unit
+    onLoadMore: () -> Unit,
+    onInteractionClick: (Long) -> Unit
 ) {
     StoryInteractionsSheetComponent(
         page = page,
         isLoading = isLoading,
         onDismiss = onDismiss,
-        onLoadMore = onLoadMore
+        onLoadMore = onLoadMore,
+        onInteractionClick = onInteractionClick
     )
 }
 
@@ -503,6 +474,8 @@ internal data class StoryViewerMenuItem(
 
 internal enum class StoryViewerMenuAction {
     DOWNLOAD,
+    COPY_MEDIA,
+    COPY_STORY_LINK,
     LINKS,
     EDIT,
     ARCHIVE,
@@ -731,6 +704,20 @@ internal fun buildStoryViewerMenuActions(
                 )
             )
         }
+        if (resolveStoryDownloadPath(story) != null) {
+            add(
+                StoryViewerMenuItem(
+                    action = StoryViewerMenuAction.COPY_MEDIA,
+                    group = StoryViewerMenuGroup.CONTENT
+                )
+            )
+        }
+        add(
+            StoryViewerMenuItem(
+                action = StoryViewerMenuAction.COPY_STORY_LINK,
+                group = StoryViewerMenuGroup.CONTENT
+            )
+        )
         if (story.linkUrls.isNotEmpty()) {
             add(
                 StoryViewerMenuItem(
@@ -780,10 +767,20 @@ internal fun buildStoryViewerMenuActions(
 
 @Composable
 internal fun storyViewerMenuTitle(
-    action: StoryViewerMenuAction
+    action: StoryViewerMenuAction,
+    story: StoryModel?
 ): String {
     return when (action) {
         StoryViewerMenuAction.DOWNLOAD -> stringResource(R.string.action_download)
+        StoryViewerMenuAction.COPY_MEDIA -> stringResource(
+            if (story?.media?.type == StoryMediaType.VIDEO && !story?.media?.path.isNullOrBlank()) {
+                R.string.action_copy_frame
+            } else {
+                R.string.action_copy_image
+            }
+        )
+
+        StoryViewerMenuAction.COPY_STORY_LINK -> stringResource(R.string.action_copy_link)
         StoryViewerMenuAction.LINKS -> stringResource(R.string.story_links_title)
         StoryViewerMenuAction.EDIT -> stringResource(R.string.action_edit)
         StoryViewerMenuAction.ARCHIVE -> stringResource(R.string.story_archive)
@@ -798,6 +795,8 @@ internal fun storyViewerMenuIcon(
 ): androidx.compose.ui.graphics.vector.ImageVector {
     return when (action) {
         StoryViewerMenuAction.DOWNLOAD -> Icons.Rounded.Download
+        StoryViewerMenuAction.COPY_MEDIA -> Icons.Rounded.ContentCopy
+        StoryViewerMenuAction.COPY_STORY_LINK -> Icons.Rounded.Link
         StoryViewerMenuAction.LINKS -> Icons.Rounded.Link
         StoryViewerMenuAction.EDIT -> Icons.Rounded.Edit
         StoryViewerMenuAction.ARCHIVE -> Icons.Rounded.Archive
@@ -823,8 +822,9 @@ internal fun storyInteractionTypeLabel(
 }
 
 internal fun buildStoryPositionText(state: StoriesHostComponent.State): String {
-    val currentChatId = state.chatId
-    val totalInChat = state.viewerItems.count { it.chatId == currentChatId }.coerceAtLeast(1)
+    val currentChatId = state.chatId ?: return ""
+    val totalInChat = state.viewerItems.count { it.chatId == currentChatId }
+    if (totalInChat <= 1) return ""
     val currentIndexInChat = state.viewerItems
         .take(state.viewerIndex + 1)
         .count { it.chatId == currentChatId }

@@ -116,11 +116,13 @@ class DefaultRootComponent(
     private val userRepository: UserRepository = container.repositories.userRepository
     private val cacheProvider: CacheProvider = container.cacheProvider
 
+    private val navigation = StackNavigation<Config>()
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     override val videoPlayerPool: VideoPlayerPool = container.utils.videoPlayerPool
-    override val storiesHost: StoriesHostComponent = DefaultStoriesHostComponent(this)
-
-    private val navigation = StackNavigation<Config>()
+    override val storiesHost: StoriesHostComponent = DefaultStoriesHostComponent(
+        context = this,
+        onProfileClicked = { navigation.bringToFront(Config.Profile(it)) }
+    )
     private val scope = componentScope
     private val proxyComponent by lazy(LazyThreadSafetyMode.NONE) {
         DefaultProxyComponent(

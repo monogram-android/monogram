@@ -62,6 +62,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -95,13 +96,16 @@ internal fun StoryViewerChromeComponent(
     onMuteToggle: () -> Unit,
     onReactionClick: () -> Unit,
     onMediaScaleToggle: (Boolean) -> Unit,
+    onProfileClick: (() -> Unit)?,
     onLinks: () -> Unit,
     onEdit: () -> Unit,
     onArchive: () -> Unit,
     onRestore: () -> Unit,
     onStatistics: () -> Unit,
     onDelete: () -> Unit,
-    onDownload: () -> Unit
+    onDownload: () -> Unit,
+    onCopyMedia: () -> Unit,
+    onCopyStoryLink: () -> Unit
 ) {
     var showMenu by remember(story?.id, state.activeListType, state.canManageStories) {
         mutableStateOf(false)
@@ -138,7 +142,8 @@ internal fun StoryViewerChromeComponent(
                 state = state,
                 onBack = onBack,
                 showMoreButton = story != null,
-                onMore = { showMenu = true }
+                onMore = { showMenu = true },
+                onProfileClick = onProfileClick
             )
             Box(modifier = Modifier.fillMaxWidth()) {
                 StoryViewerActionsPopup(
@@ -150,6 +155,8 @@ internal fun StoryViewerChromeComponent(
                     onDismiss = { showMenu = false },
                     onMediaScaleToggle = onMediaScaleToggle,
                     onDownload = onDownload,
+                    onCopyMedia = onCopyMedia,
+                    onCopyStoryLink = onCopyStoryLink,
                     onLinks = onLinks,
                     onEdit = onEdit,
                     onArchive = onArchive,
@@ -264,10 +271,18 @@ private fun StoryViewerHeader(
     state: StoriesHostComponent.State,
     onBack: () -> Unit,
     showMoreButton: Boolean,
-    onMore: () -> Unit
+    onMore: () -> Unit,
+    onProfileClick: (() -> Unit)?
 ) {
     val context = LocalContext.current
     val showSkeleton = state.chatTitle.isBlank()
+    val profileClickModifier = remember(showSkeleton, onProfileClick) {
+        if (!showSkeleton && onProfileClick != null) {
+            Modifier.clickable(onClick = onProfileClick)
+        } else {
+            Modifier
+        }
+    }
     val selectedItem = state.viewerItems.getOrNull(state.viewerIndex)
     val headerInfo = remember(
         state.chatId,
@@ -296,69 +311,76 @@ private fun StoryViewerHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Surface(
-                shape = CircleShape,
-                color = if (showSkeleton) Color.White.copy(alpha = 0.16f) else Color.White.copy(
-                    alpha = 0.12f
-                ),
-                modifier = Modifier.size(38.dp)
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .then(profileClickModifier)
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (showSkeleton) {
-                    StorySkeletonPlaceholder()
-                } else if (state.chatAvatarPath != null) {
-                    AsyncImage(
-                        model = state.chatAvatarPath,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Image,
+                Surface(
+                    shape = CircleShape,
+                    color = if (showSkeleton) Color.White.copy(alpha = 0.16f) else Color.White.copy(
+                        alpha = 0.12f
+                    ),
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    if (showSkeleton) {
+                        StorySkeletonPlaceholder()
+                    } else if (state.chatAvatarPath != null) {
+                        AsyncImage(
+                            model = state.chatAvatarPath,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Image,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                            )
+                        }
                     }
                 }
-            }
 
-            Box(modifier = Modifier.weight(1f)) {
-                AnimatedContent(
-                    targetState = headerInfo,
-                    transitionSpec = {
-                        (fadeIn() + slideInVertically { it / 4 }) togetherWith
-                                (fadeOut() + slideOutVertically { -it / 4 })
-                    },
-                    label = "story_header_info"
-                ) { currentInfo ->
-                    if (showSkeleton) {
-                        StoryHeaderSkeleton()
-                    } else {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = currentInfo.title,
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = buildString {
-                                    append(currentInfo.positionText)
-                                    if (currentInfo.postedAt.isNotBlank()) {
-                                        append(" • ")
-                                        append(currentInfo.postedAt)
-                                    }
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                Box(modifier = Modifier.weight(1f)) {
+                    AnimatedContent(
+                        targetState = headerInfo,
+                        transitionSpec = {
+                            (fadeIn() + slideInVertically { it / 4 }) togetherWith
+                                    (fadeOut() + slideOutVertically { -it / 4 })
+                        },
+                        label = "story_header_info"
+                    ) { currentInfo ->
+                        if (showSkeleton) {
+                            StoryHeaderSkeleton()
+                        } else {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = currentInfo.title,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = listOfNotNull(
+                                        currentInfo.positionText.takeIf { it.isNotBlank() },
+                                        currentInfo.postedAt.takeIf { it.isNotBlank() }
+                                    ).joinToString(" • "),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
@@ -395,6 +417,8 @@ private fun StoryViewerActionsPopup(
     onDismiss: () -> Unit,
     onMediaScaleToggle: (Boolean) -> Unit,
     onDownload: () -> Unit,
+    onCopyMedia: () -> Unit,
+    onCopyStoryLink: () -> Unit,
     onLinks: () -> Unit,
     onEdit: () -> Unit,
     onArchive: () -> Unit,
@@ -442,12 +466,14 @@ private fun StoryViewerActionsPopup(
             }
             MenuOptionRow(
                 icon = storyViewerMenuIcon(item.action),
-                title = storyViewerMenuTitle(item.action),
+                title = storyViewerMenuTitle(item.action, story),
                 destructive = item.action == StoryViewerMenuAction.DELETE,
                 onClick = {
                     onDismiss()
                     when (item.action) {
                         StoryViewerMenuAction.DOWNLOAD -> onDownload()
+                        StoryViewerMenuAction.COPY_MEDIA -> onCopyMedia()
+                        StoryViewerMenuAction.COPY_STORY_LINK -> onCopyStoryLink()
                         StoryViewerMenuAction.LINKS -> onLinks()
                         StoryViewerMenuAction.EDIT -> onEdit()
                         StoryViewerMenuAction.ARCHIVE -> onArchive()
@@ -532,7 +558,8 @@ internal fun StoryInteractionsSheetComponent(
     page: StoryInteractionPageModel?,
     isLoading: Boolean,
     onDismiss: () -> Unit,
-    onLoadMore: () -> Unit
+    onLoadMore: () -> Unit,
+    onInteractionClick: (Long) -> Unit
 ) {
     val context = LocalContext.current
     ModalBottomSheet(
@@ -624,6 +651,9 @@ internal fun StoryInteractionsSheetComponent(
                             }
                         ) { index, interaction ->
                             ListItem(
+                                modifier = Modifier.clickable {
+                                    onInteractionClick(interaction.actorId)
+                                },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                                 leadingContent = {
                                     StoryInteractionAvatar(

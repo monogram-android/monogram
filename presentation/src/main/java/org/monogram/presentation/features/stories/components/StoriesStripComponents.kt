@@ -91,6 +91,7 @@ internal fun StoryStripTileComponent(
             text = title,
             modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
@@ -131,6 +132,7 @@ internal fun AddStoryStripTileComponent(
             text = stringResource(R.string.story_create),
             modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis

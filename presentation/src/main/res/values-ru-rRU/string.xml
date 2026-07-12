@@ -2476,5 +2476,7 @@
     <string name="story_capability_live_active">Завершите активную live-историю, прежде чем публиковать новую.</string>
     <string name="story_capability_unavailable">Публикация историй сейчас недоступна.</string>
     <string name="story_public_link_unavailable">Публичная ссылка для этой истории недоступна</string>
+    <string name="action_copy_frame">Копировать кадр</string>
+    <string name="instant_view_open_error">Не удалось открыть статью</string>
     <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
 </resources>

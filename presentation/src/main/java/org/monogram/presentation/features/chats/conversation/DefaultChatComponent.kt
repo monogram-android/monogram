@@ -65,6 +65,7 @@ import org.monogram.presentation.core.ui.ScreenSwipeBackState
 import org.monogram.presentation.core.util.AppPreferences
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.componentScope
+import org.monogram.presentation.features.chats.conversation.logic.PendingAttachmentSendRegistry
 import org.monogram.presentation.features.chats.conversation.logic.buildChatInitialLoadKey
 import org.monogram.presentation.features.chats.conversation.logic.effectiveThreadId
 import org.monogram.presentation.features.chats.conversation.logic.handleSendPendingAttachments
@@ -330,6 +331,7 @@ class DefaultChatComponent(
     internal val mediaDownloadRetryCount = ConcurrentHashMap<Int, Int>()
     internal val pendingSenderRefreshes = ConcurrentHashMap.newKeySet<Long>()
     internal val senderRefreshRequestedAtMs = ConcurrentHashMap<Long, Long>()
+    internal val pendingAttachmentSendRegistry = PendingAttachmentSendRegistry()
     internal var chatInfoObserversStarted: Boolean = false
     internal var sponsoredMessageLoadingJob: Job? = null
     internal var unreadBackfillJob: Job? = null

@@ -32,7 +32,6 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 private const val MaxCompressedPhotoLongSide = 3840
-
 internal data class PhotoCompressionProfile(
     val targetWidth: Int,
     val targetHeight: Int,
@@ -45,8 +44,110 @@ internal sealed interface PendingAttachmentSendPlan {
     data class Individual(val attachments: List<PendingAttachment>) : PendingAttachmentSendPlan
 }
 
+internal class PendingAttachmentSendRegistry {
+    private val inFlightKeys = mutableSetOf<String>()
+
+    fun start(key: String): Boolean = synchronized(this) {
+        inFlightKeys.add(key)
+    }
+
+    fun finish(key: String) = synchronized(this) {
+        inFlightKeys.remove(key)
+    }
+}
+
+private data class RemovedStagedAttachments(
+    val attachments: List<PendingAttachment>,
+    val insertAt: Int
+)
+
 private fun DefaultChatComponent.shouldAutoScrollAfterSend(isAtBottom: Boolean): Boolean {
     return _state.value.rootMessage == null && !isAtBottom
+}
+
+private fun DefaultChatComponent.takeStagedAttachments(paths: Collection<String>): RemovedStagedAttachments {
+    if (paths.isEmpty()) return RemovedStagedAttachments(emptyList(), 0)
+    val pathSet = paths.toSet()
+    val stagedAttachments = _state.value.stagedAttachments
+    val removed = stagedAttachments.filter { it.localPath in pathSet }
+    if (removed.isEmpty()) return RemovedStagedAttachments(emptyList(), stagedAttachments.size)
+    val insertAt = stagedAttachments.indexOfFirst { it.localPath in pathSet }.coerceAtLeast(0)
+    _state.update { state ->
+        state.copy(stagedAttachments = state.stagedAttachments.filterNot { it.localPath in pathSet })
+    }
+    return RemovedStagedAttachments(attachments = removed, insertAt = insertAt)
+}
+
+private fun DefaultChatComponent.restoreStagedAttachments(removed: RemovedStagedAttachments) {
+    if (removed.attachments.isEmpty()) return
+    _state.update { state ->
+        val merged = state.stagedAttachments.toMutableList()
+        val restored = removed.attachments.filter { attachment ->
+            merged.none { it.localPath == attachment.localPath }
+        }
+        if (restored.isEmpty()) return@update state
+        val insertAt = removed.insertAt.coerceIn(0, merged.size)
+        merged.addAll(insertAt, restored)
+        state.copy(stagedAttachments = merged)
+    }
+}
+
+private fun buildPendingAttachmentSendToken(
+    operation: String,
+    targetChatId: Long,
+    threadId: Long?,
+    paths: List<String>,
+    caption: String,
+    captionEntities: List<MessageEntity>,
+    sendOptions: MessageSendOptions
+): String {
+    return buildString {
+        append(operation)
+        append('|')
+        append(targetChatId)
+        append('|')
+        append(threadId ?: 0L)
+        append('|')
+        append(paths.joinToString(separator = "\u001F"))
+        append('|')
+        append(caption)
+        append('|')
+        append(captionEntities.hashCode())
+        append('|')
+        append(sendOptions.hashCode())
+    }
+}
+
+private inline fun DefaultChatComponent.launchPendingAttachmentSend(
+    operation: String,
+    paths: List<String>,
+    caption: String,
+    captionEntities: List<MessageEntity>,
+    sendOptions: MessageSendOptions,
+    crossinline block: suspend () -> Unit
+) {
+    val currentState = _state.value
+    val threadId = currentState.effectiveThreadId()
+    val targetChatId = currentState.effectiveThreadChatId(chatId)
+    val sendToken = buildPendingAttachmentSendToken(
+        operation = operation,
+        targetChatId = targetChatId,
+        threadId = threadId,
+        paths = paths,
+        caption = caption,
+        captionEntities = captionEntities,
+        sendOptions = sendOptions
+    )
+
+    if (!pendingAttachmentSendRegistry.start(sendToken)) return
+
+    scope.launch {
+        try {
+            block()
+        } finally {
+            pendingAttachmentSendRegistry.finish(sendToken)
+        }
+    }
 }
 
 internal fun DefaultChatComponent.handleSendMessage(
@@ -98,47 +199,54 @@ internal fun DefaultChatComponent.handleSendPhoto(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
-    scope.launch {
-        val matchingAttachment =
-            _state.value.stagedAttachments.firstOrNull { it.localPath == photoPath }
-        val shouldCompress = appPreferences.compressPhotos.value
+    launchPendingAttachmentSend(
+        operation = "photo",
+        paths = listOf(photoPath),
+        caption = caption,
+        captionEntities = captionEntities,
+        sendOptions = sendOptions
+    ) {
+        val removedAttachments = takeStagedAttachments(listOf(photoPath))
+        try {
+            val shouldCompress = appPreferences.compressPhotos.value
 
-        val finalPath = if (shouldCompress) {
-            withContext(Dispatchers.IO) {
-                compressPhotoForUpload(photoPath) ?: photoPath
+            val finalPath = if (shouldCompress) {
+                withContext(Dispatchers.IO) {
+                    compressPhotoForUpload(photoPath) ?: photoPath
+                }
+            } else {
+                photoPath
             }
-        } else {
-            photoPath
-        }
 
-        val currentState = _state.value
-        val replyId = currentState.replyMessage?.id
-        val threadId = currentState.effectiveThreadId()
-        val targetChatId = currentState.effectiveThreadChatId(chatId)
-        repositoryMessage.sendPhoto(
-            chatId = targetChatId,
-            photoPath = finalPath,
-            caption = caption,
-            captionEntities = captionEntities,
-            replyToMsgId = replyId,
-            threadId = threadId,
-            sendOptions = sendOptions
-        )
-        onCancelReply()
-        if (sendOptions.scheduleDate == null) {
-            clearDraftLinkPreviewAfterSend()
-        }
-        if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
-            onScrollToBottom()
-        }
-        if (sendOptions.scheduleDate != null) {
-            loadScheduledMessages()
-        }
-        _state.update { state ->
-            state.copy(stagedAttachments = state.stagedAttachments.filterNot { it.localPath == photoPath })
-        }
-        if (sendOptions.scheduleDate == null) {
-            cleanupTempAttachments(listOfNotNull(matchingAttachment))
+            val currentState = _state.value
+            val replyId = currentState.replyMessage?.id
+            val threadId = currentState.effectiveThreadId()
+            val targetChatId = currentState.effectiveThreadChatId(chatId)
+            repositoryMessage.sendPhoto(
+                chatId = targetChatId,
+                photoPath = finalPath,
+                caption = caption,
+                captionEntities = captionEntities,
+                replyToMsgId = replyId,
+                threadId = threadId,
+                sendOptions = sendOptions
+            )
+            onCancelReply()
+            if (sendOptions.scheduleDate == null) {
+                clearDraftLinkPreviewAfterSend()
+            }
+            if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+                onScrollToBottom()
+            }
+            if (sendOptions.scheduleDate != null) {
+                loadScheduledMessages()
+            }
+            if (sendOptions.scheduleDate == null) {
+                cleanupTempAttachments(removedAttachments.attachments)
+            }
+        } catch (e: Exception) {
+            restoreStagedAttachments(removedAttachments)
+            throw e
         }
     }
 }
@@ -149,53 +257,60 @@ internal fun DefaultChatComponent.handleSendVideo(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
-    scope.launch {
-        val matchingAttachment =
-            _state.value.stagedAttachments.firstOrNull { it.localPath == videoPath }
-        val shouldCompress = appPreferences.compressVideos.value
+    launchPendingAttachmentSend(
+        operation = "video",
+        paths = listOf(videoPath),
+        caption = caption,
+        captionEntities = captionEntities,
+        sendOptions = sendOptions
+    ) {
+        val removedAttachments = takeStagedAttachments(listOf(videoPath))
+        try {
+            val shouldCompress = appPreferences.compressVideos.value
 
-        val finalPath = if (shouldCompress) {
-            processVideo(
-                inputPath = videoPath,
-                trimRange = VideoTrimRange(),
-                filter = null,
-                textElements = emptyList(),
-                quality = VideoQuality.P1080,
-                muteAudio = false,
-                context = this@handleSendVideo.cacheController.context
+            val finalPath = if (shouldCompress) {
+                processVideo(
+                    inputPath = videoPath,
+                    trimRange = VideoTrimRange(),
+                    filter = null,
+                    textElements = emptyList(),
+                    quality = VideoQuality.P1080,
+                    muteAudio = false,
+                    context = this@handleSendVideo.cacheController.context
+                )
+            } else {
+                videoPath
+            }
+
+            val currentState = _state.value
+            val replyId = currentState.replyMessage?.id
+            val threadId = currentState.effectiveThreadId()
+            val targetChatId = currentState.effectiveThreadChatId(chatId)
+            repositoryMessage.sendVideo(
+                chatId = targetChatId,
+                videoPath = finalPath,
+                caption = caption,
+                captionEntities = captionEntities,
+                replyToMsgId = replyId,
+                threadId = threadId,
+                sendOptions = sendOptions
             )
-        } else {
-            videoPath
-        }
-
-        val currentState = _state.value
-        val replyId = currentState.replyMessage?.id
-        val threadId = currentState.effectiveThreadId()
-        val targetChatId = currentState.effectiveThreadChatId(chatId)
-        repositoryMessage.sendVideo(
-            chatId = targetChatId,
-            videoPath = finalPath,
-            caption = caption,
-            captionEntities = captionEntities,
-            replyToMsgId = replyId,
-            threadId = threadId,
-            sendOptions = sendOptions
-        )
-        onCancelReply()
-        if (sendOptions.scheduleDate == null) {
-            clearDraftLinkPreviewAfterSend()
-        }
-        if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
-            onScrollToBottom()
-        }
-        if (sendOptions.scheduleDate != null) {
-            loadScheduledMessages()
-        }
-        _state.update { state ->
-            state.copy(stagedAttachments = state.stagedAttachments.filterNot { it.localPath == videoPath })
-        }
-        if (sendOptions.scheduleDate == null) {
-            cleanupTempAttachments(listOfNotNull(matchingAttachment))
+            onCancelReply()
+            if (sendOptions.scheduleDate == null) {
+                clearDraftLinkPreviewAfterSend()
+            }
+            if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+                onScrollToBottom()
+            }
+            if (sendOptions.scheduleDate != null) {
+                loadScheduledMessages()
+            }
+            if (sendOptions.scheduleDate == null) {
+                cleanupTempAttachments(removedAttachments.attachments)
+            }
+        } catch (e: Exception) {
+            restoreStagedAttachments(removedAttachments)
+            throw e
         }
     }
 }
@@ -246,36 +361,44 @@ internal fun DefaultChatComponent.handleSendDocument(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
-    scope.launch {
-        val matchingAttachment = _state.value.stagedAttachments.firstOrNull { it.localPath == path }
-        val currentState = _state.value
-        val replyId = currentState.replyMessage?.id
-        val threadId = currentState.effectiveThreadId()
-        val targetChatId = currentState.effectiveThreadChatId(chatId)
-        repositoryMessage.sendDocument(
-            chatId = targetChatId,
-            documentPath = path,
-            caption = caption,
-            captionEntities = captionEntities,
-            replyToMsgId = replyId,
-            threadId = threadId,
-            sendOptions = sendOptions
-        )
-        onCancelReply()
-        if (sendOptions.scheduleDate == null) {
-            clearDraftLinkPreviewAfterSend()
-        }
-        if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
-            onScrollToBottom()
-        }
-        if (sendOptions.scheduleDate != null) {
-            loadScheduledMessages()
-        }
-        _state.update { state ->
-            state.copy(stagedAttachments = state.stagedAttachments.filterNot { it.localPath == path })
-        }
-        if (sendOptions.scheduleDate == null) {
-            cleanupTempAttachments(listOfNotNull(matchingAttachment))
+    launchPendingAttachmentSend(
+        operation = "document",
+        paths = listOf(path),
+        caption = caption,
+        captionEntities = captionEntities,
+        sendOptions = sendOptions
+    ) {
+        val removedAttachments = takeStagedAttachments(listOf(path))
+        try {
+            val currentState = _state.value
+            val replyId = currentState.replyMessage?.id
+            val threadId = currentState.effectiveThreadId()
+            val targetChatId = currentState.effectiveThreadChatId(chatId)
+            repositoryMessage.sendDocument(
+                chatId = targetChatId,
+                documentPath = path,
+                caption = caption,
+                captionEntities = captionEntities,
+                replyToMsgId = replyId,
+                threadId = threadId,
+                sendOptions = sendOptions
+            )
+            onCancelReply()
+            if (sendOptions.scheduleDate == null) {
+                clearDraftLinkPreviewAfterSend()
+            }
+            if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+                onScrollToBottom()
+            }
+            if (sendOptions.scheduleDate != null) {
+                loadScheduledMessages()
+            }
+            if (sendOptions.scheduleDate == null) {
+                cleanupTempAttachments(removedAttachments.attachments)
+            }
+        } catch (e: Exception) {
+            restoreStagedAttachments(removedAttachments)
+            throw e
         }
     }
 }
@@ -315,36 +438,44 @@ internal fun DefaultChatComponent.handleSendGifFile(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
-    scope.launch {
-        val matchingAttachment = _state.value.stagedAttachments.firstOrNull { it.localPath == path }
-        val currentState = _state.value
-        val replyId = currentState.replyMessage?.id
-        val threadId = currentState.effectiveThreadId()
-        val targetChatId = currentState.effectiveThreadChatId(chatId)
-        repositoryMessage.sendGifFile(
-            chatId = targetChatId,
-            gifPath = path,
-            caption = caption,
-            captionEntities = captionEntities,
-            replyToMsgId = replyId,
-            threadId = threadId,
-            sendOptions = sendOptions
-        )
-        onCancelReply()
-        if (sendOptions.scheduleDate == null) {
-            clearDraftLinkPreviewAfterSend()
-        }
-        if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
-            onScrollToBottom()
-        }
-        if (sendOptions.scheduleDate != null) {
-            loadScheduledMessages()
-        }
-        _state.update { state ->
-            state.copy(stagedAttachments = state.stagedAttachments.filterNot { it.localPath == path })
-        }
-        if (sendOptions.scheduleDate == null) {
-            cleanupTempAttachments(listOfNotNull(matchingAttachment))
+    launchPendingAttachmentSend(
+        operation = "gif_file",
+        paths = listOf(path),
+        caption = caption,
+        captionEntities = captionEntities,
+        sendOptions = sendOptions
+    ) {
+        val removedAttachments = takeStagedAttachments(listOf(path))
+        try {
+            val currentState = _state.value
+            val replyId = currentState.replyMessage?.id
+            val threadId = currentState.effectiveThreadId()
+            val targetChatId = currentState.effectiveThreadChatId(chatId)
+            repositoryMessage.sendGifFile(
+                chatId = targetChatId,
+                gifPath = path,
+                caption = caption,
+                captionEntities = captionEntities,
+                replyToMsgId = replyId,
+                threadId = threadId,
+                sendOptions = sendOptions
+            )
+            onCancelReply()
+            if (sendOptions.scheduleDate == null) {
+                clearDraftLinkPreviewAfterSend()
+            }
+            if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+                onScrollToBottom()
+            }
+            if (sendOptions.scheduleDate != null) {
+                loadScheduledMessages()
+            }
+            if (sendOptions.scheduleDate == null) {
+                cleanupTempAttachments(removedAttachments.attachments)
+            }
+        } catch (e: Exception) {
+            restoreStagedAttachments(removedAttachments)
+            throw e
         }
     }
 }
@@ -355,67 +486,75 @@ internal fun DefaultChatComponent.handleSendAlbum(
     captionEntities: List<MessageEntity> = emptyList(),
     sendOptions: MessageSendOptions = MessageSendOptions()
 ) {
-    scope.launch {
-        val matchingAttachments = _state.value.stagedAttachments.filter { it.localPath in paths }
-        val compressPhotos = appPreferences.compressPhotos.value
-        val compressVideos = appPreferences.compressVideos.value
+    launchPendingAttachmentSend(
+        operation = "album",
+        paths = paths,
+        caption = caption,
+        captionEntities = captionEntities,
+        sendOptions = sendOptions
+    ) {
+        val removedAttachments = takeStagedAttachments(paths)
+        try {
+            val compressPhotos = appPreferences.compressPhotos.value
+            val compressVideos = appPreferences.compressVideos.value
 
-        val processedPaths = paths.map { path ->
-            when {
-                path.endsWith(".mp4") -> {
-                    if (compressVideos) {
-                        processVideo(
-                            inputPath = path,
-                            trimRange = VideoTrimRange(),
-                            filter = null,
-                            textElements = emptyList(),
-                            quality = VideoQuality.P1080,
-                            muteAudio = false,
-                            context = this@handleSendAlbum.cacheController.context
-                        )
-                    } else path
+            val processedPaths = paths.map { path ->
+                when {
+                    path.endsWith(".mp4") -> {
+                        if (compressVideos) {
+                            processVideo(
+                                inputPath = path,
+                                trimRange = VideoTrimRange(),
+                                filter = null,
+                                textElements = emptyList(),
+                                quality = VideoQuality.P1080,
+                                muteAudio = false,
+                                context = this@handleSendAlbum.cacheController.context
+                            )
+                        } else path
+                    }
+
+                    path.endsWith(".jpg") || path.endsWith(".jpeg") || path.endsWith(".png") -> {
+                        if (compressPhotos) {
+                            withContext(Dispatchers.IO) {
+                                compressPhotoForUpload(path) ?: path
+                            }
+                        } else path
+                    }
+
+                    else -> path
                 }
-
-                path.endsWith(".jpg") || path.endsWith(".jpeg") || path.endsWith(".png") -> {
-                    if (compressPhotos) {
-                        withContext(Dispatchers.IO) {
-                            compressPhotoForUpload(path) ?: path
-                        }
-                    } else path
-                }
-
-                else -> path
             }
-        }
 
-        val currentState = _state.value
-        val replyId = currentState.replyMessage?.id
-        val threadId = currentState.effectiveThreadId()
-        val targetChatId = currentState.effectiveThreadChatId(chatId)
-        repositoryMessage.sendAlbum(
-            targetChatId,
-            processedPaths,
-            caption = caption,
-            captionEntities = captionEntities,
-            replyToMsgId = replyId,
-            threadId = threadId,
-            sendOptions = sendOptions
-        )
-        onCancelReply()
-        if (sendOptions.scheduleDate == null) {
-            clearDraftLinkPreviewAfterSend()
-        }
-        if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
-            onScrollToBottom()
-        }
-        if (sendOptions.scheduleDate != null) {
-            loadScheduledMessages()
-        }
-        _state.update { state ->
-            state.copy(stagedAttachments = state.stagedAttachments.filterNot { it.localPath in paths })
-        }
-        if (sendOptions.scheduleDate == null) {
-            cleanupTempAttachments(matchingAttachments)
+            val currentState = _state.value
+            val replyId = currentState.replyMessage?.id
+            val threadId = currentState.effectiveThreadId()
+            val targetChatId = currentState.effectiveThreadChatId(chatId)
+            repositoryMessage.sendAlbum(
+                targetChatId,
+                processedPaths,
+                caption = caption,
+                captionEntities = captionEntities,
+                replyToMsgId = replyId,
+                threadId = threadId,
+                sendOptions = sendOptions
+            )
+            onCancelReply()
+            if (sendOptions.scheduleDate == null) {
+                clearDraftLinkPreviewAfterSend()
+            }
+            if (shouldAutoScrollAfterSend(currentState.isAtBottom)) {
+                onScrollToBottom()
+            }
+            if (sendOptions.scheduleDate != null) {
+                loadScheduledMessages()
+            }
+            if (sendOptions.scheduleDate == null) {
+                cleanupTempAttachments(removedAttachments.attachments)
+            }
+        } catch (e: Exception) {
+            restoreStagedAttachments(removedAttachments)
+            throw e
         }
     }
 }

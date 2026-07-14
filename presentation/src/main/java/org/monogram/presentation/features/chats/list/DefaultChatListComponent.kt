@@ -138,6 +138,7 @@ class DefaultChatListComponent(
     private val prefetchSemaphore = Semaphore(PREFETCH_CONCURRENCY)
     private val messagePrefetchTimestamps = mutableMapOf<Long, Long>()
     private val storyPrefetchChatIds = mutableSetOf<Long>()
+    private val lastPinnedFolderLogByFolder = mutableMapOf<Int, PinnedFolderSnapshot>()
 
     private fun ChatListComponent.State.toUiState() = ChatListComponent.UiState(
         currentUser = currentUser,
@@ -307,15 +308,26 @@ class DefaultChatListComponent(
         chatFolderRepository.folderChatsFlow
             .onEach { update ->
                 val normalizedList = normalizeFolderChats(update.chats)
-                val pinnedCount = normalizedList.count { it.isPinned }
-                if (pinnedCount > 0) {
+                val trackedStoryChatIds = storyRepository.activeStories.value.values
+                    .asSequence()
+                    .flatMap(List<ActiveStoryListModel>::asSequence)
+                    .mapTo(mutableSetOf()) { it.chatId }
+                val shouldRefreshStories = shouldRefreshStoriesForFolderUpdate(
+                    previousChats = _state.value.chatsByFolder[update.folderId],
+                    updatedChats = normalizedList,
+                    trackedStoryChatIds = trackedStoryChatIds
+                )
+
+                val pinnedSnapshot = normalizedList.toPinnedFolderSnapshot()
+                if (pinnedSnapshot != null && lastPinnedFolderLogByFolder[update.folderId] != pinnedSnapshot) {
+                    lastPinnedFolderLogByFolder[update.folderId] = pinnedSnapshot
                     Log.d(
                         TAG,
-                        "folder=${update.folderId} chats=${normalizedList.size} pinned=$pinnedCount pinnedIds=${
-                            normalizedList.filter { it.isPinned }.take(10)
-                                .joinToString { it.id.toString() }
-                        }"
+                        "folder=${update.folderId} chats=${normalizedList.size} pinned=${pinnedSnapshot.pinnedIds.size} " +
+                                "pinnedIds=${pinnedSnapshot.pinnedIds.take(10).joinToString()}"
                     )
+                } else if (pinnedSnapshot == null) {
+                    lastPinnedFolderLogByFolder.remove(update.folderId)
                 }
                 _state.update {
                     if (it.chatsByFolder[update.folderId] == normalizedList) {
@@ -327,7 +339,9 @@ class DefaultChatListComponent(
                 }
                 syncProjectChannelSubscriptionFromChats(normalizedList)
                 prefetchStoryListsForChats(update.folderId, normalizedList)
-                refreshStoriesState("folder_${update.folderId}")
+                if (shouldRefreshStories) {
+                    refreshStoriesState("folder_${update.folderId}")
+                }
             }
             .launchIn(scope)
 
@@ -1361,17 +1375,23 @@ class DefaultChatListComponent(
             val isArchiveStoriesLoaded = storyListChatCounts.containsKey(StoryListType.ARCHIVE) ||
                     repositoryStories.containsKey(StoryListType.ARCHIVE)
 
-            Log.d(
-                STORY_TAG,
-                "refreshStoriesState reason=$reason total=${combinedStories.size} main=${mainStories.size} archived=${archiveStories.size} archiveFolderIds=${archiveFolderChatIds.size} mainLoaded=$isMainStoriesLoaded archiveLoaded=$isArchiveStoriesLoaded"
-            )
-
-            _storiesState.value = ChatListComponent.StoriesState(
+            val newStoriesState = ChatListComponent.StoriesState(
                 mainActiveStories = mainStories,
                 archiveActiveStories = archiveStories,
                 isMainStoriesLoaded = isMainStoriesLoaded,
                 isArchiveStoriesLoaded = isArchiveStoriesLoaded
             )
+
+            if (newStoriesState == _storiesState.value) {
+                return@launch
+            }
+
+            Log.d(
+                STORY_TAG,
+                "refreshStoriesState reason=$reason total=${combinedStories.size} main=${mainStories.size} archived=${archiveStories.size} archiveFolderIds=${archiveFolderChatIds.size} mainLoaded=$isMainStoriesLoaded archiveLoaded=$isArchiveStoriesLoaded"
+            )
+
+            _storiesState.value = newStoriesState
         }
     }
 
@@ -1590,6 +1610,55 @@ internal fun normalizeFolderChats(chats: List<ChatModel>): List<ChatModel> {
         }
     }
     return if (normalized.size == chats.size) chats else normalized
+}
+
+internal fun shouldRefreshStoriesForFolderUpdate(
+    previousChats: List<ChatModel>?,
+    updatedChats: List<ChatModel>,
+    trackedStoryChatIds: Set<Long>
+): Boolean {
+    return previousChats.toStoryRefreshSnapshot(trackedStoryChatIds) !=
+            updatedChats.toStoryRefreshSnapshot(trackedStoryChatIds)
+}
+
+private fun List<ChatModel>?.toStoryRefreshSnapshot(
+    trackedStoryChatIds: Set<Long>
+): Map<Long, StoryRefreshSnapshot> {
+    return this.orEmpty()
+        .asSequence()
+        .filter { chat ->
+            chat.id in trackedStoryChatIds ||
+                    chat.isArchived ||
+                    chat.activeStoryId != 0 ||
+                    !chat.activeStoryStateType.isNullOrBlank()
+        }
+        .associate { chat ->
+            chat.id to StoryRefreshSnapshot(
+                id = chat.id,
+                isArchived = chat.isArchived,
+                activeStoryStateType = chat.activeStoryStateType,
+                activeStoryId = chat.activeStoryId
+            )
+        }
+}
+
+private data class StoryRefreshSnapshot(
+    val id: Long,
+    val isArchived: Boolean,
+    val activeStoryStateType: String?,
+    val activeStoryId: Int
+)
+
+private data class PinnedFolderSnapshot(
+    val pinnedIds: List<Long>
+)
+
+private fun List<ChatModel>.toPinnedFolderSnapshot(): PinnedFolderSnapshot? {
+    val pinnedIds = asSequence()
+        .filter { it.isPinned }
+        .map { it.id }
+        .toList()
+    return pinnedIds.takeIf(List<Long>::isNotEmpty)?.let(::PinnedFolderSnapshot)
 }
 
 private fun AppPreferences.projectChannelSubscriptionState(): ChatListComponent.ProjectChannelSubscriptionState {

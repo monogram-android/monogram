@@ -20,7 +20,9 @@ import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.mapper.MessageMapper
 import org.monogram.data.mapper.user.toEntity
 import org.monogram.data.mapper.user.toTdApi
+import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.StoryRepository
 
 private const val TAG = "OfflineWarmup"
 
@@ -35,7 +37,8 @@ class OfflineWarmup(
     private val chatFullInfoDao: ChatFullInfoDao,
     private val messageMapper: MessageMapper,
     private val chatCache: ChatCache,
-    private val stickerRepository: StickerRepository
+    private val stickerRepository: StickerRepository,
+    private val storyRepository: StoryRepository
 ) {
     @Volatile
     private var warmupStarted = false
@@ -57,6 +60,7 @@ class OfflineWarmup(
         if (topChats.isEmpty()) return
 
         warmupStickers()
+        warmupStories(topChats)
         warmupUsers(topChats)
         warmupChatFullInfo(topChats)
         warmupMessages(topChats)
@@ -65,6 +69,38 @@ class OfflineWarmup(
     private suspend fun warmupStickers() {
         coRunCatching { stickerRepository.loadInstalledStickerSets() }
         coRunCatching { stickerRepository.loadCustomEmojiStickerSets() }
+    }
+
+    private suspend fun warmupStories(chats: List<ChatEntity>) {
+        coRunCatching { storyRepository.loadActiveStories(StoryListType.MAIN) }
+        coRunCatching { storyRepository.loadActiveStories(StoryListType.ARCHIVE) }
+
+        val hintedChats = chats.asSequence()
+            .filter { it.activeStoryId != 0 || !it.activeStoryStateType.isNullOrBlank() }
+            .take(STORY_CHAT_WARMUP_LIMIT)
+            .toList()
+        if (hintedChats.isEmpty()) return
+
+        for (chat in hintedChats) {
+            val activeStories = coRunCatching {
+                storyRepository.getChatActiveStories(chat.id)
+            }.getOrNull()
+
+            val candidateStoryIds = LinkedHashSet<Int>().apply {
+                chat.activeStoryId.takeIf { it > 0 }?.let(::add)
+                activeStories?.stories
+                    .orEmpty()
+                    .take(STORY_PER_CHAT_WARMUP_LIMIT)
+                    .forEach { add(it.storyId) }
+            }
+
+            for (storyId in candidateStoryIds) {
+                coRunCatching { storyRepository.getStory(chat.id, storyId) }
+                delay(STORY_WARMUP_DELAY_MS)
+            }
+
+            delay(STORY_CHAT_WARMUP_DELAY_MS)
+        }
     }
 
     private suspend fun warmupUsers(chats: List<ChatEntity>) {
@@ -349,6 +385,10 @@ class OfflineWarmup(
     private companion object {
         private const val USER_WARMUP_LIMIT = 15
         private const val USER_WARMUP_DELAY_MS = 150L
+        private const val STORY_CHAT_WARMUP_LIMIT = 12
+        private const val STORY_PER_CHAT_WARMUP_LIMIT = 2
+        private const val STORY_WARMUP_DELAY_MS = 120L
+        private const val STORY_CHAT_WARMUP_DELAY_MS = 180L
         private const val ONE_DAY_MS = 24L * 60 * 60 * 1000
         private const val SEVEN_DAYS_MS = 7L * ONE_DAY_MS
     }

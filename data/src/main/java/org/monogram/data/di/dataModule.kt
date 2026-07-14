@@ -192,7 +192,8 @@ val dataModule = module {
             chatFullInfoDao = get(),
             messageMapper = get(),
             chatCache = get(),
-            stickerRepository = get()
+            stickerRepository = get(),
+            storyRepository = get()
         )
     }
     single(createdAtStart = true) {

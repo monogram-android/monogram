@@ -26,6 +26,7 @@ import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatType
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.UpdateState
+import org.monogram.domain.models.stories.ActiveStoryListModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.repository.AttachMenuBotRepository
 import org.monogram.domain.repository.AuthRepository
@@ -1281,7 +1282,7 @@ class DefaultChatListComponent(
             .filter { chat ->
                 storyRepository.activeStories.value.values
                     .asSequence()
-                    .flatMap(List<org.monogram.domain.models.stories.ActiveStoryListModel>::asSequence)
+                    .flatMap(List<ActiveStoryListModel>::asSequence)
                     .none { active -> active.chatId == chat.id }
             }
             .filter { chat -> storyPrefetchChatIds.add(chat.id) }
@@ -1313,7 +1314,8 @@ class DefaultChatListComponent(
         scope.launch(Dispatchers.IO) {
             val repositoryStories = storyRepository.activeStories.value
             val storyListChatCounts = storyRepository.storyListChatCounts.value
-            val activeStories = repositoryStories[StoryListType.MAIN].orEmpty()
+            val combinedStories = repositoryStories[StoryListType.MAIN].orEmpty() +
+                    repositoryStories[StoryListType.ARCHIVE].orEmpty()
             val archiveFolderChatIds = _state.value.chatsByFolder[ARCHIVE_FOLDER_ID]
                 .orEmpty()
                 .mapTo(mutableSetOf()) { it.id }
@@ -1322,7 +1324,7 @@ class DefaultChatListComponent(
                 chats.forEach { chat -> localChatIndex.putIfAbsent(chat.id, chat) }
             }
 
-            val resolvedStories = activeStories.mapNotNull { storyList ->
+            val resolvedStories = combinedStories.mapNotNull { storyList ->
                 val chat = localChatIndex[storyList.chatId] ?: chatListRepository.getChatById(
                     storyList.chatId
                 )
@@ -1342,12 +1344,18 @@ class DefaultChatListComponent(
                 }
             }
 
-            val mainStories = resolvedStories
-                .filterNot { (_, _, isArchived) -> isArchived }
-                .map { (_, stories, _) -> stories }
-            val archiveStories = resolvedStories
+            val visibleStories = resolvedStories.groupBy(
+                keySelector = { (_, stories, _) -> stories.listType },
+                valueTransform = { (_, stories, _) -> stories }
+            )
+            val archivedChatIds = resolvedStories
+                .asSequence()
                 .filter { (_, _, isArchived) -> isArchived }
-                .map { (_, stories, _) -> stories }
+                .mapTo(mutableSetOf()) { (_, stories, _) -> stories.chatId }
+            val (mainStories, archiveStories) = resolveDisplayedStoryLists(
+                repositoryStories = visibleStories,
+                archivedChatIds = archivedChatIds
+            )
             val isMainStoriesLoaded = storyListChatCounts.containsKey(StoryListType.MAIN) ||
                     repositoryStories.containsKey(StoryListType.MAIN)
             val isArchiveStoriesLoaded = storyListChatCounts.containsKey(StoryListType.ARCHIVE) ||
@@ -1355,7 +1363,7 @@ class DefaultChatListComponent(
 
             Log.d(
                 STORY_TAG,
-                "refreshStoriesState reason=$reason total=${activeStories.size} main=${mainStories.size} archived=${archiveStories.size} archiveFolderIds=${archiveFolderChatIds.size} mainLoaded=$isMainStoriesLoaded archiveLoaded=$isArchiveStoriesLoaded"
+                "refreshStoriesState reason=$reason total=${combinedStories.size} main=${mainStories.size} archived=${archiveStories.size} archiveFolderIds=${archiveFolderChatIds.size} mainLoaded=$isMainStoriesLoaded archiveLoaded=$isArchiveStoriesLoaded"
             )
 
             _storiesState.value = ChatListComponent.StoriesState(
@@ -1525,6 +1533,19 @@ class DefaultChatListComponent(
             else -> -1
         }
     }
+}
+
+internal fun resolveDisplayedStoryLists(
+    repositoryStories: Map<StoryListType, List<ActiveStoryListModel>>,
+    archivedChatIds: Set<Long>
+): Pair<List<ActiveStoryListModel>, List<ActiveStoryListModel>> {
+    val explicitArchiveStories = repositoryStories[StoryListType.ARCHIVE].orEmpty()
+    val explicitArchiveIds = explicitArchiveStories.mapTo(mutableSetOf()) { it.chatId }
+    val mainStories = repositoryStories[StoryListType.MAIN].orEmpty()
+        .filterNot { it.chatId in archivedChatIds || it.chatId in explicitArchiveIds }
+    val archiveFallbackStories = repositoryStories[StoryListType.MAIN].orEmpty()
+        .filter { it.chatId in archivedChatIds && it.chatId !in explicitArchiveIds }
+    return mainStories to (explicitArchiveStories + archiveFallbackStories)
 }
 
 private fun hasUnreadState(chat: ChatModel): Boolean {

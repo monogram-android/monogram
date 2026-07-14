@@ -151,7 +151,21 @@ data class StoryStealthModeModel(
 ) {
     val isActive: Boolean
         get() = activeUntilDate > 0
+
+    fun isActiveAt(nowSeconds: Int): Boolean = activeUntilDate > nowSeconds
+
+    fun isCoolingDownAt(nowSeconds: Int): Boolean = cooldownUntilDate > nowSeconds
 }
+
+data class StoryOptionsModel(
+    val captionLengthMax: Int = 0,
+    val linkAreaCountMax: Int = 0,
+    val stealthModeCooldownPeriod: Int = 0,
+    val stealthModeFuturePeriod: Int = 0,
+    val stealthModePastPeriod: Int = 0,
+    val suggestedReactionAreaCountMax: Int = 0,
+    val viewersExpirationDelay: Int = 0
+)
 
 data class StoryStatisticsModel(
     val storyInteractionGraph: StatisticsGraphModel,

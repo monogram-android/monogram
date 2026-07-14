@@ -2478,4 +2478,21 @@
     <string name="project_channel_promo_subscribe">Підписатися</string>
     <string name="project_channel_promo_subscribing">Підписуємо…</string>
     <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
+    <string name="story_stealth_mode_title">Режим непомітності</string>
+    <string name="story_stealth_mode_available">%1$s назад • %2$s вперед</string>
+    <string name="story_stealth_mode_active">Перегляди приховано</string>
+    <string name="story_stealth_mode_cooldown_until">Знову буде доступно о %1$s</string>
+    <string name="story_stealth_mode_enabled">Режим непомітності увімкнено на %1$s</string>
+    <string name="story_stealth_mode_failed">Не вдалося увімкнути режим непомітності</string>
+    <string name="story_validation_pick_media">Спочатку виберіть фото або відео</string>
+    <string name="story_validation_caption_too_long">Підпис до історії надто довгий. Максимум: %1$d символів</string>
+    <string name="story_validation_links_premium">Посилання в історіях доступні лише в Telegram Premium</string>
+    <plurals name="story_duration_compact_hours">
+        <item quantity="one">%1$dгод</item>
+        <item quantity="other">%1$dгод</item>
+    </plurals>
+    <plurals name="story_duration_compact_minutes">
+        <item quantity="one">%1$dхв</item>
+        <item quantity="other">%1$dхв</item>
+    </plurals>
 </resources>

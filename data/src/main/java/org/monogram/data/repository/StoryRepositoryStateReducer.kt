@@ -3,6 +3,7 @@ package org.monogram.data.repository
 import org.monogram.domain.models.stories.ActiveStoryListModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryModel
+import org.monogram.domain.models.stories.StoryOptionsModel
 import org.monogram.domain.models.stories.StoryPostResultModel
 import org.monogram.domain.models.stories.StoryStealthModeModel
 
@@ -16,6 +17,7 @@ internal data class StoryRepositoryState(
     val storyCache: Map<StoryKey, StoryModel> = emptyMap(),
     val storyListChatCounts: Map<StoryListType, Int> = emptyMap(),
     val stealthMode: StoryStealthModeModel = StoryStealthModeModel(),
+    val storyOptions: StoryOptionsModel = StoryOptionsModel(),
     val lastPostResult: StoryPostResultModel? = null
 )
 
@@ -135,6 +137,13 @@ internal object StoryRepositoryStateReducer {
         stealthMode: StoryStealthModeModel
     ): StoryRepositoryState {
         return state.copy(stealthMode = stealthMode)
+    }
+
+    fun withStoryOptions(
+        state: StoryRepositoryState,
+        storyOptions: StoryOptionsModel
+    ): StoryRepositoryState {
+        return state.copy(storyOptions = storyOptions)
     }
 
     fun clearLastPostResult(state: StoryRepositoryState): StoryRepositoryState {

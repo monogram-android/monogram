@@ -41,6 +41,7 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PeopleAlt
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,6 +59,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -66,10 +68,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.delay
 import org.monogram.domain.models.stories.StoryAreaTypeModel
 import org.monogram.domain.models.stories.StoryInteractionActorType
 import org.monogram.domain.models.stories.StoryInteractionPageModel
@@ -105,7 +109,8 @@ internal fun StoryViewerChromeComponent(
     onDelete: () -> Unit,
     onDownload: () -> Unit,
     onCopyMedia: () -> Unit,
-    onCopyStoryLink: () -> Unit
+    onCopyStoryLink: () -> Unit,
+    onActivateStealthMode: () -> Unit
 ) {
     var showMenu by remember(story?.id, state.activeListType, state.canManageStories) {
         mutableStateOf(false)
@@ -149,6 +154,10 @@ internal fun StoryViewerChromeComponent(
                 StoryViewerActionsPopup(
                     visible = showMenu,
                     story = story,
+                    currentUserId = state.currentUserId,
+                    isPremiumUser = state.isPremiumUser,
+                    stealthMode = state.stealthMode,
+                    storyOptions = state.storyOptions,
                     canManageStories = state.canManageStories,
                     activeListType = state.activeListType,
                     isMediaScaledToFill = isMediaScaledToFill,
@@ -162,7 +171,8 @@ internal fun StoryViewerChromeComponent(
                     onArchive = onArchive,
                     onRestore = onRestore,
                     onStatistics = onStatistics,
-                    onDelete = onDelete
+                    onDelete = onDelete,
+                    onActivateStealthMode = onActivateStealthMode
                 )
 
                 Column(
@@ -411,6 +421,10 @@ private fun StoryViewerHeader(
 private fun StoryViewerActionsPopup(
     visible: Boolean,
     story: StoryModel?,
+    currentUserId: Long?,
+    isPremiumUser: Boolean,
+    stealthMode: org.monogram.domain.models.stories.StoryStealthModeModel,
+    storyOptions: org.monogram.domain.models.stories.StoryOptionsModel,
     canManageStories: Boolean,
     activeListType: StoryListType,
     isMediaScaledToFill: Boolean,
@@ -424,10 +438,35 @@ private fun StoryViewerActionsPopup(
     onArchive: () -> Unit,
     onRestore: () -> Unit,
     onStatistics: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onActivateStealthMode: () -> Unit
 ) {
     if (story == null) return
 
+    val context = LocalContext.current
+    val nowSeconds by produceState(initialValue = (System.currentTimeMillis() / 1000L).toInt()) {
+        while (true) {
+            value = (System.currentTimeMillis() / 1000L).toInt()
+            delay(1_000)
+        }
+    }
+    val stealthAvailability = remember(
+        story.id,
+        story.posterChatId,
+        currentUserId,
+        isPremiumUser,
+        stealthMode.activeUntilDate,
+        stealthMode.cooldownUntilDate,
+        nowSeconds
+    ) {
+        resolveStoryStealthAvailability(
+            isPremiumUser = isPremiumUser,
+            currentUserId = currentUserId,
+            story = story,
+            stealthMode = stealthMode,
+            nowSeconds = nowSeconds
+        )
+    }
     val menuActions = remember(story, canManageStories, activeListType) {
         buildStoryViewerMenuActions(
             story = story,
@@ -449,6 +488,59 @@ private fun StoryViewerActionsPopup(
             isChecked = isMediaScaledToFill,
             onCheckedChange = onMediaScaleToggle
         )
+
+        if (stealthAvailability != StoryStealthAvailability.HIDDEN) {
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+            )
+            val remainingValue = when (stealthAvailability) {
+                StoryStealthAvailability.ACTIVE -> {
+                    compactStoryDurationText(
+                        (stealthMode.activeUntilDate - nowSeconds).coerceAtLeast(0)
+                    )
+                }
+
+                StoryStealthAvailability.COOLDOWN -> {
+                    compactStoryDurationText(
+                        (stealthMode.cooldownUntilDate - nowSeconds).coerceAtLeast(0)
+                    )
+                }
+
+                else -> null
+            }
+            val subtitle = when (stealthAvailability) {
+                StoryStealthAvailability.AVAILABLE -> {
+                    val past = compactStoryDurationText(storyOptions.stealthModePastPeriod)
+                    val future = compactStoryDurationText(storyOptions.stealthModeFuturePeriod)
+                    stringResource(R.string.story_stealth_mode_available, past, future)
+                }
+
+                StoryStealthAvailability.ACTIVE -> {
+                    stringResource(R.string.story_stealth_mode_active)
+                }
+
+                StoryStealthAvailability.COOLDOWN -> {
+                    stringResource(
+                        R.string.story_stealth_mode_cooldown_until,
+                        formatStoryPostedTime(context, stealthMode.cooldownUntilDate)
+                    )
+                }
+
+                StoryStealthAvailability.HIDDEN -> null
+            }
+            MenuOptionRow(
+                icon = Icons.Rounded.VisibilityOff,
+                title = stringResource(R.string.story_stealth_mode_title),
+                subtitle = subtitle,
+                value = remainingValue,
+                enabled = stealthAvailability == StoryStealthAvailability.AVAILABLE,
+                onClick = {
+                    onDismiss()
+                    onActivateStealthMode()
+                }
+            )
+        }
 
         if (menuActions.isNotEmpty()) {
             HorizontalDivider(
@@ -484,6 +576,21 @@ private fun StoryViewerActionsPopup(
                 }
             )
         }
+    }
+}
+
+@Composable
+private fun compactStoryDurationText(seconds: Int): String {
+    if (seconds <= 0) {
+        return pluralStringResource(R.plurals.story_duration_compact_minutes, 0, 0)
+    }
+
+    return if (seconds % 3600 == 0) {
+        val hours = seconds / 3600
+        pluralStringResource(R.plurals.story_duration_compact_hours, hours, hours)
+    } else {
+        val minutes = (seconds / 60).coerceAtLeast(1)
+        pluralStringResource(R.plurals.story_duration_compact_minutes, minutes, minutes)
     }
 }
 

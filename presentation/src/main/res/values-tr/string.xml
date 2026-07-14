@@ -2459,4 +2459,21 @@
     <string name="project_channel_promo_subscribe">Abone ol</string>
     <string name="project_channel_promo_subscribing">Abone olunuyor…</string>
     <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
+    <string name="story_stealth_mode_title">Gizli mod</string>
+    <string name="story_stealth_mode_available">%1$s geri • %2$s ileri</string>
+    <string name="story_stealth_mode_active">Görüntülemeler gizlendi</string>
+    <string name="story_stealth_mode_cooldown_until">%1$s saatinde yeniden kullanılabilir</string>
+    <string name="story_stealth_mode_enabled">Gizli mod %1$s boyunca açık</string>
+    <string name="story_stealth_mode_failed">Gizli mod etkinleştirilemedi</string>
+    <string name="story_validation_pick_media">Önce bir fotoğraf veya video seçin</string>
+    <string name="story_validation_caption_too_long">Hikaye açıklaması çok uzun. En fazla %1$d karakter olabilir</string>
+    <string name="story_validation_links_premium">Hikayelerde bağlantılar için Telegram Premium gerekir</string>
+    <plurals name="story_duration_compact_hours">
+        <item quantity="one">%1$dsa</item>
+        <item quantity="other">%1$dsa</item>
+    </plurals>
+    <plurals name="story_duration_compact_minutes">
+        <item quantity="one">%1$ddk</item>
+        <item quantity="other">%1$ddk</item>
+    </plurals>
 </resources>

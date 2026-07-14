@@ -6,6 +6,7 @@ import org.monogram.domain.models.stories.StoryComposerDraftModel
 import org.monogram.domain.models.stories.StoryInteractionPageModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryModel
+import org.monogram.domain.models.stories.StoryOptionsModel
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryPostResultModel
 import org.monogram.domain.models.stories.StoryReactionModel
@@ -16,9 +17,11 @@ interface StoryRepository {
     val activeStories: StateFlow<Map<StoryListType, List<ActiveStoryListModel>>>
     val storyListChatCounts: StateFlow<Map<StoryListType, Int>>
     val stealthMode: StateFlow<StoryStealthModeModel>
+    val storyOptions: StateFlow<StoryOptionsModel>
     val lastPostResult: StateFlow<StoryPostResultModel?>
 
     suspend fun loadActiveStories(listType: StoryListType)
+    suspend fun refreshStoryOptions()
     suspend fun getChatActiveStories(chatId: Long): ActiveStoryListModel?
     suspend fun getStory(chatId: Long, storyId: Int, onlyLocal: Boolean = false): StoryModel?
     suspend fun getStoryAlbum(
@@ -30,6 +33,7 @@ interface StoryRepository {
 
     suspend fun openStory(chatId: Long, storyId: Int)
     suspend fun closeStory(chatId: Long, storyId: Int)
+    suspend fun activateStealthMode(): Boolean
     suspend fun canPostStory(chatId: Long): StoryPostCapabilityModel
     suspend fun getStoryStatistics(
         chatId: Long,

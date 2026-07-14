@@ -839,7 +839,8 @@ val dataModule = module {
             gateway = get(),
             updates = get(),
             scope = get(),
-            fileDataSource = get()
+            fileDataSource = get(),
+            settingsRemoteDataSource = get()
         )
     }
 

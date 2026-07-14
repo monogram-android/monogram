@@ -2482,4 +2482,21 @@
     <string name="project_channel_promo_subscribe">Suscribirse</string>
     <string name="project_channel_promo_subscribing">Suscribiéndose…</string>
     <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
+    <string name="story_stealth_mode_title">Modo sigiloso</string>
+    <string name="story_stealth_mode_available">Hace %1$s • Próximos %2$s</string>
+    <string name="story_stealth_mode_active">Visualizaciones ocultas</string>
+    <string name="story_stealth_mode_cooldown_until">Disponible de nuevo a las %1$s</string>
+    <string name="story_stealth_mode_enabled">Modo sigiloso activo durante %1$s</string>
+    <string name="story_stealth_mode_failed">No se pudo activar el modo sigiloso</string>
+    <string name="story_validation_pick_media">Primero elige una foto o un video</string>
+    <string name="story_validation_caption_too_long">La descripción de la historia es demasiado larga. El máximo es de %1$d caracteres</string>
+    <string name="story_validation_links_premium">Los enlaces en historias requieren Telegram Premium</string>
+    <plurals name="story_duration_compact_hours">
+        <item quantity="one">%1$dh</item>
+        <item quantity="other">%1$dh</item>
+    </plurals>
+    <plurals name="story_duration_compact_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
 </resources>

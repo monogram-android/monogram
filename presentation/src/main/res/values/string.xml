@@ -631,6 +631,12 @@
     <string name="story_statistics_title">Story Statistics</string>
     <string name="story_statistics_interactions_graph">Views and Shares</string>
     <string name="story_statistics_reactions_graph">Reactions</string>
+    <string name="story_stealth_mode_title">Stealth mode</string>
+    <string name="story_stealth_mode_available">%1$s back • %2$s ahead</string>
+    <string name="story_stealth_mode_active">Views hidden</string>
+    <string name="story_stealth_mode_cooldown_until">Available again at %1$s</string>
+    <string name="story_stealth_mode_enabled">Stealth mode on for %1$s</string>
+    <string name="story_stealth_mode_failed">Failed to enable stealth mode</string>
     <string name="story_interactions_title">Story Interactions</string>
     <string name="story_interactions_empty">No interactions yet</string>
     <string name="story_interactions_load_more">Load more</string>
@@ -2630,4 +2636,15 @@
     <string name="project_channel_promo_later">Later</string>
     <string name="project_channel_promo_subscribe">Subscribe</string>
     <string name="project_channel_promo_subscribing">Subscribing...</string>
+    <string name="story_validation_pick_media">Pick a photo or video first</string>
+    <string name="story_validation_caption_too_long">Story caption is too long. Maximum is %1$d characters</string>
+    <string name="story_validation_links_premium">Story links require Telegram Premium</string>
+    <plurals name="story_duration_compact_hours">
+        <item quantity="one">%1$dh</item>
+        <item quantity="other">%1$dh</item>
+    </plurals>
+    <plurals name="story_duration_compact_minutes">
+        <item quantity="one">%1$dm</item>
+        <item quantity="other">%1$dm</item>
+    </plurals>
 </resources>

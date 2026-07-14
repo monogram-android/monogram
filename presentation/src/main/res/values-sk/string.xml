@@ -2611,4 +2611,21 @@
     <string name="project_channel_promo_subscribe">Prihlásiť sa na odber</string>
     <string name="project_channel_promo_subscribing">Prihlasovanie na odber…</string>
     <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
+    <string name="story_stealth_mode_title">Utajený režim</string>
+    <string name="story_stealth_mode_available">%1$s dozadu • %2$s dopredu</string>
+    <string name="story_stealth_mode_active">Zobrazenia sú skryté</string>
+    <string name="story_stealth_mode_cooldown_until">Znova dostupné o %1$s</string>
+    <string name="story_stealth_mode_enabled">Utajený režim je zapnutý na %1$s</string>
+    <string name="story_stealth_mode_failed">Utajený režim sa nepodarilo zapnúť</string>
+    <string name="story_validation_pick_media">Najprv vyberte fotku alebo video</string>
+    <string name="story_validation_caption_too_long">Popis príbehu je príliš dlhý. Maximum je %1$d znakov</string>
+    <string name="story_validation_links_premium">Odkazy v príbehoch vyžadujú Telegram Premium</string>
+    <plurals name="story_duration_compact_hours">
+        <item quantity="one">%1$dh</item>
+        <item quantity="other">%1$dh</item>
+    </plurals>
+    <plurals name="story_duration_compact_minutes">
+        <item quantity="one">%1$d min</item>
+        <item quantity="other">%1$d min</item>
+    </plurals>
 </resources>

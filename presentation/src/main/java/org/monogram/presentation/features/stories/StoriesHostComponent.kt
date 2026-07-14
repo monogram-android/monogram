@@ -8,9 +8,11 @@ import org.monogram.domain.models.stories.StoryInteractionPageModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryMediaType
 import org.monogram.domain.models.stories.StoryModel
+import org.monogram.domain.models.stories.StoryOptionsModel
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryReactionModel
 import org.monogram.domain.models.stories.StoryStatisticsModel
+import org.monogram.domain.models.stories.StoryStealthModeModel
 
 interface StoriesHostComponent {
     val state: StateFlow<State>
@@ -55,6 +57,7 @@ interface StoriesHostComponent {
     fun showStoryInteractions()
     fun dismissStoryInteractions()
     fun loadMoreStoryInteractions()
+    fun activateStealthMode()
     fun openProfile(chatId: Long)
     fun openStoryLink(url: String)
     fun copyStoryLink(url: String)
@@ -70,10 +73,14 @@ interface StoriesHostComponent {
         val chatId: Long? = null,
         val chatTitle: String = "",
         val chatAvatarPath: String? = null,
+        val currentUserId: Long? = null,
+        val isPremiumUser: Boolean = false,
         val viewerItems: List<StoryViewerUiModel> = emptyList(),
         val viewerIndex: Int = 0,
         val currentStory: StoryModel? = null,
         val activeListType: StoryListType = StoryListType.MAIN,
+        val stealthMode: StoryStealthModeModel = StoryStealthModeModel(),
+        val storyOptions: StoryOptionsModel = StoryOptionsModel(),
         val canManageStories: Boolean = false,
         val composerMode: StoryComposerMode = StoryComposerMode.CREATE,
         val editingStoryId: Int? = null,

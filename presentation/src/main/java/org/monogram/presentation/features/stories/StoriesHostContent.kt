@@ -68,6 +68,7 @@ import org.monogram.domain.models.stories.StoryMediaType
 import org.monogram.domain.models.stories.StoryModel
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryReactionModel
+import org.monogram.domain.models.stories.StoryStealthModeModel
 import org.monogram.presentation.R
 import org.monogram.presentation.features.viewers.VideoViewer
 import java.util.Date
@@ -221,7 +222,8 @@ internal fun StoryViewerChrome(
     onDelete: () -> Unit,
     onDownload: () -> Unit,
     onCopyMedia: () -> Unit,
-    onCopyStoryLink: () -> Unit
+    onCopyStoryLink: () -> Unit,
+    onActivateStealthMode: () -> Unit
 ) {
     StoryViewerChromeComponent(
         state = state,
@@ -247,7 +249,8 @@ internal fun StoryViewerChrome(
         onDelete = onDelete,
         onDownload = onDownload,
         onCopyMedia = onCopyMedia,
-        onCopyStoryLink = onCopyStoryLink
+        onCopyStoryLink = onCopyStoryLink,
+        onActivateStealthMode = onActivateStealthMode
     )
 }
 
@@ -590,7 +593,32 @@ internal data class StoryCapabilityPresentation(
     val isBlocking: Boolean
 )
 
+internal enum class StoryStealthAvailability {
+    HIDDEN,
+    AVAILABLE,
+    ACTIVE,
+    COOLDOWN
+}
+
 internal const val STORY_MEDIA_ASPECT_RATIO = 9f / 16f
+
+internal fun resolveStoryStealthAvailability(
+    isPremiumUser: Boolean,
+    currentUserId: Long?,
+    story: StoryModel?,
+    stealthMode: StoryStealthModeModel,
+    nowSeconds: Int
+): StoryStealthAvailability {
+    if (!isPremiumUser || story == null || currentUserId == null || story.posterChatId == currentUserId) {
+        return StoryStealthAvailability.HIDDEN
+    }
+
+    return when {
+        stealthMode.isActiveAt(nowSeconds) -> StoryStealthAvailability.ACTIVE
+        stealthMode.isCoolingDownAt(nowSeconds) -> StoryStealthAvailability.COOLDOWN
+        else -> StoryStealthAvailability.AVAILABLE
+    }
+}
 
 @Composable
 internal fun storyAreaPrimaryLabel(areaType: StoryAreaTypeModel): String {

@@ -2489,4 +2489,21 @@
     <string name="project_channel_promo_subscribe">Inscrever-se</string>
     <string name="project_channel_promo_subscribing">Inscrevendo-se…</string>
     <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
+    <string name="story_stealth_mode_title">Modo furtivo</string>
+    <string name="story_stealth_mode_available">%1$s atrás • %2$s à frente</string>
+    <string name="story_stealth_mode_active">Visualizações ocultas</string>
+    <string name="story_stealth_mode_cooldown_until">Disponível novamente às %1$s</string>
+    <string name="story_stealth_mode_enabled">Modo furtivo ativado por %1$s</string>
+    <string name="story_stealth_mode_failed">Não foi possível ativar o modo furtivo</string>
+    <string name="story_validation_pick_media">Escolha uma foto ou vídeo primeiro</string>
+    <string name="story_validation_caption_too_long">A legenda do story é muito longa. O máximo é %1$d caracteres</string>
+    <string name="story_validation_links_premium">Links em stories exigem Telegram Premium</string>
+    <plurals name="story_duration_compact_hours">
+        <item quantity="one">%1$dh</item>
+        <item quantity="other">%1$dh</item>
+    </plurals>
+    <plurals name="story_duration_compact_minutes">
+        <item quantity="one">%1$dmin</item>
+        <item quantity="other">%1$dmin</item>
+    </plurals>
 </resources>

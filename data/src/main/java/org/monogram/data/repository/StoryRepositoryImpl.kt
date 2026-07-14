@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.json.JSONObject
 import org.monogram.data.datasource.FileDataSource
+import org.monogram.data.datasource.remote.SettingsRemoteDataSource
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.gateway.UpdateDispatcher
 import org.monogram.data.mapper.StoryInteractionMapper
@@ -24,6 +25,7 @@ import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryMediaModel
 import org.monogram.domain.models.stories.StoryMediaType
 import org.monogram.domain.models.stories.StoryModel
+import org.monogram.domain.models.stories.StoryOptionsModel
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryPostResultModel
 import org.monogram.domain.models.stories.StoryReactionModel
@@ -35,7 +37,8 @@ class StoryRepositoryImpl(
     private val gateway: TelegramGateway,
     private val updates: UpdateDispatcher,
     private val scope: CoroutineScope,
-    private val fileDataSource: FileDataSource
+    private val fileDataSource: FileDataSource,
+    private val settingsRemoteDataSource: SettingsRemoteDataSource
 ) : StoryRepository {
 
     private val state = MutableStateFlow(StoryRepositoryState())
@@ -51,6 +54,9 @@ class StoryRepositoryImpl(
 
     private val _stealthMode = MutableStateFlow(StoryStealthModeModel())
     override val stealthMode: StateFlow<StoryStealthModeModel> = _stealthMode.asStateFlow()
+
+    private val _storyOptions = MutableStateFlow(StoryOptionsModel())
+    override val storyOptions: StateFlow<StoryOptionsModel> = _storyOptions.asStateFlow()
 
     private val _lastPostResult = MutableStateFlow<StoryPostResultModel?>(null)
     override val lastPostResult: StateFlow<StoryPostResultModel?> = _lastPostResult.asStateFlow()
@@ -70,6 +76,19 @@ class StoryRepositoryImpl(
         }.onFailure {
             Log.d(TAG, "loadActiveStories failed for $listType: ${it.message}")
         }
+    }
+
+    override suspend fun refreshStoryOptions() {
+        val options = StoryOptionsModel(
+            captionLengthMax = getIntegerOption("story_caption_length_max"),
+            linkAreaCountMax = getIntegerOption("story_link_area_count_max"),
+            stealthModeCooldownPeriod = getIntegerOption("story_stealth_mode_cooldown_period"),
+            stealthModeFuturePeriod = getIntegerOption("story_stealth_mode_future_period"),
+            stealthModePastPeriod = getIntegerOption("story_stealth_mode_past_period"),
+            suggestedReactionAreaCountMax = getIntegerOption("story_suggested_reaction_area_count_max"),
+            viewersExpirationDelay = getIntegerOption("story_viewers_expiration_delay")
+        )
+        applyState(StoryRepositoryStateReducer.withStoryOptions(state.value, options))
     }
 
     override suspend fun getChatActiveStories(chatId: Long): ActiveStoryListModel? {
@@ -149,6 +168,13 @@ class StoryRepositoryImpl(
 
     override suspend fun closeStory(chatId: Long, storyId: Int) {
         runCatching { gateway.execute(TdApi.CloseStory(chatId, storyId)) }
+    }
+
+    override suspend fun activateStealthMode(): Boolean {
+        return runCatching {
+            gateway.execute(TdApi.ActivateStoryStealthMode())
+            true
+        }.getOrDefault(false)
     }
 
     override suspend fun canPostStory(chatId: Long): StoryPostCapabilityModel {
@@ -390,6 +416,7 @@ class StoryRepositoryImpl(
         _activeStories.value = newState.activeStories
         _storyListChatCounts.value = newState.storyListChatCounts
         _stealthMode.value = newState.stealthMode
+        _storyOptions.value = newState.storyOptions
         _lastPostResult.value = newState.lastPostResult
         Log.d(
             TAG,
@@ -454,6 +481,12 @@ class StoryRepositoryImpl(
             isPaid -> TdApi.ReactionTypePaid()
             else -> TdApi.ReactionTypeEmoji("❤")
         }
+    }
+
+    private suspend fun getIntegerOption(name: String): Int {
+        return (settingsRemoteDataSource.getOption(name) as? TdApi.OptionValueInteger)?.value
+            ?.toInt()
+            ?: 0
     }
 
     private suspend fun resolveStoryMedia(content: TdApi.StoryContent): StoryMediaModel {

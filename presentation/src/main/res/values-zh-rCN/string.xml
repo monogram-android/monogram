@@ -2457,4 +2457,21 @@
     <string name="project_channel_promo_subscribe">订阅</string>
     <string name="project_channel_promo_subscribing">订阅中…</string>
     <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
+    <string name="story_stealth_mode_title">隐身模式</string>
+    <string name="story_stealth_mode_available">回溯 %1$s • 未来 %2$s</string>
+    <string name="story_stealth_mode_active">浏览已隐藏</string>
+    <string name="story_stealth_mode_cooldown_until">%1$s 后可再次使用</string>
+    <string name="story_stealth_mode_enabled">隐身模式已开启，持续 %1$s</string>
+    <string name="story_stealth_mode_failed">无法开启隐身模式</string>
+    <string name="story_validation_pick_media">请先选择照片或视频</string>
+    <string name="story_validation_caption_too_long">故事说明太长，最多 %1$d 个字符</string>
+    <string name="story_validation_links_premium">故事中的链接需要 Telegram Premium</string>
+    <plurals name="story_duration_compact_hours">
+        <item quantity="one">%1$d小时</item>
+        <item quantity="other">%1$d小时</item>
+    </plurals>
+    <plurals name="story_duration_compact_minutes">
+        <item quantity="one">%1$d分</item>
+        <item quantity="other">%1$d分</item>
+    </plurals>
 </resources>

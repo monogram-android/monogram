@@ -15,6 +15,7 @@ import org.monogram.domain.models.stories.StoryInteractionPageModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryMediaType
 import org.monogram.domain.models.stories.StoryModel
+import org.monogram.domain.models.stories.StoryOptionsModel
 import org.monogram.domain.models.stories.StoryPostResultModel
 import org.monogram.domain.models.stories.StoryPrivacyMode
 import org.monogram.domain.models.stories.StoryPrivacySettingsModel
@@ -24,6 +25,7 @@ import org.monogram.domain.repository.AuthRepository
 import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.StoryRepository
+import org.monogram.domain.repository.StringProvider
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
@@ -55,8 +57,26 @@ class DefaultStoriesHostComponent(
 
     init {
         scope.launch {
+            userRepository.currentUserFlow.collect { user ->
+                _state.value = _state.value.copy(
+                    currentUserId = user?.id,
+                    isPremiumUser = user?.isPremium == true
+                )
+            }
+        }
+        scope.launch {
             appPreferences.storyMediaStretchEnabled.collect { enabled ->
                 _state.value = _state.value.copy(isStoryMediaStretchEnabled = enabled)
+            }
+        }
+        scope.launch {
+            storyRepository.stealthMode.collect { stealthMode ->
+                _state.value = _state.value.copy(stealthMode = stealthMode)
+            }
+        }
+        scope.launch {
+            storyRepository.storyOptions.collect { storyOptions ->
+                _state.value = _state.value.copy(storyOptions = storyOptions)
             }
         }
         scope.launch {
@@ -68,6 +88,7 @@ class DefaultStoriesHostComponent(
                             if (!hasLoadedActiveStories) {
                                 hasLoadedActiveStories = true
                                 Log.d(TAG, "auth ready, loading active stories")
+                                storyRepository.refreshStoryOptions()
                                 storyRepository.loadActiveStories(StoryListType.MAIN)
                                 storyRepository.loadActiveStories(StoryListType.ARCHIVE)
                             }
@@ -444,8 +465,14 @@ class DefaultStoriesHostComponent(
     override fun saveStory() {
         val current = _state.value
         val chatId = current.chatId ?: return
-        if (!current.composerDraft.isValid) {
-            _state.value = current.copy(inlineError = "Pick a photo or video first")
+        val validationError = resolveStorySaveValidationError(
+            stringProvider = stringProvider,
+            draft = current.composerDraft,
+            isPremiumUser = current.isPremiumUser,
+            storyOptions = current.storyOptions
+        )
+        if (validationError != null) {
+            _state.value = current.copy(inlineError = validationError)
             return
         }
 
@@ -458,6 +485,7 @@ class DefaultStoriesHostComponent(
             when (
                 val result = saveStoryDraft(
                     storyRepository = storyRepository,
+                    stringProvider = stringProvider,
                     chatId = chatId,
                     composerMode = current.composerMode,
                     editingStoryId = current.editingStoryId,
@@ -651,6 +679,38 @@ class DefaultStoriesHostComponent(
                     isStoryInteractionsLoading = false,
                     storyInteractionsPage = page.mergeWith(nextPage),
                     inlineError = null
+                )
+            }
+        }
+    }
+
+    override fun activateStealthMode() {
+        val current = _state.value
+        val story = current.currentStory ?: return
+        val currentUserId = current.currentUserId
+        val nowSeconds = (System.currentTimeMillis() / 1000L).toInt()
+        if (!current.isPremiumUser || currentUserId == null || story.posterChatId == currentUserId) {
+            return
+        }
+        if (
+            current.stealthMode.isActiveAt(nowSeconds) ||
+            current.stealthMode.isCoolingDownAt(nowSeconds)
+        ) {
+            return
+        }
+
+        scope.launch {
+            val activated = storyRepository.activateStealthMode()
+            if (!activated) {
+                _state.value = _state.value.copy(
+                    inlineError = stringProvider.getString("story_stealth_mode_failed")
+                )
+            } else {
+                messageDisplayer.show(
+                    stringProvider.getString(
+                        "story_stealth_mode_enabled",
+                        stringProvider.getCompactStoryDuration(current.storyOptions.stealthModeFuturePeriod)
+                    )
                 )
             }
         }
@@ -966,6 +1026,10 @@ class DefaultStoriesHostComponent(
 
     private fun createDefaultState(): StoriesHostComponent.State {
         return StoriesHostComponent.State(
+            currentUserId = userRepository.currentUserFlow.value?.id,
+            isPremiumUser = userRepository.currentUserFlow.value?.isPremium == true,
+            stealthMode = storyRepository.stealthMode.value,
+            storyOptions = storyRepository.storyOptions.value,
             isStoryMediaStretchEnabled = appPreferences.storyMediaStretchEnabled.value
         )
     }
@@ -1065,6 +1129,7 @@ internal sealed class StorySaveOutcome {
 
 internal suspend fun saveStoryDraft(
     storyRepository: StoryRepository,
+    stringProvider: StringProvider,
     chatId: Long,
     composerMode: StoryComposerMode,
     editingStoryId: Int?,
@@ -1074,7 +1139,7 @@ internal suspend fun saveStoryDraft(
         StoryComposerMode.CREATE -> {
             val mediaItems = draft.mediaItems
             if (mediaItems.isEmpty()) {
-                StorySaveOutcome.Failed("Pick a photo or video first")
+                StorySaveOutcome.Failed(stringProvider.getString("story_validation_pick_media"))
             } else {
                 var lastStory: StoryModel? = null
                 var createdCount = 0
@@ -1120,6 +1185,42 @@ internal suspend fun saveStoryDraft(
                 StorySaveOutcome.Failed("Failed to save story")
             }
         }
+    }
+}
+
+internal fun resolveStorySaveValidationError(
+    stringProvider: StringProvider,
+    draft: StoryComposerDraftModel,
+    isPremiumUser: Boolean,
+    storyOptions: StoryOptionsModel
+): String? {
+    if (!draft.isValid) {
+        return stringProvider.getString("story_validation_pick_media")
+    }
+
+    val captionLengthMax = storyOptions.captionLengthMax
+    if (captionLengthMax > 0 && draft.caption.length > captionLengthMax) {
+        return stringProvider.getString("story_validation_caption_too_long", captionLengthMax)
+    }
+
+    if (!draft.widgetLink.isNullOrBlank() && (!isPremiumUser || storyOptions.linkAreaCountMax <= 0)) {
+        return stringProvider.getString("story_validation_links_premium")
+    }
+
+    return null
+}
+
+private fun StringProvider.getCompactStoryDuration(seconds: Int): String {
+    if (seconds <= 0) {
+        return getQuantityString("story_duration_compact_minutes", 0, 0)
+    }
+
+    return if (seconds % 3600 == 0) {
+        val hours = seconds / 3600
+        getQuantityString("story_duration_compact_hours", hours, hours)
+    } else {
+        val minutes = (seconds / 60).coerceAtLeast(1)
+        getQuantityString("story_duration_compact_minutes", minutes, minutes)
     }
 }
 

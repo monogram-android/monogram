@@ -2365,4 +2365,21 @@
     <string name="project_channel_promo_subscribe">Բաժանորդագրվել</string>
     <string name="project_channel_promo_subscribing">Բաժանորդագրվում է…</string>
     <string name="search_results_position_format" translatable="false">%1$d / %2$d</string>
+    <string name="story_stealth_mode_title">Անտեսանելի ռեժիմ</string>
+    <string name="story_stealth_mode_available">անցած %1$s • առաջիկա %2$s</string>
+    <string name="story_stealth_mode_active">Դիտումները թաքցված են</string>
+    <string name="story_stealth_mode_cooldown_until">Կրկին հասանելի կլինի %1$s-ին</string>
+    <string name="story_stealth_mode_enabled">Անտեսանելի ռեժիմը միացված է %1$s</string>
+    <string name="story_stealth_mode_failed">Չհաջողվեց միացնել անտեսանելի ռեժիմը</string>
+    <string name="story_validation_pick_media">Նախ ընտրեք լուսանկար կամ տեսանյութ</string>
+    <string name="story_validation_caption_too_long">Պատմության նկարագրությունը չափազանց երկար է։ Առավելագույնը՝ %1$d նիշ</string>
+    <string name="story_validation_links_premium">Պատմություններում հղումները հասանելի են միայն Telegram Premium-ով</string>
+    <plurals name="story_duration_compact_hours">
+        <item quantity="one">%1$d ժ</item>
+        <item quantity="other">%1$d ժ</item>
+    </plurals>
+    <plurals name="story_duration_compact_minutes">
+        <item quantity="one">%1$d ր</item>
+        <item quantity="other">%1$d ր</item>
+    </plurals>
 </resources>

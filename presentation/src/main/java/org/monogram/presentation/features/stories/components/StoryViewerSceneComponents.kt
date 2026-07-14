@@ -301,7 +301,8 @@ internal fun StoryViewerScaffoldComponent(
                     }
                 }
             },
-            onCopyStoryLink = component::copyCurrentStoryLink
+            onCopyStoryLink = component::copyCurrentStoryLink,
+            onActivateStealthMode = component::activateStealthMode
         )
 
         if (isLinksSheetVisible && !story?.linkUrls.isNullOrEmpty()) {

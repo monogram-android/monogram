@@ -23,6 +23,7 @@ class ChatUpdateHandler(
     private val onSaveChatsBySupergroupId: (Long) -> Unit,
     private val onSaveChatsByBasicGroupId: (Long) -> Unit,
     private val onTriggerUpdate: (Long?) -> Unit,
+    private val onScheduleUpdate: (Long?) -> Unit,
     private val onRefreshChat: suspend (Long) -> Unit,
     private val onRefreshForumTopics: () -> Unit,
     private val onAuthorizationStateClosed: () -> Unit
@@ -163,7 +164,7 @@ class ChatUpdateHandler(
             is TdApi.UpdateFile -> {
                 if (fileManager.handleFileUpdate(update.file)) {
                     val chatId = fileManager.getChatIdByPhotoId(update.file.id)
-                    onTriggerUpdate(chatId)
+                    onScheduleUpdate(chatId)
                     onRefreshForumTopics()
                 }
             }
@@ -183,7 +184,7 @@ class ChatUpdateHandler(
             is TdApi.UpdateUserStatus -> {
                 cache.updateUser(update.userId) { it.status = update.status }
                 cache.userIdToChatId[update.userId]?.let { chatId ->
-                    onTriggerUpdate(chatId)
+                    onScheduleUpdate(chatId)
                 }
             }
 
@@ -281,7 +282,7 @@ class ChatUpdateHandler(
             is TdApi.UpdateChatOnlineMemberCount -> {
                 cache.putOnlineMemberCount(update.chatId, update.onlineMemberCount)
                 onSaveChat(update.chatId)
-                onTriggerUpdate(update.chatId)
+                onScheduleUpdate(update.chatId)
             }
 
             is TdApi.UpdateAuthorizationState -> {

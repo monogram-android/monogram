@@ -377,12 +377,17 @@ fun ChatListContent(
     val canShowArchive = isArchivePersistent || isMainView
     val currentFolderChats =
         foldersState.chatsByFolder[effectiveFoldersState.selectedFolderId].orEmpty()
-    val storyIndexChats = remember(foldersState.chatsByFolder) {
-        LinkedHashMap<Long, ChatModel>().apply {
-            foldersState.chatsByFolder.values.forEach { chats ->
-                chats.forEach { chat -> putIfAbsent(chat.id, chat) }
-            }
+    val storyChatIds = remember(storiesState.mainActiveStories, storiesState.archiveActiveStories) {
+        linkedSetOf<Long>().apply {
+            storiesState.mainActiveStories.forEach { add(it.chatId) }
+            storiesState.archiveActiveStories.forEach { add(it.chatId) }
         }
+    }
+    val storyIndexChats = remember(foldersState.chatsByFolder, storyChatIds) {
+        buildStoryChatIndex(
+            chatsByFolder = foldersState.chatsByFolder,
+            storyChatIds = storyChatIds
+        )
     }
     val mainStoryStripItems = remember(storyIndexChats, storiesState.mainActiveStories) {
         storiesState.mainActiveStories.mapNotNull { storyList ->
@@ -3140,6 +3145,28 @@ internal fun shouldShowCreateStoryStripButton(
     hasVisibleStories: Boolean
 ): Boolean {
     return selectedFolderId != -2 && hasVisibleStories
+}
+
+internal fun buildStoryChatIndex(
+    chatsByFolder: Map<Int, List<ChatModel>>,
+    storyChatIds: Set<Long>
+): Map<Long, ChatModel> {
+    if (storyChatIds.isEmpty()) return emptyMap()
+
+    val remainingIds = storyChatIds.toMutableSet()
+    val index = LinkedHashMap<Long, ChatModel>(storyChatIds.size)
+    chatsByFolder.values.forEach { chats ->
+        chats.forEach { chat ->
+            if (chat.id in remainingIds) {
+                index.putIfAbsent(chat.id, chat)
+                remainingIds.remove(chat.id)
+            }
+        }
+        if (remainingIds.isEmpty()) {
+            return index
+        }
+    }
+    return index
 }
 
 private enum class StoriesHeaderMode {

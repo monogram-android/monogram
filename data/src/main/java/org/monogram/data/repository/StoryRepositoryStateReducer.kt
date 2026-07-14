@@ -14,6 +14,7 @@ internal data class StoryKey(
 
 internal data class StoryRepositoryState(
     val activeStories: Map<StoryListType, List<ActiveStoryListModel>> = emptyMap(),
+    val activeStoriesByChatId: Map<Long, ActiveStoryListModel> = emptyMap(),
     val storyCache: Map<StoryKey, StoryModel> = emptyMap(),
     val storyListChatCounts: Map<StoryListType, Int> = emptyMap(),
     val stealthMode: StoryStealthModeModel = StoryStealthModeModel(),
@@ -26,12 +27,14 @@ internal object StoryRepositoryStateReducer {
         state: StoryRepositoryState,
         active: ActiveStoryListModel
     ): StoryRepositoryState {
-        val currentList = state.activeStories[active.listType].orEmpty()
-            .filterNot { it.chatId == active.chatId }
-        val updatedList = (currentList + active)
+        val activeStoriesWithoutChat = state.activeStories.mapValues { (_, list) ->
+            list.filterNot { it.chatId == active.chatId }
+        }.filterValues { it.isNotEmpty() }
+        val updatedList = (activeStoriesWithoutChat[active.listType].orEmpty() + active)
             .sortedWith(compareByDescending<ActiveStoryListModel> { it.order }.thenByDescending { it.chatId })
         return state.copy(
-            activeStories = state.activeStories + (active.listType to updatedList),
+            activeStories = activeStoriesWithoutChat + (active.listType to updatedList),
+            activeStoriesByChatId = state.activeStoriesByChatId + (active.chatId to active),
             storyCache = state.storyCache + active.stories.associate { summary ->
                 val existing = state.storyCache[StoryKey(active.chatId, summary.storyId)]
                 StoryKey(active.chatId, summary.storyId) to (existing?.copy(isRead = summary.isRead)
@@ -92,8 +95,19 @@ internal object StoryRepositoryStateReducer {
                 }
             }
         }.filterValues { it.isNotEmpty() }
+        val updatedActiveByChatId = state.activeStoriesByChatId.toMutableMap()
+        val updatedActive = updatedActiveByChatId[chatId]
+        if (updatedActive != null) {
+            val remaining = updatedActive.stories.filterNot { it.storyId == storyId }
+            if (remaining.isEmpty()) {
+                updatedActiveByChatId.remove(chatId)
+            } else {
+                updatedActiveByChatId[chatId] = updatedActive.copy(stories = remaining)
+            }
+        }
         return state.copy(
             activeStories = newActiveStories,
+            activeStoriesByChatId = updatedActiveByChatId,
             storyCache = state.storyCache - StoryKey(chatId, storyId)
         )
     }
@@ -151,8 +165,6 @@ internal object StoryRepositoryStateReducer {
     }
 
     private fun StoryRepositoryState.findActiveStories(chatId: Long): ActiveStoryListModel? {
-        return activeStories.values.asSequence()
-            .flatMap(List<ActiveStoryListModel>::asSequence)
-            .firstOrNull { it.chatId == chatId }
+        return activeStoriesByChatId[chatId]
     }
 }

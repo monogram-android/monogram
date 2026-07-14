@@ -137,7 +137,8 @@ class DefaultChatListComponent(
     private var hasSeenResume = false
     private val prefetchSemaphore = Semaphore(PREFETCH_CONCURRENCY)
     private val messagePrefetchTimestamps = mutableMapOf<Long, Long>()
-    private val storyPrefetchChatIds = mutableSetOf<Long>()
+    private val storyPrefetchTimestamps = mutableMapOf<Long, Long>()
+    private var trackedStoryChatIds = emptySet<Long>()
     private val lastPinnedFolderLogByFolder = mutableMapOf<Int, PinnedFolderSnapshot>()
 
     private fun ChatListComponent.State.toUiState() = ChatListComponent.UiState(
@@ -308,10 +309,6 @@ class DefaultChatListComponent(
         chatFolderRepository.folderChatsFlow
             .onEach { update ->
                 val normalizedList = normalizeFolderChats(update.chats)
-                val trackedStoryChatIds = storyRepository.activeStories.value.values
-                    .asSequence()
-                    .flatMap(List<ActiveStoryListModel>::asSequence)
-                    .mapTo(mutableSetOf()) { it.chatId }
                 val shouldRefreshStories = shouldRefreshStoriesForFolderUpdate(
                     previousChats = _state.value.chatsByFolder[update.folderId],
                     updatedChats = normalizedList,
@@ -452,6 +449,9 @@ class DefaultChatListComponent(
 
         storyRepository.activeStories
             .onEach { activeStories ->
+                trackedStoryChatIds = activeStories.values.asSequence()
+                    .flatMap(List<ActiveStoryListModel>::asSequence)
+                    .mapTo(linkedSetOf()) { it.chatId }
                 Log.d(
                     STORY_TAG,
                     "story repository update main=${activeStories[StoryListType.MAIN].orEmpty().size} " +
@@ -486,6 +486,8 @@ class DefaultChatListComponent(
 
                     else -> {
                         hasRequestedStoryLists = false
+                        trackedStoryChatIds = emptySet()
+                        storyPrefetchTimestamps.clear()
                     }
                 }
             }
@@ -1291,19 +1293,27 @@ class DefaultChatListComponent(
     }
 
     private fun prefetchStoryListsForChats(folderId: Int, chats: List<ChatModel>) {
+        val now = System.currentTimeMillis()
+        storyPrefetchTimestamps.entries.removeAll { (_, timestamp) ->
+            now - timestamp >= STORY_PREFETCH_TTL_MS
+        }
         val hintedChats = chats.asSequence()
             .filter { it.activeStoryId != 0 || !it.activeStoryStateType.isNullOrBlank() }
             .filter { chat ->
-                storyRepository.activeStories.value.values
-                    .asSequence()
-                    .flatMap(List<ActiveStoryListModel>::asSequence)
-                    .none { active -> active.chatId == chat.id }
+                chat.id !in trackedStoryChatIds
             }
-            .filter { chat -> storyPrefetchChatIds.add(chat.id) }
+            .filter { chat ->
+                val lastPrefetchAt = storyPrefetchTimestamps[chat.id] ?: return@filter true
+                now - lastPrefetchAt >= STORY_PREFETCH_TTL_MS
+            }
             .take(STORY_PREFETCH_MAX)
             .toList()
 
         if (hintedChats.isEmpty()) return
+
+        hintedChats.forEach { chat ->
+            storyPrefetchTimestamps[chat.id] = now
+        }
 
         scope.launch(Dispatchers.IO) {
             hintedChats.forEach { chat ->
@@ -1439,6 +1449,7 @@ class DefaultChatListComponent(
         private const val PREFETCH_PAGE_SIZE = 30
         private const val PREFETCH_TTL_MS = 60_000L
         private const val STORY_PREFETCH_MAX = 12
+        private const val STORY_PREFETCH_TTL_MS = 5 * 60_000L
     }
 
     private fun toggleSelection(id: Long) {

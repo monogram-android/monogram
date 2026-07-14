@@ -94,10 +94,7 @@ class StoryRepositoryImpl(
     }
 
     override suspend fun getChatActiveStories(chatId: Long): ActiveStoryListModel? {
-        val existing = state.value.activeStories.values
-            .asSequence()
-            .flatMap(List<ActiveStoryListModel>::asSequence)
-            .firstOrNull { it.chatId == chatId }
+        val existing = state.value.activeStoriesByChatId[chatId]
         if (existing != null) {
             Log.d(
                 TAG,
@@ -410,10 +407,7 @@ class StoryRepositoryImpl(
             }
 
             is TdApi.UpdateStory -> {
-                val active = state.value.activeStories.values
-                    .asSequence()
-                    .flatMap(List<ActiveStoryListModel>::asSequence)
-                    .firstOrNull { it.chatId == update.story.posterChatId }
+                val active = state.value.activeStoriesByChatId[update.story.posterChatId]
                 applyState(
                     StoryRepositoryStateReducer.withStory(
                         state.value,
@@ -437,10 +431,7 @@ class StoryRepositoryImpl(
             }
 
             is TdApi.UpdateStoryPostSucceeded -> {
-                val active = state.value.activeStories.values
-                    .asSequence()
-                    .flatMap(List<ActiveStoryListModel>::asSequence)
-                    .firstOrNull { it.chatId == update.story.posterChatId }
+                val active = state.value.activeStoriesByChatId[update.story.posterChatId]
                 applyState(
                     StoryRepositoryStateReducer.withPostSucceeded(
                         state.value,
@@ -455,10 +446,7 @@ class StoryRepositoryImpl(
             }
 
             is TdApi.UpdateStoryPostFailed -> {
-                val active = state.value.activeStories.values
-                    .asSequence()
-                    .flatMap(List<ActiveStoryListModel>::asSequence)
-                    .firstOrNull { it.chatId == update.story.posterChatId }
+                val active = state.value.activeStoriesByChatId[update.story.posterChatId]
                 applyState(
                     StoryRepositoryStateReducer.withPostFailed(
                         state.value,
@@ -497,6 +485,9 @@ class StoryRepositoryImpl(
     }
 
     private fun applyState(newState: StoryRepositoryState) {
+        if (newState == state.value) {
+            return
+        }
         state.value = newState
         _activeStories.value = newState.activeStories
         _storyListChatCounts.value = newState.storyListChatCounts

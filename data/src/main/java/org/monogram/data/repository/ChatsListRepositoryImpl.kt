@@ -4,8 +4,11 @@ import android.util.Log
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -14,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
 import org.monogram.data.chats.ChatCache
@@ -67,6 +72,8 @@ import kotlin.system.measureTimeMillis
 
 private const val RESUME_RECOVERY_COOLDOWN_MS_POLICY = 3_000L
 private const val MIN_EXPECTED_RENDERED_CHATS_POLICY = 20
+private const val LIGHTWEIGHT_UPDATE_DEBOUNCE_MS_POLICY = 150L
+private const val BACKFILL_FETCH_PARALLELISM = 4
 
 class ChatsListRepositoryImpl(
     private val remoteDataSource: ChatsRemoteDataSource,
@@ -141,7 +148,7 @@ class ChatsListRepositoryImpl(
         usersCache = cache.usersCache,
         allChats = cache.allChats,
         stringProvider = stringProvider,
-        onUpdate = { chatId -> triggerUpdate(chatId) },
+        onUpdate = { chatId -> scheduleUpdate(chatId) },
         onUserNeeded = { userId -> fetchUser(userId) }
     )
 
@@ -164,7 +171,7 @@ class ChatsListRepositoryImpl(
         typingManager = typingManager,
         appPreferences = appPreferences,
         userFullInfoDao = userFullInfoDao,
-        triggerUpdate = { chatId -> triggerUpdate(chatId) },
+        scheduleUpdate = { chatId -> scheduleUpdate(chatId) },
         fetchUser = { userId -> fetchUser(userId) }
     )
 
@@ -240,6 +247,15 @@ class ChatsListRepositoryImpl(
     @Volatile
     private var lastConnectionStatus: ConnectionStatus? = null
 
+    private val scheduledUpdateLock = Any()
+    private val pendingScheduledChatIds = ConcurrentHashMap.newKeySet<Long>()
+
+    @Volatile
+    private var pendingScheduledFullInvalidation = false
+
+    @Volatile
+    private var scheduledUpdateJob: Job? = null
+
     private val modelCache = SynchronizedLruMap<Long, ChatModel>(MODEL_CACHE_SIZE)
     private val invalidatedModels = ConcurrentHashMap.newKeySet<Long>()
     @Volatile
@@ -262,6 +278,7 @@ class ChatsListRepositoryImpl(
         onSaveChatsBySupergroupId = { supergroupId -> persistenceManager.scheduleSavesBySupergroupId(supergroupId) },
         onSaveChatsByBasicGroupId = { basicGroupId -> persistenceManager.scheduleSavesByBasicGroupId(basicGroupId) },
         onTriggerUpdate = { chatId -> triggerUpdate(chatId) },
+        onScheduleUpdate = { chatId -> scheduleUpdate(chatId) },
         onRefreshChat = { chatId -> refreshChat(chatId) },
         onRefreshForumTopics = { refreshActiveForumTopics() },
         onAuthorizationStateClosed = {
@@ -410,6 +427,12 @@ class ChatsListRepositoryImpl(
     }
 
     private fun clearTransientState() {
+        synchronized(scheduledUpdateLock) {
+            scheduledUpdateJob?.cancel()
+            scheduledUpdateJob = null
+            pendingScheduledFullInvalidation = false
+            pendingScheduledChatIds.clear()
+        }
         modelCache.clear()
         invalidatedModels.clear()
         invalidateAllModels = true
@@ -427,6 +450,51 @@ class ChatsListRepositoryImpl(
             invalidatedModels.add(chatId)
         }
         updateChannel.trySend(Unit)
+    }
+
+    private fun scheduleUpdate(chatId: Long? = null) {
+        synchronized(scheduledUpdateLock) {
+            if (chatId == null) {
+                pendingScheduledFullInvalidation = true
+            } else {
+                pendingScheduledChatIds.add(chatId)
+            }
+            if (scheduledUpdateJob?.isActive == true) {
+                return
+            }
+            scheduledUpdateJob = scope.launch(dispatchers.io) {
+                while (true) {
+                    delay(LIGHTWEIGHT_UPDATE_DEBOUNCE_MS_POLICY)
+
+                    val fullInvalidation: Boolean
+                    val scheduledChatIds: Set<Long>
+                    synchronized(scheduledUpdateLock) {
+                        fullInvalidation = pendingScheduledFullInvalidation
+                        scheduledChatIds = pendingScheduledChatIds.toSet()
+                        pendingScheduledFullInvalidation = false
+                        pendingScheduledChatIds.clear()
+                    }
+
+                    if (fullInvalidation) {
+                        invalidateAllModels = true
+                        invalidatedModels.addAll(cache.activeListPositions.keys)
+                    } else if (scheduledChatIds.isNotEmpty()) {
+                        invalidatedModels.addAll(scheduledChatIds)
+                    }
+
+                    if (fullInvalidation || scheduledChatIds.isNotEmpty()) {
+                        updateChannel.trySend(Unit)
+                    }
+
+                    synchronized(scheduledUpdateLock) {
+                        if (!pendingScheduledFullInvalidation && pendingScheduledChatIds.isEmpty()) {
+                            scheduledUpdateJob = null
+                            return@launch
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun isRequestActive(folderId: Int, requestId: Long): Boolean {
@@ -1150,6 +1218,7 @@ class ChatsListRepositoryImpl(
         )
 
         var recovered = 0
+        val missingIdsToFetch = ArrayList<Long>(missingIds.size)
         missingIds.forEach { chatId ->
             val cachedChat = cache.getChat(chatId)
             if (cachedChat != null && cachedChat.positions.any { pos ->
@@ -1162,8 +1231,26 @@ class ChatsListRepositoryImpl(
                 recovered += 1
                 return@forEach
             }
+            missingIdsToFetch += chatId
+        }
 
-            val fetchedChat = remoteDataSource.getChat(chatId) ?: return@forEach
+        val fetchedChatsById = coroutineScope {
+            val semaphore = Semaphore(BACKFILL_FETCH_PARALLELISM)
+            missingIdsToFetch.map { chatId ->
+                async(dispatchers.io) {
+                    semaphore.withPermit {
+                        if (!isRequestActive(folderId, requestId)) {
+                            chatId to null
+                        } else {
+                            chatId to remoteDataSource.getChat(chatId)
+                        }
+                    }
+                }
+            }.awaitAll()
+        }.toMap()
+
+        missingIdsToFetch.forEach { chatId ->
+            val fetchedChat = fetchedChatsById[chatId] ?: return@forEach
             val existingPositions = cache.getChat(fetchedChat.id)?.positions ?: emptyArray()
             fetchedChat.positions = listManager.sanitizePositionsForActiveList(
                 chatId = fetchedChat.id,

@@ -14,10 +14,10 @@ HAS_ARGS=0
 print_usage() {
     cat <<'EOF'
 Usage:
-  ./build-apk.sh
-  ./build-apk.sh [filters...]
-  ./build-apk.sh --help
-  ./build-apk.sh --list
+  ./build.sh
+  ./build.sh [filters...]
+  ./build.sh --help
+  ./build.sh --list
 
 Interactive mode:
   1. Select TDLib source: official / telemt / both
@@ -47,15 +47,16 @@ Extra filters:
   -abi-all               Show all generated APKs
 
 Examples:
-  ./build-apk.sh -o -f -r -a64
-  ./build-apk.sh -t -g -d
-  ./build-apk.sh -all-official
-  ./build-apk.sh -all
+  ./build.sh -o -f -r -a64
+  ./build.sh -t -g -d
+  ./build.sh -all-official
+  ./build.sh -all
 
 Notes:
   - If you pass filters, any group you do not specify defaults to "all".
   - The script validates the Android SDK path before starting Gradle.
   - Google builds require app/google-services.json.
+  - Unit-test verification runs before each APK assemble task.
   - ABI selection filters the APK files shown after the build.
     Gradle still produces the split outputs configured by the project.
 EOF
@@ -354,6 +355,14 @@ build_task_for() {
     printf ':app:assemble%s%s%s' "$source_value" "$runtime_value" "$build_type_value"
 }
 
+verify_task_for() {
+    source_value=$(source_capitalized "$1")
+    runtime_value=$(runtime_capitalized "$2")
+    build_type_value=$(build_type_capitalized "$3")
+
+    printf 'verify%s%s%sBeforeAssemble' "$source_value" "$runtime_value" "$build_type_value"
+}
+
 variant_label_for() {
     printf '%s-%s-%s' "$1" "$2" "$3"
 }
@@ -516,7 +525,7 @@ print_selection_summary() {
     echo "  Runtime: $runtimes"
     echo "  Build type: $build_types"
     echo "  ABI filter: $abi_filter"
-    echo "  Gradle tasks: $task_count"
+    echo "  Build variants: $task_count"
     echo
 }
 
@@ -591,11 +600,12 @@ for source_value in $SOURCES; do
     for runtime_value in $RUNTIMES; do
         for build_type_value in $BUILD_TYPES; do
             task=$(build_task_for "$source_value" "$runtime_value" "$build_type_value")
+            verify_task=$(verify_task_for "$source_value" "$runtime_value" "$build_type_value")
             label=$(variant_label_for "$source_value" "$runtime_value" "$build_type_value")
 
-            echo "Building $label"
-            echo "Gradle task: $task"
-            "$GRADLEW" "$task"
+            echo "Verifying tests and building $label"
+            echo "Gradle tasks: $verify_task $task"
+            "$GRADLEW" "$verify_task" "$task"
             echo
 
             print_artifacts_for_variant "$source_value" "$runtime_value" "$build_type_value" "$ABI_FILTER"

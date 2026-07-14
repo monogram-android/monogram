@@ -32,14 +32,14 @@ jobs:
     - name: Build libvpx
       run: cd presentation/src/main/cpp && ./build.sh
 
-    - name: Build Official Libre Debug APK
-      run: ./gradlew assembleOfficialLibreDebug
-
     - name: Run Official Libre Debug Unit Tests
       run: ./gradlew testOfficialLibreDebugUnitTest
 
-#    - name: Build Telemt Libre Debug APK
-#      run: ./gradlew assembleTelemtLibreDebug
-#
+    - name: Build Official Libre Debug APK
+      run: ./gradlew assembleOfficialLibreDebug
+
 #    - name: Run Telemt Libre Debug Unit Tests
 #      run: ./gradlew testTelemtLibreDebugUnitTest
+#
+#    - name: Build Telemt Libre Debug APK
+#      run: ./gradlew assembleTelemtLibreDebug

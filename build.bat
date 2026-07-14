@@ -90,9 +90,11 @@ for %%S in (!SOURCES!) do (
             if /I "%%R"=="google" set "OUTPUT_FLAVOR=%%SFirebase"
             set "OUTPUT_DIR=%SCRIPT_DIR%app\build\outputs\apk\!OUTPUT_FLAVOR!\%%B"
 
-            echo Building !VARIANT_LABEL!
-            echo Gradle task: !TASK!
-            call "%SCRIPT_DIR%gradlew.bat" !TASK!
+            set "VERIFY_TASK=verify!SOURCE_CAP!!RUNTIME_CAP!!TYPE_CAP!BeforeAssemble"
+
+            echo Verifying tests and building !VARIANT_LABEL!
+            echo Gradle tasks: !VERIFY_TASK! !TASK!
+            call "%SCRIPT_DIR%gradlew.bat" !VERIFY_TASK! !TASK!
             if errorlevel 1 (
                 echo Build failed.
                 goto fail
@@ -385,16 +387,16 @@ echo   TDLib: %SOURCES%
 echo   Runtime: %RUNTIMES%
 echo   Build type: %BUILD_TYPES%
 echo   ABI filter: %ABI_FILTER%
-echo   Gradle tasks: %TASK_COUNT%
+echo   Build variants: %TASK_COUNT%
 echo.
 exit /b 0
 
 :print_usage
 echo Usage:
-echo   build-apk.bat
-echo   build-apk.bat [filters...]
-echo   build-apk.bat --help
-echo   build-apk.bat --list
+echo   build.bat
+echo   build.bat [filters...]
+echo   build.bat --help
+echo   build.bat --list
 echo.
 echo Interactive mode:
 echo   1. Select TDLib source: official / telemt / both
@@ -424,15 +426,16 @@ echo   -type-all              Build debug and release
 echo   -abi-all               Show all generated APKs
 echo.
 echo Examples:
-echo   build-apk.bat -o -f -r -a64
-echo   build-apk.bat -t -g -d
-echo   build-apk.bat -all-official
-echo   build-apk.bat -all
+echo   build.bat -o -f -r -a64
+echo   build.bat -t -g -d
+echo   build.bat -all-official
+echo   build.bat -all
 echo.
 echo Notes:
 echo   - If you pass filters, any group you do not specify defaults to "all".
 echo   - The script validates the Android SDK path before starting Gradle.
 echo   - Google builds require app\google-services.json.
+echo   - Unit-test verification runs before each APK assemble task.
 echo   - ABI selection filters the APK files shown after the build.
 echo     Gradle still produces the split outputs configured by the project.
 exit /b 0

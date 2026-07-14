@@ -10,6 +10,7 @@ import org.monogram.domain.models.GroupMemberModel
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.stories.ActiveStoryListModel
+import org.monogram.domain.models.stories.StoryModel
 import org.monogram.domain.repository.ChatMemberStatus
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.presentation.core.util.IDownloadUtils
@@ -86,6 +87,9 @@ interface ProfileComponent {
     fun onLocationClick(lat: Double, lon: Double, address: String)
     fun onDismissLocation()
     fun onOpenStories()
+    fun onOpenActiveStory(storyId: Int)
+    fun onOpenPostedStories()
+    fun onOpenPostedStory(storyId: Int)
     fun onOpenStoryArchive()
     fun onCreateStory()
 
@@ -101,7 +105,7 @@ interface ProfileComponent {
         val publicLink: String? = null,
 
         val visibleTabs: List<ProfileTabSpec> = emptyList(),
-        val selectedTabKey: ProfileTabKey = ProfileTabKey.MEDIA,
+        val selectedTabKey: ProfileTabKey = ProfileTabKey.STORIES,
         val messageTabs: Map<ProfileTabKey, MessageTabState> = defaultMessageTabStates(),
         val membersTab: MembersTabState = MembersTabState(),
 
@@ -164,8 +168,22 @@ interface ProfileComponent {
         val pendingMiniAppName: String? = null,
 
         val selectedLocation: LocationData? = null,
-        val activeStoryList: ActiveStoryListModel? = null
+        val isStoriesLoading: Boolean = false,
+        val activeStoryList: ActiveStoryListModel? = null,
+        val activeStories: List<StoryModel> = emptyList(),
+        val postedStories: List<StoryModel> = emptyList(),
+        val postedStoryCount: Int = 0,
+        val hasPostedStoriesHint: Boolean = false
     ) {
+        val activeStoryCount: Int
+            get() = activeStoryList?.stories?.size ?: 0
+
+        val hasPostedStories: Boolean
+            get() = hasPostedStoriesHint || postedStoryCount > 0
+
+        val hasAnyStories: Boolean
+            get() = activeStories.isNotEmpty() || postedStories.isNotEmpty() || hasPostedStories
+
         val selectedTab: ProfileTabSpec?
             get() = visibleTabs.firstOrNull { it.key == selectedTabKey }
 
@@ -221,6 +239,7 @@ interface ProfileComponent {
 
 private fun defaultMessageTabStates(): Map<ProfileTabKey, ProfileComponent.MessageTabState> =
     listOf(
+        ProfileTabKey.STORIES,
         ProfileTabKey.MEDIA,
         ProfileTabKey.FILES,
         ProfileTabKey.MUSIC,

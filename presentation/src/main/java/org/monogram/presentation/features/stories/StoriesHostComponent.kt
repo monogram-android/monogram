@@ -25,6 +25,8 @@ interface StoriesHostComponent {
     )
 
     fun openStoryAlbum(chatId: Long, albumId: Int)
+    fun openProfileStories(chatId: Long, storyId: Int? = null)
+    fun openProfileStoryArchive(chatId: Long, storyId: Int? = null)
     fun openComposer(
         chatId: Long,
         preferredMediaType: StoryMediaType? = null,
@@ -53,6 +55,7 @@ interface StoriesHostComponent {
     fun deleteCurrentStory()
     fun moveCurrentStoryToArchive()
     fun restoreCurrentStoryFromArchive()
+    fun toggleCurrentStoryPostedToProfile()
     fun showStoryStatistics()
     fun dismissStoryStatistics()
     fun showStoryInteractions()
@@ -81,6 +84,7 @@ interface StoriesHostComponent {
         val viewerItems: List<StoryViewerUiModel> = emptyList(),
         val viewerIndex: Int = 0,
         val currentStory: StoryModel? = null,
+        val viewerSource: StoryViewerSource = StoryViewerSource.ACTIVE,
         val activeListType: StoryListType = StoryListType.MAIN,
         val stealthMode: StoryStealthModeModel = StoryStealthModeModel(),
         val storyOptions: StoryOptionsModel = StoryOptionsModel(),
@@ -121,6 +125,13 @@ interface StoriesHostComponent {
         Viewer,
         Composer
     }
+}
+
+enum class StoryViewerSource {
+    ACTIVE,
+    PROFILE,
+    PROFILE_ARCHIVE,
+    ALBUM
 }
 
 enum class StoryComposerMode {

@@ -77,6 +77,17 @@ import java.util.Date
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
+internal val StoryViewerContentColor = Color(0xFFF5F7FB)
+internal val StoryViewerMutedContentColor = Color(0xB8F5F7FB)
+internal val StoryViewerBorderColor = Color(0x26F5F7FB)
+internal val StoryViewerSheetColor = Color(0xFF12161F)
+internal val StoryViewerSheetSurfaceColor = Color(0xFF1A2028)
+internal val StoryViewerSheetSurfaceVariantColor = Color(0xFF262D3A)
+
+internal fun storyViewerOverlayColor(alpha: Float = 0.78f): Color {
+    return Color(0xFF12161F).copy(alpha = alpha)
+}
+
 @Composable
 fun StoriesHostContent(component: StoriesHostComponent) {
     val state by component.state.collectAsState()
@@ -167,7 +178,7 @@ private fun StoryViewerOverlay(
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color.Black,
-        contentColor = MaterialTheme.colorScheme.onPrimary
+        contentColor = StoryViewerContentColor
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (
@@ -219,6 +230,7 @@ internal fun StoryViewerChrome(
     onProfileClick: (() -> Unit)?,
     onLinks: () -> Unit,
     onEdit: () -> Unit,
+    onToggleProfileVisibility: () -> Unit,
     onArchive: () -> Unit,
     onRestore: () -> Unit,
     onStatistics: () -> Unit,
@@ -246,6 +258,7 @@ internal fun StoryViewerChrome(
         onProfileClick = onProfileClick,
         onLinks = onLinks,
         onEdit = onEdit,
+        onToggleProfileVisibility = onToggleProfileVisibility,
         onArchive = onArchive,
         onRestore = onRestore,
         onStatistics = onStatistics,
@@ -318,7 +331,7 @@ internal fun StoryInteractionAvatar(
 ) {
     Surface(
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = StoryViewerSheetSurfaceVariantColor,
         modifier = Modifier.size(40.dp)
     ) {
         if (avatarPath != null) {
@@ -336,7 +349,7 @@ internal fun StoryInteractionAvatar(
                 Icon(
                     imageVector = if (isChat) Icons.Rounded.PeopleAlt else Icons.Rounded.Person,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = StoryViewerMutedContentColor
                 )
             }
         }
@@ -359,9 +372,9 @@ internal fun StoryMetadataChip(
             )
         },
         colors = AssistChipDefaults.assistChipColors(
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
-            disabledLabelColor = MaterialTheme.colorScheme.onSurface,
-            disabledLeadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            disabledContainerColor = StoryViewerSheetSurfaceVariantColor.copy(alpha = 0.82f),
+            disabledLabelColor = StoryViewerContentColor,
+            disabledLeadingIconContentColor = StoryViewerMutedContentColor
         ),
         border = AssistChipDefaults.assistChipBorder(
             enabled = false,
@@ -504,6 +517,8 @@ internal enum class StoryViewerMenuAction {
     COPY_STORY_LINK,
     LINKS,
     EDIT,
+    KEEP_ON_PROFILE,
+    REMOVE_FROM_PROFILE,
     ARCHIVE,
     RESTORE,
     STATISTICS,
@@ -525,7 +540,7 @@ internal fun StoryTopIconButton(
     Surface(
         onClick = onClick,
         shape = CircleShape,
-        color = Color.Black.copy(alpha = 0.34f)
+        color = storyViewerOverlayColor(alpha = 0.82f)
     ) {
         Box(
             modifier = Modifier
@@ -742,7 +757,8 @@ internal fun resolveStoryDownloadPath(story: StoryModel?): String? {
 internal fun buildStoryViewerMenuActions(
     story: StoryModel?,
     canManageStories: Boolean,
-    activeListType: StoryListType
+    activeListType: StoryListType,
+    viewerSource: StoryViewerSource
 ): List<StoryViewerMenuItem> {
     if (story == null) return emptyList()
 
@@ -785,7 +801,19 @@ internal fun buildStoryViewerMenuActions(
                 )
             )
         }
-        if (canManageStories) {
+        if (story.canToggleIsPostedToChatPage) {
+            add(
+                StoryViewerMenuItem(
+                    action = if (story.isPostedToChatPage) {
+                        StoryViewerMenuAction.REMOVE_FROM_PROFILE
+                    } else {
+                        StoryViewerMenuAction.KEEP_ON_PROFILE
+                    },
+                    group = StoryViewerMenuGroup.MANAGE
+                )
+            )
+        }
+        if (canManageStories && viewerSource == StoryViewerSource.ACTIVE) {
             add(
                 StoryViewerMenuItem(
                     action = if (activeListType == StoryListType.MAIN) {
@@ -834,6 +862,8 @@ internal fun storyViewerMenuTitle(
         StoryViewerMenuAction.COPY_STORY_LINK -> stringResource(R.string.action_copy_link)
         StoryViewerMenuAction.LINKS -> stringResource(R.string.story_links_title)
         StoryViewerMenuAction.EDIT -> stringResource(R.string.action_edit)
+        StoryViewerMenuAction.KEEP_ON_PROFILE -> stringResource(R.string.story_keep_on_profile)
+        StoryViewerMenuAction.REMOVE_FROM_PROFILE -> stringResource(R.string.story_remove_from_profile)
         StoryViewerMenuAction.ARCHIVE -> stringResource(R.string.story_archive)
         StoryViewerMenuAction.RESTORE -> stringResource(R.string.action_restore)
         StoryViewerMenuAction.STATISTICS -> stringResource(R.string.story_statistics_title)
@@ -850,6 +880,8 @@ internal fun storyViewerMenuIcon(
         StoryViewerMenuAction.COPY_STORY_LINK -> Icons.Rounded.Link
         StoryViewerMenuAction.LINKS -> Icons.Rounded.Link
         StoryViewerMenuAction.EDIT -> Icons.Rounded.Edit
+        StoryViewerMenuAction.KEEP_ON_PROFILE -> Icons.Rounded.Person
+        StoryViewerMenuAction.REMOVE_FROM_PROFILE -> Icons.Rounded.Person
         StoryViewerMenuAction.ARCHIVE -> Icons.Rounded.Archive
         StoryViewerMenuAction.RESTORE -> Icons.Rounded.Restore
         StoryViewerMenuAction.STATISTICS -> Icons.Rounded.BarChart

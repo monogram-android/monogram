@@ -841,11 +841,11 @@ class DefaultRootComponent(
                     onOpenStoriesClicked = { targetChatId, storyId ->
                         storiesHost.openChatStories(targetChatId, storyId)
                     },
+                    onOpenPostedStoriesClicked = { targetChatId, storyId ->
+                        storiesHost.openProfileStories(targetChatId, storyId)
+                    },
                     onOpenStoryArchiveClicked = { targetChatId ->
-                        storiesHost.openChatStories(
-                            targetChatId,
-                            listType = org.monogram.domain.models.stories.StoryListType.ARCHIVE
-                        )
+                        storiesHost.openProfileStoryArchive(targetChatId)
                     },
                     onCreateStoryClicked = { targetChatId ->
                         openStoryComposer(targetChatId)

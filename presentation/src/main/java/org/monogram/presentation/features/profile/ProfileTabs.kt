@@ -6,6 +6,7 @@ import org.monogram.domain.repository.ProfileMediaFilter
 import org.monogram.presentation.R
 
 enum class ProfileTabKey {
+    STORIES,
     MEDIA,
     MEMBERS,
     FILES,
@@ -16,6 +17,7 @@ enum class ProfileTabKey {
 }
 
 enum class ProfileTabContentType {
+    STORIES_LIST,
     MEDIA_GRID,
     MESSAGE_LIST,
     MEMBERS_LIST
@@ -36,6 +38,7 @@ fun buildProfileTabSpecs(
 ): List<ProfileTabSpec> {
     val supportedKeys = if (isGroupOrChannel) {
         listOf(
+            ProfileTabKey.STORIES,
             ProfileTabKey.MEDIA,
             ProfileTabKey.MEMBERS,
             ProfileTabKey.FILES,
@@ -46,6 +49,7 @@ fun buildProfileTabSpecs(
         )
     } else {
         listOf(
+            ProfileTabKey.STORIES,
             ProfileTabKey.MEDIA,
             ProfileTabKey.FILES,
             ProfileTabKey.MUSIC,
@@ -55,7 +59,7 @@ fun buildProfileTabSpecs(
         )
     }
 
-    val initialKey = preferredTabKey?.takeIf { it in supportedKeys } ?: ProfileTabKey.MEDIA
+    val initialKey = preferredTabKey?.takeIf { it in supportedKeys } ?: ProfileTabKey.STORIES
 
     return supportedKeys.map { key ->
         ProfileTabSpec(
@@ -80,6 +84,7 @@ fun ProfileTabType?.toProfileTabKeyOrNull(): ProfileTabKey? =
 
 fun ProfileTabKey.toProfileMediaFilter(): ProfileMediaFilter? =
     when (this) {
+        ProfileTabKey.STORIES -> null
         ProfileTabKey.MEDIA -> ProfileMediaFilter.MEDIA
         ProfileTabKey.FILES -> ProfileMediaFilter.FILES
         ProfileTabKey.MUSIC -> ProfileMediaFilter.AUDIO
@@ -91,6 +96,7 @@ fun ProfileTabKey.toProfileMediaFilter(): ProfileMediaFilter? =
 
 fun ProfileTabKey.contentType(): ProfileTabContentType =
     when (this) {
+        ProfileTabKey.STORIES -> ProfileTabContentType.STORIES_LIST
         ProfileTabKey.MEDIA,
         ProfileTabKey.GIFS -> ProfileTabContentType.MEDIA_GRID
 
@@ -104,6 +110,7 @@ fun ProfileTabKey.contentType(): ProfileTabContentType =
 @StringRes
 fun ProfileTabKey.titleRes(): Int =
     when (this) {
+        ProfileTabKey.STORIES -> R.string.tab_stories
         ProfileTabKey.MEDIA -> R.string.tab_media
         ProfileTabKey.MEMBERS -> R.string.tab_members
         ProfileTabKey.FILES -> R.string.tab_files

@@ -119,6 +119,7 @@ internal fun StoryViewerChromeComponent(
     onProfileClick: (() -> Unit)?,
     onLinks: () -> Unit,
     onEdit: () -> Unit,
+    onToggleProfileVisibility: () -> Unit,
     onArchive: () -> Unit,
     onRestore: () -> Unit,
     onStatistics: () -> Unit,
@@ -175,6 +176,7 @@ internal fun StoryViewerChromeComponent(
                     stealthMode = state.stealthMode,
                     storyOptions = state.storyOptions,
                     canManageStories = state.canManageStories,
+                    viewerSource = state.viewerSource,
                     activeListType = state.activeListType,
                     isMediaScaledToFill = isMediaScaledToFill,
                     onDismiss = { showMenu = false },
@@ -184,6 +186,7 @@ internal fun StoryViewerChromeComponent(
                     onCopyStoryLink = onCopyStoryLink,
                     onLinks = onLinks,
                     onEdit = onEdit,
+                    onToggleProfileVisibility = onToggleProfileVisibility,
                     onArchive = onArchive,
                     onRestore = onRestore,
                     onStatistics = onStatistics,
@@ -208,7 +211,7 @@ internal fun StoryViewerChromeComponent(
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
                                     strokeWidth = 2.5.dp,
-                                    color = MaterialTheme.colorScheme.onPrimary
+                                    color = StoryViewerContentColor
                                 )
                             } else {
                                 Icon(
@@ -218,7 +221,7 @@ internal fun StoryViewerChromeComponent(
                                         Icons.Rounded.Pause
                                     },
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimary
+                                    tint = StoryViewerContentColor
                                 )
                             }
                         }
@@ -242,7 +245,7 @@ internal fun StoryViewerChromeComponent(
                                     Icons.AutoMirrored.Rounded.VolumeOff
                                 },
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary
+                                tint = StoryViewerContentColor
                             )
                         }
                     }
@@ -260,7 +263,7 @@ internal fun StoryViewerChromeComponent(
                             Icon(
                                 imageVector = Icons.Rounded.Favorite,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary
+                                tint = StoryViewerContentColor
                             )
                         }
                     }
@@ -277,7 +280,7 @@ internal fun StoryViewerChromeComponent(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    color = Color.Black.copy(alpha = 0.38f)
+                    color = storyViewerOverlayColor(alpha = 0.88f)
                 ) {
                     Text(
                         text = story?.caption.orEmpty(),
@@ -285,7 +288,7 @@ internal fun StoryViewerChromeComponent(
                             .fillMaxWidth()
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = StoryViewerContentColor
                     )
                 }
             }
@@ -329,7 +332,7 @@ private fun StoryViewerHeader(
 
     Surface(
         shape = RoundedCornerShape(22.dp),
-        color = Color.Black.copy(alpha = 0.30f)
+        color = storyViewerOverlayColor(alpha = 0.84f)
     ) {
         Row(
             modifier = Modifier
@@ -349,9 +352,11 @@ private fun StoryViewerHeader(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = if (showSkeleton) Color.White.copy(alpha = 0.16f) else Color.White.copy(
-                        alpha = 0.12f
-                    ),
+                    color = if (showSkeleton) {
+                        StoryViewerContentColor.copy(alpha = 0.16f)
+                    } else {
+                        StoryViewerContentColor.copy(alpha = 0.12f)
+                    },
                     modifier = Modifier.size(38.dp)
                 ) {
                     if (showSkeleton) {
@@ -371,7 +376,7 @@ private fun StoryViewerHeader(
                             Icon(
                                 imageVector = Icons.Rounded.Image,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                                tint = StoryViewerContentColor.copy(alpha = 0.9f)
                             )
                         }
                     }
@@ -393,7 +398,7 @@ private fun StoryViewerHeader(
                                 Text(
                                     text = currentInfo.title,
                                     style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    color = StoryViewerContentColor,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -403,7 +408,7 @@ private fun StoryViewerHeader(
                                         currentInfo.postedAt.takeIf { it.isNotBlank() }
                                     ).joinToString(" • "),
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f),
+                                    color = StoryViewerMutedContentColor,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -418,7 +423,7 @@ private fun StoryViewerHeader(
                     Icon(
                         imageVector = Icons.Rounded.MoreVert,
                         contentDescription = stringResource(R.string.menu_more),
-                        tint = MaterialTheme.colorScheme.onPrimary
+                        tint = StoryViewerContentColor
                     )
                 }
             }
@@ -427,7 +432,7 @@ private fun StoryViewerHeader(
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary
+                    tint = StoryViewerContentColor
                 )
             }
         }
@@ -443,6 +448,7 @@ private fun StoryViewerActionsPopup(
     stealthMode: org.monogram.domain.models.stories.StoryStealthModeModel,
     storyOptions: org.monogram.domain.models.stories.StoryOptionsModel,
     canManageStories: Boolean,
+    viewerSource: StoryViewerSource,
     activeListType: StoryListType,
     isMediaScaledToFill: Boolean,
     onDismiss: () -> Unit,
@@ -452,6 +458,7 @@ private fun StoryViewerActionsPopup(
     onCopyStoryLink: () -> Unit,
     onLinks: () -> Unit,
     onEdit: () -> Unit,
+    onToggleProfileVisibility: () -> Unit,
     onArchive: () -> Unit,
     onRestore: () -> Unit,
     onStatistics: () -> Unit,
@@ -484,11 +491,12 @@ private fun StoryViewerActionsPopup(
             nowSeconds = nowSeconds
         )
     }
-    val menuActions = remember(story, canManageStories, activeListType) {
+    val menuActions = remember(story, canManageStories, activeListType, viewerSource) {
         buildStoryViewerMenuActions(
             story = story,
             canManageStories = canManageStories,
-            activeListType = activeListType
+            activeListType = activeListType,
+            viewerSource = viewerSource
         )
     }
 
@@ -509,7 +517,7 @@ private fun StoryViewerActionsPopup(
         if (stealthAvailability != StoryStealthAvailability.HIDDEN) {
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                color = StoryViewerBorderColor
             )
             val remainingValue = when (stealthAvailability) {
                 StoryStealthAvailability.ACTIVE -> {
@@ -562,7 +570,7 @@ private fun StoryViewerActionsPopup(
         if (menuActions.isNotEmpty()) {
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                color = StoryViewerBorderColor
             )
         }
 
@@ -570,7 +578,7 @@ private fun StoryViewerActionsPopup(
             if (index > 0 && menuActions[index - 1].group != item.group) {
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                    color = StoryViewerBorderColor
                 )
             }
             MenuOptionRow(
@@ -585,6 +593,8 @@ private fun StoryViewerActionsPopup(
                         StoryViewerMenuAction.COPY_STORY_LINK -> onCopyStoryLink()
                         StoryViewerMenuAction.LINKS -> onLinks()
                         StoryViewerMenuAction.EDIT -> onEdit()
+                        StoryViewerMenuAction.KEEP_ON_PROFILE,
+                        StoryViewerMenuAction.REMOVE_FROM_PROFILE -> onToggleProfileVisibility()
                         StoryViewerMenuAction.ARCHIVE -> onArchive()
                         StoryViewerMenuAction.RESTORE -> onRestore()
                         StoryViewerMenuAction.STATISTICS -> onStatistics()
@@ -623,7 +633,8 @@ internal fun StoryLinksSheetComponent(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = StoryViewerSheetColor,
+        contentColor = StoryViewerContentColor
     ) {
         Column(
             modifier = Modifier
@@ -666,7 +677,7 @@ internal fun StoryLinksSheetComponent(
                     if (index < urls.lastIndex) {
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                            color = StoryViewerBorderColor
                         )
                     }
                 }
@@ -690,7 +701,8 @@ internal fun StoryInteractionsSheetComponent(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = StoryViewerSheetColor,
+        contentColor = StoryViewerContentColor
     ) {
         Column(
             modifier = Modifier
@@ -756,7 +768,7 @@ internal fun StoryInteractionsSheetComponent(
                         Text(
                             text = stringResource(R.string.story_interactions_empty),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = StoryViewerMutedContentColor
                         )
                     }
                 }
@@ -810,7 +822,7 @@ internal fun StoryInteractionsSheetComponent(
                             if (index < page.interactions.lastIndex) {
                                 HorizontalDivider(
                                     modifier = Modifier.padding(horizontal = 16.dp),
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                                    color = StoryViewerBorderColor
                                 )
                             }
                         }
@@ -864,8 +876,8 @@ internal fun StoryReactionPickerSheetComponent(
             onDismissRequest = { showEmojiBrowser = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             dragHandle = { BottomSheetDefaults.DragHandle() },
-            containerColor = MaterialTheme.colorScheme.background,
-            contentColor = MaterialTheme.colorScheme.onSurface,
+            containerColor = StoryViewerSheetColor,
+            contentColor = StoryViewerContentColor,
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
             StickerEmojiMenu(
@@ -891,8 +903,8 @@ internal fun StoryReactionPickerSheetComponent(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.onSurface,
+        containerColor = StoryViewerSheetColor,
+        contentColor = StoryViewerContentColor,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
         Column(
@@ -970,7 +982,7 @@ internal fun StoryReactionPickerSheetComponent(
                         Text(
                             text = stringResource(R.string.story_reaction_picker_empty),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = StoryViewerMutedContentColor
                         )
                     }
                 }
@@ -984,7 +996,7 @@ internal fun StoryReactionPickerSheetComponent(
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(20.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerLow
+                                color = StoryViewerSheetSurfaceColor
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -996,7 +1008,7 @@ internal fun StoryReactionPickerSheetComponent(
                                         modifier = Modifier.fillMaxWidth(),
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = StoryViewerMutedContentColor,
                                         textAlign = TextAlign.Start
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
@@ -1095,9 +1107,9 @@ private fun StoryReactionPickerCustomEmojiButton(
         color = if (isSelected) {
             MaterialTheme.colorScheme.primaryContainer
         } else if (enabled) {
-            MaterialTheme.colorScheme.surfaceContainerLow
+            StoryViewerSheetSurfaceColor
         } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+            StoryViewerSheetSurfaceVariantColor.copy(alpha = 0.72f)
         }
     ) {
         Row(
@@ -1110,7 +1122,7 @@ private fun StoryReactionPickerCustomEmojiButton(
                 color = if (isSelected) {
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                 } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
+                    StoryViewerSheetSurfaceVariantColor
                 }
             ) {
                 Box(
@@ -1141,7 +1153,7 @@ private fun StoryReactionPickerCustomEmojiButton(
                     color = if (isSelected) {
                         MaterialTheme.colorScheme.onPrimaryContainer
                     } else {
-                        MaterialTheme.colorScheme.onSurface
+                        StoryViewerContentColor
                     }
                 )
                 if (isSelected) {
@@ -1154,7 +1166,7 @@ private fun StoryReactionPickerCustomEmojiButton(
                     Text(
                         text = stringResource(R.string.story_reaction_picker_custom_emoji_locked),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = StoryViewerMutedContentColor
                     )
                 }
             }
@@ -1171,7 +1183,7 @@ private fun StoryReactionPickerExpandButton(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = StoryViewerSheetSurfaceVariantColor,
         modifier = Modifier.fillMaxWidth()
     ) {
         Box(
@@ -1185,7 +1197,7 @@ private fun StoryReactionPickerExpandButton(
                     "${stringResource(R.string.action_show_more)}${if (hiddenCount > 0) " ($hiddenCount)" else ""}"
                 },
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = StoryViewerMutedContentColor,
                 textAlign = TextAlign.Center
             )
         }
@@ -1209,9 +1221,9 @@ private fun StoryReactionPickerChip(
         color = if (selected) {
             MaterialTheme.colorScheme.primaryContainer
         } else if (enabled) {
-            MaterialTheme.colorScheme.surfaceContainerHigh
+            StoryViewerSheetSurfaceVariantColor
         } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            StoryViewerSheetSurfaceVariantColor.copy(alpha = 0.72f)
         }
     ) {
         Box(
@@ -1234,7 +1246,7 @@ private fun StoryReactionPickerChip(
                         color = if (selected) {
                             MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
+                            StoryViewerMutedContentColor.copy(alpha = 0.82f)
                         },
                         textAlign = TextAlign.Center
                     )

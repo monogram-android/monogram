@@ -44,8 +44,20 @@ data class StoryModel(
     val canGetStatistics: Boolean = false,
     val canGetInteractions: Boolean = false,
     val hasExpiredViewers: Boolean = false,
-    val isRead: Boolean = false
+    val isRead: Boolean = false,
+    val viewCount: Int = 0,
+    val forwardCount: Int = 0,
+    val reactionCount: Int = 0
 )
+
+data class StoryPageModel(
+    val totalCount: Int,
+    val pinnedStoryIds: List<Int> = emptyList(),
+    val stories: List<StoryModel>
+) {
+    val nextFromStoryId: Int
+        get() = stories.lastOrNull()?.id ?: 0
+}
 
 data class StoryAreaModel(
     val position: StoryAreaPositionModel,

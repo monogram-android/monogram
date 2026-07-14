@@ -11,6 +11,7 @@ import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryMediaModel
 import org.monogram.domain.models.stories.StoryMediaType
 import org.monogram.domain.models.stories.StoryModel
+import org.monogram.domain.models.stories.StoryPageModel
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryPrivacyMode
 import org.monogram.domain.models.stories.StoryPrivacySettingsModel
@@ -73,7 +74,28 @@ object StoryMapper {
             canGetInteractions = story.canGetInteractions,
             hasExpiredViewers = story.hasExpiredViewers,
             isRead = activeStories?.stories?.firstOrNull { it.storyId == story.id }?.isRead
-                ?: (story.id <= (activeStories?.maxReadStoryId ?: 0))
+                ?: (story.id <= (activeStories?.maxReadStoryId ?: 0)),
+            viewCount = story.interactionInfo?.viewCount ?: 0,
+            forwardCount = story.interactionInfo?.forwardCount ?: 0,
+            reactionCount = story.interactionInfo?.reactionCount ?: 0
+        )
+    }
+
+    fun mapStoryPage(
+        stories: TdApi.Stories,
+        activeStories: ActiveStoryListModel? = null,
+        mediaResolver: (TdApi.Story) -> StoryMediaModel? = { null }
+    ): StoryPageModel {
+        return StoryPageModel(
+            totalCount = stories.totalCount,
+            pinnedStoryIds = stories.pinnedStoryIds?.toList().orEmpty(),
+            stories = stories.stories.orEmpty().map { story ->
+                mapStory(
+                    story = story,
+                    activeStories = activeStories,
+                    mediaOverride = mediaResolver(story)
+                )
+            }
         )
     }
 

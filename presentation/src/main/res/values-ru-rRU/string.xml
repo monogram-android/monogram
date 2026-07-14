@@ -328,6 +328,8 @@
     <string name="profile_badge_admin">Админ</string>
     <string name="profile_feature_stories_title">Истории профиля</string>
     <string name="profile_feature_stories_subtitle">Вы можете публиковать истории от своего профиля</string>
+    <string name="profile_stories_active_section">Активные</string>
+    <string name="profile_stories_archive_subtitle">Текущие и скрытые истории</string>
     <string name="profile_feature_background_title">Фон чата</string>
     <string name="profile_feature_background_subtitle">Вы можете устанавливать пользовательские фоны</string>
     <string name="profile_feature_voice_restricted_title">Голосовые и видеосообщения</string>
@@ -1338,6 +1340,7 @@
     <string name="open_with">Открыть с помощью</string>
     <string name="browser_other">Браузер / Другое</string>
     <string name="tab_media">Медиа</string>
+    <string name="tab_stories">Истории</string>
     <string name="tab_members">Участники</string>
     <string name="tab_files">Файлы</string>
     <string name="tab_music">Музыка</string>
@@ -1346,6 +1349,7 @@
     <string name="tab_gifs">GIF</string>
     <string name="empty_members">Участники не найдены</string>
     <string name="empty_media">Медиа не найдены</string>
+    <string name="empty_stories">Истории не найдены</string>
     <string name="empty_music">Аудиозаписи не найдены</string>
     <string name="empty_voice">Голосовые сообщения не найдены</string>
     <string name="empty_files">Файлы не найдены</string>
@@ -2412,6 +2416,7 @@
     <string name="story_saving">Сохраняем…</string>
     <string name="story_viewer_unavailable">История недоступна</string>
     <string name="story_open">Открыть истории</string>
+    <string name="story_open_profile">Открыть истории профиля</string>
     <string name="story_create">Создать историю</string>
     <string name="story_archive">Архив</string>
     <string name="story_audio_mute">Выключить звук истории</string>
@@ -2439,6 +2444,7 @@
     <string name="story_area_link_hint">Нажмите, чтобы открыть</string>
     <string name="story_area_weather_format">%1$s %2$d°</string>
     <string name="story_profile_count">Активных историй: %1$d</string>
+    <string name="story_profile_posted_count">Историй в профиле: %1$d</string>
     <string name="story_viewer_item_position">%1$d из %2$d</string>
     <string name="story_post_as">Публикация от имени %1$s</string>
     <string name="story_edit_as">Редактирование от имени %1$s</string>
@@ -2462,6 +2468,7 @@
     <string name="story_settings_title">Настройки истории</string>
     <string name="story_duration_supporting">Выберите, как долго эта история будет видна</string>
     <string name="story_keep_on_profile_subtitle">Показывать эту историю в вашем профиле после публикации</string>
+    <string name="story_remove_from_profile">Убрать из профиля</string>
     <string name="story_protect_content_subtitle">Запретить пользователям пересылать и сохранять историю</string>
     <string name="story_widget_link_title">Прикреплённый виджет</string>
     <string name="story_widget_link_subtitle">Эта история содержит ссылку на мини-приложение</string>

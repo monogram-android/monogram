@@ -565,6 +565,8 @@
     <string name="profile_badge_admin">Admin</string>
     <string name="profile_feature_stories_title">Profile stories</string>
     <string name="profile_feature_stories_subtitle">You can publish stories from your profile</string>
+    <string name="profile_stories_active_section">Active</string>
+    <string name="profile_stories_archive_subtitle">Current and hidden stories</string>
     <string name="story_compose_title">New story</string>
     <string name="story_edit_title">Edit story</string>
     <string name="story_pick_media">Pick</string>
@@ -586,6 +588,7 @@
     <string name="story_saving">Saving…</string>
     <string name="story_viewer_unavailable">Story unavailable</string>
     <string name="story_open">Open stories</string>
+    <string name="story_open_profile">Open profile stories</string>
     <string name="story_create">Create story</string>
     <string name="story_archive">Archive</string>
     <string name="story_audio_mute">Mute story audio</string>
@@ -613,6 +616,7 @@
     <string name="story_area_link_hint">Tap to open</string>
     <string name="story_area_weather_format">%1$s %2$d°</string>
     <string name="story_profile_count">%1$d active stories</string>
+    <string name="story_profile_posted_count">%1$d profile stories</string>
     <string name="story_viewer_item_position">%1$d of %2$d</string>
     <string name="story_post_as">Posting as %1$s</string>
     <string name="story_edit_as">Editing as %1$s</string>
@@ -636,6 +640,7 @@
     <string name="story_settings_title">Story settings</string>
     <string name="story_duration_supporting">Pick how long this story stays visible</string>
     <string name="story_keep_on_profile_subtitle">Show this story on your profile after publishing</string>
+    <string name="story_remove_from_profile">Remove from profile</string>
     <string name="story_protect_content_subtitle">Restrict forwarding and saving for viewers</string>
     <string name="story_widget_link_title">Attached widget</string>
     <string name="story_widget_link_subtitle">This story includes a mini app link</string>
@@ -1917,6 +1922,7 @@
     <string name="open_with">Open with</string>
     <string name="browser_other">Browser / Other</string>
     <string name="tab_media">Media</string>
+    <string name="tab_stories">Stories</string>
     <string name="tab_members">Members</string>
     <string name="tab_files">Files</string>
     <string name="tab_music">Audio</string>
@@ -1925,6 +1931,7 @@
     <string name="tab_gifs">GIFs</string>
     <string name="empty_members">No members found</string>
     <string name="empty_media">No media found</string>
+    <string name="empty_stories">No stories found</string>
     <string name="empty_music">No audio found</string>
     <string name="empty_voice">No voice messages found</string>
     <string name="empty_files">No files found</string>

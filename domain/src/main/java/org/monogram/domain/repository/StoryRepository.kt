@@ -8,6 +8,7 @@ import org.monogram.domain.models.stories.StoryInteractionPageModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryModel
 import org.monogram.domain.models.stories.StoryOptionsModel
+import org.monogram.domain.models.stories.StoryPageModel
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryPostResultModel
 import org.monogram.domain.models.stories.StoryReactionModel
@@ -31,6 +32,18 @@ interface StoryRepository {
         offset: Int = 0,
         limit: Int = 50
     ): List<StoryModel>
+
+    suspend fun getChatPostedToChatPageStories(
+        chatId: Long,
+        fromStoryId: Int = 0,
+        limit: Int = 50
+    ): StoryPageModel?
+
+    suspend fun getChatArchivedStories(
+        chatId: Long,
+        fromStoryId: Int = 0,
+        limit: Int = 50
+    ): StoryPageModel?
 
     suspend fun openStory(chatId: Long, storyId: Int)
     suspend fun closeStory(chatId: Long, storyId: Int)
@@ -61,6 +74,11 @@ interface StoryRepository {
     suspend fun postStory(chatId: Long, draft: StoryComposerDraftModel): StoryPostResultModel
     suspend fun editStory(chatId: Long, storyId: Int, draft: StoryComposerDraftModel): Boolean
     suspend fun deleteStory(chatId: Long, storyId: Int): Boolean
+    suspend fun toggleStoryPostedToChatPage(
+        chatId: Long,
+        storyId: Int,
+        isPostedToChatPage: Boolean
+    ): Boolean
     suspend fun setChatActiveStoriesList(chatId: Long, listType: StoryListType?): Boolean
     fun clearLastPostResult()
 }

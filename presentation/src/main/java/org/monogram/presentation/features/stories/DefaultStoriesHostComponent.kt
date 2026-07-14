@@ -102,7 +102,11 @@ class DefaultStoriesHostComponent(
         }
     }
 
-    override fun openChatStories(chatId: Long, storyId: Int?, listType: StoryListType) {
+    override fun openChatStories(
+        chatId: Long,
+        storyId: Int?,
+        listType: StoryListType
+    ) {
         storyLoadJob?.cancel()
         storyRefreshJob?.cancel()
         _state.value = _state.value.copy(
@@ -114,6 +118,7 @@ class DefaultStoriesHostComponent(
             viewerItems = emptyList(),
             viewerIndex = 0,
             currentStory = null,
+            viewerSource = StoryViewerSource.ACTIVE,
             activeListType = listType,
             canManageStories = false,
             composerMode = StoryComposerMode.CREATE,
@@ -175,6 +180,7 @@ class DefaultStoriesHostComponent(
                 viewerItems = items,
                 viewerIndex = resolvedIndex,
                 currentStory = story,
+                viewerSource = StoryViewerSource.ACTIVE,
                 canManageStories = chatPresentation.canManageStories,
                 inlineError = null,
                 showInlineVideo = false,
@@ -196,6 +202,7 @@ class DefaultStoriesHostComponent(
             viewerItems = emptyList(),
             viewerIndex = 0,
             currentStory = null,
+            viewerSource = StoryViewerSource.ALBUM,
             activeListType = StoryListType.MAIN,
             canManageStories = false,
             composerMode = StoryComposerMode.CREATE,
@@ -237,6 +244,7 @@ class DefaultStoriesHostComponent(
                 viewerItems = items,
                 viewerIndex = 0,
                 currentStory = stories.first(),
+                viewerSource = StoryViewerSource.ALBUM,
                 canManageStories = canManageStories(chatId),
                 inlineError = null,
                 showInlineVideo = false,
@@ -244,6 +252,119 @@ class DefaultStoriesHostComponent(
             )
             syncStoryMediaLoadingMessage()
             scheduleStoryRefreshIfNeeded(items.first(), stories.first())
+        }
+    }
+
+    override fun openProfileStories(chatId: Long, storyId: Int?) {
+        openProfileStoryPage(
+            chatId = chatId,
+            storyId = storyId,
+            viewerSource = StoryViewerSource.PROFILE,
+            loadPage = {
+                storyRepository.getChatPostedToChatPageStories(
+                    chatId = chatId,
+                    limit = PROFILE_STORIES_PAGE_SIZE
+                )
+            },
+            emptyMessage = "No profile stories available"
+        )
+    }
+
+    override fun openProfileStoryArchive(chatId: Long, storyId: Int?) {
+        openProfileStoryPage(
+            chatId = chatId,
+            storyId = storyId,
+            viewerSource = StoryViewerSource.PROFILE_ARCHIVE,
+            loadPage = {
+                storyRepository.getChatArchivedStories(
+                    chatId = chatId,
+                    limit = PROFILE_STORIES_PAGE_SIZE
+                )
+            },
+            emptyMessage = "No archived profile stories available"
+        )
+    }
+
+    private fun openProfileStoryPage(
+        chatId: Long,
+        storyId: Int?,
+        viewerSource: StoryViewerSource,
+        loadPage: suspend () -> org.monogram.domain.models.stories.StoryPageModel?,
+        emptyMessage: String
+    ) {
+        storyLoadJob?.cancel()
+        storyRefreshJob?.cancel()
+        _state.value = _state.value.copy(
+            mode = StoriesHostComponent.Mode.Viewer,
+            isLoading = true,
+            chatId = chatId,
+            chatTitle = "",
+            chatAvatarPath = null,
+            viewerItems = emptyList(),
+            viewerIndex = 0,
+            currentStory = null,
+            viewerSource = StoryViewerSource.PROFILE,
+            activeListType = StoryListType.MAIN,
+            canManageStories = false,
+            composerMode = StoryComposerMode.CREATE,
+            editingStoryId = null,
+            inlineError = null,
+            isSubmitting = false,
+            isStoryStatisticsVisible = false,
+            isStoryStatisticsLoading = false,
+            storyStatistics = null,
+            isStoryInteractionsVisible = false,
+            isStoryInteractionsLoading = false,
+            storyInteractionsPage = null,
+            isStoryReactionPickerVisible = false,
+            isStoryReactionPickerLoading = false,
+            showInlineVideo = false,
+            showStoryMediaLoadingMessage = false
+        )
+        syncStoryMediaLoadingMessage()
+        scope.launch {
+            val page = loadPage()
+            val stories = page?.stories.orEmpty()
+            val items = stories.map { story ->
+                StoryViewerUiModel(
+                    chatId = story.posterChatId,
+                    storyId = story.id,
+                    date = story.date
+                )
+            }
+
+            if (items.isEmpty()) {
+                _state.value = _state.value.copy(
+                    mode = StoriesHostComponent.Mode.Hidden,
+                    isLoading = false,
+                    inlineError = null
+                )
+                messageDisplayer.show(emptyMessage)
+                return@launch
+            }
+
+            val resolvedIndex = resolveInitialViewerIndex(items, chatId, storyId)
+            val item = items[resolvedIndex]
+            val story = loadStory(item) ?: stories.getOrNull(resolvedIndex)
+            val chatPresentation = resolveChatPresentation(item.chatId)
+
+            _state.value = _state.value.copy(
+                mode = StoriesHostComponent.Mode.Viewer,
+                isLoading = story.requiresMediaRefresh(),
+                chatId = item.chatId,
+                chatTitle = chatPresentation.title,
+                chatAvatarPath = chatPresentation.avatarPath,
+                viewerItems = items,
+                viewerIndex = resolvedIndex,
+                currentStory = story,
+                viewerSource = viewerSource,
+                canManageStories = chatPresentation.canManageStories,
+                inlineError = null,
+                showInlineVideo = false,
+                showStoryMediaLoadingMessage = false
+            )
+            syncStoryMediaLoadingMessage()
+            scheduleStoryRefreshIfNeeded(item, story)
         }
     }
 
@@ -508,6 +629,7 @@ class DefaultStoriesHostComponent(
                 is StorySaveOutcome.Edited -> {
                     Log.d(TAG, "saveStory edit success chatId=$chatId storyId=${result.storyId}")
                     val listType = current.activeListType
+                    val viewerSource = current.viewerSource
                     _state.value = restoreViewerState(
                         _state.value.copy(
                             isSubmitting = false,
@@ -515,7 +637,12 @@ class DefaultStoriesHostComponent(
                             editingStoryId = null
                         )
                     )
-                    openChatStories(chatId, result.storyId, listType)
+                    reopenStory(
+                        chatId = chatId,
+                        storyId = result.storyId,
+                        viewerSource = viewerSource,
+                        activeListType = listType
+                    )
                 }
 
                 is StorySaveOutcome.Failed -> {
@@ -551,6 +678,7 @@ class DefaultStoriesHostComponent(
     }
 
     override fun moveCurrentStoryToArchive() {
+        if (_state.value.viewerSource != StoryViewerSource.ACTIVE) return
         val chatId = _state.value.chatId ?: return
         scope.launch {
             if (storyRepository.setChatActiveStoriesList(chatId, StoryListType.ARCHIVE)) {
@@ -563,6 +691,7 @@ class DefaultStoriesHostComponent(
     }
 
     override fun restoreCurrentStoryFromArchive() {
+        if (_state.value.viewerSource != StoryViewerSource.ACTIVE) return
         val chatId = _state.value.chatId ?: return
         scope.launch {
             if (storyRepository.setChatActiveStoriesList(chatId, StoryListType.MAIN)) {
@@ -570,6 +699,69 @@ class DefaultStoriesHostComponent(
                 storyRepository.loadActiveStories(StoryListType.MAIN)
             } else {
                 _state.value = _state.value.copy(inlineError = "Failed to restore stories")
+            }
+        }
+    }
+
+    override fun toggleCurrentStoryPostedToProfile() {
+        val current = _state.value
+        val story = current.currentStory ?: return
+        if (!story.canToggleIsPostedToChatPage) return
+
+        val targetValue = !story.isPostedToChatPage
+        scope.launch {
+            val toggled = storyRepository.toggleStoryPostedToChatPage(
+                chatId = story.posterChatId,
+                storyId = story.id,
+                isPostedToChatPage = targetValue
+            )
+            if (!toggled) {
+                _state.value = _state.value.copy(
+                    inlineError = if (targetValue) {
+                        "Failed to keep story on profile"
+                    } else {
+                        "Failed to remove story from profile"
+                    }
+                )
+                return@launch
+            }
+
+            val updatedStory = storyRepository.getStory(story.posterChatId, story.id) ?: story.copy(
+                isPostedToChatPage = targetValue
+            )
+
+            if (current.viewerSource == StoryViewerSource.PROFILE && !updatedStory.isPostedToChatPage) {
+                val remaining = current.viewerItems.filterNot {
+                    it.chatId == story.posterChatId && it.storyId == story.id
+                }
+                if (remaining.isEmpty()) {
+                    dismiss()
+                } else {
+                    val nextIndex = current.viewerIndex.coerceAtMost(remaining.lastIndex)
+                    _state.value =
+                        _state.value.copy(viewerItems = remaining, viewerIndex = nextIndex)
+                    openStoryAt(nextIndex)
+                }
+            } else if (
+                current.viewerSource == StoryViewerSource.PROFILE_ARCHIVE &&
+                updatedStory.isPostedToChatPage
+            ) {
+                val remaining = current.viewerItems.filterNot {
+                    it.chatId == story.posterChatId && it.storyId == story.id
+                }
+                if (remaining.isEmpty()) {
+                    dismiss()
+                } else {
+                    val nextIndex = current.viewerIndex.coerceAtMost(remaining.lastIndex)
+                    _state.value =
+                        _state.value.copy(viewerItems = remaining, viewerIndex = nextIndex)
+                    openStoryAt(nextIndex)
+                }
+            } else {
+                _state.value = _state.value.copy(
+                    currentStory = updatedStory,
+                    inlineError = null
+                )
             }
         }
     }
@@ -1096,9 +1288,24 @@ class DefaultStoriesHostComponent(
         )
     }
 
+    private fun reopenStory(
+        chatId: Long,
+        storyId: Int,
+        viewerSource: StoryViewerSource,
+        activeListType: StoryListType
+    ) {
+        when (viewerSource) {
+            StoryViewerSource.ACTIVE -> openChatStories(chatId, storyId, activeListType)
+            StoryViewerSource.PROFILE -> openProfileStories(chatId, storyId)
+            StoryViewerSource.PROFILE_ARCHIVE -> openProfileStoryArchive(chatId, storyId)
+            StoryViewerSource.ALBUM -> openChatStories(chatId, storyId, activeListType)
+        }
+    }
+
     companion object {
         private const val TAG = "StoriesHostDiag"
         private const val STORY_INTERACTIONS_PAGE_SIZE = 50
+        private const val PROFILE_STORIES_PAGE_SIZE = 50
     }
 }
 

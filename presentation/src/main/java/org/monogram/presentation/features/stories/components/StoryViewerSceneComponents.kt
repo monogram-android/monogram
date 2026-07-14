@@ -239,6 +239,7 @@ internal fun StoryViewerScaffoldComponent(
             onProfileClick = state.chatId?.let { chatId -> { component.openProfile(chatId) } },
             onLinks = { isLinksSheetVisible = true },
             onEdit = component::editCurrentStory,
+            onToggleProfileVisibility = component::toggleCurrentStoryPostedToProfile,
             onArchive = component::moveCurrentStoryToArchive,
             onRestore = component::restoreCurrentStoryFromArchive,
             onStatistics = component::showStoryStatistics,
@@ -670,7 +671,7 @@ private fun StoryAreaChip(
                     if (isSelected) {
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.95f)
                     } else {
-                        Color.White.copy(alpha = 0.14f)
+                        StoryViewerBorderColor
                     }
                 )
             ) {
@@ -681,7 +682,10 @@ private fun StoryAreaChip(
                                 .align(Alignment.TopEnd)
                                 .padding(top = 6.dp, end = 6.dp)
                                 .size(14.dp)
-                                .background(Color.White.copy(alpha = 0.18f), CircleShape),
+                                .background(
+                                    StoryViewerContentColor.copy(alpha = 0.18f),
+                                    CircleShape
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -720,7 +724,7 @@ private fun StoryAreaChip(
                 .then(if (isClickable) Modifier.clickable(onClick = onClick) else Modifier),
             shape = RoundedCornerShape(cornerRadius),
             color = backgroundColor,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f))
+            border = BorderStroke(1.dp, StoryViewerBorderColor)
         ) {
             Row(
                 modifier = Modifier
@@ -802,13 +806,13 @@ internal fun StoryUnavailablePlaceholder(message: String) {
     ) {
         Surface(
             shape = RoundedCornerShape(30.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.82f)
+            color = storyViewerOverlayColor(alpha = 0.92f)
         ) {
             Text(
                 text = message,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = StoryViewerContentColor,
                 textAlign = TextAlign.Center
             )
         }
@@ -872,10 +876,10 @@ private fun StoryMediaWaitingPlaceholder(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.20f)),
+                .background(storyViewerOverlayColor(alpha = 0.54f)),
             contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+            CircularProgressIndicator(color = StoryViewerContentColor)
         }
         if (showLoadingText) {
             StoryMediaLoadingBadge(
@@ -895,13 +899,13 @@ private fun StoryMediaLoadingOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.10f)),
+            .background(storyViewerOverlayColor(alpha = 0.42f)),
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator(
             modifier = Modifier.size(28.dp),
             strokeWidth = 2.5.dp,
-            color = MaterialTheme.colorScheme.onPrimary
+            color = StoryViewerContentColor
         )
         if (showLoadingText) {
             StoryMediaLoadingBadge(
@@ -939,15 +943,15 @@ private fun StoryMediaLoadingBadge(
                 .matchParentSize()
                 .blur(18.dp)
                 .background(
-                    Color.Black.copy(alpha = pulseAlpha),
+                    storyViewerOverlayColor(alpha = pulseAlpha),
                     RoundedCornerShape(22.dp)
                 )
         )
         Surface(
             modifier = Modifier.animateContentSize(),
             shape = RoundedCornerShape(if (showText) 22.dp else 18.dp),
-            color = Color.Black.copy(alpha = 0.30f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+            color = storyViewerOverlayColor(alpha = 0.88f),
+            border = BorderStroke(1.dp, StoryViewerBorderColor)
         ) {
             Row(
                 modifier = Modifier.padding(
@@ -960,13 +964,13 @@ private fun StoryMediaLoadingBadge(
                 CircularProgressIndicator(
                     modifier = Modifier.size(16.dp),
                     strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = StoryViewerContentColor
                 )
                 if (showText) {
                     Text(
                         text = stringResource(R.string.story_media_loading),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f)
+                        color = StoryViewerContentColor.copy(alpha = 0.92f)
                     )
                 }
             }
@@ -983,8 +987,8 @@ private fun StoryStatusBarScrim() {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color.Black.copy(alpha = 0.50f),
-                        Color.Black.copy(alpha = 0.24f),
+                        storyViewerOverlayColor(alpha = 0.94f),
+                        storyViewerOverlayColor(alpha = 0.42f),
                         Color.Transparent
                     )
                 )
@@ -1015,14 +1019,14 @@ internal fun StoryViewerProgressRow(
                     .weight(1f)
                     .height(4.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.22f))
+                    .background(StoryViewerContentColor.copy(alpha = 0.22f))
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
                         .fillMaxWidth(progress)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onPrimary)
+                        .background(StoryViewerContentColor)
                 )
             }
         }

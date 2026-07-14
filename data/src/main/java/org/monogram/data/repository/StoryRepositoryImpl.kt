@@ -27,6 +27,7 @@ import org.monogram.domain.models.stories.StoryMediaModel
 import org.monogram.domain.models.stories.StoryMediaType
 import org.monogram.domain.models.stories.StoryModel
 import org.monogram.domain.models.stories.StoryOptionsModel
+import org.monogram.domain.models.stories.StoryPageModel
 import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryPostResultModel
 import org.monogram.domain.models.stories.StoryReactionModel
@@ -161,6 +162,60 @@ class StoryRepositoryImpl(
             }
             applyState(current)
         }.getOrElse { emptyList() }
+    }
+
+    override suspend fun getChatPostedToChatPageStories(
+        chatId: Long,
+        fromStoryId: Int,
+        limit: Int
+    ): StoryPageModel? {
+        return runCatching {
+            val active = getChatActiveStories(chatId)
+            val page = StoryMapper.mapStoryPage(
+                stories = gateway.execute(
+                    TdApi.GetChatPostedToChatPageStories(
+                        chatId,
+                        fromStoryId,
+                        limit
+                    )
+                ),
+                activeStories = active,
+                mediaResolver = { story -> mapStoryMediaBestEffort(story.content) }
+            )
+            var current = state.value
+            page.stories.forEach { story ->
+                current = StoryRepositoryStateReducer.withStory(current, story)
+            }
+            applyState(current)
+            page
+        }.getOrNull()
+    }
+
+    override suspend fun getChatArchivedStories(
+        chatId: Long,
+        fromStoryId: Int,
+        limit: Int
+    ): StoryPageModel? {
+        return runCatching {
+            val active = getChatActiveStories(chatId)
+            val page = StoryMapper.mapStoryPage(
+                stories = gateway.execute(
+                    TdApi.GetChatArchivedStories(
+                        chatId,
+                        fromStoryId,
+                        limit
+                    )
+                ),
+                activeStories = active,
+                mediaResolver = { story -> mapStoryMediaBestEffort(story.content) }
+            )
+            var current = state.value
+            page.stories.forEach { story ->
+                current = StoryRepositoryStateReducer.withStory(current, story)
+            }
+            applyState(current)
+            page
+        }.getOrNull()
     }
 
     override suspend fun openStory(chatId: Long, storyId: Int) {
@@ -308,6 +363,26 @@ class StoryRepositoryImpl(
         return runCatching {
             gateway.execute(TdApi.DeleteStory(chatId, storyId))
             applyState(StoryRepositoryStateReducer.withStoryDeleted(state.value, chatId, storyId))
+            true
+        }.getOrDefault(false)
+    }
+
+    override suspend fun toggleStoryPostedToChatPage(
+        chatId: Long,
+        storyId: Int,
+        isPostedToChatPage: Boolean
+    ): Boolean {
+        return runCatching {
+            gateway.execute(
+                TdApi.ToggleStoryIsPostedToChatPage(
+                    chatId,
+                    storyId,
+                    isPostedToChatPage
+                )
+            )
+            getStory(chatId, storyId)?.let { updatedStory ->
+                applyState(StoryRepositoryStateReducer.withStory(state.value, updatedStory))
+            }
             true
         }.getOrDefault(false)
     }

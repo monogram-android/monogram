@@ -2,6 +2,7 @@ package org.monogram.domain.repository
 
 import kotlinx.coroutines.flow.StateFlow
 import org.monogram.domain.models.stories.ActiveStoryListModel
+import org.monogram.domain.models.stories.StoryAvailableReactionsModel
 import org.monogram.domain.models.stories.StoryComposerDraftModel
 import org.monogram.domain.models.stories.StoryInteractionPageModel
 import org.monogram.domain.models.stories.StoryListType
@@ -40,6 +41,7 @@ interface StoryRepository {
         storyId: Int,
         isDark: Boolean
     ): StoryStatisticsModel?
+    suspend fun getStoryAvailableReactions(rowSize: Int = 8): StoryAvailableReactionsModel?
 
     suspend fun setStoryReaction(
         chatId: Long,

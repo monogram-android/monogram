@@ -2,6 +2,7 @@ package org.monogram.presentation.features.stories
 
 import kotlinx.coroutines.flow.StateFlow
 import org.monogram.domain.models.stories.ActiveStoryListModel
+import org.monogram.domain.models.stories.StoryAvailableReactionsModel
 import org.monogram.domain.models.stories.StoryComposerDraftModel
 import org.monogram.domain.models.stories.StoryComposerMediaItemModel
 import org.monogram.domain.models.stories.StoryInteractionPageModel
@@ -57,6 +58,8 @@ interface StoriesHostComponent {
     fun showStoryInteractions()
     fun dismissStoryInteractions()
     fun loadMoreStoryInteractions()
+    fun showStoryReactionPicker()
+    fun dismissStoryReactionPicker()
     fun activateStealthMode()
     fun openProfile(chatId: Long)
     fun openStoryLink(url: String)
@@ -94,6 +97,9 @@ interface StoriesHostComponent {
         val isStoryInteractionsVisible: Boolean = false,
         val isStoryInteractionsLoading: Boolean = false,
         val storyInteractionsPage: StoryInteractionPageModel? = null,
+        val isStoryReactionPickerVisible: Boolean = false,
+        val isStoryReactionPickerLoading: Boolean = false,
+        val storyAvailableReactions: StoryAvailableReactionsModel? = null,
         val showMediaPicker: Boolean = false,
         val showCamera: Boolean = false,
         val showInlineVideo: Boolean = false,

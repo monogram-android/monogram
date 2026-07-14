@@ -126,6 +126,8 @@ class DefaultStoriesHostComponent(
             isStoryInteractionsVisible = false,
             isStoryInteractionsLoading = false,
             storyInteractionsPage = null,
+            isStoryReactionPickerVisible = false,
+            isStoryReactionPickerLoading = false,
             showInlineVideo = false,
             showStoryMediaLoadingMessage = false
         )
@@ -206,6 +208,8 @@ class DefaultStoriesHostComponent(
             isStoryInteractionsVisible = false,
             isStoryInteractionsLoading = false,
             storyInteractionsPage = null,
+            isStoryReactionPickerVisible = false,
+            isStoryReactionPickerLoading = false,
             showInlineVideo = false,
             showStoryMediaLoadingMessage = false
         )
@@ -307,6 +311,8 @@ class DefaultStoriesHostComponent(
             isStoryInteractionsVisible = false,
             isStoryInteractionsLoading = false,
             storyInteractionsPage = null,
+            isStoryReactionPickerVisible = false,
+            isStoryReactionPickerLoading = false,
             showMediaPicker = !draft.isValid,
             showCamera = false,
             showInlineVideo = false,
@@ -649,7 +655,9 @@ class DefaultStoriesHostComponent(
         _state.value = _state.value.copy(
             isStoryInteractionsVisible = false,
             isStoryInteractionsLoading = false,
-            storyInteractionsPage = null
+            storyInteractionsPage = null,
+            isStoryReactionPickerVisible = false,
+            isStoryReactionPickerLoading = false
         )
     }
 
@@ -682,6 +690,52 @@ class DefaultStoriesHostComponent(
                 )
             }
         }
+    }
+
+    override fun showStoryReactionPicker() {
+        val current = _state.value
+        val story = current.currentStory ?: return
+        if (current.currentUserId == story.posterChatId) return
+
+        val cached = current.storyAvailableReactions
+        if (cached?.hasAnyReactionOption == true) {
+            _state.value = current.copy(
+                isStoryReactionPickerVisible = true,
+                isStoryReactionPickerLoading = false,
+                inlineError = null
+            )
+            return
+        }
+
+        _state.value = current.copy(
+            isStoryReactionPickerVisible = true,
+            isStoryReactionPickerLoading = true,
+            inlineError = null
+        )
+        scope.launch {
+            val availableReactions = storyRepository.getStoryAvailableReactions()
+            if (availableReactions == null) {
+                _state.value = _state.value.copy(
+                    isStoryReactionPickerVisible = false,
+                    isStoryReactionPickerLoading = false,
+                    inlineError = "Failed to load story reactions"
+                )
+            } else {
+                _state.value = _state.value.copy(
+                    isStoryReactionPickerVisible = true,
+                    isStoryReactionPickerLoading = false,
+                    storyAvailableReactions = availableReactions,
+                    inlineError = null
+                )
+            }
+        }
+    }
+
+    override fun dismissStoryReactionPicker() {
+        _state.value = _state.value.copy(
+            isStoryReactionPickerVisible = false,
+            isStoryReactionPickerLoading = false
+        )
     }
 
     override fun activateStealthMode() {
@@ -754,6 +808,12 @@ class DefaultStoriesHostComponent(
             )
             if (!success) {
                 _state.value = _state.value.copy(inlineError = "Failed to send story reaction")
+            } else {
+                _state.value = _state.value.copy(
+                    inlineError = null,
+                    isStoryReactionPickerVisible = false,
+                    isStoryReactionPickerLoading = false
+                )
             }
         }
     }
@@ -796,6 +856,8 @@ class DefaultStoriesHostComponent(
             isStoryInteractionsVisible = false,
             isStoryInteractionsLoading = false,
             storyInteractionsPage = null,
+            isStoryReactionPickerVisible = false,
+            isStoryReactionPickerLoading = false,
             showInlineVideo = false,
             showStoryMediaLoadingMessage = false
         )
@@ -1100,6 +1162,8 @@ private fun restoreViewerState(state: StoriesHostComponent.State): StoriesHostCo
         isStoryInteractionsVisible = false,
         isStoryInteractionsLoading = false,
         storyInteractionsPage = null,
+        isStoryReactionPickerVisible = false,
+        isStoryReactionPickerLoading = false,
         showMediaPicker = false,
         showCamera = false
     )

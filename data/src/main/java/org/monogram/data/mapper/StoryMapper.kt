@@ -5,6 +5,8 @@ import org.monogram.domain.models.stories.ActiveStoryListModel
 import org.monogram.domain.models.stories.StoryAreaModel
 import org.monogram.domain.models.stories.StoryAreaPositionModel
 import org.monogram.domain.models.stories.StoryAreaTypeModel
+import org.monogram.domain.models.stories.StoryAvailableReactionModel
+import org.monogram.domain.models.stories.StoryAvailableReactionsModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryMediaModel
 import org.monogram.domain.models.stories.StoryMediaType
@@ -13,6 +15,7 @@ import org.monogram.domain.models.stories.StoryPostCapabilityModel
 import org.monogram.domain.models.stories.StoryPrivacyMode
 import org.monogram.domain.models.stories.StoryPrivacySettingsModel
 import org.monogram.domain.models.stories.StoryReactionModel
+import org.monogram.domain.models.stories.StoryReactionUnavailabilityReasonModel
 import org.monogram.domain.models.stories.StoryStealthModeModel
 import org.monogram.domain.models.stories.StorySummaryModel
 
@@ -49,6 +52,7 @@ object StoryMapper {
             date = story.date,
             caption = story.caption?.text.orEmpty(),
             media = mediaOverride ?: story.content.toDomainMedia(),
+            chosenReaction = story.chosenReactionType?.toDomainReaction(),
             privacy = story.privacySettings.toDomainPrivacy(),
             albumIds = story.albumIds?.toList().orEmpty(),
             areas = story.areas.orEmpty().mapNotNull(::mapStoryArea),
@@ -77,6 +81,19 @@ object StoryMapper {
         return StoryStealthModeModel(
             activeUntilDate = update.activeUntilDate,
             cooldownUntilDate = update.cooldownUntilDate
+        )
+    }
+
+    fun mapAvailableReactions(availableReactions: TdApi.AvailableReactions): StoryAvailableReactionsModel {
+        return StoryAvailableReactionsModel(
+            topReactions = availableReactions.topReactions.orEmpty()
+                .mapNotNull(::mapAvailableReaction),
+            recentReactions = availableReactions.recentReactions.orEmpty()
+                .mapNotNull(::mapAvailableReaction),
+            popularReactions = availableReactions.popularReactions.orEmpty()
+                .mapNotNull(::mapAvailableReaction),
+            allowCustomEmoji = availableReactions.allowCustomEmoji,
+            unavailabilityReason = mapReactionUnavailabilityReason(availableReactions.unavailabilityReason)
         )
     }
 
@@ -205,6 +222,38 @@ object StoryMapper {
             )
 
             is TdApi.StoryAreaTypeUpgradedGift -> StoryAreaTypeModel.UpgradedGift(type.giftName)
+            else -> null
+        }
+    }
+
+    fun mapReactionType(reactionType: TdApi.ReactionType?): StoryReactionModel {
+        return reactionType.toDomainReaction()
+    }
+
+    private fun mapAvailableReaction(reaction: TdApi.AvailableReaction?): StoryAvailableReactionModel? {
+        reaction ?: return null
+        return StoryAvailableReactionModel(
+            reaction = reaction.type.toDomainReaction(),
+            needsPremium = reaction.needsPremium
+        )
+    }
+
+    private fun mapReactionUnavailabilityReason(
+        reason: TdApi.ReactionUnavailabilityReason?
+    ): StoryReactionUnavailabilityReasonModel? {
+        return when (reason) {
+            is TdApi.ReactionUnavailabilityReasonAnonymousAdministrator -> {
+                StoryReactionUnavailabilityReasonModel.ANONYMOUS_ADMINISTRATOR
+            }
+
+            is TdApi.ReactionUnavailabilityReasonGuest -> {
+                StoryReactionUnavailabilityReasonModel.GUEST
+            }
+
+            is TdApi.ReactionUnavailabilityReasonRestricted -> {
+                StoryReactionUnavailabilityReasonModel.RESTRICTED
+            }
+
             else -> null
         }
     }

@@ -19,6 +19,7 @@ import org.monogram.data.mapper.StoryMapper.toDomainStoryListType
 import org.monogram.data.mapper.StoryMapper.toTdPrivacy
 import org.monogram.data.mapper.StoryMapper.toTdStoryList
 import org.monogram.domain.models.stories.ActiveStoryListModel
+import org.monogram.domain.models.stories.StoryAvailableReactionsModel
 import org.monogram.domain.models.stories.StoryComposerDraftModel
 import org.monogram.domain.models.stories.StoryInteractionPageModel
 import org.monogram.domain.models.stories.StoryListType
@@ -195,11 +196,20 @@ class StoryRepositoryImpl(
         }.getOrNull()
     }
 
+    override suspend fun getStoryAvailableReactions(rowSize: Int): StoryAvailableReactionsModel? {
+        return runCatching {
+            StoryMapper.mapAvailableReactions(
+                gateway.execute(TdApi.GetStoryAvailableReactions(rowSize.coerceIn(5, 25)))
+            )
+        }.getOrNull()
+    }
+
     override suspend fun setStoryReaction(
         chatId: Long,
         storyId: Int,
         reaction: StoryReactionModel
     ): Boolean {
+        if (reaction.isPaid) return false
         return runCatching {
             gateway.execute(
                 TdApi.SetStoryReaction(

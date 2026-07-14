@@ -25,6 +25,7 @@ data class StoryModel(
     val date: Int,
     val caption: String,
     val media: StoryMediaModel,
+    val chosenReaction: StoryReactionModel? = null,
     val privacy: StoryPrivacySettingsModel,
     val albumIds: List<Int> = emptyList(),
     val areas: List<StoryAreaModel> = emptyList(),
@@ -88,6 +89,31 @@ data class StoryReactionModel(
 ) {
     val isCustomEmoji: Boolean
         get() = customEmojiId != null
+}
+
+data class StoryAvailableReactionModel(
+    val reaction: StoryReactionModel,
+    val needsPremium: Boolean = false
+)
+
+data class StoryAvailableReactionsModel(
+    val topReactions: List<StoryAvailableReactionModel> = emptyList(),
+    val recentReactions: List<StoryAvailableReactionModel> = emptyList(),
+    val popularReactions: List<StoryAvailableReactionModel> = emptyList(),
+    val allowCustomEmoji: Boolean = false,
+    val unavailabilityReason: StoryReactionUnavailabilityReasonModel? = null
+) {
+    val hasAnyReactionOption: Boolean
+        get() = topReactions.isNotEmpty() ||
+                recentReactions.isNotEmpty() ||
+                popularReactions.isNotEmpty() ||
+                allowCustomEmoji
+}
+
+enum class StoryReactionUnavailabilityReasonModel {
+    ANONYMOUS_ADMINISTRATOR,
+    GUEST,
+    RESTRICTED
 }
 
 data class StoryMediaModel(
@@ -177,7 +203,7 @@ data class StoryInteractionModel(
     val actorType: StoryInteractionActorType,
     val interactionDate: Int,
     val type: StoryInteractionTypeModel,
-    val reaction: String? = null,
+    val reaction: StoryReactionModel? = null,
     val forwardChatId: Long? = null,
     val forwardMessageId: Long? = null,
     val repostStoryId: Int? = null,

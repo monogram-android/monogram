@@ -591,6 +591,18 @@
     <string name="story_audio_mute">Mute story audio</string>
     <string name="story_audio_unmute">Unmute story audio</string>
     <string name="story_reactions_button">Story reactions</string>
+    <string name="story_reaction_picker_title">React to story</string>
+    <string name="story_reaction_picker_back">Back to reactions</string>
+    <string name="story_reaction_picker_empty">No reactions available</string>
+    <string name="story_reaction_picker_top">Top reactions</string>
+    <string name="story_reaction_picker_recent">Recent</string>
+    <string name="story_reaction_picker_popular">Popular</string>
+    <string name="story_reaction_picker_custom_emoji">Browse emojis and custom emoji</string>
+    <string name="story_reaction_picker_custom_emoji_locked">Custom emoji requires Premium</string>
+    <string name="story_reaction_picker_premium_badge">Premium</string>
+    <string name="story_reaction_picker_unavailable_anonymous_admin">Reactions are unavailable while posting as an anonymous administrator.</string>
+    <string name="story_reaction_picker_unavailable_guest">Join the chat to react to this story.</string>
+    <string name="story_reaction_picker_unavailable_restricted">You can’t react to this story from the current account.</string>
     <string name="story_media_loading">Media is still loading</string>
     <string name="story_media_fill_title">Stretch</string>
     <string name="story_area_location">Location</string>
@@ -645,6 +657,7 @@
     <string name="story_interactions_reactions_format">%1$d reactions</string>
     <string name="story_interaction_view">Viewed</string>
     <string name="story_interaction_view_with_reaction">Viewed with %1$s</string>
+    <string name="story_interaction_view_with_reaction_generic">Viewed with reaction</string>
     <string name="story_interaction_forward">Forwarded as message</string>
     <string name="story_interaction_repost">Reposted as story</string>
     <string name="story_capability_ready">%1$d story slots available</string>

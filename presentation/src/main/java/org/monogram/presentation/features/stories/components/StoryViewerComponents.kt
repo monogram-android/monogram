@@ -2,6 +2,7 @@ package org.monogram.presentation.features.stories
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -10,6 +11,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,13 +28,16 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.EmojiEmotions
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Link
@@ -57,10 +62,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,19 +77,28 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
-import org.monogram.domain.models.stories.StoryAreaTypeModel
+import org.koin.compose.koinInject
+import org.monogram.domain.models.stories.StoryAvailableReactionModel
+import org.monogram.domain.models.stories.StoryAvailableReactionsModel
 import org.monogram.domain.models.stories.StoryInteractionActorType
 import org.monogram.domain.models.stories.StoryInteractionPageModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryModel
+import org.monogram.domain.models.stories.StoryReactionModel
+import org.monogram.domain.models.stories.StoryReactionUnavailabilityReasonModel
+import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.features.stickers.ui.menu.ActionMenuPopup
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.stickers.ui.menu.MenuToggleRow
+import org.monogram.presentation.features.stickers.ui.menu.StickerEmojiMenu
+import org.monogram.presentation.features.stickers.ui.view.StickerImage
 
 @Composable
 internal fun StoryViewerChromeComponent(
@@ -232,9 +248,10 @@ internal fun StoryViewerChromeComponent(
                     }
 
                     AnimatedVisibility(
-                        visible = story?.canGetInteractions == true || story?.areas?.any {
-                            it.type is StoryAreaTypeModel.SuggestedReaction
-                        } == true
+                        visible = story != null && (
+                                story.canGetInteractions ||
+                                        state.currentUserId != null && state.currentUserId != story.posterChatId
+                                )
                     ) {
                         StoryTopIconButton(
                             onClick = onReactionClick,
@@ -777,24 +794,16 @@ internal fun StoryInteractionsSheetComponent(
                                     )
                                 },
                                 supportingContent = {
-                                    Text(
-                                        text = buildString {
-                                            append(
-                                                storyInteractionTypeLabel(
-                                                    interaction.type,
-                                                    interaction.reaction
-                                                )
-                                            )
-                                            append(" • ")
-                                            append(
-                                                formatStoryPostedTime(
-                                                    context,
-                                                    interaction.interactionDate
-                                                )
-                                            )
-                                        },
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
+                                    StoryInteractionSupportingContent(
+                                        reaction = interaction.reaction,
+                                        label = storyInteractionTypeLabel(
+                                            interaction.type,
+                                            interaction.reaction
+                                        ),
+                                        postedAt = formatStoryPostedTime(
+                                            context,
+                                            interaction.interactionDate
+                                        )
                                     )
                                 }
                             )
@@ -827,6 +836,492 @@ internal fun StoryInteractionsSheetComponent(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun StoryReactionPickerSheetComponent(
+    availableReactions: StoryAvailableReactionsModel?,
+    selectedReaction: StoryReactionModel?,
+    isLoading: Boolean,
+    isPremiumUser: Boolean,
+    onDismiss: () -> Unit,
+    onReactionSelected: (StoryReactionModel) -> Unit
+) {
+    val stickerRepository: StickerRepository = koinInject()
+    var showEmojiBrowser by rememberSaveable { mutableStateOf(false) }
+    val sections = remember(availableReactions) { buildStoryReactionSections(availableReactions) }
+    val unavailabilityReason = availableReactions?.unavailabilityReason
+    val canSelectReactions = unavailabilityReason == null
+    val canOpenCustomEmoji = availableReactions?.allowCustomEmoji == true &&
+            isPremiumUser &&
+            canSelectReactions
+
+    if (showEmojiBrowser) {
+        ModalBottomSheet(
+            onDismissRequest = { showEmojiBrowser = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            dragHandle = { BottomSheetDefaults.DragHandle() },
+            containerColor = MaterialTheme.colorScheme.background,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            StickerEmojiMenu(
+                onStickerSelected = {},
+                onEmojiSelected = { emoji, sticker ->
+                    val reaction = sticker?.customEmojiId
+                        ?.takeIf { it != 0L }
+                        ?.let { StoryReactionModel(customEmojiId = it) }
+                        ?: StoryReactionModel(emoji = emoji)
+                    onReactionSelected(reaction)
+                },
+                onGifSelected = {},
+                emojiOnlyMode = true,
+                onSearchFocused = {},
+                canSendStickers = false,
+                stickerRepository = stickerRepository
+            )
+        }
+        return
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.story_reaction_picker_title),
+                        style = MaterialTheme.typography.headlineSmall,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (availableReactions?.allowCustomEmoji == true) {
+                StoryReactionPickerCustomEmojiButton(
+                    enabled = canOpenCustomEmoji,
+                    isPremiumUser = isPremiumUser,
+                    selectedReaction = selectedReaction,
+                    onClick = { showEmojiBrowser = true }
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+            }
+
+            if (unavailabilityReason != null) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.72f)
+                ) {
+                    Text(
+                        text = storyReactionUnavailabilityLabel(unavailabilityReason),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+            }
+
+            when {
+                isLoading && availableReactions == null -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+                sections.isEmpty() && availableReactions?.allowCustomEmoji != true -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.story_reaction_picker_empty),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                else -> {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        sections.forEach { section ->
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLow
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 12.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(section.titleResId),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Start
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    StoryReactionPickerGrid(
+                                        reactions = section.reactions,
+                                        selectedReaction = selectedReaction,
+                                        isPremiumUser = isPremiumUser,
+                                        canSelectReactions = canSelectReactions,
+                                        onReactionSelected = onReactionSelected
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoryReactionPickerGrid(
+    reactions: List<StoryAvailableReactionModel>,
+    selectedReaction: StoryReactionModel?,
+    isPremiumUser: Boolean,
+    canSelectReactions: Boolean,
+    onReactionSelected: (StoryReactionModel) -> Unit
+) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val columns = when {
+            maxWidth >= 560.dp -> 6
+            maxWidth >= 440.dp -> 5
+            maxWidth >= 320.dp -> 4
+            else -> 3
+        }
+        val rows = remember(reactions, columns) { reactions.chunked(columns) }
+        var expanded by rememberSaveable(reactions.size, columns) { mutableStateOf(false) }
+        val visibleRows = remember(rows, expanded) {
+            if (expanded || rows.size <= 3) rows else rows.take(3)
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            visibleRows.forEach { rowItems ->
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth(
+                                if (rowItems.size == columns) 1f else rowItems.size / columns.toFloat()
+                            )
+                            .align(Alignment.Center),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        rowItems.forEach { item ->
+                            StoryReactionPickerChip(
+                                modifier = Modifier.weight(1f),
+                                item = item,
+                                selected = item.reaction == selectedReaction,
+                                enabled = canSelectReactions &&
+                                        (!item.needsPremium || isPremiumUser) &&
+                                        !item.reaction.isPaid,
+                                onClick = { onReactionSelected(item.reaction) }
+                            )
+                        }
+                    }
+                }
+            }
+            if (rows.size > 3) {
+                StoryReactionPickerExpandButton(
+                    expanded = expanded,
+                    hiddenCount = reactions.size - visibleRows.flatten().size,
+                    onClick = { expanded = !expanded }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoryReactionPickerCustomEmojiButton(
+    enabled: Boolean,
+    isPremiumUser: Boolean,
+    selectedReaction: StoryReactionModel?,
+    onClick: () -> Unit
+) {
+    val isSelected = selectedReaction?.isCustomEmoji == true
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = if (isSelected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else if (enabled) {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = if (isSelected) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                }
+            ) {
+                Box(
+                    modifier = Modifier.size(36.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selectedReaction != null && selectedReaction.isCustomEmoji) {
+                        StoryReactionVisual(
+                            reaction = selectedReaction,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.EmojiEmotions,
+                            contentDescription = null
+                        )
+                    }
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.story_reaction_picker_custom_emoji),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+                if (isSelected) {
+                    Text(
+                        text = storyReactionLabel(selectedReaction),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f)
+                    )
+                } else if (!isPremiumUser) {
+                    Text(
+                        text = stringResource(R.string.story_reaction_picker_custom_emoji_locked),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoryReactionPickerExpandButton(
+    expanded: Boolean,
+    hiddenCount: Int,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (expanded) {
+                    stringResource(R.string.statistics_show_less)
+                } else {
+                    "${stringResource(R.string.action_show_more)}${if (hiddenCount > 0) " ($hiddenCount)" else ""}"
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun StoryReactionPickerChip(
+    modifier: Modifier = Modifier,
+    item: StoryAvailableReactionModel,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .then(modifier)
+            .clip(RoundedCornerShape(18.dp))
+            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier),
+        shape = RoundedCornerShape(18.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else if (enabled) {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        }
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 10.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                StoryReactionVisual(
+                    reaction = item.reaction,
+                    modifier = Modifier.size(24.dp)
+                )
+                if (item.needsPremium) {
+                    Text(
+                        text = stringResource(R.string.story_reaction_picker_premium_badge),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (selected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.82f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f)
+                        },
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoryInteractionSupportingContent(
+    reaction: StoryReactionModel?,
+    label: String,
+    postedAt: String
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f, fill = false),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (reaction?.customEmojiId != null) {
+            StoryReactionVisual(
+                reaction = reaction,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Text(
+            text = "• $postedAt",
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+internal fun StoryReactionVisual(
+    reaction: StoryReactionModel,
+    modifier: Modifier = Modifier
+) {
+    val customEmojiId = reaction.customEmojiId
+    if (customEmojiId != null) {
+        val stickerRepository: StickerRepository = koinInject()
+        val path by stickerRepository.getCustomEmojiFile(customEmojiId)
+            .collectAsState(initial = null)
+        if (path != null) {
+            StickerImage(
+                path = path,
+                modifier = modifier
+            )
+        } else {
+            Box(modifier = modifier, contentAlignment = Alignment.Center) {
+                Text(
+                    text = storyReactionLabel(reaction),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+        }
+    } else {
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
+            Text(
+                text = storyReactionLabel(reaction),
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+    }
+}
+
+@Composable
+private fun storyReactionUnavailabilityLabel(
+    reason: StoryReactionUnavailabilityReasonModel
+): String {
+    return when (reason) {
+        StoryReactionUnavailabilityReasonModel.ANONYMOUS_ADMINISTRATOR -> {
+            stringResource(R.string.story_reaction_picker_unavailable_anonymous_admin)
+        }
+
+        StoryReactionUnavailabilityReasonModel.GUEST -> {
+            stringResource(R.string.story_reaction_picker_unavailable_guest)
+        }
+
+        StoryReactionUnavailabilityReasonModel.RESTRICTED -> {
+            stringResource(R.string.story_reaction_picker_unavailable_restricted)
         }
     }
 }

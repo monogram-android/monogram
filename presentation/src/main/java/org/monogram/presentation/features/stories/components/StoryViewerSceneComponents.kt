@@ -114,10 +114,15 @@ internal fun StoryViewerScaffoldComponent(
     var isVideoPlaying by remember(story?.id) { mutableStateOf(false) }
     var isLinksSheetVisible by remember(story?.id) { mutableStateOf(false) }
     var playerView by remember(story?.id) { mutableStateOf<PlayerView?>(null) }
-    var selectedSuggestedReaction by remember(story?.id) {
-        mutableStateOf<org.monogram.domain.models.stories.StoryReactionModel?>(
-            null
-        )
+    var selectedReactionOverride by remember(story?.id) {
+        mutableStateOf<org.monogram.domain.models.stories.StoryReactionModel?>(null)
+    }
+    val selectedReaction = selectedReactionOverride ?: story?.chosenReaction
+
+    LaunchedEffect(story?.id, story?.chosenReaction, selectedReactionOverride) {
+        if (story?.chosenReaction == selectedReactionOverride) {
+            selectedReactionOverride = null
+        }
     }
     val isMediaScaledToFill = state.isStoryMediaStretchEnabled
     val advanceStory by rememberUpdatedState(newValue = {
@@ -179,53 +184,34 @@ internal fun StoryViewerScaffoldComponent(
                 onVideoBufferingChange = { isVideoBuffering = it },
                 onVideoPlayingChange = { isVideoPlaying = it },
                 onVideoCompleted = advanceStory,
+                onPreviousTap = {
+                    if (shouldRestartCurrentStoryFromPreviousTap(currentProgress) || !state.canGoPrevious) {
+                        restartPlaybackToken += 1
+                        isVideoPaused = false
+                    } else {
+                        component.previousStory()
+                    }
+                },
+                onNextTap = {
+                    if (state.canGoNext) {
+                        component.nextStory()
+                    } else {
+                        component.dismiss()
+                    }
+                },
                 onStoryAreaClick = { areaType ->
                     when (areaType) {
                         is StoryAreaTypeModel.Link -> component.openStoryLink(areaType.url)
                         is StoryAreaTypeModel.SuggestedReaction -> {
-                            selectedSuggestedReaction = areaType.reaction
+                            selectedReactionOverride = areaType.reaction
                             component.setStoryReaction(areaType.reaction)
                         }
 
                         else -> Unit
                     }
                 },
-                selectedReaction = selectedSuggestedReaction,
+                selectedReaction = selectedReaction,
                 onPlayerViewChanged = { playerView = it }
-            )
-        }
-
-        Row(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clickable(
-                        enabled = story != null,
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() },
-                        onClick = {
-                            if (shouldRestartCurrentStoryFromPreviousTap(currentProgress) || !state.canGoPrevious) {
-                                restartPlaybackToken += 1
-                                isVideoPaused = false
-                            } else {
-                                component.previousStory()
-                            }
-                        }
-                    )
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clickable(
-                        enabled = story != null,
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() },
-                        onClick = {
-                            if (state.canGoNext) component.nextStory() else component.dismiss()
-                        }
-                    )
             )
         }
 
@@ -246,14 +232,7 @@ internal fun StoryViewerScaffoldComponent(
                 if (story?.canGetInteractions == true) {
                     component.showStoryInteractions()
                 } else {
-                    val suggestedReaction = story?.areas
-                        ?.firstNotNullOfOrNull { area ->
-                            area.type as? StoryAreaTypeModel.SuggestedReaction
-                        }
-                    suggestedReaction?.let {
-                        selectedSuggestedReaction = it.reaction
-                        component.setStoryReaction(it.reaction)
-                    }
+                    component.showStoryReactionPicker()
                 }
             },
             onMediaScaleToggle = component::setStoryMediaStretchEnabled,
@@ -331,6 +310,20 @@ internal fun StoryViewerScaffoldComponent(
                 onInteractionClick = component::openProfile
             )
         }
+
+        if (state.isStoryReactionPickerVisible) {
+            StoryReactionPickerSheet(
+                availableReactions = state.storyAvailableReactions,
+                selectedReaction = selectedReaction,
+                isLoading = state.isStoryReactionPickerLoading,
+                isPremiumUser = state.isPremiumUser,
+                onDismiss = component::dismissStoryReactionPicker,
+                onReactionSelected = { reaction ->
+                    selectedReactionOverride = reaction
+                    component.setStoryReaction(reaction)
+                }
+            )
+        }
     }
 }
 
@@ -365,6 +358,8 @@ private fun StoryMediaScene(
     onVideoBufferingChange: (Boolean) -> Unit,
     onVideoPlayingChange: (Boolean) -> Unit,
     onVideoCompleted: () -> Unit,
+    onPreviousTap: () -> Unit,
+    onNextTap: () -> Unit,
     onStoryAreaClick: (StoryAreaTypeModel) -> Unit,
     selectedReaction: org.monogram.domain.models.stories.StoryReactionModel?,
     onPlayerViewChanged: (PlayerView?) -> Unit
@@ -486,6 +481,12 @@ private fun StoryMediaScene(
 
         }
 
+        StoryViewerTapZones(
+            enabled = story != null,
+            onPreviousTap = onPreviousTap,
+            onNextTap = onNextTap
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -507,6 +508,38 @@ private fun StoryMediaScene(
                 selectedReaction = selectedReaction
             )
         }
+    }
+}
+
+@Composable
+private fun StoryViewerTapZones(
+    enabled: Boolean,
+    onPreviousTap: () -> Unit,
+    onNextTap: () -> Unit
+) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .clickable(
+                    enabled = enabled,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = onPreviousTap
+                )
+        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .clickable(
+                    enabled = enabled,
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = onNextTap
+                )
+        )
     }
 }
 
@@ -666,11 +699,9 @@ private fun StoryAreaChip(
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = storyReactionLabel(areaType.reaction),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = contentColor,
-                            maxLines = 1
+                        StoryReactionVisual(
+                            reaction = areaType.reaction,
+                            modifier = Modifier.size(24.dp)
                         )
                         Text(
                             text = formatCompactStoryCount(areaType.totalCount),
@@ -732,11 +763,9 @@ private fun StoryAreaLeading(
 ) {
     when (areaType) {
         is StoryAreaTypeModel.SuggestedReaction -> {
-            Text(
-                text = storyReactionLabel(areaType.reaction),
-                style = MaterialTheme.typography.titleMedium,
-                color = contentColor,
-                maxLines = 1
+            StoryReactionVisual(
+                reaction = areaType.reaction,
+                modifier = Modifier.size(22.dp)
             )
         }
 

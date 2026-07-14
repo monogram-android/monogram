@@ -61,6 +61,8 @@ import androidx.compose.ui.zIndex
 import androidx.core.view.WindowCompat
 import coil3.compose.AsyncImage
 import org.monogram.domain.models.stories.StoryAreaTypeModel
+import org.monogram.domain.models.stories.StoryAvailableReactionModel
+import org.monogram.domain.models.stories.StoryAvailableReactionsModel
 import org.monogram.domain.models.stories.StoryInteractionPageModel
 import org.monogram.domain.models.stories.StoryInteractionTypeModel
 import org.monogram.domain.models.stories.StoryListType
@@ -85,6 +87,7 @@ fun StoriesHostContent(component: StoriesHostComponent) {
             state.showInlineVideo -> component.dismissInlineVideo()
             state.showCamera -> component.dismissCamera()
             state.showMediaPicker -> component.dismissMediaPicker()
+            state.isStoryReactionPickerVisible -> component.dismissStoryReactionPicker()
             else -> component.dismiss()
         }
     }
@@ -285,6 +288,26 @@ internal fun StoryInteractionsSheet(
         onDismiss = onDismiss,
         onLoadMore = onLoadMore,
         onInteractionClick = onInteractionClick
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun StoryReactionPickerSheet(
+    availableReactions: StoryAvailableReactionsModel?,
+    selectedReaction: StoryReactionModel?,
+    isLoading: Boolean,
+    isPremiumUser: Boolean,
+    onDismiss: () -> Unit,
+    onReactionSelected: (StoryReactionModel) -> Unit
+) {
+    StoryReactionPickerSheetComponent(
+        availableReactions = availableReactions,
+        selectedReaction = selectedReaction,
+        isLoading = isLoading,
+        isPremiumUser = isPremiumUser,
+        onDismiss = onDismiss,
+        onReactionSelected = onReactionSelected
     )
 }
 
@@ -837,15 +860,51 @@ internal fun storyViewerMenuIcon(
 @Composable
 internal fun storyInteractionTypeLabel(
     type: StoryInteractionTypeModel,
-    reaction: String?
+    reaction: StoryReactionModel?
 ): String {
     return when (type) {
-        StoryInteractionTypeModel.VIEW -> reaction?.takeIf { it.isNotBlank() }?.let {
-            stringResource(R.string.story_interaction_view_with_reaction, it)
-        } ?: stringResource(R.string.story_interaction_view)
+        StoryInteractionTypeModel.VIEW -> when {
+            reaction == null -> stringResource(R.string.story_interaction_view)
+            reaction.emoji != null || reaction.isPaid -> {
+                stringResource(
+                    R.string.story_interaction_view_with_reaction,
+                    storyReactionLabel(reaction)
+                )
+            }
+
+            else -> stringResource(R.string.story_interaction_view_with_reaction_generic)
+        }
 
         StoryInteractionTypeModel.FORWARD -> stringResource(R.string.story_interaction_forward)
         StoryInteractionTypeModel.REPOST -> stringResource(R.string.story_interaction_repost)
+    }
+}
+
+internal data class StoryReactionSectionModel(
+    val titleResId: Int,
+    val reactions: List<StoryAvailableReactionModel>
+)
+
+internal fun buildStoryReactionSections(
+    availableReactions: StoryAvailableReactionsModel?
+): List<StoryReactionSectionModel> {
+    availableReactions ?: return emptyList()
+    val consumed = linkedSetOf<StoryReactionModel>()
+
+    fun unique(source: List<StoryAvailableReactionModel>): List<StoryAvailableReactionModel> {
+        return source.filter { item -> consumed.add(item.reaction) }
+    }
+
+    return buildList {
+        unique(availableReactions.topReactions)
+            .takeIf { it.isNotEmpty() }
+            ?.let { add(StoryReactionSectionModel(R.string.story_reaction_picker_top, it)) }
+        unique(availableReactions.recentReactions)
+            .takeIf { it.isNotEmpty() }
+            ?.let { add(StoryReactionSectionModel(R.string.story_reaction_picker_recent, it)) }
+        unique(availableReactions.popularReactions)
+            .takeIf { it.isNotEmpty() }
+            ?.let { add(StoryReactionSectionModel(R.string.story_reaction_picker_popular, it)) }
     }
 }
 

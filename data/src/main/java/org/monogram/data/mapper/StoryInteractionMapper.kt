@@ -43,7 +43,7 @@ object StoryInteractionMapper {
                 actorType = actorType,
                 interactionDate = interaction.interactionDate,
                 type = StoryInteractionTypeModel.VIEW,
-                reaction = type.chosenReactionType.toReactionLabel()
+                reaction = StoryMapper.mapReactionType(type.chosenReactionType)
             )
 
             is TdApi.StoryInteractionTypeForward -> StoryInteractionModel(
@@ -69,15 +69,6 @@ object StoryInteractionMapper {
                 interactionDate = interaction.interactionDate,
                 type = StoryInteractionTypeModel.VIEW
             )
-        }
-    }
-
-    private fun TdApi.ReactionType?.toReactionLabel(): String? {
-        return when (this) {
-            is TdApi.ReactionTypeEmoji -> emoji
-            is TdApi.ReactionTypeCustomEmoji -> "custom:$customEmojiId"
-            is TdApi.ReactionTypePaid -> "paid"
-            else -> null
         }
     }
 }

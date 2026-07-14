@@ -2417,6 +2417,18 @@
     <string name="story_audio_mute">Выключить звук истории</string>
     <string name="story_audio_unmute">Включить звук истории</string>
     <string name="story_reactions_button">Реакции к истории</string>
+    <string name="story_reaction_picker_title">Реакция на историю</string>
+    <string name="story_reaction_picker_back">Назад к реакциям</string>
+    <string name="story_reaction_picker_empty">Доступных реакций нет</string>
+    <string name="story_reaction_picker_top">Популярные реакции</string>
+    <string name="story_reaction_picker_recent">Недавние</string>
+    <string name="story_reaction_picker_popular">Популярные</string>
+    <string name="story_reaction_picker_custom_emoji">Открыть эмодзи и кастомные эмодзи</string>
+    <string name="story_reaction_picker_custom_emoji_locked">Кастомные эмодзи доступны только с Premium</string>
+    <string name="story_reaction_picker_premium_badge">Premium</string>
+    <string name="story_reaction_picker_unavailable_anonymous_admin">Реакции недоступны при публикации от имени анонимного администратора.</string>
+    <string name="story_reaction_picker_unavailable_guest">Вступите в чат, чтобы реагировать на эту историю.</string>
+    <string name="story_reaction_picker_unavailable_restricted">С этого аккаунта нельзя реагировать на эту историю.</string>
     <string name="story_media_loading">Медиафайл всё ещё загружается</string>
     <string name="story_media_fill_title">Растянуть</string>
     <string name="story_area_location">Местоположение</string>
@@ -2465,6 +2477,7 @@
     <string name="story_interactions_reactions_format">Реакций: %1$d</string>
     <string name="story_interaction_view">Просмотрена</string>
     <string name="story_interaction_view_with_reaction">Просмотрена с %1$s</string>
+    <string name="story_interaction_view_with_reaction_generic">Просмотрена с реакцией</string>
     <string name="story_interaction_forward">Переслана как сообщение</string>
     <string name="story_interaction_repost">Опубликована как история</string>
     <string name="story_capability_ready">Доступно слотов для историй: %1$d</string>

@@ -165,6 +165,8 @@ class SwipeBackResolverTest {
                 MutableStateFlow(ChatListComponent.SelectionState())
             override val searchState: StateFlow<ChatListComponent.SearchState> =
                 MutableStateFlow(ChatListComponent.SearchState())
+            override val storiesState: StateFlow<ChatListComponent.StoriesState> =
+                MutableStateFlow(ChatListComponent.StoriesState())
             override val appPreferences: AppPreferences
                 get() = throw UnsupportedOperationException("Not used by resolver tests")
 
@@ -214,6 +216,11 @@ class SwipeBackResolverTest {
             override fun onDismissInstantView() = unsupported()
             override fun onOpenWebApp(url: String, botUserId: Long, botName: String) = unsupported()
             override fun onDismissWebApp() = unsupported()
+            override fun onShareToStory(mediaUrl: String, text: String?, widgetLink: String?) =
+                unsupported()
+
+            override fun onStoryClicked(chatId: Long, storyId: Int?) = unsupported()
+            override fun onAddStoryClicked() = unsupported()
             override fun onOpenWebView(url: String) = unsupported()
             override fun onDismissWebView() = unsupported()
             override fun onUpdateClicked() = unsupported()

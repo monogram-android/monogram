@@ -555,8 +555,10 @@ class ConnectionManagerTest {
         override val isChatAnimationsEnabled = MutableStateFlow(false)
         override val chatListMessageLines = MutableStateFlow(2)
         override val showChatListPhotos = MutableStateFlow(true)
+        override val showStoriesBlock = MutableStateFlow(true)
         override val showReactions = MutableStateFlow(true)
         override val showSponsoredMessagesForPremium = MutableStateFlow(false)
+        override val storyMediaStretchEnabled = MutableStateFlow(false)
         override val privateChatsNotifications = MutableStateFlow(true)
         override val groupsNotifications = MutableStateFlow(true)
         override val channelsNotifications = MutableStateFlow(true)
@@ -607,6 +609,10 @@ class ConnectionManagerTest {
 
         override fun setShowSponsoredMessagesForPremium(enabled: Boolean) {
             showSponsoredMessagesForPremium.value = enabled
+        }
+
+        override fun setStoryMediaStretchEnabled(enabled: Boolean) {
+            storyMediaStretchEnabled.value = enabled
         }
 
         override fun setProxyNetworkMode(networkType: ProxyNetworkType, mode: ProxyNetworkMode) {
@@ -717,6 +723,10 @@ class ConnectionManagerTest {
 
         override fun setShowChatListPhotos(enabled: Boolean) {
             showChatListPhotos.value = enabled
+        }
+
+        override fun setShowStoriesBlock(enabled: Boolean) {
+            showStoriesBlock.value = enabled
         }
 
         override fun setShowReactions(enabled: Boolean) {

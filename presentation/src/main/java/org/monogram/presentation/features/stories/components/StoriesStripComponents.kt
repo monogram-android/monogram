@@ -1,4 +1,4 @@
-package org.monogram.presentation.features.stories
+package org.monogram.presentation.features.stories.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background

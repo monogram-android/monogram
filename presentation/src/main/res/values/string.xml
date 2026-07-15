@@ -575,6 +575,13 @@
     <string name="story_privacy_everyone">Everyone</string>
     <string name="story_privacy_contacts">Contacts</string>
     <string name="story_privacy_close_friends">Close friends</string>
+    <string name="story_privacy_selected_users">Selected users</string>
+    <string name="story_privacy_show_to">Show to</string>
+    <string name="story_privacy_hide_from">Hide from</string>
+    <string name="story_privacy_show_to_empty">Choose who can view this story</string>
+    <string name="story_privacy_hide_from_empty">Visible to everyone in this audience</string>
+    <string name="story_privacy_manage">Manage</string>
+    <string name="story_privacy_clear_selection">Clear</string>
     <string name="story_duration_label">Visible for</string>
     <string name="story_duration_6h">6h</string>
     <string name="story_duration_12h">12h</string>
@@ -639,6 +646,13 @@
     <string name="story_caption_supporting">Optional text shown above your story</string>
     <string name="story_settings_title">Story settings</string>
     <string name="story_duration_supporting">Pick how long this story stays visible</string>
+    <string name="story_audience_picker_show_to_title">Select viewers</string>
+    <string name="story_audience_picker_hide_from_title">Hide from users</string>
+    <string name="story_audience_picker_show_to_subtitle">Only selected contacts will be able to view this story</string>
+    <string name="story_audience_picker_hide_from_subtitle">Exclude contacts from the selected audience</string>
+    <string name="story_audience_picker_search">Search contacts</string>
+    <string name="story_audience_picker_empty">No contacts available</string>
+    <string name="story_audience_picker_no_results">No matching contacts</string>
     <string name="story_keep_on_profile_subtitle">Show this story on your profile after publishing</string>
     <string name="story_remove_from_profile">Remove from profile</string>
     <string name="story_protect_content_subtitle">Restrict forwarding and saving for viewers</string>
@@ -646,6 +660,19 @@
     <string name="story_widget_link_subtitle">This story includes a mini app link</string>
     <string name="story_links_title">Links</string>
     <string name="story_statistics_title">Story Statistics</string>
+    <string name="story_validation_selected_users_required">Select at least one user for this story</string>
+    <plurals name="story_privacy_show_to_count">
+        <item quantity="one">Visible to %d user</item>
+        <item quantity="other">Visible to %d users</item>
+    </plurals>
+    <plurals name="story_privacy_hide_from_count">
+        <item quantity="one">Hidden from %d user</item>
+        <item quantity="other">Hidden from %d users</item>
+    </plurals>
+    <plurals name="story_audience_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
     <string name="story_statistics_interactions_graph">Views and Shares</string>
     <string name="story_statistics_reactions_graph">Reactions</string>
     <string name="story_stealth_mode_title">Stealth mode</string>

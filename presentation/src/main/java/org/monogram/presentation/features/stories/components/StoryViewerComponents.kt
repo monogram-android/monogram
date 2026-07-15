@@ -1,4 +1,4 @@
-package org.monogram.presentation.features.stories
+package org.monogram.presentation.features.stories.components
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -90,8 +90,10 @@ import org.monogram.domain.models.stories.StoryInteractionActorType
 import org.monogram.domain.models.stories.StoryInteractionPageModel
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.models.stories.StoryModel
+import org.monogram.domain.models.stories.StoryOptionsModel
 import org.monogram.domain.models.stories.StoryReactionModel
 import org.monogram.domain.models.stories.StoryReactionUnavailabilityReasonModel
+import org.monogram.domain.models.stories.StoryStealthModeModel
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.features.stickers.ui.menu.ActionMenuPopup
@@ -99,6 +101,33 @@ import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
 import org.monogram.presentation.features.stickers.ui.menu.MenuToggleRow
 import org.monogram.presentation.features.stickers.ui.menu.StickerEmojiMenu
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
+import org.monogram.presentation.features.stories.StoriesHostComponent
+import org.monogram.presentation.features.stories.StoryErrorBanner
+import org.monogram.presentation.features.stories.StoryHeaderInfoState
+import org.monogram.presentation.features.stories.StoryHeaderSkeleton
+import org.monogram.presentation.features.stories.StoryInteractionAvatar
+import org.monogram.presentation.features.stories.StoryMetadataChip
+import org.monogram.presentation.features.stories.StorySkeletonPlaceholder
+import org.monogram.presentation.features.stories.StoryStealthAvailability
+import org.monogram.presentation.features.stories.StoryTopIconButton
+import org.monogram.presentation.features.stories.StoryViewerBorderColor
+import org.monogram.presentation.features.stories.StoryViewerContentColor
+import org.monogram.presentation.features.stories.StoryViewerMenuAction
+import org.monogram.presentation.features.stories.StoryViewerMutedContentColor
+import org.monogram.presentation.features.stories.StoryViewerSheetColor
+import org.monogram.presentation.features.stories.StoryViewerSheetSurfaceColor
+import org.monogram.presentation.features.stories.StoryViewerSheetSurfaceVariantColor
+import org.monogram.presentation.features.stories.StoryViewerSource
+import org.monogram.presentation.features.stories.buildStoryPositionText
+import org.monogram.presentation.features.stories.buildStoryReactionSections
+import org.monogram.presentation.features.stories.buildStoryViewerMenuActions
+import org.monogram.presentation.features.stories.formatStoryPostedTime
+import org.monogram.presentation.features.stories.resolveStoryStealthAvailability
+import org.monogram.presentation.features.stories.storyInteractionTypeLabel
+import org.monogram.presentation.features.stories.storyReactionLabel
+import org.monogram.presentation.features.stories.storyViewerMenuIcon
+import org.monogram.presentation.features.stories.storyViewerMenuTitle
+import org.monogram.presentation.features.stories.storyViewerOverlayColor
 
 @Composable
 internal fun StoryViewerChromeComponent(
@@ -445,8 +474,8 @@ private fun StoryViewerActionsPopup(
     story: StoryModel?,
     currentUserId: Long?,
     isPremiumUser: Boolean,
-    stealthMode: org.monogram.domain.models.stories.StoryStealthModeModel,
-    storyOptions: org.monogram.domain.models.stories.StoryOptionsModel,
+    stealthMode: StoryStealthModeModel,
+    storyOptions: StoryOptionsModel,
     canManageStories: Boolean,
     viewerSource: StoryViewerSource,
     activeListType: StoryListType,

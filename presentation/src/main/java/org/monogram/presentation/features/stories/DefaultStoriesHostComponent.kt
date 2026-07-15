@@ -6,6 +6,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.stories.ActiveStoryListModel
 import org.monogram.domain.models.stories.StoryComposerDraftModel
 import org.monogram.domain.models.stories.StoryComposerMediaItemModel
@@ -48,6 +49,8 @@ class DefaultStoriesHostComponent(
     private var hasLoadedActiveStories = false
     private var storyLoadJob: Job? = null
     private var storyRefreshJob: Job? = null
+    private var audienceLoadJob: Job? = null
+    private var audienceSearchJob: Job? = null
     private var storyMediaLoadingMessageJob: Job? = null
     private var storyMediaLoadingMessageKey: Pair<Long, Int>? = null
     private val chatPresentationCache = mutableMapOf<Long, ChatPresentation>()
@@ -123,6 +126,7 @@ class DefaultStoriesHostComponent(
             canManageStories = false,
             composerMode = StoryComposerMode.CREATE,
             editingStoryId = null,
+            audiencePicker = StoryAudiencePickerState(),
             inlineError = null,
             isSubmitting = false,
             isStoryStatisticsVisible = false,
@@ -207,6 +211,7 @@ class DefaultStoriesHostComponent(
             canManageStories = false,
             composerMode = StoryComposerMode.CREATE,
             editingStoryId = null,
+            audiencePicker = StoryAudiencePickerState(),
             inlineError = null,
             isSubmitting = false,
             isStoryStatisticsVisible = false,
@@ -308,6 +313,7 @@ class DefaultStoriesHostComponent(
             canManageStories = false,
             composerMode = StoryComposerMode.CREATE,
             editingStoryId = null,
+            audiencePicker = StoryAudiencePickerState(),
             inlineError = null,
             isSubmitting = false,
             isStoryStatisticsVisible = false,
@@ -423,6 +429,7 @@ class DefaultStoriesHostComponent(
             composerMode = composerMode,
             editingStoryId = editingStoryId,
             composerDraft = draft,
+            audiencePicker = StoryAudiencePickerState(),
             postCapability = null,
             inlineError = null,
             isSubmitting = false,
@@ -445,22 +452,22 @@ class DefaultStoriesHostComponent(
                 if (composerMode == StoryComposerMode.CREATE) storyRepository.canPostStory(chatId)
                 else null
             Log.d(TAG, "openComposer chatId=$chatId mode=$composerMode capability=$capability")
-            _state.value = _state.value.copy(
-                mode = StoriesHostComponent.Mode.Composer,
+            val latest = _state.value
+            if (
+                latest.mode != StoriesHostComponent.Mode.Composer ||
+                latest.chatId != chatId ||
+                latest.composerMode != composerMode ||
+                latest.editingStoryId != editingStoryId
+            ) {
+                return@launch
+            }
+
+            _state.value = latest.copy(
                 isLoading = false,
-                chatId = chatId,
                 chatTitle = resolveChatTitle(chatId),
                 chatAvatarPath = resolveChatAvatar(chatId),
                 canManageStories = canManageStories(chatId),
-                composerMode = composerMode,
-                editingStoryId = editingStoryId,
-                composerDraft = draft,
                 postCapability = capability,
-                inlineError = null,
-                showMediaPicker = !draft.isValid,
-                showCamera = false,
-                isSubmitting = false,
-                showInlineVideo = false,
                 showStoryMediaLoadingMessage = false
             )
         }
@@ -469,6 +476,8 @@ class DefaultStoriesHostComponent(
     override fun dismiss() {
         storyLoadJob?.cancel()
         storyRefreshJob?.cancel()
+        audienceLoadJob?.cancel()
+        audienceSearchJob?.cancel()
         syncStoryMediaLoadingMessage(disableOnly = true)
         val current = _state.value
         if (
@@ -558,16 +567,132 @@ class DefaultStoriesHostComponent(
     }
 
     override fun updatePrivacy(mode: StoryPrivacyUi) {
-        _state.value = _state.value.copy(
-            composerDraft = _state.value.composerDraft.copy(
-                privacy = StoryPrivacySettingsModel(
-                    mode = when (mode) {
-                        StoryPrivacyUi.EVERYONE -> StoryPrivacyMode.EVERYONE
-                        StoryPrivacyUi.CONTACTS -> StoryPrivacyMode.CONTACTS
-                        StoryPrivacyUi.CLOSE_FRIENDS -> StoryPrivacyMode.CLOSE_FRIENDS
-                    }
+        val updatedDraft = _state.value.composerDraft.copy(
+            privacy = updateStoryPrivacyMode(_state.value.composerDraft.privacy, mode)
+        )
+        _state.value = _state.value.copy(composerDraft = updatedDraft)
+        if (
+            mode == StoryPrivacyUi.SELECTED_USERS &&
+            updatedDraft.privacy.selectedUserIds.isEmpty()
+        ) {
+            showAudiencePicker(StoryAudienceFilterMode.SHOW_TO)
+        }
+    }
+
+    override fun showAudiencePicker(filterMode: StoryAudienceFilterMode) {
+        audienceLoadJob?.cancel()
+        audienceSearchJob?.cancel()
+
+        val current = _state.value
+        val selectedIds = resolveAudienceSelectionIds(current.composerDraft.privacy, filterMode)
+        _state.value = current.copy(
+            audiencePicker = current.audiencePicker.copy(
+                isVisible = true,
+                filterMode = filterMode,
+                searchQuery = "",
+                searchResults = emptyList(),
+                isLoading = true,
+                isSearching = false
+            )
+        )
+
+        audienceLoadJob = scope.launch {
+            val contacts = userRepository.getContacts()
+            val selectedUsers = resolveAudienceUsers(selectedIds, contacts)
+            val mergedContacts = mergeAudienceUsers(contacts, selectedUsers)
+            val latest = _state.value
+            if (
+                latest.mode != StoriesHostComponent.Mode.Composer ||
+                !latest.audiencePicker.isVisible ||
+                latest.audiencePicker.filterMode != filterMode
+            ) {
+                return@launch
+            }
+            _state.value = latest.copy(
+                audiencePicker = latest.audiencePicker.copy(
+                    contacts = mergedContacts,
+                    selectedUsers = selectedUsers,
+                    isLoading = false
                 )
             )
+        }
+    }
+
+    override fun dismissAudiencePicker() {
+        audienceSearchJob?.cancel()
+        val current = _state.value
+        _state.value = current.copy(
+            audiencePicker = current.audiencePicker.copy(
+                isVisible = false,
+                searchQuery = "",
+                searchResults = emptyList(),
+                isSearching = false
+            )
+        )
+    }
+
+    override fun updateAudienceSearchQuery(query: String) {
+        audienceSearchJob?.cancel()
+        val current = _state.value
+        _state.value = current.copy(
+            audiencePicker = current.audiencePicker.copy(
+                searchQuery = query,
+                searchResults = if (query.isBlank()) emptyList() else current.audiencePicker.searchResults,
+                isSearching = query.isNotBlank()
+            )
+        )
+
+        if (query.isBlank()) {
+            return
+        }
+
+        audienceSearchJob = scope.launch {
+            val results = userRepository.searchContacts(query)
+            val latest = _state.value
+            if (latest.audiencePicker.searchQuery != query) {
+                return@launch
+            }
+            _state.value = latest.copy(
+                audiencePicker = latest.audiencePicker.copy(
+                    searchResults = mergeAudienceUsers(
+                        results,
+                        latest.audiencePicker.selectedUsers
+                    ),
+                    isSearching = false
+                )
+            )
+        }
+    }
+
+    override fun toggleAudienceUserSelection(userId: Long) {
+        val current = _state.value
+        val updatedPrivacy = toggleStoryAudienceUser(
+            current.composerDraft.privacy,
+            userId,
+            current.audiencePicker.filterMode
+        )
+        val selectedIds =
+            resolveAudienceSelectionIds(updatedPrivacy, current.audiencePicker.filterMode)
+        val selectedUsers = selectedIds.mapNotNull { selectedId ->
+            current.audiencePicker.selectedUsers.find { it.id == selectedId }
+                ?: current.audiencePicker.contacts.find { it.id == selectedId }
+                ?: current.audiencePicker.searchResults.find { it.id == selectedId }
+        }
+        _state.value = current.copy(
+            composerDraft = current.composerDraft.copy(privacy = updatedPrivacy),
+            audiencePicker = current.audiencePicker.copy(selectedUsers = selectedUsers)
+        )
+    }
+
+    override fun clearAudienceSelection() {
+        val current = _state.value
+        val clearedPrivacy = clearStoryAudienceSelection(
+            current.composerDraft.privacy,
+            current.audiencePicker.filterMode
+        )
+        _state.value = current.copy(
+            composerDraft = current.composerDraft.copy(privacy = clearedPrivacy),
+            audiencePicker = current.audiencePicker.copy(selectedUsers = emptyList())
         )
     }
 
@@ -1206,9 +1331,11 @@ class DefaultStoriesHostComponent(
     }
 
     private suspend fun canManageStories(chatId: Long): Boolean {
-        val me = userRepository.getMe()
+        val currentUserId = _state.value.currentUserId
+            ?: userRepository.currentUserFlow.value?.id
+            ?: userRepository.getMe().id
         val chat = chatListRepository.getChatById(chatId)
-        return me?.id == chatId || chat?.isAdmin == true
+        return currentUserId == chatId || chat?.isAdmin == true
     }
 
     private suspend fun resolvePublicStoryUsername(chatId: Long): String? {
@@ -1276,6 +1403,24 @@ class DefaultStoriesHostComponent(
         } else {
             StoryMediaType.PHOTO
         }
+    }
+
+    private suspend fun resolveAudienceUsers(
+        userIds: List<Long>,
+        contacts: List<UserModel>
+    ): List<UserModel> {
+        val contactsById = contacts.associateBy(UserModel::id)
+        return userIds.mapNotNull { userId ->
+            contactsById[userId] ?: userRepository.getUser(userId)
+        }
+    }
+
+    private fun mergeAudienceUsers(
+        primary: List<UserModel>,
+        secondary: List<UserModel>
+    ): List<UserModel> {
+        return (secondary + primary)
+            .distinctBy(UserModel::id)
     }
 
     private fun createDefaultState(): StoriesHostComponent.State {
@@ -1360,6 +1505,7 @@ private fun restoreViewerState(state: StoriesHostComponent.State): StoriesHostCo
         isLoading = false,
         composerMode = StoryComposerMode.CREATE,
         editingStoryId = null,
+        audiencePicker = StoryAudiencePickerState(),
         postCapability = null,
         inlineError = null,
         isSubmitting = false,
@@ -1459,6 +1605,56 @@ internal suspend fun saveStoryDraft(
     }
 }
 
+internal fun updateStoryPrivacyMode(
+    current: StoryPrivacySettingsModel,
+    mode: StoryPrivacyUi
+): StoryPrivacySettingsModel {
+    return current.copy(
+        mode = when (mode) {
+            StoryPrivacyUi.EVERYONE -> StoryPrivacyMode.EVERYONE
+            StoryPrivacyUi.CONTACTS -> StoryPrivacyMode.CONTACTS
+            StoryPrivacyUi.CLOSE_FRIENDS -> StoryPrivacyMode.CLOSE_FRIENDS
+            StoryPrivacyUi.SELECTED_USERS -> StoryPrivacyMode.SELECTED_USERS
+        }
+    )
+}
+
+internal fun toggleStoryAudienceUser(
+    current: StoryPrivacySettingsModel,
+    userId: Long,
+    filterMode: StoryAudienceFilterMode
+): StoryPrivacySettingsModel {
+    return when (filterMode) {
+        StoryAudienceFilterMode.SHOW_TO -> current.copy(
+            selectedUserIds = current.selectedUserIds.toggleUserId(userId)
+        )
+
+        StoryAudienceFilterMode.HIDE_FROM -> current.copy(
+            exceptUserIds = current.exceptUserIds.toggleUserId(userId)
+        )
+    }
+}
+
+internal fun clearStoryAudienceSelection(
+    current: StoryPrivacySettingsModel,
+    filterMode: StoryAudienceFilterMode
+): StoryPrivacySettingsModel {
+    return when (filterMode) {
+        StoryAudienceFilterMode.SHOW_TO -> current.copy(selectedUserIds = emptyList())
+        StoryAudienceFilterMode.HIDE_FROM -> current.copy(exceptUserIds = emptyList())
+    }
+}
+
+internal fun resolveAudienceSelectionIds(
+    privacy: StoryPrivacySettingsModel,
+    filterMode: StoryAudienceFilterMode
+): List<Long> {
+    return when (filterMode) {
+        StoryAudienceFilterMode.SHOW_TO -> privacy.selectedUserIds
+        StoryAudienceFilterMode.HIDE_FROM -> privacy.exceptUserIds
+    }
+}
+
 internal fun resolveStorySaveValidationError(
     stringProvider: StringProvider,
     draft: StoryComposerDraftModel,
@@ -1472,6 +1668,13 @@ internal fun resolveStorySaveValidationError(
     val captionLengthMax = storyOptions.captionLengthMax
     if (captionLengthMax > 0 && draft.caption.length > captionLengthMax) {
         return stringProvider.getString("story_validation_caption_too_long", captionLengthMax)
+    }
+
+    if (
+        draft.privacy.mode == StoryPrivacyMode.SELECTED_USERS &&
+        draft.privacy.selectedUserIds.isEmpty()
+    ) {
+        return stringProvider.getString("story_validation_selected_users_required")
     }
 
     if (!draft.widgetLink.isNullOrBlank() && (!isPremiumUser || storyOptions.linkAreaCountMax <= 0)) {
@@ -1550,6 +1753,14 @@ private fun StoryComposerDraftModel.forSingleMedia(
         mediaItems = listOf(mediaItem),
         selectedMediaIndex = 0
     )
+}
+
+private fun List<Long>.toggleUserId(userId: Long): List<Long> {
+    return if (contains(userId)) {
+        filterNot { it == userId }
+    } else {
+        this + userId
+    }
 }
 
 internal fun buildViewerItems(activeStories: List<ActiveStoryListModel>): List<StoryViewerUiModel> {

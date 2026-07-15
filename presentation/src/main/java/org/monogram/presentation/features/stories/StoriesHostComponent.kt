@@ -1,6 +1,7 @@
 package org.monogram.presentation.features.stories
 
 import kotlinx.coroutines.flow.StateFlow
+import org.monogram.domain.models.UserModel
 import org.monogram.domain.models.stories.ActiveStoryListModel
 import org.monogram.domain.models.stories.StoryAvailableReactionsModel
 import org.monogram.domain.models.stories.StoryComposerDraftModel
@@ -47,6 +48,11 @@ interface StoriesHostComponent {
     fun selectComposerMedia(index: Int)
     fun updateCaption(caption: String)
     fun updatePrivacy(mode: StoryPrivacyUi)
+    fun showAudiencePicker(filterMode: StoryAudienceFilterMode)
+    fun dismissAudiencePicker()
+    fun updateAudienceSearchQuery(query: String)
+    fun toggleAudienceUserSelection(userId: Long)
+    fun clearAudienceSelection()
     fun updateActivePeriod(seconds: Int)
     fun updateProtectContent(protectContent: Boolean)
     fun updateKeepOnProfile(keepOnProfile: Boolean)
@@ -92,6 +98,7 @@ interface StoriesHostComponent {
         val composerMode: StoryComposerMode = StoryComposerMode.CREATE,
         val editingStoryId: Int? = null,
         val composerDraft: StoryComposerDraftModel = StoryComposerDraftModel(),
+        val audiencePicker: StoryAudiencePickerState = StoryAudiencePickerState(),
         val postCapability: StoryPostCapabilityModel? = null,
         val inlineError: String? = null,
         val isSubmitting: Boolean = false,
@@ -148,8 +155,25 @@ data class StoryViewerUiModel(
 enum class StoryPrivacyUi {
     EVERYONE,
     CONTACTS,
-    CLOSE_FRIENDS
+    CLOSE_FRIENDS,
+    SELECTED_USERS
 }
+
+enum class StoryAudienceFilterMode {
+    SHOW_TO,
+    HIDE_FROM
+}
+
+data class StoryAudiencePickerState(
+    val isVisible: Boolean = false,
+    val filterMode: StoryAudienceFilterMode = StoryAudienceFilterMode.HIDE_FROM,
+    val contacts: List<UserModel> = emptyList(),
+    val selectedUsers: List<UserModel> = emptyList(),
+    val searchQuery: String = "",
+    val searchResults: List<UserModel> = emptyList(),
+    val isLoading: Boolean = false,
+    val isSearching: Boolean = false
+)
 
 data class StoryStripItemUiModel(
     val chatId: Long,

@@ -1,15 +1,19 @@
-package org.monogram.presentation.features.stories
+package org.monogram.presentation.features.stories.components
 
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -71,6 +75,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -83,8 +88,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -97,6 +104,7 @@ import coil3.compose.AsyncImage
 import org.monogram.domain.models.stories.StoryComposerMediaItemModel
 import org.monogram.domain.models.stories.StoryMediaType
 import org.monogram.domain.models.stories.StoryPrivacyMode
+import org.monogram.domain.models.stories.StoryPrivacySettingsModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsSwitchTile
@@ -109,6 +117,17 @@ import org.monogram.presentation.features.chats.conversation.ui.inputbar.copyUri
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.declaredPermissions
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.hasAllPermissions
 import org.monogram.presentation.features.gallery.GalleryScreen
+import org.monogram.presentation.features.stories.STORY_MEDIA_ASPECT_RATIO
+import org.monogram.presentation.features.stories.StoriesHostComponent
+import org.monogram.presentation.features.stories.StoryAudienceFilterMode
+import org.monogram.presentation.features.stories.StoryCapabilityPresentation
+import org.monogram.presentation.features.stories.StoryComposerMode
+import org.monogram.presentation.features.stories.StoryErrorBanner
+import org.monogram.presentation.features.stories.StoryPrivacyUi
+import org.monogram.presentation.features.stories.canPublishStory
+import org.monogram.presentation.features.stories.formatStoryDurationLabel
+import org.monogram.presentation.features.stories.inferUriMediaType
+import org.monogram.presentation.features.stories.toCapabilityPresentation
 import java.io.File
 
 private enum class StoryComposerStage {
@@ -119,7 +138,7 @@ private enum class StoryComposerStage {
 }
 
 private data class StoryComposerActionModel(
-    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val icon: ImageVector,
     val title: Int,
     val subtitle: Int,
     val iconColor: Color,
@@ -196,13 +215,13 @@ internal fun StoryComposerOverlayComponent(
 
     val galleryPermissions = remember {
         when {
-            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> listOf(
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> listOf(
                 Manifest.permission.READ_MEDIA_IMAGES,
                 Manifest.permission.READ_MEDIA_VIDEO,
                 Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
             )
 
-            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU -> listOf(
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> listOf(
                 Manifest.permission.READ_MEDIA_IMAGES,
                 Manifest.permission.READ_MEDIA_VIDEO
             )
@@ -211,7 +230,7 @@ internal fun StoryComposerOverlayComponent(
         }
     }
     val fullGalleryPermissions = remember {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             listOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
         } else {
             listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -227,7 +246,7 @@ internal fun StoryComposerOverlayComponent(
     }
 
     fun hasPartialGalleryPermission(): Boolean {
-        return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
                 ContextCompat.checkSelfPermission(
                     context,
                     Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
@@ -469,15 +488,41 @@ internal fun StoryComposerOverlayComponent(
                                     title = stringResource(R.string.story_privacy_label),
                                     subtitle = null
                                 )
-                                StoryChoiceSurface {
-                                    StoryPrivacySectionComponent(
-                                        selected = when (state.composerDraft.privacy.mode) {
-                                            StoryPrivacyMode.CONTACTS -> StoryPrivacyUi.CONTACTS
-                                            StoryPrivacyMode.CLOSE_FRIENDS -> StoryPrivacyUi.CLOSE_FRIENDS
-                                            else -> StoryPrivacyUi.EVERYONE
-                                        },
-                                        onSelect = component::updatePrivacy
-                                    )
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    StoryChoiceSurface {
+                                        StoryPrivacySectionComponent(
+                                            selected = when (state.composerDraft.privacy.mode) {
+                                                StoryPrivacyMode.CONTACTS -> StoryPrivacyUi.CONTACTS
+                                                StoryPrivacyMode.CLOSE_FRIENDS -> StoryPrivacyUi.CLOSE_FRIENDS
+                                                StoryPrivacyMode.SELECTED_USERS -> StoryPrivacyUi.SELECTED_USERS
+                                                else -> StoryPrivacyUi.EVERYONE
+                                            },
+                                            onSelect = component::updatePrivacy
+                                        )
+                                    }
+                                    AnimatedVisibility(
+                                        visible = state.composerDraft.privacy.mode != StoryPrivacyMode.CLOSE_FRIENDS,
+                                        enter = fadeIn() + expandVertically(),
+                                        exit = fadeOut() + shrinkVertically()
+                                    ) {
+                                        StoryAudienceFilterRowComponent(
+                                            privacy = state.composerDraft.privacy,
+                                            onClick = {
+                                                component.showAudiencePicker(
+                                                    when (state.composerDraft.privacy.mode) {
+                                                        StoryPrivacyMode.SELECTED_USERS -> {
+                                                            StoryAudienceFilterMode.SHOW_TO
+                                                        }
+
+                                                        else -> StoryAudienceFilterMode.HIDE_FROM
+                                                    }
+                                                )
+                                            }
+                                        )
+                                    }
                                 }
 
                                 StorySectionHeader(
@@ -558,10 +603,31 @@ internal fun StoryComposerOverlayComponent(
         }
     }
 
+    if (state.audiencePicker.isVisible) {
+        ModalBottomSheet(
+            onDismissRequest = component::dismissAudiencePicker,
+            sheetState = rememberModalBottomSheetState(
+                skipPartiallyExpanded = true
+            ),
+            dragHandle = { BottomSheetDefaults.DragHandle() },
+            containerColor = MaterialTheme.colorScheme.background,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            StoryAudiencePickerContentComponent(
+                state = state.audiencePicker,
+                onDismiss = component::dismissAudiencePicker,
+                onSearchQueryChange = component::updateAudienceSearchQuery,
+                onToggleUserSelection = component::toggleAudienceUserSelection,
+                onClearSelection = component::clearAudienceSelection
+            )
+        }
+    }
+
     if (state.showMediaPicker) {
         ModalBottomSheet(
             onDismissRequest = component::dismissMediaPicker,
-            sheetState = androidx.compose.material3.rememberModalBottomSheetState(
+            sheetState = rememberModalBottomSheetState(
                 skipPartiallyExpanded = true
             ),
             dragHandle = { BottomSheetDefaults.DragHandle() },
@@ -900,6 +966,7 @@ private fun StoryPreviewDetailsPanel(
                 icon = when (state.composerDraft.privacy.mode) {
                     StoryPrivacyMode.CONTACTS -> Icons.Rounded.PeopleAlt
                     StoryPrivacyMode.CLOSE_FRIENDS -> Icons.Rounded.Favorite
+                    StoryPrivacyMode.SELECTED_USERS -> Icons.Rounded.Person
                     else -> Icons.Rounded.Public
                 },
                 title = R.string.story_privacy_label,
@@ -946,11 +1013,7 @@ private fun StoryPreviewDetailsPanel(
     Column {
         rows.forEachIndexed { index, item ->
             val subtitleText = when (index) {
-                1 -> when (state.composerDraft.privacy.mode) {
-                    StoryPrivacyMode.CONTACTS -> stringResource(R.string.story_privacy_contacts)
-                    StoryPrivacyMode.CLOSE_FRIENDS -> stringResource(R.string.story_privacy_close_friends)
-                    else -> stringResource(R.string.story_privacy_everyone)
-                }
+                1 -> formatStoryPrivacySummary(state.composerDraft.privacy)
 
                 2 -> formatStoryDurationLabel(state.composerDraft.activePeriodSeconds)
                 3 -> state.composerDraft.widgetLink.orEmpty()
@@ -993,6 +1056,45 @@ private fun StoryPreviewDetailsPanel(
                 onCheckedChange = { onToggleMute() }
             )
         }
+    }
+}
+
+@Composable
+private fun formatStoryPrivacySummary(privacy: StoryPrivacySettingsModel): String {
+    val baseLabel = when (privacy.mode) {
+        StoryPrivacyMode.EVERYONE -> stringResource(R.string.story_privacy_everyone)
+        StoryPrivacyMode.CONTACTS -> stringResource(R.string.story_privacy_contacts)
+        StoryPrivacyMode.CLOSE_FRIENDS -> stringResource(R.string.story_privacy_close_friends)
+        StoryPrivacyMode.SELECTED_USERS -> stringResource(R.string.story_privacy_selected_users)
+    }
+    val filterSummary = when {
+        privacy.mode == StoryPrivacyMode.SELECTED_USERS && privacy.selectedUserIds.isEmpty() -> {
+            stringResource(R.string.story_privacy_show_to_empty)
+        }
+
+        privacy.mode == StoryPrivacyMode.SELECTED_USERS -> {
+            pluralStringResource(
+                R.plurals.story_privacy_show_to_count,
+                privacy.selectedUserIds.size,
+                privacy.selectedUserIds.size
+            )
+        }
+
+        privacy.exceptUserIds.isNotEmpty() -> {
+            pluralStringResource(
+                R.plurals.story_privacy_hide_from_count,
+                privacy.exceptUserIds.size,
+                privacy.exceptUserIds.size
+            )
+        }
+
+        else -> null
+    }
+
+    return if (filterSummary.isNullOrBlank()) {
+        baseLabel
+    } else {
+        "$baseLabel, $filterSummary"
     }
 }
 
@@ -1344,7 +1446,7 @@ private fun StoryComposerMediaPage(
             )
         }
 
-        androidx.compose.animation.AnimatedVisibility(
+        AnimatedVisibility(
             visible = isVideoBuffering,
             modifier = Modifier.align(Alignment.Center)
         ) {
@@ -1505,7 +1607,7 @@ private fun StoryComposerPreviewPager(
                 )
             }
 
-            androidx.compose.animation.AnimatedVisibility(
+            AnimatedVisibility(
                 visible = isVideoBuffering && page == pagerState.currentPage,
                 modifier = Modifier.align(Alignment.Center)
             ) {

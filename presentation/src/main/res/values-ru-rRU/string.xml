@@ -2403,6 +2403,13 @@
     <string name="story_privacy_everyone">Все</string>
     <string name="story_privacy_contacts">Контакты</string>
     <string name="story_privacy_close_friends">Близкие друзья</string>
+    <string name="story_privacy_selected_users">Выбранные пользователи</string>
+    <string name="story_privacy_show_to">Показывать</string>
+    <string name="story_privacy_hide_from">Скрыть от</string>
+    <string name="story_privacy_show_to_empty">Выберите, кто сможет увидеть эту историю</string>
+    <string name="story_privacy_hide_from_empty">История видна всей выбранной аудитории</string>
+    <string name="story_privacy_manage">Настроить</string>
+    <string name="story_privacy_clear_selection">Очистить</string>
     <string name="story_duration_label">Видна в течение</string>
     <string name="story_duration_6h">6 ч</string>
     <string name="story_duration_12h">12 ч</string>
@@ -2467,6 +2474,13 @@
     <string name="story_caption_supporting">Необязательный текст, отображаемый над вашей историей</string>
     <string name="story_settings_title">Настройки истории</string>
     <string name="story_duration_supporting">Выберите, как долго эта история будет видна</string>
+    <string name="story_audience_picker_show_to_title">Выберите пользователей</string>
+    <string name="story_audience_picker_hide_from_title">Скрыть от пользователей</string>
+    <string name="story_audience_picker_show_to_subtitle">Эту историю увидят только выбранные контакты</string>
+    <string name="story_audience_picker_hide_from_subtitle">Исключите контакты из выбранной аудитории</string>
+    <string name="story_audience_picker_search">Поиск контактов</string>
+    <string name="story_audience_picker_empty">Контакты не найдены</string>
+    <string name="story_audience_picker_no_results">Подходящие контакты не найдены</string>
     <string name="story_keep_on_profile_subtitle">Показывать эту историю в вашем профиле после публикации</string>
     <string name="story_remove_from_profile">Убрать из профиля</string>
     <string name="story_protect_content_subtitle">Запретить пользователям пересылать и сохранять историю</string>
@@ -2474,6 +2488,25 @@
     <string name="story_widget_link_subtitle">Эта история содержит ссылку на мини-приложение</string>
     <string name="story_links_title">Ссылки</string>
     <string name="story_statistics_title">Статистика истории</string>
+    <string name="story_validation_selected_users_required">Выберите хотя бы одного пользователя для этой истории</string>
+    <plurals name="story_privacy_show_to_count">
+        <item quantity="one">Видна %d пользователю</item>
+        <item quantity="few">Видна %d пользователям</item>
+        <item quantity="many">Видна %d пользователям</item>
+        <item quantity="other">Видна %d пользователям</item>
+    </plurals>
+    <plurals name="story_privacy_hide_from_count">
+        <item quantity="one">Скрыта от %d пользователя</item>
+        <item quantity="few">Скрыта от %d пользователей</item>
+        <item quantity="many">Скрыта от %d пользователей</item>
+        <item quantity="other">Скрыта от %d пользователей</item>
+    </plurals>
+    <plurals name="story_audience_selected_count">
+        <item quantity="one">Выбран %d пользователь</item>
+        <item quantity="few">Выбрано %d пользователя</item>
+        <item quantity="many">Выбрано %d пользователей</item>
+        <item quantity="other">Выбрано %d пользователей</item>
+    </plurals>
     <string name="story_statistics_interactions_graph">Просмотры и пересылки</string>
     <string name="story_statistics_reactions_graph">Реакции</string>
     <string name="story_interactions_title">Взаимодействия с историей</string>

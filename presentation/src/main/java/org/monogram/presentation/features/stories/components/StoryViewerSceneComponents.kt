@@ -1,4 +1,4 @@
-package org.monogram.presentation.features.stories
+package org.monogram.presentation.features.stories.components
 
 import android.app.Activity
 import android.content.Context
@@ -74,6 +74,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.createBitmap
@@ -90,11 +91,29 @@ import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import kotlinx.coroutines.delay
+import org.koin.compose.koinInject
 import org.monogram.domain.models.stories.StoryAreaTypeModel
 import org.monogram.domain.models.stories.StoryMediaType
 import org.monogram.domain.models.stories.StoryModel
+import org.monogram.domain.models.stories.StoryReactionModel
 import org.monogram.presentation.R
+import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.profile.components.StatisticsViewer
+import org.monogram.presentation.features.stories.STORY_MEDIA_ASPECT_RATIO
+import org.monogram.presentation.features.stories.StoriesHostComponent
+import org.monogram.presentation.features.stories.StoryInteractionsSheet
+import org.monogram.presentation.features.stories.StoryLinksSheet
+import org.monogram.presentation.features.stories.StoryReactionPickerSheet
+import org.monogram.presentation.features.stories.StoryViewerBorderColor
+import org.monogram.presentation.features.stories.StoryViewerChrome
+import org.monogram.presentation.features.stories.StoryViewerContentColor
+import org.monogram.presentation.features.stories.formatCompactStoryCount
+import org.monogram.presentation.features.stories.resolveStoryAutoAdvanceDurationMs
+import org.monogram.presentation.features.stories.resolveStoryDownloadPath
+import org.monogram.presentation.features.stories.shouldRestartCurrentStoryFromPreviousTap
+import org.monogram.presentation.features.stories.storyAreaPrimaryLabel
+import org.monogram.presentation.features.stories.storyAreaSecondaryLabel
+import org.monogram.presentation.features.stories.storyViewerOverlayColor
 import java.io.File
 
 @Composable
@@ -104,8 +123,8 @@ internal fun StoryViewerScaffoldComponent(
     story: StoryModel?
 ) {
     val context = LocalContext.current
-    val downloadUtils: org.monogram.presentation.core.util.IDownloadUtils =
-        org.koin.compose.koinInject()
+    val downloadUtils: IDownloadUtils =
+        koinInject()
     var currentProgress by remember(story?.id) { mutableFloatStateOf(0f) }
     var restartPlaybackToken by remember(story?.id) { mutableStateOf(0) }
     var isVideoMuted by remember(story?.id) { mutableStateOf(false) }
@@ -115,7 +134,7 @@ internal fun StoryViewerScaffoldComponent(
     var isLinksSheetVisible by remember(story?.id) { mutableStateOf(false) }
     var playerView by remember(story?.id) { mutableStateOf<PlayerView?>(null) }
     var selectedReactionOverride by remember(story?.id) {
-        mutableStateOf<org.monogram.domain.models.stories.StoryReactionModel?>(null)
+        mutableStateOf<StoryReactionModel?>(null)
     }
     val selectedReaction = selectedReactionOverride ?: story?.chosenReaction
 
@@ -362,7 +381,7 @@ private fun StoryMediaScene(
     onPreviousTap: () -> Unit,
     onNextTap: () -> Unit,
     onStoryAreaClick: (StoryAreaTypeModel) -> Unit,
-    selectedReaction: org.monogram.domain.models.stories.StoryReactionModel?,
+    selectedReaction: StoryReactionModel?,
     onPlayerViewChanged: (PlayerView?) -> Unit
 ) {
     val story = page.story
@@ -548,7 +567,7 @@ private fun StoryViewerTapZones(
 private fun StoryAreaOverlays(
     story: StoryModel,
     onAreaClick: (StoryAreaTypeModel) -> Unit,
-    selectedReaction: org.monogram.domain.models.stories.StoryReactionModel?
+    selectedReaction: StoryReactionModel?
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         story.areas.forEachIndexed { index, area ->
@@ -556,9 +575,9 @@ private fun StoryAreaOverlays(
                 maxOf(maxWidth * (area.position.widthPercentage.toFloat() / 100f), 72.dp)
             val baseHeight =
                 maxOf(maxHeight * (area.position.heightPercentage.toFloat() / 100f), 34.dp)
-            val width: androidx.compose.ui.unit.Dp
-            val height: androidx.compose.ui.unit.Dp
-            val cornerRadius: androidx.compose.ui.unit.Dp
+            val width: Dp
+            val height: Dp
+            val cornerRadius: Dp
 
             if (area.type is StoryAreaTypeModel.SuggestedReaction) {
                 val diameter = maxOf(baseHeight, 58.dp)
@@ -598,7 +617,7 @@ private fun StoryAreaOverlays(
 private fun StoryAreaChip(
     modifier: Modifier,
     areaType: StoryAreaTypeModel,
-    cornerRadius: androidx.compose.ui.unit.Dp,
+    cornerRadius: Dp,
     onClick: () -> Unit,
     key: String,
     isSelected: Boolean

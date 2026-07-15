@@ -21,12 +21,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 import org.json.JSONObject
@@ -504,15 +506,13 @@ class DefaultRootComponent(
         initialCaption: String = "",
         widgetLink: String? = null
     ) {
-        scope.launch {
-            storiesHost.openComposer(
-                chatId = chatId,
-                preferredMediaType = preferredMediaType,
-                initialSourcePath = initialSourcePath,
-                initialCaption = initialCaption,
-                widgetLink = widgetLink
-            )
-        }
+        storiesHost.openComposer(
+            chatId = chatId,
+            preferredMediaType = preferredMediaType,
+            initialSourcePath = initialSourcePath,
+            initialCaption = initialCaption,
+            widgetLink = widgetLink
+        )
     }
 
     private fun openOwnStoryComposer(
@@ -521,8 +521,21 @@ class DefaultRootComponent(
         initialCaption: String = "",
         widgetLink: String? = null
     ) {
+        userRepository.currentUserFlow.value?.id?.let { currentUserId ->
+            openStoryComposer(
+                chatId = currentUserId,
+                preferredMediaType = preferredMediaType,
+                initialSourcePath = initialSourcePath,
+                initialCaption = initialCaption,
+                widgetLink = widgetLink
+            )
+            return
+        }
+
         scope.launch {
-            val me = userRepository.getMe() ?: return@launch
+            val me = withTimeoutOrNull(250) {
+                userRepository.currentUserFlow.filterNotNull().first()
+            } ?: userRepository.getMe()
             openStoryComposer(
                 chatId = me.id,
                 preferredMediaType = preferredMediaType,

@@ -95,6 +95,7 @@ interface ChatSettingsComponent {
     fun onCompressVideosChanged(enabled: Boolean)
     fun onChatListMessageLinesChanged(lines: Int)
     fun onShowChatListPhotosChanged(enabled: Boolean)
+    fun onShowStoriesBlockChanged(enabled: Boolean)
     fun onShowReactionsChanged(enabled: Boolean)
 
     data class State(
@@ -165,6 +166,7 @@ interface ChatSettingsComponent {
         val compressVideos: Boolean = true,
         val chatListMessageLines: Int = 1,
         val showChatListPhotos: Boolean = true,
+        val showStoriesBlock: Boolean = true,
         val showReactions: Boolean = true,
         val isInstalledFromGooglePlay: Boolean = true
     )
@@ -244,6 +246,7 @@ class DefaultChatSettingsComponent(
             compressVideos = appPreferences.compressVideos.value,
             chatListMessageLines = appPreferences.chatListMessageLines.value,
             showChatListPhotos = appPreferences.showChatListPhotos.value,
+            showStoriesBlock = appPreferences.showStoriesBlock.value,
             showReactions = appPreferences.showReactions.value,
             isInstalledFromGooglePlay = distrManager.isInstalledFromGooglePlay()
         )
@@ -597,6 +600,12 @@ class DefaultChatSettingsComponent(
         appPreferences.showChatListPhotos
             .onEach { enabled ->
                 _state.update { it.copy(showChatListPhotos = enabled) }
+            }
+            .launchIn(scope)
+
+        appPreferences.showStoriesBlock
+            .onEach { enabled ->
+                _state.update { it.copy(showStoriesBlock = enabled) }
             }
             .launchIn(scope)
 
@@ -1220,6 +1229,10 @@ class DefaultChatSettingsComponent(
 
     override fun onShowChatListPhotosChanged(enabled: Boolean) {
         appPreferences.setShowChatListPhotos(enabled)
+    }
+
+    override fun onShowStoriesBlockChanged(enabled: Boolean) {
+        appPreferences.setShowStoriesBlock(enabled)
     }
 
     override fun onShowReactionsChanged(enabled: Boolean) {

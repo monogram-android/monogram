@@ -155,6 +155,7 @@ internal fun MiniAppOverlay(state: ChatComponent.State, component: ChatComponent
                 botName = state.chatTitle,
                 botAvatarPath = state.chatAvatar,
                 webAppRepository = component.repositoryMessage,
+                onShareToStory = component::onShareToStory,
                 onDismiss = { component.onDismissMiniApp() }
             )
         }

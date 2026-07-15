@@ -26,7 +26,11 @@ import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ChatType
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.UpdateState
+import org.monogram.domain.models.stories.ActiveStoryListModel
+import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.repository.AttachMenuBotRepository
+import org.monogram.domain.repository.AuthRepository
+import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.BotRepository
 import org.monogram.domain.repository.ChatFolderRepository
 import org.monogram.domain.repository.ChatListRepository
@@ -37,6 +41,7 @@ import org.monogram.domain.repository.ForwardOptions
 import org.monogram.domain.repository.ForwardRequest
 import org.monogram.domain.repository.ForwardTarget
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
@@ -62,6 +67,9 @@ class DefaultChatListComponent(
     private val onConfirmForward: (ForwardRequest) -> Unit = {},
     private val onShareTargetSelected: (ShareTarget) -> Unit = {},
     private val onShareCancelled: () -> Unit = {},
+    private val onShareToStory: (String, String?, String?) -> Unit = { _, _, _ -> },
+    private val onStorySelect: (Long, Int?) -> Unit = { _, _ -> },
+    private val onAddStory: () -> Unit = {},
     private val forwardingFromChatId: Long? = null,
     private val forwardingMessageIds: List<Long> = emptyList(),
     internal val isForwarding: Boolean = false,
@@ -72,6 +80,7 @@ class DefaultChatListComponent(
 ) : ChatListComponent, AppComponentContext by context {
     private val isTelemtBuild = BuildConfig.ENABLE_TELEMT_DNS
 
+    private val authRepository: AuthRepository = container.repositories.authRepository
     private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
     private val chatFolderRepository: ChatFolderRepository = container.repositories.chatFolderRepository
     private val chatSearchRepository: ChatSearchRepository = container.repositories.chatSearchRepository
@@ -84,6 +93,7 @@ class DefaultChatListComponent(
     private val botRepository: BotRepository = container.repositories.botRepository
     private val attachMenuBotRepository: AttachMenuBotRepository = container.repositories.attachMenuBotRepository
     private val updateRepository: UpdateRepository = container.repositories.updateRepository
+    private val storyRepository: StoryRepository = container.repositories.storyRepository
     override val appPreferences: AppPreferences = container.preferences.appPreferences
     private val messageDisplayer = container.utils.messageDisplayer()
 
@@ -100,6 +110,7 @@ class DefaultChatListComponent(
     private val _chatsState = MutableStateFlow(_state.value.toChatsState())
     private val _selectionState = MutableStateFlow(_state.value.toSelectionState())
     private val _searchState = MutableStateFlow(_state.value.toSearchState())
+    private val _storiesState = MutableStateFlow(ChatListComponent.StoriesState())
 
     private val store = instanceKeeper.getStore {
         ChatListStoreFactory(
@@ -115,14 +126,20 @@ class DefaultChatListComponent(
     override val chatsState: StateFlow<ChatListComponent.ChatsState> = _chatsState.asStateFlow()
     override val selectionState: StateFlow<ChatListComponent.SelectionState> = _selectionState.asStateFlow()
     override val searchState: StateFlow<ChatListComponent.SearchState> = _searchState.asStateFlow()
+    override val storiesState: StateFlow<ChatListComponent.StoriesState> =
+        _storiesState.asStateFlow()
 
     private val scope = componentScope
     private var searchJob: Job? = null
     private var isFetchingMoreMessages = false
     private var nextMessagesOffset = ""
+    private var hasRequestedStoryLists = false
     private var hasSeenResume = false
     private val prefetchSemaphore = Semaphore(PREFETCH_CONCURRENCY)
     private val messagePrefetchTimestamps = mutableMapOf<Long, Long>()
+    private val storyPrefetchTimestamps = mutableMapOf<Long, Long>()
+    private var trackedStoryChatIds = emptySet<Long>()
+    private val lastPinnedFolderLogByFolder = mutableMapOf<Int, PinnedFolderSnapshot>()
 
     private fun ChatListComponent.State.toUiState() = ChatListComponent.UiState(
         currentUser = currentUser,
@@ -292,15 +309,22 @@ class DefaultChatListComponent(
         chatFolderRepository.folderChatsFlow
             .onEach { update ->
                 val normalizedList = normalizeFolderChats(update.chats)
-                val pinnedCount = normalizedList.count { it.isPinned }
-                if (pinnedCount > 0) {
+                val shouldRefreshStories = shouldRefreshStoriesForFolderUpdate(
+                    previousChats = _state.value.chatsByFolder[update.folderId],
+                    updatedChats = normalizedList,
+                    trackedStoryChatIds = trackedStoryChatIds
+                )
+
+                val pinnedSnapshot = normalizedList.toPinnedFolderSnapshot()
+                if (pinnedSnapshot != null && lastPinnedFolderLogByFolder[update.folderId] != pinnedSnapshot) {
+                    lastPinnedFolderLogByFolder[update.folderId] = pinnedSnapshot
                     Log.d(
                         TAG,
-                        "folder=${update.folderId} chats=${normalizedList.size} pinned=$pinnedCount pinnedIds=${
-                            normalizedList.filter { it.isPinned }.take(10)
-                                .joinToString { it.id.toString() }
-                        }"
+                        "folder=${update.folderId} chats=${normalizedList.size} pinned=${pinnedSnapshot.pinnedIds.size} " +
+                                "pinnedIds=${pinnedSnapshot.pinnedIds.take(10).joinToString()}"
                     )
+                } else if (pinnedSnapshot == null) {
+                    lastPinnedFolderLogByFolder.remove(update.folderId)
                 }
                 _state.update {
                     if (it.chatsByFolder[update.folderId] == normalizedList) {
@@ -311,6 +335,10 @@ class DefaultChatListComponent(
                     it.copy(chatsByFolder = newChatsByFolder)
                 }
                 syncProjectChannelSubscriptionFromChats(normalizedList)
+                prefetchStoryListsForChats(update.folderId, normalizedList)
+                if (shouldRefreshStories) {
+                    refreshStoriesState("folder_${update.folderId}")
+                }
             }
             .launchIn(scope)
 
@@ -419,10 +447,57 @@ class DefaultChatListComponent(
             }
             .launchIn(scope)
 
+        storyRepository.activeStories
+            .onEach { activeStories ->
+                trackedStoryChatIds = activeStories.values.asSequence()
+                    .flatMap(List<ActiveStoryListModel>::asSequence)
+                    .mapTo(linkedSetOf()) { it.chatId }
+                Log.d(
+                    STORY_TAG,
+                    "story repository update main=${activeStories[StoryListType.MAIN].orEmpty().size} " +
+                            "archive=${activeStories[StoryListType.ARCHIVE].orEmpty().size}"
+                )
+                refreshStoriesState("repository")
+            }
+            .launchIn(scope)
+
+        storyRepository.storyListChatCounts
+            .onEach { counts ->
+                Log.d(
+                    STORY_TAG,
+                    "story list counts update main=${counts[StoryListType.MAIN]} archive=${counts[StoryListType.ARCHIVE]}"
+                )
+                refreshStoriesState("counts")
+            }
+            .launchIn(scope)
+
+        authRepository.authState
+            .onEach { authState ->
+                when (authState) {
+                    is AuthStep.Ready -> {
+                        if (!hasRequestedStoryLists) {
+                            hasRequestedStoryLists = true
+                            scope.launch(Dispatchers.IO) {
+                                storyRepository.loadActiveStories(StoryListType.MAIN)
+                                storyRepository.loadActiveStories(StoryListType.ARCHIVE)
+                            }
+                        }
+                    }
+
+                    else -> {
+                        hasRequestedStoryLists = false
+                        trackedStoryChatIds = emptySet()
+                        storyPrefetchTimestamps.clear()
+                    }
+                }
+            }
+            .launchIn(scope)
+
         scope.launch {
             if (!isTelemtBuild) {
                 updateRepository.checkForUpdates()
             }
+            refreshStoriesState("init")
         }
 
         _state.onEach {
@@ -994,6 +1069,18 @@ class DefaultChatListComponent(
         }
     }
 
+    override fun onShareToStory(mediaUrl: String, text: String?, widgetLink: String?) {
+        onShareToStory.invoke(mediaUrl, text, widgetLink)
+    }
+
+    override fun onStoryClicked(chatId: Long, storyId: Int?) {
+        onStorySelect(chatId, storyId)
+    }
+
+    override fun onAddStoryClicked() {
+        onAddStory()
+    }
+
     override fun onDismissWebApp() = store.accept(ChatListStore.Intent.DismissWebApp)
 
     internal fun handleDismissWebApp() {
@@ -1205,6 +1292,119 @@ class DefaultChatListComponent(
         }
     }
 
+    private fun prefetchStoryListsForChats(folderId: Int, chats: List<ChatModel>) {
+        val now = System.currentTimeMillis()
+        storyPrefetchTimestamps.entries.removeAll { (_, timestamp) ->
+            now - timestamp >= STORY_PREFETCH_TTL_MS
+        }
+        val hintedChats = chats.asSequence()
+            .filter { it.activeStoryId != 0 || !it.activeStoryStateType.isNullOrBlank() }
+            .filter { chat ->
+                chat.id !in trackedStoryChatIds
+            }
+            .filter { chat ->
+                val lastPrefetchAt = storyPrefetchTimestamps[chat.id] ?: return@filter true
+                now - lastPrefetchAt >= STORY_PREFETCH_TTL_MS
+            }
+            .take(STORY_PREFETCH_MAX)
+            .toList()
+
+        if (hintedChats.isEmpty()) return
+
+        hintedChats.forEach { chat ->
+            storyPrefetchTimestamps[chat.id] = now
+        }
+
+        scope.launch(Dispatchers.IO) {
+            hintedChats.forEach { chat ->
+                Log.d(
+                    STORY_TAG,
+                    "prefetch story list folder=$folderId chatId=${chat.id} hintType=${chat.activeStoryStateType} hintId=${chat.activeStoryId}"
+                )
+                coRunCatching {
+                    storyRepository.getChatActiveStories(chat.id)
+                }.onFailure { error ->
+                    Log.d(
+                        STORY_TAG,
+                        "prefetch story list failed chatId=${chat.id}: ${error.message}"
+                    )
+                }
+            }
+            refreshStoriesState("prefetch_$folderId")
+        }
+    }
+
+    private fun refreshStoriesState(reason: String) {
+        scope.launch(Dispatchers.IO) {
+            val repositoryStories = storyRepository.activeStories.value
+            val storyListChatCounts = storyRepository.storyListChatCounts.value
+            val combinedStories = repositoryStories[StoryListType.MAIN].orEmpty() +
+                    repositoryStories[StoryListType.ARCHIVE].orEmpty()
+            val archiveFolderChatIds = _state.value.chatsByFolder[ARCHIVE_FOLDER_ID]
+                .orEmpty()
+                .mapTo(mutableSetOf()) { it.id }
+            val localChatIndex = LinkedHashMap<Long, ChatModel>()
+            _state.value.chatsByFolder.values.forEach { chats ->
+                chats.forEach { chat -> localChatIndex.putIfAbsent(chat.id, chat) }
+            }
+
+            val resolvedStories = combinedStories.mapNotNull { storyList ->
+                val chat = localChatIndex[storyList.chatId] ?: chatListRepository.getChatById(
+                    storyList.chatId
+                )
+                if (chat == null) {
+                    Log.d(
+                        STORY_TAG,
+                        "story chat metadata missing chatId=${storyList.chatId} reason=$reason"
+                    )
+                    null
+                } else {
+                    val isArchived = when {
+                        storyList.chatId in archiveFolderChatIds -> true
+                        else -> chatListRepository.isChatArchived(storyList.chatId)
+                            ?: chat.isArchived
+                    }
+                    Triple(chat, storyList, isArchived)
+                }
+            }
+
+            val visibleStories = resolvedStories.groupBy(
+                keySelector = { (_, stories, _) -> stories.listType },
+                valueTransform = { (_, stories, _) -> stories }
+            )
+            val archivedChatIds = resolvedStories
+                .asSequence()
+                .filter { (_, _, isArchived) -> isArchived }
+                .mapTo(mutableSetOf()) { (_, stories, _) -> stories.chatId }
+            val (mainStories, archiveStories) = resolveDisplayedStoryLists(
+                repositoryStories = visibleStories,
+                archivedChatIds = archivedChatIds
+            )
+            val isMainStoriesLoaded = storyListChatCounts.containsKey(StoryListType.MAIN) ||
+                    repositoryStories.containsKey(StoryListType.MAIN)
+            val isArchiveStoriesLoaded = storyListChatCounts.containsKey(StoryListType.ARCHIVE) ||
+                    repositoryStories.containsKey(StoryListType.ARCHIVE)
+
+            val newStoriesState = ChatListComponent.StoriesState(
+                mainActiveStories = mainStories,
+                archiveActiveStories = archiveStories,
+                isMainStoriesLoaded = isMainStoriesLoaded,
+                isArchiveStoriesLoaded = isArchiveStoriesLoaded
+            )
+
+            if (newStoriesState == _storiesState.value) {
+                return@launch
+            }
+
+            Log.d(
+                STORY_TAG,
+                "refreshStoriesState reason=$reason total=${combinedStories.size} main=${mainStories.size} archived=${archiveStories.size} archiveFolderIds=${archiveFolderChatIds.size} mainLoaded=$isMainStoriesLoaded archiveLoaded=$isArchiveStoriesLoaded"
+            )
+
+            _storiesState.value = newStoriesState
+        }
+    }
+
     private fun syncProjectChannelSubscriptionFromChats(chats: List<ChatModel>) {
         chats.firstOrNull { it.id == PROJECT_CHANNEL_CHAT_ID }
             ?.let(::syncProjectChannelSubscriptionFromChat)
@@ -1241,12 +1441,15 @@ class DefaultChatListComponent(
 
     companion object {
         private const val TAG = "PinnedUiDiag"
+        private const val STORY_TAG = "StoriesDiag"
         private const val ARCHIVE_FOLDER_ID = -2
         private const val PROJECT_CHANNEL_CHAT_ID = -1003768707135L
         private const val PREFETCH_MAX_CANDIDATES = 6
         private const val PREFETCH_CONCURRENCY = 2
         private const val PREFETCH_PAGE_SIZE = 30
         private const val PREFETCH_TTL_MS = 60_000L
+        private const val STORY_PREFETCH_MAX = 12
+        private const val STORY_PREFETCH_TTL_MS = 5 * 60_000L
     }
 
     private fun toggleSelection(id: Long) {
@@ -1363,6 +1566,19 @@ class DefaultChatListComponent(
     }
 }
 
+internal fun resolveDisplayedStoryLists(
+    repositoryStories: Map<StoryListType, List<ActiveStoryListModel>>,
+    archivedChatIds: Set<Long>
+): Pair<List<ActiveStoryListModel>, List<ActiveStoryListModel>> {
+    val explicitArchiveStories = repositoryStories[StoryListType.ARCHIVE].orEmpty()
+    val explicitArchiveIds = explicitArchiveStories.mapTo(mutableSetOf()) { it.chatId }
+    val mainStories = repositoryStories[StoryListType.MAIN].orEmpty()
+        .filterNot { it.chatId in archivedChatIds || it.chatId in explicitArchiveIds }
+    val archiveFallbackStories = repositoryStories[StoryListType.MAIN].orEmpty()
+        .filter { it.chatId in archivedChatIds && it.chatId !in explicitArchiveIds }
+    return mainStories to (explicitArchiveStories + archiveFallbackStories)
+}
+
 private fun hasUnreadState(chat: ChatModel): Boolean {
     return chat.unreadCount > 0 ||
             chat.isMarkedAsUnread ||
@@ -1405,6 +1621,55 @@ internal fun normalizeFolderChats(chats: List<ChatModel>): List<ChatModel> {
         }
     }
     return if (normalized.size == chats.size) chats else normalized
+}
+
+internal fun shouldRefreshStoriesForFolderUpdate(
+    previousChats: List<ChatModel>?,
+    updatedChats: List<ChatModel>,
+    trackedStoryChatIds: Set<Long>
+): Boolean {
+    return previousChats.toStoryRefreshSnapshot(trackedStoryChatIds) !=
+            updatedChats.toStoryRefreshSnapshot(trackedStoryChatIds)
+}
+
+private fun List<ChatModel>?.toStoryRefreshSnapshot(
+    trackedStoryChatIds: Set<Long>
+): Map<Long, StoryRefreshSnapshot> {
+    return this.orEmpty()
+        .asSequence()
+        .filter { chat ->
+            chat.id in trackedStoryChatIds ||
+                    chat.isArchived ||
+                    chat.activeStoryId != 0 ||
+                    !chat.activeStoryStateType.isNullOrBlank()
+        }
+        .associate { chat ->
+            chat.id to StoryRefreshSnapshot(
+                id = chat.id,
+                isArchived = chat.isArchived,
+                activeStoryStateType = chat.activeStoryStateType,
+                activeStoryId = chat.activeStoryId
+            )
+        }
+}
+
+private data class StoryRefreshSnapshot(
+    val id: Long,
+    val isArchived: Boolean,
+    val activeStoryStateType: String?,
+    val activeStoryId: Int
+)
+
+private data class PinnedFolderSnapshot(
+    val pinnedIds: List<Long>
+)
+
+private fun List<ChatModel>.toPinnedFolderSnapshot(): PinnedFolderSnapshot? {
+    val pinnedIds = asSequence()
+        .filter { it.isPinned }
+        .map { it.id }
+        .toList()
+    return pinnedIds.takeIf(List<Long>::isNotEmpty)?.let(::PinnedFolderSnapshot)
 }
 
 private fun AppPreferences.projectChannelSubscriptionState(): ChatListComponent.ProjectChannelSubscriptionState {

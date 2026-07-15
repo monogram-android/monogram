@@ -35,7 +35,7 @@ class ChatModelFactory(
     private val appPreferences: AppPreferencesProvider,
     private val userFullInfoDao: UserFullInfoDao,
     private val muteResolver: NotificationMuteResolver = NotificationMuteResolver(),
-    private val triggerUpdate: (Long?) -> Unit,
+    private val scheduleUpdate: (Long) -> Unit,
     private val fetchUser: (Long) -> Unit
 ) {
     private val missingUserFullInfoUntilMs = ConcurrentHashMap<Long, Long>()
@@ -95,7 +95,7 @@ class ChatModelFactory(
                     if (type.basicGroupId == 0L) return@lazyLoad
                     val result = gateway.execute(TdApi.GetBasicGroup(type.basicGroupId))
                     cache.basicGroups[result.id] = result
-                    triggerUpdate(chat.id)
+                    scheduleUpdate(chat.id)
                 }
 
                 cache.basicGroupFullInfoCache[type.basicGroupId]?.let { fullInfo ->
@@ -106,7 +106,7 @@ class ChatModelFactory(
                     if (type.basicGroupId == 0L) return@lazyLoad
                     val result = gateway.execute(TdApi.GetBasicGroupFullInfo(type.basicGroupId))
                     cache.basicGroupFullInfoCache[type.basicGroupId] = result
-                    triggerUpdate(chat.id)
+                    scheduleUpdate(chat.id)
                 }
             }
 
@@ -141,7 +141,7 @@ class ChatModelFactory(
                     if (type.supergroupId == 0L) return@lazyLoad
                     val result = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
                     cache.supergroups[result.id] = result
-                    triggerUpdate(chat.id)
+                    scheduleUpdate(chat.id)
                 }
 
                 val canLoadSupergroupFullInfo = supergroup?.status?.let {
@@ -157,7 +157,7 @@ class ChatModelFactory(
                         if (type.supergroupId == 0L) return@lazyLoad
                         val result = gateway.execute(TdApi.GetSupergroupFullInfo(type.supergroupId))
                         cache.supergroupFullInfoCache[type.supergroupId] = result
-                        triggerUpdate(chat.id)
+                        scheduleUpdate(chat.id)
                     }
                 }
             }
@@ -202,7 +202,7 @@ class ChatModelFactory(
                             lazyLoad(cache.pendingUserFullInfo, type.userId) {
                                 if (type.userId == 0L) return@lazyLoad
                                 cache.userFullInfoCache[type.userId]?.let {
-                                    triggerUpdate(chat.id)
+                                    scheduleUpdate(chat.id)
                                     return@lazyLoad
                                 }
                                 val cachedInfo = coRunCatching {
@@ -211,7 +211,7 @@ class ChatModelFactory(
                                 if (cachedInfo != null) {
                                     cache.putUserFullInfo(type.userId, cachedInfo)
                                     missingUserFullInfoUntilMs.remove(type.userId)
-                                    triggerUpdate(chat.id)
+                                    scheduleUpdate(chat.id)
                                     return@lazyLoad
                                 }
                                 val result = userFullInfoSemaphore.withPermit {
@@ -223,7 +223,7 @@ class ChatModelFactory(
                                     cache.putUserFullInfo(type.userId, result)
                                     coRunCatching { userFullInfoDao.insertUserFullInfo(result.toEntity(type.userId)) }
                                     missingUserFullInfoUntilMs.remove(type.userId)
-                                    triggerUpdate(chat.id)
+                                    scheduleUpdate(chat.id)
                                 } else {
                                     rememberMissingUserFullInfo(type.userId)
                                 }
@@ -240,7 +240,7 @@ class ChatModelFactory(
             lazyLoad(cache.pendingChatPermissions, chat.id) {
                 val result = gateway.execute(TdApi.GetChat(chat.id))
                 cache.chatPermissionsCache[chat.id] = result.permissions
-                triggerUpdate(chat.id)
+                scheduleUpdate(chat.id)
             }
         }
 
@@ -260,7 +260,7 @@ class ChatModelFactory(
                         TdApi.GetChatMember(chat.id, TdApi.MessageSenderUser(me.id))
                     )
                     cache.myChatMemberCache[chat.id] = member
-                    triggerUpdate(chat.id)
+                    scheduleUpdate(chat.id)
                 }
             }
         }

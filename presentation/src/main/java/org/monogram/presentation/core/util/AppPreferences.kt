@@ -331,6 +331,9 @@ class AppPreferences(
     private val _showChatListPhotos = MutableStateFlow(prefs.getBoolean(KEY_SHOW_CHAT_LIST_PHOTOS, true))
     override val showChatListPhotos: StateFlow<Boolean> = _showChatListPhotos
 
+    private val _showStoriesBlock = MutableStateFlow(prefs.getBoolean(KEY_SHOW_STORIES_BLOCK, true))
+    override val showStoriesBlock: StateFlow<Boolean> = _showStoriesBlock
+
     private val _showReactions = MutableStateFlow(prefs.getBoolean(KEY_SHOW_REACTIONS, true))
     override val showReactions: StateFlow<Boolean> = _showReactions
 
@@ -338,6 +341,10 @@ class AppPreferences(
         MutableStateFlow(prefs.getBoolean(KEY_SHOW_SPONSORED_MESSAGES_FOR_PREMIUM, false))
     override val showSponsoredMessagesForPremium: StateFlow<Boolean> =
         _showSponsoredMessagesForPremium
+
+    private val _storyMediaStretchEnabled =
+        MutableStateFlow(prefs.getBoolean(KEY_STORY_MEDIA_STRETCH_ENABLED, true))
+    override val storyMediaStretchEnabled: StateFlow<Boolean> = _storyMediaStretchEnabled
 
     private val _showAllChatsFolder =
         MutableStateFlow(prefs.getBoolean(KEY_SHOW_ALL_CHATS_FOLDER, true))
@@ -998,6 +1005,11 @@ class AppPreferences(
         _showChatListPhotos.value = enabled
     }
 
+    override fun setShowStoriesBlock(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_STORIES_BLOCK, enabled).apply()
+        _showStoriesBlock.value = enabled
+    }
+
     override fun setShowReactions(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_REACTIONS, enabled).apply()
         _showReactions.value = enabled
@@ -1006,6 +1018,11 @@ class AppPreferences(
     override fun setShowSponsoredMessagesForPremium(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_SPONSORED_MESSAGES_FOR_PREMIUM, enabled).apply()
         _showSponsoredMessagesForPremium.value = enabled
+    }
+
+    override fun setStoryMediaStretchEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_STORY_MEDIA_STRETCH_ENABLED, enabled).apply()
+        _storyMediaStretchEnabled.value = enabled
     }
 
     fun setShowAllChatsFolder(enabled: Boolean) {
@@ -1213,7 +1230,9 @@ class AppPreferences(
         _isChatAnimationsEnabled.value = true
         _chatListMessageLines.value = 1
         _showChatListPhotos.value = true
+        _showStoriesBlock.value = true
         _showSponsoredMessagesForPremium.value = false
+        _storyMediaStretchEnabled.value = true
         _showAllChatsFolder.value = true
         _isTabletInterfaceEnabled.value = true
         _isAdBlockEnabled.value = false
@@ -1367,9 +1386,11 @@ class AppPreferences(
         private const val KEY_CHAT_ANIMATIONS_ENABLED = "chat_animations_enabled"
         private const val KEY_CHAT_LIST_MESSAGE_LINES = "chat_list_message_lines"
         private const val KEY_SHOW_CHAT_LIST_PHOTOS = "show_chat_list_photos"
+        private const val KEY_SHOW_STORIES_BLOCK = "show_stories_block"
         private const val KEY_SHOW_REACTIONS = "show_reactions"
         private const val KEY_SHOW_SPONSORED_MESSAGES_FOR_PREMIUM =
             "show_sponsored_messages_for_premium"
+        private const val KEY_STORY_MEDIA_STRETCH_ENABLED = "story_media_stretch_enabled"
         private const val KEY_SHOW_ALL_CHATS_FOLDER = "show_all_chats_folder"
         private const val KEY_TABLET_INTERFACE_ENABLED = "tablet_interface_enabled"
 

@@ -7,6 +7,7 @@ import org.monogram.data.datasource.remote.LinkRemoteDataSource
 import org.monogram.data.infra.FileDownloadQueue
 import org.monogram.data.mapper.toLinkProxyTypeOrNull
 import org.monogram.data.mapper.toLinkSettingsType
+import org.monogram.domain.models.stories.StoryMediaType
 import org.monogram.domain.repository.ChatInfoRepository
 import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.LinkAction
@@ -61,8 +62,23 @@ class LinkHandlerRepositoryImpl(
         is TdApi.InternalLinkTypeBotStart -> handlePublicChat(internalLink.botUsername)
         is TdApi.InternalLinkTypeBotStartInGroup -> handlePublicChat(internalLink.botUsername)
         is TdApi.InternalLinkTypeVideoChat -> handlePublicChat(internalLink.chatUsername)
-        is TdApi.InternalLinkTypeStory -> handlePublicChat(internalLink.storyPosterUsername)
-        is TdApi.InternalLinkTypeStoryAlbum -> handlePublicChat(internalLink.storyAlbumOwnerUsername)
+        is TdApi.InternalLinkTypeStory -> handleStoryLink(
+            internalLink.storyPosterUsername,
+            internalLink.storyId
+        )
+
+        is TdApi.InternalLinkTypeStoryAlbum -> handleStoryAlbumLink(
+            internalLink.storyAlbumOwnerUsername,
+            internalLink.storyAlbumId
+        )
+
+        is TdApi.InternalLinkTypeNewStory -> LinkAction.OpenNewStory(
+            when (internalLink.contentType) {
+                is TdApi.StoryContentTypePhoto -> StoryMediaType.PHOTO
+                is TdApi.StoryContentTypeVideo -> StoryMediaType.VIDEO
+                else -> null
+            }
+        )
         is TdApi.InternalLinkTypeMyProfilePage -> handleMyProfileLink()
         is TdApi.InternalLinkTypeSavedMessages -> handleSavedMessagesLink()
         is TdApi.InternalLinkTypeUserPhoneNumber ->
@@ -130,6 +146,18 @@ class LinkHandlerRepositoryImpl(
         val chat = remote.searchPublicChat(username)
             ?: return LinkAction.ShowToast(MSG_CHAT_NOT_FOUND)
         return resolveChatAction(chat)
+    }
+
+    private suspend fun handleStoryLink(username: String, storyId: Int): LinkAction {
+        val chat = remote.searchPublicChat(username)
+            ?: return LinkAction.ShowToast(MSG_CHAT_NOT_FOUND)
+        return LinkAction.OpenStory(chat.id, storyId)
+    }
+
+    private suspend fun handleStoryAlbumLink(username: String, albumId: Int): LinkAction {
+        val chat = remote.searchPublicChat(username)
+            ?: return LinkAction.ShowToast(MSG_CHAT_NOT_FOUND)
+        return LinkAction.OpenStoryAlbum(chat.id, albumId)
     }
 
     private suspend fun handleMyProfileLink(): LinkAction {

@@ -1010,6 +1010,13 @@ private fun AttachmentPreview(
         remember(attachments) { attachments.any { it.kind == PendingAttachmentKind.DOCUMENT } }
     val hasVisualMedia =
         remember(attachments) { attachments.any { it.kind != PendingAttachmentKind.DOCUMENT } }
+    val onAddClick = remember(hasVisualMedia, hasDocuments, onAdd, onAddDocuments) {
+        when {
+            hasVisualMedia -> onAdd
+            hasDocuments -> onAddDocuments
+            else -> onAdd
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -1034,7 +1041,7 @@ private fun AttachmentPreview(
                 modifier = Modifier.padding(start = 4.dp)
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onAdd) {
+                TextButton(onClick = onAddClick) {
                     Icon(
                         imageVector = Icons.Outlined.Add,
                         contentDescription = null,
@@ -1042,17 +1049,6 @@ private fun AttachmentPreview(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(text = stringResource(R.string.action_add))
-                }
-                if (hasVisualMedia && !hasDocuments) {
-                    TextButton(onClick = onAddDocuments) {
-                        Icon(
-                            imageVector = Icons.Outlined.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = stringResource(R.string.action_add))
-                    }
                 }
                 IconButton(onClick = onCancel, modifier = Modifier.size(24.dp)) {
                     Icon(

@@ -71,8 +71,10 @@ interface AppPreferencesProvider {
     val isChatAnimationsEnabled: StateFlow<Boolean>
     val chatListMessageLines: StateFlow<Int>
     val showChatListPhotos: StateFlow<Boolean>
+    val showStoriesBlock: StateFlow<Boolean>
     val showReactions: StateFlow<Boolean>
     val showSponsoredMessagesForPremium: StateFlow<Boolean>
+    val storyMediaStretchEnabled: StateFlow<Boolean>
 
     val privateChatsNotifications: StateFlow<Boolean>
     val groupsNotifications: StateFlow<Boolean>
@@ -128,8 +130,10 @@ interface AppPreferencesProvider {
     fun setChatAnimationsEnabled(enabled: Boolean)
     fun setChatListMessageLines(lines: Int)
     fun setShowChatListPhotos(enabled: Boolean)
+    fun setShowStoriesBlock(enabled: Boolean)
     fun setShowReactions(enabled: Boolean)
     fun setShowSponsoredMessagesForPremium(enabled: Boolean)
+    fun setStoryMediaStretchEnabled(enabled: Boolean)
 
     fun setPrivateChatsNotifications(enabled: Boolean)
     fun setGroupsNotifications(enabled: Boolean)

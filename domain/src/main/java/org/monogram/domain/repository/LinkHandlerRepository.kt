@@ -3,6 +3,7 @@ package org.monogram.domain.repository
 import org.monogram.domain.models.ChatFullInfoModel
 import org.monogram.domain.models.ChatModel
 import org.monogram.domain.models.ProxyTypeModel
+import org.monogram.domain.models.stories.StoryMediaType
 
 interface LinkHandlerRepository {
     suspend fun handleLink(link: String): LinkAction
@@ -14,6 +15,9 @@ sealed class LinkAction {
     data class OpenChat(val chatId: Long) : LinkAction()
     data class OpenUser(val userId: Long) : LinkAction()
     data class OpenMessage(val chatId: Long, val messageId: Long) : LinkAction()
+    data class OpenStory(val chatId: Long, val storyId: Int) : LinkAction()
+    data class OpenStoryAlbum(val chatId: Long, val albumId: Int) : LinkAction()
+    data class OpenNewStory(val mediaType: StoryMediaType? = null) : LinkAction()
     data class OpenSettings(val settingsType: SettingsType) : LinkAction()
     data class OpenStickerSet(val name: String) : LinkAction()
     data class JoinChat(val inviteLink: String) : LinkAction()

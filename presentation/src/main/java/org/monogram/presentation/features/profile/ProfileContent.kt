@@ -402,7 +402,10 @@ fun ProfileContent(component: ProfileComponent) {
                         onMemberLongClick = component::onMemberLongClick,
                         onLoadMedia = { msg ->
                             component.onDownloadMedia(msg)
-                        }
+                        },
+                        onOpenActiveStory = component::onOpenActiveStory,
+                        onOpenPostedStory = component::onOpenPostedStory,
+                        onOpenArchive = component::onOpenStoryArchive
                     )
 
                     item(span = { GridItemSpan(3) }) {

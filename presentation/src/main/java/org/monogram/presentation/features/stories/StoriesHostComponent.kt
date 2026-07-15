@@ -1,0 +1,183 @@
+package org.monogram.presentation.features.stories
+
+import kotlinx.coroutines.flow.StateFlow
+import org.monogram.domain.models.UserModel
+import org.monogram.domain.models.stories.ActiveStoryListModel
+import org.monogram.domain.models.stories.StoryAvailableReactionsModel
+import org.monogram.domain.models.stories.StoryComposerDraftModel
+import org.monogram.domain.models.stories.StoryComposerMediaItemModel
+import org.monogram.domain.models.stories.StoryInteractionPageModel
+import org.monogram.domain.models.stories.StoryListType
+import org.monogram.domain.models.stories.StoryMediaType
+import org.monogram.domain.models.stories.StoryModel
+import org.monogram.domain.models.stories.StoryOptionsModel
+import org.monogram.domain.models.stories.StoryPostCapabilityModel
+import org.monogram.domain.models.stories.StoryReactionModel
+import org.monogram.domain.models.stories.StoryStatisticsModel
+import org.monogram.domain.models.stories.StoryStealthModeModel
+
+interface StoriesHostComponent {
+    val state: StateFlow<State>
+
+    fun openChatStories(
+        chatId: Long,
+        storyId: Int? = null,
+        listType: StoryListType = StoryListType.MAIN
+    )
+
+    fun openStoryAlbum(chatId: Long, albumId: Int)
+    fun openProfileStories(chatId: Long, storyId: Int? = null)
+    fun openProfileStoryArchive(chatId: Long, storyId: Int? = null)
+    fun openComposer(
+        chatId: Long,
+        preferredMediaType: StoryMediaType? = null,
+        initialSourcePath: String? = null,
+        initialCaption: String = "",
+        widgetLink: String? = null
+    )
+
+    fun dismiss()
+    fun nextStory()
+    fun previousStory()
+    fun openMediaPicker()
+    fun dismissMediaPicker()
+    fun showCamera()
+    fun dismissCamera()
+    fun attachMedia(path: String, mediaType: StoryMediaType)
+    fun attachMedia(items: List<StoryComposerMediaItemModel>)
+    fun selectComposerMedia(index: Int)
+    fun updateCaption(caption: String)
+    fun updatePrivacy(mode: StoryPrivacyUi)
+    fun showAudiencePicker(filterMode: StoryAudienceFilterMode)
+    fun dismissAudiencePicker()
+    fun updateAudienceSearchQuery(query: String)
+    fun toggleAudienceUserSelection(userId: Long)
+    fun clearAudienceSelection()
+    fun updateActivePeriod(seconds: Int)
+    fun updateProtectContent(protectContent: Boolean)
+    fun updateKeepOnProfile(keepOnProfile: Boolean)
+    fun saveStory()
+    fun editCurrentStory()
+    fun deleteCurrentStory()
+    fun moveCurrentStoryToArchive()
+    fun restoreCurrentStoryFromArchive()
+    fun toggleCurrentStoryPostedToProfile()
+    fun showStoryStatistics()
+    fun dismissStoryStatistics()
+    fun showStoryInteractions()
+    fun dismissStoryInteractions()
+    fun loadMoreStoryInteractions()
+    fun showStoryReactionPicker()
+    fun dismissStoryReactionPicker()
+    fun activateStealthMode()
+    fun openProfile(chatId: Long)
+    fun openStoryLink(url: String)
+    fun copyStoryLink(url: String)
+    fun copyCurrentStoryLink()
+    fun setStoryReaction(reaction: StoryReactionModel)
+    fun setStoryMediaStretchEnabled(enabled: Boolean)
+    fun dismissInlineVideo()
+    fun showInlineVideo()
+
+    data class State(
+        val mode: Mode = Mode.Hidden,
+        val isLoading: Boolean = false,
+        val chatId: Long? = null,
+        val chatTitle: String = "",
+        val chatAvatarPath: String? = null,
+        val currentUserId: Long? = null,
+        val isPremiumUser: Boolean = false,
+        val viewerItems: List<StoryViewerUiModel> = emptyList(),
+        val viewerIndex: Int = 0,
+        val currentStory: StoryModel? = null,
+        val viewerSource: StoryViewerSource = StoryViewerSource.ACTIVE,
+        val activeListType: StoryListType = StoryListType.MAIN,
+        val stealthMode: StoryStealthModeModel = StoryStealthModeModel(),
+        val storyOptions: StoryOptionsModel = StoryOptionsModel(),
+        val canManageStories: Boolean = false,
+        val composerMode: StoryComposerMode = StoryComposerMode.CREATE,
+        val editingStoryId: Int? = null,
+        val composerDraft: StoryComposerDraftModel = StoryComposerDraftModel(),
+        val audiencePicker: StoryAudiencePickerState = StoryAudiencePickerState(),
+        val postCapability: StoryPostCapabilityModel? = null,
+        val inlineError: String? = null,
+        val isSubmitting: Boolean = false,
+        val isStoryStatisticsVisible: Boolean = false,
+        val isStoryStatisticsLoading: Boolean = false,
+        val storyStatistics: StoryStatisticsModel? = null,
+        val isStoryInteractionsVisible: Boolean = false,
+        val isStoryInteractionsLoading: Boolean = false,
+        val storyInteractionsPage: StoryInteractionPageModel? = null,
+        val isStoryReactionPickerVisible: Boolean = false,
+        val isStoryReactionPickerLoading: Boolean = false,
+        val storyAvailableReactions: StoryAvailableReactionsModel? = null,
+        val showMediaPicker: Boolean = false,
+        val showCamera: Boolean = false,
+        val showInlineVideo: Boolean = false,
+        val showStoryMediaLoadingMessage: Boolean = false,
+        val isStoryMediaStretchEnabled: Boolean = true
+    ) {
+        val isVisible: Boolean
+            get() = mode != Mode.Hidden
+
+        val canGoPrevious: Boolean
+            get() = viewerIndex > 0
+
+        val canGoNext: Boolean
+            get() = viewerIndex >= 0 && viewerIndex < viewerItems.lastIndex
+    }
+
+    enum class Mode {
+        Hidden,
+        Viewer,
+        Composer
+    }
+}
+
+enum class StoryViewerSource {
+    ACTIVE,
+    PROFILE,
+    PROFILE_ARCHIVE,
+    ALBUM
+}
+
+enum class StoryComposerMode {
+    CREATE,
+    EDIT
+}
+
+data class StoryViewerUiModel(
+    val chatId: Long,
+    val storyId: Int,
+    val date: Int
+)
+
+enum class StoryPrivacyUi {
+    EVERYONE,
+    CONTACTS,
+    CLOSE_FRIENDS,
+    SELECTED_USERS
+}
+
+enum class StoryAudienceFilterMode {
+    SHOW_TO,
+    HIDE_FROM
+}
+
+data class StoryAudiencePickerState(
+    val isVisible: Boolean = false,
+    val filterMode: StoryAudienceFilterMode = StoryAudienceFilterMode.HIDE_FROM,
+    val contacts: List<UserModel> = emptyList(),
+    val selectedUsers: List<UserModel> = emptyList(),
+    val searchQuery: String = "",
+    val searchResults: List<UserModel> = emptyList(),
+    val isLoading: Boolean = false,
+    val isSearching: Boolean = false
+)
+
+data class StoryStripItemUiModel(
+    val chatId: Long,
+    val title: String,
+    val avatarPath: String?,
+    val activeStories: ActiveStoryListModel
+)

@@ -19,6 +19,51 @@ val localProperties by lazy {
 }
 extra.set("localProperties", localProperties)
 
+val tdlibFlavors = listOf("Official", "Telemt")
+val runtimeFlavors = listOf("Firebase", "Libre")
+val buildTypes = listOf("Debug", "Release")
+
+data class AppAssemblyVariant(
+    val tdlib: String,
+    val runtime: String,
+    val buildType: String,
+) {
+    val name: String get() = "$tdlib$runtime$buildType"
+    val unitTestBuildType: String get() = "Debug"
+    val unitTestVariantName: String get() = "$tdlib$runtime$unitTestBuildType"
+}
+
+val appAssemblyVariants =
+    tdlibFlavors.flatMap { tdlib ->
+        runtimeFlavors.flatMap { runtime ->
+            buildTypes.map { buildType ->
+                AppAssemblyVariant(
+                    tdlib = tdlib,
+                    runtime = runtime,
+                    buildType = buildType,
+                )
+            }
+        }
+    }
+
+appAssemblyVariants.forEach { variant ->
+    val verifyTask = tasks.register("verify${variant.name}BeforeAssemble") {
+        group = "verification"
+        description = "Runs module unit tests before assembling the ${variant.name} APK."
+        dependsOn(
+            ":app:test${variant.unitTestVariantName}UnitTest",
+            ":data:test${variant.unitTestVariantName}UnitTest",
+            ":presentation:test${variant.unitTestVariantName}UnitTest",
+            ":core:test",
+            ":domain:test",
+        )
+    }
+
+    project(":app").tasks.matching { it.name == "assemble${variant.name}" }.configureEach {
+        dependsOn(verifyTask)
+    }
+}
+
 tasks.register("assembleOfficialReleaseTdlibApks") {
     group = "build"
     description = "Assembles release APKs with the official TDLib prebuilts."

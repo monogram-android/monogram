@@ -41,6 +41,7 @@ import org.monogram.presentation.features.chats.conversation.ui.StickerSetSheet
 import org.monogram.presentation.features.chats.conversation.ui.content.ChatContentViewers
 import org.monogram.presentation.features.profile.ProfileViewers
 import org.monogram.presentation.features.stickers.core.toDomain
+import org.monogram.presentation.features.stories.StoriesHostContent
 import org.monogram.presentation.root.RootComponent
 import org.monogram.presentation.root.StartupComponent
 import org.monogram.presentation.root.StartupContent
@@ -135,6 +136,7 @@ fun MainContent(
         ) {
             ProxyConfirmSheet(root)
             ChatConfirmJoinSheet(root)
+            StoriesHostContent(root.storiesHost)
         }
 
         if (!isStartupActive && startupOverlayComponent != null) {

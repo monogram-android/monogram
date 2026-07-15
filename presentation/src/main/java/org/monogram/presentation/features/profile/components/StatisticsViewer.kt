@@ -112,10 +112,11 @@ import org.monogram.domain.models.ChatStatisticsModel
 import org.monogram.domain.models.DateRangeModel
 import org.monogram.domain.models.StatisticsGraphModel
 import org.monogram.domain.models.StatisticsType
+import org.monogram.domain.models.stories.StoryStatisticsModel
 import org.monogram.presentation.R
+import org.monogram.presentation.core.ui.SectionHeader
 import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.coRunCatching
-import org.monogram.presentation.core.ui.SectionHeader
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -198,6 +199,7 @@ fun StatisticsViewer(
                             }
 
                             is ChatRevenueStatisticsModel -> RevenueStatistics(stateData, onLoadGraph)
+                            is StoryStatisticsModel -> StoryStatistics(stateData, onLoadGraph)
                             else -> FallbackView(stateData)
                         }
                     }
@@ -417,6 +419,22 @@ fun ChannelStatistics(stats: ChatStatisticsModel, onLoadGraph: (String) -> Unit)
             InteractionItem(interaction)
         }
     }
+}
+
+@Composable
+fun StoryStatistics(stats: StoryStatisticsModel, onLoadGraph: (String) -> Unit) {
+    GraphSection(
+        title = stringResource(R.string.story_statistics_interactions_graph),
+        graph = stats.storyInteractionGraph,
+        color = Color(0xFF34A853),
+        onLoadGraph = onLoadGraph
+    )
+    GraphSection(
+        title = stringResource(R.string.story_statistics_reactions_graph),
+        graph = stats.storyReactionGraph,
+        color = Color(0xFFFBBC04),
+        onLoadGraph = onLoadGraph
+    )
 }
 
 @Composable

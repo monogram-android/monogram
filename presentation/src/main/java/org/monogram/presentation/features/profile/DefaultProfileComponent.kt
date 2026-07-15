@@ -5,6 +5,7 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
@@ -37,6 +38,7 @@ import org.monogram.domain.repository.LocationRepository
 import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.ProfilePhotoRepository
+import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
@@ -57,7 +59,12 @@ class DefaultProfileComponent(
     private val onShowLogsClicked: (Long) -> Unit = {},
     private val onEditContactClicked: (Long) -> Unit = {},
     private val onMemberClicked: (Long) -> Unit = {},
-    private val onMemberLongClicked: (Long, Long) -> Unit = { _, _ -> }
+    private val onMemberLongClicked: (Long, Long) -> Unit = { _, _ -> },
+    private val onOpenStoriesClicked: (Long, Int?) -> Unit = { _, _ -> },
+    private val onOpenPostedStoriesClicked: (Long, Int?) -> Unit = { _, _ -> },
+    private val onOpenStoryArchiveClicked: (Long) -> Unit = {},
+    private val onCreateStoryClicked: (Long) -> Unit = {},
+    private val onShareToStoryRequested: (String, String?, String?) -> Unit = { _, _, _ -> }
 ) : ProfileComponent, AppComponentContext by context {
 
     private val chatListRepository: ChatListRepository = container.repositories.chatListRepository
@@ -72,6 +79,7 @@ class DefaultProfileComponent(
     override val messageRepository: MessageRepository = container.repositories.messageRepository
     private val locationRepository: LocationRepository = container.repositories.locationRepository
     private val gifRepository: GifRepository = container.repositories.gifRepository
+    private val storyRepository: StoryRepository = container.repositories.storyRepository
     private val botPreferences: BotPreferencesProvider = container.preferences.botPreferencesProvider
     private val stringProvider = container.utils.stringProvider()
     private val messageDisplayer = container.utils.messageDisplayer()
@@ -86,6 +94,7 @@ class DefaultProfileComponent(
     private val PROFILE_PHOTOS_LIMIT = 50
     private var hasStartedProfilePhotoListPreload = false
     private val loadingTabs = mutableSetOf<ProfileTabKey>()
+    private var profileStoriesJob: Job? = null
 
     init {
         loadData()
@@ -142,7 +151,8 @@ class DefaultProfileComponent(
                     if (visibleTabs.any { it.key == currentSelectedTabKey }) {
                         currentSelectedTabKey
                     } else {
-                        visibleTabs.firstOrNull { it.initiallySelected }?.key ?: ProfileTabKey.MEDIA
+                        visibleTabs.firstOrNull { it.initiallySelected }?.key
+                            ?: ProfileTabKey.STORIES
                     }
 
                 _state.update {
@@ -164,6 +174,8 @@ class DefaultProfileComponent(
                     )
                 }
 
+                refreshProfileStories()
+
                 ensureTabLoaded(selectedTabKey)
 
                 preloadProfilePhotoList(
@@ -181,8 +193,95 @@ class DefaultProfileComponent(
         userRepository.currentUserFlow
             .onEach { user ->
                 _state.update { it.copy(currentUser = user) }
+                refreshProfileStories()
             }
             .launchIn(scope)
+
+        storyRepository.activeStories
+            .onEach { activeStories ->
+                val activeStoryList = activeStories.values
+                    .asSequence()
+                    .flatMap { lists -> lists.asSequence() }
+                    .firstOrNull { list -> list.chatId == chatId }
+                val activeStoryPreviews = resolveActiveStoryPreviews(activeStoryList)
+                _state.update {
+                    it.copy(
+                        activeStoryList = activeStoryList,
+                        activeStories = activeStoryPreviews
+                    )
+                }
+            }
+            .launchIn(scope)
+    }
+
+    private fun refreshProfileStories() {
+        profileStoriesJob?.cancel()
+        profileStoriesJob = scope.launch {
+            _state.update { it.copy(isStoriesLoading = true) }
+            try {
+                val snapshot = _state.value
+                val postedStoriesHint = snapshot.fullInfo?.hasPinnedStories == true ||
+                        snapshot.fullInfo?.hasPostedToProfileStories == true
+
+                val activeStoryList = coRunCatching {
+                    storyRepository.getChatActiveStories(chatId)
+                }.getOrNull()
+                val activeStoryPreviews =
+                    resolveActiveStoryPreviews(activeStoryList ?: snapshot.activeStoryList)
+
+                val shouldLoadPostedStories = postedStoriesHint || isCurrentUserProfile(snapshot)
+                val postedStoriesPage = if (shouldLoadPostedStories) {
+                    coRunCatching {
+                        storyRepository.getChatPostedToChatPageStories(
+                            chatId = chatId,
+                            limit = PROFILE_POSTED_STORIES_LIMIT
+                        )
+                    }.getOrNull()
+                } else {
+                    null
+                }
+
+                _state.update { current ->
+                    current.copy(
+                        activeStoryList = activeStoryList ?: current.activeStoryList,
+                        activeStories = when {
+                            (activeStoryList
+                                ?: current.activeStoryList)?.stories.isNullOrEmpty() -> emptyList()
+
+                            activeStoryPreviews.isNotEmpty() -> activeStoryPreviews
+                            else -> current.activeStories
+                        },
+                        postedStories = when {
+                            postedStoriesPage != null -> postedStoriesPage.stories
+                            shouldLoadPostedStories -> current.postedStories
+                            else -> emptyList()
+                        },
+                        postedStoryCount = postedStoriesPage?.totalCount
+                            ?: current.postedStoryCount,
+                        hasPostedStoriesHint = postedStoriesHint ||
+                                (postedStoriesPage?.totalCount ?: 0) > 0
+                    )
+                }
+            } finally {
+                _state.update { it.copy(isStoriesLoading = false) }
+            }
+        }
+    }
+
+    private suspend fun resolveActiveStoryPreviews(
+        activeStoryList: org.monogram.domain.models.stories.ActiveStoryListModel?
+    ): List<org.monogram.domain.models.stories.StoryModel> {
+        val summaries = activeStoryList?.stories.orEmpty().take(PROFILE_ACTIVE_STORIES_LIMIT)
+        if (summaries.isEmpty()) return emptyList()
+
+        val existingById = _state.value.activeStories.associateBy { it.id }
+        return summaries.mapNotNull { summary ->
+            coRunCatching {
+                storyRepository.getStory(chatId = chatId, storyId = summary.storyId)
+            }.getOrNull()
+                ?.copy(isRead = summary.isRead)
+                ?: existingById[summary.storyId]?.copy(isRead = summary.isRead)
+        }
     }
 
     override fun onLoadMoreMedia() {
@@ -279,6 +378,7 @@ class DefaultProfileComponent(
 
     private fun ensureTabLoaded(tabKey: ProfileTabKey) {
         when (tabKey) {
+            ProfileTabKey.STORIES -> Unit
             ProfileTabKey.MEMBERS -> {
                 if (!_state.value.membersTab.hasLoaded) {
                     loadMembersNextPage()
@@ -295,6 +395,7 @@ class DefaultProfileComponent(
 
     private fun loadNextPage(tabKey: ProfileTabKey) {
         when (tabKey) {
+            ProfileTabKey.STORIES -> Unit
             ProfileTabKey.MEMBERS -> loadMembersNextPage()
             else -> loadMessageTabNextPage(tabKey)
         }
@@ -837,6 +938,10 @@ class DefaultProfileComponent(
         _state.update { it.copy(miniAppUrl = null, miniAppName = null) }
     }
 
+    override fun onShareToStory(mediaUrl: String, text: String?, widgetLink: String?) {
+        onShareToStoryRequested(mediaUrl, text, widgetLink)
+    }
+
     override fun onToggleMute() {
         val chat = _state.value.chat ?: return
         val shouldMute = !chat.isMuted
@@ -915,6 +1020,11 @@ class DefaultProfileComponent(
         val chat = snapshot.chat
         if (chat != null) return chat.isGroup || chat.isChannel
         return snapshot.chatId < 0
+    }
+
+    private fun isCurrentUserProfile(snapshot: ProfileComponent.State = _state.value): Boolean {
+        val userId = snapshot.user?.id ?: return false
+        return snapshot.currentUser?.id == userId
     }
 
     override fun onToggleContact() {
@@ -1160,6 +1270,31 @@ class DefaultProfileComponent(
         _state.update { it.copy(selectedLocation = null) }
     }
 
+    override fun onOpenStories() {
+        val firstStoryId = _state.value.activeStoryList?.stories?.firstOrNull()?.storyId
+        onOpenStoriesClicked(chatId, firstStoryId)
+    }
+
+    override fun onOpenActiveStory(storyId: Int) {
+        onOpenStoriesClicked(chatId, storyId)
+    }
+
+    override fun onOpenPostedStories() {
+        onOpenPostedStoriesClicked(chatId, _state.value.postedStories.firstOrNull()?.id)
+    }
+
+    override fun onOpenPostedStory(storyId: Int) {
+        onOpenPostedStoriesClicked(chatId, storyId)
+    }
+
+    override fun onOpenStoryArchive() {
+        onOpenStoryArchiveClicked(chatId)
+    }
+
+    override fun onCreateStory() {
+        onCreateStoryClicked(chatId)
+    }
+
     private suspend fun enrichInteractionPreviews(stats: ChatStatisticsModel): ChatStatisticsModel {
         if (stats.recentInteractions.isEmpty()) return stats
         val enriched = stats.recentInteractions.map { interaction ->
@@ -1302,5 +1437,10 @@ class DefaultProfileComponent(
                 }
             _state.update { it.copy(actionState = ChatActionState.Idle) }
         }
+    }
+
+    companion object {
+        private const val PROFILE_ACTIVE_STORIES_LIMIT = 20
+        private const val PROFILE_POSTED_STORIES_LIMIT = 50
     }
 }

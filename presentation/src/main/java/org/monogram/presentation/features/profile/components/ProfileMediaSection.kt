@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.BrokenImage
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Link
@@ -35,8 +36,10 @@ import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PermMedia
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.RemoveRedEye
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -71,13 +74,17 @@ import org.monogram.domain.models.GroupMemberModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
 import org.monogram.domain.models.UserStatusType
+import org.monogram.domain.models.stories.StoryModel
 import org.monogram.presentation.R
 import org.monogram.presentation.core.media.VideoStickerPlayer
 import org.monogram.presentation.core.media.VideoType
 import org.monogram.presentation.core.ui.Avatar
+import org.monogram.presentation.core.ui.ItemPosition
+import org.monogram.presentation.core.ui.SettingsTile
 import org.monogram.presentation.core.ui.rememberShimmerBrush
 import org.monogram.presentation.core.util.DateFormatManager
 import org.monogram.presentation.core.util.getUserStatusText
+import org.monogram.presentation.features.chats.conversation.ui.channel.formatViews
 import org.monogram.presentation.features.profile.ProfileComponent
 import org.monogram.presentation.features.profile.ProfileTabContentType
 import org.monogram.presentation.features.profile.ProfileTabKey
@@ -98,7 +105,10 @@ fun LazyGridScope.profileMediaSection(
     onLoadMore: () -> Unit,
     onMemberClick: (Long) -> Unit = {},
     onMemberLongClick: (Long) -> Unit = {},
-    onLoadMedia: (MessageModel) -> Unit = {}
+    onLoadMedia: (MessageModel) -> Unit = {},
+    onOpenActiveStory: (Int) -> Unit = {},
+    onOpenPostedStory: (Int) -> Unit = {},
+    onOpenArchive: () -> Unit = {}
 ) {
     if (tabs.isEmpty()) return
 
@@ -175,6 +185,13 @@ fun LazyGridScope.profileMediaSection(
     }
 
     when (selectedTab.key) {
+        ProfileTabKey.STORIES -> storiesSection(
+            state = state,
+            onOpenActiveStory = onOpenActiveStory,
+            onOpenPostedStory = onOpenPostedStory,
+            onOpenArchive = onOpenArchive
+        )
+
         ProfileTabKey.MEDIA -> mediaGrid(
             messages = state.mediaMessages,
             isLoading = selectedMessageTab.isLoadingInitial,
@@ -235,6 +252,7 @@ fun LazyGridScope.profileMediaSection(
     }
 
     val itemCount = when (selectedTab.key) {
+        ProfileTabKey.STORIES -> 0
         ProfileTabKey.MEDIA -> state.mediaMessages.size
         ProfileTabKey.MEMBERS -> state.members.size
         ProfileTabKey.FILES -> state.fileMessages.size
@@ -244,6 +262,7 @@ fun LazyGridScope.profileMediaSection(
         ProfileTabKey.GIFS -> state.gifMessages.size
     }
     val shouldAutoLoadMore = when (selectedTab.key) {
+        ProfileTabKey.STORIES -> false
         ProfileTabKey.MEMBERS -> {
             selectedMembersTab.canLoadMore &&
                     !selectedMembersTab.isLoadingInitial &&
@@ -274,6 +293,7 @@ fun LazyGridScope.profileMediaSection(
                 selectedMembersTab.items.isNotEmpty()
     val showMediaPaginationSkeleton =
         selectedTab.key != ProfileTabKey.MEMBERS &&
+                selectedTab.key != ProfileTabKey.STORIES &&
                 selectedMessageTab.isLoadingNext &&
                 selectedMessageTab.items.isNotEmpty()
 
@@ -339,6 +359,218 @@ private fun ScrollableRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         content()
+    }
+}
+
+private fun LazyGridScope.storiesSection(
+    state: ProfileComponent.State,
+    onOpenActiveStory: (Int) -> Unit,
+    onOpenPostedStory: (Int) -> Unit,
+    onOpenArchive: () -> Unit
+) {
+    val activeStories = state.activeStories.distinctBy { it.id }
+    val postedStories = state.postedStories.distinctBy { it.id }
+    val isCurrentUserProfile = state.user?.id != null && state.currentUser?.id == state.user?.id
+    val canManageStories = isCurrentUserProfile || state.chat?.isAdmin == true
+
+    if (state.isStoriesLoading && activeStories.isEmpty() && postedStories.isEmpty()) {
+        item(span = { GridItemSpan(3) }, key = "stories_loading") {
+            StoriesLoadingState()
+        }
+    } else if (activeStories.isEmpty() && postedStories.isEmpty()) {
+        item(span = { GridItemSpan(3) }, key = "stories_empty") {
+            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                EmptyState(stringResource(R.string.empty_stories))
+            }
+        }
+    } else {
+        if (activeStories.isNotEmpty()) {
+            item(span = { GridItemSpan(3) }, key = "stories_active_header") {
+                StorySectionHeader(title = stringResource(R.string.profile_stories_active_section))
+            }
+            item(span = { GridItemSpan(3) }, key = "stories_active_row") {
+                StoryPreviewRow(
+                    stories = activeStories,
+                    onStoryClick = { story -> onOpenActiveStory(story.id) }
+                )
+            }
+        }
+
+        if (postedStories.isNotEmpty()) {
+            item(span = { GridItemSpan(3) }, key = "stories_posted_row") {
+                StoryPreviewRow(
+                    stories = postedStories,
+                    onStoryClick = { story -> onOpenPostedStory(story.id) }
+                )
+            }
+        }
+    }
+
+    if (canManageStories) {
+        item(span = { GridItemSpan(3) }, key = "stories_archive_spacer") {
+            Spacer(modifier = Modifier.height(14.dp))
+        }
+        item(span = { GridItemSpan(3) }, key = "stories_archive") {
+            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                SettingsTile(
+                    icon = Icons.Rounded.Archive,
+                    title = stringResource(R.string.story_archive),
+                    subtitle = stringResource(R.string.profile_stories_archive_subtitle),
+                    iconColor = MaterialTheme.colorScheme.secondary,
+                    position = ItemPosition.STANDALONE,
+                    onClick = onOpenArchive
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoriesLoadingState() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(28.dp),
+            strokeWidth = 2.5.dp
+        )
+    }
+}
+
+@Composable
+private fun StorySectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMediumEmphasized,
+        color = MaterialTheme.colorScheme.primary,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(start = 28.dp, end = 20.dp, top = 16.dp, bottom = 8.dp)
+    )
+}
+
+@Composable
+private fun StoryPreviewRow(
+    stories: List<StoryModel>,
+    onStoryClick: (StoryModel) -> Unit
+) {
+    ScrollableRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, bottom = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        stories.forEach { story ->
+            StoryPreviewCard(
+                story = story,
+                onClick = { onStoryClick(story) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun StoryPreviewCard(
+    story: StoryModel,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+    val previewModel =
+        remember(story.media.previewPath, story.media.path, story.media.minithumbnail) {
+            story.media.previewPath ?: story.media.path ?: story.media.minithumbnail
+        }
+    val viewsText = remember(context, story.viewCount) { formatViews(context, story.viewCount) }
+
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier
+            .width(112.dp)
+            .height(164.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (previewModel != null) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(previewModel)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.BrokenImage,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (story.media.type == org.monogram.domain.models.stories.StoryMediaType.VIDEO) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.45f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = stringResource(R.string.media_type_video),
+                        tint = Color.White,
+                        modifier = Modifier.padding(4.dp)
+                    )
+                }
+            }
+
+            if (!story.isRead) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(10.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = Color.Black.copy(alpha = 0.55f),
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.RemoveRedEye,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = viewsText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White
+                    )
+                }
+            }
+        }
     }
 }
 

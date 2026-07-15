@@ -609,6 +609,12 @@ class DefaultChatSettingsComponent(
             }
             .launchIn(scope)
 
+        appPreferences.showReactions
+            .onEach { enabled ->
+                _state.update { it.copy(showReactions = enabled) }
+            }
+            .launchIn(scope)
+
         loadWallpapers()
         checkEmojiFiles()
     }

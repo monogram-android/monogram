@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +55,7 @@ import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import org.koin.compose.koinInject
 import org.monogram.domain.models.UserStatusType
 import org.monogram.domain.models.UserTypeEnum
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
 import org.monogram.presentation.core.ui.ConfirmationSheet
@@ -79,6 +81,7 @@ import org.monogram.presentation.features.profile.components.ProfileTOSDialog
 import org.monogram.presentation.features.profile.components.ProfileTopBar
 import org.monogram.presentation.features.profile.components.StatisticsViewer
 import org.monogram.presentation.features.profile.components.profileMediaSection
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,7 +96,9 @@ fun ProfileContent(component: ProfileComponent) {
     val collapsingToolbarState = rememberCollapsingToolbarScaffoldState()
 
     val dateFormatManager: DateFormatManager = koinInject()
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
     val timeFormat = dateFormatManager.getHourMinuteFormat()
+    val scope = rememberCoroutineScope()
 
     val chat = state.chat
     val user = state.user
@@ -187,10 +192,11 @@ fun ProfileContent(component: ProfileComponent) {
         isGroupOrChannel -> chat.isAdmin || chat.permissions.canChangeInfo
         else -> false
     }
-    val shareLink = remember(user, chat, state.publicLink) {
-        user?.username?.takeIf { it.isNotBlank() }?.let { "https://t.me/$it" }
-            ?: chat?.username?.takeIf { it.isNotBlank() }?.let { "https://t.me/$it" }
-            ?: state.publicLink?.takeIf { it.isNotBlank() }
+    val shareUsername = remember(user, chat) {
+        user?.username?.takeIf { it.isNotBlank() } ?: chat?.username?.takeIf { it.isNotBlank() }
+    }
+    val shareLink = remember(state.publicLink) {
+        state.publicLink?.takeIf { it.isNotBlank() }
     }
     val fallbackShareText = remember(isCurrentUserProfile, user) {
         if (isCurrentUserProfile) user.id.toString() else null
@@ -258,15 +264,30 @@ fun ProfileContent(component: ProfileComponent) {
                     canDeleteChat = canDeleteTopBar,
                     onSearch = { Toast.makeText(context, searchNotImplemented, Toast.LENGTH_SHORT).show() },
                     onShare = {
-                        val valueToCopy = shareLink ?: fallbackShareText
-                        if (valueToCopy != null) {
-                            localClipboard.nativeClipboard.setPrimaryClip(
-                                ClipData.newPlainText("", AnnotatedString(valueToCopy))
-                            )
+                        when {
+                            shareUsername != null -> {
+                                scope.launch {
+                                    val link = telegramLinkRepository.buildUrl(shareUsername)
+                                    localClipboard.nativeClipboard.setPrimaryClip(
+                                        ClipData.newPlainText("", AnnotatedString(link))
+                                    )
+                                    Toast.makeText(context, linkCopied, Toast.LENGTH_SHORT).show()
+                                }
+                            }
 
-                            val copiedMessage = if (shareLink != null) linkCopied else userIdCopied
+                            shareLink != null -> {
+                                localClipboard.nativeClipboard.setPrimaryClip(
+                                    ClipData.newPlainText("", AnnotatedString(shareLink))
+                                )
+                                Toast.makeText(context, linkCopied, Toast.LENGTH_SHORT).show()
+                            }
 
-                            Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+                            fallbackShareText != null -> {
+                                localClipboard.nativeClipboard.setPrimaryClip(
+                                    ClipData.newPlainText("", AnnotatedString(fallbackShareText))
+                                )
+                                Toast.makeText(context, userIdCopied, Toast.LENGTH_SHORT).show()
+                            }
                         }
                     },
                     onEdit = component::onEdit,

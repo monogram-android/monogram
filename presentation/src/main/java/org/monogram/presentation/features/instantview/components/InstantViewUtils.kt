@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.withTimeoutOrNull
+import org.monogram.core.telegram.TelegramLinkDomains
 import org.monogram.domain.models.FileDownloadEvent
 import org.monogram.domain.models.webapp.PageBlock
 import org.monogram.domain.models.webapp.PageBlockCaption
@@ -74,7 +75,11 @@ fun AnnotatedString.Builder.appendRichText(richText: RichText, linkColor: Color)
         is RichText.Mention -> {
             pushStringAnnotation(
                 tag = "URL",
-                annotation = "https://t.me/${richText.username.removePrefix("@")}"
+                annotation = "${TelegramLinkDomains.DEFAULT_BASE_URL}/${
+                    richText.username.removePrefix(
+                        "@"
+                    )
+                }"
             )
             withStyle(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)) {
                 appendRichText(richText.text, linkColor)

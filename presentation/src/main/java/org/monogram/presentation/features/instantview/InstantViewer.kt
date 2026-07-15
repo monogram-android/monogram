@@ -137,6 +137,7 @@ import org.monogram.domain.models.webapp.PageBlockCaption
 import org.monogram.domain.models.webapp.RichText
 import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.MessageRepository
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.features.chats.conversation.ui.message.normalizeUrl
@@ -184,6 +185,7 @@ fun InstantViewer(
     LocalUriHandler.current
     val clipboard = LocalClipboard.current
     val downloadUtils: IDownloadUtils = koinInject()
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
     val scope = rememberCoroutineScope()
 
     val openPhotoFullscreen: (WebPage.Photo, PageBlockCaption) -> Unit = { photo, caption ->
@@ -581,6 +583,8 @@ fun InstantViewBlock(
     onOpenVideoFullscreen: (String?, Int, Boolean, String?) -> Unit = { _, _, _, _ -> },
     onOpenFileExternally: (String?, Int) -> Unit = { _, _ -> }
 ) {
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
+    val scope = rememberCoroutineScope()
     val onUrlClick = LocalOnUrlClick.current
     LocalUriHandler.current
     val blockStateKey = "$stateKeyPrefix:${block.stableBlockSignature()}"
@@ -1291,7 +1295,11 @@ fun InstantViewBlock(
 
         is PageBlock.ChatLink -> {
             FilledTonalButton(
-                onClick = { onUrlClick("https://t.me/${block.username}") },
+                onClick = {
+                    scope.launch {
+                        onUrlClick(telegramLinkRepository.buildUrl(block.username))
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 contentPadding = PaddingValues(16.dp)

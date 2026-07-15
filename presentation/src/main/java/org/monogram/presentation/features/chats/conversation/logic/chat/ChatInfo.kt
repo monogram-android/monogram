@@ -153,12 +153,13 @@ internal fun DefaultChatComponent.observeUserUpdates() {
                 val isBot = user.type == UserTypeEnum.BOT
                 _state.update {
                     it.copy(
-                    isOnline = !isBot && user.userStatus == UserStatusType.ONLINE,
-                    isVerified = user.isVerified,
+                        isOnline = !isBot && user.userStatus == UserStatusType.ONLINE,
+                        isVerified = user.isVerified,
                         isSponsor = user.isSponsor,
-                    userStatus = user.userStatus.toString(), 
-                    chatPersonalAvatar = user.personalAvatarPath,
-                    otherUser = user
+                        userStatus = user.userStatus.toString(),
+                        chatUsername = user.username.normalizeTelegramUsername() ?: it.chatUsername,
+                        chatPersonalAvatar = user.personalAvatarPath,
+                        otherUser = user
                     )
                 }
             }
@@ -172,6 +173,9 @@ private fun DefaultChatComponent.updateBaseChatState(chat: ChatModel) {
 
         currentState.copy(
             chatTitle = chat.title,
+            chatUsername = chat.username.normalizeTelegramUsername() ?: currentState.chatUsername,
+            chatInviteLink = chat.inviteLink?.trim()?.takeIf { it.isNotBlank() }
+                ?: currentState.chatInviteLink,
             chatAvatar = chat.avatarPath,
             chatPersonalAvatar = chat.personalAvatarPath,
             chatEmojiStatus = chat.emojiStatusPath,
@@ -340,6 +344,8 @@ private suspend fun DefaultChatComponent.refreshEffectiveChatDetails(effectiveCh
         ?.let { fullInfo ->
             _state.update {
                 it.copy(
+                    chatInviteLink = fullInfo.inviteLink?.trim()?.takeIf { it.isNotBlank() }
+                        ?: it.chatInviteLink,
                     slowModeDelay = fullInfo.slowModeDelay,
                     slowModeDelayExpiresIn = fullInfo.slowModeDelayExpiresIn
                 )

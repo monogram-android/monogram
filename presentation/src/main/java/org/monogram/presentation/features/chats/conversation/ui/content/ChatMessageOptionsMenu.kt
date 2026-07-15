@@ -59,6 +59,7 @@ import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.models.StickerType
 import org.monogram.domain.repository.MessageAiRepository
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
@@ -90,6 +91,7 @@ fun ChatMessageOptionsMenu(
     val nativeClipboard = localClipboard.nativeClipboard
     val messageRepository: MessageAiRepository = koinInject()
     val stickerRepository: StickerRepository = koinInject()
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
     val customEmojiStickerSets by stickerRepository.customEmojiStickerSets.collectAsState()
     val canCheckViewersList = remember(state.isChannel, state.isGroup, state.memberCount) {
         !state.isChannel && (!state.isGroup || state.memberCount in 1 until 100)
@@ -347,17 +349,24 @@ fun ChatMessageOptionsMenu(
             onDismiss()
         },
         onCopyLink = {
-            val link = if (!state.isGroup && !state.isChannel) {
-                "tg://openmessage?user_id=${state.chatId}&message_id=${selectedMessage.id shr 20}"
+            if (!state.isGroup && !state.isChannel) {
+                val link =
+                    "tg://openmessage?user_id=${state.chatId}&message_id=${selectedMessage.id shr 20}"
+                nativeClipboard.setPrimaryClip(
+                    ClipData.newPlainText("", AnnotatedString(link))
+                )
             } else {
-                "https://t.me/c/${state.chatId.toString().removePrefix("-100")}/${selectedMessage.id shr 20}"
+                chatMessageMenuActionScope.launch {
+                    val link = telegramLinkRepository.buildUrl(
+                        "c/${
+                            state.chatId.toString().removePrefix("-100")
+                        }/${selectedMessage.id shr 20}"
+                    )
+                    nativeClipboard.setPrimaryClip(
+                        ClipData.newPlainText("", AnnotatedString(link))
+                    )
+                }
             }
-
-            nativeClipboard.setPrimaryClip(
-                ClipData.newPlainText("", AnnotatedString(link))
-            )
-
-            onDismiss()
         },
         onCopy = {
             val textToCopy = when (val content = selectedMessage.content) {
@@ -715,6 +724,8 @@ private fun String.withCocoonAttribution(attribution: String): String {
 
 private const val TELEGRAM_AI_LOG_TAG = "TelegramAiActions"
 private val telegramAiScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+private val chatMessageMenuActionScope =
+    CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
 private fun canTranslate(message: MessageModel): Boolean {
     return when (val content = message.content) {

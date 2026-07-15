@@ -58,6 +58,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,8 +72,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import org.monogram.domain.models.UpdateInfo
 import org.monogram.domain.models.UpdateState
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.presentation.BuildConfig
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
@@ -90,6 +94,8 @@ fun AboutContent(component: AboutComponent) {
     val hasOpenSourceLicenses = component.hasOpenSourceLicenses
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
+    val scope = rememberCoroutineScope()
     val version = remember {
         buildString {
             append(AppUtils.getFullVersionString(context))
@@ -106,6 +112,11 @@ fun AboutContent(component: AboutComponent) {
             String.format(versionWithHashFormat, tdLibVersion, tdLibCommitHash.take(7))
         } else {
             tdLibVersion
+        }
+    }
+    val openTelegramPath: (String) -> Unit = { path ->
+        scope.launch {
+            uriHandler.openUri(telegramLinkRepository.buildUrl(path))
         }
     }
 
@@ -227,7 +238,7 @@ fun AboutContent(component: AboutComponent) {
                     subtitle = stringResource(R.string.telegram_chat_subtitle),
                     iconBackgroundColor = Color(0xFF0088CC),
                     position = ItemPosition.TOP,
-                    onClick = { uriHandler.openUri("https://t.me/monogram_discuss") }
+                    onClick = { openTelegramPath("monogram_discuss") }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Announcement,
@@ -235,7 +246,7 @@ fun AboutContent(component: AboutComponent) {
                     subtitle = stringResource(R.string.telegram_channel_subtitle),
                     iconBackgroundColor = Color(0xFF0088CC),
                     position = ItemPosition.MIDDLE,
-                    onClick = { uriHandler.openUri("https://t.me/monogram_android") }
+                    onClick = { openTelegramPath("monogram_android") }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Favorite,
@@ -263,7 +274,7 @@ fun AboutContent(component: AboutComponent) {
                     subtitle = stringResource(R.string.role_developer),
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.TOP,
-                    onClick = { uriHandler.openUri("https://t.me/gdlbo") }
+                    onClick = { openTelegramPath("gdlbo") }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Person,
@@ -271,7 +282,7 @@ fun AboutContent(component: AboutComponent) {
                     subtitle = stringResource(R.string.role_developer),
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.MIDDLE,
-                    onClick = { uriHandler.openUri("https://t.me/recodius") }
+                    onClick = { openTelegramPath("recodius") }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Person,
@@ -279,7 +290,7 @@ fun AboutContent(component: AboutComponent) {
                     subtitle = stringResource(R.string.about_exdev),
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.MIDDLE,
-                    onClick = { uriHandler.openUri("https://t.me/Rozetka_img") }
+                    onClick = { openTelegramPath("Rozetka_img") }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Person,
@@ -287,7 +298,7 @@ fun AboutContent(component: AboutComponent) {
                     subtitle = stringResource(R.string.about_exdev),
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.MIDDLE,
-                    onClick = { uriHandler.openUri("https://t.me/toxyxd") }
+                    onClick = { openTelegramPath("toxyxd") }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Brush,
@@ -295,7 +306,7 @@ fun AboutContent(component: AboutComponent) {
                     subtitle = stringResource(R.string.role_designer),
                     iconBackgroundColor = Color(0xFF607D8B),
                     position = ItemPosition.MIDDLE,
-                    onClick = { uriHandler.openUri("https://t.me/the8055u") }
+                    onClick = { openTelegramPath("the8055u") }
                 )
                 SettingsItem(
                     icon = Icons.Rounded.Groups,

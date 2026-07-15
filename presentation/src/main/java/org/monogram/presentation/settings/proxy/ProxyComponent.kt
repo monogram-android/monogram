@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import org.monogram.core.telegram.TelegramLinkDomains
 import org.json.JSONArray
 import org.json.JSONObject
 import org.monogram.domain.models.ProxyCheckResult
@@ -116,6 +117,7 @@ class DefaultProxyComponent(
 ) : ProxyComponent, AppComponentContext by context {
     private companion object {
         val DC_IDS = listOf(2, 1, 3, 4, 5)
+        val TELEGRAM_LINK_PREFIXES = TelegramLinkDomains.webPrefixes
     }
 
     private val appPreferences: AppPreferencesProvider = container.preferences.appPreferences
@@ -769,7 +771,7 @@ class DefaultProxyComponent(
 
     private fun extractProxyLinkCandidates(rawText: String): List<String> {
         val linkRegex = Regex(
-            pattern = """(?i)(tg:(?://)?[^\s]+|https?://(?:t\.me|www\.t\.me|telegram\.me|www\.telegram\.me)/[^\s]+)"""
+            pattern = """(?i)(tg:(?://)?[^\s]+|https?://(?:${TelegramLinkDomains.supportedHostsRegexFragment})/[^\s]+)"""
         )
         val fromRegex = linkRegex.findAll(rawText).map { it.value }
         val fromLines = rawText.lineSequence()
@@ -822,30 +824,11 @@ class DefaultProxyComponent(
                 linkLower.startsWith("tg://http?") ||
                 linkLower.startsWith("tg:http?") ||
                 linkLower.startsWith("tg://http/") ||
-                linkLower.startsWith("https://t.me/proxy?") ||
-                linkLower.startsWith("http://t.me/proxy?") ||
-                linkLower.startsWith("https://www.t.me/proxy?") ||
-                linkLower.startsWith("http://www.t.me/proxy?") ||
-                linkLower.startsWith("https://telegram.me/proxy?") ||
-                linkLower.startsWith("http://telegram.me/proxy?") ||
-                linkLower.startsWith("https://www.telegram.me/proxy?") ||
-                linkLower.startsWith("http://www.telegram.me/proxy?") ||
-                linkLower.startsWith("https://t.me/socks?") ||
-                linkLower.startsWith("http://t.me/socks?") ||
-                linkLower.startsWith("https://www.t.me/socks?") ||
-                linkLower.startsWith("http://www.t.me/socks?") ||
-                linkLower.startsWith("https://telegram.me/socks?") ||
-                linkLower.startsWith("http://telegram.me/socks?") ||
-                linkLower.startsWith("https://www.telegram.me/socks?") ||
-                linkLower.startsWith("http://www.telegram.me/socks?") ||
-                linkLower.startsWith("https://t.me/http?") ||
-                linkLower.startsWith("http://t.me/http?") ||
-                linkLower.startsWith("https://www.t.me/http?") ||
-                linkLower.startsWith("http://www.t.me/http?") ||
-                linkLower.startsWith("https://telegram.me/http?") ||
-                linkLower.startsWith("http://telegram.me/http?") ||
-                linkLower.startsWith("https://www.telegram.me/http?") ||
-                linkLower.startsWith("http://www.telegram.me/http?")
+                TELEGRAM_LINK_PREFIXES.any { prefix ->
+                    linkLower.startsWith("$prefix/proxy?") ||
+                            linkLower.startsWith("$prefix/socks?") ||
+                            linkLower.startsWith("$prefix/http?")
+                }
     }
 
     override fun onEnableProxy(proxyId: Int) {

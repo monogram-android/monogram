@@ -99,6 +99,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
+import org.monogram.core.telegram.TelegramLinkDomains
 import org.monogram.domain.models.UserTypeEnum
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.ItemPosition
@@ -544,13 +545,13 @@ fun ProfileInfoSection(
         if (!displayLink.isNullOrEmpty()) {
             overviewItems.add { pos ->
                 val isLink = displayLink.startsWith("http", ignoreCase = true) ||
-                        displayLink.startsWith("t.me", ignoreCase = true)
+                        TelegramLinkDomains.startsWithSupportedHost(displayLink)
                 val isPrivateInviteLink = isGroupOrChannel && isLink && (
-                        displayLink.contains("t.me/+", ignoreCase = true) ||
+                        displayLink.contains("/+", ignoreCase = true) ||
                                 displayLink.contains("joinchat", ignoreCase = true)
                         )
                 val finalTitle = when {
-                    isGroupOrChannel && !isLink -> "https://t.me/$displayLink"
+                    isGroupOrChannel && !isLink -> state.publicLink ?: displayLink
                     isLink -> displayLink
                     else -> "@$displayLink"
                 }

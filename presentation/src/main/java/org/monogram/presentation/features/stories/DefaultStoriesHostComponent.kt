@@ -27,6 +27,7 @@ import org.monogram.domain.repository.AuthStep
 import org.monogram.domain.repository.ChatListRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StringProvider
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
@@ -41,6 +42,8 @@ class DefaultStoriesHostComponent(
     private val userRepository: UserRepository = container.repositories.userRepository
     private val appPreferences: AppPreferencesProvider =
         container.preferences.appPreferencesProvider
+    private val telegramLinkRepository: TelegramLinkRepository =
+        container.repositories.telegramLinkRepository
     private val messageDisplayer = container.utils.messageDisplayer()
     private val clipManager = container.utils.clipManager
     private val externalNavigator = container.utils.externalNavigator()
@@ -1110,7 +1113,8 @@ class DefaultStoriesHostComponent(
                 return@launch
             }
 
-            clipManager.copyToClipboard("story_link", buildPublicStoryLink(username, story.id))
+            val link = telegramLinkRepository.buildUrl("$username/s/${story.id}")
+            clipManager.copyToClipboard("story_link", link)
             messageDisplayer.show(stringProvider.getString("link_copied"))
         }
     }
@@ -1796,6 +1800,3 @@ private data class ChatPresentation(
     val canManageStories: Boolean
 )
 
-private fun buildPublicStoryLink(username: String, storyId: Int): String {
-    return "https://t.me/$username/s/$storyId"
-}

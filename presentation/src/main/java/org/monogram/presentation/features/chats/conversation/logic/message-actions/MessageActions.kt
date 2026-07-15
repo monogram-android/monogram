@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.monogram.core.telegram.TelegramLinkDomains
 import org.monogram.domain.models.GifModel
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageEntity
@@ -855,8 +856,18 @@ internal fun DefaultChatComponent.handleReportReasonSelected(reason: String) {
 
 internal fun DefaultChatComponent.handleCopyLink(localClipboard: Clipboard) {
     scope.launch {
-        val link = chatOperationsRepository.getChatLink(chatId)
-        if (link != null) {
+        val currentState = _state.value
+        val username = currentState.preferredTelegramUsername()
+        val inviteLink = currentState.preferredTelegramInviteLink()
+        val link = when {
+            username != null -> telegramLinkRepository.buildUrl(username)
+            inviteLink != null -> telegramLinkRepository.rewriteTelegramLink(inviteLink)
+            else -> chatOperationsRepository.getChatLink(chatId)?.let { fallback ->
+                val fallbackPath = TelegramLinkDomains.extractPathAndQuery(fallback)
+                if (fallbackPath != null) telegramLinkRepository.buildUrl(fallbackPath) else fallback
+            }
+        }
+        if (!link.isNullOrBlank()) {
             localClipboard.nativeClipboard.setPrimaryClip(
                 ClipData.newPlainText("", AnnotatedString(link))
             )

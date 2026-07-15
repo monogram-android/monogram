@@ -53,6 +53,7 @@ import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StorageRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StringProvider
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
@@ -119,6 +120,7 @@ interface RepositoriesContainer {
     val storyRepository: StoryRepository
     val gifRepository: GifRepository
     val emojiRepository: EmojiRepository
+    val telegramLinkRepository: TelegramLinkRepository
     val updateRepository: UpdateRepository
     val pushDebugRepository: PushDebugRepository
 }

@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -29,8 +30,11 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.ResolvedTextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.presentation.features.chats.conversation.ui.message.model.isBlockElement
 
 internal data class MessageTextLayoutInfo(
@@ -236,6 +240,8 @@ private fun DefaultTextRender(
 ) {
     val layoutResult = remember { mutableStateOf<TextLayoutResult?>(null) }
     val spoilerColor = if (color != Color.Unspecified) color else LocalContentColor.current
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
+    val scope = rememberCoroutineScope()
 
     val time by produceState(0f) {
         while (true) {
@@ -343,7 +349,9 @@ private fun DefaultTextRender(
 
                                     "MENTION" -> {
                                         val username = annotation.item.removePrefix("@")
-                                        linkHandler("https://t.me/$username")
+                                        scope.launch {
+                                            linkHandler(telegramLinkRepository.buildUrl(username))
+                                        }
                                         consumed = true
                                     }
 

@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import org.monogram.domain.managers.DomainManager
 import org.monogram.domain.repository.ExternalNavigator
 import org.monogram.domain.repository.SponsorRepository
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.AppPreferences
@@ -39,6 +40,8 @@ class DefaultSettingsComponent(
     private val repository: UserRepository = container.repositories.userRepository
     private val userProfileEditRepository: UserProfileEditRepository = container.repositories.userProfileEditRepository
     private val sponsorRepository: SponsorRepository = container.repositories.sponsorRepository
+    private val telegramLinkRepository: TelegramLinkRepository =
+        container.repositories.telegramLinkRepository
     private val externalNavigator: ExternalNavigator = container.utils.externalNavigator()
     private val domainManager: DomainManager = container.utils.domainManager()
     private val appPreferences: AppPreferences = container.preferences.appPreferences
@@ -59,8 +62,12 @@ class DefaultSettingsComponent(
 
         scope.launch {
             repository.currentUserFlow.collectLatest { me ->
-                val link =
-                    if (me?.username?.isNotEmpty() == true) "https://t.me/${me.username}" else ""
+                val username = me?.username
+                val link = if (!username.isNullOrBlank()) {
+                    telegramLinkRepository.buildUrl(username)
+                } else {
+                    ""
+                }
                 _state.update {
                     it.copy(
                         currentUser = me,
@@ -151,7 +158,15 @@ class DefaultSettingsComponent(
     }
 
     override fun onQrCodeClicked() {
-        _state.update { it.copy(isQrVisible = true) }
+        scope.launch {
+            val link = resolveCurrentUserPublicLink()
+            _state.update {
+                it.copy(
+                    qrContent = link,
+                    isQrVisible = true
+                )
+            }
+        }
     }
 
     override fun onQrCodeDismissed() {
@@ -175,19 +190,35 @@ class DefaultSettingsComponent(
     }
 
     override fun onBoostyClicked() {
-        externalNavigator.openUrl("https://boosty.to/monogram")
+        scope.launch {
+            externalNavigator.openUrl("https://boosty.to/monogram")
+        }
     }
 
     override fun onCryptoDonateClicked() {
-        externalNavigator.openUrl("https://t.me/send?start=IVm03D7GNky7")
+        scope.launch {
+            externalNavigator.openUrl(
+                telegramLinkRepository.buildUrl("send?start=IVm03D7GNky7")
+            )
+        }
     }
 
     override fun onGithubClicked() {
-        externalNavigator.openUrl("https://github.com/monogram-android/monogram")
+        scope.launch {
+            externalNavigator.openUrl("https://github.com/monogram-android/monogram")
+        }
     }
 
     override fun onMoreOptionsClicked() {
-        _state.update { it.copy(isMoreOptionsVisible = true) }
+        scope.launch {
+            val link = resolveCurrentUserPublicLink()
+            _state.update {
+                it.copy(
+                    qrContent = link,
+                    isMoreOptionsVisible = true
+                )
+            }
+        }
     }
 
     override fun onMoreOptionsDismissed() {
@@ -240,5 +271,10 @@ class DefaultSettingsComponent(
                 fullScreenVideoPath = null
             )
         }
+    }
+
+    private suspend fun resolveCurrentUserPublicLink(): String {
+        val username = _state.value.currentUser?.username?.takeIf { it.isNotBlank() } ?: return ""
+        return telegramLinkRepository.buildUrl(username)
     }
 }

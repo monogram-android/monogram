@@ -9,11 +9,13 @@ import org.monogram.data.compat.buildSearchPublicChats
 import org.monogram.data.compat.buildTdChatPermissions
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TelegramGateway
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.models.ChatPermissionsModel
 
 class TdChatRemoteSource(
     private val gateway: TelegramGateway,
-    private val connectivityManager: ConnectivityManager
+    private val connectivityManager: ConnectivityManager,
+    private val telegramLinkRepository: TelegramLinkRepository
 ) : ChatRemoteSource {
 
     override suspend fun loadChats(chatList: TdApi.ChatList, limit: Int): Result<Unit> =
@@ -166,12 +168,16 @@ class TdChatRemoteSource(
             when (val type = chat.type) {
                 is TdApi.ChatTypePrivate -> {
                     val user = gateway.execute(TdApi.GetUser(type.userId))
-                    user.usernames?.activeUsernames?.firstOrNull()?.let { "https://t.me/$it" }
+                    user.usernames?.activeUsernames?.firstOrNull()?.let { username ->
+                        telegramLinkRepository.buildUrl(username)
+                    }
                 }
                 is TdApi.ChatTypeSupergroup -> {
                     if (type.supergroupId == 0L) return@coRunCatching null
                     val sg = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
-                    sg.usernames?.activeUsernames?.firstOrNull()?.let { "https://t.me/$it" }
+                    sg.usernames?.activeUsernames?.firstOrNull()?.let { username ->
+                        telegramLinkRepository.buildUrl(username)
+                    }
                 }
                 else -> null
             }

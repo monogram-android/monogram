@@ -81,11 +81,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -117,7 +119,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.window.core.layout.WindowSizeClass
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
@@ -148,6 +152,7 @@ val QrSurfaceShapeColor = Color(0xFFE3E6D8)
 @Composable
 fun SettingsContent(component: SettingsComponent) {
     val stickerRepository: StickerRepository = koinInject()
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
     val state by component.state.subscribeAsState()
     val adaptiveInfo = currentWindowAdaptiveInfo()
     val isTabletInterfaceEnabled = LocalTabletInterfaceEnabled.current
@@ -214,8 +219,13 @@ fun SettingsContent(component: SettingsComponent) {
 
     val localClipboard = LocalClipboard.current
     val nativeClipboard = localClipboard.nativeClipboard
+    val scope = rememberCoroutineScope()
+    val telegramBaseUrl by telegramLinkRepository.baseUrl.collectAsState()
     val profileUsername = state.currentUser?.username?.takeIf { it.isNotBlank() }
-    val profileLink = profileUsername?.let { "https://t.me/$it" }
+    val profileLink = state.qrContent.takeIf { it.isNotBlank() }
+    val supportCryptoLink = remember(telegramBaseUrl) {
+        "${telegramBaseUrl.removeSuffix("/")}/send?start=IVm03D7GNky7"
+    }
     val collapsedColor = MaterialTheme.colorScheme.surface
     val expandedColor = MaterialTheme.colorScheme.background
     val dynamicContainerColor = lerp(
@@ -249,7 +259,7 @@ fun SettingsContent(component: SettingsComponent) {
         component.onDismissAvatarViewer()
     }
 
-    if (state.isQrVisible && profileUsername != null && profileLink != null) {
+    if (state.isQrVisible && profileUsername != null) {
         val sheetState = rememberModalBottomSheetState()
         ModalBottomSheet(
             onDismissRequest = component::onQrCodeDismissed,
@@ -257,7 +267,7 @@ fun SettingsContent(component: SettingsComponent) {
             containerColor = MaterialTheme.colorScheme.background,
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
         ) {
-            val qrContent = state.qrContent.ifBlank { profileLink }
+            val qrContent = state.qrContent
 
             Column(
                 modifier = Modifier
@@ -331,7 +341,7 @@ fun SettingsContent(component: SettingsComponent) {
         }
     }
 
-    if (state.isMoreOptionsVisible && profileUsername != null && profileLink != null) {
+    if (state.isMoreOptionsVisible && profileUsername != null) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = component::onMoreOptionsDismissed,
@@ -353,12 +363,15 @@ fun SettingsContent(component: SettingsComponent) {
                     iconBackgroundColor = blueColor,
                     position = ItemPosition.TOP,
                     onClick = {
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, profileLink)
+                        scope.launch {
+                            val link = telegramLinkRepository.buildUrl(profileUsername)
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, link)
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, null))
+                            component.onMoreOptionsDismissed()
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, null))
-                        component.onMoreOptionsDismissed()
                     }
                 )
                 SettingsItem(
@@ -368,11 +381,14 @@ fun SettingsContent(component: SettingsComponent) {
                     iconBackgroundColor = greenColor,
                     position = ItemPosition.BOTTOM,
                     onClick = {
-                        nativeClipboard.setPrimaryClip(
-                            ClipData.newPlainText("", AnnotatedString(profileLink))
-                        )
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        component.onMoreOptionsDismissed()
+                        scope.launch {
+                            val link = telegramLinkRepository.buildUrl(profileUsername)
+                            nativeClipboard.setPrimaryClip(
+                                ClipData.newPlainText("", AnnotatedString(link))
+                            )
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            component.onMoreOptionsDismissed()
+                        }
                     }
                 )
             }
@@ -775,7 +791,7 @@ fun SettingsContent(component: SettingsComponent) {
                             SettingsItem(
                                 icon = Icons.Rounded.Link,
                                 title = stringResource(R.string.support_crypto_link_title),
-                                subtitle = stringResource(R.string.support_crypto_link_value),
+                                subtitle = supportCryptoLink,
                                 iconBackgroundColor = tealColor,
                                 position = ItemPosition.BOTTOM,
                                 onClick = component::onCryptoDonateClicked

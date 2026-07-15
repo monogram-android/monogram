@@ -118,6 +118,7 @@ import org.monogram.data.repository.StickerRepositoryImpl
 import org.monogram.data.repository.StorageRepositoryImpl
 import org.monogram.data.repository.StoryRepositoryImpl
 import org.monogram.data.repository.StreamingRepositoryImpl
+import org.monogram.data.repository.TelegramLinkRepositoryImpl
 import org.monogram.data.repository.UpdateRepositoryImpl
 import org.monogram.data.repository.UserProfileEditRepositoryImpl
 import org.monogram.data.repository.WallpaperRepositoryImpl
@@ -164,6 +165,7 @@ import org.monogram.domain.repository.StorageRepository
 import org.monogram.domain.repository.StoryRepository
 import org.monogram.domain.repository.StreamingRepository
 import org.monogram.domain.repository.StringProvider
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UpdateRepository
 import org.monogram.domain.repository.UserProfileEditRepository
 import org.monogram.domain.repository.UserRepository
@@ -415,6 +417,7 @@ val dataModule = module {
         TdChatRemoteSource(
             gateway = get(),
             connectivityManager = androidContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager,
+            telegramLinkRepository = get()
         )
     }
     single<NetworkSnapshotProvider> {
@@ -820,6 +823,16 @@ val dataModule = module {
         PrivacyRepositoryImpl(
             remote = get(),
             updates = get()
+        )
+    }
+
+    single<TelegramLinkRepository> {
+        TelegramLinkRepositoryImpl(
+            gateway = get(),
+            updates = get(),
+            keyValueDao = get(),
+            scope = get(),
+            dispatchers = get()
         )
     }
 

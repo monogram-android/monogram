@@ -60,6 +60,7 @@ import org.monogram.domain.models.StickerModel
 import org.monogram.domain.models.StickerSetModel
 import org.monogram.domain.models.StickerType
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.features.stickers.ui.view.StickerImage
 import org.monogram.presentation.features.stickers.ui.view.StickerSkeleton
@@ -74,6 +75,7 @@ fun StickerSetSheet(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
     var isInstalled by remember { mutableStateOf(stickerSet.isInstalled) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -151,11 +153,15 @@ fun StickerSetSheet(
                     val linkCopiedText = stringResource(R.string.link_copied)
                     IconButton(
                         onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            val link = "https://t.me/addstickers/${stickerSet.name}"
-                            val clip = ClipData.newPlainText("Sticker Set Link", link)
-                            clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, linkCopiedText, Toast.LENGTH_SHORT).show()
+                            scope.launch {
+                                val clipboard =
+                                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val link =
+                                    telegramLinkRepository.buildUrl("addstickers/${stickerSet.name}")
+                                val clip = ClipData.newPlainText("Sticker Set Link", link)
+                                clipboard.setPrimaryClip(clip)
+                                Toast.makeText(context, linkCopiedText, Toast.LENGTH_SHORT).show()
+                            }
                         }
                     ) {
                         Icon(

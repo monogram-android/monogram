@@ -12,12 +12,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ui.message.PreviewImageViewerRequest
@@ -186,6 +190,8 @@ internal fun ImagesOverlay(
     previewImages: PreviewImageViewerRequest? = null,
     onDismissPreviewImages: () -> Unit = {}
 ) {
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
+    val scope = rememberCoroutineScope()
     previewImages?.let { request ->
         if (request.images.isNotEmpty()) {
             ImageViewer(
@@ -325,16 +331,25 @@ internal fun ImagesOverlay(
                         if (!state.isGroup && !state.isChannel) {
                             "tg://openmessage?user_id=${state.chatId}&message_id=${msg.id shr 20}"
                         } else {
-                            "https://t.me/c/${
-                                state.chatId.toString().removePrefix("-100")
-                            }/${msg.id shr 20}"
+                            null
                         }
                     } else {
                         path
                     }
-                    localClipboard.nativeClipboard.setPrimaryClip(
-                        ClipData.newPlainText("", AnnotatedString(link))
-                    )
+                    if (link != null) {
+                        localClipboard.nativeClipboard.setPrimaryClip(
+                            ClipData.newPlainText("", AnnotatedString(link))
+                        )
+                    } else if (msg != null) {
+                        scope.launch {
+                            val resolved = telegramLinkRepository.buildUrl(
+                                "c/${state.chatId.toString().removePrefix("-100")}/${msg.id shr 20}"
+                            )
+                            localClipboard.nativeClipboard.setPrimaryClip(
+                                ClipData.newPlainText("", AnnotatedString(resolved))
+                            )
+                        }
+                    }
                 },
                 onCopyText = { path ->
                     val msg = state.messages.find {
@@ -393,6 +408,8 @@ internal fun VideoOverlay(
     previewVideo: PreviewVideoViewerRequest? = null,
     onDismissPreviewVideo: () -> Unit = {}
 ) {
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
+    val scope = rememberCoroutineScope()
     previewVideo?.let { request ->
         val isVisible =
             request.path.isNotBlank() || (request.supportsStreaming && request.fileId != 0)
@@ -482,16 +499,27 @@ internal fun VideoOverlay(
                             if (!state.isGroup && !state.isChannel) {
                                 "tg://openmessage?user_id=${state.chatId}&message_id=${linkMsg.id shr 20}"
                             } else {
-                                "https://t.me/c/${
-                                    state.chatId.toString().removePrefix("-100")
-                                }/${linkMsg.id shr 20}"
+                                null
                             }
                         } else {
                             videoPath
                         }
-                        localClipboard.nativeClipboard.setPrimaryClip(
-                            ClipData.newPlainText("", AnnotatedString(link))
-                        )
+                        if (link != null) {
+                            localClipboard.nativeClipboard.setPrimaryClip(
+                                ClipData.newPlainText("", AnnotatedString(link))
+                            )
+                        } else if (linkMsg != null) {
+                            scope.launch {
+                                val resolved = telegramLinkRepository.buildUrl(
+                                    "c/${
+                                        state.chatId.toString().removePrefix("-100")
+                                    }/${linkMsg.id shr 20}"
+                                )
+                                localClipboard.nativeClipboard.setPrimaryClip(
+                                    ClipData.newPlainText("", AnnotatedString(resolved))
+                                )
+                            }
+                        }
                     },
                     onCopyText = { videoPath ->
                         val textMsg = state.messages.find {

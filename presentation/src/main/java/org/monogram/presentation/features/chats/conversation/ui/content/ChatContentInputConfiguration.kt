@@ -2,7 +2,11 @@ package org.monogram.presentation.features.chats.conversation.ui.content
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import org.monogram.domain.models.ReplyMarkupModel
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.presentation.features.chats.conversation.ChatComponent
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.ChatInputBarActions
 import org.monogram.presentation.features.chats.conversation.ui.inputbar.ChatInputBarState
@@ -113,6 +117,8 @@ internal fun rememberChatInputBarActions(
     onEditMediaPath: (String) -> Unit,
     onDraftLinkPreviewAction: (LinkPreviewAction) -> Unit
 ): ChatInputBarActions {
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
+    val scope = rememberCoroutineScope()
     return remember(
         component,
         state.chatId,
@@ -181,7 +187,11 @@ internal fun rememberChatInputBarActions(
                     parameter,
                     StandardCharsets.UTF_8.name()
                 )
-                component.onLinkClick("https://t.me/$botUsername?start=$encodedParameter")
+                scope.launch {
+                    val link =
+                        telegramLinkRepository.buildUrl("$botUsername?start=$encodedParameter")
+                    component.onLinkClick(link)
+                }
             },
             onAttachBotClick = { bot ->
                 component.onOpenAttachBot(bot.botUserId, bot.name)

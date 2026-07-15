@@ -46,7 +46,6 @@
     <string name="support_boosty_link_title">Поддержка Boosty</string>
     <string name="support_boosty_link_value">boosty.to/monogram</string>
     <string name="support_crypto_link_title">Поддержка Crypto</string>
-    <string name="support_crypto_link_value">t.me/send?start=IVm03D7GNky7</string>
     <string name="support_github_link_value">github.com/monogram-android/monogram</string>
     <string name="maintainers_section">Разработчики</string>
     <string name="role_developer">Разработчик</string>

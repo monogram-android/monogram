@@ -62,6 +62,27 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="https" android:host="t.me"/>
+                <data
+                    android:host="www.t.me"
+                    android:scheme="https" />
+                <data
+                    android:host="telegram.me"
+                    android:scheme="https" />
+                <data
+                    android:host="www.telegram.me"
+                    android:scheme="https" />
+                <data
+                    android:host="telegram.dog"
+                    android:scheme="https" />
+                <data
+                    android:host="www.telegram.dog"
+                    android:scheme="https" />
+                <data
+                    android:host="t.you"
+                    android:scheme="https" />
+                <data
+                    android:host="www.t.you"
+                    android:scheme="https" />
             </intent-filter>
 
             <intent-filter>

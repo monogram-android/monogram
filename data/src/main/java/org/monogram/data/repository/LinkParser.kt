@@ -1,6 +1,7 @@
 package org.monogram.data.repository
 
 import androidx.core.net.toUri
+import org.monogram.core.telegram.TelegramLinkDomains
 import org.monogram.data.core.coRunCatching
 import org.monogram.domain.models.ProxyTypeModel
 import org.monogram.domain.proxy.MtprotoSecretNormalizer
@@ -10,15 +11,12 @@ import java.nio.charset.StandardCharsets
 class LinkParser {
 
     fun normalize(link: String): String = when {
-        normalizeForParsing(link).startsWith("tg://") -> normalizeForParsing(link)
-        normalizeForParsing(link).startsWith("https://t.me/") -> normalizeForParsing(link)
-        normalizeForParsing(link).startsWith("http://t.me/") -> normalizeForParsing(link).replace(
-            "http://",
-            "https://"
-        )
+        normalizeForParsing(link).startsWith(
+            "tg://",
+            ignoreCase = true
+        ) -> normalizeForParsing(link)
 
-        normalizeForParsing(link).startsWith("t.me/") -> "https://${normalizeForParsing(link)}"
-        else -> normalizeForParsing(link)
+        else -> canonicalizeTelegramHttpLink(normalizeForParsing(link)) ?: normalizeForParsing(link)
     }
 
     fun parsePrimary(link: String): ParsedLink? {
@@ -28,7 +26,10 @@ class LinkParser {
     }
 
     fun parseFallback(link: String): ParsedLink {
-        val uri = coRunCatching { link.toUri() }.getOrNull() ?: return parseExternalOrNone(link)
+        val normalizedLink = normalize(link)
+        parseTelegramHttpFallback(normalizedLink)?.let { return it }
+        val uri = coRunCatching { normalizedLink.toUri() }.getOrNull()
+            ?: return parseExternalOrNone(normalizedLink)
 
         if (uri.scheme.equals("tg", ignoreCase = true)) {
             if (uri.host.equals("resolve", ignoreCase = true)) {
@@ -58,17 +59,17 @@ class LinkParser {
             val host = uri.host?.lowercase()
             val pathSegments = uri.pathSegments.orEmpty()
 
-            if (host == "t.me" || host == "www.t.me" || host == "telegram.me" || host == "www.telegram.me") {
+            if (isTelegramHost(host)) {
                 val first = pathSegments.firstOrNull()
                 val second = pathSegments.getOrNull(1)
 
                 if (!first.isNullOrBlank()) {
                     if (first == "joinchat" && !second.isNullOrBlank()) {
-                        return ParsedLink.JoinChat("https://t.me/joinchat/$second")
+                        return ParsedLink.JoinChat("${TelegramLinkDomains.DEFAULT_BASE_URL}/joinchat/$second")
                     }
 
                     if (first.startsWith("+")) {
-                        return ParsedLink.JoinChat("https://t.me/$first")
+                        return ParsedLink.JoinChat("${TelegramLinkDomains.DEFAULT_BASE_URL}/$first")
                     }
 
                     if (pathSegments.size == 1) {
@@ -78,7 +79,39 @@ class LinkParser {
             }
         }
 
-        return parseExternalOrNone(link)
+        return parseExternalOrNone(normalizedLink)
+    }
+
+    private fun parseTelegramHttpFallback(link: String): ParsedLink? {
+        if (!link.startsWith(TelegramLinkDomains.DEFAULT_BASE_URL, ignoreCase = true)) {
+            return null
+        }
+
+        val path = link
+            .removePrefix(TelegramLinkDomains.DEFAULT_BASE_URL)
+            .trimStart('/')
+            .substringBefore('?')
+            .substringBefore('#')
+
+        if (path.isBlank()) return null
+
+        val pathSegments = path.split('/').filter { it.isNotBlank() }
+        val first = pathSegments.firstOrNull()
+        val second = pathSegments.getOrNull(1)
+
+        if (first == "joinchat" && !second.isNullOrBlank()) {
+            return ParsedLink.JoinChat("${TelegramLinkDomains.DEFAULT_BASE_URL}/joinchat/$second")
+        }
+
+        if (!first.isNullOrBlank() && first.startsWith("+")) {
+            return ParsedLink.JoinChat("${TelegramLinkDomains.DEFAULT_BASE_URL}/$first")
+        }
+
+        if (!first.isNullOrBlank() && pathSegments.size == 1) {
+            return ParsedLink.OpenPublicChat(first)
+        }
+
+        return null
     }
 
     private fun parseProxyLink(link: String): ParsedLink.AddProxy? {
@@ -107,7 +140,7 @@ class LinkParser {
 
         val httpsType = if (
             (scheme == "https" || scheme == "http") &&
-            (host == "t.me" || host == "www.t.me" || host == "telegram.me" || host == "www.telegram.me")
+            isTelegramHost(host)
         ) {
             when (pathType) {
                 "proxy" -> "proxy"
@@ -214,34 +247,64 @@ class LinkParser {
                 linkLower.startsWith("tg:http?") ||
                 linkLower.startsWith("tg://http/") -> "http"
 
-        linkLower.startsWith("https://t.me/proxy?") ||
-                linkLower.startsWith("http://t.me/proxy?") ||
-                linkLower.startsWith("https://www.t.me/proxy?") ||
-                linkLower.startsWith("http://www.t.me/proxy?") ||
-                linkLower.startsWith("https://telegram.me/proxy?") ||
-                linkLower.startsWith("http://telegram.me/proxy?") ||
-                linkLower.startsWith("https://www.telegram.me/proxy?") ||
-                linkLower.startsWith("http://www.telegram.me/proxy?") -> "proxy"
+        TELEGRAM_WEB_PREFIXES.any { prefix -> linkLower.startsWith("$prefix/proxy?") } -> "proxy"
 
-        linkLower.startsWith("https://t.me/socks?") ||
-                linkLower.startsWith("http://t.me/socks?") ||
-                linkLower.startsWith("https://www.t.me/socks?") ||
-                linkLower.startsWith("http://www.t.me/socks?") ||
-                linkLower.startsWith("https://telegram.me/socks?") ||
-                linkLower.startsWith("http://telegram.me/socks?") ||
-                linkLower.startsWith("https://www.telegram.me/socks?") ||
-                linkLower.startsWith("http://www.telegram.me/socks?") -> "socks"
+        TELEGRAM_WEB_PREFIXES.any { prefix -> linkLower.startsWith("$prefix/socks?") } -> "socks"
 
-        linkLower.startsWith("https://t.me/http?") ||
-                linkLower.startsWith("http://t.me/http?") ||
-                linkLower.startsWith("https://www.t.me/http?") ||
-                linkLower.startsWith("http://www.t.me/http?") ||
-                linkLower.startsWith("https://telegram.me/http?") ||
-                linkLower.startsWith("http://telegram.me/http?") ||
-                linkLower.startsWith("https://www.telegram.me/http?") ||
-                linkLower.startsWith("http://www.telegram.me/http?") -> "http"
+        TELEGRAM_WEB_PREFIXES.any { prefix -> linkLower.startsWith("$prefix/http?") } -> "http"
 
         else -> null
+    }
+
+    private fun canonicalizeTelegramHttpLink(link: String): String? {
+        if (TelegramLinkDomains.supportedHosts.any { host ->
+                link.equals(
+                    host,
+                    ignoreCase = true
+                )
+            }) {
+            return TelegramLinkDomains.DEFAULT_BASE_URL
+        }
+
+        val directWebPrefixMatch = TELEGRAM_WEB_PREFIXES.firstOrNull { prefix ->
+            link.equals(prefix, ignoreCase = true) ||
+                    link.startsWith("$prefix/", ignoreCase = true) ||
+                    link.startsWith("$prefix?", ignoreCase = true) ||
+                    link.startsWith("$prefix#", ignoreCase = true)
+        }
+        if (directWebPrefixMatch != null) {
+            val suffix = link.substring(directWebPrefixMatch.length)
+            return when {
+                suffix.isBlank() -> TelegramLinkDomains.DEFAULT_BASE_URL
+                suffix.startsWith("/") -> "${TelegramLinkDomains.DEFAULT_BASE_URL}$suffix"
+                else -> "${TelegramLinkDomains.DEFAULT_BASE_URL}/$suffix"
+            }.removeSuffix("/")
+        }
+
+        val directHostMatch = TelegramLinkDomains.supportedHosts.firstOrNull { host ->
+            link.startsWith("$host/", ignoreCase = true)
+        }
+        if (directHostMatch != null) {
+            return "${TelegramLinkDomains.DEFAULT_BASE_URL}/${
+                link.substring(directHostMatch.length).trimStart('/')
+            }"
+        }
+
+        val uri = coRunCatching { link.toUri() }.getOrNull() ?: return null
+        val scheme = uri.scheme?.lowercase()
+        val host = uri.host?.lowercase()
+        if ((scheme != "http" && scheme != "https") || !isTelegramHost(host)) {
+            return null
+        }
+
+        val path = uri.encodedPath.orEmpty().trimStart('/')
+        val query = uri.encodedQuery?.let { "?$it" }.orEmpty()
+        val fragment = uri.encodedFragment?.let { "#$it" }.orEmpty()
+        return "${TelegramLinkDomains.DEFAULT_BASE_URL}/${path}${query}${fragment}".removeSuffix("/")
+    }
+
+    private fun isTelegramHost(host: String?): Boolean {
+        return TelegramLinkDomains.isSupportedHost(host)
     }
 
     private fun decode(value: String): String {
@@ -272,5 +335,9 @@ class LinkParser {
         } else {
             ParsedLink.None
         }
+    }
+
+    companion object {
+        private val TELEGRAM_WEB_PREFIXES = TelegramLinkDomains.webPrefixes
     }
 }

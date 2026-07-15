@@ -68,6 +68,7 @@ import org.monogram.presentation.features.chats.common.ChatActionState
 import org.monogram.presentation.features.chats.common.ChatExitAction
 import org.monogram.presentation.features.chats.common.resolveChatActionPolicy
 import org.monogram.presentation.features.chats.conversation.ChatComponent
+import org.monogram.presentation.features.chats.conversation.logic.hasCopyableTelegramLink
 import org.monogram.presentation.features.chats.conversation.ui.ChatTopBar
 import org.monogram.presentation.features.chats.conversation.ui.pins.PinnedMessageBar
 import org.monogram.presentation.features.stickers.ui.menu.MenuOptionRow
@@ -404,7 +405,7 @@ fun ChatContentTopBar(
                     onLeaveChat = if (exitAction == ChatExitAction.Leave && !isActionPending) component::onLeaveChat else null,
                     onDeleteChat = if (exitAction == ChatExitAction.Delete && !isActionPending) component::onDeleteChat else null,
                     onReport = if (isMainChat && canReportChat && !isActionPending) component::onReport else null,
-                    onCopyLink = if (isMainChat && (topBarState.isGroup || topBarState.isChannel)) {
+                    onCopyLink = if (isMainChat && componentState.hasCopyableTelegramLink()) {
                         { component.onCopyLink(localClipboard) }
                     } else null,
                     onManageMembers = if (isMainChat && topBarState.isGroup && (topBarState.isAdmin || topBarState.permissions.canInviteUsers)) {

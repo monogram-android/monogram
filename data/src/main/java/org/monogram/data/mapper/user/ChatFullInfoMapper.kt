@@ -1,6 +1,7 @@
 package org.monogram.data.mapper.user
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.telegram.TelegramLinkDomains
 import org.monogram.data.mapper.isChannelType
 import org.monogram.data.mapper.isGroupType
 import org.monogram.data.mapper.isValidFilePath
@@ -50,7 +51,8 @@ fun TdApi.SupergroupFullInfo.mapSupergroupFullInfoToChat(
     supergroup: TdApi.Supergroup?
 ): ChatFullInfoModel {
     val link = inviteLink?.inviteLink
-        ?: supergroup?.usernames?.activeUsernames?.firstOrNull()?.let { "t.me/$it" }
+        ?: supergroup?.usernames?.activeUsernames?.firstOrNull()
+            ?.let { "${TelegramLinkDomains.CANONICAL_HOST}/$it" }
     return ChatFullInfoModel(
         description = description.ifEmpty { null },
         inviteLink = link,

@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import org.monogram.core.telegram.TelegramLinkDomains
 import org.koin.compose.koinInject
 import org.monogram.domain.models.*
 import org.monogram.presentation.R
@@ -152,7 +153,8 @@ fun buildRichText(
     return buildAnnotatedString {
         var currentIndex = 0
         val boldRegex = "\\*\\*(.*?)\\*\\*".toRegex()
-        val urlPattern = Regex("(https?://\\S+|t\\.me/\\S+)")
+        val urlPattern =
+            Regex("(https?://\\S+|(?:${TelegramLinkDomains.supportedHostsRegexFragment})/\\S+)")
         val mentionPattern = Regex("@[a-zA-Z0-9_]+")
 
         val boldMatches = boldRegex.findAll(text).toList()
@@ -202,7 +204,7 @@ fun buildRichText(
             )
             addStringAnnotation(
                 tag = "URL",
-                annotation = "https://t.me/${result.value.substring(1)}",
+                annotation = "${TelegramLinkDomains.DEFAULT_BASE_URL}/${result.value.substring(1)}",
                 start = result.range.first,
                 end = result.range.last + 1
             )

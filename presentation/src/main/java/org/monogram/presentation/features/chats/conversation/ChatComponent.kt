@@ -260,6 +260,8 @@ interface ChatComponent {
     data class State(
         val chatId: Long = 0L,
         val chatTitle: String = "Chat",
+        val chatUsername: String? = null,
+        val chatInviteLink: String? = null,
         val chatAvatar: String? = null,
         val chatPersonalAvatar: String? = null,
         val chatEmojiStatus: String? = null,

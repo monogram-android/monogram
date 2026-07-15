@@ -39,6 +39,7 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.ProfilePhotoRepository
 import org.monogram.domain.repository.StoryRepository
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.presentation.core.util.IDownloadUtils
 import org.monogram.presentation.core.util.coRunCatching
@@ -80,6 +81,8 @@ class DefaultProfileComponent(
     private val locationRepository: LocationRepository = container.repositories.locationRepository
     private val gifRepository: GifRepository = container.repositories.gifRepository
     private val storyRepository: StoryRepository = container.repositories.storyRepository
+    private val telegramLinkRepository: TelegramLinkRepository =
+        container.repositories.telegramLinkRepository
     private val botPreferences: BotPreferencesProvider = container.preferences.botPreferencesProvider
     private val stringProvider = container.utils.stringProvider()
     private val messageDisplayer = container.utils.messageDisplayer()
@@ -118,9 +121,12 @@ class DefaultProfileComponent(
                 }
                 val fullInfo = coRunCatching { chatInfoRepository.getChatFullInfo(chatId) }.getOrNull()
                 val description = fullInfo?.description
-                val link = fullInfo?.inviteLink
-                    ?: chat?.username?.let { "https://t.me/$it" }
-                    ?: user?.username?.let { "https://t.me/$it" }
+                val publicUsername = chat?.username?.takeIf { it.isNotBlank() }
+                    ?: user?.username?.takeIf { it.isNotBlank() }
+                val link = when {
+                    publicUsername != null -> telegramLinkRepository.buildUrl(publicUsername)
+                    else -> fullInfo?.inviteLink
+                }
 
                 var botWebAppUrl: String? = null
                 var botWebAppName: String? = null
@@ -957,7 +963,16 @@ class DefaultProfileComponent(
     }
 
     override fun onShowQRCode() {
-        _state.update { it.copy(isQrVisible = true) }
+        scope.launch {
+            val latestLink = resolveLatestPublicLink()
+            _state.update {
+                it.copy(
+                    publicLink = latestLink ?: it.publicLink,
+                    qrContent = latestLink ?: it.qrContent,
+                    isQrVisible = true
+                )
+            }
+        }
     }
 
     override fun onDismissQRCode() {
@@ -1293,6 +1308,17 @@ class DefaultProfileComponent(
 
     override fun onCreateStory() {
         onCreateStoryClicked(chatId)
+    }
+
+    private suspend fun resolveLatestPublicLink(): String? {
+        val snapshot = _state.value
+        val username = snapshot.chat?.username?.takeIf { it.isNotBlank() }
+            ?: snapshot.user?.username?.takeIf { it.isNotBlank() }
+        return when {
+            username != null -> telegramLinkRepository.buildUrl(username)
+            !snapshot.fullInfo?.inviteLink.isNullOrBlank() -> snapshot.fullInfo?.inviteLink
+            else -> null
+        }
     }
 
     private suspend fun enrichInteractionPreviews(stats: ChatStatisticsModel): ChatStatisticsModel {

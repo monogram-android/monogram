@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,8 +35,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.MessageModel
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.features.instantview.InstantViewer
 import org.monogram.presentation.features.viewers.ImageViewer
@@ -52,13 +57,15 @@ fun ProfileViewers(
     component: ProfileComponent
 ) {
     val localClipboard = LocalClipboard.current
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
+    val scope = rememberCoroutineScope()
 
     InstantViewOverlay(state, component)
     YouTubeOverlay(state, component, localClipboard)
     MiniAppOverlay(state, component)
     WebViewOverlay(state, component)
-    ImagesOverlay(state, component, localClipboard)
-    VideoOverlay(state, component, localClipboard)
+    ImagesOverlay(state, component, localClipboard, telegramLinkRepository, scope)
+    VideoOverlay(state, component, localClipboard, telegramLinkRepository, scope)
     InvoiceOverlay(state, component)
     MiniAppTOSOverlay(state, component)
 }
@@ -172,7 +179,9 @@ private fun WebViewOverlay(state: ProfileComponent.State, component: ProfileComp
 private fun ImagesOverlay(
     state: ProfileComponent.State,
     component: ProfileComponent,
-    localClipboard: Clipboard
+    localClipboard: Clipboard,
+    telegramLinkRepository: TelegramLinkRepository,
+    scope: CoroutineScope
 ) {
     AnimatedVisibility(
         visible = state.fullScreenImages != null,
@@ -277,14 +286,22 @@ private fun ImagesOverlay(
                         },
                         onCopyLink = { path ->
                             val msg = currentViewerMessage ?: state.mediaMessages.find { it.content.matchesDisplayPath(path) }
-                            val link = if (msg != null) {
-                                "https://t.me/c/${state.chatId.toString().removePrefix("-100")}/${msg.id shr 20}"
+                            if (msg == null) {
+                                localClipboard.nativeClipboard.setPrimaryClip(
+                                    ClipData.newPlainText("", AnnotatedString(path))
+                                )
                             } else {
-                                path
+                                scope.launch {
+                                    val link = telegramLinkRepository.buildUrl(
+                                        "c/${
+                                            state.chatId.toString().removePrefix("-100")
+                                        }/${msg.id shr 20}"
+                                    )
+                                    localClipboard.nativeClipboard.setPrimaryClip(
+                                        ClipData.newPlainText("", AnnotatedString(link))
+                                    )
+                                }
                             }
-                            localClipboard.nativeClipboard.setPrimaryClip(
-                                ClipData.newPlainText("", AnnotatedString(link))
-                            )
                         },
                         onCopyText = { path ->
                             val msg = currentViewerMessage ?: state.mediaMessages.find { it.content.matchesDisplayPath(path) }
@@ -356,7 +373,9 @@ private fun ImagesOverlay(
 private fun VideoOverlay(
     state: ProfileComponent.State,
     component: ProfileComponent,
-    localClipboard: Clipboard
+    localClipboard: Clipboard,
+    telegramLinkRepository: TelegramLinkRepository,
+    scope: CoroutineScope
 ) {
     val videoVisible =
         (state.fullScreenVideoPath != null || state.fullScreenVideoMessageId != null) && state.fullScreenImages == null
@@ -411,14 +430,22 @@ private fun VideoOverlay(
                             val linkMsg = state.mediaMessages.find {
                                 it.content.matchesDisplayPath(videoPath)
                             }
-                            val link = if (linkMsg != null) {
-                                "https://t.me/c/${state.chatId.toString().removePrefix("-100")}/${linkMsg.id shr 20}"
+                            if (linkMsg == null) {
+                                localClipboard.nativeClipboard.setPrimaryClip(
+                                    ClipData.newPlainText("", AnnotatedString(videoPath))
+                                )
                             } else {
-                                videoPath
+                                scope.launch {
+                                    val link = telegramLinkRepository.buildUrl(
+                                        "c/${
+                                            state.chatId.toString().removePrefix("-100")
+                                        }/${linkMsg.id shr 20}"
+                                    )
+                                    localClipboard.nativeClipboard.setPrimaryClip(
+                                        ClipData.newPlainText("", AnnotatedString(link))
+                                    )
+                                }
                             }
-                            localClipboard.nativeClipboard.setPrimaryClip(
-                                ClipData.newPlainText("", AnnotatedString(link))
-                            )
                         },
                         onCopyText = { videoPath ->
                             val textMsg = state.mediaMessages.find {

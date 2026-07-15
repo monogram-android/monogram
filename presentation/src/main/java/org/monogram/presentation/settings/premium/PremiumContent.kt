@@ -48,6 +48,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -64,6 +65,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.presentation.R
 import org.monogram.presentation.core.ui.CollapsingToolbarScaffold
 import org.monogram.presentation.core.ui.ExpressiveDefaults
@@ -78,6 +82,8 @@ import org.monogram.presentation.core.util.ScrollStrategy
 fun PremiumContent(component: PremiumComponent) {
     val state by component.state.subscribeAsState()
     val context = LocalContext.current
+    val telegramLinkRepository: TelegramLinkRepository = koinInject()
+    val scope = rememberCoroutineScope()
     val states = rememberCollapsingToolbarScaffoldState()
     val currentRadius = 28.dp * states.toolbarState.progress
     val collapsedColor = MaterialTheme.colorScheme.surface
@@ -126,9 +132,14 @@ fun PremiumContent(component: PremiumComponent) {
                     Column(modifier = Modifier.navigationBarsPadding()) {
                         Button(
                             onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/PremiumBot"))
-                                context.startActivity(intent)
-                                component.onSubscribeClicked()
+                                scope.launch {
+                                    val intent = Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse(telegramLinkRepository.buildUrl("PremiumBot"))
+                                    )
+                                    context.startActivity(intent)
+                                    component.onSubscribeClicked()
+                                }
                             },
                             shapes = ExpressiveDefaults.largeButtonShapes(),
                             modifier = Modifier
@@ -201,8 +212,13 @@ fun PremiumContent(component: PremiumComponent) {
                             isPremium = state.isPremium,
                             statusText = state.statusText,
                             onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/PremiumBot"))
-                                context.startActivity(intent)
+                                scope.launch {
+                                    val intent = Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse(telegramLinkRepository.buildUrl("PremiumBot"))
+                                    )
+                                    context.startActivity(intent)
+                                }
                             }
                         )
                         Spacer(modifier = Modifier.height(24.dp))

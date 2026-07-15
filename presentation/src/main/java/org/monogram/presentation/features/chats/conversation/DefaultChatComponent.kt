@@ -59,6 +59,7 @@ import org.monogram.domain.repository.PaymentRepository
 import org.monogram.domain.repository.PinnedMessageVisibilityRepository
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.domain.repository.StickerRepository
+import org.monogram.domain.repository.TelegramLinkRepository
 import org.monogram.domain.repository.UserRepository
 import org.monogram.domain.repository.WallpaperRepository
 import org.monogram.presentation.core.ui.ScreenSwipeBackState
@@ -294,6 +295,8 @@ class DefaultChatComponent(
     override val stickerRepository: StickerRepository = container.repositories.stickerRepository
     internal val gifRepository: GifRepository = container.repositories.gifRepository
     internal val privacyRepository: PrivacyRepository = container.repositories.privacyRepository
+    internal val telegramLinkRepository: TelegramLinkRepository =
+        container.repositories.telegramLinkRepository
     internal val botPreferences: BotPreferencesProvider = container.preferences.botPreferencesProvider
     internal val toastMessageDisplayer: MessageDisplayer = container.utils.messageDisplayer()
     internal val chatListRepository: ChatListRepository = container.repositories.chatListRepository

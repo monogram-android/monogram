@@ -115,7 +115,9 @@ class MessageMapper internal constructor(
 
     suspend fun getMessageReadDate(chatId: Long, messageId: Long, messageDate: Int): Int {
         val chat = cache.getChat(chatId)
-        if (chat?.type !is TdApi.ChatTypePrivate) {
+        val privateChat = chat?.type as? TdApi.ChatTypePrivate ?: return 0
+        val privateUser = cache.usersCache[privateChat.userId] ?: return 0
+        if (privateUser?.type is TdApi.UserTypeBot) {
             return 0
         }
 
@@ -280,7 +282,7 @@ class MessageMapper internal constructor(
         if (replyTo !is TdApi.MessageReplyToMessage) return null to null
 
         val replyToMsgId = replyTo.messageId
-        if (!options.resolveReplyPreviewFromNetwork) {
+        if (!options.resolveReplyPreviewFromNetwork || !isChatOpen) {
             val cachedReply = cache.getMessage(msg.chatId, replyToMsgId)
             val cachedReplyModel = cachedReply?.let {
                 mapMessageToModel(

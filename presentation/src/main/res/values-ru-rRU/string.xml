@@ -640,6 +640,8 @@
     <string name="in_app_preview_title">Предпросмотр в приложении</string>
     <string name="events_header">События</string>
     <string name="contact_joined_telegram_title">Контакт присоединился к Telegram</string>
+    <string name="scheduled_messages_notifications_title">Отложенные сообщения</string>
+    <string name="scheduled_messages_notifications_subtitle">Уведомлять, когда отложенные сообщения отправлены</string>
     <string name="pinned_messages_title">Закреплённые сообщения</string>
     <string name="reset_all_notifications_title">Сбросить все уведомления</string>
     <string name="reset_all_notifications_subtitle">Сброс всех персональных настроек уведомлений для контактов и групп</string>
@@ -703,6 +705,8 @@
     <string name="pin_archived_chats_subtitle">Архив всегда в начале списка чатов</string>
     <string name="always_show_pinned_archive_title">Всегда показывать архив</string>
     <string name="always_show_pinned_archive_subtitle">Не скрывать закреплённый архив при прокрутке</string>
+    <string name="archive_unknown_chats_title">Архивировать и заглушать новые чаты</string>
+    <string name="archive_unknown_chats_subtitle">Автоматически архивировать и заглушать новые чаты от незнакомых пользователей</string>
     <string name="show_stories_block_title">Показывать блок историй</string>
     <string name="show_stories_block_subtitle">Показывать истории над списком чатов и в архиве</string>
     <string name="show_link_previews_title">Предпросмотр ссылок</string>
@@ -773,6 +777,8 @@
     <string name="animations_header">Анимации</string>
     <string name="chat_animations_title">Анимации в чате</string>
     <string name="chat_animations_subtitle">Отключить для продления работы от аккумулятора</string>
+    <string name="animated_emoji_title">Анимированные эмодзи</string>
+    <string name="animated_emoji_subtitle">Показывать большие анимированные эмодзи и связанные эффекты</string>
     <string name="background_header">Фон</string>
     <string name="keep_alive_power_saving_subtitle">Отключение может привести к задержке уведомлений</string>
     <!-- Stickers and Emoji -->

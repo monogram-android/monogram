@@ -43,7 +43,9 @@ class ChatPersistenceManager(
                     chat = chat,
                     order = position?.order ?: 0L,
                     isPinned = position?.isPinned ?: false,
-                    allowMediaDownloads = false
+                    allowAvatarDownloads = false,
+                    allowMediaDownloads = false,
+                    allowRemoteLookups = false
                 )
                 var entity = chatMapper.mapToEntity(chat, model)
                 if (position != null && (position.order != entity.order || position.isPinned != entity.isPinned)) {
@@ -104,7 +106,9 @@ class ChatPersistenceManager(
                 chat = chat,
                 order = position.order,
                 isPinned = position.isPinned,
-                allowMediaDownloads = false
+                allowAvatarDownloads = false,
+                allowMediaDownloads = false,
+                allowRemoteLookups = false
             )
         }
 

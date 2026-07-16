@@ -497,14 +497,17 @@ fun VideoItem(
     var isRevealed by remember { mutableStateOf(!video.hasSpoiler) }
 
     Box(modifier = modifier.clipToBounds()) {
+        val canStream = video.supportsStreaming && video.fileId != 0
         Crossfade(
-            targetState = hasPath || video.supportsStreaming,
+            targetState = hasPath || canStream,
             animationSpec = tween(300),
             label = "VideoLoading"
         ) { targetHasPathOrStreaming ->
             if (targetHasPathOrStreaming) {
                 if (autoplayVideos) {
-                    val videoPath = stablePath ?: "http://streaming/${video.fileId}"
+                    val videoPath = stablePath ?: video.fileId.takeIf { it != 0 }
+                        ?.let { "http://streaming/$it" }
+                    if (videoPath == null) return@Crossfade
                     VideoStickerPlayer(
                         path = videoPath,
                         type = VideoType.Gif,
@@ -527,7 +530,7 @@ fun VideoItem(
                             },
                         animate = !isAnyViewerOpen,
                         contentScale = contentScale,
-                        fileId = if (stablePath == null) video.fileId else 0,
+                        fileId = if (stablePath == null && video.fileId != 0) video.fileId else 0,
                         thumbnailData = video.minithumbnail
                     )
                 } else {

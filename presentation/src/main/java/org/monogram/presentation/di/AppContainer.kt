@@ -24,6 +24,7 @@ import org.monogram.domain.repository.ChatOperationsRepository
 import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.ChatSettingsRepository
 import org.monogram.domain.repository.ChatStatisticsRepository
+import org.monogram.domain.repository.ClientOptionsRepository
 import org.monogram.domain.repository.ContactEditRepository
 import org.monogram.domain.repository.EditorSnippetProvider
 import org.monogram.domain.repository.EmojiRepository
@@ -106,6 +107,7 @@ interface RepositoriesContainer {
     val chatStatisticsRepository: ChatStatisticsRepository
     val sponsorRepository: SponsorRepository
     val notificationSettingsRepository: NotificationSettingsRepository
+    val clientOptionsRepository: ClientOptionsRepository
     val sessionRepository: SessionRepository
     val wallpaperRepository: WallpaperRepository
     val storageRepository: StorageRepository

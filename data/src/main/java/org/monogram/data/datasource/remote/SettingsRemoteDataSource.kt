@@ -14,6 +14,7 @@ interface SettingsRemoteDataSource {
         scope: TdApi.NotificationSettingsScope,
         compareSound: Boolean
     ): TdApi.Chats?
+    suspend fun getArchiveChatListSettings(): TdApi.ArchiveChatListSettings?
     suspend fun setDefaultBackground(
         background: TdApi.InputBackground?,
         type: TdApi.BackgroundType?,
@@ -27,6 +28,7 @@ interface SettingsRemoteDataSource {
     )
     suspend fun setChatNotificationSettings(chatId: Long, settings: TdApi.ChatNotificationSettings)
     suspend fun setOption(name: String, value: TdApi.OptionValue)
+    suspend fun setArchiveChatListSettings(settings: TdApi.ArchiveChatListSettings)
 
     // Sessions
     suspend fun terminateSession(sessionId: Long): Boolean

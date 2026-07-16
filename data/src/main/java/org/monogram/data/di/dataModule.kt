@@ -94,6 +94,7 @@ import org.monogram.data.repository.BotRepositoryImpl
 import org.monogram.data.repository.ChatInfoRepositoryImpl
 import org.monogram.data.repository.ChatStatisticsRepositoryImpl
 import org.monogram.data.repository.ChatsListRepositoryImpl
+import org.monogram.data.repository.ClientOptionsRepositoryImpl
 import org.monogram.data.repository.ContactEditRepositoryImpl
 import org.monogram.data.repository.DraftLinkPreviewResolver
 import org.monogram.data.repository.EmojiRepositoryImpl
@@ -136,6 +137,7 @@ import org.monogram.domain.repository.ChatOperationsRepository
 import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.ChatSettingsRepository
 import org.monogram.domain.repository.ChatStatisticsRepository
+import org.monogram.domain.repository.ClientOptionsRepository
 import org.monogram.domain.repository.ContactEditRepository
 import org.monogram.domain.repository.EmojiRepository
 import org.monogram.domain.repository.FileRepository
@@ -189,6 +191,7 @@ val dataModule = module {
             gateway = get(),
             chatDao = get(),
             messageDao = get(),
+            keyValueDao = get(),
             userDao = get(),
             userFullInfoDao = get(),
             chatFullInfoDao = get(),
@@ -582,6 +585,12 @@ val dataModule = module {
 
     single<SettingsCacheDataSource> {
         InMemorySettingsCacheDataSource()
+    }
+
+    single<ClientOptionsRepository> {
+        ClientOptionsRepositoryImpl(
+            remote = get()
+        )
     }
 
     single<NotificationSettingsRepository> {

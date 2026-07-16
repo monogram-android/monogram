@@ -62,6 +62,7 @@ import org.monogram.domain.repository.ReadUpdate
 import org.monogram.domain.repository.SearchChatMessagesResult
 import org.monogram.domain.repository.UserRepository
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 class TdMessageRemoteDataSource(
     private val gateway: TelegramGateway,
@@ -81,6 +82,7 @@ class TdMessageRemoteDataSource(
     private val chatRequests = ConcurrentHashMap<Long, Deferred<TdApi.Chat?>>()
     private val messageRequests = ConcurrentHashMap<Pair<Long, Long>, Deferred<TdApi.Message?>>()
     private val refreshJobs = ConcurrentHashMap<Pair<Long, Long>, Job>()
+    private val missingMessageCooldownUntil = ConcurrentHashMap<Pair<Long, Long>, Long>()
     private val sendQueue = Channel<suspend () -> Unit>(Channel.BUFFERED)
     override val newMessageFlow = MutableSharedFlow<MessageModel>()
     override val messageEditedFlow = MutableSharedFlow<MessageModel>()
@@ -153,10 +155,23 @@ class TdMessageRemoteDataSource(
     override suspend fun getMessage(chatId: Long, messageId: Long): TdApi.Message? {
         cache.getMessage(chatId, messageId)?.let { return it }
         val key = chatId to messageId
+        val cooldownUntil = missingMessageCooldownUntil[key]
+        if (cooldownUntil != null) {
+            if (cooldownUntil > System.currentTimeMillis()) {
+                return null
+            }
+            missingMessageCooldownUntil.remove(key, cooldownUntil)
+        }
         val deferred = messageRequests.getOrPut(key) {
             scope.async {
                 val result = safeExecute(TdApi.GetMessage(chatId, messageId))
-                if (result != null) cache.putMessage(result)
+                if (result != null) {
+                    cache.putMessage(result)
+                    missingMessageCooldownUntil.remove(key)
+                } else {
+                    missingMessageCooldownUntil[key] =
+                        System.currentTimeMillis() + MISSING_MESSAGE_COOLDOWN_MS
+                }
                 result
             }
         }
@@ -1798,28 +1813,73 @@ class TdMessageRemoteDataSource(
                     val poll = (update.newContent as TdApi.MessagePoll).poll
                     pollRepository.mapPollIdToMessage(poll.id, update.chatId, update.messageId)
                 }
-                cache.removeMessage(update.chatId, update.messageId)
+                cache.updateMessage(update.chatId, update.messageId) { message ->
+                    message.content = update.newContent
+                }
                 refreshMessageDebounced(update.chatId, update.messageId)
             }
             is TdApi.UpdateMessageEdited -> {
-                cache.removeMessage(update.chatId, update.messageId)
+                cache.updateMessage(update.chatId, update.messageId) { message ->
+                    message.editDate = update.editDate
+                    message.replyMarkup = update.replyMarkup
+                }
                 refreshMessageDebounced(update.chatId, update.messageId)
             }
             is TdApi.UpdateMessageInteractionInfo -> {
-                cache.removeMessage(update.chatId, update.messageId)
+                cache.updateMessage(update.chatId, update.messageId) { message ->
+                    message.interactionInfo = update.interactionInfo
+                }
                 refreshMessageDebounced(update.chatId, update.messageId)
             }
             is TdApi.UpdateMessageReaction -> {
-                cache.removeMessage(update.chatId, update.messageId)
-                refreshMessageDebounced(update.chatId, update.messageId)
+                // Bots receive delta-only reaction updates, so avoid rereads here.
             }
             is TdApi.UpdateMessageReactions -> {
-                cache.removeMessage(update.chatId, update.messageId)
-                refreshMessageDebounced(update.chatId, update.messageId)
+                // Bots receive reaction payloads that don't justify a full message reread.
             }
             is TdApi.UpdateMessageMentionRead -> {
-                cache.removeMessage(update.chatId, update.messageId)
+                cache.updateMessage(update.chatId, update.messageId) { message ->
+                    message.containsUnreadMention = false
+                }
                 cache.updateChat(update.chatId) { it.unreadMentionCount = update.unreadMentionCount }
+                refreshMessageDebounced(update.chatId, update.messageId)
+            }
+
+            is TdApi.UpdateMessageUnreadReactions -> {
+                cache.updateMessage(update.chatId, update.messageId) { message ->
+                    message.unreadReactions = update.unreadReactions
+                }
+                cache.updateChat(update.chatId) {
+                    it.unreadReactionCount = update.unreadReactionCount
+                }
+                refreshMessageDebounced(update.chatId, update.messageId)
+            }
+
+            is TdApi.UpdateMessageFactCheck -> {
+                cache.updateMessage(update.chatId, update.messageId) { message ->
+                    message.factCheck = update.factCheck
+                }
+                refreshMessageDebounced(update.chatId, update.messageId)
+            }
+
+            is TdApi.UpdateMessageSuggestedPostInfo -> {
+                cache.updateMessage(update.chatId, update.messageId) { message ->
+                    message.suggestedPostInfo = update.suggestedPostInfo
+                }
+                refreshMessageDebounced(update.chatId, update.messageId)
+            }
+
+            is TdApi.UpdateMessageIsPinned -> {
+                cache.updateMessage(update.chatId, update.messageId) { message ->
+                    message.isPinned = update.isPinned
+                }
+                scope.launch(dispatcherProvider.io) { pinnedMessageFlow.emit(update.chatId) }
+            }
+
+            is TdApi.UpdateMessageContainsUnreadPollVotes -> {
+                cache.updateMessage(update.chatId, update.messageId) { message ->
+                    message.containsUnreadPollVotes = update.containsUnreadPollVotes
+                }
                 refreshMessageDebounced(update.chatId, update.messageId)
             }
             is TdApi.UpdateFile -> {
@@ -1859,7 +1919,6 @@ class TdMessageRemoteDataSource(
                     }
                 }
             }
-            is TdApi.UpdateMessageIsPinned -> { scope.launch(dispatcherProvider.io) { pinnedMessageFlow.emit(update.chatId) } }
             is TdApi.UpdateChatUnreadMentionCount -> {
                 cache.updateChat(update.chatId) { it.unreadMentionCount = update.unreadMentionCount }
             }
@@ -1888,7 +1947,7 @@ class TdMessageRemoteDataSource(
 
     private suspend fun refreshAndEmitMessage(chatId: Long, messageId: Long) {
         if (messageId == 0L) return
-        val msg = getMessage(chatId, messageId) ?: return
+        val msg = cache.getMessage(chatId, messageId) ?: return
         val model = mapMessageToModel(msg)
         messageEditedFlow.emit(model)
     }
@@ -2117,7 +2176,7 @@ class TdMessageRemoteDataSource(
             messageUpdateJobs[key]?.cancel()
             val job = scope.launch {
                 delay(150)
-                val msg = getMessage(chatId, messageId) ?: return@launch
+                val msg = cache.getMessage(chatId, messageId) ?: return@launch
                 try {
                     messageEditedFlow.emit(mapMessageToModel(msg))
                 } catch (e: CancellationException) {
@@ -2135,6 +2194,7 @@ class TdMessageRemoteDataSource(
         refreshJobs.values.forEach { it.cancel() }; refreshJobs.clear()
         messageUpdateJobs.values.forEach { it.cancel() }; messageUpdateJobs.clear()
         lastProgressMap.clear()
+        missingMessageCooldownUntil.clear()
         fileDownloadQueue.setObserver(null)
     }
 
@@ -2163,6 +2223,7 @@ class TdMessageRemoteDataSource(
     }
 
     private companion object {
+        private val MISSING_MESSAGE_COOLDOWN_MS = TimeUnit.MINUTES.toMillis(2)
         private const val DRAFT_LINK_PREVIEW_TAG = "DraftLinkPreview"
     }
 }

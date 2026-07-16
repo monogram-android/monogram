@@ -25,6 +25,7 @@ import org.monogram.domain.repository.ChatOperationsRepository
 import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.ChatSettingsRepository
 import org.monogram.domain.repository.ChatStatisticsRepository
+import org.monogram.domain.repository.ClientOptionsRepository
 import org.monogram.domain.repository.ContactEditRepository
 import org.monogram.domain.repository.EditorSnippetProvider
 import org.monogram.domain.repository.EmojiRepository
@@ -107,6 +108,7 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val chatStatisticsRepository: ChatStatisticsRepository by lazy { koin.get() }
     override val sponsorRepository: SponsorRepository by lazy { koin.get() }
     override val notificationSettingsRepository: NotificationSettingsRepository by lazy { koin.get() }
+    override val clientOptionsRepository: ClientOptionsRepository by lazy { koin.get() }
     override val sessionRepository: SessionRepository by lazy { koin.get() }
     override val wallpaperRepository: WallpaperRepository by lazy { koin.get() }
     override val storageRepository: StorageRepository by lazy { koin.get() }

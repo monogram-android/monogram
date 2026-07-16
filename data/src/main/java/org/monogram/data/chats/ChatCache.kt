@@ -5,6 +5,7 @@ import org.monogram.data.compat.buildTdChatPermissions
 import org.monogram.data.datasource.cache.ChatsCacheDataSource
 import org.monogram.data.datasource.cache.UserCacheDataSource
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
     // Chats and their positions in lists
@@ -49,6 +50,7 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
     val pendingSecretChats = ConcurrentHashMap.newKeySet<Int>()
     val pendingChatPermissions = ConcurrentHashMap.newKeySet<Long>()
     val pendingMyChatMember = ConcurrentHashMap.newKeySet<Long>()
+    private val missingSupergroupCooldownUntil = ConcurrentHashMap<Long, Long>()
 
     override fun getChat(chatId: Long): TdApi.Chat? = allChats[chatId]
     override fun putChat(chat: TdApi.Chat) {
@@ -238,12 +240,29 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
                 existing.hasTimestampedMedia = message.hasTimestampedMedia
                 existing.isChannelPost = message.isChannelPost
                 existing.containsUnreadMention = message.containsUnreadMention
+                existing.unreadReactions = message.unreadReactions
+                existing.isPinned = message.isPinned
+                existing.containsUnreadPollVotes = message.containsUnreadPollVotes
                 existing.sendingState = message.sendingState
                 existing.schedulingState = message.schedulingState
+                existing.factCheck = message.factCheck
+                existing.suggestedPostInfo = message.suggestedPostInfo
             }
         } else {
             chatMessages[message.id] = message
         }
+    }
+
+    fun updateMessage(
+        chatId: Long,
+        messageId: Long,
+        action: (TdApi.Message) -> Unit
+    ): TdApi.Message? {
+        val message = messages[chatId]?.get(messageId) ?: return null
+        synchronized(message) {
+            action(message)
+        }
+        return message
     }
 
     override fun removeMessage(chatId: Long, messageId: Long) {
@@ -272,6 +291,27 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
         val message = chatMessages.remove(oldId) ?: return
         message.id = newId
         chatMessages[newId] = message
+    }
+
+    fun isSupergroupTemporarilyMissing(supergroupId: Long): Boolean {
+        if (supergroupId == 0L) return false
+        val cooldownUntil = missingSupergroupCooldownUntil[supergroupId] ?: return false
+        if (cooldownUntil > System.currentTimeMillis()) {
+            return true
+        }
+        missingSupergroupCooldownUntil.remove(supergroupId, cooldownUntil)
+        return false
+    }
+
+    fun markSupergroupTemporarilyMissing(supergroupId: Long) {
+        if (supergroupId == 0L) return
+        missingSupergroupCooldownUntil[supergroupId] =
+            System.currentTimeMillis() + MISSING_SUPERGROUP_COOLDOWN_MS
+    }
+
+    fun clearTemporarilyMissingSupergroup(supergroupId: Long) {
+        if (supergroupId == 0L) return
+        missingSupergroupCooldownUntil.remove(supergroupId)
     }
 
     override fun clearAll() {
@@ -305,6 +345,7 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
         pendingSecretChats.clear()
         pendingChatPermissions.clear()
         pendingMyChatMember.clear()
+        missingSupergroupCooldownUntil.clear()
     }
 
     fun putChatFromEntity(entity: org.monogram.data.db.model.ChatEntity) {
@@ -528,5 +569,9 @@ class ChatCache : ChatsCacheDataSource, UserCacheDataSource {
         }
 
         return parsed.takeIf { it.isNotEmpty() }?.toTypedArray()
+    }
+
+    private companion object {
+        private val MISSING_SUPERGROUP_COOLDOWN_MS = TimeUnit.MINUTES.toMillis(30)
     }
 }

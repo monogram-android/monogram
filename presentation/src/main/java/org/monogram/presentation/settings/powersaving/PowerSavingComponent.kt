@@ -5,7 +5,9 @@ import com.arkivanov.decompose.value.Value
 import com.arkivanov.decompose.value.update
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import org.monogram.domain.repository.AppPreferencesProvider
+import org.monogram.domain.repository.ClientOptionsRepository
 import org.monogram.presentation.core.util.componentScope
 import org.monogram.presentation.root.AppComponentContext
 
@@ -14,6 +16,7 @@ interface PowerSavingComponent {
 
     fun onBackClicked()
     fun onChatAnimationsToggled(enabled: Boolean)
+    fun onAnimatedEmojiToggled(enabled: Boolean)
     fun onBackgroundServiceToggled(enabled: Boolean)
     fun onPowerSavingModeToggled(enabled: Boolean)
     fun onWakeLockToggled(enabled: Boolean)
@@ -21,6 +24,7 @@ interface PowerSavingComponent {
 
     data class State(
         val isChatAnimationsEnabled: Boolean = true,
+        val isAnimatedEmojiEnabled: Boolean = true,
         val backgroundServiceEnabled: Boolean = false,
         val isPowerSavingModeEnabled: Boolean = false,
         val isWakeLockEnabled: Boolean = false,
@@ -34,6 +38,8 @@ class DefaultPowerSavingComponent(
 ) : PowerSavingComponent, AppComponentContext by context {
 
     private val appPreferences: AppPreferencesProvider = container.preferences.appPreferences
+    private val clientOptionsRepository: ClientOptionsRepository =
+        container.repositories.clientOptionsRepository
     private val _state = MutableValue(PowerSavingComponent.State())
     override val state: Value<PowerSavingComponent.State> = _state
     private val scope = componentScope
@@ -58,6 +64,15 @@ class DefaultPowerSavingComponent(
         appPreferences.batteryOptimizationEnabled.onEach { value ->
             _state.update { it.copy(batteryOptimizationEnabled = value) }
         }.launchIn(scope)
+
+        scope.launch {
+            val isAnimatedEmojiEnabled = clientOptionsRepository.getAnimatedEmojiEnabled()
+            _state.update {
+                it.copy(
+                    isAnimatedEmojiEnabled = isAnimatedEmojiEnabled
+                )
+            }
+        }
     }
 
     override fun onBackClicked() {
@@ -66,6 +81,13 @@ class DefaultPowerSavingComponent(
 
     override fun onChatAnimationsToggled(enabled: Boolean) {
         appPreferences.setChatAnimationsEnabled(enabled)
+    }
+
+    override fun onAnimatedEmojiToggled(enabled: Boolean) {
+        scope.launch {
+            clientOptionsRepository.setAnimatedEmojiEnabled(enabled)
+            _state.update { it.copy(isAnimatedEmojiEnabled = enabled) }
+        }
     }
 
     override fun onBackgroundServiceToggled(enabled: Boolean) {

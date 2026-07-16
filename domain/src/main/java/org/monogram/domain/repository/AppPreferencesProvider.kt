@@ -83,6 +83,7 @@ interface AppPreferencesProvider {
     val inAppVibrate: StateFlow<Boolean>
     val inAppPreview: StateFlow<Boolean>
     val contactJoinedNotifications: StateFlow<Boolean>
+    val scheduledMessagesNotifications: StateFlow<Boolean>
     val pinnedMessagesNotifications: StateFlow<Boolean>
     val backgroundServiceEnabled: StateFlow<Boolean>
     val isPowerSavingMode: StateFlow<Boolean>
@@ -142,6 +143,7 @@ interface AppPreferencesProvider {
     fun setInAppVibrate(enabled: Boolean)
     fun setInAppPreview(enabled: Boolean)
     fun setContactJoinedNotifications(enabled: Boolean)
+    fun setScheduledMessagesNotifications(enabled: Boolean)
     fun setPinnedMessagesNotifications(enabled: Boolean)
     fun setBackgroundServiceEnabled(enabled: Boolean)
     fun setPowerSavingMode(enabled: Boolean)

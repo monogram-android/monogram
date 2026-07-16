@@ -1212,8 +1212,9 @@ class TdNotificationManager(
     }
 
     private fun preloadNotificationAssets(senderId: TdApi.MessageSender?, chat: TdApi.Chat) {
-        resolveSender(senderId, chat, false) { _, _ -> }
-        downloadFile(chat.photo?.small, false) { _ -> }
+        // Avoid network-triggered preloads for notifications; use local cache only.
+        resolveSender(senderId, chat, true) { _, _ -> }
+        downloadFile(chat.photo?.small, true) { _ -> }
     }
 
     private fun downloadFile(file: TdApi.File?, onlyIfLocal: Boolean = false, callback: (Bitmap?) -> Unit) {

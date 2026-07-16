@@ -246,8 +246,6 @@ internal class MessageRepositoryImpl(
             }
 
             is TdApi.UpdateMessageContent -> {
-                if (refreshPersistedMessage(update.chatId, update.messageId)) return
-
                 val extracted = messageMapper.extractCachedContent(update.newContent)
                 chatLocalDataSource.updateMessageContent(
                     chatId = update.chatId,
@@ -257,16 +255,16 @@ internal class MessageRepositoryImpl(
                     contentMeta = extracted.meta,
                     mediaFileId = extracted.fileId,
                     mediaPath = extracted.path,
-                    editDate = 0
+                    editDate = cache.getMessage(update.chatId, update.messageId)?.editDate ?: 0
                 )
             }
 
             is TdApi.UpdateMessageEdited -> {
-                refreshPersistedMessage(update.chatId, update.messageId)
+                persistCachedMessage(update.chatId, update.messageId)
             }
 
             is TdApi.UpdateMessageInteractionInfo -> {
-                if (refreshPersistedMessage(update.chatId, update.messageId)) return
+                if (persistCachedMessage(update.chatId, update.messageId)) return
                 chatLocalDataSource.updateInteractionInfo(
                     chatId = update.chatId,
                     messageId = update.messageId,
@@ -309,7 +307,7 @@ internal class MessageRepositoryImpl(
                     is TdApi.UpdateMessageContentOpened -> update.messageId
                     else -> 0L
                 }
-                refreshPersistedMessage(chatId, messageId)
+                persistCachedMessage(chatId, messageId)
             }
 
             is TdApi.UpdateChatReadInbox -> {
@@ -344,9 +342,9 @@ internal class MessageRepositoryImpl(
         )
     }
 
-    private suspend fun refreshPersistedMessage(chatId: Long, messageId: Long): Boolean {
-        val refreshed = messageRemoteDataSource.getMessage(chatId, messageId) ?: return false
-        persistMappedMessage(refreshed)
+    private suspend fun persistCachedMessage(chatId: Long, messageId: Long): Boolean {
+        val cachedMessage = cache.getMessage(chatId, messageId) ?: return false
+        persistMappedMessage(cachedMessage)
         return true
     }
 
@@ -928,7 +926,7 @@ internal class MessageRepositoryImpl(
 
     override suspend fun getRawMessageJson(chatId: Long, messageId: Long): String? =
         withContext(dispatcherProvider.io) {
-            val raw = messageRemoteDataSource.getMessage(chatId, messageId)?.toString()
+            val raw = cache.getMessage(chatId, messageId)?.toString()
                 ?: return@withContext null
             runCatching { JSONObject(raw).toString(2) }.getOrElse { raw }
         }

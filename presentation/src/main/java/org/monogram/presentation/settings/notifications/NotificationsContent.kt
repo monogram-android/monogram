@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material.icons.rounded.Visibility
@@ -308,6 +309,15 @@ private fun NotificationsMainContent(component: NotificationsComponent) {
                     iconColor = Color(0xFF4CAF50),
                     position = ItemPosition.TOP,
                     onCheckedChange = component::onContactJoinedToggled
+                )
+                SettingsSwitchTile(
+                    icon = Icons.Rounded.Schedule,
+                    title = stringResource(R.string.scheduled_messages_notifications_title),
+                    subtitle = stringResource(R.string.scheduled_messages_notifications_subtitle),
+                    checked = state.scheduledMessages,
+                    iconColor = Color(0xFF03A9F4),
+                    position = ItemPosition.MIDDLE,
+                    onCheckedChange = component::onScheduledMessagesToggled
                 )
                 SettingsSwitchTile(
                     icon = Icons.Rounded.PushPin,

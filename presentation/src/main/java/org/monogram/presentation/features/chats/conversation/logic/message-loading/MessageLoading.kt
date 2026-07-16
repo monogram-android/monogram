@@ -1059,6 +1059,12 @@ internal fun DefaultChatComponent.scrollToBottomInternal() {
         return
     }
     if (currentState.messages.isNotEmpty() && !currentState.isLatestLoaded) {
+        _state.update { it.enqueueRuntimeScrollToBottom(animated = true) }
+        ChatConversationLog.logViewportState(
+            event = "scroll_to_bottom_partial_runtime_enqueued",
+            state = _state.value,
+            componentInstanceId = componentInstanceId
+        )
         if (loadNewerJob?.isActive == true || currentState.isLoadingNewer) return
         loadNewerJob = scope.launch {
             _state.update { it.copy(isLoadingNewer = true) }

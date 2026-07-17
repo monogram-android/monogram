@@ -1,11 +1,27 @@
 package org.monogram.presentation.settings.powersaving
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Animation
+import androidx.compose.material.icons.rounded.BatteryAlert
+import androidx.compose.material.icons.rounded.BatterySaver
+import androidx.compose.material.icons.rounded.EmojiEmotions
+import androidx.compose.material.icons.rounded.Power
+import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -93,8 +109,17 @@ fun PowerSavingContent(component: PowerSavingComponent) {
                     checked = if (state.isPowerSavingModeEnabled) false else state.isChatAnimationsEnabled,
                     enabled = !state.isPowerSavingModeEnabled,
                     iconColor = Color(0xFF4285F4),
-                    position = ItemPosition.STANDALONE,
+                    position = ItemPosition.TOP,
                     onCheckedChange = component::onChatAnimationsToggled
+                )
+                SettingsSwitchTile(
+                    icon = Icons.Rounded.EmojiEmotions,
+                    title = stringResource(R.string.animated_emoji_title),
+                    subtitle = stringResource(R.string.animated_emoji_subtitle),
+                    checked = state.isAnimatedEmojiEnabled,
+                    iconColor = Color(0xFF7E57C2),
+                    position = ItemPosition.BOTTOM,
+                    onCheckedChange = component::onAnimatedEmojiToggled
                 )
             }
 

@@ -566,6 +566,7 @@ class ConnectionManagerTest {
         override val inAppVibrate = MutableStateFlow(true)
         override val inAppPreview = MutableStateFlow(true)
         override val contactJoinedNotifications = MutableStateFlow(true)
+        override val scheduledMessagesNotifications = MutableStateFlow(true)
         override val pinnedMessagesNotifications = MutableStateFlow(true)
         override val backgroundServiceEnabled = MutableStateFlow(false)
         override val isPowerSavingMode = MutableStateFlow(false)
@@ -759,6 +760,10 @@ class ConnectionManagerTest {
 
         override fun setContactJoinedNotifications(enabled: Boolean) {
             contactJoinedNotifications.value = enabled
+        }
+
+        override fun setScheduledMessagesNotifications(enabled: Boolean) {
+            scheduledMessagesNotifications.value = enabled
         }
 
         override fun setPinnedMessagesNotifications(enabled: Boolean) {

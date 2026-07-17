@@ -25,6 +25,7 @@ import org.monogram.domain.repository.ChatOperationsRepository
 import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.ChatSettingsRepository
 import org.monogram.domain.repository.ChatStatisticsRepository
+import org.monogram.domain.repository.ClientOptionsRepository
 import org.monogram.domain.repository.ContactEditRepository
 import org.monogram.domain.repository.EditorSnippetProvider
 import org.monogram.domain.repository.EmojiRepository
@@ -32,6 +33,7 @@ import org.monogram.domain.repository.ExternalNavigator
 import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.ForumTopicsRepository
 import org.monogram.domain.repository.GifRepository
+import org.monogram.domain.repository.GitHubCommitRepository
 import org.monogram.domain.repository.InlineBotRepository
 import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.LocationRepository
@@ -107,6 +109,7 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val chatStatisticsRepository: ChatStatisticsRepository by lazy { koin.get() }
     override val sponsorRepository: SponsorRepository by lazy { koin.get() }
     override val notificationSettingsRepository: NotificationSettingsRepository by lazy { koin.get() }
+    override val clientOptionsRepository: ClientOptionsRepository by lazy { koin.get() }
     override val sessionRepository: SessionRepository by lazy { koin.get() }
     override val wallpaperRepository: WallpaperRepository by lazy { koin.get() }
     override val storageRepository: StorageRepository by lazy { koin.get() }
@@ -122,6 +125,7 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val gifRepository: GifRepository by lazy { koin.get() }
     override val emojiRepository: EmojiRepository by lazy { koin.get() }
     override val telegramLinkRepository: TelegramLinkRepository by lazy { koin.get() }
+    override val gitHubCommitRepository: GitHubCommitRepository by lazy { koin.get() }
     override val updateRepository: UpdateRepository by lazy { koin.get() }
     override val pushDebugRepository: PushDebugRepository by lazy { koin.get() }
 }

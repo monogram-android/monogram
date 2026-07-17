@@ -3,10 +3,13 @@ package org.monogram.data.datasource.remote
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.gateway.TelegramGateway
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 class TdUserRemoteDataSource(
     private val gateway: TelegramGateway
 ) : UserRemoteDataSource {
+    private val missingSupergroupCooldownUntil = ConcurrentHashMap<Long, Long>()
 
     override suspend fun getUser(userId: Long): TdApi.User? {
         if (userId == 0L) return null
@@ -31,7 +34,11 @@ class TdUserRemoteDataSource(
 
     override suspend fun getSupergroup(supergroupId: Long): TdApi.Supergroup? {
         if (supergroupId == 0L) return null
-        return coRunCatching { gateway.execute(TdApi.GetSupergroup(supergroupId)) }.getOrNull()
+        if (isSupergroupTemporarilyMissing(supergroupId)) return null
+        return coRunCatching { gateway.execute(TdApi.GetSupergroup(supergroupId)) }
+            .onSuccess { clearTemporarilyMissingSupergroup(supergroupId) }
+            .onFailure { markSupergroupTemporarilyMissing(supergroupId) }
+            .getOrNull()
     }
 
     override suspend fun getChat(chatId: Long): TdApi.Chat? {
@@ -81,8 +88,9 @@ class TdUserRemoteDataSource(
     override suspend fun searchPublicChat(username: String): TdApi.Chat? =
         coRunCatching { gateway.execute(TdApi.SearchPublicChat(username)) }.getOrNull()
 
-    override suspend fun getChatMember(chatId: Long, userId: Long): TdApi.ChatMember? =
-        coRunCatching {
+    override suspend fun getChatMember(chatId: Long, userId: Long): TdApi.ChatMember? {
+        var requestedSupergroupId = 0L
+        return coRunCatching {
             val chat = gateway.execute(TdApi.GetChat(chatId))
             val me = gateway.execute(TdApi.GetMe())
             val requestingOtherUser = userId != me.id
@@ -96,10 +104,17 @@ class TdUserRemoteDataSource(
             }
             if (type is TdApi.ChatTypeSupergroup) {
                 if (type.supergroupId == 0L) return@coRunCatching null
+                requestedSupergroupId = type.supergroupId
+                if (isSupergroupTemporarilyMissing(type.supergroupId)) return@coRunCatching null
                 val supergroup = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
+                clearTemporarilyMissingSupergroup(type.supergroupId)
                 val isMember = supergroup.status !is TdApi.ChatMemberStatusLeft &&
                         supergroup.status !is TdApi.ChatMemberStatusBanned
                 if (!isMember) return@coRunCatching null
+
+                if (!requestingOtherUser && type.isChannel) {
+                    return@coRunCatching null
+                }
 
                 if (!requestingOtherUser) {
                     return@coRunCatching gateway.execute(TdApi.GetChatMember(chatId, TdApi.MessageSenderUser(userId)))
@@ -111,10 +126,14 @@ class TdUserRemoteDataSource(
                 if (!canGetOthers) return@coRunCatching null
             }
             gateway.execute(TdApi.GetChatMember(chatId, TdApi.MessageSenderUser(userId)))
-        }.getOrElse { e ->
+        }.getOrElse {
             // Handle 400 CHANNEL_PRIVATE and other errors gracefully
+            if (requestedSupergroupId != 0L) {
+                markSupergroupTemporarilyMissing(requestedSupergroupId)
+            }
             null
         }
+    }
 
     override suspend fun getSupergroupMembers(
         supergroupId: Long,
@@ -228,5 +247,27 @@ class TdUserRemoteDataSource(
         status: TdApi.ChatMemberStatus
     ) {
         gateway.execute(TdApi.SetChatMemberStatus(chatId, TdApi.MessageSenderUser(userId), status))
+    }
+
+    private fun isSupergroupTemporarilyMissing(supergroupId: Long): Boolean {
+        val cooldownUntil = missingSupergroupCooldownUntil[supergroupId] ?: return false
+        if (cooldownUntil > System.currentTimeMillis()) {
+            return true
+        }
+        missingSupergroupCooldownUntil.remove(supergroupId, cooldownUntil)
+        return false
+    }
+
+    private fun markSupergroupTemporarilyMissing(supergroupId: Long) {
+        missingSupergroupCooldownUntil[supergroupId] =
+            System.currentTimeMillis() + MISSING_SUPERGROUP_COOLDOWN_MS
+    }
+
+    private fun clearTemporarilyMissingSupergroup(supergroupId: Long) {
+        missingSupergroupCooldownUntil.remove(supergroupId)
+    }
+
+    private companion object {
+        private val MISSING_SUPERGROUP_COOLDOWN_MS = TimeUnit.MINUTES.toMillis(30)
     }
 }

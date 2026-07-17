@@ -376,7 +376,14 @@ class ChatsListRepositoryImpl(
             ) {
                 cached
             } else {
-                modelFactory.mapChatToModel(chat, order, isPinned).also { mapped ->
+                modelFactory.mapChatToModel(
+                    chat = chat,
+                    order = order,
+                    isPinned = isPinned,
+                    allowAvatarDownloads = true,
+                    allowMediaDownloads = false,
+                    allowRemoteLookups = false
+                ).also { mapped ->
                     modelCache[chat.id] = mapped
                     invalidatedModels.remove(chat.id)
                 }
@@ -403,7 +410,14 @@ class ChatsListRepositoryImpl(
             if (oldModel.order != position.order || oldModel.isPinned != position.isPinned) {
                 return null
             }
-            updated[index] = modelFactory.mapChatToModel(chat, position.order, position.isPinned).also { mapped ->
+            updated[index] = modelFactory.mapChatToModel(
+                chat = chat,
+                order = position.order,
+                isPinned = position.isPinned,
+                allowAvatarDownloads = true,
+                allowMediaDownloads = false,
+                allowRemoteLookups = false
+            ).also { mapped ->
                 modelCache[chatId] = mapped
             }
             invalidatedModels.remove(chatId)
@@ -752,7 +766,13 @@ class ChatsListRepositoryImpl(
 
         val position = chatObj.positions.find { listManager.isSameChatList(it.list, activeChatList) }
         return coRunCatching {
-            modelFactory.mapChatToModel(chatObj, position?.order ?: 0L, position?.isPinned ?: false)
+            modelFactory.mapChatToModel(
+                chat = chatObj,
+                order = position?.order ?: 0L,
+                isPinned = position?.isPinned ?: false,
+                allowAvatarDownloads = true,
+                allowMediaDownloads = false
+            )
         }.getOrNull()
     }
 

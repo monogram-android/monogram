@@ -24,6 +24,7 @@ import org.monogram.domain.repository.ChatOperationsRepository
 import org.monogram.domain.repository.ChatSearchRepository
 import org.monogram.domain.repository.ChatSettingsRepository
 import org.monogram.domain.repository.ChatStatisticsRepository
+import org.monogram.domain.repository.ClientOptionsRepository
 import org.monogram.domain.repository.ContactEditRepository
 import org.monogram.domain.repository.EditorSnippetProvider
 import org.monogram.domain.repository.EmojiRepository
@@ -31,6 +32,7 @@ import org.monogram.domain.repository.ExternalNavigator
 import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.ForumTopicsRepository
 import org.monogram.domain.repository.GifRepository
+import org.monogram.domain.repository.GitHubCommitRepository
 import org.monogram.domain.repository.InlineBotRepository
 import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.LocationRepository
@@ -106,6 +108,7 @@ interface RepositoriesContainer {
     val chatStatisticsRepository: ChatStatisticsRepository
     val sponsorRepository: SponsorRepository
     val notificationSettingsRepository: NotificationSettingsRepository
+    val clientOptionsRepository: ClientOptionsRepository
     val sessionRepository: SessionRepository
     val wallpaperRepository: WallpaperRepository
     val storageRepository: StorageRepository
@@ -121,6 +124,7 @@ interface RepositoriesContainer {
     val gifRepository: GifRepository
     val emojiRepository: EmojiRepository
     val telegramLinkRepository: TelegramLinkRepository
+    val gitHubCommitRepository: GitHubCommitRepository
     val updateRepository: UpdateRepository
     val pushDebugRepository: PushDebugRepository
 }

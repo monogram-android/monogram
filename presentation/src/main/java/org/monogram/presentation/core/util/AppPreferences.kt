@@ -267,6 +267,11 @@ class AppPreferences(
     private val _contactJoinedNotifications = MutableStateFlow(prefs.getBoolean(KEY_CONTACT_JOINED, true))
     override val contactJoinedNotifications: StateFlow<Boolean> = _contactJoinedNotifications
 
+    private val _scheduledMessagesNotifications =
+        MutableStateFlow(prefs.getBoolean(KEY_SCHEDULED_MESSAGES, true))
+    override val scheduledMessagesNotifications: StateFlow<Boolean> =
+        _scheduledMessagesNotifications
+
     private val _pinnedMessagesNotifications = MutableStateFlow(prefs.getBoolean(KEY_PINNED_MESSAGES, true))
     override val pinnedMessagesNotifications: StateFlow<Boolean> = _pinnedMessagesNotifications
 
@@ -902,6 +907,11 @@ class AppPreferences(
         _contactJoinedNotifications.value = enabled
     }
 
+    override fun setScheduledMessagesNotifications(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SCHEDULED_MESSAGES, enabled).apply()
+        _scheduledMessagesNotifications.value = enabled
+    }
+
     override fun setPinnedMessagesNotifications(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_PINNED_MESSAGES, enabled).apply()
         _pinnedMessagesNotifications.value = enabled
@@ -1211,6 +1221,7 @@ class AppPreferences(
         _inAppVibrate.value = true
         _inAppPreview.value = true
         _contactJoinedNotifications.value = true
+        _scheduledMessagesNotifications.value = true
         _pinnedMessagesNotifications.value = true
         _backgroundServiceEnabled.value = false
         _isPowerSavingMode.value = false
@@ -1364,6 +1375,7 @@ class AppPreferences(
         private const val KEY_IN_APP_VIBRATE = "in_app_vibrate"
         private const val KEY_IN_APP_PREVIEW = "in_app_preview"
         private const val KEY_CONTACT_JOINED = "contact_joined"
+        private const val KEY_SCHEDULED_MESSAGES = "scheduled_messages_notifications"
         private const val KEY_PINNED_MESSAGES = "pinned_messages"
         private const val KEY_BACKGROUND_SERVICE_ENABLED = "background_service_enabled"
         private const val KEY_POWER_SAVING_MODE = "power_saving_mode"

@@ -219,9 +219,12 @@ fun ChannelVideoMessageBubble(
                             .onGloballyPositioned { videoPosition = it.positionInWindow() }
 
                     ) {
-                        if (hasPath || content.supportsStreaming) {
+                        val canStream = content.supportsStreaming && content.fileId != 0
+                        if (hasPath || canStream) {
                             if (autoplayVideos) {
-                                val videoPath = stablePath ?: "http://streaming/${content.fileId}"
+                                val videoPath = stablePath ?: content.fileId.takeIf { it != 0 }
+                                    ?.let { "http://streaming/$it" }
+                                if (videoPath == null) return@Box
                                 VideoStickerPlayer(
                                     path = videoPath,
                                     type = VideoType.Gif,
@@ -236,7 +239,7 @@ fun ChannelVideoMessageBubble(
                                             currentPositionSeconds = seconds
                                         }
                                     },
-                                    fileId = content.fileId,
+                                    fileId = if (stablePath == null && content.fileId != 0) content.fileId else 0,
                                     thumbnailData = content.minithumbnail
                                 )
 

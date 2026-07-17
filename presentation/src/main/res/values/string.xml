@@ -34,12 +34,24 @@
     <string name="cd_toggle_sound">Toggle sound</string>
     <string name="app_name_monogram">MonoGram</string>
     <string name="version_format">Version %1$s</string>
+    <string name="build_info_format">%1$s · %2$s · %3$s</string>
     <string name="terms_of_service_title">Terms of Service</string>
     <string name="terms_of_service_subtitle">Read our terms and conditions</string>
     <string name="open_source_licenses_title">Open Source Licenses</string>
     <string name="open_source_licenses_subtitle">Software used in MonoGram</string>
     <string name="github_title">GitHub</string>
     <string name="github_subtitle">View source code</string>
+    <string name="current_commit_title">Current Commit</string>
+    <string name="current_commit_subtitle_format">%1$s · %2$s</string>
+    <string name="recent_commits_title">Recent Commits</string>
+    <string name="recent_commits_subtitle">Latest changes from GitHub</string>
+    <string name="recent_commits_subtitle_format">Latest changes from %1$s</string>
+    <string name="recent_commits_sheet_title">Recent Commits</string>
+    <string name="recent_commits_sheet_branch_format">Branch: %1$s</string>
+    <string name="recent_commits_empty">No commits found for this reference.</string>
+    <string name="recent_commits_error">Couldn\'t load commits from GitHub.</string>
+    <string name="recent_commit_item_subtitle_format">%1$s · %2$s · %3$s</string>
+    <string name="retry_action">Retry</string>
     <string name="tdlib_version_title">TDLib Version</string>
     <string name="tdlib_version_with_hash">%1$s (%2$s)</string>
     <string name="community_section">Community</string>
@@ -1057,6 +1069,8 @@
     <string name="in_app_preview_title">In-App Preview</string>
     <string name="events_header">Events</string>
     <string name="contact_joined_telegram_title">Contact Joined Telegram</string>
+    <string name="scheduled_messages_notifications_title">Scheduled Messages</string>
+    <string name="scheduled_messages_notifications_subtitle">Notify when scheduled messages are sent</string>
     <string name="pinned_messages_title">Pinned Messages</string>
     <string name="reset_all_notifications_title">Reset All Notifications</string>
     <string name="reset_all_notifications_subtitle">Undo all custom notification settings for all your contacts and
@@ -1126,6 +1140,8 @@
     <string name="pin_archived_chats_subtitle">Keep archived chats at the top of the list</string>
     <string name="always_show_pinned_archive_title">Always Show Pinned Archive</string>
     <string name="always_show_pinned_archive_subtitle">Keep pinned archive visible even when scrolling</string>
+    <string name="archive_unknown_chats_title">Archive and Mute New Chats</string>
+    <string name="archive_unknown_chats_subtitle">Automatically archive and mute new chats from non-contacts</string>
     <string name="show_stories_block_title">Show Stories Block</string>
     <string name="show_stories_block_subtitle">Display stories above the chat list and in archive</string>
     <string name="show_link_previews_title">Show Link Previews</string>
@@ -1201,6 +1217,8 @@
     <string name="animations_header">Animations</string>
     <string name="chat_animations_title">Chat Animations</string>
     <string name="chat_animations_subtitle">Disable animations in chat to save battery</string>
+    <string name="animated_emoji_title">Animated Emoji</string>
+    <string name="animated_emoji_subtitle">Play large animated emoji and related effects</string>
     <string name="background_header">Background</string>
     <string name="keep_alive_power_saving_subtitle">Disabling this will reduce power usage but may delay background
         notifications

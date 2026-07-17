@@ -23,12 +23,24 @@
     <string name="cd_back">Назад</string>
     <string name="app_name_monogram">MonoGram</string>
     <string name="version_format">Версия %1$s</string>
+    <string name="build_info_format">%1$s · %2$s · %3$s</string>
     <string name="terms_of_service_title">Условия использования</string>
     <string name="terms_of_service_subtitle">Ознакомьтесь с условиями использования</string>
     <string name="open_source_licenses_title">Лицензии</string>
     <string name="open_source_licenses_subtitle">Используемое ПО с открытым исходным кодом</string>
     <string name="github_title">GitHub</string>
     <string name="github_subtitle">Исходный код приложения</string>
+    <string name="current_commit_title">Текущий коммит</string>
+    <string name="current_commit_subtitle_format">%1$s · %2$s</string>
+    <string name="recent_commits_title">Последние коммиты</string>
+    <string name="recent_commits_subtitle">Последние изменения с GitHub</string>
+    <string name="recent_commits_subtitle_format">Последние изменения из %1$s</string>
+    <string name="recent_commits_sheet_title">Последние коммиты</string>
+    <string name="recent_commits_sheet_branch_format">Ветка: %1$s</string>
+    <string name="recent_commits_empty">Для этой ветки коммиты не найдены.</string>
+    <string name="recent_commits_error">Не удалось загрузить коммиты с GitHub.</string>
+    <string name="recent_commit_item_subtitle_format">%1$s · %2$s · %3$s</string>
+    <string name="retry_action">Повторить</string>
     <string name="tdlib_version_title">Версия TDLib</string>
     <string name="tdlib_version_with_hash">%1$s (%2$s)</string>
     <string name="community_section">Сообщество</string>
@@ -640,6 +652,8 @@
     <string name="in_app_preview_title">Предпросмотр в приложении</string>
     <string name="events_header">События</string>
     <string name="contact_joined_telegram_title">Контакт присоединился к Telegram</string>
+    <string name="scheduled_messages_notifications_title">Отложенные сообщения</string>
+    <string name="scheduled_messages_notifications_subtitle">Уведомлять, когда отложенные сообщения отправлены</string>
     <string name="pinned_messages_title">Закреплённые сообщения</string>
     <string name="reset_all_notifications_title">Сбросить все уведомления</string>
     <string name="reset_all_notifications_subtitle">Сброс всех персональных настроек уведомлений для контактов и групп</string>
@@ -703,6 +717,8 @@
     <string name="pin_archived_chats_subtitle">Архив всегда в начале списка чатов</string>
     <string name="always_show_pinned_archive_title">Всегда показывать архив</string>
     <string name="always_show_pinned_archive_subtitle">Не скрывать закреплённый архив при прокрутке</string>
+    <string name="archive_unknown_chats_title">Архивировать и заглушать новые чаты</string>
+    <string name="archive_unknown_chats_subtitle">Автоматически архивировать и заглушать новые чаты от незнакомых пользователей</string>
     <string name="show_stories_block_title">Показывать блок историй</string>
     <string name="show_stories_block_subtitle">Показывать истории над списком чатов и в архиве</string>
     <string name="show_link_previews_title">Предпросмотр ссылок</string>
@@ -773,6 +789,8 @@
     <string name="animations_header">Анимации</string>
     <string name="chat_animations_title">Анимации в чате</string>
     <string name="chat_animations_subtitle">Отключить для продления работы от аккумулятора</string>
+    <string name="animated_emoji_title">Анимированные эмодзи</string>
+    <string name="animated_emoji_subtitle">Показывать большие анимированные эмодзи и связанные эффекты</string>
     <string name="background_header">Фон</string>
     <string name="keep_alive_power_saving_subtitle">Отключение может привести к задержке уведомлений</string>
     <!-- Stickers and Emoji -->

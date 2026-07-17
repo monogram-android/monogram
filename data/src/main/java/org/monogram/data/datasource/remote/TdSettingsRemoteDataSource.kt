@@ -80,6 +80,9 @@ class TdSettingsRemoteDataSource(
     override suspend fun getOption(name: String): TdApi.OptionValue? =
         coRunCatching { gateway.execute(TdApi.GetOption(name)) }.getOrNull()
 
+    override suspend fun getArchiveChatListSettings(): TdApi.ArchiveChatListSettings? =
+        coRunCatching { gateway.execute(TdApi.GetArchiveChatListSettings()) }.getOrNull()
+
     override suspend fun getChatNotificationSettingsExceptions(
         scope: TdApi.NotificationSettingsScope,
         compareSound: Boolean
@@ -104,6 +107,10 @@ class TdSettingsRemoteDataSource(
 
     override suspend fun setOption(name: String, value: TdApi.OptionValue) {
         coRunCatching { gateway.execute(TdApi.SetOption(name, value)) }
+    }
+
+    override suspend fun setArchiveChatListSettings(settings: TdApi.ArchiveChatListSettings) {
+        coRunCatching { gateway.execute(TdApi.SetArchiveChatListSettings(settings)) }
     }
 
     override suspend fun terminateSession(sessionId: Long): Boolean =

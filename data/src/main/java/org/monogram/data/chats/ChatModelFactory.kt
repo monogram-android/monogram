@@ -45,7 +45,9 @@ class ChatModelFactory(
         chat: TdApi.Chat,
         order: Long,
         isPinned: Boolean,
-        allowMediaDownloads: Boolean = true
+        allowAvatarDownloads: Boolean = true,
+        allowMediaDownloads: Boolean = true,
+        allowRemoteLookups: Boolean = true
     ): ChatModel {
         val cachedCounts = parseCachedCounts(chat.clientData)
         var smallPhoto = chat.photo?.small
@@ -91,23 +93,26 @@ class ChatModelFactory(
                     isMember = it.status !is TdApi.ChatMemberStatusLeft
                     isAdmin = it.status is TdApi.ChatMemberStatusAdministrator ||
                             it.status is TdApi.ChatMemberStatusCreator
-                } ?: lazyLoad(cache.pendingBasicGroups, type.basicGroupId) {
+                } ?: if (allowRemoteLookups) lazyLoad(cache.pendingBasicGroups, type.basicGroupId) {
                     if (type.basicGroupId == 0L) return@lazyLoad
                     val result = gateway.execute(TdApi.GetBasicGroup(type.basicGroupId))
                     cache.basicGroups[result.id] = result
                     scheduleUpdate(chat.id)
-                }
+                } else Unit
 
                 cache.basicGroupFullInfoCache[type.basicGroupId]?.let { fullInfo ->
                     description = fullInfo.description
                     inviteLink = fullInfo.inviteLink?.inviteLink
                     personalAvatarPath = null
-                } ?: lazyLoad(cache.pendingBasicGroupFullInfo, type.basicGroupId) {
+                } ?: if (allowRemoteLookups) lazyLoad(
+                    cache.pendingBasicGroupFullInfo,
+                    type.basicGroupId
+                ) {
                     if (type.basicGroupId == 0L) return@lazyLoad
                     val result = gateway.execute(TdApi.GetBasicGroupFullInfo(type.basicGroupId))
                     cache.basicGroupFullInfoCache[type.basicGroupId] = result
                     scheduleUpdate(chat.id)
-                }
+                } else Unit
             }
 
             is TdApi.ChatTypeSupergroup -> {
@@ -115,6 +120,7 @@ class ChatModelFactory(
                 isChannel = type.isChannel
                 val supergroup = cache.supergroups[type.supergroupId]
                 supergroup?.let {
+                    cache.clearTemporarilyMissingSupergroup(type.supergroupId)
                     memberCount = it.memberCount
                     isVerified = (it.verificationStatus?.isVerified ?: false) || isForcedVerifiedChat(chat.id)
                     isScam = it.verificationStatus?.isScam ?: false
@@ -137,12 +143,21 @@ class ChatModelFactory(
                     hasAutomaticTranslation = it.hasAutomaticTranslation
                     signMessages = it.signMessages
                     joinToSendMessages = it.joinToSendMessages
-                } ?: lazyLoad(cache.pendingSupergroups, type.supergroupId) {
-                    if (type.supergroupId == 0L) return@lazyLoad
-                    val result = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
-                    cache.supergroups[result.id] = result
-                    scheduleUpdate(chat.id)
                 }
+                    ?: if (allowRemoteLookups && !cache.isSupergroupTemporarilyMissing(type.supergroupId)) lazyLoad(
+                        cache.pendingSupergroups,
+                        type.supergroupId
+                    ) {
+                    if (type.supergroupId == 0L) return@lazyLoad
+                        coRunCatching {
+                            val result = gateway.execute(TdApi.GetSupergroup(type.supergroupId))
+                            cache.supergroups[result.id] = result
+                            cache.clearTemporarilyMissingSupergroup(type.supergroupId)
+                            scheduleUpdate(chat.id)
+                        }.onFailure {
+                            cache.markSupergroupTemporarilyMissing(type.supergroupId)
+                        }
+                    } else Unit
 
                 val canLoadSupergroupFullInfo = supergroup?.status?.let {
                     it !is TdApi.ChatMemberStatusLeft && it !is TdApi.ChatMemberStatusBanned
@@ -153,12 +168,22 @@ class ChatModelFactory(
                         description = fullInfo.description
                         inviteLink = fullInfo.inviteLink?.inviteLink
                         personalAvatarPath = null
-                    } ?: lazyLoad(cache.pendingSupergroupFullInfo, type.supergroupId) {
-                        if (type.supergroupId == 0L) return@lazyLoad
-                        val result = gateway.execute(TdApi.GetSupergroupFullInfo(type.supergroupId))
-                        cache.supergroupFullInfoCache[type.supergroupId] = result
-                        scheduleUpdate(chat.id)
                     }
+                        ?: if (allowRemoteLookups && !cache.isSupergroupTemporarilyMissing(type.supergroupId)) lazyLoad(
+                            cache.pendingSupergroupFullInfo,
+                            type.supergroupId
+                        ) {
+                        if (type.supergroupId == 0L) return@lazyLoad
+                            coRunCatching {
+                                val result =
+                                    gateway.execute(TdApi.GetSupergroupFullInfo(type.supergroupId))
+                                cache.supergroupFullInfoCache[type.supergroupId] = result
+                                cache.clearTemporarilyMissingSupergroup(type.supergroupId)
+                                scheduleUpdate(chat.id)
+                            }.onFailure {
+                                cache.markSupergroupTemporarilyMissing(type.supergroupId)
+                            }
+                        } else Unit
                 }
             }
 
@@ -188,16 +213,21 @@ class ChatModelFactory(
                     val hasStablePhotoIdentity =
                         (user.profilePhoto?.small?.id ?: 0) != 0 || (user.profilePhoto?.big?.id
                             ?: 0) != 0
-                    if (!hasStablePhotoIdentity) {
+                    if (!hasStablePhotoIdentity && allowRemoteLookups) {
                         fetchUser(type.userId)
                     }
-                } ?: run { fetchUser(type.userId) }
+                } ?: run {
+                    if (allowRemoteLookups) {
+                        fetchUser(type.userId)
+                    }
+                }
 
                 if (user != null) {
                     cache.userFullInfoCache[type.userId]?.let { fullInfo ->
                         description = fullInfo.bio?.text
                         personalAvatarPath = resolvePhotoPath(fullInfo.personalPhoto, chat.id, allowMediaDownloads)
                     } ?: run {
+                        if (!allowRemoteLookups) return@run
                         if (!isUserFullInfoTemporarilyMissing(type.userId)) {
                             lazyLoad(cache.pendingUserFullInfo, type.userId) {
                                 if (type.userId == 0L) return@lazyLoad
@@ -236,7 +266,7 @@ class ChatModelFactory(
             else -> {}
         }
 
-        if (cache.chatPermissionsCache[chat.id] == null) {
+        if (allowRemoteLookups && cache.chatPermissionsCache[chat.id] == null) {
             lazyLoad(cache.pendingChatPermissions, chat.id) {
                 val result = gateway.execute(TdApi.GetChat(chat.id))
                 cache.chatPermissionsCache[chat.id] = result.permissions
@@ -244,13 +274,16 @@ class ChatModelFactory(
             }
         }
 
-        if (cache.myChatMemberCache[chat.id] == null) {
+        if (allowRemoteLookups && cache.myChatMemberCache[chat.id] == null) {
             val canGetMember = when (val type = chat.type) {
                 is TdApi.ChatTypePrivate, is TdApi.ChatTypeBasicGroup -> true
-                is TdApi.ChatTypeSupergroup -> !type.isChannel ||
-                        cache.supergroups[type.supergroupId]?.status.let {
-                            it is TdApi.ChatMemberStatusAdministrator || it is TdApi.ChatMemberStatusCreator
-                        }
+                is TdApi.ChatTypeSupergroup -> if (!type.isChannel) {
+                    true
+                } else {
+                    cache.supergroups[type.supergroupId]?.status.let {
+                        it is TdApi.ChatMemberStatusAdministrator || it is TdApi.ChatMemberStatusCreator
+                    }
+                }
                 else -> false
             }
             if (canGetMember) {
@@ -265,7 +298,7 @@ class ChatModelFactory(
             }
         }
 
-        val finalPath = resolvePhotoPath(smallPhoto, chat.id, allowMediaDownloads)
+        val finalPath = resolvePhotoPath(smallPhoto, chat.id, allowAvatarDownloads)
 
         val emojiStatusId = (chat.emojiStatus?.type as? TdApi.EmojiStatusTypeCustomEmoji)?.customEmojiId ?: 0L
         var emojiPath: String? = null

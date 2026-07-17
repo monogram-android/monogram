@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.SystemUpdate
@@ -63,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -83,6 +86,8 @@ import org.monogram.presentation.core.ui.ItemPosition
 import org.monogram.presentation.core.ui.SettingsItem
 import org.monogram.presentation.core.util.AppUtils
 import org.monogram.presentation.core.util.buildRichText
+import org.monogram.presentation.core.util.toBuildTimeString
+import org.monogram.presentation.core.util.toGitHubCommitTimeString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +96,7 @@ fun AboutContent(component: AboutComponent) {
     val updateState by component.updateState.collectAsState()
     val tdLibVersion by component.tdLibVersion.collectAsState()
     val tdLibCommitHash by component.tdLibCommitHash.collectAsState()
+    val recentCommitsState by component.recentCommitsState.collectAsState()
     val hasOpenSourceLicenses = component.hasOpenSourceLicenses
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
@@ -102,7 +108,35 @@ fun AboutContent(component: AboutComponent) {
             if (isTelemtBuild) append(" (Telemt)")
         }
     }
+    val buildTimeText = remember(component.buildTimeMillis) {
+        component.buildTimeMillis.toBuildTimeString()
+    }
+    val buildInfoText = stringResource(
+        R.string.build_info_format,
+        component.buildBranch,
+        component.buildCommitHash.take(7),
+        buildTimeText
+    )
     val loadingText = stringResource(R.string.loading_text)
+    val recentCommitsSubtitle =
+        if (component.buildBranch != "unknown" && component.buildBranch != "detached") {
+            stringResource(R.string.recent_commits_subtitle_format, component.buildBranch)
+        } else {
+            stringResource(R.string.recent_commits_subtitle)
+        }
+    val termsOfServiceTitle = stringResource(R.string.terms_of_service_title)
+    val termsOfServiceSubtitle = stringResource(R.string.terms_of_service_subtitle)
+    val openSourceLicensesTitle = stringResource(R.string.open_source_licenses_title)
+    val openSourceLicensesSubtitle = stringResource(R.string.open_source_licenses_subtitle)
+    val githubTitle = stringResource(R.string.github_title)
+    val githubSubtitle = stringResource(R.string.github_subtitle)
+    val currentCommitTitle = stringResource(R.string.current_commit_title)
+    val currentCommitSubtitle = stringResource(
+        R.string.current_commit_subtitle_format,
+        component.buildBranch,
+        component.buildCommitHash.take(7)
+    )
+    val recentCommitsTitle = stringResource(R.string.recent_commits_title)
 
     val versionWithHashFormat = stringResource(R.string.tdlib_version_with_hash)
     val displayTdLibVersion = remember(tdLibVersion, tdLibCommitHash, versionWithHashFormat, loadingText) {
@@ -167,37 +201,67 @@ fun AboutContent(component: AboutComponent) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Text(
+                    text = buildInfoText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.height(32.dp))
             }
 
             item {
-                SettingsItem(
-                    icon = Icons.Rounded.Description,
-                    title = stringResource(R.string.terms_of_service_title),
-                    subtitle = stringResource(R.string.terms_of_service_subtitle),
-                    iconBackgroundColor = Color(0xFF4285F4),
-                    position = ItemPosition.TOP,
-                    onClick = { uriHandler.openUri("https://telegram.org/tos") }
+                val infoItems = listOfNotNull(
+                    AboutActionItem(
+                        icon = Icons.Rounded.Description,
+                        title = termsOfServiceTitle,
+                        subtitle = termsOfServiceSubtitle,
+                        iconBackgroundColor = Color(0xFF4285F4),
+                        onClick = component::onTermsOfServiceClicked
+                    ),
+                    hasOpenSourceLicenses.takeIf { it }?.let {
+                        AboutActionItem(
+                            icon = Icons.Rounded.Code,
+                            title = openSourceLicensesTitle,
+                            subtitle = openSourceLicensesSubtitle,
+                            iconBackgroundColor = Color(0xFF34A853),
+                            onClick = component::onOpenSourceLicensesClicked
+                        )
+                    },
+                    AboutActionItem(
+                        icon = Icons.Rounded.Public,
+                        title = githubTitle,
+                        subtitle = githubSubtitle,
+                        iconBackgroundColor = Color(0xFF24292E),
+                        onClick = { uriHandler.openUri("https://github.com/monogram-android/monogram") }
+                    ),
+                    component.currentCommitUrl?.let { commitUrl ->
+                        AboutActionItem(
+                            icon = Icons.Rounded.Code,
+                            title = currentCommitTitle,
+                            subtitle = currentCommitSubtitle,
+                            iconBackgroundColor = Color(0xFF6D4C41),
+                            onClick = { uriHandler.openUri(commitUrl) }
+                        )
+                    },
+                    AboutActionItem(
+                        icon = Icons.Rounded.History,
+                        title = recentCommitsTitle,
+                        subtitle = recentCommitsSubtitle,
+                        iconBackgroundColor = Color(0xFF1A73E8),
+                        onClick = component::onRecentCommitsClicked
+                    )
                 )
-                if (hasOpenSourceLicenses) {
+
+                infoItems.forEachIndexed { index, item ->
                     SettingsItem(
-                        icon = Icons.Rounded.Code,
-                        title = stringResource(R.string.open_source_licenses_title),
-                        subtitle = stringResource(R.string.open_source_licenses_subtitle),
-                        iconBackgroundColor = Color(0xFF34A853),
-                        position = ItemPosition.MIDDLE,
-                        onClick = component::onOpenSourceLicensesClicked
+                        icon = item.icon,
+                        title = item.title,
+                        subtitle = item.subtitle,
+                        iconBackgroundColor = item.iconBackgroundColor,
+                        position = if (index == 0) ItemPosition.TOP else ItemPosition.MIDDLE,
+                        onClick = item.onClick
                     )
                 }
-
-                SettingsItem(
-                    icon = Icons.Rounded.Public,
-                    title = stringResource(R.string.github_title),
-                    subtitle = stringResource(R.string.github_subtitle),
-                    iconBackgroundColor = Color(0xFF24292E),
-                    position = ItemPosition.MIDDLE,
-                    onClick = { uriHandler.openUri("https://github.com/monogram-android/monogram") }
-                )
 
                 SettingsItem(
                     icon = Icons.Rounded.Terminal,
@@ -337,7 +401,25 @@ fun AboutContent(component: AboutComponent) {
             }
         }
     }
+
+    if (recentCommitsState.isVisible) {
+        RecentCommitsSheet(
+            state = recentCommitsState,
+            branch = component.buildBranch,
+            onDismiss = component::onRecentCommitsDismissed,
+            onRetry = component::retryRecentCommits,
+            onCommitClicked = { uriHandler.openUri(it) }
+        )
+    }
 }
+
+private data class AboutActionItem(
+    val icon: ImageVector,
+    val title: String,
+    val subtitle: String,
+    val iconBackgroundColor: Color,
+    val onClick: () -> Unit
+)
 
 @Composable
 private fun UpdateSection(state: UpdateState, component: AboutComponent) {
@@ -559,6 +641,121 @@ private fun ChangelogSheet(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RecentCommitsSheet(
+    state: RecentCommitsState,
+    branch: String,
+    onDismiss: () -> Unit,
+    onRetry: () -> Unit,
+    onCommitClicked: (String) -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.background,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(bottom = 32.dp)
+        ) {
+            item {
+                Text(
+                    text = stringResource(R.string.recent_commits_sheet_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.recent_commits_sheet_branch_format, branch),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            when {
+                state.isLoading -> {
+                    item {
+                        Text(
+                            text = stringResource(R.string.loading_text),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+                }
+
+                state.errorMessage != null -> {
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Text(
+                                    text = state.errorMessage,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                OutlinedButton(onClick = onRetry) {
+                                    Text(stringResource(R.string.retry_action))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                state.commits.isEmpty() -> {
+                    item {
+                        Text(
+                            text = stringResource(R.string.recent_commits_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+                }
+
+                else -> {
+                    itemsIndexed(
+                        state.commits,
+                        key = { _, commit -> commit.sha }) { index, commit ->
+                        val subtitle = stringResource(
+                            R.string.recent_commit_item_subtitle_format,
+                            commit.sha.take(7),
+                            commit.authorName,
+                            commit.committedAt.toGitHubCommitTimeString()
+                        )
+                        SettingsItem(
+                            icon = Icons.Rounded.Code,
+                            title = commit.message,
+                            subtitle = subtitle,
+                            iconBackgroundColor = Color(0xFF6D4C41),
+                            position = when {
+                                state.commits.size == 1 -> ItemPosition.STANDALONE
+                                index == 0 -> ItemPosition.TOP
+                                index == state.commits.lastIndex -> ItemPosition.BOTTOM
+                                else -> ItemPosition.MIDDLE
+                            },
+                            onClick = { onCommitClicked(commit.htmlUrl) }
+                        )
+                    }
                 }
             }
         }

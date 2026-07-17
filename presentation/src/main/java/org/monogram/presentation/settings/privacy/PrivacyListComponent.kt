@@ -10,6 +10,7 @@ import org.monogram.domain.managers.DistrManager
 import org.monogram.domain.models.PrivacyRule
 import org.monogram.domain.models.PrivacyValue
 import org.monogram.domain.repository.AppPreferencesProvider
+import org.monogram.domain.repository.ClientOptionsRepository
 import org.monogram.domain.repository.PrivacyKey
 import org.monogram.domain.repository.PrivacyRepository
 import org.monogram.presentation.core.util.componentScope
@@ -31,6 +32,7 @@ interface PrivacyListComponent {
     fun onDeleteAccountClicked(reason: String)
     fun onAccountTtlChanged(days: Int)
     fun onSensitiveContentChanged(enabled: Boolean)
+    fun onArchiveAndMuteUnknownChatsChanged(enabled: Boolean)
     fun onPasscodeClicked()
     fun onPasscodeVerificationSubmitted(passcode: String)
     fun onPasscodeVerificationDismissed()
@@ -50,6 +52,8 @@ interface PrivacyListComponent {
         val isTwoStepVerificationEnabled: Boolean = false,
         val canShowSensitiveContent: Boolean = false,
         val isSensitiveContentEnabled: Boolean = false,
+        val canArchiveAndMuteUnknownChats: Boolean = false,
+        val isArchiveAndMuteUnknownChatsEnabled: Boolean = false,
         val isPasscodeEnabled: Boolean = false,
         val isPasscodeVerificationVisible: Boolean = false,
         val isPasscodeVerificationInvalid: Boolean = false,
@@ -69,6 +73,8 @@ class DefaultPrivacyListComponent(
 ) : PrivacyListComponent, AppComponentContext by context {
 
     private val privacyRepository: PrivacyRepository = container.repositories.privacyRepository
+    private val clientOptionsRepository: ClientOptionsRepository =
+        container.repositories.clientOptionsRepository
     private val appPreferences: AppPreferencesProvider = container.preferences.appPreferences
     private val distrManager: DistrManager = container.utils.distrManager()
 
@@ -91,6 +97,10 @@ class DefaultPrivacyListComponent(
                 val isTwoStepEnabled = privacyRepository.getPasswordState()
                 val canShowSensitive = privacyRepository.canShowSensitiveContent()
                 val isSensitiveEnabled = privacyRepository.isShowSensitiveContentEnabled()
+                val canArchiveAndMuteUnknown =
+                    clientOptionsRepository.canArchiveAndMuteNewChatsFromUnknownUsers()
+                val isArchiveAndMuteUnknownEnabled =
+                    clientOptionsRepository.getArchiveAndMuteNewChatsFromUnknownUsersEnabled()
 
                 _state.update {
                     it.copy(
@@ -99,6 +109,8 @@ class DefaultPrivacyListComponent(
                         isTwoStepVerificationEnabled = isTwoStepEnabled,
                         canShowSensitiveContent = canShowSensitive,
                         isSensitiveContentEnabled = isSensitiveEnabled,
+                        canArchiveAndMuteUnknownChats = canArchiveAndMuteUnknown,
+                        isArchiveAndMuteUnknownChatsEnabled = isArchiveAndMuteUnknownEnabled,
                         isInstalledFromGooglePlay = distrManager.isInstalledFromGooglePlay()
                     )
                 }
@@ -255,6 +267,13 @@ class DefaultPrivacyListComponent(
             onPasscodeClick()
         } else {
             _state.update { it.copy(isPasscodeVerificationInvalid = true) }
+        }
+    }
+
+    override fun onArchiveAndMuteUnknownChatsChanged(enabled: Boolean) {
+        scope.launch {
+            clientOptionsRepository.setArchiveAndMuteNewChatsFromUnknownUsersEnabled(enabled)
+            _state.update { it.copy(isArchiveAndMuteUnknownChatsEnabled = enabled) }
         }
     }
 

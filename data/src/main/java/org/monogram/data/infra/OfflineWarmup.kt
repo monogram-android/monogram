@@ -3,7 +3,6 @@ package org.monogram.data.infra
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.core.DispatcherProvider
@@ -12,10 +11,12 @@ import org.monogram.data.compat.toDomainSupportsGuestQueries
 import org.monogram.data.core.coRunCatching
 import org.monogram.data.db.dao.ChatDao
 import org.monogram.data.db.dao.ChatFullInfoDao
+import org.monogram.data.db.dao.KeyValueDao
 import org.monogram.data.db.dao.MessageDao
 import org.monogram.data.db.dao.UserDao
 import org.monogram.data.db.dao.UserFullInfoDao
 import org.monogram.data.db.model.ChatEntity
+import org.monogram.data.db.model.KeyValueEntity
 import org.monogram.data.db.model.UserEntity
 import org.monogram.data.gateway.TelegramGateway
 import org.monogram.data.mapper.MessageMapper
@@ -24,6 +25,7 @@ import org.monogram.data.mapper.user.toTdApi
 import org.monogram.domain.models.stories.StoryListType
 import org.monogram.domain.repository.StickerRepository
 import org.monogram.domain.repository.StoryRepository
+import java.util.concurrent.TimeUnit
 
 private const val TAG = "OfflineWarmup"
 
@@ -33,6 +35,7 @@ class OfflineWarmup(
     private val gateway: TelegramGateway,
     private val chatDao: ChatDao,
     private val messageDao: MessageDao,
+    private val keyValueDao: KeyValueDao,
     private val userDao: UserDao,
     private val userFullInfoDao: UserFullInfoDao,
     private val chatFullInfoDao: ChatFullInfoDao,
@@ -212,14 +215,29 @@ class OfflineWarmup(
 
             when {
                 chat.supergroupId != 0L -> {
-                    val supergroupInfo = gateway.execute(TdApi.GetSupergroupFullInfo(chat.supergroupId)) as? TdApi.SupergroupFullInfo
+                    if (shouldSkipMissingSupergroupWarmup(chat.supergroupId, now)) {
+                        delay(30)
+                        continue
+                    }
+                    val supergroupInfo = coRunCatching {
+                        gateway.execute(TdApi.GetSupergroupFullInfo(chat.supergroupId)) as? TdApi.SupergroupFullInfo
+                    }.getOrNull()
                     if (supergroupInfo != null) {
                         chatFullInfoDao.insertChatFullInfo(supergroupInfo.toEntity(chat.id))
-                        val supergroup = gateway.execute(TdApi.GetSupergroup(chat.supergroupId)) as? TdApi.Supergroup
+                        val supergroup = coRunCatching {
+                            gateway.execute(TdApi.GetSupergroup(chat.supergroupId)) as? TdApi.Supergroup
+                        }.onFailure {
+                            markMissingSupergroupWarmup(chat.supergroupId)
+                            chatCache.markSupergroupTemporarilyMissing(chat.supergroupId)
+                        }.getOrNull()
                         if (supergroup != null) {
+                            clearMissingSupergroupWarmup(chat.supergroupId)
                             chatCache.putSupergroup(supergroup)
                             chatCache.putSupergroupFullInfo(chat.supergroupId, supergroupInfo)
                         }
+                    } else {
+                        markMissingSupergroupWarmup(chat.supergroupId)
+                        chatCache.markSupergroupTemporarilyMissing(chat.supergroupId)
                     }
                 }
 
@@ -383,6 +401,30 @@ class OfflineWarmup(
         }
     }
 
+    private suspend fun shouldSkipMissingSupergroupWarmup(supergroupId: Long, now: Long): Boolean {
+        val value =
+            keyValueDao.getValue("$MISSING_SUPERGROUP_WARMUP_KEY_PREFIX$supergroupId")?.value
+                ?.toLongOrNull() ?: return false
+        if (value > now) {
+            return true
+        }
+        clearMissingSupergroupWarmup(supergroupId)
+        return false
+    }
+
+    private suspend fun markMissingSupergroupWarmup(supergroupId: Long) {
+        keyValueDao.insertValue(
+            KeyValueEntity(
+                key = "$MISSING_SUPERGROUP_WARMUP_KEY_PREFIX$supergroupId",
+                value = (System.currentTimeMillis() + MISSING_SUPERGROUP_WARMUP_TTL_MS).toString()
+            )
+        )
+    }
+
+    private suspend fun clearMissingSupergroupWarmup(supergroupId: Long) {
+        keyValueDao.deleteValue("$MISSING_SUPERGROUP_WARMUP_KEY_PREFIX$supergroupId")
+    }
+
     private companion object {
         private const val USER_WARMUP_LIMIT = 15
         private const val USER_WARMUP_DELAY_MS = 150L
@@ -392,5 +434,7 @@ class OfflineWarmup(
         private const val STORY_CHAT_WARMUP_DELAY_MS = 180L
         private const val ONE_DAY_MS = 24L * 60 * 60 * 1000
         private const val SEVEN_DAYS_MS = 7L * ONE_DAY_MS
+        private val MISSING_SUPERGROUP_WARMUP_TTL_MS = TimeUnit.DAYS.toMillis(7)
+        private const val MISSING_SUPERGROUP_WARMUP_KEY_PREFIX = "missing_supergroup_warmup_"
     }
 }

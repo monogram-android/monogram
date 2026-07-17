@@ -130,7 +130,10 @@ fun VideoStickerPlayer(
     val currentThumbnailData by rememberUpdatedState(thumbnailData)
     val currentAnimate by rememberUpdatedState(animate)
     val effectiveStreamingFileId = remember(currentPath, fileId) {
-        if (currentPath.startsWith("http://streaming/")) fileId else 0
+        if (currentPath.startsWith("http://streaming/") && fileId != 0) fileId else 0
+    }
+    val hasInvalidStreamingPath = remember(currentPath, effectiveStreamingFileId) {
+        currentPath.startsWith("http://streaming/") && effectiveStreamingFileId == 0
     }
     val isGif = type == VideoType.Gif
 
@@ -157,7 +160,7 @@ fun VideoStickerPlayer(
         }
         if (animate) {
             delay(80)
-            if (isActive) shouldLoadPlayer = true
+            if (isActive && !hasInvalidStreamingPath) shouldLoadPlayer = true
         }
     }
 
@@ -210,6 +213,10 @@ fun VideoStickerPlayer(
 
                     val isNetworkPath =
                         currentPath.startsWith("http") || currentPath.startsWith("content")
+                    if (hasInvalidStreamingPath) {
+                        isDisposed.set(true)
+                        return@DisposableEffect onDispose {}
+                    }
                     if (!isNetworkPath && !File(currentPath).exists()) {
                         if (isGif) {
                             Log.d(

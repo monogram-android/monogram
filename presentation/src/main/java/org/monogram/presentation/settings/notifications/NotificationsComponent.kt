@@ -16,6 +16,7 @@ import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 import org.monogram.domain.managers.DistrManager
 import org.monogram.domain.models.ChatModel
+import org.monogram.domain.repository.ClientOptionsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository
 import org.monogram.domain.repository.NotificationSettingsRepository.TdNotificationScope
 import org.monogram.domain.repository.PushProvider
@@ -35,6 +36,7 @@ interface NotificationsComponent {
     fun onInAppVibrateToggled(enabled: Boolean)
     fun onInAppPreviewToggled(enabled: Boolean)
     fun onContactJoinedToggled(enabled: Boolean)
+    fun onScheduledMessagesToggled(enabled: Boolean)
     fun onPinnedMessagesToggled(enabled: Boolean)
     fun onBackgroundServiceToggled(enabled: Boolean)
     fun onHideForegroundNotificationToggled(enabled: Boolean)
@@ -56,6 +58,7 @@ interface NotificationsComponent {
         val inAppVibrate: Boolean = true,
         val inAppPreview: Boolean = true,
         val contactJoined: Boolean = true,
+        val scheduledMessages: Boolean = true,
         val pinnedMessages: Boolean = true,
         val backgroundServiceEnabled: Boolean = false,
         val hideForegroundNotification: Boolean = false,
@@ -85,6 +88,8 @@ class DefaultNotificationsComponent(
     private val appPreferences: AppPreferences = container.preferences.appPreferences
     private val notificationSettingsRepository: NotificationSettingsRepository =
         container.repositories.notificationSettingsRepository
+    private val clientOptionsRepository: ClientOptionsRepository =
+        container.repositories.clientOptionsRepository
     private val distrManager: DistrManager = container.utils.distrManager()
 
     private val scope = componentScope
@@ -134,6 +139,10 @@ class DefaultNotificationsComponent(
 
         appPreferences.contactJoinedNotifications.onEach { value ->
             _state.update { it.copy(contactJoined = value) }
+        }.launchIn(scope)
+
+        appPreferences.scheduledMessagesNotifications.onEach { value ->
+            _state.update { it.copy(scheduledMessages = value) }
         }.launchIn(scope)
 
         appPreferences.pinnedMessagesNotifications.onEach { value ->
@@ -189,6 +198,15 @@ class DefaultNotificationsComponent(
 
             val channelsEnabled = notificationSettingsRepository.getNotificationSettings(TdNotificationScope.CHANNELS)
             appPreferences.setChannelsNotifications(channelsEnabled)
+
+            runCatching {
+                appPreferences.setContactJoinedNotifications(
+                    clientOptionsRepository.getContactJoinedNotificationsEnabled()
+                )
+                appPreferences.setScheduledMessagesNotifications(
+                    clientOptionsRepository.getSentScheduledMessageNotificationsEnabled()
+                )
+            }
         }
     }
 
@@ -257,6 +275,16 @@ class DefaultNotificationsComponent(
 
     override fun onContactJoinedToggled(enabled: Boolean) {
         appPreferences.setContactJoinedNotifications(enabled)
+        scope.launch {
+            clientOptionsRepository.setContactJoinedNotificationsEnabled(enabled)
+        }
+    }
+
+    override fun onScheduledMessagesToggled(enabled: Boolean) {
+        appPreferences.setScheduledMessagesNotifications(enabled)
+        scope.launch {
+            clientOptionsRepository.setSentScheduledMessageNotificationsEnabled(enabled)
+        }
     }
 
     override fun onPinnedMessagesToggled(enabled: Boolean) {
@@ -299,6 +327,7 @@ class DefaultNotificationsComponent(
         onInAppVibrateToggled(true)
         onInAppPreviewToggled(true)
         onContactJoinedToggled(true)
+        onScheduledMessagesToggled(true)
         onPinnedMessagesToggled(true)
         onBackgroundServiceToggled(false)
         onHideForegroundNotificationToggled(false)

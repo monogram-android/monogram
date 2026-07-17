@@ -325,6 +325,17 @@ internal fun DefaultChatComponent.handleConfirmRestrict(
 private suspend fun DefaultChatComponent.refreshCurrentUserRestrictionState() {
     val me = runCatching { userRepository.getMe() }.getOrNull() ?: return
     val effectiveChatId = _state.value.effectiveThreadChatId(chatId)
+    val effectiveChat = runCatching { chatListRepository.getChatById(effectiveChatId) }.getOrNull()
+    if (effectiveChat?.isChannel == true) {
+        _state.update {
+            it.copy(
+                isCurrentUserRestricted = false,
+                restrictedUntilDate = 0,
+                effectiveInputPermissions = null
+            )
+        }
+        return
+    }
     val status =
         runCatching { chatInfoRepository.getChatMember(effectiveChatId, me.id)?.status }.getOrNull()
     val restrictedStatus = status as? ChatMemberStatus.Restricted

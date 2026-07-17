@@ -754,6 +754,9 @@ sealed interface MessageEntityType {
     object Hashtag : MessageEntityType
 
     @Serializable
+    object Cashtag : MessageEntityType
+
+    @Serializable
     object BotCommand : MessageEntityType
 
     @Serializable

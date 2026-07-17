@@ -74,6 +74,8 @@ import org.monogram.domain.repository.MessageRepository
 import org.monogram.domain.repository.MessageThreadContext
 import org.monogram.domain.repository.OlderMessagesPage
 import org.monogram.domain.repository.ProfileMediaFilter
+import org.monogram.domain.repository.RichTextParseMode
+import org.monogram.domain.repository.RichTextParsingRepository
 import org.monogram.domain.repository.SearchChatMessagesResult
 import org.monogram.domain.repository.TextCompositionStyleModel
 import java.io.File
@@ -98,7 +100,7 @@ internal class MessageRepositoryImpl(
     private val stickerPathDao: StickerPathDao,
     private val keyValueDao: KeyValueDao,
     private val textCompositionStyleDao: TextCompositionStyleDao
-) : MessageRepository {
+) : MessageRepository, RichTextParsingRepository {
     private data class RichMessageCacheKey(val chatId: Long, val messageId: Long)
 
     private val fixedDraftLinkPreviewFetcher = FixedDraftLinkPreviewFetcher(
@@ -947,6 +949,25 @@ internal class MessageRepositoryImpl(
             }
         }
 
+    override suspend fun parseTextEntities(
+        text: String,
+        mode: RichTextParseMode
+    ): FormattedTextResult = withContext(dispatcherProvider.io) {
+        val result = gateway.execute(
+            TdApi.ParseTextEntities(
+                text,
+                when (mode) {
+                    RichTextParseMode.Markdown -> TdApi.TextParseModeMarkdown(2)
+                    RichTextParseMode.Html -> TdApi.TextParseModeHTML()
+                }
+            )
+        )
+        FormattedTextResult(
+            text = result.text,
+            entities = result.entities.orEmpty().mapNotNull { it.toDomainMessageEntity() }
+        )
+    }
+
     override suspend fun composeTextWithAi(
         text: String,
         entities: List<MessageEntity>,
@@ -1022,6 +1043,7 @@ internal class MessageRepositoryImpl(
                 is MessageEntityType.Mention -> TdApi.TextEntityTypeMention()
                 is MessageEntityType.TextMention -> TdApi.TextEntityTypeMentionName(value.userId)
                 is MessageEntityType.Hashtag -> TdApi.TextEntityTypeHashtag()
+                is MessageEntityType.Cashtag -> TdApi.TextEntityTypeCashtag()
                 is MessageEntityType.BotCommand -> TdApi.TextEntityTypeBotCommand()
                 is MessageEntityType.Url -> TdApi.TextEntityTypeUrl()
                 is MessageEntityType.Email -> TdApi.TextEntityTypeEmailAddress()
@@ -1051,6 +1073,7 @@ internal class MessageRepositoryImpl(
             is TdApi.TextEntityTypeMention -> MessageEntityType.Mention
             is TdApi.TextEntityTypeMentionName -> MessageEntityType.TextMention(value.userId)
             is TdApi.TextEntityTypeHashtag -> MessageEntityType.Hashtag
+            is TdApi.TextEntityTypeCashtag -> MessageEntityType.Cashtag
             is TdApi.TextEntityTypeBotCommand -> MessageEntityType.BotCommand
             is TdApi.TextEntityTypeUrl -> MessageEntityType.Url
             is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email

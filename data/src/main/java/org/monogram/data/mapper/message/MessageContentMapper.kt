@@ -4,6 +4,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.chats.ChatCache
+import org.monogram.data.compat.legacyPrizeTonAmount
+import org.monogram.data.compat.legacyStakeTonAmount
 import org.monogram.data.datasource.remote.TdMessageRemoteDataSource
 import org.monogram.data.mapper.CustomEmojiLoader
 import org.monogram.data.mapper.TdFileHelper
@@ -625,12 +627,12 @@ internal class MessageContentMapper(
     }
 
     private fun mapStakeDice(content: TdApi.MessageStakeDice): MessageContent {
-        val stakeTon = content.stakeToncoinAmount / 1_000_000_000.0
+        val stakeTon = content.legacyStakeTonAmount() / 1_000_000_000.0
         val base = if (content.value == 0) {
             "Staked dice • $stakeTon TON"
         } else {
-            val prizeTon = content.prizeToncoinAmount / 1_000_000_000.0
-            if (content.prizeToncoinAmount >= 0) {
+            val prizeTon = content.legacyPrizeTonAmount() / 1_000_000_000.0
+            if (content.legacyPrizeTonAmount() >= 0) {
                 "Staked dice • result ${content.value} • stake $stakeTon TON • prize $prizeTon TON"
             } else {
                 "Staked dice • result ${content.value} • stake $stakeTon TON"

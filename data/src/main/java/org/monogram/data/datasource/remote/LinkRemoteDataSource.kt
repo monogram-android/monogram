@@ -8,6 +8,7 @@ interface LinkRemoteDataSource {
     suspend fun searchPublicChat(username: String): TdApi.Chat?
     suspend fun checkChatInviteLink(inviteLink: String): TdApi.ChatInviteLinkInfo?
     suspend fun joinChatByInviteLink(inviteLink: String): TdApi.ChatJoinResult?
+    suspend fun getGuardBotWebAppUrl(queryId: Long): TdApi.WebAppUrl?
     suspend fun getMe(): TdApi.User?
     suspend fun createPrivateChat(userId: Long): TdApi.Chat?
     suspend fun searchUserByPhoneNumber(phoneNumber: String): TdApi.User?

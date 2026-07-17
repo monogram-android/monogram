@@ -2,6 +2,8 @@ package org.monogram.data.mapper.message
 
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.chats.ChatCache
+import org.monogram.data.compat.legacyPrizeTonAmount
+import org.monogram.data.compat.legacyStakeTonAmount
 import org.monogram.data.mapper.SenderNameResolver
 import org.monogram.data.mapper.TdFileHelper
 import org.monogram.data.mapper.toDomainReplyMarkup
@@ -352,7 +354,11 @@ internal class MessagePersistenceMapper(
             is TdApi.MessageStakeDice -> CachedMessageContent(
                 "stake_dice",
                 "Staked dice",
-                encodeMeta(content.value, content.stakeToncoinAmount, content.prizeToncoinAmount)
+                encodeMeta(
+                    content.value,
+                    content.legacyStakeTonAmount(),
+                    content.legacyPrizeTonAmount()
+                )
             )
 
             is TdApi.MessageChecklist -> CachedMessageContent(
@@ -1115,6 +1121,7 @@ internal class MessagePersistenceMapper(
                     is TdApi.TextEntityTypeMention -> append("m")
                     is TdApi.TextEntityTypeMentionName -> append("mn,").append(type.userId)
                     is TdApi.TextEntityTypeHashtag -> append("h")
+                    is TdApi.TextEntityTypeCashtag -> append("ch")
                     is TdApi.TextEntityTypeBotCommand -> append("bc")
                     is TdApi.TextEntityTypeCustomEmoji -> append("ce,").append(type.customEmojiId)
                     is TdApi.TextEntityTypeEmailAddress -> append("em")
@@ -1147,6 +1154,7 @@ internal class MessagePersistenceMapper(
                 "m" -> MessageEntityType.Mention
                 "mn" -> MessageEntityType.TextMention(parts.getOrNull(3)?.toLongOrNull() ?: 0L)
                 "h" -> MessageEntityType.Hashtag
+                "ch" -> MessageEntityType.Cashtag
                 "bc" -> MessageEntityType.BotCommand
                 "ce" -> MessageEntityType.CustomEmoji(
                     parts.getOrNull(3)?.toLongOrNull() ?: 0L,

@@ -1,6 +1,7 @@
 package org.monogram.data.mapper.message
 
 import org.drinkless.tdlib.TdApi
+import org.monogram.data.compat.toLegacyToncoinCentCount
 import org.monogram.domain.models.FactCheckModel
 import org.monogram.domain.models.MessageEntity
 import org.monogram.domain.models.MessageEntityType
@@ -17,8 +18,7 @@ internal fun TdApi.FactCheck.toDomain(): FactCheckModel = FactCheckModel(
 internal fun TdApi.SuggestedPostInfo.toDomain(): SuggestedPostInfoModel = SuggestedPostInfoModel(
     price = when (val value = price) {
         is TdApi.SuggestedPostPriceStar -> SuggestedPostPriceModel.Star(value.starCount)
-        is TdApi.SuggestedPostPriceTon -> SuggestedPostPriceModel.Ton(value.toncoinCentCount)
-        else -> null
+        else -> value?.toLegacyToncoinCentCount()?.let(SuggestedPostPriceModel::Ton)
     },
     sendDate = sendDate,
     state = when (state) {
@@ -46,6 +46,7 @@ internal fun Array<TdApi.TextEntity>?.toDomainEntities(): List<MessageEntity> {
             is TdApi.TextEntityTypeMention -> MessageEntityType.Mention
             is TdApi.TextEntityTypeMentionName -> MessageEntityType.TextMention(entityType.userId)
             is TdApi.TextEntityTypeHashtag -> MessageEntityType.Hashtag
+            is TdApi.TextEntityTypeCashtag -> MessageEntityType.Cashtag
             is TdApi.TextEntityTypeBotCommand -> MessageEntityType.BotCommand
             is TdApi.TextEntityTypeUrl -> MessageEntityType.Url
             is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email

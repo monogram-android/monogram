@@ -30,6 +30,7 @@ internal fun TdApi.TextEntity.toMessageEntityOrNull(
         }
 
         is TdApi.TextEntityTypeHashtag -> MessageEntityType.Hashtag
+        is TdApi.TextEntityTypeCashtag -> MessageEntityType.Cashtag
         is TdApi.TextEntityTypeBotCommand -> MessageEntityType.BotCommand
         is TdApi.TextEntityTypeUrl -> MessageEntityType.Url
         is TdApi.TextEntityTypeEmailAddress -> MessageEntityType.Email

@@ -400,6 +400,16 @@ fun buildAnnotatedMessageTextWithEmoji(
                         )
                     }
 
+                    is MessageEntityType.Cashtag -> {
+                        addStyle(SpanStyle(color = linkColor), start, end)
+                        addStringAnnotation(
+                            "CASHTAG",
+                            text.safeSubstring(safeStart, safeEnd),
+                            start,
+                            end
+                        )
+                    }
+
                     else -> {}
                 }
             }

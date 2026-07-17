@@ -165,6 +165,7 @@ import org.monogram.domain.repository.ProfilePhotoRepository
 import org.monogram.domain.repository.ProxyDiagnosticsRepository
 import org.monogram.domain.repository.ProxyRepository
 import org.monogram.domain.repository.PushDebugRepository
+import org.monogram.domain.repository.RichTextParsingRepository
 import org.monogram.domain.repository.SessionRepository
 import org.monogram.domain.repository.SponsorRepository
 import org.monogram.domain.repository.StickerRepository
@@ -726,6 +727,7 @@ val dataModule = module {
     single<InlineBotRepository> { get<MessageRepository>() }
     single<ChatEventLogRepository> { get<MessageRepository>() }
     single<MessageAiRepository> { get<MessageRepository>() }
+    single<RichTextParsingRepository> { get<MessageRepository>() as RichTextParsingRepository }
     single<PaymentRepository> { get<MessageRepository>() }
     single<FileRepository> { get<MessageRepository>() }
     single<WebAppRepository> { get<MessageRepository>() }

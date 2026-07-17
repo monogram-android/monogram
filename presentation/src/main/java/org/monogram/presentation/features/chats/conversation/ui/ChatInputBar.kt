@@ -379,13 +379,14 @@ internal fun ChatInputBar(
         }
     }
 
-    val sendWithOptions: (MessageSendOptions) -> Unit = sendWithOptions@{
-        if (isOverMessageLimit) return@sendWithOptions
-        val isTextEmpty = textValue.text.isBlank()
-        val captionEntities = extractEntities(textValue.annotatedString, knownCustomEmojis)
-        val isScheduling = it.scheduleDate != null
+    fun sendWithOptions(options: MessageSendOptions, value: TextFieldValue = textValue) {
+        val isValueOverMessageLimit = value.text.length > maxMessageLength
+        if (isValueOverMessageLimit) return
+        val isTextEmpty = value.text.isBlank()
+        val captionEntities = extractEntities(value.annotatedString, knownCustomEmojis)
+        val isScheduling = options.scheduleDate != null
         var sentInstantMessage = false
-        val effectiveSendOptions = it.copy(
+        val effectiveSendOptions = options.copy(
             disableLinkPreview = state.isDraftLinkPreviewDisabledForSend,
             linkPreviewUrl = state.resolvedDraftLinkPreviewUrl ?: state.selectedDraftLinkPreviewUrl
         )
@@ -404,7 +405,7 @@ internal fun ChatInputBar(
         if (currentPendingAttachments.isNotEmpty() && canSendPendingAttachments) {
             actions.onSendAttachments(
                 currentPendingAttachments,
-                textValue.text,
+                value.text,
                 captionEntities,
                 effectiveSendOptions
             )
@@ -413,10 +414,11 @@ internal fun ChatInputBar(
             sentInstantMessage = !isScheduling
         } else if (state.editingMessage != null && canWriteText) {
             if (!isTextEmpty) {
-                actions.onSaveEdit(textValue.text, captionEntities)
+                textValue = value
+                actions.onSaveEdit(value.text, captionEntities)
             }
         } else if (canWriteText && !isTextEmpty) {
-            actions.onSend(textValue.text, captionEntities, effectiveSendOptions)
+            actions.onSend(value.text, captionEntities, effectiveSendOptions)
             textValue = TextFieldValue("")
             knownCustomEmojis.clear()
             sentInstantMessage = !isScheduling
@@ -902,7 +904,7 @@ internal fun ChatInputBar(
                             actions.onRefreshScheduledMessages()
                             showScheduledMessagesSheet = true
                         },
-                        onSendWithOptions = sendWithOptions,
+                        onSendWithOptions = { options -> sendWithOptions(options) },
                         onShowSendOptionsMenu = {
                             openStickerMenuAfterKeyboardClosed = false
                             openKeyboardAfterStickerMenuClosed = false
@@ -990,15 +992,13 @@ internal fun ChatInputBar(
                 knownCustomEmojis = knownCustomEmojis,
                 emojiFontFamily = emojiFontFamily,
                 isKeyboardVisible = isKeyboardVisible,
-                isOverMessageLimit = isOverMessageLimit,
-                currentMessageLength = currentMessageLength,
                 maxMessageLength = maxMessageLength,
                 stickerRepository = stickerRepository,
                 isPremiumUser = state.isPremiumUser,
                 isSecretChat = state.isSecretChat,
                 onDismiss = { showFullScreenEditor = false },
-                onSend = {
-                    sendWithOptions(MessageSendOptions())
+                onSend = { outgoingValue ->
+                    sendWithOptions(MessageSendOptions(), outgoingValue)
                     showFullScreenEditor = false
                 },
                 onEditorFocus = { isStickerMenuVisible = false },

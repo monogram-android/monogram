@@ -82,9 +82,19 @@ private const val ENTITY_ITALIC = "italic"
 private const val ENTITY_UNDERLINE = "underline"
 private const val ENTITY_STRIKE = "strikethrough"
 private const val ENTITY_SPOILER = "spoiler"
+private const val ENTITY_BLOCK_QUOTE = "blockquote"
+private const val ENTITY_BLOCK_QUOTE_EXPANDABLE = "blockquote_expandable"
 private const val ENTITY_CODE = "code"
 private const val ENTITY_PRE = "pre"
 private const val ENTITY_TEXT_URL = "text_url"
+private const val ENTITY_MENTION = "mention"
+private const val ENTITY_HASHTAG = "hashtag"
+private const val ENTITY_CASHTAG = "cashtag"
+private const val ENTITY_BOT_COMMAND = "bot_command"
+private const val ENTITY_URL = "url"
+private const val ENTITY_EMAIL = "email"
+private const val ENTITY_PHONE_NUMBER = "phone_number"
+private const val ENTITY_BANK_CARD_NUMBER = "bank_card_number"
 
 private object RichMenuActionBold
 private object RichMenuActionItalic
@@ -179,30 +189,16 @@ fun InputTextField(
 
             finalBuilder.addEmojiStyle(result.text, emojiFontFamily)
 
-            mentionAnnotations.forEach { annotation ->
-                if (annotation.start < annotation.end && annotation.start >= 0 && annotation.end <= result.length) {
+            val styledEntities = extractEntities(text, knownCustomEmojis)
+            styledEntities.forEach { entity ->
+                val style = entity.type.toEditorStyle(primaryColor) ?: return@forEach
+                val start = entity.offset.coerceIn(0, result.length)
+                val end = (entity.offset + entity.length).coerceIn(0, result.length)
+                if (start < end) {
                     finalBuilder.addStyle(
-                        SpanStyle(color = primaryColor),
-                        annotation.start,
-                        annotation.end
-                    )
-                }
-            }
-
-            text.getStringAnnotations(RICH_ENTITY_TAG, 0, text.length).forEach { annotation ->
-                val style = decodeRichEntity(annotation.item)?.toEditorStyle(primaryColor)
-                if (style != null && annotation.start < annotation.end && annotation.end <= result.length) {
-                    finalBuilder.addStyle(style, annotation.start, annotation.end)
-                }
-            }
-
-            val mentionRegex = Regex("@(\\w+)")
-            mentionRegex.findAll(result.text).forEach { match ->
-                if (mentionAnnotations.none { it.start <= match.range.first && it.end >= match.range.last + 1 }) {
-                    finalBuilder.addStyle(
-                        SpanStyle(color = primaryColor),
-                        match.range.first,
-                        match.range.last + 1
+                        style,
+                        start,
+                        end
                     )
                 }
             }
@@ -801,19 +797,33 @@ fun extractEntities(text: AnnotatedString, knownCustomEmojis: Map<Long, StickerM
         }
     }
 
-    // Regular Mentions
-    val mentionRegex = Regex("@(\\w+)")
-    mentionRegex.findAll(text.text).forEach { match ->
-        if (entities.none { it.offset <= match.range.first && it.offset + it.length >= match.range.last + 1 }) {
-            entities.add(
-                MessageEntity(
-                    offset = match.range.first,
-                    length = match.range.last - match.range.first + 1,
-                    type = MessageEntityType.Mention
-                )
-            )
-        }
+    addDetectedEntities(entities, URL_REGEX.findAll(text.text), MessageEntityType.Url)
+    addDetectedEntities(entities, EMAIL_REGEX.findAll(text.text), MessageEntityType.Email)
+    addDetectedEntities(
+        entities,
+        BANK_CARD_REGEX.findAll(text.text),
+        MessageEntityType.BankCardNumber
+    ) { match ->
+        val candidate = match.value.trim()
+        candidate.filter(Char::isDigit).length in 13..19 && passesLuhn(candidate)
     }
+    addDetectedEntities(
+        entities,
+        PHONE_REGEX.findAll(text.text),
+        MessageEntityType.PhoneNumber
+    ) { match ->
+        val candidate = match.value.trim()
+        val digitCount = candidate.count(Char::isDigit)
+        digitCount in 7..15 && !passesLuhn(candidate)
+    }
+    addDetectedEntities(entities, HASHTAG_REGEX.findAll(text.text), MessageEntityType.Hashtag)
+    addDetectedEntities(entities, CASHTAG_REGEX.findAll(text.text), MessageEntityType.Cashtag)
+    addDetectedEntities(
+        entities,
+        BOT_COMMAND_REGEX.findAll(text.text),
+        MessageEntityType.BotCommand
+    )
+    addDetectedEntities(entities, MENTION_REGEX.findAll(text.text), MessageEntityType.Mention)
 
     return entities
         .sortedWith(compareBy<MessageEntity> { it.offset }.thenByDescending { it.length })
@@ -827,9 +837,19 @@ internal fun richEntityToAnnotation(type: MessageEntityType): String? {
         is MessageEntityType.Underline -> ENTITY_UNDERLINE
         is MessageEntityType.Strikethrough -> ENTITY_STRIKE
         is MessageEntityType.Spoiler -> ENTITY_SPOILER
+        is MessageEntityType.BlockQuote -> ENTITY_BLOCK_QUOTE
+        is MessageEntityType.BlockQuoteExpandable -> ENTITY_BLOCK_QUOTE_EXPANDABLE
         is MessageEntityType.Code -> ENTITY_CODE
         is MessageEntityType.Pre -> if (type.language.isBlank()) ENTITY_PRE else "$ENTITY_PRE:${type.language}"
         is MessageEntityType.TextUrl -> "$ENTITY_TEXT_URL:${type.url}"
+        is MessageEntityType.Mention -> ENTITY_MENTION
+        is MessageEntityType.Hashtag -> ENTITY_HASHTAG
+        is MessageEntityType.Cashtag -> ENTITY_CASHTAG
+        is MessageEntityType.BotCommand -> ENTITY_BOT_COMMAND
+        is MessageEntityType.Url -> ENTITY_URL
+        is MessageEntityType.Email -> ENTITY_EMAIL
+        is MessageEntityType.PhoneNumber -> ENTITY_PHONE_NUMBER
+        is MessageEntityType.BankCardNumber -> ENTITY_BANK_CARD_NUMBER
         else -> null
     }
 }
@@ -841,10 +861,20 @@ internal fun decodeRichEntity(value: String): MessageEntityType? {
         value == ENTITY_UNDERLINE -> MessageEntityType.Underline
         value == ENTITY_STRIKE -> MessageEntityType.Strikethrough
         value == ENTITY_SPOILER -> MessageEntityType.Spoiler
+        value == ENTITY_BLOCK_QUOTE -> MessageEntityType.BlockQuote
+        value == ENTITY_BLOCK_QUOTE_EXPANDABLE -> MessageEntityType.BlockQuoteExpandable
         value == ENTITY_CODE -> MessageEntityType.Code
         value == ENTITY_PRE -> MessageEntityType.Pre()
         value.startsWith("$ENTITY_PRE:") -> MessageEntityType.Pre(value.substringAfter(':'))
         value.startsWith("$ENTITY_TEXT_URL:") -> MessageEntityType.TextUrl(value.substringAfter(':'))
+        value == ENTITY_MENTION -> MessageEntityType.Mention
+        value == ENTITY_HASHTAG -> MessageEntityType.Hashtag
+        value == ENTITY_CASHTAG -> MessageEntityType.Cashtag
+        value == ENTITY_BOT_COMMAND -> MessageEntityType.BotCommand
+        value == ENTITY_URL -> MessageEntityType.Url
+        value == ENTITY_EMAIL -> MessageEntityType.Email
+        value == ENTITY_PHONE_NUMBER -> MessageEntityType.PhoneNumber
+        value == ENTITY_BANK_CARD_NUMBER -> MessageEntityType.BankCardNumber
         else -> null
     }
 }
@@ -852,15 +882,50 @@ internal fun decodeRichEntity(value: String): MessageEntityType? {
 private fun MessageEntityType.toEditorStyle(primaryColor: Color): SpanStyle? {
     val codeBackground = primaryColor.copy(alpha = 0.14f)
     val spoilerBackground = primaryColor.copy(alpha = 0.25f)
+    val quoteBackground = primaryColor.copy(alpha = 0.09f)
     return when (this) {
         is MessageEntityType.Bold -> SpanStyle(fontWeight = FontWeight.Bold)
         is MessageEntityType.Italic -> SpanStyle(fontStyle = FontStyle.Italic)
         is MessageEntityType.Underline -> SpanStyle(textDecoration = TextDecoration.Underline)
         is MessageEntityType.Strikethrough -> SpanStyle(textDecoration = TextDecoration.LineThrough)
         is MessageEntityType.Spoiler -> SpanStyle(background = spoilerBackground)
+        is MessageEntityType.BlockQuote -> SpanStyle(
+            color = primaryColor,
+            background = quoteBackground,
+            fontStyle = FontStyle.Italic
+        )
+
+        is MessageEntityType.BlockQuoteExpandable -> SpanStyle(
+            color = primaryColor,
+            background = quoteBackground,
+            fontStyle = FontStyle.Italic
+        )
         is MessageEntityType.Code -> SpanStyle(fontFamily = FontFamily.Monospace, background = codeBackground)
         is MessageEntityType.Pre -> SpanStyle(fontFamily = FontFamily.Monospace, background = codeBackground)
         is MessageEntityType.TextUrl -> SpanStyle(color = primaryColor, textDecoration = TextDecoration.Underline)
+        is MessageEntityType.Mention -> SpanStyle(color = primaryColor)
+        is MessageEntityType.Hashtag -> SpanStyle(color = primaryColor)
+        is MessageEntityType.Cashtag -> SpanStyle(color = primaryColor)
+        is MessageEntityType.BotCommand -> SpanStyle(color = primaryColor)
+        is MessageEntityType.Url -> SpanStyle(
+            color = primaryColor,
+            textDecoration = TextDecoration.Underline
+        )
+
+        is MessageEntityType.Email -> SpanStyle(
+            color = primaryColor,
+            textDecoration = TextDecoration.Underline
+        )
+
+        is MessageEntityType.PhoneNumber -> SpanStyle(
+            color = primaryColor,
+            textDecoration = TextDecoration.Underline
+        )
+
+        is MessageEntityType.BankCardNumber -> SpanStyle(
+            color = primaryColor,
+            textDecoration = TextDecoration.Underline
+        )
         else -> null
     }
 }
@@ -1096,3 +1161,50 @@ private fun normalizeUrl(raw: String): String? {
     if (trimmed.isEmpty()) return null
     return if (trimmed.contains("://")) trimmed else "https://$trimmed"
 }
+
+private fun addDetectedEntities(
+    entities: MutableList<MessageEntity>,
+    matches: Sequence<MatchResult>,
+    type: MessageEntityType,
+    predicate: (MatchResult) -> Boolean = { true }
+) {
+    matches.forEach { match ->
+        if (!predicate(match)) return@forEach
+        val start = match.range.first
+        val end = match.range.last + 1
+        if (entities.none { it.offset < end && (it.offset + it.length) > start }) {
+            entities += MessageEntity(
+                offset = start,
+                length = end - start,
+                type = type
+            )
+        }
+    }
+}
+
+private fun passesLuhn(value: String): Boolean {
+    val digits = value.filter(Char::isDigit)
+    if (digits.length !in 13..19) return false
+
+    var sum = 0
+    var shouldDouble = false
+    for (index in digits.length - 1 downTo 0) {
+        var digit = digits[index].digitToInt()
+        if (shouldDouble) {
+            digit *= 2
+            if (digit > 9) digit -= 9
+        }
+        sum += digit
+        shouldDouble = !shouldDouble
+    }
+    return sum % 10 == 0
+}
+
+private val MENTION_REGEX = Regex("""(?<![\p{L}\p{N}_])@[\p{L}\p{N}_]{2,}""")
+private val HASHTAG_REGEX = Regex("""(?<![\p{L}\p{N}_])#[\p{L}\p{N}_]+""")
+private val CASHTAG_REGEX = Regex("""(?<![\p{L}\p{N}_])\$[A-Z]{1,8}(?:@[A-Za-z0-9_]{5,32})?""")
+private val BOT_COMMAND_REGEX = Regex("""(?<!\S)/[A-Za-z0-9_]+(?:@[A-Za-z0-9_]+)?""")
+private val URL_REGEX = Regex("""(?i)\b(?:https?://|www\.)[^\s<>()]+""")
+private val EMAIL_REGEX = Regex("""(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b""")
+private val PHONE_REGEX = Regex("""(?<!\w)\+?[\d][\d\s().-]{6,}[\d](?!\w)""")
+private val BANK_CARD_REGEX = Regex("""(?<!\d)(?:\d[ -]?){13,19}(?!\d)""")

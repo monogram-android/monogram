@@ -2,6 +2,8 @@ package org.monogram.data.mapper.message
 
 import org.drinkless.tdlib.TdApi
 import org.monogram.data.chats.ChatCache
+import org.monogram.data.compat.legacyTonAmount
+import org.monogram.data.compat.toLegacyToncoinCentCount
 import org.monogram.data.mapper.SenderNameResolver
 import org.monogram.domain.models.MessageContent
 import org.monogram.domain.models.ServiceEmphasis
@@ -855,7 +857,7 @@ internal class ServiceMessageFormatter(
     private fun formatGiftedTon(content: TdApi.MessageGiftedTon): String {
         val gifter = content.gifterUserId.takeIf { it != 0L }?.let(::resolveUserName)
         val receiver = content.receiverUserId.takeIf { it != 0L }?.let(::resolveUserName)
-        val amount = formatTonAmount(content.tonAmount)
+        val amount = formatTonAmount(content.legacyTonAmount())
         return when {
             gifter != null && receiver != null -> stringProvider.getString(
                 "service_message_ton_gifted_from_to",
@@ -932,8 +934,11 @@ internal class ServiceMessageFormatter(
         val stars = content.starAmount.starCount
         return if (stars > 0) {
             stringProvider.getString("service_message_suggested_post_paid_stars", stars)
-        } else if (content.tonAmount > 0) {
-            stringProvider.getString("service_message_suggested_post_paid_ton", formatTonAmount(content.tonAmount))
+        } else if (content.legacyTonAmount() > 0) {
+            stringProvider.getString(
+                "service_message_suggested_post_paid_ton",
+                formatTonAmount(content.legacyTonAmount())
+            )
         } else {
             stringProvider.getString("service_message_suggested_post_paid")
         }
@@ -1013,16 +1018,18 @@ internal class ServiceMessageFormatter(
     private fun formatSuggestedPrice(price: TdApi.SuggestedPostPrice): String {
         return when (price) {
             is TdApi.SuggestedPostPriceStar -> stringProvider.getString("service_message_stars_format", price.starCount)
-            is TdApi.SuggestedPostPriceTon -> stringProvider.getString("service_message_ton_format", price.toncoinCentCount / 100.0)
-            else -> stringProvider.getString("service_message_unknown_price")
+            else -> price.toLegacyToncoinCentCount()
+                ?.let { stringProvider.getString("service_message_ton_format", it / 100.0) }
+                ?: stringProvider.getString("service_message_unknown_price")
         }
     }
 
     private fun formatGiftResalePrice(price: TdApi.GiftResalePrice): String {
         return when (price) {
             is TdApi.GiftResalePriceStar -> stringProvider.getString("service_message_stars_format", price.starCount)
-            is TdApi.GiftResalePriceTon -> stringProvider.getString("service_message_ton_format", price.toncoinCentCount / 100.0)
-            else -> stringProvider.getString("service_message_unknown_price")
+            else -> price.toLegacyToncoinCentCount()
+                ?.let { stringProvider.getString("service_message_ton_format", it / 100.0) }
+                ?: stringProvider.getString("service_message_unknown_price")
         }
     }
 

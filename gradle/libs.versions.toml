@@ -4,9 +4,9 @@ agp = "9.3.0-rc01"
 exifinterface = "1.4.2"
 kotlin = "2.3.21"
 google-services = "4.5.0"
-ossLicensesPlugin = "0.12.0"
+ossLicensesPlugin = "0.13.0"
 ksp = "2.3.6"
-baselineprofile = "1.5.0-alpha06"
+baselineprofile = "1.5.0-alpha07"
 
 javaToolchain = "21"
 
@@ -14,15 +14,15 @@ javaToolchain = "21"
 androidx-activityCompose = "1.13.0"
 androidx-biometric = "1.4.0-alpha07"
 androidx-camera = "1.6.1"
-androidx-compose-bom = "2026.06.00"
-androidx-compose-runtime = "1.11.3"
-androidx-compose-ui = "1.11.3"
-androidx-material3 = "1.5.0-alpha22"
+androidx-compose-bom = "2026.06.01"
+androidx-compose-runtime = "1.11.4"
+androidx-compose-ui = "1.11.4"
+androidx-material3 = "1.5.0-alpha24"
 androidx-adaptive = "1.2.0"
 androidx-media3 = "1.10.1"
 androidx-securityCrypto = "1.1.0"
 androidx-room = "2.8.4"
-androidx-uiautomator = "2.3.0"
+androidx-uiautomator = "2.4.0"
 androidx-benchmark-macro-junit4 = "1.4.1"
 androidx-test-ext-junit = "1.3.0"
 androidx-window = "1.5.1"
@@ -32,6 +32,7 @@ androidx-lifecycle = "2.11.0"
 # KotlinX
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.11.0"
+ktor = "3.5.1"
 
 # Architecture & DI
 decompose = "3.5.0"
@@ -43,13 +44,13 @@ coil = "3.5.0"
 maplibre = "1.7.0"
 
 # Google & Firebase
-firebase-bom = "34.15.0"
+firebase-bom = "34.16.0"
 playServices-ossLicenses = "17.5.1"
 
 # Others
 zxing = "3.5.4"
 junit = "4.13.2"
-libphonenumber = "9.0.33"
+libphonenumber = "9.0.35"
 unifiedpush-connector = "3.3.3"
 json = "20260522"
 
@@ -112,6 +113,11 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+
+# Ktor
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 
 # Decompose
 decompose = { module = "com.arkivanov.decompose:decompose", version.ref = "decompose" }

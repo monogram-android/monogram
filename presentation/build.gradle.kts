@@ -5,6 +5,37 @@ plugins {
     id("kotlin-parcelize")
 }
 
+fun String.asBuildConfigString(): String = "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+fun Project.resolveBuildInfoProperty(propertyName: String, envName: String): String? {
+    return providers.gradleProperty(propertyName).orNull?.takeIf { it.isNotBlank() }
+        ?: providers.environmentVariable(envName).orNull?.takeIf { it.isNotBlank() }
+}
+
+fun Project.runCommandAndCaptureOutput(vararg command: String): String? {
+    return runCatching {
+        providers.exec {
+            commandLine(*command)
+            isIgnoreExitValue = true
+        }.standardOutput.asText.get().trim().takeIf { it.isNotBlank() }
+    }.getOrNull()
+}
+
+val buildCommitHash =
+    resolveBuildInfoProperty("buildCommitHash", "BUILD_COMMIT_HASH")
+        ?: runCommandAndCaptureOutput("git", "rev-parse", "--short=7", "HEAD")
+        ?: "unknown"
+
+val buildBranch =
+    resolveBuildInfoProperty("buildBranch", "BUILD_BRANCH")
+        ?: runCommandAndCaptureOutput("git", "branch", "--show-current")?.takeIf { it.isNotBlank() }
+        ?: "detached"
+
+val buildTimeMillis =
+    resolveBuildInfoProperty("buildTimeMillis", "BUILD_TIME_MILLIS")
+        ?.toLongOrNull()
+        ?: System.currentTimeMillis()
+
 android {
     namespace = "org.monogram.presentation"
     compileSdk = 37
@@ -12,6 +43,9 @@ android {
     defaultConfig {
         minSdk = 25
         consumerProguardFiles("consumer-rules.pro")
+        buildConfigField("String", "BUILD_BRANCH", buildBranch.asBuildConfigString())
+        buildConfigField("String", "BUILD_COMMIT_HASH", buildCommitHash.asBuildConfigString())
+        buildConfigField("long", "BUILD_TIME_MILLIS", "${buildTimeMillis}L")
         externalNativeBuild {
             cmake {
                 cppFlags("-std=c++17")

@@ -32,6 +32,7 @@ import org.monogram.domain.repository.ExternalNavigator
 import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.ForumTopicsRepository
 import org.monogram.domain.repository.GifRepository
+import org.monogram.domain.repository.GitHubCommitRepository
 import org.monogram.domain.repository.InlineBotRepository
 import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.LocationRepository
@@ -123,6 +124,7 @@ interface RepositoriesContainer {
     val gifRepository: GifRepository
     val emojiRepository: EmojiRepository
     val telegramLinkRepository: TelegramLinkRepository
+    val gitHubCommitRepository: GitHubCommitRepository
     val updateRepository: UpdateRepository
     val pushDebugRepository: PushDebugRepository
 }

@@ -115,6 +115,7 @@ class DefaultRootComponent(
     private val phoneManager: PhoneManager = container.utils.phoneManager()
     private val stringProvider: StringProvider = container.utils.stringProvider()
     private val updateRepository: UpdateRepository = container.repositories.updateRepository
+    private val gitHubCommitRepository = container.repositories.gitHubCommitRepository
     private val userRepository: UserRepository = container.repositories.userRepository
     private val cacheProvider: CacheProvider = container.cacheProvider
 
@@ -989,6 +990,7 @@ class DefaultRootComponent(
                 DefaultAboutComponent(
                     context = context,
                     updateRepository = updateRepository,
+                    gitHubCommitRepository = gitHubCommitRepository,
                     onBack = { navigation.pop() },
                     onTermsOfService = { externalNavigator.openUrl("https://telegram.org/tos") },
                     onOpenSourceLicenses = { externalNavigator.openOssLicenses() }

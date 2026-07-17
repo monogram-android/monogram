@@ -33,6 +33,7 @@ import org.monogram.domain.repository.ExternalNavigator
 import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.ForumTopicsRepository
 import org.monogram.domain.repository.GifRepository
+import org.monogram.domain.repository.GitHubCommitRepository
 import org.monogram.domain.repository.InlineBotRepository
 import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.LocationRepository
@@ -124,6 +125,7 @@ class KoinRepositoriesContainer(private val koin: Koin) : RepositoriesContainer 
     override val gifRepository: GifRepository by lazy { koin.get() }
     override val emojiRepository: EmojiRepository by lazy { koin.get() }
     override val telegramLinkRepository: TelegramLinkRepository by lazy { koin.get() }
+    override val gitHubCommitRepository: GitHubCommitRepository by lazy { koin.get() }
     override val updateRepository: UpdateRepository by lazy { koin.get() }
     override val pushDebugRepository: PushDebugRepository by lazy { koin.get() }
 }

@@ -30,6 +30,7 @@ import org.monogram.data.datasource.remote.ChatsRemoteDataSource
 import org.monogram.data.datasource.remote.EmojiRemoteSource
 import org.monogram.data.datasource.remote.FxEmbedRemoteDataSource
 import org.monogram.data.datasource.remote.GifRemoteSource
+import org.monogram.data.datasource.remote.GitHubRemoteDataSource
 import org.monogram.data.datasource.remote.LinkRemoteDataSource
 import org.monogram.data.datasource.remote.MessageFileApi
 import org.monogram.data.datasource.remote.MessageFileCoordinator
@@ -99,6 +100,7 @@ import org.monogram.data.repository.ContactEditRepositoryImpl
 import org.monogram.data.repository.DraftLinkPreviewResolver
 import org.monogram.data.repository.EmojiRepositoryImpl
 import org.monogram.data.repository.GifRepositoryImpl
+import org.monogram.data.repository.GitHubCommitRepositoryImpl
 import org.monogram.data.repository.LinkHandlerRepositoryImpl
 import org.monogram.data.repository.LinkParser
 import org.monogram.data.repository.LocationRepositoryImpl
@@ -143,6 +145,7 @@ import org.monogram.domain.repository.EmojiRepository
 import org.monogram.domain.repository.FileRepository
 import org.monogram.domain.repository.ForumTopicsRepository
 import org.monogram.domain.repository.GifRepository
+import org.monogram.domain.repository.GitHubCommitRepository
 import org.monogram.domain.repository.InlineBotRepository
 import org.monogram.domain.repository.LinkHandlerRepository
 import org.monogram.domain.repository.LocationRepository
@@ -238,6 +241,10 @@ val dataModule = module {
 
     single {
         FxEmbedRemoteDataSource()
+    }
+
+    single {
+        GitHubRemoteDataSource()
     }
 
     factory<PlayerDataSourceFactory> {
@@ -842,6 +849,12 @@ val dataModule = module {
             keyValueDao = get(),
             scope = get(),
             dispatchers = get()
+        )
+    }
+
+    single<GitHubCommitRepository> {
+        GitHubCommitRepositoryImpl(
+            remoteDataSource = get()
         )
     }
 

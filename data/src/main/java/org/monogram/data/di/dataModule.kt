@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
@@ -55,6 +56,7 @@ import org.monogram.data.datasource.remote.TdUpdateRemoteDataSource
 import org.monogram.data.datasource.remote.TdUserRemoteDataSource
 import org.monogram.data.datasource.remote.UpdateRemoteDateSource
 import org.monogram.data.datasource.remote.UserRemoteDataSource
+import org.monogram.data.datasource.remote.createMonogramHttpClient
 import org.monogram.data.db.MonogramDatabase
 import org.monogram.data.db.MonogramMigrations
 import org.monogram.data.gateway.TelegramGateway
@@ -235,16 +237,20 @@ val dataModule = module {
         )
     }
 
-    single {
-        NominatimRemoteDataSource()
+    single<HttpClient> {
+        createMonogramHttpClient()
     }
 
     single {
-        FxEmbedRemoteDataSource()
+        NominatimRemoteDataSource(get())
     }
 
     single {
-        GitHubRemoteDataSource()
+        FxEmbedRemoteDataSource(get())
+    }
+
+    single {
+        GitHubRemoteDataSource(get())
     }
 
     factory<PlayerDataSourceFactory> {
@@ -438,7 +444,8 @@ val dataModule = module {
 
     factory<ProxyRemoteDataSource> {
         TdProxyRemoteDataSource(
-            gateway = get()
+            gateway = get(),
+            dispatchers = get()
         )
     }
 

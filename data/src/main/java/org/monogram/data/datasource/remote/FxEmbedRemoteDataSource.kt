@@ -1,15 +1,19 @@
 package org.monogram.data.datasource.remote
 
 import android.util.Log
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import io.ktor.client.HttpClient
+import io.ktor.client.request.accept
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.net.HttpURLConnection
-import java.net.URI
 
-class FxEmbedRemoteDataSource : FixedPreviewRemoteDataSource {
+class FxEmbedRemoteDataSource(
+    private val httpClient: HttpClient
+) : FixedPreviewRemoteDataSource {
     private val json = Json {
         ignoreUnknownKeys = true
         coerceInputValues = true
@@ -24,38 +28,28 @@ class FxEmbedRemoteDataSource : FixedPreviewRemoteDataSource {
         return requestJson("$BLUESKY_BASE/2/status/$handle/$rkey")
     }
 
-    private suspend inline fun <reified T> requestJson(urlString: String): T? =
-        withContext(Dispatchers.IO) {
-            var connection: HttpURLConnection? = null
-            try {
-                Log.d(TAG, "FxEmbed request url=$urlString")
-                val url = URI(urlString).toURL()
-                connection = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = TIMEOUT_MS
-                    readTimeout = TIMEOUT_MS
-                    setRequestProperty("User-Agent", USER_AGENT)
-                    setRequestProperty("Accept", "application/json")
-                }
-
-                val responseCode = connection.responseCode
-                Log.d(TAG, "FxEmbed response code=$responseCode url=$urlString")
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    Log.w(TAG, "FxEmbed response code=$responseCode url=$urlString")
-                    return@withContext null
-                }
-
-                val response = connection.inputStream.bufferedReader().use { it.readText() }
-                val decoded = json.decodeFromString<T>(response)
-                Log.d(TAG, "FxEmbed decode success url=$urlString type=${T::class.simpleName}")
-                decoded
-            } catch (e: Exception) {
-                Log.w(TAG, "FxEmbed request failed for $urlString", e)
-                null
-            } finally {
-                connection?.disconnect()
+    private suspend inline fun <reified T> requestJson(urlString: String): T? {
+        return try {
+            Log.d(TAG, "FxEmbed request url=$urlString")
+            val response = httpClient.get(urlString) {
+                accept(ContentType.Application.Json)
             }
+
+            val responseCode = response.status.value
+            Log.d(TAG, "FxEmbed response code=$responseCode url=$urlString")
+            if (response.status != HttpStatusCode.OK) {
+                Log.w(TAG, "FxEmbed response code=$responseCode url=$urlString")
+                return null
+            }
+
+            val decoded = json.decodeFromString<T>(response.bodyAsText())
+            Log.d(TAG, "FxEmbed decode success url=$urlString type=${T::class.simpleName}")
+            decoded
+        } catch (e: Exception) {
+            Log.w(TAG, "FxEmbed request failed for $urlString", e)
+            null
         }
+    }
 
     @Serializable
     data class FxEmbedStatusResponse(
@@ -89,7 +83,5 @@ class FxEmbedRemoteDataSource : FixedPreviewRemoteDataSource {
         private const val TAG = "FxEmbedRemote"
         private const val TWITTER_BASE = "https://api.fxtwitter.com"
         private const val BLUESKY_BASE = "https://api.fxbsky.app"
-        private const val USER_AGENT = "MonoGram-Android-App/1.0"
-        private const val TIMEOUT_MS = 15_000
     }
 }

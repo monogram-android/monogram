@@ -1,8 +1,8 @@
 package org.monogram.data.datasource.remote
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.drinkless.tdlib.TdApi
+import org.monogram.core.DispatcherProvider
 import org.monogram.data.compat.buildAddProxy
 import org.monogram.data.compat.buildEditProxy
 import org.monogram.data.core.coRunCatching
@@ -14,9 +14,11 @@ import org.monogram.domain.models.ProxyTypeModel
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.URI
+import kotlin.time.TimeSource
 
 class TdProxyRemoteDataSource(
-    private val gateway: TelegramGateway
+    private val gateway: TelegramGateway,
+    private val dispatchers: DispatcherProvider
 ) : ProxyRemoteDataSource {
     private companion object {
         val PRODUCTION_DC_IDS = intArrayOf(2, 1, 3, 4, 5)
@@ -37,7 +39,7 @@ class TdProxyRemoteDataSource(
     override suspend fun addProxy(
         server: String, port: Int, enable: Boolean, comment: String?, type: ProxyTypeModel
     ): ProxyModel = gateway.execute(
-        buildAddProxy(TdApi.Proxy(server, port, type.toApi()), enable, comment)
+        buildAddProxy(buildProxy(server, port, type), enable, comment)
     ).toDomain()
 
     override suspend fun editProxy(
@@ -48,7 +50,7 @@ class TdProxyRemoteDataSource(
         comment: String?,
         type: ProxyTypeModel
     ): ProxyModel = gateway.execute(
-        buildEditProxy(proxyId, TdApi.Proxy(server, port, type.toApi()), enable, comment)
+        buildEditProxy(proxyId, buildProxy(server, port, type), enable, comment)
     ).toDomain()
 
     override suspend fun enableProxy(proxyId: Int) : Boolean {
@@ -65,7 +67,7 @@ class TdProxyRemoteDataSource(
     }
 
     override suspend fun pingProxy(server: String, port: Int, type: ProxyTypeModel): Long {
-        val result = gateway.execute(TdApi.PingProxy(TdApi.Proxy(server, port, type.toApi())))
+        val result = gateway.execute(TdApi.PingProxy(buildProxy(server, port, type)))
         return (result.seconds * 1000).toLong()
     }
 
@@ -78,7 +80,7 @@ class TdProxyRemoteDataSource(
             lastError = result.exceptionOrNull()
         }
 
-        val proxy = TdApi.Proxy(server, port, type.toApi())
+        val proxy = buildProxy(server, port, type)
         val pingResult = coRunCatching { gateway.execute(TdApi.PingProxy(proxy)) }
         if (pingResult.isSuccess) return (pingResult.getOrThrow().seconds * 1000).toLong()
         throw (lastError ?: pingResult.exceptionOrNull()
@@ -91,26 +93,26 @@ class TdProxyRemoteDataSource(
         type: ProxyTypeModel,
         dcId: Int
     ): Long {
-        val start = System.currentTimeMillis()
+        val mark = TimeSource.Monotonic.markNow()
         gateway.execute(
             TdApi.TestProxy(
-                TdApi.Proxy(server, port, type.toApi()),
+                buildProxy(server, port, type),
                 dcId,
                 TEST_TIMEOUT_SECONDS
             )
         )
-        return System.currentTimeMillis() - start
+        return mark.elapsedNow().inWholeMilliseconds
     }
 
-    override suspend fun testDirectDc(dcId: Int): Long = withContext(Dispatchers.IO) {
+    override suspend fun testDirectDc(dcId: Int): Long = withContext(dispatchers.io) {
         val endpoint = WEB_DC_URLS[dcId] ?: error("Unsupported DC id: $dcId")
         val host = URI(endpoint).host ?: error("Invalid DC endpoint for id: $dcId")
 
-        val start = System.currentTimeMillis()
+        val mark = TimeSource.Monotonic.markNow()
         Socket().use { socket ->
             socket.connect(InetSocketAddress(host, 443), DIRECT_CONNECT_TIMEOUT_MS)
         }
-        System.currentTimeMillis() - start
+        mark.elapsedNow().inWholeMilliseconds
     }
 
     override suspend fun setOption(key: String, value: TdApi.OptionValue) {
@@ -121,5 +123,9 @@ class TdProxyRemoteDataSource(
         return coRunCatching {
             gateway.execute(TdApi.GetOption(key))
         }.getOrNull()
+    }
+
+    private fun buildProxy(server: String, port: Int, type: ProxyTypeModel): TdApi.Proxy {
+        return TdApi.Proxy(server, port, type.toApi())
     }
 }

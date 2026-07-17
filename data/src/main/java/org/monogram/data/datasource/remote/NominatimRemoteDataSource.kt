@@ -1,14 +1,19 @@
 package org.monogram.data.datasource.remote
 
 import android.util.Log
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import io.ktor.client.HttpClient
+import io.ktor.client.request.accept
+import io.ktor.client.request.get
+import io.ktor.client.request.parameter
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.json.Json
 import org.monogram.domain.models.webapp.OSMReverseResponse
-import java.net.HttpURLConnection
-import java.net.URI
 
-class NominatimRemoteDataSource {
+class NominatimRemoteDataSource(
+    private val httpClient: HttpClient
+) {
     private val json = Json {
         ignoreUnknownKeys = true
         coerceInputValues = true
@@ -16,8 +21,7 @@ class NominatimRemoteDataSource {
     }
 
     suspend fun reverseGeocode(lat: Double, lon: Double): OSMReverseResponse? {
-        val url = "$BASE_URL/reverse?format=jsonv2&lat=$lat&lon=$lon&addressdetails=1"
-        val responseText = makeHttpRequest(url) ?: return null
+        val responseText = makeHttpRequest(lat = lat, lon = lon) ?: return null
 
         return try {
             json.decodeFromString<OSMReverseResponse>(responseText)
@@ -27,37 +31,30 @@ class NominatimRemoteDataSource {
         }
     }
 
-    private suspend fun makeHttpRequest(urlString: String): String? = withContext(Dispatchers.IO) {
-        var connection: HttpURLConnection? = null
-        try {
-            val url = URI(urlString).toURL()
-            connection = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = TIMEOUT_MS
-                readTimeout = TIMEOUT_MS
-                setRequestProperty("User-Agent", USER_AGENT)
-                setRequestProperty("Accept", "application/json")
+    private suspend fun makeHttpRequest(lat: Double, lon: Double): String? {
+        return try {
+            val response = httpClient.get("$BASE_URL/reverse") {
+                parameter("format", "jsonv2")
+                parameter("lat", lat)
+                parameter("lon", lon)
+                parameter("addressdetails", 1)
+                accept(ContentType.Application.Json)
             }
 
-            val responseCode = connection.responseCode
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                connection.inputStream.bufferedReader().use { it.readText() }
+            if (response.status == HttpStatusCode.OK) {
+                response.bodyAsText()
             } else {
-                Log.e(TAG, "Nominatim response code=$responseCode url=$urlString")
+                Log.e(TAG, "Nominatim response code=${response.status.value} lat=$lat lon=$lon")
                 null
             }
         } catch (e: Exception) {
             Log.e(TAG, "Nominatim network request failed", e)
             null
-        } finally {
-            connection?.disconnect()
         }
     }
 
     private companion object {
         private const val TAG = "NominatimRemote"
         private const val BASE_URL = "https://nominatim.openstreetmap.org"
-        private const val USER_AGENT = "MonoGram-Android-App/1.0"
-        private const val TIMEOUT_MS = 15_000
     }
 }

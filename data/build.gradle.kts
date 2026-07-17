@@ -93,6 +93,8 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.android)
     implementation(libs.androidx.media3.datasource)
     implementation(libs.unifiedpush.connector)
     add("firebaseImplementation", platform(libs.firebase.bom))
@@ -104,5 +106,6 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
+    testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlinx.coroutines.test)
 }
